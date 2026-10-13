@@ -39,6 +39,9 @@ namespace Aetherfall.DevTools
         private IInputService _input;
         private IInventoryService _inventory;
         private bool _subscribed;
+        private string _shownPrompt;
+        private bool _shownForGamepad;
+        private string _promptText = string.Empty;
         private GUIStyle _promptStyle;
         private GUIStyle _messageStyle;
 
@@ -152,8 +155,7 @@ namespace Aetherfall.DevTools
                 string prompt = interactor != null ? interactor.CurrentPrompt : string.Empty;
                 if (prompt.Length > 0)
                 {
-                    string key = _input != null && _input.ActiveDeviceKind == DeviceKind.Gamepad ? "[A]" : "[E]";
-                    GUI.Label(new Rect(width * 0.5f - 260f, height * 0.62f, 520f, 34f), key + "  " + prompt, _promptStyle);
+                    GUI.Label(new Rect(width * 0.5f - 260f, height * 0.62f, 520f, 34f), PromptText(prompt), _promptStyle);
                 }
 
                 float y = height * 0.62f + 40f;
@@ -174,6 +176,20 @@ namespace Aetherfall.DevTools
             {
                 GUI.matrix = previous;
             }
+        }
+
+        private string PromptText(string prompt)
+        {
+            // OnGUI runs several times per frame: the text is only rebuilt when the target's prompt or the device changes.
+            bool gamepad = _input != null && _input.ActiveDeviceKind == DeviceKind.Gamepad;
+            if (!ReferenceEquals(prompt, _shownPrompt) || gamepad != _shownForGamepad)
+            {
+                _shownPrompt = prompt;
+                _shownForGamepad = gamepad;
+                _promptText = (gamepad ? "[A]" : "[E]") + "  " + prompt;
+            }
+
+            return _promptText;
         }
 
         private void EnsureStyles()

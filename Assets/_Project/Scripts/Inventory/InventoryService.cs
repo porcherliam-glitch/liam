@@ -87,6 +87,12 @@ namespace Aetherfall.Inventory
         }
 
         /// <inheritdoc />
+        public int CountInBag(string ownerId, string itemId)
+        {
+            return GetContainer(ownerId).CountOf(itemId);
+        }
+
+        /// <inheritdoc />
         public bool TryAdd(string ownerId, ItemInstance instance, string sourceId)
         {
             if (instance == null)
@@ -376,27 +382,40 @@ namespace Aetherfall.Inventory
                     continue;
                 }
 
-                ItemInstance instance = _generator.CreateFixed(spec, entry.ItemLevel, entry.Rarity, entry.Count, _ids, ItemFlags.None);
+                int count = Math.Max(1, entry.Count);
                 if (entry.Slot != EquipmentSlot.None && !EquipmentSlotIds.IsQuickSlot(entry.Slot) && Equipment.Fits(spec.EquipKind, entry.Slot))
                 {
-                    _equipment.Set(entry.Slot, instance);
+                    // One piece goes into the slot, further pieces into the bag (a slot never holds a stack).
+                    _equipment.Set(entry.Slot, _generator.CreateFixed(spec, entry.ItemLevel, entry.Rarity, 1, _ids, ItemFlags.None));
+                    if (count > 1)
+                    {
+                        AddLoaded(_generator.CreateFixed(spec, entry.ItemLevel, entry.Rarity, count - 1, _ids, ItemFlags.None));
+                    }
+
                     continue;
                 }
 
-                PlayerContainer.TryAdd(instance);
+                if (!PlayerContainer.TryAdd(_generator.CreateFixed(spec, entry.ItemLevel, entry.Rarity, count, _ids, ItemFlags.None)))
+                {
+                    Log.Warning(LogCategory.Data, "Starting equipment: '" + entry.ItemId + "' does not fit into the bag (1000 entries) and is skipped.");
+                }
+
                 if (EquipmentSlotIds.IsQuickSlot(entry.Slot) && spec.EquipKind == EquipKind.QuickUse)
                 {
                     _equipment.SetQuickSlot(entry.Slot, spec.Id);
                 }
             }
 
+            FreeLockedOffHand();
             PlayerWallet.Set(CurrencyIds.Gold, _kit.Gold);
             Rebind();
         }
 
         /// <summary>
         /// Replaces the player's state with loaded data (no global events): bag, equipped items, quick slot ids and currencies.
-        /// Stat modifiers are rebuilt from the loaded equipment.
+        /// Stat modifiers are rebuilt from the loaded equipment. Repairs instead of losing pieces: counts above the stack size
+        /// are split into further entries, an equipped stack keeps one piece in the slot and puts the rest into the bag, and an
+        /// off-hand item next to a two-handed weapon goes into the bag; entries beyond the limit of 1000 are logged.
         /// </summary>
         /// <param name="bag">Bag entries.</param>
         /// <param name="equipped">Equipped instances by slot.</param>
@@ -410,7 +429,7 @@ namespace Aetherfall.Inventory
             {
                 foreach (ItemInstance item in bag)
                 {
-                    PlayerContainer.AddRaw(item);
+                    AddLoaded(item);
                 }
             }
 
@@ -418,9 +437,24 @@ namespace Aetherfall.Inventory
             {
                 foreach (KeyValuePair<EquipmentSlot, ItemInstance> pair in equipped)
                 {
-                    _equipment.Set(pair.Key, pair.Value);
+                    ItemInstance item = pair.Value;
+                    if (item == null)
+                    {
+                        continue;
+                    }
+
+                    if (item.Count > 1)
+                    {
+                        Log.Warning(LogCategory.Save, "Inventory: slot " + pair.Key + " held " + item.Count + " x '" + item.ItemId + "'; one stays equipped, the rest goes into the bag.");
+                        AddLoaded(item.CloneAs(ItemInstanceIds.Create(_ids), item.Count - 1));
+                        item.SetCount(1);
+                    }
+
+                    _equipment.Set(pair.Key, item);
                 }
             }
+
+            FreeLockedOffHand();
 
             if (quickSlots != null)
             {
@@ -439,6 +473,27 @@ namespace Aetherfall.Inventory
             }
 
             Rebind();
+        }
+
+        private void AddLoaded(ItemInstance item)
+        {
+            if (item != null && !PlayerContainer.AddRaw(item))
+            {
+                Log.Warning(LogCategory.Save, "Inventory: '" + item.ItemId + "' x" + item.Count + " could not be loaded into the bag (1000 entries or duplicate id) and is dropped.");
+            }
+        }
+
+        private void FreeLockedOffHand()
+        {
+            // Content may change between saves (a weapon became two-handed): the locked off hand must not stay occupied.
+            if (_equipment.Get(EquipmentSlot.OffHand) == null || !_equipment.IsOffHandLocked())
+            {
+                return;
+            }
+
+            ItemInstance offHand = _equipment.Set(EquipmentSlot.OffHand, null);
+            Log.Warning(LogCategory.Save, "Inventory: '" + offHand.ItemId + "' cannot stay in the off hand next to a two-handed weapon and goes into the bag.");
+            AddLoaded(offHand);
         }
 
         private void ClearPlayer()

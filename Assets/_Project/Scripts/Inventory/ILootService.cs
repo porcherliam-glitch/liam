@@ -29,13 +29,14 @@ namespace Aetherfall.Inventory
 
         /// <summary>
         /// Opens a chest the first time: rolls its table (seeded by save seed and chest id), puts the content into the bag
-        /// ("Alles nehmen" until the loot window exists), marks it opened, sends <c>LootDropped</c>.
+        /// ("Alles nehmen" until the loot window exists), marks it opened, sends <c>LootDropped</c>. If the content does not fit
+        /// into the bag (1000 entries) the chest stays closed and the bad luck counters are unchanged.
         /// </summary>
         /// <param name="chestId">Stable chest id (<c>obj.*</c>).</param>
         /// <param name="lootTableId">Loot table.</param>
         /// <param name="tier">Chest tier (loot quality, item level delta).</param>
         /// <param name="areaLevel">Level of the area (item level of the content).</param>
-        /// <param name="result">Rolled content (null if already opened).</param>
+        /// <param name="result">Rolled content (null if not opened).</param>
         bool TryOpenChest(string chestId, string lootTableId, ChestTier tier, int areaLevel, out LootResult result);
 
         /// <summary>Puts a picked up drop into the player's bag or wallet (sends the inventory events).</summary>
@@ -43,13 +44,16 @@ namespace Aetherfall.Inventory
         /// <param name="sourceId">Source for <c>ItemPickedUp</c>.</param>
         bool TryCollect(in LootDrop drop, string sourceId);
 
-        /// <summary>True if the drop is collected automatically now (<see cref="AutoPickupRules"/> with the player's load).</summary>
+        /// <summary>
+        /// True if the drop is collected automatically now (<see cref="AutoPickupRules"/> with the player's load) and fits into
+        /// the bag.
+        /// </summary>
         /// <param name="drop">Drop.</param>
         /// <param name="distance">Distance to the player in metres.</param>
         /// <param name="inCombat">True while the player is in combat.</param>
         bool ShouldAutoCollect(in LootDrop drop, float distance, bool inCombat);
 
-        /// <summary>Takes pieces out of the bag and drops them as a pickup at a position.</summary>
+        /// <summary>Takes pieces out of the bag and drops them as a pickup at a position. Fails without a registered spawner.</summary>
         /// <param name="instanceId">Instance id in the bag.</param>
         /// <param name="count">Pieces.</param>
         /// <param name="position">World position.</param>

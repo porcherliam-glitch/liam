@@ -65,30 +65,66 @@ namespace Aetherfall.EditorTools.World
         /// <param name="report">Protocol.</param>
         public static void IsolateLayer(int layer, TestGroundReport report)
         {
+            if (WriteMatrix(layer, 0L, report))
+            {
+                report.Info("Physik-Matrix: Layer " + layer + " („" + LayerMask.LayerToName(layer) + "“) kollidiert mit nichts (Architektur 2.8).");
+            }
+        }
+
+        /// <summary>
+        /// Lets a layer collide only with the given layers (architecture 2.8, e.g. "Pickup – Environment, Terrain, Player") in
+        /// the layer collision matrix of the physics settings. Negative entries (layer missing) are skipped. Idempotent.
+        /// </summary>
+        /// <param name="layer">Layer index (0–31).</param>
+        /// <param name="collidesWith">Layers it may collide with.</param>
+        /// <param name="report">Protocol.</param>
+        public static void RestrictLayer(int layer, int[] collidesWith, TestGroundReport report)
+        {
+            long allowed = 0L;
+            string names = string.Empty;
+            for (int i = 0; collidesWith != null && i < collidesWith.Length; i++)
+            {
+                int other = collidesWith[i];
+                if (other >= 0 && other < LayerCount)
+                {
+                    allowed |= 1L << other;
+                    names += (names.Length > 0 ? ", " : string.Empty) + LayerMask.LayerToName(other);
+                }
+            }
+
+            if (WriteMatrix(layer, allowed, report))
+            {
+                report.Info("Physik-Matrix: Layer " + layer + " („" + LayerMask.LayerToName(layer) + "“) kollidiert nur mit " +
+                            (names.Length > 0 ? names : "nichts") + " (Architektur 2.8).");
+            }
+        }
+
+        private static bool WriteMatrix(int layer, long allowed, TestGroundReport report)
+        {
             if (layer < 0 || layer >= LayerCount)
             {
-                return;
+                return false;
             }
 
             for (int other = 0; other < LayerCount; other++)
             {
-                Physics.IgnoreLayerCollision(layer, other, true);
+                Physics.IgnoreLayerCollision(layer, other, (allowed & (1L << other)) == 0L);
             }
 
             Object[] assets = AssetDatabase.LoadAllAssetsAtPath(DynamicsManagerPath);
             if (assets == null || assets.Length == 0)
             {
                 report.Warning("Physik-Matrix nicht gefunden (" + DynamicsManagerPath + "). Bitte von Hand: Edit > Project Settings > Physics > " +
-                               "Layer Collision Matrix, Zeile „" + LayerMask.LayerToName(layer) + "“ ganz leeren.");
-                return;
+                               "Layer Collision Matrix, Zeile „" + LayerMask.LayerToName(layer) + "“ wie in Architektur 2.8 setzen.");
+                return false;
             }
 
             var physics = new SerializedObject(assets[0]);
             SerializedProperty matrix = physics.FindProperty(CollisionMatrixField);
             if (matrix == null || !matrix.isArray || matrix.arraySize < LayerCount)
             {
-                report.Info("Physik-Matrix: Layer " + layer + " per Physics.IgnoreLayerCollision getrennt.");
-                return;
+                report.Info("Physik-Matrix: Layer " + layer + " per Physics.IgnoreLayerCollision gesetzt.");
+                return false;
             }
 
             long bit = 1L << layer;
@@ -96,11 +132,18 @@ namespace Aetherfall.EditorTools.World
             {
                 SerializedProperty entry = matrix.GetArrayElementAtIndex(row);
                 long mask = entry.longValue & 0xFFFFFFFFL;
-                entry.longValue = row == layer ? 0L : mask & ~bit;
+                if (row == layer)
+                {
+                    entry.longValue = allowed;
+                }
+                else
+                {
+                    entry.longValue = (allowed & (1L << row)) != 0L ? mask | bit : mask & ~bit;
+                }
             }
 
             physics.ApplyModifiedPropertiesWithoutUndo();
-            report.Info("Physik-Matrix: Layer " + layer + " („" + LayerMask.LayerToName(layer) + "“) kollidiert mit nichts (Architektur 2.8).");
+            return true;
         }
     }
 }

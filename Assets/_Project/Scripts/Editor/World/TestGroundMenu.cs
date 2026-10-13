@@ -123,6 +123,11 @@ namespace Aetherfall.EditorTools.World
             }
 
             int pickupLayer = ProjectLayers.Ensure(TestGroundPaths.PickupLayerIndex, TestGroundPaths.PickupLayerName, report);
+            if (pickupLayer >= 0)
+            {
+                // Architecture 2.8: Pickup collides with Environment, Terrain and Player only (the loot collector uses queries).
+                ProjectLayers.RestrictLayer(pickupLayer, new[] { environmentLayer, LayerMask.NameToLayer("Terrain"), playerLayer }, report);
+            }
 
             var materials = new TestGroundMaterials(report);
             PlayerMovementSettings settings = TestGroundAssets.EnsureMovementSettings(report);

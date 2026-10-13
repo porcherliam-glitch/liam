@@ -181,6 +181,8 @@ namespace Aetherfall.Inventory
             visual.transform.SetParent(transform, false);
             if (visual.TryGetComponent(out Collider solid))
             {
+                // Destroy takes effect at the end of the frame; a pickup spawned in this frame must not push anyone before that.
+                solid.enabled = false;
                 Destroy(solid);
             }
 

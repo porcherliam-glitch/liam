@@ -198,7 +198,17 @@ namespace Aetherfall.Items
             }
 
             int itemLevel = ItemFormulas.ItemLevel(ctx.SourceLevel, ctx.ItemLevelDelta);
-            result.Add(LootDrop.ForItem(_generator.CreateFixed(spec, itemLevel, spec.BaseRarity, count, random)));
+            if (spec.IsStackable)
+            {
+                result.Add(LootDrop.ForItem(_generator.CreateFixed(spec, itemLevel, spec.BaseRarity, count, random)));
+                return;
+            }
+
+            // Single items never form a stack: "2 x sword" are two drops with their own instance ids.
+            for (int i = 0; i < count; i++)
+            {
+                result.Add(LootDrop.ForItem(_generator.CreateFixed(spec, itemLevel, spec.BaseRarity, 1, random)));
+            }
         }
 
         private void EmitTable(LootEntrySpec entry, in LootContext ctx, PityState pity, IRandom random, LootResult result, int depth)

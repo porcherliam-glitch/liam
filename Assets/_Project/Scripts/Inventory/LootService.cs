@@ -19,7 +19,11 @@ namespace Aetherfall.Inventory
     /// <para>Enemy loot quality follows the variant (normal 1, elite 2 + 1 roll, champion 3, GDD 04 5.2). TODO (time of day
     /// step): +1 at night. TODO (world step): loot bags are announced to <c>IRuntimeSpawnRegistry</c> and saved (architecture
     /// 9.7); until then loot lying in the world is cleared when a save is loaded.</para>
-    /// <para>Without a registered spawner (no scene component) drops go straight into the bag.</para>
+    /// <para>Without a registered spawner (no scene component) drops go straight into the bag, and dropping items from the bag
+    /// is refused. A chest whose content does not fit into the bag (1000 entries) stays closed.</para>
+    /// <para>The level of an enemy's loot (L_Quelle, GDD 04 4.1) is <c>EnemyKilled.EnemyLevel</c> unchanged: the event carries
+    /// the level the enemy fights with, variant and night bonus included (GDD 03 9.7); only loot quality and extra rolls are
+    /// derived from the variant here.</para>
     /// </remarks>
     public sealed class LootService : ILootService, IPostInitializable, IDisposable
     {
@@ -148,12 +152,32 @@ namespace Aetherfall.Inventory
             }
 
             var context = new LootContext(chestId, areaLevel, ChestTierRules.LootQuality(tier), PlayerLuck(), ChestTierRules.ItemLevelDelta(tier));
-            result = _roller.Roll(lootTableId, context, Pity, new Pcg32Random(LootSeeds.Combine(SaveSeed, chestId, 0)));
+            int legendaryCounter = Pity.LegendaryCounter;
+            int mythicCounter = Pity.MythicCounter;
+            LootResult rolled = _roller.Roll(lootTableId, context, Pity, new Pcg32Random(LootSeeds.Combine(SaveSeed, chestId, 0)));
+            if (!FitsIntoBag(rolled))
+            {
+                // Nothing may be lost: the chest stays closed and the counters go back. The seed gives the same content later.
+                Pity.Restore(legendaryCounter, mythicCounter);
+                Log.Warning(LogCategory.Data, "Chest '" + chestId + "' stays closed: the bag is full (" + InventoryContainer.MaxEntries + " entries).");
+                return false;
+            }
+
+            result = rolled;
             _chests.MarkOpened(chestId);
             IReadOnlyList<LootDrop> drops = result.Drops;
+            int lost = 0;
             for (int i = 0; i < drops.Count; i++)
             {
-                TryCollect(drops[i], chestId);
+                if (!TryCollect(drops[i], chestId))
+                {
+                    lost++;
+                }
+            }
+
+            if (lost > 0)
+            {
+                Log.Error(LogCategory.Data, "Chest '" + chestId + "': " + lost + " drop(s) could not be collected.");
             }
 
             PublishDropped(lootTableId, result);
@@ -182,12 +206,21 @@ namespace Aetherfall.Inventory
                 _inventory.Catalog.TryGetItem(drop.Item.ItemId, out spec);
             }
 
-            return AutoPickupRules.ShouldCollect(AutoPickup, drop, spec, distance, _inventory.PlayerEncumbrance.Level, inCombat);
+            // Checked last: a full bag (1000 entries) would make every query of the collector fail and log a warning.
+            return AutoPickupRules.ShouldCollect(AutoPickup, drop, spec, distance, _inventory.PlayerEncumbrance.Level, inCombat) &&
+                   (drop.IsCurrency || _inventory.PlayerContainer.CanAdd(drop.Item));
         }
 
         /// <inheritdoc />
         public bool DropFromInventory(string instanceId, int count, Vector3 position, out string reason)
         {
+            if (_spawner == null)
+            {
+                // Without a spawner the item could only go straight back into the bag (with ItemPickedUp for nothing).
+                reason = "Keine Beute-Anzeige in der Szene (LootWorldSpawner fehlt).";
+                return false;
+            }
+
             if (!_inventory.TryTakeForDrop(instanceId, count, out ItemInstance taken, out reason))
             {
                 return false;
@@ -292,6 +325,23 @@ namespace Aetherfall.Inventory
             {
                 TryCollect(drops[i], sourceId);
             }
+        }
+
+        private bool FitsIntoBag(LootResult result)
+        {
+            // Upper bound: every item drop as if no existing stack had room (merging only needs fewer entries).
+            InventoryContainer bag = _inventory.PlayerContainer;
+            IReadOnlyList<LootDrop> drops = result.Drops;
+            int needed = 0;
+            for (int i = 0; i < drops.Count; i++)
+            {
+                if (!drops[i].IsCurrency)
+                {
+                    needed += Math.Max(0, bag.EntriesNeeded(drops[i].Item, true));
+                }
+            }
+
+            return needed <= bag.FreeEntries;
         }
 
         private void PublishDropped(string lootTableId, LootResult result)

@@ -3,9 +3,10 @@ using Aetherfall.Items;
 namespace Aetherfall.Inventory
 {
     /// <summary>
-    /// Rules of automatic pickup (GDD 04 5.9): radius gold 5 m (magnet), everything else 3 m; never stolen goods; from 90 %
-    /// load only gold, quest items and keys; in combat gold and materials, equipment only after the fight; mode "Gold und
-    /// Materialien" (default) or "Alles" with a minimum rarity for equipment (default uncommon). Pure function.
+    /// Rules of automatic pickup (GDD 04 5.9): radius gold 5 m (magnet), everything else 3 m; never stolen goods; in combat
+    /// gold and materials, equipment only after the fight; mode "Gold und Materialien" (default) or "Alles" with a minimum
+    /// rarity for equipment (default uncommon); from 90 % load only gold, quest items and keys of what the mode allows.
+    /// Pure function.
     /// </summary>
     public static class AutoPickupRules
     {
@@ -15,7 +16,7 @@ namespace Aetherfall.Inventory
         /// <summary>Radius of all other items in metres.</summary>
         public const float ItemRadius = 3f;
 
-        /// <summary>Id prefix of keys (picked up even when almost full).</summary>
+        /// <summary>Id prefix of keys (still picked up when almost full, if the mode picks them up at all).</summary>
         public const string KeyPrefix = "item.key.";
 
         /// <summary>Radius in which a drop may be collected automatically.</summary>
@@ -52,27 +53,31 @@ namespace Aetherfall.Inventory
                 return false;
             }
 
-            if (load >= EncumbranceLevel.AlmostFull)
-            {
-                return spec.IsQuestItem || spec.Id.StartsWith(KeyPrefix, System.StringComparison.Ordinal);
-            }
-
+            bool allowed;
             if (spec.Category == ItemCategory.Material)
             {
-                return true;
+                allowed = true;
             }
-
-            if (mode != AutoPickupMode.All)
+            else if (mode != AutoPickupMode.All)
             {
-                return false;
+                allowed = false;
             }
-
-            if (spec.IsEquipment)
+            else if (spec.IsEquipment)
             {
-                return !inCombat && RarityRules.Rank(item.Rarity) >= RarityRules.Rank(minEquipmentRarity);
+                allowed = !inCombat && RarityRules.Rank(item.Rarity) >= RarityRules.Rank(minEquipmentRarity);
+            }
+            else
+            {
+                allowed = true;
             }
 
-            return true;
+            // From 90 % load "only gold, quest items and keys" (GDD 04 1.3): a restriction of the mode, never an extension.
+            if (load >= EncumbranceLevel.AlmostFull)
+            {
+                allowed &= spec.IsQuestItem || spec.Id.StartsWith(KeyPrefix, System.StringComparison.Ordinal);
+            }
+
+            return allowed;
         }
     }
 }

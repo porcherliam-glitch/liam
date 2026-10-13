@@ -45,6 +45,7 @@ namespace Aetherfall.Inventory
         private ILootService _loot;
         private bool _subscribed;
         private Quaternion _closedRotation = Quaternion.identity;
+        private string _prompt;
 
         /// <summary>Stable id of the chest.</summary>
         public string ChestId => chestId;
@@ -65,7 +66,8 @@ namespace Aetherfall.Inventory
         public string InteractionVerb => InteractionVerbs.Open;
 
         /// <inheritdoc />
-        public string InteractionPrompt => "Öffnen: " + DisplayName;
+        /// <remarks>Built once and cached: the prompt overlay and the HUD read it every frame.</remarks>
+        public string InteractionPrompt => _prompt ?? (_prompt = "Öffnen: " + DisplayName);
 
         /// <inheritdoc />
         public int InteractionPriority => 10;
@@ -102,6 +104,12 @@ namespace Aetherfall.Inventory
             {
                 _closedRotation = lid.localRotation;
             }
+        }
+
+        private void OnValidate()
+        {
+            // Name or tier changed in the inspector: build the prompt again on the next read.
+            _prompt = null;
         }
 
         private async void Start()

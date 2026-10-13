@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using Aetherfall.Core;
+using Aetherfall.Events;
 using Aetherfall.Input;
 using Aetherfall.Inventory;
 using Aetherfall.Items;
@@ -13,8 +14,8 @@ namespace Aetherfall.DevTools
     /// <summary>
     /// Developer inventory (IMGUI, mouse; placeholder until the inventory screen of the UI step): the Inventory action (Tab,
     /// GDD 03 1.5 / §7.2) pushes the game state Menu and opens a list of the bag, the equipment, weight and gold; CloseHub
-    /// (Tab, Esc, Start) or Cancel pops Menu again. Left click on a bag entry equips it (consumables go into a quick slot),
-    /// right click drops it into the world; left click on an equipment slot takes the item off.
+    /// (Tab, Esc, Start) or, on the gamepad, Cancel (B) pops Menu again. Left click on a bag entry equips it (consumables go
+    /// into a quick slot), right click drops it into the world; left click on an equipment slot takes the item off.
     /// </summary>
     /// <remarks>
     /// <para>GameObject: "InventoryOverlay" in the test ground (the menu adds it and sets the player). Active only in the
@@ -140,7 +141,10 @@ namespace Aetherfall.DevTools
                 return;
             }
 
-            if (Time.frameCount != _openFrame && (_input.UI.WasPressedThisFrame(UiButton.CloseHub) || _input.UI.WasPressedThisFrame(UiButton.Cancel)))
+            // UI.Cancel is also bound to the right mouse button, which drops items here: Update runs before OnGUI, so closing on
+            // a mouse Cancel would hide the list before the click reaches the row. Keyboard closes with CloseHub (Tab, Esc).
+            bool cancel = _input.UI.WasPressedThisFrame(UiButton.Cancel) && _input.ActiveDeviceKind == DeviceKind.Gamepad;
+            if (Time.frameCount != _openFrame && (_input.UI.WasPressedThisFrame(UiButton.CloseHub) || cancel))
             {
                 Close();
                 return;
@@ -401,7 +405,7 @@ namespace Aetherfall.DevTools
                 }
 
                 _message = _loot.DropFromInventory(item.InstanceId, item.Count, DropPosition(), out string reason)
-                    ? "Weggeworfen: " + item.ItemId + (_loot.HasSpawner ? " (liegt vor der Figur)." : " (kein LootWorldSpawner in der Szene).")
+                    ? "Weggeworfen: " + item.ItemId + " (liegt vor der Figur)."
                     : "Wegwerfen nicht möglich: " + reason;
                 return;
             }

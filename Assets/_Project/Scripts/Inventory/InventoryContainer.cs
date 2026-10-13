@@ -12,7 +12,8 @@ namespace Aetherfall.Inventory
     /// </summary>
     /// <remarks>
     /// Stackables merge into existing stacks of the same item (stolen and clean stacks stay apart); what does not fit opens
-    /// new stacks with new instance ids from the id random source. Single items (equipment) keep their own entry.
+    /// new stacks with new instance ids from the id random source. Single items (equipment, stack size 1) always have one
+    /// entry per piece: an instance with a count above 1 is split into pieces with own ids.
     /// </remarks>
     public sealed class InventoryContainer
     {
@@ -39,6 +40,9 @@ namespace Aetherfall.Inventory
 
         /// <summary>Owner id.</summary>
         public string OwnerId { get; }
+
+        /// <summary>Entries left before the technical limit of <see cref="MaxEntries"/>.</summary>
+        public int FreeEntries => MaxEntries - _entries.Count;
 
         /// <summary>Entries in insertion order.</summary>
         public IReadOnlyList<ItemInstance> Entries => _entries;
@@ -98,38 +102,29 @@ namespace Aetherfall.Inventory
         }
 
         /// <summary>
-        /// Adds an instance. Stackables fill existing stacks first (up to the stack size), the rest opens new stacks. Fails
-        /// without change for unknown items or if the entry limit would be exceeded.
+        /// Number of new entries <see cref="TryAdd"/> would open for an instance: single items one per piece, stackables the
+        /// stacks for what does not fit into existing stacks of the same item.
         /// </summary>
-        /// <param name="instance">Instance to add (the container takes ownership; for stackables it may be merged away).</param>
-        /// <returns>True if added.</returns>
-        public bool TryAdd(ItemInstance instance)
+        /// <param name="instance">Instance to add.</param>
+        /// <param name="ignoreExistingStacks">
+        /// True = as if no existing stack had room; an upper bound when several instances are added one after another.
+        /// </param>
+        /// <returns>The number of new entries, or −1 for null or an unknown item.</returns>
+        public int EntriesNeeded(ItemInstance instance, bool ignoreExistingStacks = false)
         {
             if (instance == null || !_catalog.TryGetItem(instance.ItemId, out ItemSpec spec))
             {
-                return false;
-            }
-
-            if (Find(instance.InstanceId) != null)
-            {
-                return false;
+                return -1;
             }
 
             if (!spec.IsStackable)
             {
-                if (_entries.Count >= MaxEntries)
-                {
-                    return false;
-                }
-
-                _entries.Add(instance);
-                return true;
+                return instance.Count;
             }
 
             int stackSize = spec.StackSize;
-            int remaining = instance.Count;
             int free = 0;
-            for (int i = 0; i < _entries.Count; i++)
+            for (int i = 0; i < _entries.Count && !ignoreExistingStacks; i++)
             {
                 if (CanMerge(_entries[i], instance))
                 {
@@ -137,13 +132,46 @@ namespace Aetherfall.Inventory
                 }
             }
 
-            int overflow = Math.Max(0, remaining - free);
-            int newStacks = (overflow + stackSize - 1) / stackSize;
-            if (_entries.Count + newStacks > MaxEntries)
+            int overflow = Math.Max(0, instance.Count - free);
+            return (overflow + stackSize - 1) / stackSize;
+        }
+
+        /// <summary>True if <see cref="TryAdd"/> would accept the instance now (known item, new instance id, entry limit).</summary>
+        /// <param name="instance">Instance to add.</param>
+        public bool CanAdd(ItemInstance instance)
+        {
+            if (instance == null || Find(instance.InstanceId) != null)
             {
                 return false;
             }
 
+            int needed = EntriesNeeded(instance);
+            return needed >= 0 && needed <= FreeEntries;
+        }
+
+        /// <summary>
+        /// Adds an instance. Stackables fill existing stacks first (up to the stack size), the rest opens new stacks; single
+        /// items with a count above 1 become one entry per piece. Fails without change for unknown items, a duplicate instance
+        /// id or if the entry limit would be exceeded.
+        /// </summary>
+        /// <param name="instance">Instance to add (the container takes ownership; it may be merged away or split).</param>
+        /// <returns>True if added.</returns>
+        public bool TryAdd(ItemInstance instance)
+        {
+            if (!CanAdd(instance))
+            {
+                return false;
+            }
+
+            _catalog.TryGetItem(instance.ItemId, out ItemSpec spec);
+            if (!spec.IsStackable)
+            {
+                AddSplit(instance, 1);
+                return true;
+            }
+
+            int stackSize = spec.StackSize;
+            int remaining = instance.Count;
             for (int i = 0; i < _entries.Count && remaining > 0; i++)
             {
                 ItemInstance stack = _entries[i];
@@ -162,31 +190,37 @@ namespace Aetherfall.Inventory
                 remaining -= moved;
             }
 
-            bool first = true;
-            while (remaining > 0)
+            if (remaining > 0)
             {
-                int part = Math.Min(stackSize, remaining);
-                ItemInstance stack = first ? instance : instance.CloneAs(ItemInstanceIds.Create(_ids), part);
-                stack.SetCount(part);
-                _entries.Add(stack);
-                remaining -= part;
-                first = false;
+                instance.SetCount(remaining);
+                AddSplit(instance, stackSize);
             }
 
             return true;
         }
 
-        /// <summary>Adds an instance unchanged (loading a save); duplicates by instance id are ignored.</summary>
+        /// <summary>
+        /// Adds an instance without merging (loading a save, equipment going back into the bag). A count above the stack size
+        /// of the item (single items: above 1, e.g. an older save or a reduced stack size) is split into further entries with
+        /// new ids instead of being cut. Fails without change for a duplicate instance id or if the entry limit would be exceeded.
+        /// </summary>
         /// <param name="instance">Instance.</param>
         /// <returns>True if added.</returns>
         public bool AddRaw(ItemInstance instance)
         {
-            if (instance == null || Find(instance.InstanceId) != null || _entries.Count >= MaxEntries)
+            if (instance == null || Find(instance.InstanceId) != null)
             {
                 return false;
             }
 
-            _entries.Add(instance);
+            int perEntry = _catalog.TryGetItem(instance.ItemId, out ItemSpec spec) ? Math.Max(1, spec.StackSize) : int.MaxValue;
+            int needed = instance.Count <= perEntry ? 1 : (instance.Count - 1) / perEntry + 1;
+            if (needed > FreeEntries)
+            {
+                return false;
+            }
+
+            AddSplit(instance, perEntry);
             return true;
         }
 
@@ -275,6 +309,26 @@ namespace Aetherfall.Inventory
         public void Clear()
         {
             _entries.Clear();
+        }
+
+        private void AddSplit(ItemInstance instance, int perEntry)
+        {
+            // The instance itself keeps its id and takes the first part; every further part is a copy with a new id.
+            int remaining = instance.Count;
+            int first = Math.Min(perEntry, remaining);
+            if (first != instance.Count)
+            {
+                instance.SetCount(first);
+            }
+
+            _entries.Add(instance);
+            remaining -= first;
+            while (remaining > 0)
+            {
+                int part = Math.Min(perEntry, remaining);
+                _entries.Add(instance.CloneAs(ItemInstanceIds.Create(_ids), part));
+                remaining -= part;
+            }
         }
 
         private static bool CanMerge(ItemInstance stack, ItemInstance incoming)

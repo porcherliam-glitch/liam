@@ -39,10 +39,18 @@ namespace Aetherfall.Inventory
         /// <summary>Counter that grows with every change (cheap "did anything change" check for views).</summary>
         int Revision { get; }
 
-        /// <summary>Number of pieces of an item (for the player: bag plus equipment).</summary>
+        /// <summary>
+        /// Number of pieces of an item (for the player: bag plus equipment), e.g. for "owns the item" conditions. A hand-in with
+        /// <see cref="TryRemove"/> takes only bag pieces: check it with <see cref="CountInBag"/>.
+        /// </summary>
         /// <param name="ownerId">Owner id.</param>
         /// <param name="itemId">Item id.</param>
         int CountOf(string ownerId, string itemId);
+
+        /// <summary>Number of pieces of an item in the owner's container only (without equipment): what <see cref="TryRemove"/> can take.</summary>
+        /// <param name="ownerId">Owner id.</param>
+        /// <param name="itemId">Item id.</param>
+        int CountInBag(string ownerId, string itemId);
 
         /// <summary>Adds an instance (stackables merge). Sends <c>ItemPickedUp</c> and <c>InventoryChanged</c>.</summary>
         /// <param name="ownerId">Owner id.</param>
@@ -57,7 +65,10 @@ namespace Aetherfall.Inventory
         /// <param name="sourceId">Source.</param>
         bool TryAddNew(string ownerId, string itemId, int count, string sourceId);
 
-        /// <summary>Removes pieces of an item from the bag (never equipped ones). Fails without change if there are not enough.</summary>
+        /// <summary>
+        /// Removes pieces of an item from the bag (never equipped ones). Fails without change if <see cref="CountInBag"/> is
+        /// smaller than <paramref name="amount"/>.
+        /// </summary>
         /// <param name="ownerId">Owner id.</param>
         /// <param name="itemId">Item id.</param>
         /// <param name="amount">Pieces.</param>

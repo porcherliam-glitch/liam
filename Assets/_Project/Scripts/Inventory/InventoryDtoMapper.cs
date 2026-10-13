@@ -6,7 +6,7 @@ namespace Aetherfall.Inventory
     /// <summary>
     /// Converts item instances to save DTOs and back. Loading validates: unknown item ids (content removed), empty ids and
     /// unknown rarities are reported and the entry is skipped or repaired (architecture 6.3 "Unbekannte IDs im Save werden
-    /// beim Laden verworfen und geloggt").
+    /// beim Laden verworfen und geloggt"); counts above the stack size are reported and kept for splitting.
     /// </summary>
     public static class InventoryDtoMapper
     {
@@ -73,7 +73,16 @@ namespace Aetherfall.Inventory
                 }
             }
 
-            int count = spec.IsStackable ? System.Math.Max(1, System.Math.Min(spec.StackSize, dto.Count)) : 1;
+            // Nothing is cut: a count above the stack size (single items: above 1) is split into further entries by
+            // InventoryContainer.AddRaw and InventoryService.LoadState.
+            int count = System.Math.Max(1, dto.Count);
+            int perEntry = System.Math.Max(1, spec.StackSize);
+            if (count > perEntry)
+            {
+                string note = "Item '" + dto.ItemId + "': count " + count + " is above the stack size " + perEntry + "; split into several entries.";
+                problem = problem.Length > 0 ? problem + " " + note : note;
+            }
+
             instance = new ItemInstance(dto.InstanceId, dto.ItemId, dto.ItemLevel, rarity, dto.BaseRoll, count, ItemFlagIds.FromIds(dto.Flags), affixes);
             return true;
         }
