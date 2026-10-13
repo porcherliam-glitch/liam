@@ -1,0 +1,17 @@
+{
+    "name": "Aetherfall.Data",
+    "rootNamespace": "Aetherfall.Data",
+    "references": [
+        "Aetherfall.Utilities",
+        "Aetherfall.Core"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
