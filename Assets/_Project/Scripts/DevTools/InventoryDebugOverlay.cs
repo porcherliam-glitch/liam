@@ -273,7 +273,7 @@ namespace Aetherfall.DevTools
                 float height = Screen.height / scale;
                 if (!_open)
                 {
-                    DrawClosedHint(height);
+                    DrawClosedHint(width, height);
                     return;
                 }
 
@@ -290,11 +290,12 @@ namespace Aetherfall.DevTools
             }
         }
 
-        private void DrawClosedHint(float height)
+        private void DrawClosedHint(float width, float height)
         {
             bool canOpen = _gameState != null && GameStateTransitions.CanPush(_gameState.Current, GameState.Menu);
             GUI.enabled = canOpen;
-            if (GUI.Button(new Rect(10f, height - 36f, 190f, 26f), "Inventar (Tab)"))
+            // Bottom centre: the combat overlay uses the bottom left corner, the status overlay the top right one.
+            if (GUI.Button(new Rect(width * 0.5f - 95f, height - 36f, 190f, 26f), "Inventar (Tab)"))
             {
                 Open();
             }
