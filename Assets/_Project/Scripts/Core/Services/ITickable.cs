@@ -10,7 +10,9 @@ namespace Aetherfall.Core
         /// Called once per frame after the boot completed, in registration order.
         /// A tickable that throws is logged and not ticked again in this session.
         /// </summary>
-        /// <param name="deltaTime">Scaled frame time in seconds (0 while the game is paused).</param>
+        /// <param name="deltaTime">
+        /// Scaled frame time in seconds (0 while the game is paused); real frame time for <see cref="IUnscaledTickable"/>s.
+        /// </param>
         void Tick(float deltaTime);
     }
 }

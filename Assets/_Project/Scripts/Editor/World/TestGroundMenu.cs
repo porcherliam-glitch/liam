@@ -8,10 +8,11 @@ using UnityEngine;
 namespace Aetherfall.EditorTools.World
 {
     /// <summary>
-    /// Menu <see cref="MenuPath"/> (German: "create test ground"): creates or rebuilds the test ground scene with player, camera rig and
-    /// obstacle course, the materials, the player movement settings, the user layers Player/Environment and the
-    /// InputInstaller in the BootConfig. Idempotent: existing assets are reused, an existing scene is rebuilt only after
-    /// asking. Guide: docs/Anleitungen/03_Test_Spielfigur.md.
+    /// Menu <see cref="MenuPath"/> (German: "create test ground"): creates or rebuilds the test ground scene with player
+    /// (movement, stats, health, save components), camera rig, obstacle course and debug overlays, the materials, the player
+    /// movement settings, the user layers Player/Environment and the Input, Save and GameTime installers in the BootConfig.
+    /// Idempotent: existing assets are reused, an existing scene is rebuilt only after asking. Guides:
+    /// docs/Anleitungen/03_Test_Spielfigur.md and 04_Test_Werte_Speichern.md.
     /// </summary>
     public static class TestGroundMenu
     {
@@ -37,6 +38,7 @@ namespace Aetherfall.EditorTools.World
                 "• Materialien in " + TestGroundPaths.MaterialFolder + "\n" +
                 "• " + TestGroundPaths.MovementSettingsPath + "\n" +
                 "• InputInstaller in der BootConfig (hinter dem GameState-Installer)\n" +
+                "• SaveInstaller und GameTimeInstaller in der BootConfig (hinter dem Input-Installer)\n" +
                 "• Layer 6 „Player“ und 11 „Environment“, falls frei\n\n" +
                 (sceneExists
                     ? "Die Szene existiert bereits und wird NEU AUFGEBAUT. Eigene Änderungen in dieser Szene gehen verloren. " +
@@ -65,7 +67,8 @@ namespace Aetherfall.EditorTools.World
             {
                 Selection.activeGameObject = player;
                 message = "Fertig! Die Szene „Testgelaende“ ist geöffnet.\n\nDrücke jetzt Play und klicke einmal ins Game-Fenster. " +
-                          "Steuerung und Prüfliste: docs/Anleitungen/03_Test_Spielfigur.md.";
+                          "Steuerung und Prüfliste: docs/Anleitungen/03_Test_Spielfigur.md, Ausdauer, Schaden und Speichern: " +
+                          "docs/Anleitungen/04_Test_Werte_Speichern.md.";
             }
 
             if (report.Warnings.Count > 0)
@@ -93,6 +96,7 @@ namespace Aetherfall.EditorTools.World
             var materials = new TestGroundMaterials(report);
             PlayerMovementSettings settings = TestGroundAssets.EnsureMovementSettings(report);
             TestGroundAssets.EnsureInputInstallerInBootConfig(report);
+            TestGroundAssets.EnsureSaveInstallersInBootConfig(report);
             AssetDatabase.SaveAssets();
 
             if (settings == null)

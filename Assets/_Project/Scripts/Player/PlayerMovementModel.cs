@@ -1,4 +1,5 @@
 using System;
+using Aetherfall.Stats;
 
 namespace Aetherfall.Player
 {
@@ -12,7 +13,10 @@ namespace Aetherfall.Player
     /// <para>No UnityEngine types or calls: vectors are <see cref="MotionVector"/>, all math is done on floats with
     /// <see cref="Math"/>, so the model runs (and is tested) outside of Unity.</para>
     /// <para>Coordinates: Y is up, yaw 0 looks along +Z, positive yaw turns right (clockwise seen from above), like Unity.</para>
-    /// <para>TODO (Stats step): sprint costs 12 stamina/s and needs 10 to start, a jump costs 10 (GDD 03 3.1).
+    /// <para>Stamina (GDD 03 3.1 and 4.3) with a <see cref="ResourcePool"/>: sprinting costs 12 per second and starts only
+    /// with at least 10 and not while exhausted; at 0 the sprint ends (the pool then counts as exhausted for 1.2 s). A
+    /// jump needs more than 0 and costs 10 (never below 0). Without a pool the stamina is unlimited. The pool's owner
+    /// ticks the regeneration (25 per second after 0.8 s).
     /// TODO (later steps): dodge roll, climbing, swimming, gliding, lock-on strafing, overload limits, fall damage.</para>
     /// </remarks>
     public sealed class PlayerMovementModel
@@ -20,6 +24,7 @@ namespace Aetherfall.Player
         private const float InputEpsilon = PlayerMovementMath.InputEpsilon;
 
         private readonly PlayerMovementTuning _tuning;
+        private readonly ResourcePool _stamina;
         private float _velocityX;
         private float _velocityY;
         private float _velocityZ;
@@ -41,9 +46,11 @@ namespace Aetherfall.Player
         /// <summary>Creates the model standing still, facing <paramref name="yaw"/>, not yet grounded.</summary>
         /// <param name="tuning">Tuning values (GDD 03 3.1); validated.</param>
         /// <param name="yaw">Initial facing in degrees.</param>
+        /// <param name="stamina">Stamina pool for sprint and jump costs; null = unlimited stamina.</param>
         /// <exception cref="ArgumentException">A tuning value is out of range.</exception>
-        public PlayerMovementModel(PlayerMovementTuning tuning, float yaw = 0f)
+        public PlayerMovementModel(PlayerMovementTuning tuning, float yaw = 0f, ResourcePool stamina = null)
         {
+            _stamina = stamina;
             _tuning = tuning ?? throw new ArgumentNullException(nameof(tuning));
             string problem = tuning.Validate();
             if (problem.Length > 0)
@@ -56,6 +63,16 @@ namespace Aetherfall.Player
 
         /// <summary>The tuning values in use.</summary>
         public PlayerMovementTuning Tuning => _tuning;
+
+        /// <summary>Stamina pool for sprint and jump costs, or null (unlimited stamina).</summary>
+        public ResourcePool Stamina => _stamina;
+
+        /// <summary>
+        /// True if a sprint may start now: no pool, or at least <see cref="PlayerMovementTuning.SprintStartMinimumStamina"/>
+        /// stamina and not exhausted (GDD 03 3.1, 4.3).
+        /// </summary>
+        public bool CanStartSprint => _stamina == null ||
+                                      (!_stamina.IsExhausted && _stamina.HasAtLeast(Math.Max(_tuning.SprintStartMinimumStamina, float.Epsilon)));
 
         /// <summary>Velocity of the last step in m/s (what the motor moved with, including sliding).</summary>
         public MotionVector Velocity { get; private set; }
@@ -160,9 +177,16 @@ namespace Aetherfall.Player
 
             // Jump buffer and coyote time (GDD 03 3.1: 0.15 s / 0.12 s).
             _timeSinceJumpPressed = input.JumpPressed ? 0f : _timeSinceJumpPressed + dt;
-            bool canJump = !_jumpConsumed && !sliding && _timeSinceGrounded <= _tuning.CoyoteTime;
+            // A jump needs stamina above 0 and costs JumpStaminaCost, never more than what is left (GDD 03 4.3).
+            bool canJump = !_jumpConsumed && !sliding && _timeSinceGrounded <= _tuning.CoyoteTime &&
+                           (_stamina == null || !_stamina.IsEmpty);
             if (canJump && _timeSinceJumpPressed <= _tuning.JumpBufferTime)
             {
+                if (_stamina != null)
+                {
+                    _stamina.Spend(_tuning.JumpStaminaCost);
+                }
+
                 _velocityY = PlayerMovementMath.JumpVelocity(_tuning.JumpHeight, _tuning.Gravity * _tuning.RisingGravityScale);
                 _timeSinceJumpPressed = float.PositiveInfinity;
                 _timeSinceGrounded = float.PositiveInfinity;
@@ -174,6 +198,15 @@ namespace Aetherfall.Player
 
             Gait = PlayerGaitRules.ResolveGait(magnitude, IsSprinting, IsSneaking, IsWalkMode, _tuning.RunInputThreshold);
             float speed = PlayerGaitRules.TargetSpeed(Gait, magnitude, _tuning);
+            if (Gait == PlayerGait.Sprint && _stamina != null)
+            {
+                // 12 stamina per second while sprinting; at 0 the sprint ends (and the pool is exhausted for 1.2 s).
+                _stamina.Spend(_tuning.SprintStaminaPerSecond * dt);
+                if (_stamina.IsEmpty)
+                {
+                    IsSprinting = false;
+                }
+            }
             float targetX = hasInput ? direction.X / magnitude * speed : 0f;
             float targetZ = hasInput ? direction.Z / magnitude * speed : 0f;
 
@@ -351,6 +384,12 @@ namespace Aetherfall.Player
 
         private void SetSprinting(bool sprinting)
         {
+            if (sprinting && !IsSprinting && !CanStartSprint)
+            {
+                // Not enough stamina (below 10) or exhausted: the sprint does not start (GDD 03 3.1, 4.3).
+                return;
+            }
+
             IsSprinting = sprinting;
             if (sprinting)
             {

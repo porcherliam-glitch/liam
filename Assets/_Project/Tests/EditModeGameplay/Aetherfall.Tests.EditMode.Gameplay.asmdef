@@ -4,10 +4,16 @@
     "references": [
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner",
+        "Aetherfall.Utilities",
         "Aetherfall.Core",
         "Aetherfall.Events",
+        "Aetherfall.SaveSystem",
         "Aetherfall.Input",
-        "Aetherfall.Player"
+        "Aetherfall.GameTime",
+        "Aetherfall.Stats",
+        "Aetherfall.Combat",
+        "Aetherfall.Player",
+        "Aetherfall.Tests.Shared"
     ],
     "includePlatforms": [
         "Editor"
@@ -16,18 +22,25 @@
     "allowUnsafeCode": false,
     "overrideReferences": true,
     "precompiledReferences": [
-        "nunit.framework.dll"
+        "nunit.framework.dll",
+        "Newtonsoft.Json.dll"
     ],
     "autoReferenced": false,
     "defineConstraints": [
         "UNITY_INCLUDE_TESTS",
-        "AETHERFALL_INPUTSYSTEM"
+        "AETHERFALL_INPUTSYSTEM",
+        "AETHERFALL_NEWTONSOFT"
     ],
     "versionDefines": [
         {
             "name": "com.unity.inputsystem",
             "expression": "1.0",
             "define": "AETHERFALL_INPUTSYSTEM"
+        },
+        {
+            "name": "com.unity.nuget.newtonsoft-json",
+            "expression": "3.0",
+            "define": "AETHERFALL_NEWTONSOFT"
         }
     ],
     "noEngineReferences": false

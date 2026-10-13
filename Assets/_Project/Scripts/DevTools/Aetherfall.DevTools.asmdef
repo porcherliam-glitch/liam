@@ -2,7 +2,11 @@
     "name": "Aetherfall.DevTools",
     "rootNamespace": "Aetherfall.DevTools",
     "references": [
-        "Aetherfall.Core"
+        "Aetherfall.Core",
+        "Aetherfall.SaveSystem",
+        "Aetherfall.GameTime",
+        "Aetherfall.Stats",
+        "Aetherfall.Combat"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
@@ -10,7 +14,15 @@
     "overrideReferences": false,
     "precompiledReferences": [],
     "autoReferenced": false,
-    "defineConstraints": [],
-    "versionDefines": [],
+    "defineConstraints": [
+        "AETHERFALL_NEWTONSOFT"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.unity.nuget.newtonsoft-json",
+            "expression": "3.0",
+            "define": "AETHERFALL_NEWTONSOFT"
+        }
+    ],
     "noEngineReferences": false
 }

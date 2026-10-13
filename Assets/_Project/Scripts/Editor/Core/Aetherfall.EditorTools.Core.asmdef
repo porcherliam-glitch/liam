@@ -23,6 +23,11 @@
             "name": "com.unity.cinemachine",
             "expression": "3.0",
             "define": "AETHERFALL_CINEMACHINE"
+        },
+        {
+            "name": "com.unity.nuget.newtonsoft-json",
+            "expression": "3.0",
+            "define": "AETHERFALL_NEWTONSOFT"
         }
     ],
     "noEngineReferences": false

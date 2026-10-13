@@ -1,7 +1,9 @@
 using System;
 using Aetherfall.CameraSystem;
+using Aetherfall.Combat;
 using Aetherfall.DevTools;
 using Aetherfall.Player;
+using Aetherfall.Stats;
 using Unity.Cinemachine;
 using Unity.Cinemachine.TargetTracking;
 using UnityEditor;
@@ -15,9 +17,10 @@ namespace Aetherfall.EditorTools.World
     /// <summary>
     /// Builds the scene <c>Scenes/Test/Testgelaende.unity</c> from scratch: light, obstacle course
     /// (<see cref="TestGroundGeometry"/>), player (capsule with "nose", CharacterController, <see cref="PlayerMotor"/>,
-    /// <see cref="PlayerInputReader"/>), main camera with <see cref="CinemachineBrain"/>, exploration camera
+    /// <see cref="PlayerInputReader"/>, <see cref="CharacterStatsComponent"/>, <see cref="DamageableComponent"/>,
+    /// <see cref="PlayerPersistence"/>), main camera with <see cref="CinemachineBrain"/>, exploration camera
     /// <c>CM_Explore</c> (Cinemachine 3: orbital follow, rotation composer, deoccluder, <see cref="CameraLookInput"/>),
-    /// spawn point and <see cref="DevPlayStarter"/>.
+    /// spawn point, <see cref="DevPlayStarter"/>, <see cref="QuickSaveInput"/> and the <see cref="PlayerStatusDebugOverlay"/>.
     /// </summary>
     /// <remarks>Camera values: GDD 03 2.1 "Erkundung" (4.0 m, pivot 1.6 m, 0.3 m shoulder, FOV 55°) and 2.2 (collision).</remarks>
     public static class TestGroundSceneBuilder
@@ -73,6 +76,8 @@ namespace Aetherfall.EditorTools.World
             SetString(spawnPoint, "worldSpaceId", TestGroundPaths.WorldSpaceId, report);
 
             new GameObject("DevPlayStarter").AddComponent<DevPlayStarter>();
+            new GameObject("QuickSaveInput").AddComponent<QuickSaveInput>();
+            CreateStatusOverlay(player, report);
 
             EditorSceneManager.MarkSceneDirty(scene);
             if (!EditorSceneManager.SaveScene(scene, TestGroundPaths.ScenePath))
@@ -166,8 +171,37 @@ namespace Aetherfall.EditorTools.World
 
             PlayerInputReader reader = player.AddComponent<PlayerInputReader>();
             SetReference(reader, "motor", motor, report);
-            report.Info("Spieler: Kapsel 1,8 m mit gelber „Nase“ (Blickrichtung), CharacterController, PlayerMotor, PlayerInputReader.");
+
+            // Stats (attributes 11, level 1: 115 health, 102 stamina, 55 mana), health and saving (GDD 03 10, architecture 9).
+            CharacterStatsComponent stats = player.AddComponent<CharacterStatsComponent>();
+            SetReference(motor, "stats", stats, report);
+            DamageableComponent damageable = player.AddComponent<DamageableComponent>();
+            SetReference(damageable, "stats", stats, report);
+            SetString(damageable, "ownerId", "player", report);
+            PlayerPersistence persistence = player.AddComponent<PlayerPersistence>();
+            SetReference(persistence, "motor", motor, report);
+            SetReference(persistence, "health", damageable, report);
+            SetReference(persistence, "stats", stats, report);
+            SetString(persistence, "worldSpaceId", TestGroundPaths.WorldSpaceId, report);
+            report.Info("Spieler: Kapsel 1,8 m mit gelber „Nase“ (Blickrichtung), CharacterController, PlayerMotor, PlayerInputReader, " +
+                        "CharacterStatsComponent (Ausdauer), DamageableComponent (LP), PlayerPersistence (Speichern).");
             return player;
+        }
+
+        private static void CreateStatusOverlay(GameObject player, TestGroundReport report)
+        {
+            PlayerStatusDebugOverlay overlay = new GameObject("PlayerStatusOverlay").AddComponent<PlayerStatusDebugOverlay>();
+            if (player.TryGetComponent(out DamageableComponent damageable))
+            {
+                SetReference(overlay, "playerHealth", damageable, report);
+            }
+
+            if (player.TryGetComponent(out CharacterStatsComponent stats))
+            {
+                SetReference(overlay, "playerStats", stats, report);
+            }
+
+            report.Info("Debug-Overlay „PlayerStatusOverlay“ (rechts oben): LP, Ausdauer, Speicher-Status, Knöpfe zum Testen.");
         }
 
         private static void CreateExplorationCamera(Transform pivot, int collisionMask, TestGroundReport report)

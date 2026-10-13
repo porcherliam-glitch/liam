@@ -4,7 +4,8 @@ using UnityEngine;
 namespace Aetherfall.Core
 {
     /// <summary>
-    /// Central per-frame runner for <see cref="ITickable"/> services (architecture 4.1). Lives in the boot scene next to
+    /// Central per-frame runner for <see cref="ITickable"/> services (architecture 4.1); <see cref="IUnscaledTickable"/>s get
+    /// the unscaled frame time. Lives in the boot scene next to
     /// <see cref="GameBootstrapper"/>, which hands over the tickables after the boot completed and removes them on shutdown.
     /// </summary>
     /// <remarks>
@@ -35,7 +36,7 @@ namespace Aetherfall.Core
 
         private void Update()
         {
-            _loop.Tick(Time.deltaTime);
+            _loop.Tick(Time.deltaTime, Time.unscaledDeltaTime);
         }
     }
 }

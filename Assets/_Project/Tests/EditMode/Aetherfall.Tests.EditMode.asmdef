@@ -4,8 +4,11 @@
     "references": [
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner",
+        "Aetherfall.Utilities",
         "Aetherfall.Core",
         "Aetherfall.Events",
+        "Aetherfall.Stats",
+        "Aetherfall.Combat",
         "Aetherfall.EditorTools.Core",
         "Aetherfall.Tests.Shared"
     ],

@@ -12,7 +12,7 @@ namespace Aetherfall.Player
         /// <summary>Running: stick at 50 % or more, 5.0 m/s.</summary>
         Run = 2,
 
-        /// <summary>Sprinting, 7.0 m/s (stamina cost follows with the Stats system).</summary>
+        /// <summary>Sprinting, 7.0 m/s; costs 12 stamina per second, starts only with at least 10 stamina.</summary>
         Sprint = 3,
 
         /// <summary>Sneaking, 1.8 m/s.</summary>

@@ -1,5 +1,6 @@
 using System;
 using Aetherfall.Core;
+using Aetherfall.Stats;
 using UnityEngine;
 
 namespace Aetherfall.Player
@@ -15,7 +16,9 @@ namespace Aetherfall.Player
     /// menu "Aetherfall > Testgelaende erstellen" (German menu text) sets it up.</para>
     /// <para>Input arrives through <see cref="SubmitInput"/> (from <see cref="PlayerInputReader"/>, which runs earlier in the
     /// frame). Presses are kept until the motor consumes them, so none is lost if the order changes.</para>
-    /// <para>TODO: stamina (Stats step), animation parameters (Animator step), dodge, climbing, swimming, gliding.</para>
+    /// <para>Stamina: with a <see cref="CharacterStatsComponent"/> in the field "Stats" sprinting and jumping use its stamina
+    /// pool (GDD 03 3.1/4.3, see <see cref="PlayerMovementModel"/>); without one the stamina is unlimited.</para>
+    /// <para>TODO: animation parameters (Animator step), dodge, climbing, swimming, gliding.</para>
     /// </remarks>
     [RequireComponent(typeof(CharacterController))]
     [DisallowMultipleComponent]
@@ -30,6 +33,9 @@ namespace Aetherfall.Player
 
         [Tooltip("Transform der Main Camera. Die Bewegung ist relativ zu ihrer Blickrichtung (Gier-Winkel). Leer = Weltachsen.")]
         [SerializeField] private Transform cameraTransform = null;
+
+        [Tooltip("Werte der Figur mit dem Ausdauer-Pool (Sprinten 12/s, Sprung 10). Leer = unbegrenzte Ausdauer.")]
+        [SerializeField] private CharacterStatsComponent stats = null;
 
         [Tooltip("Layer, die als Boden zählen (Bodenprüfung per SphereCast). Der Spieler-Layer selbst sollte fehlen.")]
         [SerializeField] private LayerMask groundLayers = ~0;
@@ -61,6 +67,26 @@ namespace Aetherfall.Player
             merged.WalkTogglePressed |= _pendingInput.WalkTogglePressed;
             merged.SprintSneakShared |= _pendingInput.SprintSneakShared;
             _pendingInput = merged;
+        }
+
+        /// <summary>Current pose (feet position and yaw) for saving.</summary>
+        public PlayerPose CurrentPose
+        {
+            get
+            {
+                Vector3 position = transform.position;
+                return new PlayerPose(position.x, position.y, position.z, transform.eulerAngles.y);
+            }
+        }
+
+        /// <summary>
+        /// Places the character at a pose (load). Disables the CharacterController for the move, so the position is not
+        /// overridden, and stops all movement.
+        /// </summary>
+        /// <param name="pose">Feet position and yaw.</param>
+        public void Teleport(in PlayerPose pose)
+        {
+            Teleport(new Vector3(pose.X, pose.Y, pose.Z), Quaternion.Euler(0f, pose.Yaw, 0f));
         }
 
         /// <summary>Places the character (spawn, load, fast travel) and stops all movement.</summary>
@@ -118,7 +144,17 @@ namespace Aetherfall.Player
 
             _controller.slopeLimit = tuning.ControllerSlopeLimit;
             _controller.stepOffset = Mathf.Min(tuning.StepOffset, _controller.height * 0.5f);
-            _model = new PlayerMovementModel(tuning, transform.eulerAngles.y);
+            ResourcePool stamina = null;
+            if (stats != null)
+            {
+                stamina = stats.Stamina;
+            }
+            else
+            {
+                Log.Info(LogCategory.Player, "PlayerMotor on '" + name + "': no CharacterStatsComponent in the field 'Stats', stamina is unlimited.");
+            }
+
+            _model = new PlayerMovementModel(tuning, transform.eulerAngles.y, stamina);
         }
 
         private async void Start()

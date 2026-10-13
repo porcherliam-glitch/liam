@@ -1,0 +1,49 @@
+{
+  "header": {
+    "format": "aetherfall-save",
+    "saveVersion": 1,
+    "contentVersion": 1,
+    "gameVersion": "0.1.0",
+    "slotId": "char_01/quick_0",
+    "kind": "quick",
+    "createdUtc": "2026-10-13T18:30:00Z",
+    "playtimeSeconds": 754.5,
+    "character": {
+      "name": "",
+      "level": 1,
+      "classes": []
+    },
+    "location": {
+      "regionId": "",
+      "locationId": ""
+    },
+    "mainQuestId": "",
+    "difficulty": "normal",
+    "ngPlus": 0,
+    "worldTier": 0,
+    "screenshot": null,
+    "compressed": false,
+    "sha256": null
+  },
+  "sections": {
+    "time": {
+      "playtimeSeconds": 754.5
+    },
+    "stats.player": {
+      "health": 98.5,
+      "stamina": 64.25,
+      "mana": 55.0
+    },
+    "player": {
+      "worldSpaceId": "worldspace.test.testgelaende",
+      "cellX": 0,
+      "cellZ": -1,
+      "localX": 12.5,
+      "localY": 1.25,
+      "localZ": 500.0,
+      "yaw": 90.0,
+      "mounted": false,
+      "movementMode": "onFoot"
+    }
+  }
+}

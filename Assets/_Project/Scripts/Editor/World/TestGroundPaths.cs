@@ -23,6 +23,12 @@ namespace Aetherfall.EditorTools.World
         /// <summary>Installer asset of the input service (added to the BootConfig after the GameState installer).</summary>
         public const string InputInstallerPath = SetupPaths.BootSettingsFolder + "/InputInstaller.asset";
 
+        /// <summary>Installer asset of the save system (added to the BootConfig after the GameState and Input installers, architecture 4.1 step 9).</summary>
+        public const string SaveInstallerPath = SetupPaths.BootSettingsFolder + "/SaveInstaller.asset";
+
+        /// <summary>Installer asset of the playtime clock (added directly after the save installer, architecture 4.1 step 10).</summary>
+        public const string GameTimeInstallerPath = SetupPaths.BootSettingsFolder + "/GameTimeInstaller.asset";
+
         /// <summary>Layer of the player character (architecture 2.8: layer 6).</summary>
         public const int PlayerLayerIndex = 6;
 

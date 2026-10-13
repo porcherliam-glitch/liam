@@ -1,16 +1,20 @@
+using System;
 using System.IO;
 using Aetherfall.Core;
 using Aetherfall.EditorTools.Core;
+using Aetherfall.GameTime;
 using Aetherfall.Input;
 using Aetherfall.Player;
+using Aetherfall.SaveSystem;
 using UnityEditor;
 using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace Aetherfall.EditorTools.World
 {
     /// <summary>
-    /// Assets of the test ground: folders, coloured URP/Lit materials, the player movement settings and the
-    /// InputInstaller in the BootConfig. Existing assets are reused and never overwritten.
+    /// Assets of the test ground: folders, coloured URP/Lit materials, the player movement settings and the installers
+    /// of Input, Save and GameTime in the BootConfig. Existing assets are reused and never overwritten.
     /// </summary>
     public static class TestGroundAssets
     {
@@ -121,6 +125,38 @@ namespace Aetherfall.EditorTools.World
         /// <returns>True if the BootConfig contains an InputInstaller afterwards.</returns>
         public static bool EnsureInputInstallerInBootConfig(TestGroundReport report)
         {
+            return EnsureInstallerInBootConfig<InputInstaller>(TestGroundPaths.InputInstallerPath, report, typeof(GameStateInstaller));
+        }
+
+        /// <summary>
+        /// Loads or creates the SaveInstaller and GameTimeInstaller assets and puts them into the BootConfig in the order of
+        /// architecture 4.1: SaveInstaller (step 9) behind the GameState and Input installers, GameTimeInstaller (step 10)
+        /// directly behind the SaveInstaller. Idempotent: entries at a valid position stay where they are, entries in front
+        /// of a required installer are moved behind it.
+        /// </summary>
+        /// <param name="report">Protocol.</param>
+        /// <returns>True if both installers are in the BootConfig afterwards.</returns>
+        public static bool EnsureSaveInstallersInBootConfig(TestGroundReport report)
+        {
+            bool save = EnsureInstallerInBootConfig<SaveInstaller>(TestGroundPaths.SaveInstallerPath, report,
+                typeof(GameStateInstaller), typeof(InputInstaller));
+            bool time = save && EnsureInstallerInBootConfig<GameTimeInstaller>(TestGroundPaths.GameTimeInstallerPath, report,
+                typeof(SaveInstaller));
+            return save && time;
+        }
+
+        /// <summary>
+        /// Loads or creates an installer asset and makes sure the BootConfig lists it once, behind every entry of the
+        /// <paramref name="placeAfter"/> types (the installers whose services it requires).
+        /// </summary>
+        /// <typeparam name="T">Installer type.</typeparam>
+        /// <param name="assetPath">Asset path of the installer.</param>
+        /// <param name="report">Protocol.</param>
+        /// <param name="placeAfter">Installer types that must come first.</param>
+        /// <returns>True if the BootConfig contains the installer afterwards.</returns>
+        public static bool EnsureInstallerInBootConfig<T>(string assetPath, TestGroundReport report, params Type[] placeAfter) where T : ServiceInstaller
+        {
+            string typeName = typeof(T).Name;
             BootConfig bootConfig = AssetDatabase.LoadAssetAtPath<BootConfig>(SetupPaths.BootConfigAssetPath);
             if (bootConfig == null)
             {
@@ -129,52 +165,70 @@ namespace Aetherfall.EditorTools.World
                 return false;
             }
 
-            InputInstaller installer = AssetDatabase.LoadAssetAtPath<InputInstaller>(TestGroundPaths.InputInstallerPath);
+            T installer = AssetDatabase.LoadAssetAtPath<T>(assetPath);
             if (installer == null)
             {
-                if (File.Exists(FullPath(TestGroundPaths.InputInstallerPath)))
+                if (File.Exists(FullPath(assetPath)))
                 {
-                    report.Warning(TestGroundPaths.InputInstallerPath + " existiert, ist aber kein InputInstaller – bitte prüfen.");
+                    report.Warning(assetPath + " existiert, ist aber kein " + typeName + " – bitte prüfen.");
                     return false;
                 }
 
-                installer = ScriptableObject.CreateInstance<InputInstaller>();
-                AssetDatabase.CreateAsset(installer, TestGroundPaths.InputInstallerPath);
-                report.Info("Angelegt: " + TestGroundPaths.InputInstallerPath);
+                installer = ScriptableObject.CreateInstance<T>();
+                AssetDatabase.CreateAsset(installer, assetPath);
+                report.Info("Angelegt: " + assetPath);
             }
 
             var serialized = new SerializedObject(bootConfig);
             SerializedProperty list = serialized.FindProperty(InstallersField);
             if (list == null || !list.isArray)
             {
-                report.Warning("Feld „" + InstallersField + "“ der BootConfig nicht gefunden. Bitte den InputInstaller von Hand " +
-                               "hinter dem GameState-Installer eintragen.");
+                report.Warning("Feld „" + InstallersField + "“ der BootConfig nicht gefunden. Bitte den " + typeName + " von Hand " +
+                               "eintragen (Reihenfolge: Log, EventBus, GameState, Input, Save, GameTime).");
                 return false;
             }
 
-            int gameStateIndex = -1;
+            int existing = -1;
+            int lastRequired = -1;
             for (int i = 0; i < list.arraySize; i++)
             {
                 Object entry = list.GetArrayElementAtIndex(i).objectReferenceValue;
-                if (entry is InputInstaller)
+                if (entry is T && existing < 0)
                 {
-                    report.Info("BootConfig enthält bereits einen InputInstaller (Element " + i + ", unverändert).");
+                    existing = i;
+                }
+
+                for (int t = 0; t < placeAfter.Length; t++)
+                {
+                    if (entry != null && placeAfter[t].IsInstanceOfType(entry))
+                    {
+                        lastRequired = Math.Max(lastRequired, i);
+                    }
+                }
+            }
+
+            if (existing >= 0)
+            {
+                if (existing > lastRequired)
+                {
+                    report.Info("BootConfig enthält bereits einen " + typeName + " (Element " + existing + ", unverändert).");
                     return true;
                 }
 
-                if (entry is GameStateInstaller)
-                {
-                    gameStateIndex = i;
-                }
+                list.MoveArrayElement(existing, lastRequired);
+                serialized.ApplyModifiedPropertiesWithoutUndo();
+                EditorUtility.SetDirty(bootConfig);
+                report.Info(typeName + " in der BootConfig hinter die benötigten Installer verschoben (jetzt Element " + lastRequired + ").");
+                return true;
             }
 
-            int insertAt = gameStateIndex >= 0 ? gameStateIndex + 1 : list.arraySize;
-            if (gameStateIndex < 0)
+            if (lastRequired < 0)
             {
-                report.Warning("Kein GameState-Installer in der BootConfig gefunden – der InputInstaller wird ans Ende gehängt. " +
-                               "Er braucht EventBus und GameState davor (Projekt-Setup, Schritt e).");
+                report.Warning("Keiner der benötigten Installer (" + DescribeTypes(placeAfter) + ") steht in der BootConfig – der " + typeName +
+                               " wird ans Ende gehängt. Projekt-Setup, Schritt e) prüfen.");
             }
 
+            int insertAt = lastRequired >= 0 ? lastRequired + 1 : list.arraySize;
             if (insertAt >= list.arraySize)
             {
                 list.arraySize++;
@@ -188,8 +242,19 @@ namespace Aetherfall.EditorTools.World
             list.GetArrayElementAtIndex(insertAt).objectReferenceValue = installer;
             serialized.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(bootConfig);
-            report.Info("InputInstaller in die BootConfig eingetragen (Element " + insertAt + ", hinter dem GameState-Installer).");
+            report.Info(typeName + " in die BootConfig eingetragen (Element " + insertAt + ", hinter " + DescribeTypes(placeAfter) + ").");
             return true;
+        }
+
+        private static string DescribeTypes(Type[] types)
+        {
+            var names = new string[types.Length];
+            for (int i = 0; i < types.Length; i++)
+            {
+                names[i] = types[i].Name;
+            }
+
+            return string.Join(", ", names);
         }
 
         private static string FullPath(string assetPath)

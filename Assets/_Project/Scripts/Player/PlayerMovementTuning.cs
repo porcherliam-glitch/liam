@@ -79,6 +79,15 @@ namespace Aetherfall.Player
         /// <summary>Highest step the CharacterController climbs without jumping (Vorschlag: 0.3 m).</summary>
         public float StepOffset { get; set; } = 0.3f;
 
+        /// <summary>Stamina cost of sprinting per second (GDD 03 3.1 / 4.3: 12/s).</summary>
+        public float SprintStaminaPerSecond { get; set; } = 12f;
+
+        /// <summary>Stamina needed to start a sprint (GDD 03 3.1: "Start erst ab 10 Ausdauer").</summary>
+        public float SprintStartMinimumStamina { get; set; } = 10f;
+
+        /// <summary>Stamina cost of a jump (GDD 03 3.1 / 4.3: 10). Jumping needs more than 0 stamina.</summary>
+        public float JumpStaminaCost { get; set; } = 10f;
+
         /// <summary>Returns a new instance with the values of GDD 03 3.1.</summary>
         public static PlayerMovementTuning CreateDefault()
         {
@@ -138,6 +147,11 @@ namespace Aetherfall.Player
             if (!(WalkableSlopeAngle > 0f && WalkableSlopeAngle < 90f && SlideStartAngle >= WalkableSlopeAngle && SlideStartAngle < 90f))
             {
                 return "Slope angles must satisfy 0 < walkable ≤ slide start < 90.";
+            }
+
+            if (!(SprintStaminaPerSecond >= 0f && SprintStartMinimumStamina >= 0f && JumpStaminaCost >= 0f))
+            {
+                return "Stamina costs and the sprint start minimum must be 0 or more.";
             }
 
             return string.Empty;

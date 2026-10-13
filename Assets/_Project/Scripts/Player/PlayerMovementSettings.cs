@@ -17,7 +17,7 @@ namespace Aetherfall.Player
         [Tooltip("Laufen: Stick ab 50 % bzw. WASD (GDD 03 3.1: 5,0 m/s, Kanon).")]
         [Min(0.1f)] [SerializeField] private float runSpeed = 5.0f;
 
-        [Tooltip("Sprinten (GDD 03 3.1: 7,0 m/s, Kanon). Ausdauer kommt mit dem Werte-System.")]
+        [Tooltip("Sprinten (GDD 03 3.1: 7,0 m/s, Kanon). Kostet Ausdauer (siehe unten).")]
         [Min(0.1f)] [SerializeField] private float sprintSpeed = 7.0f;
 
         [Tooltip("Schleichen (GDD 03 3.1: 1,8 m/s).")]
@@ -77,6 +77,16 @@ namespace Aetherfall.Player
         [Tooltip("Leichter Druck nach unten, damit die Figur Hänge und Treppen hinab am Boden bleibt, in m/s (Vorschlag: 2).")]
         [Min(0f)] [SerializeField] private float groundStickSpeed = 2f;
 
+        [Header("Ausdauer (GDD 03, 3.1 und 4.3)")]
+        [Tooltip("Ausdauerkosten beim Sprinten pro Sekunde (GDD 03: 12). Braucht eine CharacterStatsComponent am Spieler, sonst ist die Ausdauer unbegrenzt.")]
+        [Min(0f)] [SerializeField] private float sprintStaminaPerSecond = 12f;
+
+        [Tooltip("So viel Ausdauer braucht es, um einen Sprint zu beginnen (GDD 03: 10). Nach dem Erschöpfen sprintet die Figur erst wieder, wenn so viel regeneriert ist.")]
+        [Min(0f)] [SerializeField] private float sprintStartMinimumStamina = 10f;
+
+        [Tooltip("Ausdauerkosten eines Sprungs (GDD 03: 10). Springen geht, solange die Ausdauer über 0 ist.")]
+        [Min(0f)] [SerializeField] private float jumpStaminaCost = 10f;
+
         /// <summary>Steepest walkable slope in degrees (also the CharacterController slope limit).</summary>
         public float WalkableSlopeAngle => walkableSlopeAngle;
 
@@ -109,7 +119,10 @@ namespace Aetherfall.Player
                 SlideStartAngle = Mathf.Max(slideStartAngle, walkableSlopeAngle),
                 MaxSlideSpeed = maxSlideSpeed,
                 StepOffset = stepOffset,
-                GroundStickSpeed = groundStickSpeed
+                GroundStickSpeed = groundStickSpeed,
+                SprintStaminaPerSecond = sprintStaminaPerSecond,
+                SprintStartMinimumStamina = sprintStartMinimumStamina,
+                JumpStaminaCost = jumpStaminaCost
             };
         }
     }

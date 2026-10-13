@@ -1,0 +1,133 @@
+using System;
+using Aetherfall.Combat;
+using Aetherfall.Core;
+using Aetherfall.SaveSystem;
+using Aetherfall.Stats;
+using UnityEngine;
+
+namespace Aetherfall.Player
+{
+    /// <summary>
+    /// Connects the player character with the save system: registers <see cref="PlayerLocationSaveable"/> (section
+    /// <c>player</c>: position, yaw, world space) and <see cref="PlayerResourcesSaveable"/> (section <c>stats.player</c>:
+    /// health, stamina, mana) with <see cref="ISaveManager"/>, and places the character when a save is loaded.
+    /// </summary>
+    /// <remarks>
+    /// <para>GameObject: the player root next to <see cref="PlayerMotor"/>, <see cref="DamageableComponent"/> and
+    /// <see cref="CharacterStatsComponent"/> (the test ground menu sets the references).</para>
+    /// <para>Waits in <c>Start</c> until the boot has registered the services (in the editor the boot scene loads after the
+    /// test scene) and unregisters in <c>OnDestroy</c>. Without SaveInstaller in the BootConfig it logs a warning and the
+    /// player is not saved.</para>
+    /// </remarks>
+    [DisallowMultipleComponent]
+    public sealed class PlayerPersistence : MonoBehaviour, IPlayerPlacement
+    {
+        [Tooltip("Bewegung der Figur (zum Teleportieren beim Laden). Leer = PlayerMotor am selben GameObject.")]
+        [SerializeField] private PlayerMotor motor = null;
+
+        [Tooltip("Lebenspunkte der Figur. Leer = DamageableComponent am selben GameObject.")]
+        [SerializeField] private DamageableComponent health = null;
+
+        [Tooltip("Werte mit Ausdauer und Mana. Leer = CharacterStatsComponent am selben GameObject.")]
+        [SerializeField] private CharacterStatsComponent stats = null;
+
+        [Tooltip("ID des Weltraums, in dem die Figur steht (wird mitgespeichert), z. B. worldspace.test.testgelaende.")]
+        [SerializeField] private string worldSpaceId = "worldspace.test.testgelaende";
+
+        private ISaveManager _saves;
+        private PlayerLocationSaveable _location;
+        private PlayerResourcesSaveable _resources;
+
+        /// <inheritdoc />
+        public PlayerPose CurrentPose => motor.CurrentPose;
+
+        /// <inheritdoc />
+        public string WorldSpaceId => worldSpaceId;
+
+        /// <summary>True after both saveables were registered with the save manager.</summary>
+        public bool IsRegistered => _saves != null;
+
+        /// <inheritdoc />
+        public void Place(in PlayerPose pose, string targetWorldSpaceId)
+        {
+            if (!string.IsNullOrEmpty(targetWorldSpaceId) && !string.Equals(targetWorldSpaceId, worldSpaceId, StringComparison.Ordinal))
+            {
+                // Changing world spaces needs the scene loader (later step); until then the player stays in this scene.
+                Log.Warning(LogCategory.Player, "Save places the player in world space '" + targetWorldSpaceId + "', but this scene is '" +
+                                                worldSpaceId + "'. The position is applied here.");
+            }
+
+            motor.Teleport(pose);
+        }
+
+        private void Awake()
+        {
+            if (motor == null && !TryGetComponent(out motor))
+            {
+                Log.Error(LogCategory.Player, "PlayerPersistence on '" + name + "' finds no PlayerMotor; the player is not saved.");
+                enabled = false;
+                return;
+            }
+
+            if (health == null && !TryGetComponent(out health))
+            {
+                Log.Error(LogCategory.Player, "PlayerPersistence on '" + name + "' finds no DamageableComponent; the player is not saved.");
+                enabled = false;
+                return;
+            }
+
+            if (stats == null)
+            {
+                TryGetComponent(out stats);
+            }
+        }
+
+        private async void Start()
+        {
+            // async void is the documented exception for Unity event adapters (architecture 15.2, rule 10).
+            if (!enabled)
+            {
+                return;
+            }
+
+            try
+            {
+                await Services.WaitForAsync<IGameStateService>(destroyCancellationToken);
+                IServiceLocator locator = Services.Locator;
+                if (locator == null || !locator.TryGet(out ISaveManager saves))
+                {
+                    Log.Warning(LogCategory.Player, "PlayerPersistence: no ISaveManager registered, the player is not saved. " +
+                                                    "Add the SaveInstaller to the BootConfig (menu Aetherfall > Testgelaende erstellen does that).");
+                    return;
+                }
+
+                locator.TryGet(out IEventBus eventBus);
+                _location = new PlayerLocationSaveable(this, eventBus);
+                _resources = new PlayerResourcesSaveable(health.Health, stats != null ? stats.Stamina : null, stats != null ? stats.Mana : null);
+                saves.Register(_resources);
+                saves.Register(_location);
+                _saves = saves;
+            }
+            catch (OperationCanceledException)
+            {
+                // Destroyed while waiting for the boot.
+            }
+            catch (Exception exception)
+            {
+                Log.Exception(LogCategory.Player, exception, "PlayerPersistence could not register the player saveables.");
+            }
+        }
+
+        private void OnDestroy()
+        {
+            if (_saves == null)
+            {
+                return;
+            }
+
+            _saves.Unregister(_location);
+            _saves.Unregister(_resources);
+            _saves = null;
+        }
+    }
+}

@@ -451,6 +451,7 @@ namespace Aetherfall.EditorTools.Core
         private static string DescribeMissingOverlayType()
         {
             return "Der Typ " + OverlayFullName + " wurde nicht gefunden (Assembly Aetherfall.DevTools fehlt oder hat Compiler-Fehler). " +
+                   "Sie wird erst kompiliert, wenn das Paket com.unity.nuget.newtonsoft-json installiert ist (Schritt a). " +
                    "Console auf rote Fehler prüfen; danach Schritt e) erneut ausführen.";
         }
 

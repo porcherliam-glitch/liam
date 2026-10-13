@@ -1,0 +1,17 @@
+{
+    "name": "Aetherfall.Stats",
+    "rootNamespace": "Aetherfall.Stats",
+    "references": [
+        "Aetherfall.Utilities",
+        "Aetherfall.Core"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

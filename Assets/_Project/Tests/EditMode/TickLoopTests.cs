@@ -42,6 +42,23 @@ namespace Aetherfall.Tests.EditMode
         }
 
         [Test]
+        public void Tick_UnscaledTickable_ReceivesTheUnscaledFrameTime()
+        {
+            var scaled = new RecordingTickable("scaled", _calls);
+            var unscaled = new UnscaledRecordingTickable();
+            var loop = new TickLoop();
+            loop.SetTickables(new ITickable[] { scaled, unscaled });
+
+            loop.Tick(0f, 0.25f);
+
+            Assert.That(scaled.LastDeltaTime, Is.EqualTo(0f), "paused game: scaled time is 0");
+            Assert.That(unscaled.LastDeltaTime, Is.EqualTo(0.25f), "real time keeps running for IUnscaledTickable");
+
+            loop.Tick(0.1f);
+            Assert.That(unscaled.LastDeltaTime, Is.EqualTo(0.1f), "the single-argument overload passes the same time to both");
+        }
+
+        [Test]
         public void Tick_ThrowingTickable_IsLoggedOnceAndSkippedAfterwards()
         {
             var first = new RecordingTickable("first", _calls);
@@ -101,6 +118,16 @@ namespace Aetherfall.Tests.EditMode
             {
                 LastDeltaTime = deltaTime;
                 _calls.Add(_name);
+            }
+        }
+
+        private sealed class UnscaledRecordingTickable : IUnscaledTickable
+        {
+            public float LastDeltaTime { get; private set; } = -1f;
+
+            public void Tick(float deltaTime)
+            {
+                LastDeltaTime = deltaTime;
             }
         }
 

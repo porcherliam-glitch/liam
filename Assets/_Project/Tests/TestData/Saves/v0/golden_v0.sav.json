@@ -1,0 +1,41 @@
+{
+  "header": {
+    "contentVersion": 1,
+    "gameVersion": "0.1.0",
+    "slotId": "char_01/quick_0",
+    "kind": "quick",
+    "createdUtc": "2026-10-13T18:30:00Z",
+    "playtimeSeconds": 754.5,
+    "character": {
+      "name": "",
+      "level": 1,
+      "classes": []
+    },
+    "location": {
+      "regionId": "",
+      "locationId": ""
+    },
+    "mainQuestId": "",
+    "difficulty": "normal",
+    "ngPlus": 0,
+    "worldTier": 0,
+    "screenshot": null,
+    "compressed": false,
+    "sha256": null
+  },
+  "sections": {
+    "time": {
+      "playtimeSeconds": 754.5
+    },
+    "stats.player": {
+      "hp": 98.5,
+      "stamina": 64.25,
+      "mana": 55.0
+    },
+    "player": {
+      "worldSpaceId": "worldspace.test.testgelaende",
+      "position": [12.5, 1.25, -12.0],
+      "yaw": 90.0
+    }
+  }
+}

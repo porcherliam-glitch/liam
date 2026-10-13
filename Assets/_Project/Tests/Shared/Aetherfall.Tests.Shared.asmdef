@@ -3,6 +3,7 @@
     "rootNamespace": "Aetherfall.Tests.Shared",
     "references": [
         "UnityEngine.TestRunner",
+        "Aetherfall.Utilities",
         "Aetherfall.Core"
     ],
     "includePlatforms": [],
