@@ -33,13 +33,13 @@ Voraussetzung: [Anleitung 01](./01_Projekt-Setup.md) bis [Anleitung 05](./05_Tes
 |---|---|
 | **Inhalts-Datenbank** (`Aetherfall.Data`, neu) | Jede Definition (Item, Affix, Loot-Tabelle) hat eine feste Text-ID wie `item.weapon.einhandschwert_eisen`. Ein **Inhaltskatalog** (`Data/ContentCatalog.asset`) listet alle Definitionen; der `ContentInstaller` lädt sie beim Start in die Datenbank. |
 | **Items** (`Aetherfall.Items`, neu) | Item-Daten (Waffe, Schild, Rüstung, Schmuck, Trank, Material), **7 Seltenheiten** mit Farben und Affix-Anzahl aus GDD 04, **26 Affixe** aus dem GDD-Pool (z. B. „Scharf“, „Gepanzert“, „der Stärke“, „des Feuerschutzes“), der **Item-Generator** (Item-Level, Grundwert mit ±5 % Streuung, Affixe in Stufen I–VI mit Ausschlussregeln), **Loot-Tabellen** (Gewichte, „Nichts“, Gold als Vielfaches von G(L), verschachtelte Tabellen, garantierte Einträge, Level-Bedingungen) und der **Loot-Würfler** mit Glücks-Formel und **Pech-Schutz** (nach 50 Funden ohne Legendär steigt die Chance, nach 200 ist es garantiert). Alles reine Logik mit Tests. |
-| **Inventar** (`Aetherfall.Inventory`, neu) | Rucksack mit Stapeln (z. B. Wolfsfell bis 99), höchstens 1000 Einträge, Sortieren und Filtern, **Traglast** (60 + 2 × (Stärke − 10) kg; bei Überladung langsamer), Gold, **Ausrüstung** mit den 16 Plätzen aus §12.2 (Kopf, Brust, Hände, Beine, Füße, Umhang, Haupthand, Nebenhand, Fernkampf, 2 Ringe, Amulett, 4 Schnellslots). Angelegte Teile wirken als Werte-Modifikatoren auf die Figur. Ereignisse `ItemPickedUp`, `InventoryChanged`, `CurrencyChanged`, `ItemEquipped`, `LootDropped`. Speichern im Abschnitt `inventory`. |
+| **Inventar** (`Aetherfall.Inventory`, neu) | Rucksack mit Stapeln (z. B. Wolfsfell bis 99), höchstens 1000 Einträge, Sortieren und Filtern, **Traglast** (60 kg + 2 kg je Stärkepunkt über bzw. unter 10, oberhalb Stärke 40 nur noch 1 kg je Punkt – z. B. Stärke 20: 80 kg, Stärke 60: 140 kg; bei Überladung langsamer), Gold, **Ausrüstung** mit den 16 Plätzen aus §12.2 (Kopf, Brust, Hände, Beine, Füße, Umhang, Haupthand, Nebenhand, Fernkampf, 2 Ringe, Amulett, 4 Schnellslots). Angelegte Teile wirken als Werte-Modifikatoren auf die Figur. Ereignisse `ItemPickedUp`, `InventoryChanged`, `CurrencyChanged`, `ItemEquipped`, `LootDropped`. Speichern im Abschnitt `inventory`. |
 | **Beute in der Welt** | Getötete Wölfe würfeln ihre Loot-Tabelle; die Beute liegt als kleine Würfel in Seltenheitsfarbe am Boden, ab **Selten** mit Lichtsäule (höchstens 30 gleichzeitig). Gold und Materialien hebt die Figur automatisch auf, alles andere mit **E** bzw. **A**. |
-| **Truhen** | Holztruhe (Loot-Qualität 1), Eisentruhe (2), versteckte Truhe (3: Ausrüstung mindestens „Selten“). Jede öffnet sich einmal; der Inhalt kommt direkt in den Rucksack (ein Loot-Fenster kommt mit der Oberfläche). |
+| **Truhen** | Holztruhe (Loot-Qualität 1), Eisentruhe (2), versteckte Truhe (3: Ausrüstung mindestens „Selten“). Jede öffnet sich einmal; der Inhalt kommt direkt in den Rucksack (ein Loot-Fenster kommt mit der Oberfläche). Passt der Inhalt nicht mehr in den Rucksack (1000 Einträge), bleibt die Truhe zu – es geht nichts verloren. |
 | **Interaktion** | Die Figur sucht 5× pro Sekunde Objekte in 2 m vor sich (Truhen, Beute) und zeigt unten in der Bildmitte einen Hinweis wie „[E] Öffnen: Holztruhe“. |
 | **Spieler** | Startausrüstung des Kriegers aus GDD 03, 11.2 als echte Items. Waffenschaden und Rüstung kommen aus der Ausrüstung, Schwert und Schild verschwinden beim Ablegen. Überladen: höchstens 3 m/s, kein Sprint, statt Rolle nur ein Ausweichschritt; schwer überladen: höchstens 1,5 m/s, kein Springen. |
 | **Debug-Inventar** (`InventoryOverlay`) | Tab öffnet eine Liste mit Rucksack, Gewicht, Gold und Ausrüstung; Klick = an- bzw. ablegen, Rechtsklick = wegwerfen; Knöpfe für Testbeute, Ballast und Gold. Nur im Editor und in Entwickler-Builds. |
-| **Tests** | 237 neue automatische Testfälle (Seltenheiten, Formeln, Affix-Stufen und Ausschlussregeln, Glück, Pech-Schutz, Loot-Tabellen mit 100.000 Würfen, Inventar, Ausrüstung, Traglast, Speichern und Laden, Truhen, Beute). |
+| **Tests** | 252 neue automatische Testfälle (Seltenheiten, Formeln, Affix-Stufen und Ausschlussregeln, Glück, Pech-Schutz, Loot-Tabellen mit 100.000 Würfen, Inventar, Ausrüstung, Traglast, Speichern und Laden, Truhen, Beute). |
 
 ---
 
@@ -81,7 +81,7 @@ Die Item-Daten (Items, Affixe, Loot-Tabellen, Startausrüstung, Katalog) entsteh
 | Gegnertypen | `Data/Enemies/Grauwolf.asset`, `AetherWolf.asset` | Feld **Loot Table Id** wird gefüllt, wenn es leer ist |
 | Materialien | `Assets/_Project/Art/Materials/Test/` | `LootBeam`, `LootPickup`, `TestChestWood`, `TestChestIron`, `TestChestHidden` |
 | Installer | `Assets/_Project/Settings/Boot/ContentInstaller.asset`, `InventoryInstaller.asset` | in die BootConfig eingetragen, Katalog und Startausrüstung zugewiesen |
-| Layer | Project Settings > Tags and Layers | 10 „Interactable“ (kollidiert mit nichts, nur Abfragen), 16 „Pickup“ |
+| Layer | Project Settings > Tags and Layers, Physics > Layer Collision Matrix | 10 „Interactable“ (kollidiert mit nichts, nur Abfragen), 16 „Pickup“ (kollidiert nur mit Environment und Player, Architektur 2.8) |
 | Spielfigur `Player` | Szene | neue Komponenten **Player Interactor**, **Player Loot Collector**, **Player Equipment** |
 | neue Objekte | Szene | `Loot` (Beute und Lichtsäulen), `Truhen` (mit `Holztruhe`, `Eisentruhe`, `Versteckte Truhe`), `InventoryOverlay`, `InteractionPrompt` |
 
@@ -141,7 +141,7 @@ Steht die Reihenfolge anders: das Menü einfach noch einmal ausführen, es sorti
 | Debug-Inventar öffnen | **Tab** | – | Das Spiel pausiert, der Mauszeiger erscheint. |
 | Debug-Inventar schließen | **Tab** oder **Esc** | **B** · **○** oder **Start** · **Options** | |
 | Im Inventar anlegen / ablegen | **linke Maustaste** auf einen Eintrag | – | Rucksack-Eintrag = anlegen, Ausrüstungs-Platz = ablegen |
-| Im Inventar wegwerfen | **rechte Maustaste** auf einen Rucksack-Eintrag | – | der Gegenstand fällt vor der Figur auf den Boden |
+| Im Inventar wegwerfen | **rechte Maustaste** auf einen Rucksack-Eintrag | – | der Gegenstand fällt vor der Figur auf den Boden. Die rechte Maustaste schließt das Inventar **nicht** (nur Tab, Esc bzw. B, Start). |
 | Schnellspeichern / Schnellladen | **F5** / **F9** | – | wie in Anleitung 04 |
 
 **Automatisch aufgehoben** (Einstellung „Gold und Materialien“, GDD 04 5.9) werden **Gold** im Umkreis von **5 m** und **Materialien** (Wolfsfell, Wolfsfleisch, Aether-Wolfspelz) im Umkreis von **3 m** – auch im Kampf. Ab 90 % Traglast nur noch Gold. Ausrüstung und Tränke hebst du mit **E** auf.
@@ -227,7 +227,7 @@ Hake ab, was klappt. Bei „Nein“ bitte kurz notieren, was passiert ist. Die Z
 
 - [ ] Inventar öffnen → **Testbeute (je Seltenheit)** → schließen. Vor der Figur liegen 5 Teile: grau, grün, **blau mit 1,5 m Säule**, **lila mit 3 m Säule**, **orange mit 6 m Säule**.
 - [ ] Die Säulen sind auch aus größerer Entfernung gut zu sehen. Aufheben mit **E** → Säule verschwindet.
-- [ ] Mehrmals Testbeute (über 10×) → höchstens 30 Säulen gleichzeitig; ältere/niedrigere verlieren ihre Säule zuerst.
+- [ ] Mehrmals Testbeute (über 10×) → höchstens 30 Säulen gleichzeitig. Ist das Budget voll, verlieren Stücke **niedrigerer** Seltenheit ihre Säule (z. B. ein blaues für ein neues lila oder oranges); ein neues Stück **gleicher** Seltenheit bekommt dann keine Säule, die älteren behalten ihre.
 
 ### 7.7 Überladen
 
@@ -254,9 +254,9 @@ Hake ab, was klappt. Bei „Nein“ bitte kurz notieren, was passiert ist. Die Z
 
 | Assembly | Testfälle | Neu in diesem Schritt |
 |---|---|---|
-| `Aetherfall.Tests.EditMode` | **668** (492 + 176 neue) | `RarityRulesTests` (Farben, Affix-Anzahl, Faktoren, Dropgewichte 59,7/27,9/9,0/3,0/0,45 %), `ItemFormulasTests` (Item-Level, Einhandschwert-Tabelle von Stufe 1 bis 80 inkl. **W = 50**, Rüstung 60 laut GDD-Prüfung, Handelswert 1.284, G(L)), `AffixTiersTests` (Stufen I–VI, „Lodernd“ Stufe III = 9–12 %, Stufenwahl 50/35/15 %, Weltstufen-Untergrenze, Mythisch obere Hälfte), `AffixPoolTests` (kein Affix doppelt, Familien, zwei Resistenzen, Blutegel/Dornen, höchstens 2 Präfixe und 2 Suffixe), `ItemGeneratorTests`, `RarityRollerTests` (Glücks-Tabelle aus GDD 04 5.3, Beispiele Champion/Riss-Truhe/Raid-Boss, Mindestseltenheit, Mythisch, **100.000 Würfe**), `PityStateTests` (M_Pity-Tabelle, Garantie bei 200, Reset, Mythisch-Zähler), `LootRollerTests` (garantierte Einträge, Verschachtelung bis Tiefe 4, Bedingungen, Gold 5 × G(11) = 405, Zyklen), `LootStatisticsTests` (**100.000 Würfe der GDD-Beispieltabelle, jede Zeile ±1 %**), `ContentIndexTests`, `InteractionSelectorTests` |
+| `Aetherfall.Tests.EditMode` | **669** (492 + 177 neue) | `RarityRulesTests` (Farben, Affix-Anzahl, Faktoren, Dropgewichte 59,7/27,9/9,0/3,0/0,45 %), `ItemFormulasTests` (Item-Level, Einhandschwert-Tabelle von Stufe 1 bis 80 inkl. **W = 50**, Rüstung 60 laut GDD-Prüfung, Handelswert 1.284, G(L)), `AffixTiersTests` (Stufen I–VI, „Lodernd“ Stufe III = 9–12 %, Stufenwahl 50/35/15 %, Weltstufen-Untergrenze, Mythisch obere Hälfte), `AffixPoolTests` (kein Affix doppelt, Familien, zwei Resistenzen, Blutegel/Dornen, höchstens 2 Präfixe und 2 Suffixe), `ItemGeneratorTests`, `RarityRollerTests` (Glücks-Tabelle aus GDD 04 5.3, Beispiele Champion/Riss-Truhe/Raid-Boss, Mindestseltenheit, Mythisch, **100.000 Würfe**, Toleranz je Seltenheit etwa 4 Standardabweichungen – auch Episch und Legendär werden wirklich geprüft), `PityStateTests` (M_Pity-Tabelle, Garantie bei 200, Reset, Mythisch-Zähler), `LootRollerTests` (garantierte Einträge, Verschachtelung bis Tiefe 4, Bedingungen, Gold 5 × G(11) = 405, Zyklen, „2 × Schwert“ = 2 einzelne Funde), `LootStatisticsTests` (**100.000 Würfe der GDD-Beispieltabelle, jede Zeile ±1 %**), `ContentIndexTests`, `InteractionSelectorTests` |
 | `Aetherfall.Tests.EditMode.Gameplay` | **172** (unverändert) | – |
-| `Aetherfall.Tests.EditMode.Inventory` (neu) | **61** | `InventoryContainerTests` (Stapeln, 1000 Einträge, Sortieren), `EquipmentRulesTests` (16 Plätze, Level, Zweihand, Rüstungsklasse), `InventoryServiceTests` (Startausrüstung, Modifikatoren mit Quelle `item:<ID>` und vollständiges Entfernen, Ereignisse), `EncumbranceTests`, `InventorySaveableTests` (**Speichern → JSON → Laden**), `LootServiceTests` (Wolf-Beute, Truhe einmal, gleicher Inhalt nach Neuladen, automatisch aufheben) |
+| `Aetherfall.Tests.EditMode.Inventory` (neu) | **75** | `InventoryContainerTests` (Stapeln, Einzelstücke je ein Eintrag, 1000 Einträge, Sortieren), `EquipmentRulesTests` (16 Plätze, Level, Zweihand, Rüstungsklasse), `InventoryServiceTests` (Startausrüstung, Modifikatoren mit Quelle `item:<ID>` und vollständiges Entfernen, Ereignisse, `CountInBag`), `EncumbranceTests`, `InventorySaveableTests` (**Speichern → JSON → Laden**, auch mehrere Einzelstücke, zu große Stapel, Schild neben Zweihandwaffe, über 1000 Einträge), `LootServiceTests` (Wolf-Beute, Truhe einmal, gleicher Inhalt nach Neuladen, voller Rucksack, automatisch aufheben, Wegwerfen nur mit Beute-Anzeige) |
 | `Aetherfall.Tests.EditMode.Save` | **130** (unverändert) | – |
 
 ---
@@ -292,6 +292,8 @@ Schick Claude bitte:
 | Beute fällt, kann aber nicht aufgehoben werden | Layer 16 „Pickup“ fehlt | wie oben |
 | Keine Lichtsäulen, nur Würfel | Beute unter „Selten“ (normal) oder Shader fehlt | „Testbeute“ probieren; bei rosa Säulen bitte melden |
 | Tab öffnet nichts | Spiel nicht im Zustand „Playing“ (z. B. Pause) oder Fokus nicht im Game-Fenster | einmal ins Game-Fenster klicken, Esc-Pause schließen |
+| Meldung „Wegwerfen nicht möglich: Keine Beute-Anzeige in der Szene (LootWorldSpawner fehlt).“ | Objekt `Loot` fehlt in der Szene | Abschnitt 3 (Menü **Neu aufbauen**) |
+| Truhe öffnet sich nicht, gelbe Zeile `Chest '…' stays closed: the bag is full (1000 entries).` | Rucksack hat 1000 Einträge | Sachen wegwerfen, dann erneut öffnen (der Inhalt ist derselbe) |
 | Nach F9 sind die Rüstungswerte falsch | sollte nicht sein | bitte mit Bildschirmfoto des Spieler-Overlays melden |
 
 ---
@@ -358,7 +360,7 @@ Alle Pfade relativ zu `Assets/_Project/`. **Keine Komponente musst du von Hand a
 | `InventoryDebugOverlay.cs` | `Scripts/DevTools/` | Debug-Inventar (Tab) | **ja:** `InventoryOverlay` |
 | `InteractionPromptOverlay.cs` | `Scripts/DevTools/` | Hinweis „[E] …“ und Beute-Meldungen | **ja:** `InteractionPrompt` |
 | geändert: `PlayerStatusDebugOverlay.cs`, `Aetherfall.DevTools.asmdef` | `Scripts/DevTools/` | Zeilen Rüstung, Angriff, Traglast, Gold | wie bisher |
-| `TestGroundItemAssets.cs`, `TestGroundAffixAssets.cs`, `TestGroundLootTableAssets.cs`, `TestGroundItemBuilder.cs`, `TestGroundSerialized.cs`; geändert `TestGroundMenu.cs`, `TestGroundSceneBuilder.cs`, `TestGroundCombatBuilder.cs`, `TestGroundAssets.cs`, `TestGroundPaths.cs`, `Aetherfall.EditorTools.World.asmdef` | `Scripts/Editor/World/` | Menü legt Item-Daten, Truhen, Overlays und Installer an | nein |
+| `TestGroundItemAssets.cs`, `TestGroundAffixAssets.cs`, `TestGroundLootTableAssets.cs`, `TestGroundItemBuilder.cs`, `TestGroundSerialized.cs`; geändert `TestGroundMenu.cs`, `ProjectLayers.cs`, `TestGroundSceneBuilder.cs`, `TestGroundCombatBuilder.cs`, `TestGroundAssets.cs`, `TestGroundPaths.cs`, `Aetherfall.EditorTools.World.asmdef` | `Scripts/Editor/World/` | Menü legt Item-Daten, Truhen, Overlays und Installer an | nein |
 
 ### 11.7 Tests
 
@@ -390,7 +392,11 @@ Alle Pfade relativ zu `Assets/_Project/`. **Keine Komponente musst du von Hand a
 - **Interaktions-Schnittstelle in Core:** `IInteractable` liegt in `Aetherfall.Core` (Nr. 2), weil Inventar (13), Welt (20), NPC (22) und Spieler (24) sie alle kennen müssen und Core die niedrigste gemeinsame Assembly ist. Die spätere `Interactable`-Komponente der Welt (mit Verb, Priorität, Bedingung, Architektur 11.3) wird diese Schnittstelle umsetzen.
 - **Beute-Dienst:** `LootService` übernimmt die Rolle des `LootDropService` aus Architektur 11.6 (Wolf stirbt → würfeln → Beute in die Welt) und zusätzlich Truhen und Pech-Schutz, weil alle denselben Spielstand-Seed und dieselben Zähler brauchen.
 - **Geöffnete Truhen** werden vorerst im Spielstand-Abschnitt `inventory` gespeichert (TODO: in den `WorldObjectStateStore` der Welt umziehen, Architektur 9.7). **Beute am Boden** wird noch nicht gespeichert und verschwindet beim Laden (TODO: `IRuntimeSpawnRegistry`, Architektur 11.6).
-- **Truhen-Inhalt** geht direkt in den Rucksack („Alles nehmen“), bis es ein Loot-Fenster gibt.
+- **Truhen-Inhalt** geht direkt in den Rucksack („Alles nehmen“), bis es ein Loot-Fenster gibt. Passt er nicht hinein (1000 Einträge), bleibt die Truhe zu und der Pech-Schutz-Zähler unverändert.
+- **Einzelstücke** (Ausrüstung, Stapelgröße 1) liegen immer als eigene Einträge im Rucksack, auch wenn eine Loot-Tabelle oder die Startausrüstung „2 ×“ nennt. Spielstände mit mehreren Stück in einem Eintrag oder mit Stapeln über der Stapelgröße werden beim Laden aufgeteilt statt gekürzt; ein Schild neben einer Zweihandwaffe kommt beim Laden in den Rucksack.
+- **Wegwerfen** geht nur, wenn die Beute-Anzeige (`Loot`) in der Szene ist – sonst landete der Gegenstand sofort wieder im Rucksack und meldete ein „Aufheben“.
+- **Beute-Level von Gegnern:** Die Beute nimmt das Level aus dem Gegner-Ereignis unverändert. Elite +2 und Champion +3 (GDD 03, 9.7) gehören in das Level des Gegners selbst (Feld **Level** am Gegnertyp), damit Kampf, Erfahrung und Beute dasselbe Level nutzen.
+- **Quest-Abgaben** prüfen künftig `CountInBag` (nur Rucksack), denn `TryRemove` nimmt nie angelegte Teile; `CountOf` zählt Rucksack und Ausrüstung.
 - **Seed gegen Speichern/Laden-Tricks:** Truhen würfeln mit Spielstand-Seed + Truhen-ID (immer gleicher Inhalt), Wölfe mit Spielstand-Seed + Gegner-ID + fortlaufendem Zähler (gespeichert).
 - **Affixe ohne passenden Wert** (Element-Zusatzschaden, Blutegel, Dornen, Reinheit, Nachtwandler, Sammler, Wuchtig, Blutig) sind noch nicht im Pool, weil die Kampf-Werte dafür fehlen; Regeln und Tests (z. B. Blutegel/Dornen-Ausschluss) gibt es schon.
 - **Welche Affixe „stark“ (Gewicht 50) oder „Nutzen“ (60) sind**, legt GDD 04 nicht fest – die Zuordnung ist ein Vorschlag (stark: Scharf, Grausam, Präzise, Flink, Eile; Nutzen: Fuchs, Glück, Quelle, Heilkunst).

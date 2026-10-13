@@ -10,8 +10,9 @@ namespace Aetherfall.Tests.EditMode.Inventory
     /// <summary>
     /// <see cref="LootService"/> (GDD 04 5.4/5.6/5.9): an <c>EnemyKilled</c> with a loot table rolls loot (seeded by save
     /// seed, source and counter), places it in the world through the spawner or, without one, puts it into the bag, and
-    /// sends <c>LootDropped</c>; chests open once, their content does not change on reload, and the auto pickup rules
-    /// (gold 5 m, materials 3 m, nothing when almost full except quest items and keys).
+    /// sends <c>LootDropped</c>; chests open once, their content does not change on reload, a full bag keeps them closed; the
+    /// auto pickup rules (gold 5 m, materials 3 m, from 90 % load only gold, quest items and keys of what the mode allows, no
+    /// attempt with a full bag); dropping needs a spawner; enemy loot uses the level of the event.
     /// </summary>
     [TestFixture]
     public sealed class LootServiceTests
@@ -31,9 +32,20 @@ namespace Aetherfall.Tests.EditMode.Inventory
             _env.Dispose();
         }
 
-        private static EnemyKilled Kill(string uniqueId, string table = InventoryTestItems.WolfTable, string variant = "normal")
+        private static EnemyKilled Kill(string uniqueId, string table = InventoryTestItems.WolfTable, string variant = "normal", int level = 8)
         {
-            return new EnemyKilled("enemy.wolf.grauwolf", variant, uniqueId, "player", string.Empty, table, 8, default(Vector3));
+            return new EnemyKilled("enemy.wolf.grauwolf", variant, uniqueId, "player", string.Empty, table, level, default(Vector3));
+        }
+
+        private void FillBag(int freeEntries)
+        {
+            InventoryContainer bag = _env.Inventory.PlayerContainer;
+            _env.Catalog.TryGetItem(InventoryTestItems.IronRing, out ItemSpec ring);
+            var ids = new Aetherfall.Utilities.Pcg32Random(77UL);
+            while (bag.FreeEntries > freeEntries)
+            {
+                Assert.That(bag.TryAdd(_env.Inventory.Generator.CreateFixed(ring, 1, ItemRarity.Common, 1, ids)), Is.True);
+            }
         }
 
         [Test]
@@ -193,6 +205,108 @@ namespace Aetherfall.Tests.EditMode.Inventory
             Assert.That(AutoPickupRules.ShouldCollect(AutoPickupMode.All, swordDrop, sword, 1f, EncumbranceLevel.Normal, true), Is.False, "not in combat");
             Assert.That(AutoPickupRules.ShouldCollect(AutoPickupMode.Off, gold, null, 1f, EncumbranceLevel.Normal, false), Is.False);
             Assert.That(_env.Loot.ShouldAutoCollect(gold, 2f, false), Is.True);
+        }
+
+        [Test]
+        public void AutoPickup_AlmostFull_OnlyRestrictsTheMode()
+        {
+            var quest = new ItemSpec { Id = "item.quest.siegelring", DisplayName = "Siegelring", Category = ItemCategory.QuestItem, IsQuestItem = true };
+            var key = new ItemSpec { Id = "item.key.kellertuer", DisplayName = "Kellerschlüssel", Category = ItemCategory.Misc };
+            _env.Catalog.TryGetItem(InventoryTestItems.WolfFur, out ItemSpec fur);
+            _env.Catalog.TryGetItem(InventoryTestItems.Potion, out ItemSpec potion);
+            LootDrop questDrop = LootDrop.ForItem(new ItemInstance("9999999999999991", quest.Id, 1, ItemRarity.Common, 1f, 1, ItemFlags.None, null));
+            LootDrop keyDrop = LootDrop.ForItem(new ItemInstance("9999999999999992", key.Id, 1, ItemRarity.Common, 1f, 1, ItemFlags.None, null));
+            LootDrop furDrop = LootDrop.ForItem(new ItemInstance("9999999999999993", fur.Id, 1, ItemRarity.Common, 1f, 1, ItemFlags.None, null));
+            LootDrop potionDrop = LootDrop.ForItem(new ItemInstance("9999999999999994", potion.Id, 1, ItemRarity.Common, 1f, 1, ItemFlags.None, null));
+            const AutoPickupMode standard = AutoPickupMode.GoldAndMaterials;
+            const AutoPickupMode all = AutoPickupMode.All;
+
+            // "Gold und Materialien" never takes quest items or keys - being almost full must not change that.
+            Assert.That(AutoPickupRules.ShouldCollect(standard, questDrop, quest, 1f, EncumbranceLevel.Normal, false), Is.False);
+            Assert.That(AutoPickupRules.ShouldCollect(standard, questDrop, quest, 1f, EncumbranceLevel.AlmostFull, false), Is.False);
+            Assert.That(AutoPickupRules.ShouldCollect(standard, keyDrop, key, 1f, EncumbranceLevel.AlmostFull, false), Is.False);
+            Assert.That(AutoPickupRules.ShouldCollect(standard, questDrop, quest, 1f, EncumbranceLevel.Overloaded, false), Is.False);
+
+            // "Alles": from 90 % only quest items and keys stay.
+            Assert.That(AutoPickupRules.ShouldCollect(all, questDrop, quest, 1f, EncumbranceLevel.Normal, false), Is.True);
+            Assert.That(AutoPickupRules.ShouldCollect(all, questDrop, quest, 1f, EncumbranceLevel.AlmostFull, false), Is.True);
+            Assert.That(AutoPickupRules.ShouldCollect(all, keyDrop, key, 1f, EncumbranceLevel.Normal, false), Is.True);
+            Assert.That(AutoPickupRules.ShouldCollect(all, keyDrop, key, 1f, EncumbranceLevel.AlmostFull, false), Is.True);
+            Assert.That(AutoPickupRules.ShouldCollect(all, potionDrop, potion, 1f, EncumbranceLevel.Normal, false), Is.True);
+            Assert.That(AutoPickupRules.ShouldCollect(all, potionDrop, potion, 1f, EncumbranceLevel.AlmostFull, false), Is.False);
+            Assert.That(AutoPickupRules.ShouldCollect(all, furDrop, fur, 1f, EncumbranceLevel.AlmostFull, false), Is.False);
+        }
+
+        [Test]
+        public void AutoPickup_FullBag_LeavesItemsLying_GoldStillComes()
+        {
+            _env.Catalog.TryGetItem(InventoryTestItems.WolfFur, out ItemSpec fur);
+            LootDrop furDrop = LootDrop.ForItem(new ItemInstance("7777777777777770", fur.Id, 1, ItemRarity.Common, 1f, 2, ItemFlags.None, null));
+            Assert.That(_env.Loot.ShouldAutoCollect(furDrop, 1f, false), Is.True);
+
+            FillBag(0);
+
+            Assert.That(_env.Loot.ShouldAutoCollect(furDrop, 1f, false), Is.False, "no new stack possible: no attempt, no warning");
+            Assert.That(_env.Loot.ShouldAutoCollect(LootDrop.ForCurrency(CurrencyIds.Gold, 5), 1f, false), Is.True);
+        }
+
+        [Test]
+        public void Chest_WithAFullBag_StaysClosed_AndKeepsThePity()
+        {
+            _env.Loot.Pity.Restore(77, 4);
+            int gold = _env.Inventory.GetCurrency(InventoryOwners.Player, CurrencyIds.Gold);
+            FillBag(0);
+
+            Assert.That(_env.Loot.TryOpenChest("obj.test.truhe_holz", InventoryTestItems.ChestTable, ChestTier.Wooden, 10, out LootResult refused), Is.False);
+            Assert.That(refused, Is.Null);
+            Assert.That(_env.Loot.IsChestOpened("obj.test.truhe_holz"), Is.False);
+            Assert.That(_env.Loot.Pity.LegendaryCounter, Is.EqualTo(77));
+            Assert.That(_env.Loot.Pity.MythicCounter, Is.EqualTo(4));
+            Assert.That(_env.Inventory.GetCurrency(InventoryOwners.Player, CurrencyIds.Gold), Is.EqualTo(gold), "no gold either");
+
+            ItemInstance last = _env.Inventory.PlayerContainer.Entries[_env.Inventory.PlayerContainer.Entries.Count - 1];
+            _env.Inventory.PlayerContainer.RemoveInstance(last.InstanceId);
+            Assert.That(_env.Loot.TryOpenChest("obj.test.truhe_holz", InventoryTestItems.ChestTable, ChestTier.Wooden, 10, out LootResult opened), Is.True);
+            Assert.That(_env.Loot.IsChestOpened("obj.test.truhe_holz"), Is.True);
+            Assert.That(_env.Inventory.PlayerContainer.FreeEntries, Is.EqualTo(0), "the equipment piece took the free entry");
+            Assert.That(_env.Inventory.PlayerContainer.Find(opened.Drops[1].Item.InstanceId), Is.Not.Null);
+        }
+
+        [Test]
+        public void DropFromInventory_WithoutSpawner_IsRefused_WithoutEvents()
+        {
+            ItemInstance potions = _env.FindInBag(InventoryTestItems.Potion);
+            string reason;
+            using (var picked = new EventRecorder<ItemPickedUp>(_env.Bus))
+            using (var changed = new EventRecorder<InventoryChanged>(_env.Bus))
+            {
+                Assert.That(_env.Loot.DropFromInventory(potions.InstanceId, potions.Count, default(Vector3), out reason), Is.False);
+                Assert.That(reason, Does.Contain("LootWorldSpawner"));
+                Assert.That(picked.Count + changed.Count, Is.EqualTo(0));
+            }
+
+            Assert.That(_env.Inventory.CountOf(InventoryOwners.Player, InventoryTestItems.Potion), Is.EqualTo(3));
+
+            var spawner = new RecordingLootSpawner();
+            _env.Loot.RegisterSpawner(spawner);
+            Assert.That(_env.Loot.DropFromInventory(potions.InstanceId, potions.Count, default(Vector3), out reason), Is.True, reason);
+            Assert.That(spawner.Drops.Count, Is.EqualTo(1));
+            Assert.That(spawner.LastSourceId, Is.EqualTo(LootService.DropSourceId));
+            Assert.That(_env.Inventory.CountOf(InventoryOwners.Player, InventoryTestItems.Potion), Is.EqualTo(0));
+        }
+
+        [Test]
+        public void EnemyLoot_UsesTheLevelOfTheEvent_ForEveryVariant()
+        {
+            // EnemyKilled.EnemyLevel already contains the variant bonus (GDD 03 9.7): the loot must not add it a second time.
+            LootResult normal = _env.Loot.RollEnemyLoot(Kill("enemy.wolf.grauwolf#1", InventoryTestItems.WolfTable, "normal", 10));
+            LootResult elite = _env.Loot.RollEnemyLoot(Kill("enemy.wolf.grauwolf#2", InventoryTestItems.WolfTable, "elite", 12));
+            LootResult champion = _env.Loot.RollEnemyLoot(Kill("enemy.wolf.grauwolf#3", InventoryTestItems.WolfTable, "champion", 13));
+
+            Assert.That(normal.Drops[0].Item.ItemId, Is.EqualTo(InventoryTestItems.WolfFur), "guaranteed fur first");
+            Assert.That(normal.Drops[0].Item.ItemLevel, Is.EqualTo(10));
+            Assert.That(elite.Drops[0].Item.ItemLevel, Is.EqualTo(12));
+            Assert.That(champion.Drops[0].Item.ItemLevel, Is.EqualTo(13));
         }
 
         [Test]

@@ -7,7 +7,8 @@ using NUnit.Framework;
 namespace Aetherfall.Tests.EditMode
 {
     /// <summary>
-    /// <see cref="LootRoller"/> (GDD 04 5.1/5.4): guaranteed entries on top of the rolls, roll count, "nothing" entries,
+    /// <see cref="LootRoller"/> (GDD 04 5.1/5.4): guaranteed entries on top of the rolls, roll count, single items with a
+    /// count above 1 as separate drops, "nothing" entries,
     /// nested tables up to depth 4, level conditions, gold as a multiple of G(L), loot quality override and item level of
     /// the equipment, extra rolls (elite), determinism with the same seed, and the reference checks of the catalog.
     /// </summary>
@@ -65,6 +66,25 @@ namespace Aetherfall.Tests.EditMode
             Assert.That(result.HasItems, Is.True);
             Assert.That(result.TableId, Is.EqualTo("loot.test.wolf"));
             Assert.That(result.SourceId, Is.EqualTo("enemy.wolf#1"));
+        }
+
+        [Test]
+        public void ItemEntry_SingleItemsTimesTwo_GivesTwoDrops_StackablesOneStack()
+        {
+            AddTable(ItemTestCatalog.Table("loot.test.schwerter", 0, 0,
+                Guaranteed(ItemTestCatalog.Entry(LootEntryKind.Item, 0, ItemTestCatalog.Sword, 2, 2)),
+                Guaranteed(ItemTestCatalog.Entry(LootEntryKind.Item, 0, ItemTestCatalog.Potion, 3, 3))));
+
+            LootResult result = Roller().Roll("loot.test.schwerter", new LootContext("x", 10, 1, 0f), null, new Pcg32Random(4UL));
+
+            Assert.That(result.Drops.Count, Is.EqualTo(3));
+            Assert.That(result.Drops[0].Item.ItemId, Is.EqualTo(ItemTestCatalog.Sword));
+            Assert.That(result.Drops[0].Item.Count, Is.EqualTo(1));
+            Assert.That(result.Drops[1].Item.ItemId, Is.EqualTo(ItemTestCatalog.Sword));
+            Assert.That(result.Drops[1].Item.Count, Is.EqualTo(1));
+            Assert.That(result.Drops[1].Item.InstanceId, Is.Not.EqualTo(result.Drops[0].Item.InstanceId));
+            Assert.That(result.Drops[2].Item.ItemId, Is.EqualTo(ItemTestCatalog.Potion));
+            Assert.That(result.Drops[2].Item.Count, Is.EqualTo(3));
         }
 
         [Test]
