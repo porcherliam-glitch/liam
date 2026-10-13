@@ -47,7 +47,7 @@
 | K5 | Ruf-Preise: Misstrauisch +20 %, Freundlich −5 %, Geachtet −10 %, Verehrt −15 %, Legende −20 % | [01](./01_Welt_Story_Fraktionen.md), 9.4 | übernommen, ergänzt um Ankauf-Faktoren (8.4) |
 | K6 | Händler +10 % bei Verderbnis „Gezeichnet“, Nachtverkauf +20 % | [01](./01_Welt_Story_Fraktionen.md), 1.2 / 7.1 | übernommen als Sonderfaktoren (8.4) |
 | K7 | Waffenschaden W = Basis_Typ × (1 + 0,12 × (iLvl − 1)) × Seltenheitsfaktor; Selten = 1,2; Einhandschwert Basis 20 | [03](./03_Kampf_Charakter_Progression.md), 8.2 / 8.3 | bestätigt. Alle Faktoren in 3.1, alle Basiswerte in 4.2 |
-| K8 | Loot-Bonus „Schwer +5 %“, „Albtraum +10 %“ auf den Seltenheitswurf | [03](./03_Kampf_Charakter_Progression.md), 9.7 | bestätigt als +5 / +10 Seltenheitsbonus (5.3) |
+| K8 | Loot-Bonus Schwer +5, Albtraum +10 Seltenheitsbonus (B_Schwierigkeit) | [03](./03_Kampf_Charakter_Progression.md), 9.7 | bestätigt als +5 / +10 Seltenheitsbonus (5.3) |
 | K9 | Nachts „+1 Stufe beim Loot-Qualitätswurf“ | [01](./01_Welt_Story_Fraktionen.md), 6.1 | umgesetzt als **+1 Loot-Qualitätsstufe** für Gegner-Loot (5.2) |
 | K10 | Elite: 2 Würfe, bessere Seltenheit · Champion: mind. Selten, Chance auf Episch | [01](./01_Welt_Story_Fraktionen.md), 11.2 | übernommen als LQ 2 bzw. LQ 3 (5.2) |
 | K11 | Boss: einzigartiger Loot, „kleine Chance auf Legendär“; Grimmbart 2 % | §20.3, [02](./02_Quests_und_Dialoge.md), 11.6 | Legendär-Sonderwurf je Bosstyp, Mini-Boss 2 % (5.7) |
@@ -69,8 +69,8 @@
 | K27 | Legendäre Questreihe „Eidwahrer“ (Einhandschwert), Effekt in [03](./03_Kampf_Charakter_Progression.md) 4.8 | [02](./02_Quests_und_Dialoge.md), 9.4 | übernommen (4.6, 9.9) |
 | K28 | Benannte Legendäre der Geheimnisse und Fraktionen | [01](./01_Welt_Story_Fraktionen.md), 4.1–4.8, 8.2 | als feste Legendäre geführt, Effekte für 9 davon in 4.6 |
 | K29 | Stufe B enthält 2 Minispiele | [00](./00_Vision_und_Ueberblick.md), Umfangsstufen | Würfeln + Angeln (10, 12) |
-| K30 | Rüstungsklasse = Mehrheit der Rüstungsslots; Stoff leicht, Leder mittel, Platte schwer | [03](./03_Kampf_Charakter_Progression.md), 3.2 | übernommen. **Präzisierung (Vorschlag):** Umhänge sind klassenlos, gezählt werden die 5 übrigen Slots (kein Gleichstand möglich). Original §13.1 „Lederverarbeitung (leichte Rüstung)“ heißt hier: nicht Platte. |
-| K31 | Saisonale Ereignisse „nach dem echten Kalender“ | [01](./01_Welt_Story_Fraktionen.md), 6.1 | **Abweichung:** Diese Datei empfiehlt ein Spieljahr mit optionaler Kopplung an echte Daten (9.12, ❓). Abstimmung mit 01 nötig. |
+| K30 | Rüstungsklasse = Mehrheit der Rüstungsslots; Stoff leicht, Leder mittel, Platte schwer | [03](./03_Kampf_Charakter_Progression.md), 3.2 | übernommen. **Präzisierung (Vorschlag):** Rüstungsklasse = relative Mehrheit der 5 Slots Kopf bis Füße; Umhänge sind klassenlos; ein leerer Slot zählt als leicht; bei Gleichstand gilt die schwerere Klasse (2 Platte + 2 Leder + 1 Stoff = schwer). Original §13.1 „Lederverarbeitung (leichte Rüstung)“ heißt hier: nicht Platte (Verbesserungsvorschlag in 03, 3.2). |
+| K31 | Saisonale Ereignisse im Spieljahr (112 Spieltage) | [01](./01_Welt_Story_Fraktionen.md), 6.1 | übernommen; 01 folgt inzwischen dem Spieljahr. Optionale Kopplung an echte Daten bleibt offene Entscheidung (9.12, ❓). |
 
 ### 0.2 ID-Konventionen dieses Kapitels (Vorschlag)
 
@@ -189,7 +189,7 @@ Buffs: Nahrung „Kräftigender Eintopf“ +10 kg (30 min), Trank „Ochsenkraft
 
 | Markierung | Setzen | Wirkung | Entfernen |
 |---|---|---|---|
-| Neu (Punkt) | automatisch beim Aufnehmen | Punkt am Item, Zähler am Kategorie-Tab und am Hub-Tab „Inventar“ | Fokus bzw. Mauszeiger ≥ 0,5 s auf dem Item, oder „Alle als gesehen“ (R3 halten) |
+| Neu (Punkt) | automatisch beim Aufnehmen | Punkt am Item, Zähler am Kategorie-Tab und am Hub-Tab „Inventar“ | Fokus bzw. Mauszeiger ≥ 0,5 s auf dem Item, oder „Alle als gesehen“ (Eintrag im Sortieren-/Filtern-Menü, Y bzw. R) |
 | Favorit (Stern) | eine Taste im Inventar | steht in jeder Sortierung oben, auch in der Schnellslot-Auswahl | erneut drücken |
 | Sperre (Schloss) | eine Taste; **automatisch** für Legendär, Mythisch, Set, Fraktionsbelohnungen und benannte Questbelohnungen | nicht verkaufbar, nicht zerlegbar, nicht ablegbar. Aufwerten und Verzaubern bleiben möglich. | Halten zum Bestätigen ([05](./05_UI_Audio_Grafik_Barrierefreiheit.md), 1.4) |
 | Plunder (Münze) | automatisch für Wertgegenstände (`item.misc.*`), manuell für alles Ungesperrte | Händler bieten „Allen Plunder verkaufen“ als einen Schritt | manuell |
@@ -244,12 +244,12 @@ Original (§12.2): Kopf, Brust, Hände, Beine, Füße, Umhang, Haupthand, Nebenh
 | Amulett | Amulette | Implizitwert (4.2) | 1 | – | nein |
 | Schnellslot 1–4 | Verbrauchsgüter, Werkzeuge, „Set wechseln“ (2.3) | – | – | – | – |
 
-**Rüstungsklasse (Präzisierung zu [03](./03_Kampf_Charakter_Progression.md) 3.2):** Mehrheit der 5 Slots Kopf bis Füße. Ein leerer Slot zählt als leicht.
+**Rüstungsklasse (Präzisierung zu [03](./03_Kampf_Charakter_Progression.md) 3.2):** relative Mehrheit der 5 Slots Kopf bis Füße. Ein leerer Slot zählt als leicht. Bei Gleichstand gilt die schwerere Klasse (2 Platte + 2 Leder + 1 Stoff = schwer).
 
 ### 2.2 Waffen-Sets
 
 - **Original (§12.2):** ein Satz aus Haupthand, Nebenhand und Fernkampf.
-- Haupthand + Nebenhand bilden die Nahkampf- bzw. Magie-Ausrüstung. Der Fernkampf-Slot ist zusätzlich immer bereit (LT zielt, [03](./03_Kampf_Charakter_Progression.md) 6.1). Welche Waffe LT bei einer Magiewaffe nutzt, regelt [03](./03_Kampf_Charakter_Progression.md). **Vorschlag:** Bei Zauberstab oder Zauberbuch hat das Zaubern Vorrang. Der Bogen ist dann über das Zweitset erreichbar.
+- Haupthand + Nebenhand bilden die Nahkampf- bzw. Magie-Ausrüstung. Der Fernkampf-Slot ist zusätzlich immer bereit (LT zielt, [03](./03_Kampf_Charakter_Progression.md) 6.1). Welche Waffe LT bei einer Magiewaffe nutzt, regelt [03](./03_Kampf_Charakter_Progression.md) 6.3 (übernimmt diesen Vorschlag): Bei Zauberstab oder Zauberbuch hat das Zaubern Vorrang. Der Bogen ist dann über das Zweitset erreichbar.
 - **Zweitset (Vorschlag, ab Stufe B):** ein zweiter gespeicherter Satz (Haupt, Neben, Fernkampf). Gewechselt wird über einen Schnellslot mit dem Eintrag „Set wechseln“, also ohne neue Taste.
   - Wechselzeit 0,6 s, nicht während Angriff oder Rolle, Abklingzeit 1 s.
   - Beide Sätze zählen zur Traglast.
@@ -287,7 +287,7 @@ Original (§12.2): Das optische Aussehen ist getrennt einstellbar. Regeln sind e
 | Ausblenden | Helm, Umhang und Rücken-Schild jederzeit kostenlos |
 | Färben | 3 Farbzonen je Teil, 1 Färbemittel (Schneiderei) je Zone |
 | Outfits | 5 Speicherplätze, Wechsel kostenlos |
-| Ort | Garderobe in jedem eigenen Haus, Schneider in Städten |
+| Ort | Einzelne Slots ändern und färben: Garderobe im eigenen Haus oder Schneider in Städten. Gespeicherte Outfits wechseln sowie Helm, Umhang und Schild ausblenden: überall über Inventar › Aussehen ([05](./05_UI_Audio_Grafik_Barrierefreiheit.md) 1.3). |
 | Kosten (Gold-Senke) | 20 + 2 × Spielerlevel Gold je Slot (Level 10: 40, Level 50: 120, Level 80: 180) |
 | Stufe | B (das Inventar hat in [05](./05_UI_Audio_Grafik_Barrierefreiheit.md) bereits den Bereich „Aussehen“) |
 
@@ -390,7 +390,7 @@ Die Formel aus [03](./03_Kampf_Charakter_Progression.md) 8.2 ist bestätigt. **N
 | Zweihand-Hammer | 34 | 900 ms | 38 (+Haltung) | 7,0 kg |
 | Speer | 23 | 520 ms | 44 | 4,0 kg |
 | Faustwaffen (Paar) | 12 | 300 ms | 40 (+Haltung) | 1,5 kg |
-| Bogen (voll gespannt) | 18 | 800 ms Spannen | ~20 je s (Abstand) | 1,5 kg |
+| Bogen (voll gespannt) | 18 | 800 ms Spannen | 22,5 je s (Abstand) | 1,5 kg |
 | Armbrust | 29 (= 1,6 × Bogen, 03) | 1.400 ms Zyklus | ~21 je s | 4,0 kg |
 | Zauberstab | Zauberkraft 20 | 500 ms | – | 2,0 kg |
 | Zauberbuch | Zauberkraft 12 (+ Haupthand) | 600 ms | – | 1,5 kg |
@@ -481,7 +481,7 @@ Slot-Kürzel: **W** alle Waffen · **WN** Nahkampfwaffen · **WF** Bogen und Arm
 | 28 | des Sammlers | Suffix | +% Sammelertrag (Berufe) | 5 % | 20 % | Hände, Ri | Nutzen |
 | 29 | des Nachtwandlers | Suffix | +% Schaden nachts (21–5 Uhr, [01](./01_Welt_Story_Fraktionen.md) 6.1) | 3–5 % | 12–16 % | R | Nacht |
 
-- **Cap-Prüfung (03, 10.5):** Krit-Chance aus Affixen max. 6 Slots × 5 = 30 Prozentpunkte, plus Basis 5 % und Geschick → unter dem Soft-Cap 50 %. Angriffstempo aus Affixen bis 36 % → am Cap 30 % abgeschnitten. Abklingzeit bis 35 % → über 30 % halbe Wirkung.
+- **Cap-Prüfung (03, 10.5):** Krit-Chance aus Affixen max. 6 Slots × 5 = 30 Prozentpunkte. Mit Basis 5 % und Geschick 60 (+10) sind das 45 % und damit unter dem Soft-Cap; mit Dolchen (+10) und Stich (+5) sind es 60 % → über 50 % halbe Wirkung, effektiv 55 %. Angriffstempo aus Affixen bis 36 % → am Cap 30 % abgeschnitten. Abklingzeit bis 35 % → über 30 % halbe Wirkung.
 - Stufe A nutzt 10 Affixe der Stufen I–II, Stufe B 20 Affixe bis Stufe IV, Stufe C alle.
 
 ### 4.5 Namensbildung
@@ -555,6 +555,7 @@ Slot-Kürzel: **W** alle Waffen · **WN** Nahkampfwaffen · **WF** Bogen und Arm
 - **Entfernen:** zerstören kostenlos oder retten für 100 × Stufe² Gold (I: 100 … VI: 3.600). Spezialisierung „Steinschleifer“ rettet kostenlos.
 - **Sockel bohren:** Aetherbohrer (Juwelierkunst 40) + 40 × iLvl Gold, bis zum Slot-Maximum. Nicht bei Mythisch (immer voll).
 - **Runen:** nur Stufe I–IV, aus der Zwergen-Freischaltung „Runensteine für Sockel“ ([01](./01_Welt_Story_Fraktionen.md) 8.2) und von Runenbrechern. Verbessert wird an der Runenschmiede in Khaz Morund, nicht durch Kombinieren.
+- **Fester Fund – Siegelstein-Amulett (Vorschlag):** `item.trinket.siegelstein_eichenritter` (Amulett, Selten, iLvl 6, 1 Sockel; entsteht aus `item.quest.siegelstein_gruft` bei [02](./02_Quests_und_Dialoge.md) 11.7, Quest 7 „Die vergessene Gruft“, Verbleib 3, ab Stufe B): implizit −10 % Verderbnis-Aufbau, Riss-Siegel kanalisiert 1 s schneller.
 
 ### 4.8 Mythisch (nur Endgame)
 
@@ -585,7 +586,7 @@ Slot-Kürzel: **W** alle Waffen · **WN** Nahkampfwaffen · **WF** Bogen und Arm
 | Gewicht | 2,5 kg |
 | Wert | 40 × (1 + 0,15 × 29) × 6 = 1.284, dazu Rubin III 150 = **1.434** (Formel 8.6) |
 | Ankauf beim Händler | Sar'Hadun, Ruf Neutral, Charisma 20 (E = 10): 1.434 × 0,20 × 1,10 = **315 Gold** |
-| Zerlegen | 3 Sonnenstahlbarren (45 % von 6), 1 Sandechsenleder, 1 Aetherkern, 1 Aetherglanz, Rubin III zurück (6.7) |
+| Zerlegen | 2 Sonnenstahlbarren (45 % von 6 = 2,7, abgerundet; mit Baum „Handwerk“ 3), 1 Sandechsenleder, 1 Aetherkern, 1 Aetherglanz, Rubin III zurück (6.7) |
 | Verzauberung | 0 Veränderungen, kein Platz gebunden (6.9) |
 | Markierungen | Neu ✓ · Favorit – · Sperre – (Episch wird nicht automatisch gesperrt) |
 | Vergleich mit „Eisernes Langschwert“ (Selten, iLvl 10, 50 Schnitt) | ▲ +66 Schaden · ▲ +19 Feuer · ▲ +16 % Krit-Schaden · ▲ +7 LP je Treffer · ▲ +1 Sockel |
@@ -686,7 +687,7 @@ w'(Legendär) zusätzlich × M_Weltstufe × M_Pity × (2 bei LQ 6)
 |---|---|---|
 | Grauwolf-Rudel tagsüber, Glück 0 | 15 | Legendär 0,57 %, Episch 3,6 % |
 | Champion nachts (LQ 3 + 1), Glück 20 | 80 | Selten (inkl. Anhebung) 93,4 %, Episch 5,7 %, Legendär 1,0 % |
-| Riss-Truhe Stufe 10 (LQ 5), Glück 60, Weltstufe 5 | 185 → B_eff 142,5 | Episch (angehoben) 96,7 %, Legendär 3,3 % je Item |
+| Riss-Truhe Stufe 10 (LQ 5, Loot-Weltstufe 5, 9.2), Glück 60, ohne Riss-Gunst | 185 → B_eff 142,5 | Episch (angehoben) 96,7 %, Legendär 3,3 % je Item |
 | Raid-Boss (LQ 6), Glück 30, Weltstufe 10 | 220 → B_eff 160 | Episch 89,7 %, Legendär 10,3 % je Item |
 
 ### 5.4 Würfel-Ablauf
@@ -705,7 +706,7 @@ w'(Legendär) zusätzlich × M_Weltstufe × M_Pity × (2 bei LQ 6)
    5. Affixe (4.3), Sockel, Streuung, Name (4.5).
 8. **Einmalige Items:** schon besessen → Ersatz-Eintrag gleicher Seltenheit.
 9. **Pity-Zähler** aktualisieren (5.5).
-10. **Ausgabe:** Gegner → Pickups am Boden (gepoolt, mit Strahl). Truhe → Loot-Fenster. Quest → direkt ins Inventar. Events `LootRolled` und `ItemDropped` für Telemetrie (Namen laut [Technik/01](../Technik/01_Architektur.md)).
+10. **Ausgabe:** Gegner → Pickups am Boden (gepoolt, mit Strahl). Truhe → Loot-Fenster. Quest → direkt ins Inventar. Event `LootDropped` (`LootTableId`, `BestRarity`) für Telemetrie (Name laut [Technik/01](../Technik/01_Architektur.md), 4.3); aufgehobene Items zählt `ItemPickedUp`.
 
 ```mermaid
 flowchart TD
@@ -749,7 +750,7 @@ Reset: Z_L = 0 bei jedem zufälligen Legendär (auch Boss-Sonderwurf).
 - Ohne Pity: Median 103 Drops, 90 % erst nach 340 Drops.
 - In Spielzeit (Kampagne, Glück 15, ~7,1 Ausrüstungs-Drops je h, 5.10): Median **10,6 h**, 90 % nach 19,4 h, Obergrenze ~28 h. Ohne Pity läge das 90-%-Quantil bei ~40 h.
 
-**Mythisch-Zähler Z_M (nur Weltstufe ≥ 1):** +1 je Zufalls-Legendär, das nicht mythisch wurde. Mythisch-Anteil × (1 + 0,1 × max(0; Z_M − 10)). Bei Z_M = 30 ist das nächste Legendär garantiert mythisch. Beispiel Weltstufe 5 (7 %, ~1 Legendär je h): Erwartung ~15 h, Obergrenze ~31 h.
+**Mythisch-Zähler Z_M (nur Weltstufe ≥ 1):** +1 je Zufalls-Legendär, das nicht mythisch wurde. Mythisch-Anteil × (1 + 0,1 × max(0; Z_M − 10)). Bei Z_M = 30 ist das nächste Legendär garantiert mythisch. Beispiel Weltstufe 5 (7 %, ~1 Legendär je h): Erwartung ~12 h (ohne Pity ~15 h), Obergrenze ~31 h. Erwartete Legendäre bis Mythisch mit Pity: WS 1: 25,8 · WS 3: 18,7 · WS 5: 11,6 · WS 7: 7,7 · WS 10: 4,5.
 
 **Sammler-Pity (Boss-Uniques, seltene Boss-Drops, Reittiere):** Chance = Grundchance + 5 % je Sieg ohne diesen Drop (Reittiere +2 %). Beispiel Weltboss-Unique bei Wiederholung 20 % → garantiert spätestens im 17. Sieg.
 
@@ -789,7 +790,7 @@ Farben, Längen und Formcodes: [05](./05_UI_Audio_Grafik_Barrierefreiheit.md), 1
 | Regel | Festlegung |
 |---|---|
 | Sichtweite | Ungewöhnlich (nur Glanz) 15 m · Selten 40 m · Episch 60 m · Set 80 m · Legendär 120 m · Mythisch 200 m |
-| Kompass | Legendär, Mythisch, Set: Marker bis zum Aufheben ([05](./05_UI_Audio_Grafik_Barrierefreiheit.md)) |
+| Kompass | Legendär und Mythisch, Marker ab 50 m bis zum Aufheben ([05](./05_UI_Audio_Grafik_Barrierefreiheit.md) 1.8, 1.10). Set ohne Kompass-Marker. |
 | Budget | höchstens 30 Strahlen gleichzeitig (Pool). Darüber bekommen die niedrigsten Seltenheiten nur Glitzern. |
 | Option | „Strahlen ab Seltenheit“ (Standard: Selten). Farbenblind-Modi tauschen nur die Hex-Werte ([05](./05_UI_Audio_Grafik_Barrierefreiheit.md), 4.3). |
 | Legendär-Moment | 0,15 s Zeitlupe beim Drop (abschaltbar, gekoppelt an „Kamerawackeln“) |
@@ -821,12 +822,12 @@ Option laut [05](./05_UI_Audio_Grafik_Barrierefreiheit.md) 4.2: Aus / Gold und M
 
 **Endgame** (Riss-Expeditionen, ~30 Drops je h, Glück 40):
 
-| Weltstufe | 1 | 3 | 5 | 7 | 10 |
+| Expeditionsstufe (≈ Weltstufe, 9.2) | 1 (≈ 1) | 5 (≈ 3) | 9 (≈ 5) | 13 (≈ 7) | 21 (≈ 10) |
 |---|---|---|---|---|---|
 | Legendär | alle ~113 min | ~82 min | ~63 min | ~51 min | ~39 min |
 | Mythisch (ohne Pity) | ~188 h (mit Pity ≤ ~57 h) | ~45 h | ~15 h | ~7 h | ~2,9 h |
 
-Alle Zahlen sind Simulationen mit den Formeln dieses Kapitels und werden per Telemetrie geprüft (`ItemDropped` je Seltenheit und Stunde).
+Alle Zahlen sind Simulationen mit den Formeln dieses Kapitels und werden per Telemetrie geprüft (`LootDropped` je Stunde, Auswertung über `BestRarity`; braucht die Simulation die Seltenheit jedes Einzel-Items, wird über den Event-Antrag in [Technik/01](../Technik/01_Architektur.md), 4.3 ein Feld `Rarities` beantragt, kein neuer Name).
 
 ### 5.11 Technik-Skizze
 
@@ -879,10 +880,10 @@ Original (§13.2): Werkbänke an festen Orten und im eigenen Haus.
 
 | Station | Beruf | Orte in der Welt (Beispiele, [01](./01_Welt_Story_Fraktionen.md)) | Im Haus (7.2) | Meisterstation (Haus Stufe 3, 4.000 Gold) |
 |---|---|---|---|---|
-| Schmiede | Schmieden | Lindenhain (Tobold oder Edwin, E1.2), jede Stadt | Schmiede | +5 % Qualitätschance |
+| Schmiede | Schmieden | Lindenhain (Tobold oder Edwin, E1.2; als Herstellungsstation erst ab Freischaltung des Berufs Schmieden ~11 h laut [00](./00_Vision_und_Ueberblick.md), vorher nur Händler), jede Stadt | Schmiede | +5 % Qualitätschance |
 | Gerberbank | Lederverarbeitung | Lager Rotbuche, Velmara, Dunkelwasser | Werkstatt | +5 % |
 | Schneidertisch | Schneiderei | Velmara, Aurelion | Werkstatt | +5 % |
-| Alchemietisch | Alchemie | Lumenspitze, Bernwald, Zirkel der Nebelmütter (wenn geschützt) | Alchemielabor | +5 % |
+| Alchemietisch | Alchemie | Alwines Hütte bzw. Lindenhain (Grundrezepte ab ~4:10 laut [00](./00_Vision_und_Ueberblick.md), „Das Kraut der Kräuterfrau“), Lumenspitze, Bernwald, Zirkel der Nebelmütter (wenn geschützt) | Alchemielabor | +5 % |
 | Kochstelle | Kochen | jedes Gasthaus, Lagerplätze; Lagerfeuer nur Grundrezepte | Küche | +5 % |
 | Verzauberungsaltar | Verzauberung | Lumenspitze, Aurelion, Ankerplatz | Aether-Kammer | +5 % |
 | Juwelierbank | Juwelierkunst | Velmara, Sar'Hadun, Khaz Morund | Aether-Kammer | +5 % |
@@ -936,7 +937,7 @@ XP(Stufe n → n + 1) = 15 + 3 × n        Summe 1 → 100 = 16.335 XP
 | Zerlegen | 2 + 0,1 × iLvl, nur für den passenden Beruf |
 | Sammeln | 5 + 0,3 × Knotenstufe je Ernte. Erster Fund einer Materialart ×5. |
 | Handwerksaufträge ([02](./02_Quests_und_Dialoge.md) 8.5, Handwerksmeister) | 25 % der aktuellen Stufe |
-| Meisterprüfungen (Handwerksquests, §16.2) | Pflicht für Stufe 26, 51 und 76; Belohnung 1 volle Stufe |
+| Meisterprüfungen (Handwerksquests, §16.2) | Meisterprüfung II (Stufe 50) ist die handgemachte Handwerksquest je Herstellungsberuf (Budget 7, [02](./02_Quests_und_Dialoge.md) 2.2). Meisterprüfung I (25) und III (75) sind prozedurale Prüfaufträge (`proc.handwerk` mit festem Prüfstück). Alle drei bleiben Pflicht für Stufe 26/51/76; Belohnung 1 volle Stufe |
 | Bibliothek im Haus | +5 % Berufs-XP (7.2) |
 
 - **Beispiel:** Stufe 30 → 31 braucht 105 XP. Ein Rezept der Stufe 30 gibt 25 XP, die Erstherstellung 125 XP.
@@ -949,11 +950,11 @@ XP(Stufe n → n + 1) = 15 + 3 × n        Summe 1 → 100 = 16.335 XP
 |---|---|---|
 | 1 | Grundrezepte beim Berufsmeister, Materialstufe T1 | T1-Knoten |
 | 10 | T2; Veredeln Gewöhnlich → Ungewöhnlich (6.8) | T2; 20 % Chance auf +1 Ertrag |
-| 25 | **Meisterprüfung I**, Titel „Geselle/Gesellin“; T3; Zerlegen +10 % | T3; Doppelernte 10 % |
+| 25 | **Meisterprüfung I** (prozedurale Prüfung), Titel „Geselle/Gesellin“; T3; Zerlegen +10 % | T3; Doppelernte 10 % |
 | 40 | T4; **gezielter Affix** (1 Affix bei Herstellung wählbar) | T4; seltene Knoten im Kompass |
 | 50 | **Meisterprüfung II**, Titel „Meister/in“; **Spezialisierung** (1 aus 2); Meisterwerk-Chance (6.5); T5 | T5; Doppelernte 20 % |
 | 60 | Veredeln bis Episch | – |
-| 75 | **Meisterprüfung III**; T6; Signatur (eigener Name im Tooltip, +3 % auf alle Affixwerte des Items) | T6 |
+| 75 | **Meisterprüfung III** (prozedurale Prüfung); T6; Signatur (eigener Name im Tooltip, +3 % auf alle Affixwerte des Items) | T6 |
 | 90 | T7; Endgame-Rezepte „Riss-Schmiedekunst“ | T7 |
 | 100 | Titel „Großmeister/in der …“, 1 legendäres Meisterrezept je Beruf, Trophäe für das Haus | Titel, Werkzeug-Skin |
 
@@ -1253,7 +1254,7 @@ Original (§21): verfallenes Anwesen im Eichental in Akt 1; Ausbau in Stufen (Re
 | Gasthauszimmer (Vergleich) | Zimmer für 20 + 0,2 × G(L) Gold | +5 % XP aus Kämpfen und Erkundung | 1 Spieltag |
 | Reinigung | 8 h Schlaf ([01](./01_Welt_Story_Fraktionen.md) 1.2) | Verderbnis → 0 | – |
 
-- **Abstimmung mit [03](./03_Kampf_Charakter_Progression.md):** Der XP-Bonus gilt nur für Kampf- und Erkundungs-XP (zusammen ~25–35 % aller XP, 03 12.7). Effektiv sind das ≤ 3,5 % mehr XP. Die Level-Ziele aus §28 bleiben dadurch im Rahmen.
+- **Abstimmung mit [03](./03_Kampf_Charakter_Progression.md):** Der XP-Bonus gilt nur für Kampf- und Erkundungs-XP (zusammen ~25–35 % aller XP, 03 12.7). Effektiv sind das ≤ 3,5 % (Ausgeruht) bzw. ≤ 5,25 % (Wohlig ausgeruht) mehr XP. Die Level-Ziele aus §28 bleiben dadurch im Rahmen.
 
 ---
 
@@ -1308,8 +1309,8 @@ Original (§22): Händler haben begrenztes Gold und Inventar, das sich regelmä�
 - Nach 20 Käufen startet die geheime Questreihe „Fidels Schuldner“ (9.10).
 
 **Blinde Ware (Schwarzmarkt ab Aurelion, im Endgame auch Ankerplatz):**
-- Slot oder Waffentyp wählen, 25 × Spielerlevel Gold zahlen (Level 40: 1.000; Level 80: 2.000), ein zufälliges Item erhalten (LQ 2, Glück gilt, zählt für Pity).
-- Bei Level 80 im Mittel ~1 Legendär je ~80 Käufe ≈ 160.000 Gold ≈ 20–25 h Endgame-Einnahmen.
+- Slot oder Waffentyp wählen, 25 × Spielerlevel Gold zahlen (Level 40: 1.000; Level 80: 2.000), ein zufälliges Item erhalten (LQ 2, Glück gilt, zählt für Pity). Blinde Ware nutzt die aktive Weltstufe (Seltenheitsbonus und Legendär ×).
+- Bei Level 80 und Glück 40 im Mittel 1 Legendär je ~70 Käufe auf WS 0 (~140.000 Gold), ~32 Käufe auf WS 5 (~64.000 Gold ≈ 6–11 h Endgame-Einnahmen) und ~20 Käufe auf WS 10 (~40.000 Gold).
 - Zweck: unbegrenzte Gold-Senke und gezielte Slot-Jagd. ❓ Glücksspiel-Aspekt (Offene Entscheidung 4).
 
 **Auktionshaus „Haus Varn“ (Vorschlag; Original §22: nur NPC-basiert):**
@@ -1324,7 +1325,7 @@ Original (§22): Händler haben begrenztes Gold und Inventar, das sich regelmä�
 | Schätzwert | Legendär 150 × G(80) ≈ 74.000 · Set-Teil 80 × G ≈ 40.000 · Mythisch 600 × G ≈ 297.000 · Reittier 500 × G ≈ 248.000 · Kosmetik 50–200 × G. Dazu Aether-Splitter (Legendär 50, Mythisch 400). |
 | Bieten | Start bei 60 % des Schätzwerts. 2–4 NPC-Bieter mit verdecktem Limit 80–140 %. Der Spieler erhöht in 5-%-Schritten und wird bei Überbieten benachrichtigt. Ende am 7. Spieltag um 18:00. |
 | Sofortkauf | 160 % des Schätzwerts |
-| Einliefern | höchstens 3 Items je Spielwoche. Erlös 40–70 % des Handelswerts (zufällige Nachfrage), Gebühr 10 %. Besser als beim Händler, aber begrenzt. |
+| Einliefern | höchstens 3 Items je Spielwoche. Erlös 40–60 % des Handelswerts (zufällige Nachfrage), Gebühr 10 % (netto 0,36–0,54 × Wert). Besser als beim Händler, aber begrenzt. |
 
 ### 8.4 Preisformel
 
@@ -1339,12 +1340,12 @@ Ankaufpreis = Wert × Quote × F_Cha(V) × F_Ruf(V) × F_Region(V) × F_Nachfrag
 |---|---|---|---|
 | Quote | – | Ausrüstung 0,20 · Materialien 0,25 · Verbrauchsgüter 0,15 · Bücher 0,25 · Plunder 0,40 | Vorschlag |
 | F_Cha | 1 − 0,01 × E(Charisma), höchstens −25 %; bei E < 0 bis +9 % | 1 + 0,01 × E(Charisma), höchstens +25 % | [03](./03_Kampf_Charakter_Progression.md) 10.2 |
-| F_Ruf (Fraktion des Händlers) | Misstrauisch 1,20 · Neutral 1,00 · Freundlich 0,95 · Geachtet 0,90 · Verehrt 0,85 · Legende 0,80 · Feindlich: kein Handel | Misstrauisch 0,90 · Neutral 1,00 · Freundlich 1,03 · Geachtet 1,05 · Verehrt 1,08 · Legende 1,10 | K-Spalte [01](./01_Welt_Story_Fraktionen.md) 9.4, V-Spalte Vorschlag. Händler ohne Fraktion: 1,00 |
+| F_Ruf (Fraktion des Händlers) | Misstrauisch 1,20 · Neutral 1,00 · Freundlich 0,95 · Geachtet 0,90 · Verehrt 0,85 · Legende 0,80 · Verhasst und Feindlich: kein Handel | Misstrauisch 0,90 · Neutral 1,00 · Freundlich 1,03 · Geachtet 1,05 · Verehrt 1,08 · Legende 1,10 · Verhasst und Feindlich: kein Handel | K-Spalte [01](./01_Welt_Story_Fraktionen.md) 9.4, V-Spalte Vorschlag. Händler ohne Fraktion: 1,00 |
 | F_Region | Überschuss 0,85 · normal 1,00 · Mangel 1,15 | Überschuss 0,85 · normal 1,00 · Mangel 1,25 | Vorschlag, Tabelle unten |
 | F_Nachfrage | – | −5 % je Stück derselben Item-ID seit dem letzten Restock (min. 0,50) · Aushang „Gesucht“ ×1,50 (2 Items je Restock, höchstens 10 Stück) | Vorschlag |
 | F_Sonder | Verderbnis „Gezeichnet“ ×1,10 · Nachtverkauf ×1,20 · Knoten „Feilschen“ ×0,95 · Merle Brack ×0,90 · „Goldene Waage“ ×0,95 | „Goldene Waage“ ×1,05 | [01](./01_Welt_Story_Fraktionen.md), [02](./02_Quests_und_Dialoge.md), [03](./03_Kampf_Charakter_Progression.md), 4.6 |
 
-- **Grenzen:** Kauf nie unter 0,60 × Wert, Ankauf nie über 0,50 × Wert. Damit ist Kaufen und Wiederverkaufen nie Gewinn (keine Arbitrage-Schleife).
+- **Grenzen:** Kauf nie unter 0,60 × Wert, Ankauf nie über 0,50 × Wert. Damit ist Kaufen und Wiederverkaufen nie Gewinn (keine Arbitrage-Schleife); auch das Einliefern im Auktionshaus bringt netto höchstens 0,54 × Wert (8.3).
 - **Beispiel:** Wert 1.000, Charisma 30 (E = 20), Silberwacht-Händler, Ruf Geachtet, Region mit Mangel. Kauf: 1.000 × 0,80 × 0,90 × 1,15 = **828 Gold**. Ankauf (Ausrüstung): 1.000 × 0,20 × 1,20 × 1,05 × 1,25 = **315 Gold**.
 
 **Regionale Überschüsse und Mängel (Vorschlag):**
@@ -1488,7 +1489,7 @@ Original (§20.4): Ab dem Endgame heben Weltstufen alle Gegner auf das Spielerle
 - Die Multiplikatoren gelten **zusätzlich** zum Schwierigkeitsgrad ([03](./03_Kampf_Charakter_Progression.md) 9.7). Gegner über dem Spielerlevel wirken zusätzlich über F_Δ (+3 % je Level, [03](./03_Kampf_Charakter_Progression.md) 8.2).
 - **Wechsel** außerhalb von Kampf und Dungeons am Weltstein (Ankerplatz, Refugium) oder an jedem Wegschrein. Niedrigere Stufen bleiben wählbar.
 - Questbelohnungen und Aufträge nutzen ab WS 1 das Spielerlevel ([02](./02_Quests_und_Dialoge.md) 8.4).
-- **Leistungs-Budget (Plausibilität):** Vom Endgame-Start bis zum optimierten Build wächst der Schaden etwa ×6: iLvl 60 → 80 ×1,30 · Seltenheit Episch → Mythisch ×1,19 · Affixe ×1,6 · Set ×1,4 · Legendär ×1,3 · Edelsteine ×1,2 · Paragon ×1,12. WS 10 (LP ×9,5) bleibt damit ~1,6× zäher als WS 1. Gewollt: „sehr schwer“. Kalibrierung per Telemetrie (Zeit bis zum Kill je WS).
+- **Leistungs-Budget (Plausibilität):** Vom Endgame-Start bis zum optimierten Build wächst der Schaden etwa ×6: iLvl 60 → 80 ×1,30 · Seltenheit Episch → Mythisch ×1,19 · Affixe ×1,6 · Set ×1,4 · Legendär ×1,3 · Edelsteine ×1,2 · Paragon ×1,12. WS 10 (LP ×9,5, Gegner +3 Level: LP ×1,035, F_Δ 0,91) bleibt damit ~1,8× zäher als WS 1. Gewollt: „sehr schwer“. Kalibrierung per Telemetrie (Zeit bis zum Kill je WS).
 
 ### 9.2 Riss-Expeditionen
 
@@ -1496,7 +1497,7 @@ Original (§23): zufällig generierte Dungeons mit Modifikatoren (wie Rifts / My
 
 **Grundregeln:**
 - Ein Lauf dauert 12–20 min. Ein Fortschrittsbalken „Riss-Stabilität“ füllt sich durch Kills (Normal 1 %, Elite 4 %, Champion 10 %) und Raumziele. Bei 100 % erscheint der Riss-Wächter in der Wächter-Arena.
-- Expeditionen ignorieren die Weltstufe: Die **Expeditionsstufe** ersetzt sie im Riss.
+- Expeditionen ignorieren die Weltstufe: Die **Expeditionsstufe** ersetzt sie im Riss. Für den Loot (5.3: 10 × WS, M_Weltstufe, Mythisch-Anteil) gilt im Riss die **Loot-Weltstufe** laut Zeile „≈ Weltstufe“ der Stufentabelle unten: Stufe 1–4 → 1 · 5–8 → 3 · 9–12 → 5 · 13–16 → 7 · 17–18 → 8 · 19–20 → 9 · ab 21 → 10. Riss-Gunst ÷ 2 kommt als B_Ereignis hinzu.
 - Begleiter sind erlaubt (Ausnahme: Modifikator „Einsam“).
 
 **Generierung aus Raumbausteinen:**
@@ -1527,7 +1528,7 @@ flowchart LR
 **Ablauf des Generators:**
 1. Seed = Hash(Spielstand-Seed, Kalenderwoche, Laufzähler).
 2. Biom wählen. Die Biome der letzten 2 Läufe sind gesperrt.
-3. Hauptpfad mit 6–10 Räumen nach der Grammatik oben, dazu 1–3 Nebenäste.
+3. Hauptpfad mit 8–11 Räumen (ohne Verbinder) und 4–8 Verbindern nach der Grammatik oben, dazu 1–3 Nebenäste (Schatzkammer, Vertikalraum).
 4. Raumvarianten: kein Prefab doppelt im Lauf. Prefabs der letzten 2 Läufe haben ×0,3 Gewicht.
 5. Gegnergruppen aus dem Roster des Biom-Ursprungs plus Leere-Familie ([01](./01_Welt_Story_Fraktionen.md) 11.1), gemischt nach Rollen (§20.1).
 6. Modifikatoren nach Stufe (Tabelle unten).
@@ -1670,11 +1671,11 @@ Original (§23): Raid-Bosse für Solo-Spieler mit Begleitern, sehr schwer. Alles
 Original (§23): Paragon-/Meisterschaftssystem nach dem Maximallevel für kleine Boni. Werte sind ein **Vorschlag**.
 
 ```
-XP(Paragon p → p + 1) = 10.000 + 200 × p
+XP(Paragon p − 1 → p) = 10.000 + 200 × p        (p ≥ 1; erste Stufe 10.200 XP)
 kumuliert: P 25 = 315.000 · P 50 = 755.000 · P 100 = 2,01 Mio. · P 150 = 3,77 Mio. · P 300 = 12,03 Mio.
 ```
 
-- **Tempo:** Endgame bringt 30.000–45.000 XP je h ([03](./03_Kampf_Charakter_Progression.md): ~23.000 bei Level 60–80, dazu Weltstufen-XP ×1,05–1,5). Paragon 100 nach ~45–65 h, Paragon 300 nach ~270–400 h.
+- **Tempo:** Endgame bringt ~24.000–37.500 XP je h ([03](./03_Kampf_Charakter_Progression.md): ~23.000–25.000 bei Level 60–80, × Weltstufen-XP 1,05–1,5). Paragon 25 nach ~8–13 h, Paragon 100 nach ~55–85 h, Paragon 150 nach ~100–155 h, Paragon 300 nach ~320–500 h.
 - **1 Punkt je Stufe.** Die Kategorien wechseln reihum (Stufe p → Kategorie p mod 4). Bei 300 Punkten hat jede Kategorie 75.
 - **Deckel: 300 Punkte.** Danach zählen die Stufen weiter (Anzeige, Rahmen-Kosmetik alle 50 Stufen), ohne neue Punkte. ❓ **Offene Entscheidung:** Deckel 300 / 500 / unbegrenzt, empfohlen 300.
 - Punkte jederzeit kostenlos umverteilbar (Säule 6). Bleiben in NG+.
@@ -1882,7 +1883,7 @@ Original (§23): Wiederholbare Inhalte immer mit Abwechslung durch Modifikatoren
 | Regel (§23) | Was sie im Endgame erfüllt |
 |---|---|
 | alle 5 min eine kleine Belohnung | Drops in Expeditionen (~30 je h), Sammelpunkte, Ereignisse |
-| alle 30 min eine größere | Expeditionsabschluss (12–20 min), Paragon-Stufe (früh 20–40 min), Legendär (WS 5: ~1 je h) |
+| alle 30 min eine größere | Expeditionsabschluss (12–20 min), Paragon-Stufe (früh ~16–26 min), Legendär (WS 5: ~1 je h) |
 | alle 2–3 h etwas Neues | Wochen-Affix, neue Auktionslose (alle 5,6 h), Inseldrift, Weltstufen-Aufstieg, neue Raid-Stufe |
 
 ---
@@ -1949,7 +1950,7 @@ Stufen laut [00](./00_Vision_und_Ueberblick.md) (A = Vertical Slice, B = erste v
     → Gegenmaßnahme: Mindestseltenheit nach LQ, feste Belohnungen an Geheimnissen, Telemetrie der Fundraten (Ziel: Selten+ ~3 je h, Episch+ alle ~2,6 h, Legendär Median ~11 h).
 11. **Glücksspiel-Mechaniken und saisonaler Zeitdruck** können Freigabe und Spielerwohl berühren.
     → Gegenmaßnahme: Offene Entscheidung 4; Feste kehren jährlich wieder (kein FOMO); keine Zufallspacks.
-12. **Offene Abstimmungen mit Nachbarkapiteln:** Kalender der Feste ([01](./01_Welt_Story_Fraktionen.md) 6.1), Bedienung des Zweitsets und LT bei Magiewaffen ([03](./03_Kampf_Charakter_Progression.md)), Ausgeruht-XP im XP-Modell ([03](./03_Kampf_Charakter_Progression.md) 12), Umhang-Regel der Rüstungsklasse ([03](./03_Kampf_Charakter_Progression.md) 3.2), Zeitpunkt des Rissduells ([00](./00_Vision_und_Ueberblick.md)).
+12. **Offene Abstimmungen mit Nachbarkapiteln:** Kalender der Feste ([01](./01_Welt_Story_Fraktionen.md) 6.1), Ausgeruht-XP im XP-Modell ([03](./03_Kampf_Charakter_Progression.md) 12), Zeitpunkt des Rissduells ([00](./00_Vision_und_Ueberblick.md)). Geklärt: LT bei Magiewaffen und Zweitset ([03](./03_Kampf_Charakter_Progression.md) 6.3), Umhang- und Gleichstandsregel der Rüstungsklasse ([03](./03_Kampf_Charakter_Progression.md) 3.2).
     → Gegenmaßnahme: ein gemeinsamer Kanon-Abgleich vor Phase 3, Ergebnis in den Kanon-Tabellen aller Kapitel.
 13. **Datenmenge:** ~430 Rezepte, ~40 Affixe, ~75 Set-Teile, ~66 Legendäre, 120 Karten, 40 Fische, ~300 Basistypen (Schätzung) – alles DE + EN.
     → Gegenmaßnahme: CSV-Import ([Technik/01](../Technik/01_Architektur.md) 5.3), Validator für IDs, Verweise und Wertebereiche, Inhalte in Stufen statt auf einmal.

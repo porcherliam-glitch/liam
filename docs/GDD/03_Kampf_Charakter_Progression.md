@@ -43,7 +43,7 @@ Präfixe laut [Technik/01](../Technik/01_Architektur.md), Abschnitt 6.1. IDs ohn
 | Thema | Herkunft | Festlegung in dieser Datei |
 |---|---|---|
 | Erste Aether-Kraft | [01](./01_Welt_Story_Fraktionen.md) Kanon-Tabelle: Name „Aether-Stoß“, ID von 03 | **`skill.aether.aether_stoss`** (Knoten) schaltet **`ability.aether.aether_stoss`** frei. Ersetzt den Platzhalter `skill.aether.rissstoss` in [02](./02_Quests_und_Dialoge.md) und [Technik/01](../Technik/01_Architektur.md). |
-| Aether-Sicht | [01](./01_Welt_Story_Fraktionen.md) 2.3 und [02](./02_Quests_und_Dialoge.md): erlernt in HQ 4 „Steinkreis von Altenhain“ | übernommen. Vorher gibt es „Untersuchen“ auf derselben Taste (1.4). [00](./00_Vision_und_Ueberblick.md) nennt Stunde 1:15; maßgeblich ist HQ 4. |
+| Aether-Sicht | [01](./01_Welt_Story_Fraktionen.md) 2.3 und [02](./02_Quests_und_Dialoge.md): erlernt in HQ 4 „Steinkreis von Altenhain“ | übernommen. Vorher gibt es „Untersuchen“ auf derselben Taste (1.4). Deckt sich mit [00](./00_Vision_und_Ueberblick.md) (Zeitleiste 5:00, HQ 4). |
 | Laufen 5 m/s, Sprinten 7 m/s, Galopp 13 m/s | [01](./01_Welt_Story_Fraktionen.md) 3.1 | übernommen (3.1, 3.4) |
 | Aether-Regeln A2, A3, A9, Verderbnis-Stufen | [01](./01_Welt_Story_Fraktionen.md) 1.2 | übernommen als endgültige Werte (7.2) |
 | Wetter-Kampfeffekte | [01](./01_Welt_Story_Fraktionen.md) 6.2 | übernommen, ergänzt um Zustand „Nass“ (7.3) |
@@ -1120,7 +1120,7 @@ Jeder Angriff hat eine eigene Kombination aus Animation und Ton, damit Spieler i
 
 Original (§20.4): feste Gegnerlevel je Gebiet (keine Oblivion-Mitskalierung). Ab dem Endgame heben Weltstufen alle Gegner auf das Spielerlevel ([04](./04_Items_Crafting_Wirtschaft_Endgame.md)). Schwierigkeitsgrade: Geschichte, Normal, Schwer, Albtraum.
 
-**Gegnerlevel (Vorschlag):** Spawner tragen ein festes Level aus dem Regionsband (§14.2). Elite +2, Champion +3 ([01](./01_Welt_Story_Fraktionen.md)), Nacht +2 ([01](./01_Welt_Story_Fraktionen.md)). Ein höheres Gegnerlevel wirkt über die Level-Formeln (10.6) und den Faktor F_Δ (8.2). Gegner ab 6 Level über dem Spieler zeigen einen Totenkopf am Lebensbalken.
+**Gegnerlevel (Vorschlag):** Spawner tragen ein festes Level aus dem Regionsband (§14.2). Ausnahme: Story-Zonen auf dem kritischen Pfad tragen bis zum Abschluss des Akts das Korridor-Level ([01](./01_Welt_Story_Fraktionen.md), 2.1; z. B. Glutlande-Story 37–41, Schlundrand während HQ 49–51 Level 42). Elite +2, Champion +3 ([01](./01_Welt_Story_Fraktionen.md)), Nacht +2 ([01](./01_Welt_Story_Fraktionen.md)). Ein höheres Gegnerlevel wirkt über die Level-Formeln (10.6) und den Faktor F_Δ (8.2). Gegner ab 6 Level über dem Spieler zeigen einen Totenkopf am Lebensbalken.
 
 **Schwierigkeitsgrade (Vorschlag), jederzeit änderbar (§29); im Bosskampf ab dem nächsten Versuch:**
 
@@ -1180,7 +1180,7 @@ Technik: `StatCollection` und Modifikatoren laut [Technik/01](../Technik/01_Arch
 | Ausdauer-Regeneration | 25 pro s nach 0,8 s (4.3) | – |
 | Max. Mana | 50 + 5 × E(Int) + 2 × (Level − 1) | Magier L1 (Int 15): 75 · Krieger L1 (Int 8): 40 |
 | Mana-Regeneration | 2,5 % (Kampf) bzw. 6 % (außerhalb) der max. Mana pro s × (1 + 0,02 × E(Wei)) | – |
-| Angriff (Anzeige) | Waffenschaden × (1 + 0,025 × Σ wᵢ × E(Attributᵢ)) | Krieger L10 mit Langschwert: 57,5 |
+| Angriff (Anzeige) | Waffenschaden × (1 + 0,025 × Σ wᵢ × E(Attributᵢ)) | Krieger L10 mit Langschwert: 57,5, angezeigt 57 |
 | Zauberkraft | Zauberkraft der Magiewaffe × (1 + 0,025 × E(Int)); Heilung × (1 + 0,02 × E(Wei)); ohne Magiewaffe 10 × (1 + 0,12 × (Level − 1)) × (1 + 0,025 × E(Int)) (= halbe Zauberkraft eines gewöhnlichen Zauberstabs gleichen Levels) | Grundwert ohne Magiewaffe: L1 10 · L10 20,8 · L40 56,8 · L80 104,8 |
 | Rüstung | Σ Rüstungsteile + Schild + Flat-Boni, dann Prozentboni | Wirkung in 8.2 |
 | Resistenzen | je Schadensart aus Ausrüstung, Tränken, Buffs | Spieler −1,0 bis +0,75 |
@@ -1192,6 +1192,8 @@ Technik: `StatCollection` und Modifikatoren laut [Technik/01](../Technik/01_Arch
 | Traglast | 60 kg + 2 kg × E(Stä) + Taschen ([04](./04_Items_Crafting_Wirtschaft_Endgame.md)) | Stä 40: 120 kg |
 | Standfestigkeit | 20 + Rüstungsklasse (0 / 15 / 30) + 0,5 × E(Kon) | 4.9 |
 | Glück (§10.2) | 0,5 × E(Cha) + Ausrüstung + Buffs | Wirkung auf Loot in [04](./04_Items_Crafting_Wirtschaft_Endgame.md) |
+
+Abgeleitete Werte werden intern ungerundet geführt und abgerundet angezeigt (Prozentwerte mit einer Nachkommastelle, z. B. Krit-Chance 12,5 %).
 
 ### 10.4 Modifikator-Reihenfolge
 
@@ -1220,7 +1222,7 @@ Beispiel Rüstung: Teile 60 + Ring „+10 Rüstung“ = 70 → × (1 + 0,15 „E
 | Resistenz je Schadensart (Spieler) | – | 75 % |
 | Rüstungsreduktion | – | 85 % |
 | Schadensreduktion aus Buffs, gesamt | – | 90 % (mind. 10 % des Schadens kommt durch) |
-| Statusresistenz | – | 200 (Schwelle 300) |
+| Statusresistenz (Spieler) | – | 200 (Schwelle 300) |
 
 ### 10.6 Gegnerwerte nach Level (Vorschlag)
 
@@ -1268,7 +1270,7 @@ Original (§11.2): Passive Boni, aktive Fähigkeiten, Fähigkeits-Upgrades, Schl
 | Typ | Kürzel | Kosten | Regel |
 |---|---|---|---|
 | Kern | K | 0 für die Startklasse, sonst 1 | Wurzel des Baums |
-| Passiv | P | 1 je Rang (1–3 Ränge) | kleine, immer aktive Boni |
+| Passiv | P | 1 je Rang (1–3 Ränge; Ausnahme: Dialog-Fertigkeiten im Baum Sprache/Charisma 1–5 Ränge) | kleine, immer aktive Boni |
 | Aktiv | A | 1 | neue Fähigkeit für die Fähigkeitenleiste |
 | Upgrade | U | 1 | verändert eine Aktive. Oft als **Gabelung**: eines von zwei Upgrades. |
 | Schlüsselknoten | S | 2, ab Level 20 | große Veränderung mit Nachteil. Je Ast eines von zwei. |
@@ -1360,9 +1362,9 @@ Jeder Baum folgt dem Muster aus 11.4: 1 Kern + 3 Äste × 14 Knoten (≥ 40).
 | Schurke | Assassine | Schleichen, Meucheln, Krit | Schattenschleier, Meuchelstoß (×6), Ablenkung | „Lautlos“: Kills im Schleichen machen kein Geräusch und geben 3 s Unsichtbarkeit; dafür −20 % LP | B |
 | Schurke | Giftmischer | Gift, Blutung, Bomben | Klingengift, Rauchbombe, Giftwolke | „Seuchenträger“: stirbt ein vergiftetes Ziel, springt das Gift auf 2 Nachbarn über | B |
 | Schurke | Duellant | Dolche, Ausweichen, Konter | Klingentanz, Konterhaltung, Entwaffnen | „Tänzer“: Rolle in den letzten 100 ms vor einem Treffer löst 1 s Zeitlupe aus; dafür Rüstung −25 % | B |
-| Magier | Pyromant | Feuer, Brennen, Flächen | Feuerball, Flammenteppich, Glutmantel | „Inferno“: Brennen-Ticks können kritisch treffen und springen über; dafür Eis-Zauber −30 % | A (3 Knoten) / B |
-| Magier | Frostweber | Eis, Kontrolle, Schutz | Eislanze, Frostnova, Eispanzer | „Permafrost“: eingefrorene Ziele zerspringen beim Tod zu einer Frostnova | A (3 Knoten) / B |
-| Magier | Blitzbinder | Blitz, Ketten, Unterbrechung | Kettenblitz, Blitzstrahl, Sturmkugel | „Gewitterherz“: jeder 4. Zauber kostet kein Mana und löst einen Kettenblitz aus; dafür Mana-Regeneration −20 % | A (3 Knoten) / B |
+| Magier | Pyromant | Feuer, Brennen, Flächen | Feuerball, Flammenteppich, Glutmantel | „Inferno“: Brennen-Ticks können kritisch treffen und springen über; dafür Eis-Zauber −30 % | A (5 Knoten) / B |
+| Magier | Frostweber | Eis, Kontrolle, Schutz | Eislanze, Frostnova, Eispanzer | „Permafrost“: eingefrorene Ziele zerspringen beim Tod zu einer Frostnova | A (5 Knoten) / B |
+| Magier | Blitzbinder | Blitz, Ketten, Unterbrechung | Kettenblitz, Blitzstrahl, Sturmkugel | „Gewitterherz“: jeder 4. Zauber kostet kein Mana und löst einen Kettenblitz aus; dafür Mana-Regeneration −20 % | A (4 Knoten) / B |
 | Kleriker | Barmherzigkeit | Heilung, Reinigung | Heilkreis, Lebensband, Reinigung | „Märtyrer“: überschüssige Heilung wird zu einem Schild (max. 20 % LP); eigene Heilung −25 % | C1 |
 | Kleriker | Läuterung | geweihter Aether, Streitkolben, gegen Untote | Lichtpfeil, Weiheglyphe, Hammer des Urteils | „Inquisitor“: +30 % gegen Untote und Leere, Treffer senken die eigene Verderbnis um 1 | C1 |
 | Kleriker | Segen | Auren, Schutz, Gruppen-Buffs | Segen, Schutzgeist, Aura der Standhaftigkeit | „Schutzpatron“: 2 Auren gleichzeitig; dafür eigener Schaden −15 % | C1 |
@@ -1376,7 +1378,7 @@ Jeder Baum folgt dem Muster aus 11.4: 1 Kern + 3 Äste × 14 Knoten (≥ 40).
 |---|---|---|---|
 | Überleben | 15 (~20 Punkte) | Atem +15 s · Fallschaden −25 % · Klima-Aufbau −20 % ([01](./01_Welt_Story_Fraktionen.md)) · Ausdauer-Regeneration +10 % · Tränke +15 % Wirkung · Nahrungs-Buffs +30 % Dauer · Reittier-Ausdauer +20 · Pfeile zu 75 % wiederverwendbar · Gleitschirm-Sinkrate −20 % · Fährtenlesen (Aether-Sicht zeigt Tierfährten) · „Zweite Chance“ (einmal je 10 min überlebt man einen tödlichen Treffer mit 1 LP) | 3, 4 |
 | Handwerk | 12 (~15 Punkte) | Qualitätschance +5 % je Beruf · Materialersparnis 10 % · Zerlegen +1 Material · Upgrade-Kosten −15 % · Verzauberung: Affix sperren | [04](./04_Items_Crafting_Wirtschaft_Endgame.md) (Berufe haben eigene Stufen 1–100) |
-| Sprache/Charisma | 12 (~18 Punkte) | Überzeugen, Einschüchtern, Lügen mit je **Rang 1–5** (Rang 4 ab Level 30, Rang 5 ab Level 50) · Feilschen (Preise −5 %) · Bestechung (−10 %) · Anführer (Loyalität +10 %) · Gerüchte (zusätzliche Hinweise) · Ruf +10 % | [02](./02_Quests_und_Dialoge.md) 12.3: Probewert = Attribut + 2 × Rang |
+| Sprache/Charisma | 12 (~24–27 Punkte) | Überzeugen, Einschüchtern, Lügen mit je **Rang 1–5** (Rang 4 ab Level 30, Rang 5 ab Level 50) · Feilschen (Preise −5 %) · Bestechung (−10 %) · Anführer (Loyalität +10 %) · Gerüchte (zusätzliche Hinweise) · Ruf +10 % | [02](./02_Quests_und_Dialoge.md) 12.3: Probewert = Attribut + 2 × Rang |
 
 ### 11.7 Hybridklassen (§11.2, Vorschlag)
 
@@ -1459,7 +1461,7 @@ XP_next(L) = runden_auf_10( 200 × L × (1 + (L / 30)²) )      für L = 1 … 7
 - XP_next(L) = XP von Level L nach L + 1. Gesamt bis Level 80: **2.851.020 XP**.
 - Unten ist die Kurve fast linear (≈ 200 × L). So bleiben die Beispielwerte aus [02](./02_Quests_und_Dialoge.md) gültig: Prolog 500 XP plus Kills ≈ Level 3 (200 + 400 = 600 XP); Quest 2 0,5 Lv bei Level 3 = 305 XP („≈ 300“); Grimmbart 0,6 Lv bei Level 7 = 888 XP („≈ 850“).
 - Oben steigt sie kubisch. Wer deutlich über dem Level des Inhalts liegt, bekommt dadurch automatisch weniger relativen Fortschritt.
-- Parameter (200, 30, Exponent 2) und die Stützpunkte aus 12.4 liegen in einem `ProgressionCurve`-SO (§28).
+- Parameter (200, 30, Exponent 2) und die Stützpunkte aus 12.4 liegen in einem `XpCurve`-SO ([Technik/01](../Technik/01_Architektur.md), 5.3; §28).
 
 ### 12.4 Herleitung
 
@@ -1525,9 +1527,26 @@ Geprüft mit einem Python-Skript (Kurve, Stützpunkte, Simulation in 0,05-h-Schr
 
 **Ergebnisse:**
 1. Die Kurve trifft die drei Ziele aus §28 mit höchstens 13 % Abweichung (Level 30 nach 35 statt 40 h), sofern Nebenquests nach Minuten-Äquivalent belohnt werden.
-2. **Mit den festen Bändern aus [02](./02_Quests_und_Dialoge.md) wird man fast doppelt so schnell stark:** Level 30 nach ~21 h, Level 80 nach ~125 h. Grund: Ab Level 10 dauert ein Level 50–160 min, eine 15-min-Nebenquest mit 0,4 Lv ist dann 3- bis 5-mal zu großzügig. Die Überlevel-Abschwächung (min. 25 %) fängt das nicht auf. Der Spieler läge dauerhaft 8–10 Level über den festen Gebietsleveln (§20.4).
+2. **Mit den festen Bändern aus [02](./02_Quests_und_Dialoge.md) wird man fast doppelt so schnell stark:** Level 30 nach ~21 h, Level 80 nach ~125 h. Grund: Ab Level 10 dauert ein Level 50–160 min. Eine 15-min-Nebenquest mit 0,4 Lv ist bei Level 10 1,5-mal, ab Level 20 3- bis 5-mal zu großzügig. Die Überlevel-Abschwächung (min. 25 %) fängt das nicht auf. Der Spieler läge dauerhaft 8–10 Level über den festen Gebietsleveln (§20.4).
 3. Der Story-Korridor funktioniert: Reine Story-Spieler erreichen Level 25 am Ende von Akt 2 (Korridor 24) und Level 43,5 nach 40 h (Ende Akt 4, Korridor 42).
 4. Level 80 liegt in der Simulation später (240–270 h) als in der Formel (197 h). Das hängt von der Endgame-Dichte ab (Weltstufen, Expeditionen, [04](./04_Items_Crafting_Wirtschaft_Endgame.md)) und wird erst im Playtest kalibriert.
+5. **Prüfung je Region (§28):** Bei gemischtem Spielen bringt jede Region auf das Einstiegslevel der Folgeregion (größte Abweichung −0,2 Level). Wer alle Hauptquests, aber nur die Hälfte der anderen Quests spielt, liegt bis Kar'Zul im Soll, vor den Glutlanden aber 3,3 und vor dem Zerbrochenen Himmel 5,2 Level unter dem Einstieg (Tabelle unten).
+
+**Prüftabelle je Region** (§28: „Jede Region soll mit Haupt- und einigen Nebenquests auf das nächste Level bringen“). Gleiche Simulation wie oben; Zeitfenster aus der Inhaltsgrenze in 12.4, Aurelion ab ~19,3 h laut [00](./00_Vision_und_Ueberblick.md). Zwei Varianten: **gemischt** = Inhaltsmodell aus 12.4 (alle Hauptquests, andere Quests 3,5 bzw. 2,0 je h); **halb** = alle Hauptquests, halbe Dichte der anderen Quests, Kämpfe und Erkundung ×0,75 (weniger Spielzeit je Story-Abschnitt). „Erfüllt“ heißt: Level beim Wechsel ≥ Einstiegslevel − 2.
+
+| Region (Band §14.2) | Zeitfenster (gemischt) | Level beim Betreten (gemischt / halb) | Level beim Wechsel (gemischt / halb) | Folgeregion (Einstiegslevel) | Erfüllt (gemischt / halb) |
+|---|---|---|---|---|---|
+| Eichental (1–10) | 0–9 h | 1 / 1 | 15,7 / 13,4 | Goldküste (10) | ja / ja |
+| Goldküste (10–20) | 9–16,5 h | 15,7 / 13,4 | 20,4 / 17,9 | Moorschatten (18) | ja / ja |
+| Moorschatten (18–28) | 16,5–19,3 h | 20,4 / 17,9 | 21,9 / 19,3 | Aurelion (20) | ja / ja |
+| Aurelion, Akt 2 (20–60) | 19,3–40 h | 21,9 / 19,3 | 31,3 / 28,8 | Kar'Zul (25) | ja / ja |
+| Kar'Zul (25–38) | 40–62 h | 31,3 / 28,8 | 40,3 / 37,8 | Frostgipfel (35) | ja / ja |
+| Frostgipfel (35–48) | 62–75 h | 40,3 / 37,8 | 44,8 / 41,7 | Glutlande (45) | ja / **nein (−3,3)** → Gegenmaßnahme 1 |
+| Glutlande (45–60) | 75–120 h | 44,8 / 41,7 | 59,9 / 54,8 | Zerbrochener Himmel (60) | ja / **nein (−5,2)** → Gegenmaßnahme 2 |
+
+- **Gegenmaßnahme 1 (Frostgipfel → Glutlande):** Story-Korridor aus [00](./00_Vision_und_Ueberblick.md): Die Hauptquests von Akt 4 verlangen höchstens Level 42, die Glutlande-Story ist also ohne Grinden spielbar. Questdichte: Die Frostgipfel-Inhalte (bis 48) bleiben offen und geben volles Minuten-Äquivalent, weil die Überlevel-Abschwächung erst 3 Level über dem empfohlenen Level greift.
+- **Gegenmaßnahme 2 (Glutlande → Zerbrochener Himmel):** Akt 5 spielt im Story-Bereich mit festem Level 42–48 ([00](./00_Vision_und_Ueberblick.md)); der offene Zerbrochene Himmel (60–80) folgt erst nach der Story. Die fehlenden Level liefern die offenen Glutlande-Inhalte (bis 60) sowie Weltereignisse und prozedurale Aufträge (Questdichte).
+- Die Überlevel-Abschwächung aus [02](./02_Quests_und_Dialoge.md) begrenzt die Gegenrichtung: Beim Wechsel ins Goldküsten-Band (10–20) liegt der gemischte Spieler mit 15,7 Level noch im Band.
 
 ### 12.7 XP-Quellen und Regeln (Vorschlag)
 
@@ -1535,7 +1554,7 @@ Geprüft mit einem Python-Skript (Kurve, Stützpunkte, Simulation in 0,05-h-Schr
 
 | Quelle | Anteil | Regel |
 |---|---|---|
-| Hauptquests | 10–15 % (nur Story: ~65 %) | Band 0,8–1,5 Lv aus [02](./02_Quests_und_Dialoge.md) bleibt (Story-Korridor). **Neu:** Hauptquest-Abschwächung −10 % je Level über Korridor + 3, höchstens auf 50 %. |
+| Hauptquests | 10–15 % (nur Story: ~65 %) | Band 0,65–1,5 Lv aus [02](./02_Quests_und_Dialoge.md), 2.2 bleibt (Untergrenze für Akt 3–5 laut Story-Korridor). **Neu:** Hauptquest-Abschwächung −10 % je Level über Korridor + 3, höchstens auf 50 %. |
 | Andere handgemachte Quests | 50–60 % | Minuten-Äquivalent (unten) |
 | Prozedurale Aufträge, Weltereignisse, Tägliche | ≤ 10 % | ≤ 15 % laut [02](./02_Quests_und_Dialoge.md); Formel dort, mit t(L) statt festem 0,10-Faktor |
 | Kämpfe | 15–20 % | XP_Kill (unten) |

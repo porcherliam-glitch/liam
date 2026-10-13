@@ -1,6 +1,6 @@
 # Technik-Recherche: Unity-Stand, Pakete und Werkzeuge (Oktober 2026)
 
-> Teil der Phase-0-Planung · Stand: 2026-10-12 · Quelle: [Master-Prompt](../00_Master-Prompt.md)
+> Teil der Phase-0-Planung · Stand: 2026-10-13 · Quelle: [Master-Prompt](../00_Master-Prompt.md)
 
 Verwandte Dokumente: [Technische Architektur](./01_Architektur.md) · [Systeme & Abhängigkeiten](./02_Systeme_und_Abhaengigkeiten.md) · [Quests & Dialoge](../GDD/02_Quests_und_Dialoge.md) · [UI/Audio/Grafik](../GDD/05_UI_Audio_Grafik_Barrierefreiheit.md) · [Welt & Story](../GDD/01_Welt_Story_Fraktionen.md)
 
@@ -78,7 +78,7 @@ flowchart LR
 | Input System Hardware: DualSense (PS5) auf Mac/Windows, Xbox per USB unter macOS über den Systemtreiber, Switch Pro auf Desktop. | wie oben | hoch |
 | **Cinemachine 3** `com.unity.cinemachine`: stabil **3.1.7** (08.06.2026), Vorabversion 3.1.8-pre.2, Mindestversion 2022.3. Die Klassen `CinemachineCamera`, `CinemachineThirdPersonFollow`, `CinemachineThirdPersonAim`, `CinemachineOrbitalFollow`, `CinemachineRotationComposer`, `CinemachineDeoccluder`, `CinemachineDecollider` (ab 3.1.0), `CinemachineTargetGroup`, `CinemachineGroupFraming`, `CinemachineStateDrivenCamera`, `CinemachineClearShot` und `CinemachineImpulseSource` sind im Quellcode vorhanden. | https://github.com/Unity-Technologies/com.unity.cinemachine/blob/main/com.unity.cinemachine/CHANGELOG.md | hoch |
 | Cinemachine-Kollision: `CinemachineDeoccluder` hält die Sichtlinie zum Ziel frei (eigene Klasse, nicht nur ein umbenannter `CinemachineCollider`). `CinemachineDecollider` verhindert nur, dass die Kamera in Collider oder Terrain eindringt, ohne die Sichtlinie zu erzwingen. Für ein Lock-On gibt es kein fertiges Sample. Üblich ist eine eigene Lock-On-Kamera (`ThirdPersonFollow` + `RotationComposer` auf eine `TargetGroup` aus Spieler und Ziel), die per Priorität eingeblendet wird. | Changelog wie oben · https://docs.unity3d.com/Packages/com.unity.cinemachine@3.1/manual/CinemachineRotationComposer.html · https://community.gamedev.tv/t/unity-3rd-person-combat-traversal-cinemachine-v-3-problems/256542 | mittel |
-| **ProBuilder** `com.unity.probuilder`: **6.1.2** (11.06.2026), Mindestversion 6000.0. | https://github.com/Unity-Technologies/com.unity.probuilder/blob/master/CHANGELOG.md | hoch |
+| **ProBuilder** `com.unity.probuilder`: **6.1.3** (07.10.2026), Mindestversion 6000.0. | https://github.com/needle-mirror/com.unity.probuilder (CHANGELOG) · https://github.com/Unity-Technologies/com.unity.probuilder/blob/master/CHANGELOG.md | hoch |
 | **Terrain Tools** `com.unity.terrain-tools`: **5.3.3** (19.08.2026), Mindestversion 6000.0. Bereits auf CoreCLR-kompatible APIs umgestellt (für 6.5+). | https://github.com/needle-mirror/com.unity.terrain-tools | hoch |
 | **AI Navigation** `com.unity.ai.navigation`: **2.0.16** (07.10.2026), Mindestversion 6000.0. **Verhaltensänderung in 2.0.16:** Ein NavMesh über Terrain bezieht jetzt die gemalten Bäume ein. Dichte Wälder verlieren dadurch Wege, Bakes dauern länger. Abschalten pro Baum über `NavMeshModifier` (Remove Object) oder global per Define `AI_NAVIGATION_IGNORE_TERRAIN_TREES`. | https://github.com/needle-mirror/com.unity.ai.navigation | hoch |
 | AI Navigation zur Laufzeit: `NavMeshSurface.BuildNavMesh()`, `UpdateNavMesh(NavMeshData)` (gibt eine `AsyncOperation` zurück, intern `NavMeshBuilder.UpdateNavMeshDataAsync`), `AddData()/RemoveData()` (`NavMesh.AddNavMeshData`), `overrideTileSize`/`tileSize`. Standard-Kachel 256 Voxel, für Laufzeit-Bakes kleiner wählen, für Carving 64–128. | https://github.com/needle-mirror/com.unity.ai.navigation (Runtime/NavMeshSurface.cs) · https://docs.unity3d.com/Packages/com.unity.ai.navigation@2.0/manual/NavMeshSurface | hoch |
@@ -88,7 +88,7 @@ flowchart LR
 | **Timeline** `com.unity.timeline`: **1.8.13** (11.08.2026), Mindestversion 6000.0. | https://github.com/needle-mirror/com.unity.timeline | hoch |
 | **Animation Rigging** `com.unity.animation.rigging`: **1.4.1** (16.01.2026), Mindestversion 6000.0.23f1. Wenig Entwicklung (1.3.0 → 1.4.0 lagen fast 3 Jahre auseinander), aber gepflegt. | https://github.com/needle-mirror/com.unity.animation.rigging | hoch |
 | **Localization** `com.unity.localization`: **1.5.13** (02.09.2026). UI-Toolkit-Bindung über Runtime Data Binding (ab Unity 6), lokalisierte Dropdowns für UI Toolkit, uGUI und TMP, Google-Sheets-Anbindung, Smart Strings. | https://github.com/needle-mirror/com.unity.localization · https://docs.unity3d.com/Packages/com.unity.localization@1.5/manual/UIToolkit.html | hoch |
-| **Unity Test Framework**: Seit 1.5.1 Kernpaket mit fester Bindung an die Editor-Version. Die Doku liegt ab 6.2 im Unity-Manual. Eine 2.0-Linie existiert nur als Pre-Release/experimentell. Das Performance-Testing-Paket 3.2.0 ist für 6000.3 freigegeben. | https://docs.unity3d.com/Packages/com.unity.test-framework@1.5/changelog/CHANGELOG.html · https://docs.unity3d.com/Manual/test-framework/test-framework-introduction.html · https://docs.unity3d.com/Manual/com.unity.test-framework.performance.html | mittel |
+| **Unity Test Framework**: Seit 1.5.1 Kernpaket mit fester Bindung an die Editor-Version. Die Doku liegt ab 6.2 im Unity-Manual. Eine 2.0-Linie existiert nur als Pre-Release/experimentell. Das Performance-Testing-Paket 3.2.0 ist für 6000.3 freigegeben. Neueste Version von `com.unity.test-framework.performance` ist **3.6.0** (23.09.2026, Mindestversion 2020.3). Ob der Package Manager unter 6.3 3.2.x oder 3.6.x als „released“ anbietet, ist nicht verifiziert. | https://docs.unity3d.com/Packages/com.unity.test-framework@1.5/changelog/CHANGELOG.html · https://docs.unity3d.com/Manual/test-framework/test-framework-introduction.html · https://docs.unity3d.com/Manual/com.unity.test-framework.performance.html · https://github.com/needle-mirror/com.unity.test-framework.performance (package.json, CHANGELOG) | mittel / hoch (Version 3.6.0) |
 | **Newtonsoft JSON** `com.unity.nuget.newtonsoft-json`: **3.2.2** (enthält Json.NET 13.0.2), offizielles Unity-Paket. Vermeidet Assembly-Konflikte und funktioniert mit IL2CPP. | https://github.com/needle-mirror/com.unity.nuget.newtonsoft-json · https://www.pkglnk.dev/pkg/newtonsoft-json | hoch / mittel (Json.NET-Version) |
 | **Unity Behavior** `com.unity.behavior`: **1.0.16** (26.05.2026), Mindestversion 6000.0.16f1, Status „released“. **Seit Anfang 2025 weniger Investition:** nur noch Bugfixes und Stabilität. Runtime-Serialisierung wurde (Stand 1.0.8) nicht empfohlen. Open-Sourcing ist offen. | https://github.com/needle-mirror/com.unity.behavior · https://discussions.unity.com/t/an-update-on-behavior/1598451 | hoch (Version) / mittel (Investitionsstand) |
 | `com.unity.serialization` gilt ab 6.6 offiziell als veraltet. Unity empfiehlt den Wechsel zu System.Text.Json, Odin Serializer oder MemoryPack. | https://discussions.unity.com/t/coreclr-scripting-and-serialization-update-june-2026/1723299 | mittel |
@@ -103,12 +103,12 @@ flowchart LR
 | Cinemachine | 3.1.x (stabil, kein `-pre`) | 1 | 2.x-Tutorials nicht verwenden, die API ist umbenannt |
 | Universal RP | an den Editor gebunden (Kernpaket) | 1 | Render Graph aktiv lassen |
 | Newtonsoft JSON | 3.2.2 | 1 | Speichersystem |
-| Unity Test Framework | Kernpaket | 1 | plus Performance Testing 3.2.x ab Phase 2 |
+| Unity Test Framework | Kernpaket | 1 | plus Performance Testing ab Phase 2: neueste 3.6.0 (23.09.2026); ob der Package Manager unter 6.3 3.2.x oder 3.6.x als „released“ anbietet, ist nicht verifiziert |
 | Localization | 1.5.x | 1 | Deutsch/Englisch ab dem ersten UI-Text (§4.2) |
 | ugui (enthält TMP) | an den Editor gebunden | 1 | TMP Essentials importieren |
 | ProBuilder | 6.1.x | 2 | Blocking |
 | AI Navigation | 2.0.x | 2 | Verhalten bei Terrain-Bäumen ab 2.0.16 beachten |
-| Addressables | 2.x unter 6.3 · 4.x unter 6.7 | 2 | Linie wechselt mit dem Engine-Upgrade |
+| Addressables | 2.x unter 6.3 · 4.x unter 6.7 | 1 | Linie wechselt mit dem Engine-Upgrade; ContentDatabase und SceneLoader ab Boot ([Technik/01, 4.1](./01_Architektur.md)) |
 | Timeline | 1.8.x | 3 | Zwischensequenzen |
 | Animation Rigging | 1.4.x | 2 | IK für Blick und Hände |
 | Terrain Tools | 5.3.x | 4 | Vertical Slice |
@@ -176,21 +176,23 @@ flowchart LR
 
 **Fallstricke und Regeln (Vorschlag für §6.4):**
 
-1. Jede konkrete Condition- und Action-Klasse ist `[Serializable]`, `sealed`, nicht generisch und erbt nicht von `UnityEngine.Object`. Feldtyp ist das Interface (`ICondition`, `IGameAction`).
+1. Jede konkrete Condition- und Action-Klasse ist `[Serializable]`, `sealed`, nicht generisch und erbt nicht von `UnityEngine.Object`. Feldtyp ist die abstrakte Basisklasse (`Condition`, `GameAction`) aus `Aetherfall.Conditions`, siehe [Technik/01, 7.1](./01_Architektur.md).
 2. Klassennamen, Namespaces (`Aetherfall.Conditions`) und asmdef-Namen gelten ab dem ersten Content-Asset als **eingefroren**. Wer umbenennt, setzt `[MovedFrom(…)]` und behält es dauerhaft.
 3. Ein Editor-Validator (Teil des ID-Prüfwerkzeugs aus §6.3) meldet fehlende Typen in allen Assets. Ein CI-Test schlägt fehl, wenn Assets solche Referenzen enthalten.
 4. Neue Felder bekommen sinnvolle Standardwerte. Wenn sich die Bedeutung ändert, sorgt ein Editor-Migrationsskript dafür, nicht `ISerializationCallbackReceiver`-Magie.
-5. **Vorschlag:** ein eigener schlanker Drawer in `Aetherfall.Editor` (ca. 150–250 Zeilen, UI Toolkit, `TypeCache.GetTypesDerivedFrom<T>()`, eigenes Attribut `[TypeMenu("Quest/Spieler hat Level")]` für deutsche Menüpfade). Begründung: keine Fremdabhängigkeit über den CoreCLR-Wechsel hinweg, Menü passt zu unserem Domänenvokabular. Rückfallebene: das MIT-Paket von mackysoft, eingebunden unter `Assets/ThirdParty/`.
+5. **Vorschlag:** ein eigener schlanker Drawer in `Aetherfall.EditorTools.Core` (ca. 150–250 Zeilen, UI Toolkit, `TypeCache.GetTypesDerivedFrom<T>()`, eigenes Attribut `[TypeMenu("Quest/Spieler hat Level")]` für deutsche Menüpfade). Begründung: keine Fremdabhängigkeit über den CoreCLR-Wechsel hinweg, Menü passt zu unserem Domänenvokabular. Rückfallebene: das MIT-Paket von mackysoft, eingebunden unter `Assets/ThirdParty/`.
 
 Skizze (nur zur Verdeutlichung):
 
 ```csharp
 namespace Aetherfall.Conditions {
-  public interface ICondition { bool Evaluate(IConditionContext ctx); }
-  [Serializable, TypeMenu("Spieler/Level mindestens")]
-  public sealed class PlayerLevelAtLeast : ICondition { [SerializeField] private int level = 1; /* … */ }
+  [Serializable] public abstract class Condition { public abstract bool Evaluate(in ConditionContext ctx); }
   [Serializable, TypeMenu("Logik/UND")]
-  public sealed class AllOf : ICondition { [SerializeReference] private List<ICondition> items = new(); /* … */ }
+  public sealed class AllOf : Condition { [SerializeReference] private List<Condition> items = new(); /* … */ }
+}
+namespace Aetherfall.Progression {
+  [Serializable, TypeMenu("Spieler/Level mindestens")]
+  public sealed class PlayerLevelAtLeast : Condition { [SerializeField] private int level = 1; /* … */ }
 }
 ```
 
@@ -203,7 +205,7 @@ namespace Aetherfall.Conditions {
 | `FindObjectOfType` / `FindObjectsOfType` sind obsolet (seit 2023.1). | https://docs-alpha.unity3d.com/ScriptReference/Object.FindObjectOfType.html | hoch |
 | **Auch `FindFirstObjectByType` ist inzwischen obsolet** (Doku 6.6, weil es auf der InstanceID-Reihenfolge beruht). Ersatz ist `FindAnyObjectByType`. | https://docs.unity3d.com/6000.6/Documentation/ScriptReference/Object.FindFirstObjectByType.html · https://issuetracker.unity3d.com/issues/vfx-samples-are-using-the-obsolete-findfirstobjectbytype-method | mittel |
 | `FindObjectsByType` mit `FindObjectsSortMode`-Parameter ist ab 6.4 obsolet. Ersatz sind die Überladungen `FindObjectsByType(Type)` bzw. `(Type, FindObjectsInactive)`. Terrain Tools 5.3.3 musste deshalb nachbessern. | https://docs.unity3d.com/6000.6/Documentation/ScriptReference/FindObjectsSortMode.html · https://github.com/needle-mirror/com.unity.terrain-tools | hoch |
-| **InstanceID → EntityId:** `Object.GetInstanceID()` erzeugt ab 6.2 Obsolet-Warnungen, Pakete stellen für 6.5+ auf `EntityId` um. In 6.7 beta2 ist es laut einem Bericht ein Compile-Fehler („Use GetEntityId instead“). Die Werte sind ausdrücklich **nicht stabil** über Sitzungen oder Versionen hinweg. | https://docs.unity3d.com/6000.7/Documentation/Manual/instanceid-to-entityid-migration.html · https://github.com/needle-mirror/com.unity.ai.navigation · https://github.com/needle-mirror/com.unity.behavior | hoch (Abkündigung) / niedrig (Compile-Fehler in 6.7) |
+| **InstanceID → EntityId:** `Object.GetInstanceID()` erzeugt ab 6.2 Obsolet-Warnungen, Pakete stellen für 6.5+ auf `EntityId` um. **Ab 6.5 sind obsolete InstanceID-APIs ein Compile-Fehler** (CS0619, „Use GetEntityId instead“) laut offiziellem Migrationsleitfaden („Starting in Unity 6.5, obsolete InstanceID APIs produce compilation errors“). Der Unity-API-Updater migriert das nicht automatisch. Betroffen sind auch `FindObjectsSortMode.InstanceID` und `FindFirstObjectByType`. Die Werte sind ausdrücklich **nicht stabil** über Sitzungen oder Versionen hinweg. | https://docs.unity3d.com/Manual/instanceid-to-entityid-migration.html · https://docs.unity.com/en-us/engine/6000.5/manual/scripting/fundamental-unity-types/instanceid-to-entityid-migration.md · https://docs.unity3d.com/6000.7/Documentation/Manual/instanceid-to-entityid-migration.html · https://github.com/needle-mirror/com.unity.ai.navigation · https://github.com/needle-mirror/com.unity.behavior | hoch (Wortlaut der Manual-Seiten 6.5–6.7 übereinstimmend) |
 | `Rigidbody.velocity` heißt seit Unity 6 `linearVelocity`, auch bei 2D. `angularVelocity` bleibt. | https://uhiyama-lab.com/en/notes/unity/unity6-api-migration-guide/ | mittel |
 | `Rigidbody.drag`/`angularDrag` heißen `linearDamping`/`angularDamping`. | (eigenes Wissen, nicht nachgeprüft) | niedrig |
 | Der alte **Input Manager** ist laut Manual 6.4 „nicht empfohlen und wird in künftigen Versionen entfernt“. Ab 6.3 warnt die Konsole. | https://docs.unity3d.com/6000.4/Documentation/Manual/InputLegacy.html · https://catlikecoding.com/unity/hex-map/5-0-0/ | mittel |
@@ -258,7 +260,7 @@ namespace Aetherfall.Conditions {
 | Editor-Einstellungen: **Asset Serialization = Force Text** ist laut Manual (bis 2023.2) der Standard. Die Standardeinstellung für **Version Control Mode** (Visible/Hidden Meta Files) ist in den Quellen widersprüchlich, für Unity 6 nicht geprüft. | https://docs.unity.cn/kr/2023.2/Manual/class-EditorManager.html | mittel / niedrig |
 | **GitHub LFS, Freikontingent** (abgerechnet nach Verbrauch, Datenpakete abgeschafft): **Free und Pro je 10 GiB Speicher und 10 GiB Download-Traffic pro Monat**, Free for Organizations ebenso, Team und Enterprise Cloud je 250 GiB. Datei-Obergrenze in LFS 2 GiB, Warnung ab 50 MiB, Git-Limit ohne LFS 100 MiB. | https://docs.github.com/en/billing/concepts/product-billing/git-lfs (Quelltext: `github/docs` → `data/variables/large_files.yml`) | hoch |
 | **LFS-Preise über dem Kontingent:** Speicher **0,07 USD pro GiB und Monat** (stündlich anteilig), Traffic **0,0875 USD pro GiB**. Bei Budget 0 USD wird LFS bis Monatsende **blockiert** statt berechnet. Jede neue Dateiversion zählt voll, Downloads durch GitHub Actions zählen zum Traffic. | https://docs.github.com/en/billing/using-the-new-billing-platform/about-billing-for-git-large-file-storage · https://docs.github.com/en/billing/concepts/product-billing/git-lfs | hoch |
-| git-lfs aktuell **v3.8.0** (28.08.2026). | https://github.com/git-lfs/git-lfs/releases | hoch |
+| git-lfs aktuell **v3.8.0** (27.08.2026). | https://github.com/git-lfs/git-lfs/releases · https://github.com/git-lfs/git-lfs/blob/main/CHANGELOG.md | hoch |
 | **Unity Version Control (UVCS)** in der Cloud: seit 01.03.2026 **ohne Sitzplatzgebühren**, 25 GB Speicher und 100 GB Egress pro Organisation und Monat frei, danach nutzungsbasiert. Die Überschreitungspreise wurden nicht gefunden. | https://support.unity.com/hc/en-us/articles/34748492914964-Understanding-Unity-DevOps-charges · https://unity.com/products/pricing-updates | mittel |
 
 **Vorschlag: LFS-Dateitypen** (`.gitattributes`, Textdateien wie `.unity`, `.prefab`, `.asset`, `.mat`, `.anim`, `.controller`, `.meta` bleiben **nicht** in LFS):
@@ -363,7 +365,7 @@ Skizze (`.gitattributes`, gekürzt):
 ## Empfehlungen für Aetherfall
 
 1. **Engine: Mit Unity 6.3 LTS (neuester 6000.3.x-Patch) starten. Der Umstieg auf 6.7 LTS folgt, sobald es mindestens 2 Patch-Releases hat, spätestens vor Phase 3 (Quest- und Dialog-Editor).**
-   Begründung: 6.3 ist die einzige produktionsreife LTS mit Support bis 12/2027. 6.0 endet diesen Monat, 6.6 nur bis zum Erscheinen von 6.7. Ein frühes Upgrade ist billig, weil es noch wenig Inhalt gibt. Mit 6.7 kommen Graph Toolkit als Modul, ein reiferes UI Toolkit und Addressables 4.
+   Begründung: 6.3 ist die einzige produktionsreife LTS mit Support bis 12/2027. 6.0 endet diesen Monat, 6.6 nur bis zum Erscheinen von 6.7. Ein frühes Upgrade ist billig, weil es noch wenig Inhalt gibt. Mit 6.7 kommen Graph Toolkit als Modul, ein reiferes UI Toolkit und Addressables 4. Vor dem 6.7-Upgrade alle Drittanbieter-Pakete auf EntityId-Kompatibilität prüfen (ab 6.5 sind obsolete InstanceID-APIs Compile-Fehler, Abschnitt 6).
 2. **Code ab dem ersten Tag CoreCLR-fest schreiben.**
    Begründung: Unity 7 / 6.8 entfernt Mono. Konkret: „Enter Play Mode Options“ ohne Domain Reload, statischen Zustand per `[RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]` zurücksetzen. Kein `BinaryFormatter`, keine Mono-P/Invokes, keine Reflection-Hacks auf Unity-Interna. Das spart später Migrationsaufwand und verkürzt schon heute die Iterationszeit.
 3. **Pakete fest pinnen und nur mit Engine-Wechseln aktualisieren (Liste in Abschnitt 2).**
@@ -402,10 +404,10 @@ Skizze (`.gitattributes`, gekürzt):
 | Genaue aktuelle Patch-Version von 6.3 LTS (gesehen: 6000.3.15f1/16f1, ohne Datum) | Release-Seite nicht abrufbar | Unity Hub → Installs → neuester 6000.3.x |
 | Welche Addressables-Version der Package Manager unter 6.3 als „released“ anbietet (2.x erwartet) | Paket-Manifeste nennen nur „6000.0+“ | Package Manager unter 6.3 |
 | Gebundene Version von Unity Test Framework in 6.3 (1.5.x oder 1.6.x) | keine 6.3-Seite gefunden | Package Manager → Built-in/Core |
+| Welche Version von `com.unity.test-framework.performance` der Package Manager unter 6.3 als „released“ anbietet (3.2.x oder 3.6.x; neueste gefunden: 3.6.0 vom 23.09.2026) | Manual nennt 3.2.0 für 6000.3, Spiegel zeigt 3.6.0 | Package Manager unter 6.3 |
 | Mindest-macOS für den 6.3-Editor (Seite für 6.0: Big Sur 11) | nur 6.0-Seite gesehen | System Requirements 6000.3 |
 | Erscheinungsdatum von 6.7 LTS, Datum von 6.6 (01.09. oder 02.10.2026) | Quellen widersprechen sich oder fehlen | Unity-Blog/Forum „Releases“ |
 | Unity-7-Zeitplan (Beta 12/2026, Release Q1 2027) | nur ein Pressebericht | offizielle Roadmap |
-| Ab welcher Version `GetInstanceID()` ein Compile-Fehler ist | einzelner GitHub-Bericht zu 6.7 beta2 | 6.7-Upgrade-Guide |
 | `Rigidbody.drag/angularDrag` → `linearDamping/angularDamping` | nur eigenes Wissen | Script Reference 6000.3 |
 | Eingebauter Typ-Picker für `[SerializeReference]` in 6.3–6.7 | Fehlen kann man schlecht belegen | im Editor testen |
 | Ob GPU Resident Drawer auf Terrain-Bäume und Details wirkt | keine Quelle | Frame Debugger im Prototyp |

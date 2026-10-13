@@ -1,6 +1,6 @@
 # Systeme und Abhängigkeiten
 
-> Teil der Phase-0-Planung · Stand: 2026-10-12 · Quelle: [Master-Prompt](../00_Master-Prompt.md)
+> Teil der Phase-0-Planung · Stand: 2026-10-13 · Quelle: [Master-Prompt](../00_Master-Prompt.md)
 
 Verwandte Dokumente: [Technische Architektur](./01_Architektur.md) (Assemblies, Schichten, Events, verbindlich) · [Technik-Recherche](./03_Technik-Recherche.md) · [Vision und Umfangsstufen](../GDD/00_Vision_und_Ueberblick.md) · [Welt & Story](../GDD/01_Welt_Story_Fraktionen.md) · [Quests & Dialoge](../GDD/02_Quests_und_Dialoge.md) · [Kampf & Progression](../GDD/03_Kampf_Charakter_Progression.md) · [Items & Wirtschaft](../GDD/04_Items_Crafting_Wirtschaft_Endgame.md) · [UI/Audio/Grafik](../GDD/05_UI_Audio_Grafik_Barrierefreiheit.md)
 
@@ -36,7 +36,7 @@ Verwandte Dokumente: [Technische Architektur](./01_Architektur.md) (Assemblies, 
 |---|---|---|
 | **L0** Fundament | Hilfsklassen, Dienste, EventBus, Logging, IDs | Utilities (1), Core (2) |
 | **L1** Verträge & Basisdienste | Event-Structs, Definitionen, Conditions/Actions, Speichern, Optionen, Input | Events (3), Data (4), Conditions (5), SaveSystem (6), Options (7), Input (8) |
-| **L2** Domänenlogik | weitgehend reine C#-Logik | WorldState (9), GameTime (10), Stats (11), Items (12), Inventory (13), Progression (14), Factions (15), Combat (16), Dialogue (17), Crafting (18), Economy (19) |
+| **L2** Domänenlogik | weitgehend reine C#-Logik | GameTime (9), WorldState (10), Stats (11), Items (12), Inventory (13), Progression (14), Factions (15), Combat (16), Dialogue (17), Crafting (18), Economy (19) |
 | **L3** Welt & Akteure | Szenen, Streaming, KI, NPCs, Spieler, Haus, Quests | World (20), AI (21), NPC (22), Companions (23), Player (24), Housing (25), Quests (26) |
 | **L4** Präsentation | Kamera, Audio, Inszenierung, UI, Dev-Werkzeuge | CameraSystem (27), Audio (28), Cinematics (29), UI.Framework (30), UI.Screens (31), DevTools (32) |
 | **L5** Editor | Editor-Fenster, Validatoren, Importer, Build | EditorTools.Core (33) … EditorTools.Build (37) |
@@ -86,13 +86,13 @@ Verwandte Dokumente: [Technische Architektur](./01_Architektur.md) (Assemblies, 
 | S12 | Grafik-Optionen & Rendering-Setup: 4 URP-Presets, Auflösung, Sichtweite, Schatten, Vegetation, FPS-Limit, V-Sync; GRD- und Shader-Regeln | L1 | Options (7) + Projekt-Settings | S11 | S33 (Sichtweite), S61 | nein (`settings.json`) | ja | M | 1 (Menü 4) | teilweise |
 | S13 | Lokalisierung: DE/EN, String Tables, Key = ID + Feld, Sprachwechsel zur Laufzeit, Pseudo-Locale | L1/L4 | Data (4), UI.Framework (30) | S07, S11 | S65 (Key-Automatik) | nein (`settings.json`) | nein | M | 1 | ja |
 | S14 | Input: 5 Action Maps (+ Debug), Map-Wechsel, Geräteerkennung, Rebinding, Stick-Optionen, Vibration, Glyphen | L1 | Input (8) | S03, S04, S07, S11 | S13, S59, S61 | nein (`settings.json`) | ja | L | 1 (Rebinding, Glyphen 2) | ja |
-| S15 | Spielzeit & Kalender (TimeManager): Spieluhr, aktive Spielzeit, Wochentage, Mondzyklus, Warten/Schlafen | L2 | GameTime (10; K4: → 9) | B, S04, S08, S09 | S35 | ja (`time`) | ja (Warten) | M | 1 (Kalender 2) | ja |
-| S16 | Weltzustand: Flags, Zähler, Story-Zahlen, Zeitstempel, Waisen | L2 | WorldState (9; K4: → 10) | B, S08, S09, S15 (K4) | S64, S69 | ja (`worldstate`) | nein | M | 1↑ | ja |
+| S15 | Spielzeit & Kalender (TimeManager): Spieluhr, aktive Spielzeit, Wochentage, Mondzyklus, Warten/Schlafen | L2 | GameTime (9; K4 eingearbeitet) | B, S04, S08, S09 | S35 | ja (`time`) | ja (Warten) | M | 1 (Kalender 2) | ja |
+| S16 | Weltzustand: Flags, Zähler, Story-Zahlen, Zeitstempel, Waisen | L2 | WorldState (10; K4 eingearbeitet) | B, S08, S09, S15 (K4) | S64, S69 | ja (`worldstate`) | nein | M | 1↑ | ja |
 | S17 | Stats: `StatCollection`, Modifikatoren mit Quelle, abgeleitete Werte | L2 | Stats (11) | B, S08 | S60, S61 | nein (beim Laden neu aufgebaut) | nein | M | 1 | ja |
 | S18 | Items: Definition mit Komponenten, Seltenheit, Item-Level, Affixe, Sockel, Sets, legendäre Effekte | L2 | Items (12) | B, S08, S17 | S66 | ja (über S19) | ja (Tooltip, Vergleich) | L | 2 | teilweise |
 | S19 | Inventar & Ausrüstung: Container, Kategorien, Traglast, Sortieren/Filtern, Neu/Favorit/Sperre, 3 Währungen, Lagerkiste, 13 Slots + 4 Schnellslots, Transmog | L2 | Inventory (13) | B, S08, S09, S17, S18 | S51, S61 | ja (`inventory`) | ja | L | 2 (Transmog 5) | teilweise |
 | S20 | Loot: Tabellen, `LootRoller`, Glück, Bad-Luck-Schutz, Truhen-Qualität, Boss-Drops, Pickups, Loot-Strahlen | L2 | Items (12), Inventory (13) (K6) | B, S06, S17, S18, S19 | S32, S39–S42 (`EnemyKilled`), S60 | ja (Bad-Luck-Zähler) | ja (Beute-Fenster) | M | 2 | ja |
-| S21 | Progression: XP-Kurve, Level 1–80, Attribut- und Skillpunkte, 6 Klassen, Skilltrees, Respec, Hybridklassen | L2 | Progression (14) | B, S08, S09, S17 | S28 (Fähigkeiten per ID), S66; `EnemyKilled`, `LocationDiscovered` (K13) | ja (`progression`) | ja (Skilltree, Attribute) | L | 3 (Hybride 5) | teilweise |
+| S21 | Progression: XP-Kurve, Level 1–80, Attribut- und Skillpunkte, 6 Klassen, Skilltrees, Respec, Hybridklassen | L2 | Progression (14) | B, S08, S09, S15 (K5), S17 | S28 (Fähigkeiten per ID), S66; `EnemyKilled`, `LocationDiscovered` (K13) | ja (`progression`) | ja (Skilltree, Attribute) | L | 3 (Hybride 5) | teilweise |
 | S22 | Fraktionen & Ruf: 8 Stufen, Übertragung, Beitritt/Ausschluss | L2 | Factions (15) | B, S08, S09 | S16 (Beitritts-Flags), S63 | ja (`factions`) | ja (Ruf-Screen) | M | 3↑ (Kern), 5 | teilweise |
 | S23 | Health/Damageable & Ressourcen: LP, Ausdauer, Mana, Haltung, Tod-Adapter | L2 | Combat (16) | B, S17 | S60 | ja (`stats.player`) | nein | M | 1 | ja |
 | S24 | DamageCalculator: Schadenstypen, Rüstung mit abnehmendem Ertrag, Resistenzen, Krit, Trefferzonen | L2 | Combat (16) | S07, S17 | S35 (Wetterbonus, K12) | nein | nein | M | 2 | ja |
@@ -128,7 +128,7 @@ Verwandte Dokumente: [Technische Architektur](./01_Architektur.md) (Assemblies, 
 | S54 | Minispiele: Rahmen, Würfeln, Rissduell, Armdrücken, Pferderennen, Angeln | L3 | Minigames (V) | B, S04, S14, S19 | S30, S49, S52, S61 | ja (Ergebnisse, Karten) | ja | XL | 4 (Würfeln), 6 | teilweise |
 | S55 | Endgame-Systeme: Weltstufen 1–10, Paragon, New Game+, Riss-Expeditionen, Arena, Raid-Bosse, wöchentliche Herausforderungen, saisonale Ereignisse | L3 | Endgame (V), Progression (14) | S20, S21, S33, S41, S52, S53 | S38, S62 | ja | ja | XL | 7 | nein |
 | S56 | Kamera: Erkunden, Lock-On, Zielen, Reiten, Bauen, Kollision, Shake; Fotomodus später | L4 | CameraSystem (27) | B, S04, S11, S14, S26, S47 | S58 (Dialogkamera, K8) | nein | nein | L | 1 (Kontexte 2–5, Foto 7) | ja |
-| S57 | Audio & Musik-Zustände: AudioManager, Mixer, SFX-Pool, Ambience, Schritte, Musik Erkundung/Spannung/Kampf/Boss | L4 | Audio (28) | B, S06, S08, S09, S11, S15, S34 | S26 (K9), S42 | ja (Musik-Override) | nein | L | 2 (Musik 4) | ja |
+| S57 | Audio & Musik-Zustände: AudioManager, Mixer, SFX-Pool, Ambience, Schritte, Musik Erkundung/Spannung/Kampf/Boss | L4 | Audio (28) | B, S06, S08, S09, S11, S15, S26 (K9), S34 | S42 | ja (Musik-Override) | nein | L | 2 (Musik 4) | ja |
 | S58 | Zwischensequenzen & Dialogkamera: Timeline, `PlayCutscene`, Überspringen, Schuss-Gegenschuss | L4 | Cinematics (29) | B, S04, S08, S43, S47, S56, S57 | S29 | nein | ja (Überspringen) | M | 3 (Dialogkamera), 4 | ja |
 | S59 | UI-Framework: UIManager, Fokus-Stack, `FocusNavigator`, Ebenen, Meldungs-Queue, Bestätigung, Ladebildschirm | L4 | UI.Framework (30) | B, S04, S11, S14 | S05 | nein | ja | L | 1↑ | ja |
 | S60 | HUD & Weltmarker: Balken, Fähigkeitenleiste, Schnellslots, Kompass, Quest-Tracker, Minikarte, Meldungen, Boss- und Gegnerbalken, Questgeber-Symbole, Schadenszahlen | L4 | UI.Screens (31) | S06, S17, S19, S23, S59 | S28, S34, S42, S52 | nein | nein | L | 2 | ja |
@@ -221,7 +221,7 @@ graph TD
   S20 --> S19
   S20 --> S06
   S21 --> S17
-  S21 --> S09
+  S21 --> S15
   S23 --> S17
   S26 --> S23
   S26 --> S06
@@ -267,16 +267,16 @@ graph TD
 
 ## Konsistenz-Prüfung gegen die Architektur
 
-**Vorschlag:** Beim Abgleich jeder Abhängigkeit mit den erlaubten Assembly-Referenzen aus [Technik/01, 3.3](./01_Architektur.md) fallen 14 Stellen auf. Sie würden beim Setup als Compile-Fehler oder als fehlender Datenpfad auffallen. Alle Korrekturen behalten die Assembly- und Event-Namen bei. Ein Assembly-Name ändert sich nirgends.
+**Vorschlag:** Beim Abgleich jeder Abhängigkeit mit den erlaubten Assembly-Referenzen aus [Technik/01, 3.3](./01_Architektur.md) fallen 15 Stellen auf. Sie würden beim Setup als Compile-Fehler oder als fehlender Datenpfad auffallen. **Stand 2026-10-13:** K1–K15 sind in [Technik/01](./01_Architektur.md) eingearbeitet (K12 verlangt dort keine Änderung, nur die Aufruferregel unten). Alle Korrekturen behalten die Assembly- und Event-Namen bei. Ein Assembly-Name ändert sich nirgends.
 
 | # | Befund | Warum ein Problem | Korrekturvorschlag |
 |---|---|---|---|
 | K1 | `GameStateChanged`, `SceneLoadStarted`, `SceneLoadCompleted` werden von Core (2) gesendet, sind aber laut 3.3 in Events (3) definiert | Events (3) referenziert Core (2), umgekehrt ist es verboten → Core kann diese Structs nicht sehen | Diese drei Structs in `Aetherfall.Core` definieren (Namen unverändert). Alle übrigen Events bleiben in Events (3). |
 | K2 | Speichersperren „Dialog, Zwischensequenz“ (GameStateManager) und „Laden“ (SceneLoader), Technik/01, 9.8 | Core (2) darf SaveSystem (6) nicht aufrufen | `ISaveManager.IsSaveAllowed` fragt zusätzlich `IGameStateService.Current` gegen die Spalte „Speichern erlaubt“ (Tabelle 4.4) ab. SaveSystem referenziert Core bereits. Core setzt keine Sperren. |
 | K3 | Ladeablauf Schritt „ID-Migration (`IdMigrationTable`)“ in SaveSystem (6) | `IdMigrationTable` liegt in Data (4), SaveSystem referenziert Data nicht | Interface `IIdAliasResolver` in Core, implementiert von der ContentDatabase (Data), per ServiceLocator geholt („Interface tief, Implementierung hoch“) |
-| K4 | WorldState (9) speichert `changedAtPlaytime` und wertet `FlagAge` aus | braucht die aktive Spielzeit aus GameTime (10), Referenz nach oben verboten | **Nummern tauschen:** GameTime → 9, WorldState → 10, WorldState referenziert GameTime. GameTime braucht WorldState nicht. Nur die Nummern in Tabelle 3.3 ändern sich (inkl. Referenzlisten von EditorTools.Narrative/World). asmdef-Referenzen laufen über Namen, nichts bricht. |
+| K4 | WorldState (früher 9) speichert `changedAtPlaytime` und wertet `FlagAge` aus | braucht die aktive Spielzeit aus GameTime (früher 10), Referenz nach oben verboten | **(eingearbeitet)** **Nummern tauschen:** GameTime → 9, WorldState → 10, WorldState referenziert GameTime. GameTime braucht WorldState nicht. Nur die Nummern in Tabelle 3.3 ändern sich (inkl. Referenzlisten von EditorTools.Narrative/World). asmdef-Referenzen laufen über Namen, nichts bricht. |
 | K5 | Schnellreise (Player 24) springt die Uhr vor; Schlafen und Garten (Housing 25) brauchen Spielzeit; XP_Kill nutzt den Nacht-Faktor (Progression 14, [GDD 03, 12.7](../GDD/03_Kampf_Charakter_Progression.md)) | Player, Housing und Progression referenzieren GameTime nicht | Referenz auf GameTime ergänzen bei Player, Housing und Progression (alle zeigen nach unten, zulässig) |
-| K6 | Loot-Ausgabe: Truhen (World 20), Gegner-Drops (AI 21) | World, AI und NPC referenzieren Items (12) nicht → `LootRoller` unerreichbar | `LootDropService`, `Pickup`-Komponente und Action `GiveLoot` liegen in **Inventory (13)**. Drops reagieren auf `EnemyKilled`, Truhen nutzen die Action. `LootDropped` sendet Inventory. |
+| K6 | Loot-Ausgabe: Truhen (World 20), Gegner-Drops (AI 21) | World, AI und NPC referenzieren Items (12) nicht → `LootRoller` unerreichbar | `LootDropService`, `Pickup`-Komponente und Action `GiveLoot` liegen in **Inventory (13)**. Drops reagieren auf `EnemyKilled` (inkl. `LootTableId`), Truhen nutzen die Action. Loot-Beutel werden über `IRuntimeSpawnRegistry` (SaveSystem 6, Implementierung in World 20) gespeichert. `LootDropped` sendet Inventory. |
 | K7 | `SpawnEncounter` und Spawner liegen in World (20), Gegnerdaten (`EnemyTypeDefinition`, `EnemyBrainDefinition`) in AI (21) | World darf AI nicht referenzieren | Interface `IEnemySpawnService` in World, Implementierung in AI |
 | K8 | `DialogueCameraDirector` (Schuss-Gegenschuss) in CameraSystem (27) | braucht Sprecher-Transforms aus NPC (22), CameraSystem referenziert NPC nicht | Dialogkamera nach **Cinematics (29)** verschieben, das NPC (22) und CameraSystem (27) bereits referenziert |
 | K9 | Schritt- und SFX-Animation-Events (`Footstep`, `Sfx(id)`) kommen aus `AnimationEventRelay` in Combat (16) | Audio (28) referenziert Combat nicht, Combat darf Audio nicht aufrufen | Referenz Audio → Combat ergänzen (zulässig). Eine Brücken-Komponente in Audio hört auf das Relay. |
@@ -285,8 +285,9 @@ graph TD
 | K12 | Wetterboni gehen in Schritt 3 der Schadensformel ein ([GDD 03, 8.2](../GDD/03_Kampf_Charakter_Progression.md)) | `DamageCalculator` (Combat 16) kann Wetter (World 20) nicht lesen | Keine Änderung, nur Regel: Der Aufrufer (Player, AI) schreibt den Wetterbonus in den `AttackerSnapshot` |
 | K13 | XP_Kill = f(Gegnerlevel, Variante, Nacht) | `EnemyKilled` enthält kein Level; Progression darf AI nicht referenzieren | Payload von `EnemyKilled` um `EnemyLevel` (int) ergänzen. Größe: 5 Referenzen à 8 Byte + `Vector3` 12 Byte + int 4 Byte = 56 Byte, unter der Grenze von 64 Byte. Nacht-Faktor über K5. |
 | K14 | Kopf-Datei (Level, Klassen, Region, Spielzeit) und Vorschaubild (Kamera) | SaveSystem kennt Progression, World, GameTime und Kamera nicht | Interfaces `ISaveHeaderContributor` und `IScreenshotProvider` in SaveSystem, implementiert von Progression, World, GameTime bzw. CameraSystem |
+| K15 | Conditions `DifficultyIs` und `NewGamePlusAtLeast` waren Core (2) zugeordnet (Technik/01, 7.7) | Konkrete Conditions erben von `Condition` aus Conditions (5); Core → Conditions ist verboten und ergäbe einen Zyklus | `DifficultyIs` → Options (7, + Referenz 5), `NewGamePlusAtLeast` → Progression (14) |
 
-Empfehlung: K1–K14 vor dem Projekt-Setup (Phase 0.4) in [Technik/01](./01_Architektur.md) einarbeiten. Der Assembly-Regel-Test (S70) fängt neue Verstöße ab Phase 1 automatisch ab.
+K1–K15 sind vor dem Projekt-Setup (Phase 0.4) in [Technik/01](./01_Architektur.md) eingearbeitet (Stand 2026-10-13). Der Assembly-Regel-Test (S70) fängt neue Verstöße ab Phase 1 automatisch ab.
 
 ---
 
@@ -330,7 +331,7 @@ Ziel: Ein leeres Spiel startet, lädt Szenen, speichert und lädt, ein Spielerk�
 | 1.4 | S05, S06 | Hauptmenü, Testszenen und später Streaming laden additiv. Lecks früh sichtbar machen. | Additive Szenen laden und entladen mit Ladebildschirm-Stub. Leck-Bericht beim Wechsel ins Hauptmenü meldet 0 offene Addressables-Handles. | Eine Testszene 20× laden und entladen → Log meldet 0 offene Handles. |
 | 1.5 | S09 (+ Versionsfeld und Golden-Save-Gerüst aus S10) (**VV3**) | §32.8: Jedes folgende System liefert sein `ISaveable` sofort mit. Formatfehler sind nach dem ersten externen Build teuer (A18). | Rundreise-Test für ein Test-`ISaveable`. Atomares Schreiben (tmp → `File.Replace`) besteht den Test mit simuliertem Schreibfehler auf macOS. Kopf-Datei < 2 KB. Golden Save `v1` liegt in `Tests/TestData/Saves/v1/` und lädt im CI. | Speichern, per Debug-Schalter einen Schreibfehler simulieren → der alte Stand lädt unverändert. |
 | 1.6 | S11 (Basis), S12 (Basis), S13 | Input-Belegung, Sprache und Qualitätsstufe werden in Boot-Schritt 4–6 aus `settings.json` gelesen. DE/EN von Anfang an (§4.2). | `settings.json` wird geschrieben und gelesen. 4 Qualitätsstufen umschaltbar. Sprachwechsel DE ↔ EN zur Laufzeit ohne Neustart. Pseudo-Locale (+30 % Länge) wählbar. | Sprache im Testmenü umschalten → alle Testtexte wechseln. Spiel neu starten → Sprache und Qualität bleiben. |
-| 1.7 | S14 (Kern) | §31, 1.2. Spieler, UI und Kamera brauchen die Action Maps. | Maps Gameplay, UI, Dialog, Reiten, Bauen (+ Debug) laut §7.3. Map-Wechsel folgt `GameStateChanged`. `InputDeviceChanged` mit 0,3 s Hysterese. Standardbelegung §7.1/§7.2 unverändert. | Gamepad an- und abstecken, zwischen Gamepad und Tastatur wechseln → Log zeigt den Gerätewechsel. Pausemenü öffnen → Angriffstaste wirkt nicht. |
+| 1.7 | S14 (Kern) | §31, 1.2. Spieler, UI und Kamera brauchen die Action Maps. | Maps Gameplay, UI, Dialog, Reiten, Bauen (+ Debug) laut §7.3. Map-Wechsel folgt `GameStateChanged`. `InputDeviceChanged` mit 0,3 s Hysterese. Standardbelegung laut [GDD 03, 1.5](../GDD/03_Kampf_Charakter_Progression.md) (Basis §7.1/§7.2). | Gamepad an- und abstecken, zwischen Gamepad und Tastatur wechseln → Log zeigt den Gerätewechsel. Pausemenü öffnen → Angriffstaste wirkt nicht. |
 | 1.8 | S08, S15 (Uhr), S16, S69 (Flag-Fenster) (**VV1**) | Phase 2 braucht Bedingungen an Truhen und Türen. Weltzustand ist der erste echte Spielstand-Inhalt. | `AllOf`, `AnyOf`, `Not`, `AtLeastNOf`, `FlagIs`, `SetFlag`, `AddToFlag`, `TimeOfDayBetween`, `FlagAge` im Inspector ohne Code wählbar. `ConditionWatcher` wertet nur bei Trigger-Events aus, Budget ≤ 0,5 ms/Frame. Weltzustand-Rundreise inkl. Zeitstempel. Flag-Debug-Fenster (§6.5). | Im Play Mode im Weltzustand-Fenster ein Test-Flag setzen → Test-Tür mit Bedingung öffnet sich. Speichern, laden → Flag und Zeitstempel unverändert. |
 | 1.9 | S17, S23 | §31, 1.4. Ausdauer für die Bewegung, Grundlage für Kampf. | Formel (Basis + Σ Flat) × (1 + Σ Pct) × Π (1 + Mult) mit Unit-Tests. `RemoveAllFromSource` entfernt genau die Modifikatoren einer Quelle. `Changed` einmal pro Frame gebündelt. Ein `Damageable` für Spieler, Dummy und Fass. | EditMode-Tests grün. In `Test_Kampfarena` den Dummy per Testknopf schädigen → bei 0 LP feuert `Died`. |
 | 1.10 | S47 (Basis), S56 (Erkunden) | §31, 1.3. Braucht Input (1.7) und Ausdauer (1.9). | Gehen, Laufen, Sprinten, Springen mit Luftkontrolle, Rolle, Schleichen mit den Werten aus [GDD 03, 3.1](../GDD/03_Kampf_Charakter_Progression.md). Stufen und Hänge. Kamera ohne Clipping durch Wände. `player`-Saveable speichert Zelle + lokale Position. | In `Test_Bewegung` mit Gamepad: Treppe, 45°-Hang, Sprung. Auf einem Dach speichern, laden → gleiche Position. |
@@ -345,7 +346,7 @@ Ziel: 10 Minuten Kampf gegen Wölfe in einer gestreamten Testwelt, mit Loot, HUD
 | Schritt | Systeme | Warum jetzt (Abhängigkeit) | Fertig wenn … | Testanleitung |
 |---|---|---|---|---|
 | 2.1 | S24 | Reine Logik ohne Szene; der Kampf baut darauf auf (§9.7). | Pipeline aus [GDD 03, 8.2](../GDD/03_Kampf_Charakter_Progression.md) vollständig. Das Zahlenbeispiel aus GDD 03, 8.3 ist als Test reproduziert. Krit-Wurf über `IRandom` deterministisch. | EditMode-Lauf: Testfall „Level-10-Krieger trifft Grauwolf“ liefert den Wert aus GDD 03. |
-| 2.2 | S26, S56 (Lock-On, Zielen) | §31, 2.1. KI und Gegner brauchen das Kampfmodell. | Kombo 3–5 Schläge, schwerer Angriff aufladbar, Eingabepuffer 0,2 s, Ausweichrolle mit I-Frames, Blocken, Parierfenster, Haltung → Taumeln → Finisher, lokaler Hitstop 60–120 ms, Lock-On per R3. Kein Durchtunneln bei 30 und 60 FPS. | `Test_Kampfarena`: Dummy greift alle 3 s an, perfekt parieren → Konterfenster öffnet sich. Mit FPS-Limit 30 prüfen, dass jeder Treffer zählt. |
+| 2.2 | S26, S56 (Lock-On, Zielen) | §31, 2.1. KI und Gegner brauchen das Kampfmodell. | Kombo 3–5 Schläge, schwerer Angriff aufladbar, Eingabepuffer 0,2 s, Ausweichrolle mit I-Frames, Blocken, Parierfenster, Haltung → Taumeln → Finisher, lokaler Hitstop 40–120 ms ([GDD 03, 4.11](../GDD/03_Kampf_Charakter_Progression.md)), Lock-On per R3. Kein Durchtunneln bei 30 und 60 FPS. | `Test_Kampfarena`: Dummy greift alle 3 s an, perfekt parieren → Konterfenster öffnet sich. Mit FPS-Limit 30 prüfen, dass jeder Treffer zählt. |
 | 2.3 | S32 | Truhen, Türen und Hebel brauchen Zustand und Conditions/Actions (aus 1.8). | `Interactable` mit Verb, Priorität und Bedingung. Truhe, Tür und Hebel speichern ihren Zustand im `WorldObjectStateStore`. Laufzeit-Spawns im `DynamicObjectRegistry`. | Truhe öffnen, Tür per Hebel öffnen, speichern, Szene neu laden → beide bleiben offen. |
 | 2.4 | S18 → S19 → S20 | §31, 2.3 und 2.4. Loot braucht Inventar, Ausrüstung braucht Stats. | Stapeln, Gewicht, Traglast-Modifikator, Ausrüsten mit `SourceId = item:<instanceId>`. Affix-Anzahl je Seltenheit. `LootRoller` trifft über 100.000 Würfe jede Gewichtung auf ±1 %. Bad-Luck-Schutz greift. Drops über `EnemyKilled` (K6). | Konsole `give_item`, Waffe ausrüsten → Angriffswert im Overlay steigt. Eine Truhe 20× zurücksetzen und öffnen → Seltenheitsverteilung im Log plausibel. |
 | 2.5 | S39, S40, S36, S41 (1 Typ: Grauwolf) | §31, 2.2. Braucht Kampf (2.2) und Spawner-Zustand (2.3). | Grauwolf patrouilliert, wird misstrauisch, sucht, kämpft, flieht, kehrt zurück. Höchstens 2 Nahkampf-Token am Spieler. Leash bei 40 m oder 8 s. Respawn nach 72 Spielstunden. Entdeckung über Sicht und Gehör. | `Test_KI` mit 4 Wölfen: nie mehr als 2 greifen gleichzeitig an. Über 40 m weglaufen → Wölfe kehren um. Schleichend hinter einem Wolf → keine Entdeckung. |
@@ -380,7 +381,7 @@ Ziel: Quest 2 „Die Wölfe vom Nordhang“ und der Harrik-Dialog sind ohne Code
 
 | Schritt | Systeme | Warum jetzt (Abhängigkeit) | Fertig wenn … | Testanleitung |
 |---|---|---|---|---|
-| 4.1 | S27, S28 (Magie-Grundlagen), S25 (Element-Reaktionen) | Quest 2 (Kopftreffer gegen Glutfang), Klasse Magier, Quest 6 (Feuer + Öl) | Bogen mit Schulterzielen, Spannen, Kopftreffer. Zauberstab mit 2 Schulen. Brennen, Betäubung, Aether-Verderbnis. Reaktionen #2 Explosion und #16 Kettenexplosion ([GDD 03, 6.6](../GDD/03_Kampf_Charakter_Progression.md)). | In der Arena ein Ölfass mit Feuerpfeil treffen → Explosion mit 3 m Radius. Kopftreffer zeigt Zusatzschaden. |
+| 4.1 | S27, S28 (Magie-Grundlagen), S25 (Element-Reaktionen) | Quest 2 (Kopftreffer gegen Glutfang), Klasse Magier, Quest 6 (Feuer + Öl) | Bogen mit Schulterzielen, Spannen, Kopftreffer. Zauberstab mit 3 Schulen (Feuer, Eis, Blitz; je 3 Knoten der Magier-Äste in Stufe A laut [GDD 03, 11.5](../GDD/03_Kampf_Charakter_Progression.md)). Brennen, Betäubung, Aether-Verderbnis. Reaktionen #2 Explosion und #16 Kettenexplosion ([GDD 03, 6.6](../GDD/03_Kampf_Charakter_Progression.md)). | In der Arena ein Ölfass mit Feuerpfeil treffen → Explosion mit 3 m Radius. Kopftreffer zeigt Zusatzschaden. |
 | 4.2 | S41, S42 | §31: 5 Gegnertypen, 1 Boss | 5 Typen mit Varianten laut [GDD 01, 11.4](../GDD/01_Welt_Story_Fraktionen.md). Grimmbart mit 3 Phasen, Wachender Ritter, Glutfang. Boss-Balken über `BossEncounterStarted` (K11). | `spawn_enemy` je Typ und Variante. In der Grimmbart-Arena alle 3 Phasen auslösen. |
 | 4.3 | S43 (Tagesabläufe), S44 (Barks), S46 | Quest-NPCs mit Zeiten (Hollmann 7–18 Uhr, Ole 10–24 Uhr). §31: 1 Begleiter. | Tagesabläufe in geladenen und entladenen Zellen. Maren: Loyalität (Warnung bei 20, Verlassen bei 10), Kommentare zu allen 8 Quests, 4 KI-Modi, 2 Lagerfeuer-Gespräche ([GDD 01, 10.6](../GDD/01_Welt_Story_Fraktionen.md)). | `set_time 06:59` → Hollmann geht zur Herde. Maren auf „Defensiv“ stellen → sie greift nur an, wenn der Spieler getroffen wird. |
 | 4.4 | S33 (Dungeons), S37, S48 | Quest 7 (Gruft mit Rätsel und Mini-Boss), Quest 2 (Spuren), Krähennest (Kletterpassage) | Dungeon-Wechsel mit Ladebildschirm < 15 s und Autosave. Spiegel-Strahl-Rätsel. Untersuchen und Aether-Sicht. Klettern an Fels, Ranken und Leitern. | Gruft betreten und verlassen, dazwischen speichern und laden. Rätsel lösen → `PuzzleSolved` im Overlay. |
@@ -449,7 +450,8 @@ flowchart LR
   G --> H["S39 KI-Kern 6 PW"]
   H --> I["S43 NPC-Kern 3 PW"]
   I --> J["S52 Quests 7 PW"]
-  J --> K["S67 Quest-Editor 6 PW"]
+  J --> U["Engine-Upgrade 6.7 1,5 PW"]
+  U --> K["S67 Quest-Editor 6 PW"]
   K --> L["8 Quests als Daten 7,5 PW"]
   L --> M["Integration und Abnahme 6 PW"]
 ```
@@ -466,11 +468,12 @@ flowchart LR
 | 8 | KI-Kern | S39 | XL | 6 | 26,5 |
 | 9 | NPC-Kern | S43 | L | 3 | 29,5 |
 | 10 | Quest-Laufzeit | S52 | XL | 7 | 36,5 |
-| 11 | Quest-Editor (Liste und Validierung) | S67 | XL | 6 | 42,5 |
-| 12 | 8 Beispiel-Quests als Daten (36 PT laut [GDD 02, 10.6](../GDD/02_Quests_und_Dialoge.md)) | – | – | 7,5 | 50 |
-| 13 | Integration, Fehlerbehebung, Performance Mac + Windows, Abnahme | – | – | 6 | **56** |
+| 11 | Engine-Upgrade 6.7 (Schritt 3.0, VV10) | – | – | 1,5 | 38 |
+| 12 | Quest-Editor (Liste und Validierung) | S67 | XL | 6 | 44 |
+| 13 | 8 Beispiel-Quests als Daten (36 PT laut [GDD 02, 10.6](../GDD/02_Quests_und_Dialoge.md)) | – | – | 7,5 | 51,5 |
+| 14 | Integration, Fehlerbehebung, Performance Mac + Windows, Abnahme | – | – | 6 | **57,5** |
 
-**Kritischer Pfad ≈ 56 PW ≈ 13 Monate** (bei ~46 produktiven Wochen pro Jahr). Schneller geht es auch mit großem Team nicht, außer durch Kürzungen auf dieser Kette. Der Welt-Stamm (S09 → S32 → S33 → S34, ~17,5 PW) läuft parallel und ist nicht kritisch.
+**Kritischer Pfad ≈ 57,5 PW ≈ 15 Monate** (bei ~46 produktiven Wochen pro Jahr). Schneller geht es auch mit großem Team nicht, außer durch Kürzungen auf dieser Kette. Der Welt-Stamm (S09 → S32 → S33 → S34, ~17,5 PW) läuft parallel und ist nicht kritisch.
 
 ### Gesamtaufwand bis zum Vertical Slice
 
@@ -495,7 +498,7 @@ Nicht enthalten: finale 3D-Modelle aus Blender (§4.1: bis dahin Platzhalter), V
 | 1 Person | 225 PW | **≈ 4,9 Jahre** |
 | 2 Personen | 225 / 2 ≈ 113 PW + 10 % Abstimmung | ≈ 2,7 Jahre |
 | 3 Personen (Gameplay, Systeme/Werkzeuge, Inhalte) | 75 PW + 10 % | ≈ 1,8 Jahre |
-| 5 Personen | 45 PW < kritischer Pfad 56 PW → Pfad begrenzt, + 15 % | ≈ 1,4 Jahre |
+| 5 Personen | 45 PW < kritischer Pfad 57,5 PW → Pfad begrenzt, + 15 % | ≈ 1,4 Jahre |
 
 **Ehrliche Einordnung:**
 - Der Vertical Slice ist mit diesem Systemumfang für eine Einzelperson ein Mehrjahresprojekt. Der Grund ist die Breite: ~60 der 70 Systeme werden für 2–3 Stunden Spielzeit mindestens teilweise gebraucht.
@@ -523,7 +526,7 @@ Nicht enthalten: finale 3D-Modelle aus Blender (§4.1: bis dahin Platzhalter), V
 
 ## Schnittstellen-Matrix
 
-Event-Namen exakt aus [Technik/01, 4.3](./01_Architektur.md). **Neu (Vorschlag)** sind nur `BossEncounterStarted` und `BossEncounterEnded` (K11). Befehle laufen nicht über Events, sondern über Service-Interfaces (z. B. `IQuestService`, `IInventoryService`).
+Event-Namen exakt aus [Technik/01, 4.3](./01_Architektur.md). Die früheren Vorschläge `BossEncounterStarted` und `BossEncounterEnded` (K11) sowie die Pacing-Events `FeatureUnlocked` und `ScreenOpened` (Technik/01, 14.5) stehen dort inzwischen in der verbindlichen Liste. Befehle laufen nicht über Events, sondern über Service-Interfaces (z. B. `IQuestService`, `IInventoryService`).
 
 | System | veröffentlicht | konsumiert |
 |---|---|---|
@@ -535,19 +538,19 @@ Event-Namen exakt aus [Technik/01, 4.3](./01_Architektur.md). **Neu (Vorschlag)*
 | S16 Weltzustand | `FlagChanged` | `EnemyKilled`, `NPCDied` (systemische Zähler, `flag.npc.*.tot`) |
 | S08 ConditionWatcher | – (Callbacks an Beobachter) | `LevelUp`, `InventoryChanged`, `CurrencyChanged`, `QuestStarted`, `QuestStageChanged`, `QuestCompleted`, `QuestFailed`, `ReputationChanged`, `RelationshipChanged`, `FlagChanged`, `TimeOfDayChanged`, `WeatherChanged`, `SkillUnlocked`, `ClassUnlocked`, `CompanionJoined`, `CompanionLeft`, `RegionEntered`, `NPCDied` |
 | S19/S20 Inventar & Loot | `ItemPickedUp`, `InventoryChanged`, `CurrencyChanged`, `ItemEquipped`, `LootDropped` (K6) | `EnemyKilled` (Drop), `GameLoaded` |
-| S21 Progression | `XpGained`, `LevelUp`, `SkillUnlocked`, `ClassUnlocked` | `EnemyKilled` (XP_Kill, K13), `LocationDiscovered` (Entdeckungs-XP) |
-| S23–S28 Kampf | `DamageDealt`, `CombatStateChanged`, `EnemyKilled`, `EnemyDefeated`, `StatusEffectApplied`, `AbilityUsedAt`, `ObjectDestroyed` | `OptionsChanged` (Schadenszahlen, Shake) |
+| S21 Progression | `XpGained`, `LevelUp`, `SkillUnlocked`, `ClassUnlocked`, `FeatureUnlocked` (Pacing) | `EnemyKilled` (XP_Kill, K13), `LocationDiscovered` (Entdeckungs-XP) |
+| S23–S28 Kampf | `DamageDealt`, `CombatStateChanged`, `EnemyDefeated`, `StatusEffectApplied`, `AbilityUsedAt`, `ObjectDestroyed` | `OptionsChanged` (Schadenszahlen, Shake) |
 | S29 Dialog | `DialogueStarted`, `NPCTalkedTo`, `DialogOutcome`, `ChoiceMade`, `SkillCheckResolved`, `ItemDelivered` | `GameStateChanged` |
 | S32–S38 Welt | `AreaEntered`, `RegionEntered`, `LocationDiscovered`, `WeatherChanged`, `WorldCellActivated`, `WorldCellDeactivated`, `Interacted`, `ClueInspected`, `PuzzleSolved`, `DocumentRead`, `TrailNodeReached`, `WaveCompleted` | `PlayerSpawned`, `FlagChanged` (veränderte Orte, Türen), `TimeOfDayChanged` (Respawn, Ereignisse), `GameLoaded` |
-| S39–S42 KI & Bosse | `PlayerDetected`, `BossDefeated`, `BossEncounterStarted`, `BossEncounterEnded` (K11) | `DamageDealt`, `CrimeCommitted` (Wachen), `PlayerDied` (Rückkehr) |
+| S39–S42 KI & Bosse | `EnemyKilled` (Adapter `EnemyDeathReporter`, Payload inkl. `EnemyLevel`, K13), `PlayerDetected`, `BossDefeated`, `BossEncounterStarted`, `BossEncounterEnded` (K11) | `DamageDealt`, `CrimeCommitted` (Wachen), `PlayerDied` (Rückkehr) |
 | S43–S45 NPCs | `NPCDied`, `NPCArrived`, `RelationshipChanged`, `CrimeCommitted` | `TimeOfDayChanged`, `FlagChanged`, `ReputationChanged`, `DamageDealt` (Angriff auf NPC), `ItemPickedUp` (Diebstahl) |
 | S46 Begleiter | `CompanionJoined`, `CompanionLeft` | `ChoiceMade`, `QuestStageChanged`, `QuestCompleted`, `DialogOutcome`, `LocationDiscovered`, `AreaEntered`, `CrimeCommitted` (Loyalität, Kommentare) |
 | S47–S50 Spieler | `PlayerSpawned`, `PlayerDied`, `FastTravelCompleted`, `ItemUsedAt` | `ItemEquipped` (Modifikatoren), `GameStateChanged`, `RestCompleted` (Ausgeruht-Buff), `LevelUp` |
 | S52/S53 Quests | `QuestStarted`, `QuestStageChanged`, `QuestCompleted`, `QuestFailed`, `ObjectiveProgressed`, `QuestAvailabilityChanged`, `ChoiceMade` | `EnemyKilled`, `EnemyDefeated`, `BossDefeated`, `ItemPickedUp`, `InventoryChanged`, `ItemDelivered`, `ItemUsedAt`, `ItemCrafted`, `NPCTalkedTo`, `DialogOutcome`, `SkillCheckResolved`, `AreaEntered`, `LocationDiscovered`, `Interacted`, `ClueInspected`, `PuzzleSolved`, `DocumentRead`, `TrailNodeReached`, `PlayerDetected`, `WaveCompleted`, `NPCDied`, `NPCArrived`, `ReputationChanged`, `MinigameFinished`, `CutsceneFinished`, `TimeOfDayChanged` (Zeitziele) |
 | S57 Audio | – | `GameStateChanged`, `SceneLoadStarted`, `RegionEntered`, `TimeOfDayChanged`, `CombatStateChanged`, `BossEncounterStarted`, `BossDefeated`, `LevelUp`, `OptionsChanged` |
 | S58 Zwischensequenzen | `CutsceneStarted`, `CutsceneFinished` | `DialogueStarted` (Dialogkamera) |
-| S59–S63 UI | – (Befehle über Interfaces) | `InputDeviceChanged`, `OptionsChanged`, `GameStateChanged`, `SceneLoadStarted`, `SceneLoadCompleted`, `GameSaved`, `ItemPickedUp`, `CurrencyChanged`, `LootDropped`, `XpGained`, `LevelUp`, `QuestStarted`, `QuestStageChanged`, `QuestCompleted`, `QuestFailed`, `ObjectiveProgressed`, `QuestAvailabilityChanged`, `DamageDealt`, `LocationDiscovered`, `ReputationChanged`, `BossEncounterStarted`, `BossEncounterEnded` |
-| S64 Telemetrie | – | `QuestStarted`, `QuestCompleted`, `QuestFailed`, `PlayerDied`, `LevelUp`, `XpGained`, `LootDropped`, `SceneLoadCompleted`, `GameSaved` |
+| S59–S63 UI | `ScreenOpened` (nur Telemetrie; sonst Befehle über Interfaces) | `InputDeviceChanged`, `OptionsChanged`, `GameStateChanged`, `SceneLoadStarted`, `SceneLoadCompleted`, `GameSaved`, `ItemPickedUp`, `CurrencyChanged`, `LootDropped`, `XpGained`, `LevelUp`, `QuestStarted`, `QuestStageChanged`, `QuestCompleted`, `QuestFailed`, `ObjectiveProgressed`, `QuestAvailabilityChanged`, `DamageDealt`, `LocationDiscovered`, `ReputationChanged`, `BossEncounterStarted`, `BossEncounterEnded` |
+| S64 Telemetrie | – | `QuestStarted`, `QuestCompleted`, `QuestFailed`, `PlayerDied`, `LevelUp`, `XpGained`, `LootDropped`, `SceneLoadCompleted`, `GameSaved`; Pacing-Events laut Technik/01, 14.5 (u. a. `FeatureUnlocked`, `ScreenOpened`, `Interacted`, `DocumentRead`, `LocationDiscovered`) |
 | Weitere Sender | S11 `OptionsChanged` · S22 `ReputationChanged` · S30 `ItemCrafted` · S54 `MinigameFinished` | – |
 
 **Regeln aus der Matrix:**
@@ -559,7 +562,7 @@ Event-Namen exakt aus [Technik/01, 4.3](./01_Architektur.md). **Neu (Vorschlag)*
 
 ## Status-Liste (§32.14)
 
-Stand 2026-10-12. **Nichts ist implementiert, es gibt noch kein Unity-Projekt (§32.1).**
+Stand 2026-10-13. **Nichts ist implementiert, es gibt noch kein Unity-Projekt (§32.1).**
 
 | Status | Punkt |
 |---|---|
@@ -569,10 +572,10 @@ Stand 2026-10-12. **Nichts ist implementiert, es gibt noch kein Unity-Projekt (�
 | Erledigt (Entwurf) | GDD [00](../GDD/00_Vision_und_Ueberblick.md), [01](../GDD/01_Welt_Story_Fraktionen.md), [02](../GDD/02_Quests_und_Dialoge.md), [03](../GDD/03_Kampf_Charakter_Progression.md), [05](../GDD/05_UI_Audio_Grafik_Barrierefreiheit.md) |
 | Erledigt (Entwurf) | Dieses Dokument: Systemliste mit Abhängigkeiten und Reihenfolge (Phase 0, Schritt 3) |
 | **In Arbeit** | [GDD 04](../GDD/04_Items_Crafting_Wirtschaft_Endgame.md) (Items, Crafting, Wirtschaft, Endgame), parallel; Zeilen S30, S31, S55 und S62 werden danach abgeglichen |
-| In Arbeit | Konsistenz-Korrekturen K1–K14 für Technik/01 (vorgeschlagen, nicht eingearbeitet) |
+| Erledigt | Konsistenz-Korrekturen K1–K15 in Technik/01 eingearbeitet (2026-10-13) |
 | In Arbeit | Durchsicht aller Phase-0-Dokumente durch den Auftraggeber |
 | **Als Nächstes** | 1. Antworten des Auftraggebers auf die offenen Entscheidungen aller Dokumente (§33, Punkt 5) |
-| Als Nächstes | 2. K1–K14 und die Roadmap-Anpassung VV1–VV10 in Technik/01 übernehmen |
+| Als Nächstes | 2. Roadmap-Anpassung VV1–VV10 nach Entscheidung des Auftraggebers in Technik/01 übernehmen |
 | Als Nächstes | 3. Phase 0.4: Projekt-Setup nach Technik/01, Abschnitt 2 – **erst nach OK** |
 | Als Nächstes | 4. Phase 1, Schritt 1.1: Test- und CI-Gerüst, Logging |
 
@@ -601,9 +604,9 @@ Ab Phase 1 bekommt jede Zeile der Bau-Reihenfolge zusätzlich **Ist-PW** und **D
 | # | Risiko | Konkret | Gegenmaßnahme |
 |---|---|---|---|
 | 1 | Aufwand bis zum Vertical Slice | ≈ 166 PW Systeme + 29 PW Inhalte + 30 PW Puffer ≈ 225 PW; solo ≈ 4,9 Jahre | Teamgröße klären, Animationspakete zukaufen, Neu-Kalkulation nach Phase 2, Streichliste als Reserve |
-| 2 | Kritischer Pfad durch zwei XL-Blöcke | Nahkampf (8 PW) und Quests + Editor (13 PW) liegen nacheinander; selbst ein großes Team braucht ≈ 13 Monate | Timebox je Schritt, Listen-Editor statt Graph, Kampf-Animationen früh beschaffen, Spikes vor den XL-Schritten |
+| 2 | Kritischer Pfad durch zwei XL-Blöcke | Nahkampf (8 PW) und Quests + Editor (13 PW) liegen nacheinander; selbst ein großes Team braucht ≈ 15 Monate | Timebox je Schritt, Listen-Editor statt Graph, Kampf-Animationen früh beschaffen, Spikes vor den XL-Schritten |
 | 3 | Phase 4 ist in §31 unterschätzt | 4a enthält ≈ 40 PW Systemarbeit, bevor Inhalte entstehen | 4a und 4b getrennt planen und abnehmen (VV7) |
-| 4 | Assembly-Widersprüche in Technik/01 | K1–K14 würden beim Setup als Compile-Fehler oder fehlende Datenpfade auffallen | Vor Phase 0.4 einarbeiten; Assembly-Regel-Test ab Schritt 1.1 |
+| 4 | Assembly-Widersprüche in Technik/01 | K1–K15 wären beim Setup als Compile-Fehler oder fehlende Datenpfade aufgefallen | Am 2026-10-13 in Technik/01 eingearbeitet; Assembly-Regel-Test ab Schritt 1.1 fängt neue Verstöße ab |
 | 5 | Gebündelte Katalogzeilen | Harte Abhängigkeiten gelten für den vollen Umfang, Teilumfänge sind nur in der Bau-Reihenfolge sichtbar | Bau-Reihenfolge ist maßgeblich; je Schritt ein kurzer Steckbrief vor Beginn |
 | 6 | Speichern wird zu spät geprüft | Formatfehler betreffen sonst alle Systeme gleichzeitig | Golden Saves ab Phase 1, Speicher-Rundreise in jeder Phasen-Abnahme (VV3) |
 | 7 | Controller-UI-Aufwand | S59–S63 zusammen 2 × XL + 2 × L + 1 × M; 28 Systeme brauchen eigene Controller-UI | UI-Spike mit Abbruchkriterium in 1.11, wiederverwendbare Screen-Vorlagen (Liste, Raster, Tabs) |

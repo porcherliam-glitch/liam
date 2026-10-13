@@ -61,7 +61,7 @@ Der Master-Prompt verlangt ≥ 400 handgemachte Quests, 8 Regionen, ≥ 60 Gegne
 
 **Warum gerade hier groß:**
 - **Vertical Slice ≈ 225 PW** (Bandbreite 160–315 PW). Das entspricht solo ≈ 4,9 Jahren, mit 2 Personen ≈ 2,7 Jahren, mit 3 Personen ≈ 1,8 Jahren ([Technik/02, Gesamtaufwand](./Technik/02_Systeme_und_Abhaengigkeiten.md#kritischer-pfad-bis-zum-vertical-slice)).
-- **Kritischer Pfad ≈ 56 PW ≈ 13 Monate.** Schneller geht es auch mit einem großen Team nicht. Zwei XL-Blöcke liegen nacheinander: Nahkampf (8 PW) sowie Quest-Laufzeit und Quest-Editor (13 PW).
+- **Kritischer Pfad ≈ 57,5 PW ≈ 15 Monate** (bei ~46 produktiven Wochen pro Jahr, [Technik/02](./Technik/02_Systeme_und_Abhaengigkeiten.md#kritischer-pfad-bis-zum-vertical-slice)). Schneller geht es auch mit einem großen Team nicht. Zwei XL-Blöcke liegen nacheinander: Nahkampf (8 PW) sowie Quest-Laufzeit und Quest-Editor (13 PW).
 - **~60 der 70 Systeme** werden für 2–3 Stunden Spielzeit mindestens teilweise gebraucht. Die Streichliste „Slice-Lite“ spart nur ~10,5 PW (≈ 5 %).
 - **Stufe B** (erste veröffentlichbare Version, ~150 Quests) kostet allein für Quest-Inhalte 700–1.000 PT ≈ 3–4,5 Personenjahre, zusätzlich zum Slice ([GDD 02, 10.6](./GDD/02_Quests_und_Dialoge.md#106-authoring-pipeline-und-produktionsrate)).
 - **Stufe C** (volle Vision) liegt laut [GDD 00](./GDD/00_Vision_und_Ueberblick.md#risiken--hinweise) bei über 25 Personenjahren.

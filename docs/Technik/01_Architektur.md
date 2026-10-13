@@ -1,6 +1,6 @@
 # Technische Architektur
 
-> Teil der Phase-0-Planung · Stand: 2026-10-12 · Quelle: [Master-Prompt](../00_Master-Prompt.md)
+> Teil der Phase-0-Planung · Stand: 2026-10-13 · Quelle: [Master-Prompt](../00_Master-Prompt.md)
 
 Verwandte Dokumente: [Technik-Recherche](./03_Technik-Recherche.md) (Faktenbasis, Versionen, Quellen) · [Systeme & Abhängigkeiten](./02_Systeme_und_Abhaengigkeiten.md) (Umsetzungsreihenfolge) · [Vision](../GDD/00_Vision_und_Ueberblick.md) · [Welt & Story](../GDD/01_Welt_Story_Fraktionen.md) · [Quests & Dialoge](../GDD/02_Quests_und_Dialoge.md) · [Kampf & Progression](../GDD/03_Kampf_Charakter_Progression.md) · [Items & Wirtschaft](../GDD/04_Items_Crafting_Wirtschaft_Endgame.md) · [UI/Audio/Grafik](../GDD/05_UI_Audio_Grafik_Barrierefreiheit.md)
 
@@ -193,7 +193,8 @@ Aus §6.1 übernommen, ergänzt um technische Regeln, die aus der [Recherche](./
 | 20 | Input | Player > Other Settings > Configuration > Active Input Handling | **Input System Package (New)** → Editor-Neustart |
 | 21 | Backend | Player > Other Settings > Configuration | Scripting Backend Mono (Standard für Dev); IL2CPP über Release-Build-Profile (#36). API Compatibility Level **.NET Standard 2.1**. Use Incremental GC an. Allow 'unsafe' Code aus. |
 | 22 | Bundle-ID | Player (Mac-Tab) > Other Settings > Identification | `com.<firma>.aetherfall` (❓ **Offene Entscheidung:** siehe #1) |
-| 23 | Darstellung | Player > Resolution and Presentation | Fullscreen Mode = Fullscreen Window; Splash Screen > Show Splash Screen = aus (ab Unity 6 für Personal optional) |
+| 23 | Darstellung | Player > Resolution and Presentation > Fullscreen Mode | Fullscreen Window |
+| 23b | Splash Screen | Player > Splash Image > Splash Screen > Show Splash Screen | aus (ab Unity 6 für Personal optional) |
 
 ### 2.5 Grafik, Qualität, Physik, Audio
 
@@ -228,7 +229,7 @@ Aus §6.1 übernommen, ergänzt um technische Regeln, die aus der [Recherche](./
 | 40 | Ordnerbaum | Struktur aus Abschnitt 3.1 anlegen (leere Ordner mit `.gitkeep`, da Git leere Ordner nicht kennt; `.meta` wird mit committet) |
 | 41 | Assembly Definitions | Alle asmdefs aus 3.3 anlegen. Je asmdef: **Auto Referenced = aus**, Root Namespace = Assembly-Name, Editor-Assemblies: Include Platforms = nur Editor. Test-Assemblies: Define Constraint `UNITY_INCLUDE_TESTS`. |
 | 42 | Boot-Szene | `Scenes/Boot/Boot.unity` mit `GameBootstrapper` (Abschnitt 4.1); einzige Szene in der Scene List |
-| 43 | Defines | Player > Other Settings > Script Compilation: `AETHERFALL_DEV` in Dev-Profilen, `AETHERFALL_CHEATS` in Dev-Profilen, `AETHERFALL_TELEMETRY` in Dev-/Playtest-Profilen. Release: keine. |
+| 43 | Defines | File > Build Profiles > [`Mac_Dev` bzw. `Win_Dev`] > Scripting Defines: `AETHERFALL_DEV`, `AETHERFALL_CHEATS`, `AETHERFALL_TELEMETRY` (Playtest-Profil: nur `AETHERFALL_TELEMETRY`). Build-Profil-Defines wirken additiv und nur, solange das Profil aktiv ist. Player > Other Settings > Script Compilation > Scripting Define Symbols bleibt leer (diese Defines gelten projektweit je Plattform und landeten sonst auch im Release-Build). Release-Profile: keine Defines. |
 
 ### 2.8 Layer und Physik-Matrix (Vorschlag)
 
@@ -493,7 +494,7 @@ docs/                              Planung (diese Dokumente)
 |---|---|---|
 | **L0 Fundament** | Hilfsklassen, Service-Infrastruktur, EventBus-Mechanik, Logging, IDs | nur L0 (tiefere Nummer) und Unity |
 | **L1 Verträge & Basisdienste** | Event-Structs, Definitionen-Basis, Conditions/Actions-Basis, Speichern, Optionen, Input | L0, L1 mit tieferer Nummer |
-| **L2 Domänenlogik** | Weltzustand, Zeit, Stats, Items, Inventar, Progression, Fraktionen, Kampf, Dialog, Crafting, Wirtschaft – weitgehend reine C#-Logik, gut testbar | L0–L1, L2 mit tieferer Nummer |
+| **L2 Domänenlogik** | Zeit, Weltzustand, Stats, Items, Inventar, Progression, Fraktionen, Kampf, Dialog, Crafting, Wirtschaft – weitgehend reine C#-Logik, gut testbar | L0–L1, L2 mit tieferer Nummer |
 | **L3 Welt & Akteure** | Szenen, Streaming, KI, NPCs, Begleiter, Spieler, Haus, Quests (Konsument fast aller Domänen) | L0–L2, L3 mit tieferer Nummer |
 | **L4 Präsentation** | Kamera, Audio, Zwischensequenzen, UI, Dev-Werkzeuge | L0–L3, L4 mit tieferer Nummer |
 | **L5 Editor** | Editor-Fenster, Validatoren, Importer, Build | alles darunter, nur Editor-Plattform |
@@ -513,38 +514,38 @@ Alle Runtime-Assemblies: Auto Referenced = aus, Root Namespace = Assembly-Name. 
 | 4 | `Aetherfall.Data` | `Aetherfall.Data` | `Scripts/Data` | 1, 2; Unity.Localization, Unity.Addressables, Unity.ResourceManager | nein |
 | 5 | `Aetherfall.Conditions` | `Aetherfall.Conditions` | `Scripts/Conditions` | 2, 3, 4 | nein |
 | 6 | `Aetherfall.SaveSystem` | `Aetherfall.SaveSystem` | `Scripts/SaveSystem` | 1, 2, 3; Newtonsoft.Json.dll (Override References) | nein |
-| 7 | `Aetherfall.Options` | `Aetherfall.Options` | `Scripts/Options` | 2, 3, 6 | nein |
+| 7 | `Aetherfall.Options` | `Aetherfall.Options` | `Scripts/Options` | 2, 3, 5, 6 | nein |
 | 8 | `Aetherfall.Input` | `Aetherfall.Input` | `Scripts/Input` | 2, 3, 4, 7; Unity.InputSystem | nein |
-| 9 | `Aetherfall.WorldState` | `Aetherfall.WorldState` | `Scripts/WorldState` | 2, 3, 4, 5, 6 | nein |
-| 10 | `Aetherfall.GameTime` | `Aetherfall.GameTime` | `Scripts/Time` | 2, 3, 4, 5, 6 | nein |
+| 9 | `Aetherfall.GameTime` | `Aetherfall.GameTime` | `Scripts/Time` | 2, 3, 4, 5, 6 | nein |
+| 10 | `Aetherfall.WorldState` | `Aetherfall.WorldState` | `Scripts/WorldState` | 2, 3, 4, 5, 6, 9 | nein |
 | 11 | `Aetherfall.Stats` | `Aetherfall.Stats` | `Scripts/Stats` | 1, 2, 3, 4, 5 | nein |
 | 12 | `Aetherfall.Items` | `Aetherfall.Items` | `Scripts/Items` | 1, 2, 4, 5, 11 | nein |
-| 13 | `Aetherfall.Inventory` | `Aetherfall.Inventory` | `Scripts/Inventory` | 2, 3, 4, 5, 6, 11, 12 | nein |
-| 14 | `Aetherfall.Progression` | `Aetherfall.Progression` | `Scripts/Progression` | 2, 3, 4, 5, 6, 11 | nein |
+| 13 | `Aetherfall.Inventory` | `Aetherfall.Inventory` | `Scripts/Inventory` | 1, 2, 3, 4, 5, 6, 11, 12 | nein |
+| 14 | `Aetherfall.Progression` | `Aetherfall.Progression` | `Scripts/Progression` | 2, 3, 4, 5, 6, 9, 11 | nein |
 | 15 | `Aetherfall.Factions` | `Aetherfall.Factions` | `Scripts/Factions` | 2, 3, 4, 5, 6 | nein |
 | 16 | `Aetherfall.Combat` | `Aetherfall.Combat` | `Scripts/Combat` | 1, 2, 3, 4, 5, 11, 12 | nein |
-| 17 | `Aetherfall.Dialogue` | `Aetherfall.Dialogue` | `Scripts/Dialogue` | 2, 3, 4, 5, 6, 11, 13, 14 | nein |
-| 18 | `Aetherfall.Crafting` | `Aetherfall.Crafting` | `Scripts/Crafting` | 2, 3, 4, 5, 6, 10, 12, 13 | nein |
-| 19 | `Aetherfall.Economy` | `Aetherfall.Economy` | `Scripts/Economy` | 2, 3, 4, 5, 6, 10, 11, 12, 13, 15 | nein |
+| 17 | `Aetherfall.Dialogue` | `Aetherfall.Dialogue` | `Scripts/Dialogue` | 1, 2, 3, 4, 5, 6, 11, 13, 14 | nein |
+| 18 | `Aetherfall.Crafting` | `Aetherfall.Crafting` | `Scripts/Crafting` | 1, 2, 3, 4, 5, 6, 9, 12, 13 | nein |
+| 19 | `Aetherfall.Economy` | `Aetherfall.Economy` | `Scripts/Economy` | 1, 2, 3, 4, 5, 6, 9, 11, 12, 13, 15 | nein |
 | 20 | `Aetherfall.World` | `Aetherfall.World` | `Scripts/World` | 1, 2, 3, 4, 5, 6, 9, 10, 16; Unity.AI.Navigation, Unity.Addressables, Unity.ResourceManager | nein |
 | 21 | `Aetherfall.AI` | `Aetherfall.AI` | `Scripts/AI` | 1, 2, 3, 4, 5, 11, 16, 20; Unity.AI.Navigation | nein |
 | 22 | `Aetherfall.NPC` | `Aetherfall.NPC` | `Scripts/NPC` | 2, 3, 4, 5, 6, 9, 10, 11, 13, 15, 16, 17, 19, 20, 21; Unity.AI.Navigation | nein |
 | 23 | `Aetherfall.Companions` | `Aetherfall.Companions` | `Scripts/Companions` | 2, 3, 4, 5, 6, 11, 13, 14, 16, 17, 21, 22 | nein |
-| 24 | `Aetherfall.Player` | `Aetherfall.Player` | `Scripts/Player` | 1, 2, 3, 4, 5, 6, 8, 11, 12, 13, 14, 16, 20 | nein |
-| 25 | `Aetherfall.Housing` | `Aetherfall.Housing` | `Scripts/Housing` | 2, 3, 4, 5, 6, 8, 12, 13, 18, 20, 22; Unity.AI.Navigation | nein |
-| 26 | `Aetherfall.Quests` | `Aetherfall.Quests` | `Scripts/Quests` | 2, 3, 4, 5, 6, 9, 10, 13, 14, 15, 20, 22 | nein |
-| 27 | `Aetherfall.CameraSystem` | `Aetherfall.CameraSystem` | `Scripts/Camera` | 2, 3, 7, 8, 16, 24; Unity.Cinemachine | nein |
-| 28 | `Aetherfall.Audio` | `Aetherfall.Audio` | `Scripts/Audio` | 2, 3, 4, 5, 6, 7, 10, 20 | nein |
+| 24 | `Aetherfall.Player` | `Aetherfall.Player` | `Scripts/Player` | 1, 2, 3, 4, 5, 6, 8, 9, 11, 12, 13, 14, 16, 20 | nein |
+| 25 | `Aetherfall.Housing` | `Aetherfall.Housing` | `Scripts/Housing` | 2, 3, 4, 5, 6, 8, 9, 12, 13, 18, 20, 22; Unity.AI.Navigation | nein |
+| 26 | `Aetherfall.Quests` | `Aetherfall.Quests` | `Scripts/Quests` | 1, 2, 3, 4, 5, 6, 9, 10, 13, 14, 15, 20, 22 | nein |
+| 27 | `Aetherfall.CameraSystem` | `Aetherfall.CameraSystem` | `Scripts/Camera` | 2, 3, 6, 7, 8, 16, 24; Unity.Cinemachine | nein |
+| 28 | `Aetherfall.Audio` | `Aetherfall.Audio` | `Scripts/Audio` | 2, 3, 4, 5, 6, 7, 9, 16, 20 | nein |
 | 29 | `Aetherfall.Cinematics` | `Aetherfall.Cinematics` | `Scripts/Cinematics` | 2, 3, 4, 5, 22, 24, 27, 28; Unity.Timeline, Unity.Cinemachine | nein |
-| 30 | `Aetherfall.UI.Framework` | `Aetherfall.UI` | `Scripts/UI/Framework` | 1, 2, 3, 4, 7, 8; Unity.Localization, Unity.InputSystem, Unity.TextMeshPro | nein |
+| 30 | `Aetherfall.UI.Framework` | `Aetherfall.UI.Framework` | `Scripts/UI/Framework` | 1, 2, 3, 4, 7, 8; Unity.Localization, Unity.InputSystem, Unity.TextMeshPro | nein |
 | 31 | `Aetherfall.UI.Screens` | `Aetherfall.UI.Screens` | `Scripts/UI/Screens` | 2–30 nach Bedarf (Anzeige aller Systeme) | nein |
 | 32 | `Aetherfall.DevTools` | `Aetherfall.DevTools` | `Scripts/DevTools` | 2–31 nach Bedarf | nein |
-| 33 | `Aetherfall.EditorTools.Core` | `Aetherfall.EditorTools.Core` | `Scripts/Editor/Core` | 1–5; Unity.Addressables.Editor | **ja** |
+| 33 | `Aetherfall.EditorTools.Core` | `Aetherfall.EditorTools.Core` | `Scripts/Editor/Core` | 1–5; Unity.Addressables.Editor, Unity.Localization, Unity.Localization.Editor | **ja** |
 | 34 | `Aetherfall.EditorTools.Data` | `Aetherfall.EditorTools.Data` | `Scripts/Editor/Data` | 33 + Runtime 4–19 nach Bedarf | **ja** |
-| 35 | `Aetherfall.EditorTools.Narrative` | `Aetherfall.EditorTools.Narrative` | `Scripts/Editor/Narrative` | 33 + 5, 9, 17, 26 | **ja** |
-| 36 | `Aetherfall.EditorTools.World` | `Aetherfall.EditorTools.World` | `Scripts/Editor/World` | 33 + 9, 20, 21, 22; Unity.AI.Navigation.Editor | **ja** |
+| 35 | `Aetherfall.EditorTools.Narrative` | `Aetherfall.EditorTools.Narrative` | `Scripts/Editor/Narrative` | 33 + 5, 10, 17, 26 | **ja** |
+| 36 | `Aetherfall.EditorTools.World` | `Aetherfall.EditorTools.World` | `Scripts/Editor/World` | 33 + 10, 20, 21, 22; Unity.AI.Navigation.Editor | **ja** |
 | 37 | `Aetherfall.EditorTools.Build` | `Aetherfall.EditorTools.Build` | `Scripts/Editor/Build` | 33–36 | **ja** |
-| 38 | `Aetherfall.Tests.Shared` | `Aetherfall.Tests` | `Tests/Shared` | 1–6; nunit (Test-Framework) | Test |
+| 38 | `Aetherfall.Tests.Shared` | `Aetherfall.Tests.Shared` | `Tests/Shared` | 1–6; nunit (Test-Framework) | Test |
 | 39 | `Aetherfall.Tests.EditMode` | `Aetherfall.Tests.EditMode` | `Tests/EditMode` | 1–37, 38; UnityEngine/UnityEditor.TestRunner | **ja** |
 | 40 | `Aetherfall.Tests.PlayMode` | `Aetherfall.Tests.PlayMode` | `Tests/PlayMode` | 1–32, 38; UnityEngine.TestRunner | Test |
 
@@ -555,11 +556,11 @@ Alle Runtime-Assemblies: Auto Referenced = aus, Root Namespace = Assembly-Name. 
 | Assembly | Enthält |
 |---|---|
 | `Utilities` | `IRandom` + `Pcg32Random` (deterministisch, seedbar), Mathe-/Kurven-Helfer, `IdText` (snake_case, Umlaut-Ersetzung), Collections ohne Allokation |
-| `Core` | `GameBootstrapper`, `ServiceInstaller`, `Services`/ServiceLocator, `EventBus` + `IGameEvent`, `Log`, `UniqueId`, `GameStateManager`, `TimeScaleService`, `SceneLoader`, `IPrefabPool`, `AssetLease<T>`, `TypeMenuAttribute` (für alle `[SerializeReference]`-Basistypen), `IValidationReport`, `IDebugCommandRegistry`, `ILoadingScreen` |
-| `Events` | alle globalen Event-Structs (4.3), gruppiert je Bereich (`QuestEvents.cs`, `CombatEvents.cs` …) |
+| `Core` | `GameBootstrapper`, `ServiceInstaller`, `Services`/ServiceLocator, `EventBus` + `IGameEvent`, `Log`, `UniqueId`, `GameStateManager`, `TimeScaleService`, `SceneLoader`, `IPrefabPool`, `AssetLease<T>`, `TypeMenuAttribute` (für alle `[SerializeReference]`-Basistypen), `IValidationReport`, `IDebugCommandRegistry`, `ILoadingScreen`, `IIdAliasResolver` (implementiert von der ContentDatabase in `Data`, 5.2), `GameStateChanged`, `SceneLoadStarted`, `SceneLoadCompleted` (Event-Structs, Datei `Scripts/Core/CoreEvents.cs` – Core darf `Events` nicht referenzieren) |
+| `Events` | alle übrigen globalen Event-Structs (4.3), gruppiert je Bereich (`QuestEvents.cs`, `CombatEvents.cs` …) |
 | `Data` | `GameDefinition`, `ContentStatus`, `IContentDatabase`, `IdRefAttribute`, `IdMigrationTable`, Balancing-Basis (`BalancingColumnAttribute`) |
 | `Conditions` | `Condition`, `GameAction`, Kontexte, Logik-Typen (7.2), `ITriggerCollector`, `ConditionWatcher` |
-| `SaveSystem` | `ISaveable`, `Saveable<T>`, `IPostLoad`, `IPersistentObject`, `ISaveManager`, Migrationen, `IJsonSerializer` |
+| `SaveSystem` | `ISaveable`, `Saveable<T>`, `IPostLoad`, `IPersistentObject`, `ISaveManager`, `IRuntimeSpawnRegistry`, Migrationen, `IJsonSerializer`, `ISaveHeaderContributor`, `IScreenshotProvider` (beide 9.3) |
 
 **Hinweise:**
 - `Aetherfall.Quests` steht bewusst **oben in L3**: Quests lesen fast alle Domänen (Inventar zählen, NPC-Positionen für Eskorten), aber kein anderes System braucht Quest-Code. Andere Systeme erfahren über Events von Quests (`QuestStarted`, `QuestAvailabilityChanged`).
@@ -623,9 +624,9 @@ flowchart TD
   CND --> EVT
   SAV --> EVT
   OPT --> SAV
+  OPT --> CND
   INP --> OPT
-  WST --> CND
-  WST --> SAV
+  WST --> GTI
   GTI --> CND
   GTI --> SAV
   STA --> CND
@@ -633,7 +634,7 @@ flowchart TD
   INV --> ITM
   INV --> SAV
   PRG --> STA
-  PRG --> SAV
+  PRG --> GTI
   FAC --> CND
   FAC --> SAV
   CMB --> ITM
@@ -643,8 +644,8 @@ flowchart TD
   CRF --> GTI
   ECO --> INV
   ECO --> FAC
+  ECO --> GTI
   WLD --> WST
-  WLD --> GTI
   WLD --> CMB
   AIX --> WLD
   NPC --> AIX
@@ -657,11 +658,14 @@ flowchart TD
   PLY --> PRG
   HOU --> NPC
   HOU --> CRF
+  HOU --> INP
   QST --> NPC
   CAM --> PLY
   AUD --> WLD
+  AUD --> OPT
   CIN --> CAM
   CIN --> AUD
+  CIN --> NPC
   UIF --> INP
   UIS --> UIF
   UIS --> QST
@@ -675,7 +679,7 @@ Editor-Assemblies (33–37) und Test-Assemblies (38–40) hängen nur nach unten
 
 | Mechanismus | Wann | Beispiel |
 |---|---|---|
-| **Globale Events** (`Aetherfall.Events`, L1) | Ein System meldet eine **Tatsache**, beliebig viele hören zu | `Combat` sendet `EnemyKilled`, `Quests` zählt Ziele, `WorldState` erhöht `flag.global.banditen_getoetet`, Telemetrie loggt |
+| **Globale Events** (`Aetherfall.Events`, L1) | Ein System meldet eine **Tatsache**, beliebig viele hören zu | `AI` sendet `EnemyKilled` (Adapter, 11.4), `Quests` zählt Ziele, `WorldState` erhöht `flag.global.banditen_getoetet`, Telemetrie loggt |
 | **Interface in tieferer Schicht** | Ein höheres System **fragt** oder **beauftragt** ein tieferes | `Quests` ruft `IInventoryService.CountOf()` (Interface in `Inventory`, Nr. 13) |
 | **Interface tief, Implementierung hoch** | Ein tieferes System braucht eine Fähigkeit, die oben implementiert ist | `Core.SceneLoader` braucht einen Ladebildschirm → `ILoadingScreen` in `Core`, Implementierung in `UI.Screens`, registriert im ServiceLocator |
 | **Conditions/Actions** | Daten verbinden Systeme, ohne dass Code sich kennt | Dialog-Option mit `[SerializeReference] GameAction` → konkrete `StartQuest` liegt in `Quests` |
@@ -741,7 +745,7 @@ namespace Aetherfall.Core {
 5. **Localization** – `LocalizationSettings.InitializationOperation` abwarten, Sprache aus Options setzen
 6. **Input** – Action-Asset, Rebinding-Overrides aus Options, Geräteerkennung
 7. **ContentDatabase** – Addressables initialisieren, alle Definitionen (Label `content.def`) laden und indizieren
-8. **GameStateManager** (Zustand `Boot`)
+8. **GameStateManager** (Zustand `Boot`); direkt danach **Schritt 8b: SceneLoader** – früh, weil der Streaming-Controller (Schritt 13) `ISceneLoader` verlangt; `ILoadingScreen` löst er erst später auf (4.5)
 9. **SaveManager** – Slots scannen (nur Kopf-Dateien); ab hier dürfen sich `ISaveable`s registrieren
 10. **GameTime** (TimeManager, angehalten)
 11. **ConditionWatcher**, **WorldState**
@@ -749,8 +753,8 @@ namespace Aetherfall.Core {
 13. **Welt- und Akteursdienste**: World (Streaming-Controller, Zellen-Index, WorldObjectStateStore), AI (Token-Manager), NPC (Tagesabläufe), Companions, Player-Dienste, Housing, Quests
 14. **AudioManager** – Mixer, Musik-Zustandsmaschine
 15. **UIManager** – UI-Wurzel, Fokus-Stack, Ladebildschirm registriert `ILoadingScreen`
-16. **SceneLoader**
-17. **DevTools** (nur `AETHERFALL_DEV`): Konsole, Overlay, Telemetrie
+16. *(entfällt – der SceneLoader läuft als Schritt 8b; die Nummern 17–19 bleiben stabil)*
+17. **DevTools**: Konsole, Overlay, Telemetrie nur mit `AETHERFALL_DEV`; ohne `AETHERFALL_CHEATS` registriert sich ein leerer `IDebugCommandRegistry`-Stub (auch im Release), damit die Befehlsregistrierung in Schritt 18 nie fehlschlägt
 18. Alle `IPostInitializable.PostInitialize()` in derselben Reihenfolge
 19. `GameState` → `MainMenu`, `MainMenu`-Szene über SceneLoader laden
 
@@ -822,8 +826,10 @@ namespace Aetherfall.Core {
 namespace Aetherfall.Events {
   public readonly struct EnemyKilled : IGameEvent {
     public readonly string EnemyTypeId, VariantId, UniqueId, KillerId, RegionId;
-    public readonly Vector3 Position;
-    public EnemyKilled(string type, string variant, string uid, string killer, string region, Vector3 pos) { /* Felder setzen */ }
+    public readonly string LootTableId;             // aus EnemyTypeDefinition (AI 21) – Inventory (13) darf AI nicht referenzieren
+    public readonly int EnemyLevel;                 // für XP_Kill (GDD 03, 12.7)
+    public readonly Vector3 Position;               // 6 × 8 + 4 + 12 = 64 Byte (Obergrenze)
+    public EnemyKilled(string type, string variant, string uid, string killer, string region, string lootTable, int level, Vector3 pos) { /* Felder setzen */ }
   }
 }
 ```
@@ -832,9 +838,9 @@ namespace Aetherfall.Events {
 
 | # | Event | Payload | Sender | Typische Empfänger | ab Phase |
 |---|---|---|---|---|---|
-| 1 | `GameStateChanged` | `Previous`, `Current` (GameState) | Core | Input, UI, Audio, GameTime | 1 |
-| 2 | `SceneLoadStarted` | `SceneKey`, `ShowLoadingScreen` (bool) | Core | UI, Audio | 1 |
-| 3 | `SceneLoadCompleted` | `SceneKey`, `DurationSeconds` | Core | UI, Telemetrie | 1 |
+| 1 | `GameStateChanged` | `Previous`, `Current` (GameState) | Core (Struct in Core) | Input, UI, Audio, GameTime | 1 |
+| 2 | `SceneLoadStarted` | `SceneKey`, `ShowLoadingScreen` (bool) | Core (Struct in Core) | UI, Audio | 1 |
+| 3 | `SceneLoadCompleted` | `SceneKey`, `DurationSeconds` | Core (Struct in Core) | UI, Telemetrie | 1 |
 | 4 | `OptionsChanged` | `Section` (Graphics/Audio/Controls/Gameplay/Accessibility) | Options | Audio, Camera, Input, UI | 1 |
 | 5 | `InputDeviceChanged` | `DeviceKind`, `GlyphFamily` | Input | UI | 1 |
 | 6 | `GameSaved` | `SlotId`, `SaveKind`, `Success` | SaveSystem | UI, Telemetrie | 1 |
@@ -843,7 +849,7 @@ namespace Aetherfall.Events {
 | 9 | `TimeOfDayChanged` | `Day`, `Hour`, `Minute`, `Phase` (Morgen/Tag/Abend/Nacht) – jede Spielminute | GameTime | NPC, Audio, Conditions, Quests | 2 |
 | 10 | `DamageDealt` | `AttackerId`, `TargetId`, `Amount`, `DamageType`, `IsCritical`, `Zone` | Combat | UI (Zahlen), AI, Telemetrie | 2 |
 | 11 | `CombatStateChanged` | `InCombat` (bool) | Combat | SaveSystem (Sperre), Audio, UI | 2 |
-| 12 | `EnemyKilled` | `EnemyTypeId`, `VariantId`, `UniqueId`, `KillerId`, `RegionId`, `Position` | Combat | Quests, WorldState, Telemetrie | 2 |
+| 12 | `EnemyKilled` | `EnemyTypeId`, `VariantId`, `UniqueId`, `KillerId`, `RegionId`, `LootTableId`, `EnemyLevel` (int), `Position` – 64 Byte | AI (Adapter `EnemyDeathReporter`, hört `Damageable.Died`, Region über World) | Quests, WorldState, Progression (XP_Kill), Inventory (Drops, 11.6), Telemetrie | 2 |
 | 13 | `PlayerDied` | `Position`, `KillerTypeId`, `RegionId` | Player | UI, Telemetrie (Todesorte) | 2 |
 | 14 | `ItemPickedUp` | `ItemId`, `Amount`, `SourceId` | Inventory | Quests, UI (Meldung) | 2 |
 | 15 | `InventoryChanged` | `OwnerId`, `ItemId`, `NewCount`, `Delta` | Inventory | Quests, UI, ConditionWatcher | 2 |
@@ -864,15 +870,16 @@ namespace Aetherfall.Events {
 
 | Bereich | Events |
 |---|---|
-| Kampf | `EnemyDefeated` (lebend bezwungen), `PlayerDetected` (`DetectorId`, `ZoneId`), `StatusEffectApplied`, `AbilityUsedAt` (`AbilityId`, `TargetId`, `Position`), `BossDefeated` (`BossId`), `WaveCompleted` (`EncounterId`, `Wave`) |
+| Kampf | `EnemyDefeated` (lebend bezwungen), `PlayerDetected` (`DetectorId`, `ZoneId`), `StatusEffectApplied`, `AbilityUsedAt` (`AbilityId`, `TargetId`, `Position`), `BossDefeated` (`BossId`), `BossEncounterStarted` (`BossId`) und `BossEncounterEnded` (`BossId`, `Defeated`) – Sender AI, für Boss-Lebensbalken (§20.3) und Boss-Musik, `WaveCompleted` (`EncounterId`, `Wave`) |
 | Items | `ItemDelivered` (`ItemId`, `Amount`, `NpcId`), `ItemUsedAt` (`ItemId`, `TargetId`), `ItemCrafted` (`RecipeId`, `ItemId`, `Amount`, `Quality`), `LootDropped` (`LootTableId`, `BestRarity`) |
-| Progression | `SkillUnlocked` (`SkillNodeId`), `ClassUnlocked` (`ClassId`) |
+| Progression | `SkillUnlocked` (`SkillNodeId`), `ClassUnlocked` (`ClassId`), `FeatureUnlocked` (`FeatureId`; Pacing, 14.5) |
 | Quests | `ObjectiveProgressed` (`QuestId`, `ObjectiveId`, `Current`, `Required`), `QuestAvailabilityChanged` (`QuestId`, `GiverId`, `Available`) |
 | Dialog | `DialogueStarted` (`DialogueId`, `NpcId`, `Mode`), `SkillCheckResolved` (`DialogueId`, `CheckType`, `Success`) |
 | Welt | `AreaEntered` (`AreaId`), `RegionEntered` (`RegionId`, `PreviousRegionId`), `LocationDiscovered` (`LocationId`, `RegionId`), `WeatherChanged` (`RegionId`, `WeatherId`), `WorldCellActivated` / `WorldCellDeactivated` (`CellX`, `CellY`), `Interacted` (`ObjectId`, `Verb`), `ClueInspected`, `PuzzleSolved`, `DocumentRead`, `ObjectDestroyed`, `TrailNodeReached` (`TrailId`, `Index`), `FastTravelCompleted`, `RestCompleted` (`Hours`) |
 | NPC/Fraktion | `NPCDied` (`NpcId`, `KillerId`), `NPCArrived` (`NpcId`, `LocationId`), `RelationshipChanged`, `ReputationChanged` (`FactionId`, `OldValue`, `NewValue`, `OldTier`, `NewTier`), `CrimeCommitted` (`CrimeType`, `WitnessId`, `Bounty`), `CompanionJoined`, `CompanionLeft` |
 | Inszenierung | `CutsceneStarted`, `CutsceneFinished` (`CutsceneId`, `Skipped`), `MinigameFinished` (`MinigameId`, `OpponentId`, `Won`) |
-| Reserviert | `OriginShifted` (`Offset`) – nur falls Floating Origin nötig wird (10.7) |
+| UI | `ScreenOpened` (`ScreenId`) – Sender UI.Screens, nur für Telemetrie (z. B. Questlog, 14.5) |
+| Reserviert | `OriginShifted` (`Offset`) – nur falls Floating Origin nötig wird (10.7); `ExpeditionStarted` (`ModifierSetId`) – Phase 7, Sender Endgame (V), Pacing (14.5) |
 
 `TimerElapsed`/`TimerExpired` aus GDD 02 sind **keine** globalen Events: Zeitziele zählt der `QuestService` intern pro aktiver Stage.
 
@@ -955,7 +962,7 @@ namespace Aetherfall.Core {
 | Aktive Szene | `World_Overworld` bzw. die Dungeon-Szene (bestimmt Licht- und Umgebungseinstellungen) |
 | Ladepriorität | `Application.backgroundLoadingPriority`: im offenen Spiel `BelowNormal` (Integration ≈ 4 ms/Frame), hinter dem Ladebildschirm `High` |
 | Lebenszyklus | App-Dienst |
-| Abhängigkeiten | Core, Addressables, `ILoadingScreen` (Implementierung in UI) |
+| Abhängigkeiten | Core, Addressables, `ILoadingScreen` (Implementierung in UI). Erzeugt in Boot-Schritt 8b (4.1); `ILoadingScreen` wird erst beim ersten `ChangeWorldSpaceAsync` per `TryGet` aufgelöst, Rückfall ist eine schwarze Abblende. |
 | Speicherrelevanz | keine (die aktuelle WorldSpace-ID speichert der Spieler-Saveable) |
 
 ```csharp
@@ -1028,7 +1035,7 @@ namespace Aetherfall.SaveSystem {
 | Mixer | Gruppen und Ducking laut [GDD 05, 2.5](../GDD/05_UI_Audio_Grafik_Barrierefreiheit.md): Master → Musik, Effekte (Kampf, Magie, Foley, Welt), Stimmen (Dialog, Barks), Umgebung (Betten, Wetter, Punktquellen), UI. Lautstärke-Parameter exponiert, Umrechnung dB = 20 × log10(max(v; 0,0001)). |
 | Musik | 2 `AudioSource` je Schicht für Überblendungen (Standard 2 s, Kampf-Einstieg 0,5 s). Regionswechsel über `RegionEntered`, Override über Action „Musik wechseln“. |
 | Lebenszyklus | App-Dienst; Quellen-Pool (48 Quellen) in der Boot-Szene |
-| Speicherrelevanz | **gering:** aktiver Musik-Override (ID) |
+| Speicherrelevanz | **gering:** aktiver Musik-Override (ID), Sektion `audio` (9.2) |
 
 **Stimmenbudget (Vorschlag):**
 
@@ -1072,7 +1079,7 @@ namespace Aetherfall.Audio {
 | Speicherrelevanz | keine (Optionen wie UI-Größe liegen in Options) |
 
 ```csharp
-namespace Aetherfall.UI {
+namespace Aetherfall.UI.Framework {
   public interface IUIManager {
     TScreen Open<TScreen>(object args = null) where TScreen : UIScreen;  // legt auf den Fokus-Stack
     void Close(UIScreen screen);
@@ -1098,7 +1105,7 @@ namespace Aetherfall.UI {
 | Item | `ItemDefinition`: ID, Name/Beschreibung (`LocalizedString`), Kategorie, Basis-Seltenheit, Gewicht, Wert, Stapelgröße, Icon (`AssetReferenceSprite`), Tags, Komponenten (`[SerializeReference]`: Waffe, Rüstung, Verbrauchsgut, Material, Buch, Questgegenstand, Sockel) | Stapelbar: `ItemStack { itemId, count, quality, stolen }`. Einzeln: `ItemInstance { instanceId, itemId, itemLevel, rarity, affixes[], sockets[], quality, flags (neu, favorit, gesperrt, gestohlen), transmogItemId }` | identisch, nur IDs und Zahlen |
 | Quest | `QuestDefinition`: alle Felder aus §16.3 und GDD 02, 4.1; Stages mit Objectives, Conditions, Actions als `[SerializeReference]` | `QuestInstance { questId, status, stageId, objectiveStates[], startedAtPlaytime, visitedStages[], ledgerEntries[], tracked }` | identisch |
 | NPC | `NpcDefinition`: ID, Name, Fraktion, sterblich ja/nein, Tagesablauf-ID, Dialog-IDs, Händler-ID, Kampfprofil-ID, Prefab (`AssetReference`), Stimme | `NpcState { npcId, alive, relationship, scheduleOverride, location (cell + local), memoryTags[] }` | identisch, sparsam (nur Abweichungen vom Standard) |
-| Gegner | `EnemyTypeDefinition`: ID (`enemy.<familie>.<typ>`), Rolle, Stat-Vorlage + Level-Skalierung, Resistenzen, `EnemyBrainDefinition`, Loot-Tabelle, Prefab, Varianten (Normal/Elite/Champion/Aether-verderbt als Modifikator-Pakete) | In der Szene: `EnemyRuntime` (LP, KI-Zustand) – **nicht gespeichert**. Gespeichert wird nur Spawner-/Boss-Zustand (9.7). | `SpawnerState`, `BossState` |
+| Gegner | `EnemyTypeDefinition`: ID (`enemy.<familie>.<typ>`), Rolle, Stat-Vorlage + Level-Skalierung, Resistenzen, `EnemyBrainDefinition`, Loot-Tabelle, Prefab, Varianten (Normal/Elite/Champion/Aether-verderbt als Modifikator-Pakete). `EnemyTypeDefinition` und `EnemyBrainDefinition` liegen in `Aetherfall.AI` (21). | In der Szene: `EnemyRuntime` (LP, KI-Zustand) – **nicht gespeichert**. Gespeichert wird nur Spawner-/Boss-Zustand (9.7). | `SpawnerState`, `BossState` |
 | Fähigkeit | `AbilityDefinition` (11.5) | `AbilityRuntime { cooldownRemaining }` | nur Abklingzeiten > 10 s |
 | Rezept, Fraktion, Region, Loot-Tabelle, Skilltree, Tagesablauf, Flag | jeweils `…Definition` | jeweils `…State`, wo nötig | |
 
@@ -1128,7 +1135,7 @@ namespace Aetherfall.Data {
 | Automatik | Ein `AssetPostprocessor` in `Aetherfall.EditorTools.Core` macht jede `GameDefinition` unter `Data/` automatisch addressierbar (Gruppe `Definitions`, Label `content.def`, Adresse = ID). Niemand pflegt das von Hand. |
 | Lookup | `Dictionary<string, GameDefinition>` gesamt + je Typ eine Liste. O(1) per ID. |
 | Fehler zur Laufzeit | Doppelte ID → Fehler-Log, erste gewinnt (darf nie passieren, Validator verhindert es). Unbekannte ID → `TryGet` false + Warnung mit ID. |
-| Aliase | `IdMigrationTable`-Einträge (6.5) werden als Aliase registriert: `Get("alte.id")` liefert die neue Definition. |
+| Aliase | `IdMigrationTable`-Einträge (6.5) werden als Aliase registriert: `Get("alte.id")` liefert die neue Definition. Die ContentDatabase implementiert dafür `IIdAliasResolver` (Interface in `Core`) und registriert ihn im ServiceLocator; SaveSystem nutzt ihn für die ID-Migration beim Laden (9.2), ohne `Data` zu referenzieren. |
 | Speicherbudget | ≤ 64 MB für alle Definitionen (13.4). **Vorschlag:** ab Stufe B pro Region eigene Labels (`content.def.region.<id>`) einführen, falls das Budget reißt. |
 | Speicherrelevanz | keine |
 
@@ -1149,7 +1156,7 @@ namespace Aetherfall.Data {
 
 | Balancing-Asset (Beispiele) | Inhalt | Zuständiges System |
 |---|---|---|
-| `XpCurve` | Formel-Parameter, z. B. XP(L → L+1) = round(a × L^b + c); Platzhalter aus GDD 02: 200 × L | Progression |
+| `XpCurve` | Formel-Parameter laut [GDD 03, 12.3](../GDD/03_Kampf_Charakter_Progression.md): XP_next(L) = runden_auf_10(a × L × (1 + (L / c)^b)) mit a = 200, c = 30, b = 2; dazu Stützpunkte der Zielzeit t(L) (GDD 03, 12.4) für Validierung und Minuten-Äquivalent | Progression |
 | `DamageBalancing` | Rüstungs-Formel-Konstanten, Krit-Basis, Haltungsschaden-Faktoren | Combat |
 | `EnemyScaling` | LP/Schaden je Level, Varianten-Multiplikatoren | AI/Combat |
 | `LootBalancing` | Seltenheitsgewichte, Glück-Einfluss, Bad-Luck-Schwellen | Items |
@@ -1221,7 +1228,9 @@ flowchart LR
 | `region.` / `loc.<region>.` | `loc.eichental.vergessene_gruft` | Definition bzw. Szenenobjekt (Ortsmarker) |
 | `faction.` | `faction.silberwacht` | Definition |
 | `flag.<bereich>.` / `stat.<bereich>.` | `flag.eichental.dorf_zerstoert` | Flag-Definition (8) |
-| `skill.` / `class.` / `ability.` | `skill.aether.rissstoss` | Definition |
+| `skill.<baum>.<ast>.<knoten>` / `skill.aether.<name>` | `skill.aether.aether_stoss` | Definition (Skilltree-Knoten, [GDD 03](../GDD/03_Kampf_Charakter_Progression.md)) |
+| `ability.<klasse oder schule>.<name>` | `ability.aether.aether_stoss` | Definition (`AbilityDefinition`, Payload `AbilityUsedAt.AbilityId`) |
+| `class.` | `class.krieger` | Definition |
 | `recipe.` / `loot.` / `effect.` | `effect.brennen` | Definition |
 | `spawn.<region>.` | `spawn.eichental.nordhang_rudel` | Szenenobjekt (Spawner) |
 | `obj.<region>.` | `obj.goldkueste.oles_truhe` | benanntes Szenenobjekt (questrelevant) |
@@ -1283,7 +1292,7 @@ Menü **Aetherfall > Validierung > Alles prüfen** (Fenster mit Liste, Klick pin
 | Definition referenziert schweres Asset direkt statt `AssetReference` | Fehler | Speichern |
 | Lokalisierungs-Key fehlt in DE oder EN (ab Status „Fertig“) | Fehler | Build, CI |
 | Eingefrorene ID geändert (Vergleich mit `FrozenIdRegistry`) | Fehler | Speichern, CI |
-| Quest-/Dialog-Regeln V01–V18, W01–W13 | laut [GDD 02, 10.2](../GDD/02_Quests_und_Dialoge.md) | Quest-Editor, CI |
+| Quest-/Dialog-Regeln V01–V18, W01–W14 | laut [GDD 02, 10.2](../GDD/02_Quests_und_Dialoge.md) | Quest-Editor, CI |
 
 ### 6.5 Umbenennen-Strategie
 
@@ -1434,7 +1443,7 @@ namespace Aetherfall.Inventory {
 | Begleiter X in der Gruppe | `CompanionInParty` | Begleiter/In der Gruppe | Companions | `CompanionJoined`, `CompanionLeft` |
 | Spieler in Region X | `PlayerInRegion` | Welt/Spieler in Region | World | `RegionEntered` |
 
-**Vorschlag – Ergänzungen** (von GDD 01/02 benötigt): `FlagAge` (Welt/Flag seit mindestens n Spielstunden, WorldState, `FlagChanged` + `OnGameHour`), `NpcAlive` (NPC/Lebt, NPC, `NPCDied`), `CurrencyAtLeast` (Inventar/Währung mindestens, Inventory, `CurrencyChanged`), `AttributeAtLeast` (Spieler/Attribut mindestens, Stats, bei Bedarf), `DayOfWeekIs` (Zeit/Wochentag, GameTime, `TimeOfDayChanged`), `DifficultyIs` / `NewGamePlusAtLeast` (Spiel/…, Core).
+**Vorschlag – Ergänzungen** (von GDD 01/02 benötigt): `FlagAge` (Welt/Flag seit mindestens n Spielstunden, WorldState, `FlagChanged` + `OnGameHour`), `NpcAlive` (NPC/Lebt, NPC, `NPCDied`), `CurrencyAtLeast` (Inventar/Währung mindestens, Inventory, `CurrencyChanged`), `AttributeAtLeast` (Spieler/Attribut mindestens, Stats, bei Bedarf), `DayOfWeekIs` (Zeit/Wochentag, GameTime, `TimeOfDayChanged`), `DifficultyIs` (Spiel/Schwierigkeit ist, `Aetherfall.Options` (7), `OptionsChanged`), `NewGamePlusAtLeast` (Spiel/New Game+ mindestens, `Aetherfall.Progression` (14), `GameLoaded`). Nicht in Core: Core (2) dürfte `Conditions` (5) nicht referenzieren (3.2), deshalb referenziert Options die Assembly 5 (Tabelle 3.3).
 
 **Actions:**
 
@@ -1448,7 +1457,7 @@ namespace Aetherfall.Inventory {
 | NPC-Beziehung ändern | `ChangeRelationship` | NPC/Beziehung ändern | NPC |
 | Weltzustand-Flag setzen | `SetFlag`, `AddToFlag` | Welt/Flag setzen, Welt/Flag erhöhen | WorldState |
 | NPC spawnen / entfernen / bewegen | `SpawnNpc`, `DespawnNpc`, `MoveNpc` (Tagesablauf-Override oder Teleport) | NPC/… | NPC |
-| Gegner spawnen | `SpawnEncounter` (Spawn-Definition oder Gegnertyp + Anzahl + Ort) | Welt/Gegner spawnen | World |
+| Gegner spawnen | `SpawnEncounter` (Spawn-Definition oder Gegnertyp + Anzahl + Ort); nutzt das Interface `IEnemySpawnService` (in World), implementiert in AI und im AI-Installer registriert | Welt/Gegner spawnen | World |
 | Zwischensequenz abspielen | `PlayCutscene` | Inszenierung/Zwischensequenz | Cinematics |
 | Kartenmarker hinzufügen | `AddMapMarker`, `RemoveMapMarker` | Karte/… | World |
 | Tür öffnen / schließen | `SetDoorState` (offen, zu, verriegelt) | Welt/Tür | World |
@@ -1575,12 +1584,13 @@ namespace Aetherfall.SaveSystem {
 | 80 | `world` | World | entdeckte Orte, Kartennebel, eigene Marker, Wegpunkte, Wetter je Region, Weltereignis-Zustände |
 | 85 | `worldobjects` | World | Zustände der Szenenobjekte (9.7) |
 | 86 | `dynamic` | World | Laufzeit-Spawns (9.7) |
-| 88 | `spawners` | World/AI | Spawner- und Boss-Zustände |
+| 88 | `spawners` | World | Spawner- und Boss-Zustände; AI schreibt Boss- und Spawner-Zustände über `ISpawnerStateStore` (Interface in World) |
 | 90 | `housing` | Housing | Ausbaustufen, Räume, platzierte Möbel, Garten |
 | 95 | `economy` | Economy | Händlerbestände und -gold (nur besuchte Händler), Restock-Zeitpunkte |
+| 97 | `audio` | Audio | aktiver Musik-Override (MusicSet-ID); lädt vor `quests`, damit Quest-Actions den Override danach neu setzen dürfen |
 | 100 | `quests` | Quests | Quest-Instanzen, verfolgte Quests, prozedurale Aufträge (Vorlage + Seed + Parameter), Ledger |
 | 110 | `player` | Player | WorldSpace-ID, Zelle + lokale Position, Rotation, beritten, Bewegungsmodus |
-| 120 | `meta` | Core/UI | Sammlungen, Codex-Fortschritt, Statistik |
+| 120 | `meta` | UI.Screens (31), später Achievements (V) | Sammlungen, Codex-Fortschritt, Statistik |
 
 **Ladeablauf:**
 
@@ -1590,7 +1600,7 @@ flowchart TD
   B --> C["Gameplay-Szenen der alten Sitzung entladen, EndSession"]
   C --> D["Datei lesen, entpacken, JSON parsen (Hintergrund-Thread)"]
   D --> E["Formatmigration auf JObject-Ebene (9.5)"]
-  E --> F["ID-Migration (IdMigrationTable)"]
+  E --> F["ID-Migration (IdMigrationTable über IIdAliasResolver)"]
   F --> G["BeginSession, Load() je ISaveable nach LoadOrder (Main Thread)"]
   G --> H["Gameplay und World_Overworld bzw. Dungeon laden"]
   H --> I["Spieler platzieren, Zellen 3x3 laden und aktivieren"]
@@ -1644,7 +1654,8 @@ Ziel: Laden → spielbar **< 15 s** (§4.4). Neues Spiel nutzt denselben Ablauf 
 | Prüfsumme | SHA-256 über `.sav` im Kopf; Abweichung = „beschädigt“ → Backup anbieten |
 | Größe (Schätzung) | spät im Spiel 2–5 MB JSON, gezippt 0,3–0,8 MB |
 | Thread | `Save()`-Schnappschüsse auf dem Main Thread (Budget ≤ 8 ms), Serialisierung + Kompression + Schreiben per `Awaitable.BackgroundThreadAsync()` |
-| Screenshot | Kamera rendert in eine 480 × 270-RenderTexture (UI-Toolkit-Ebenen sind nicht im Kamerabild), `AsyncGPUReadback`, JPG-Kodierung im Hintergrund (Threadsicherheit beim Bau prüfen) |
+| Kopf-Inhalte | SaveSystem kennt die Systeme nicht und sammelt den Kopf über `ISaveHeaderContributor { void Contribute(SaveHeader header); }` (Interface in SaveSystem). Implementierungen: Progression (Level, Klassen), World (Region, Ort), GameTime (Spielzeit); weitere Kopffelder nach demselben Muster vom besitzenden System. |
+| Screenshot | über `IScreenshotProvider { Awaitable<byte[]> CaptureAsync(int w, int h, CancellationToken ct); }` (Interface in SaveSystem, implementiert in CameraSystem): Kamera rendert in eine 480 × 270-RenderTexture (UI-Toolkit-Ebenen sind nicht im Kamerabild), `AsyncGPUReadback`, JPG-Kodierung im Hintergrund (Threadsicherheit beim Bau prüfen) |
 
 ### 9.4 Atomares Schreiben und Backups
 
@@ -1697,13 +1708,13 @@ Migration `WorldStateFlagsV1ToV2`: jedes Paar in `[id, wert ? 1 : 0, 0.0]` umwan
 
 ### 9.6 Autosave-Auslöser
 
-Auslöser und Spielerregeln aus [GDD 05, 5.3](../GDD/05_UI_Audio_Grafik_Barrierefreiheit.md). Technische Umsetzung im `AutosaveScheduler` (SaveSystem, hört nur Events):
+Auslöser und Spielerregeln aus [GDD 05, 5.3](../GDD/05_UI_Audio_Grafik_Barrierefreiheit.md). Technische Umsetzung im `AutosaveScheduler` (SaveSystem, hört nur Events und fragt `IGameStateService` aus Core ab):
 
 | Auslöser (GDD 05) | Event |
 |---|---|
 | Questfortschritt | `QuestStageChanged`, `QuestCompleted` (nicht für `proc.*`) |
 | Regionswechsel (+5 s) | `RegionEntered` |
-| Zeitintervall (Standard 10 min) | interner Timer auf aktiver Spielzeit |
+| Zeitintervall (Standard 10 min) | eigener Zähler im `AutosaveScheduler`, der nur in Zuständen läuft, in denen laut Tabelle 4.4 der Spielzeit-Zähler läuft (abgefragt über `IGameStateService`); SaveSystem (6) darf GameTime (9) nicht referenzieren |
 | Dungeon/Innenraum betreten und verlassen | `SceneLoadCompleted` mit WorldSpace-Wechsel |
 | Vor/nach Bosskampf | `AreaEntered` (Vorkammer-Volume), `BossDefeated` |
 | Schnellreise, Schlafen/Warten | `FastTravelCompleted`, `RestCompleted` |
@@ -1719,7 +1730,7 @@ Regeln: höchstens 1 Autosave pro 60 s; gesperrt (9.8) → bis zu 120 s aufschie
 | Zerstörtes Szenenobjekt | wie oben, Zustand `destroyed` | Beim Laden der Zelle wird es **vor** der Aktivierung deaktiviert (kein Aufflackern) |
 | Zelle wird entladen | – | Vor dem Entladen `CaptureState()` aller `IPersistentObject` der Zelle in den Store |
 | Zelle wird geladen | – | Nach dem Laden, vor der gestaffelten Aktivierung `RestoreState()` |
-| Laufzeit-Spawn (fallen gelassenes Item, Loot-Beutel, von Quests gespawnte NPCs) | `DynamicObjectRegistry` (Sektion `dynamic`): `{ runtimeId, prefabKey, cell, localPosition, rotation, state }` | Zelle entladen → Objekt despawnen, Eintrag bleibt. Zelle geladen → Objekt neu erzeugen. **Vorschlag:** Loot-Beutel verfallen nach 24 Spielstunden. |
+| Laufzeit-Spawn (fallen gelassenes Item, Loot-Beutel, von Quests gespawnte NPCs) | `DynamicObjectRegistry` (World 20, Sektion `dynamic`; implementiert `IRuntimeSpawnRegistry` aus SaveSystem 6, über das z. B. der `LootDropService` in Inventory 13 Beutel anmeldet): `{ runtimeId, prefabKey, cell, localPosition, rotation, state }` | Zelle entladen → Objekt despawnen, Eintrag bleibt. Zelle geladen → Objekt neu erzeugen. **Vorschlag:** Loot-Beutel verfallen nach 24 Spielstunden. |
 | Gegner aus Spawnern | Sektion `spawners`: `{ spawnerId, deadMask, clearedAtGameMinutes }` | Einzelne Gegner werden **nicht** gespeichert. Teilweise besiegte Gruppen bleiben teilweise besiegt bis zum Respawn (**Vorschlag:** 72 Spielstunden ≈ 2,4 h Echtzeit; Weltbosse laut GDD 01). |
 | Unique-Gegner/Bosse | Sektion `spawners`: `{ bossId, defeated, respawnAtGameMinutes }` | |
 | NPCs in entladenen Zellen | Sektion `npcs` | Tagesablauf wird abstrakt weitergerechnet (11.10) |
@@ -1727,16 +1738,16 @@ Regeln: höchstens 1 Autosave pro 60 s; gesperrt (9.8) → bis zu 120 s aufschie
 
 ### 9.8 Speichersperren
 
-`ISaveManager.AddBlocker(id, reasonKey)` / `RemoveBlocker(id)`. Systeme setzen Sperren selbst:
+`ISaveManager.AddBlocker(id, reasonKey)` / `RemoveBlocker(id)`. Systeme oberhalb von SaveSystem setzen Sperren selbst. Core (GameStateManager, SceneLoader) darf SaveSystem nicht referenzieren und setzt selbst keine Sperren: `ISaveManager.IsSaveAllowed` fragt zusätzlich `IGameStateService.Current` gegen die Spalte „Speichern erlaubt“ der Tabelle 4.4 und `ISceneLoader.IsBusy` ab.
 
 | Sperre (GDD 05, 5.2) | Setzt |
 |---|---|
-| Im Kampf (Gegner hat Spieler als Ziel oder Schaden in den letzten 5 s) | Combat (`CombatStateChanged`) |
-| Dialog, Zwischensequenz | GameStateManager |
+| Im Kampf (Gegner hat Spieler als Ziel oder Schaden in den letzten 5 s) | SaveSystem selbst: hört `CombatStateChanged` von Combat (Combat referenziert SaveSystem nicht) |
+| Dialog, Zwischensequenz | keine Sperre: `IsSaveAllowed` prüft `IGameStateService.Current` gegen Tabelle 4.4 |
 | Fallen, Springen, Tauchen | Player |
 | Boss-Arena | World (Arena-Volume) |
 | Zeitkritische Quest-Stage | Quests (Stage-Feld „Speichersperre“) |
-| Laden, Streaming-Wechsel mit Ladebildschirm | SceneLoader |
+| Laden, Streaming-Wechsel mit Ladebildschirm | keine Sperre: `IsSaveAllowed` prüft `ISceneLoader.IsBusy` |
 
 ### 9.9 Speicherpfade
 
@@ -1880,7 +1891,7 @@ Kompression lokal: LZ4. Kein Remote-Katalog. Jede Ladeoperation hat einen Besitz
 | Asset | Ein `AetherfallInput.inputactions` in `Settings/Input/`, als Project-wide Actions zugewiesen |
 | Action Maps (§7.3) | **Gameplay**, **UI**, **Dialog**, **Reiten**, **Bauen**; **Vorschlag:** zusätzlich **Debug** (nur Dev-Builds: Konsole, Overlay) |
 | Control Schemes | `Gamepad`, `KeyboardMouse` |
-| Belegung | Standard laut §7.1/§7.2 (verbindlich, unverändert) |
+| Belegung | Standard laut [GDD 03, 1.5](../GDD/03_Kampf_Charakter_Progression.md) (Basis §7.1/§7.2; Ergänzungen und Verbesserungsvorschläge dort gekennzeichnet) |
 | Instanz | **Eine** Laufzeit-Instanz der Actions im `InputService`. Gameplay, UI-Modul (UI Toolkit `InputSystemProvider`), Rebinding und Glyphen nutzen dieselbe Instanz. Typsicherer Zugriff über die generierte C#-Klasse; ob Generator und Project-wide Actions dieselbe Instanz teilen, am ersten Tag von Phase 1 prüfen. |
 | Map-Wechsel | `InputService` hört `GameStateChanged` und den Steuerungsmodus des Spielers (zu Fuß/beritten) und aktiviert genau die Maps aus Tabelle 4.4. Gameplay ist in Menüs immer **aus** (kein Angriff beim Menü-Klick). |
 | Rebinding | `PerformInteractiveRebinding()` mit `WithSuppressedActionPropagation()`; Konflikt in derselben Map → Dialog „Tauschen?“. Nicht belegbar: Start/Menü, UI-Bestätigen/-Zurück am Gamepad (§24.3 „A = Bestätigen, B = Zurück“). |
@@ -1898,7 +1909,7 @@ Kompression lokal: LZ4. Kein Remote-Katalog. Jede Ladeoperation hat einen Besitz
 | `CM_LockOn` | `CinemachineThirdPersonFollow` + `CinemachineRotationComposer` auf `CinemachineTargetGroup` (Spieler + Ziel) | Lock-On (R3) |
 | `CM_Aim` | `CinemachineThirdPersonFollow` (Schulter) + `CinemachineThirdPersonAim` | Bogen, Zauber (LT) |
 | `CM_Mount` | wie Explore, größerer Radius | Reiten |
-| `CM_Dialog_A/B/Wide` | 3 positionierte Kameras, `DialogueCameraDirector` wählt je Zeile (Schuss-Gegenschuss) | Dialog |
+| `CM_Dialog_A/B/Wide` | 3 positionierte Kameras, `DialogueCameraDirector` wählt je Zeile (Schuss-Gegenschuss). Dialogkameras und `DialogueCameraDirector` liegen in `Aetherfall.Cinematics` (29), das NPC (22) und CameraSystem (27) bereits referenziert | Dialog |
 | `CM_Build` | Orbital, steiler Winkel | Bau-Modus |
 | Timeline | `CinemachineTrack` | Zwischensequenzen |
 
@@ -1939,8 +1950,8 @@ Kompression lokal: LZ4. Kein Remote-Katalog. Jede Ladeoperation hat einen Besitz
 | Animation Events (§9.8) | über `AnimationEventRelay`: `HitboxOn(id)`, `HitboxOff(id)`, `ComboWindowOpen/Close`, `IFrameOn/Off`, `ParryWindowOpen/Close`, `Footstep`, `Vfx(id)`, `Sfx(id)`. Validator prüft Clips auf unbekannte Funktionsnamen. |
 | Treffererkennung | Keine Physik-Trigger. Aktive Hitbox → je Frame `CapsuleCastNonAlloc` zwischen alter und neuer Pose auf Layer `Hurtbox` (kein Durchtunneln bei schnellen Schlägen), „bereits getroffen“-Menge je Angriff |
 | Hurtboxen (§9.8) | Collider an Knochen mit `Hurtbox` (Zone: Kopf, Körper, Glied, Schwachpunkt; Multiplikator) → verweisen auf den `Damageable` der Wurzel |
-| `Damageable`/Health (§9.8) | eine Komponente für Spieler, Gegner, zerstörbare Objekte: LP-Pool, Haltung (Poise), Unverwundbarkeit, lokale Events `Damaged`, `Died`. Globale Events (`EnemyKilled`, `ObjectDestroyed`, `PlayerDied`) sendet je ein Adapter. |
-| Wucht (§9.1) | Hitstop **lokal** (Animator-Geschwindigkeit 0 für 60–120 ms bei Angreifer und Ziel), Impulse, VFX, SFX |
+| `Damageable`/Health (§9.8) | eine Komponente für Spieler, Gegner, zerstörbare Objekte: LP-Pool, Haltung (Poise), Unverwundbarkeit, lokale Events `Damaged`, `Died`. Globale Events (`EnemyKilled`, `ObjectDestroyed`, `PlayerDied`) sendet je ein Adapter. Der `EnemyKilled`-Adapter (`EnemyDeathReporter`) liegt in AI (21), `ObjectDestroyed` in Combat, `PlayerDied` in Player. |
+| Wucht (§9.1) | Hitstop **lokal** (Animator-Geschwindigkeit 0 für 40–120 ms bei Angreifer und Ziel; 40 ms für Dolche, Faustwaffen und Treffer am Spieler; Werte [GDD 03, 4.11](../GDD/03_Kampf_Charakter_Progression.md)), Impulse, VFX, SFX |
 | Statuseffekte (§9.6) | `StatusEffectDefinition` (Aufbau-Schwelle, Dauer, Tick, Modifikatoren, Stapelregel); `StatusEffectController` je Kämpfer; Element-Reaktionen über `ElementReactionTable` (SO) |
 | Speicherrelevanz | keine eigene Sektion; Spieler-LP/-Ressourcen und laufende Effekte mit Restzeit speichert der Player-Saveable (Sektion `stats.player`) |
 
@@ -1998,6 +2009,7 @@ namespace Aetherfall.Stats {
 | Ausrüstung (§12.2) | `Equipment` mit Slots Kopf, Brust, Hände, Beine, Füße, Umhang, Haupthand, Nebenhand, Fernkampf, Ring 1/2, Amulett, Schnellslot 1–4; Ausrüsten → Modifikatoren mit `SourceId = item:<instanceId>`; Transmog als separates Feld |
 | Affixe (§12.4) | `AffixDefinition` (Stat, Wertebereich je Stufe, erlaubte Kategorien); Würfeln im `ItemGenerator` |
 | Loot (§12.5) | `LootTableDefinition` (gewichtete Einträge, verschachtelte Tabellen, garantierte Drops, Bedingungen); `LootRoller` rein C# mit `IRandom` und Bad-Luck-Zählern (im Save) |
+| Loot-Ausgabe | `LootDropService` (reagiert auf `EnemyKilled`), die `Pickup`-Komponente und die Action `GiveLoot` (für Truhen) liegen in Inventory (13), weil World (20) und AI (21) Items (12) nicht referenzieren. `LootDropped` sendet Inventory. Die Loot-Tabelle des Gegners kommt als `LootTableId` im Event `EnemyKilled` mit (gefüllt vom `EnemyDeathReporter` in AI aus `EnemyTypeDefinition`). Erzeugte Loot-Beutel meldet der `LootDropService` über das Interface `IRuntimeSpawnRegistry` (SaveSystem 6, implementiert von der `DynamicObjectRegistry` in World 20) an, damit sie gespeichert werden (9.7). |
 | Darstellung | Loot im Spiel gepoolt (`Pickup`-Layer), Strahl in Seltenheitsfarbe (GDD 05, 1.10) |
 | Diebstahl (§22) | `stolen`-Flag am Stapel/Instanz, Event `CrimeCommitted` |
 | Speicherrelevanz | Sektion `inventory` |
@@ -2166,7 +2178,7 @@ namespace Aetherfall.AI {
 
 ### 11.16 Audio (`Aetherfall.Audio`)
 
-Siehe 4.8. Ergänzend: **Schrittgeräusche** (§26) über `SurfaceType`: Terrain-Layer → Surface-Mapping (SO), Meshes über Physics-Material-Mapping oder `SurfaceTag`-Komponente; Abfrage per Raycast beim Animation Event `Footstep`. **Ambience** über Volumes (Region, Innenraum, Wasser) mit Überblendung.
+Siehe 4.8. Ergänzend: **Schrittgeräusche** (§26) über `SurfaceType`: Terrain-Layer → Surface-Mapping (SO), Meshes über Physics-Material-Mapping oder `SurfaceTag`-Komponente; Abfrage per Raycast beim Animation Event `Footstep`. Brücken-Komponente `FootstepAudioBridge` (Audio) abonniert die C#-Events des `AnimationEventRelay` (Combat 16; Audio referenziert Combat, Combat ruft Audio nie auf). **Ambience** über Volumes (Region, Innenraum, Wasser) mit Überblendung.
 
 ### 11.17 Lokalisierung (`com.unity.localization` 1.5)
 
@@ -2186,7 +2198,7 @@ Siehe 4.8. Ergänzend: **Schrittgeräusche** (§26) über `SurfaceType`: Terrain
 
 ## 12. UI-Technologie (§24.3)
 
-**Entscheidung: UI Toolkit für alle Menüs und das HUD, mit eigener Fokus- und Navigationsschicht. uGUI/TMP nur für Schadenszahlen und Timeline-animierte UI. Abgesichert durch einen Spike vor Phase 2.**
+**Entscheidung: UI Toolkit für alle Menüs und das HUD, mit eigener Fokus- und Navigationsschicht. uGUI/TMP nur für Schadenszahlen, 3D-Weltlabels (NPC-Namensschilder, Ortsschilder) und Timeline-animierte UI. Abgesichert durch einen Spike vor Phase 2.**
 
 | Kriterium | UI Toolkit | uGUI |
 |---|---|---|
@@ -2203,6 +2215,7 @@ Siehe 4.8. Ergänzend: **Schrittgeräusche** (§26) über `SurfaceType`: Terrain
 | HUD (Balken, Leiste, Kompass, Minikarte, Quest-Tracker) | UI Toolkit (HUD-Ebene) |
 | Gegner-Lebensbalken, Questgeber-Symbole, Interaktions-Hinweise | UI Toolkit **Overlay-Projektion** (Ebene WorldMarkers): gepoolte Elemente, Position per `WorldToScreenPoint`, max. 32 gleichzeitig sichtbar. Vorteil: konstante Bildschirmgröße, USS-Themes für Farbenblind-Modi. |
 | Schadenszahlen | TMP, gepoolt, Billboard in der Welt (Recherche-Empfehlung) |
+| NPC-Namen/3D-Weltlabels | TMP (World Space), gepoolt, Layer UI |
 | UI in Zwischensequenzen | uGUI/TMP (Timeline-Anbindung) |
 | 3D-Charaktervorschau | Kamera → RenderTexture (Layer `PreviewUI`) → Hintergrund eines UI-Toolkit-Elements |
 
@@ -2319,7 +2332,7 @@ Automatisierte Performance-Tests (`com.unity.test-framework.performance`) laufen
 
 ### 14.2 Debug-Konsole (§30, §28)
 
-Nur mit `AETHERFALL_CHEATS`. Öffnen: `^`/`F1` (Tastatur), am Gamepad L3 + R3 1 s halten. Autovervollständigung von Befehlen **und IDs** aus der ContentDatabase. Jedes System registriert seine Befehle selbst in seinem Installer (keine Reflection).
+Nur mit `AETHERFALL_CHEATS`. Öffnen: `^`/`F1` (Tastatur), am Gamepad L3 + R3 1 s halten. Autovervollständigung von Befehlen **und IDs** aus der ContentDatabase. Jedes System registriert seine Befehle in `PostInitialize` (Boot-Schritt 18, 4.1; keine Reflection).
 
 | Befehl | Wirkung | System |
 |---|---|---|
@@ -2370,6 +2383,7 @@ Umschalten mit `F3` (Seiten mit `F3` weiterblättern).
 | Aktivierung | nur mit `AETHERFALL_TELEMETRY` (Dev- und Playtest-Builds), nie im Release |
 | Quelle | `TelemetryRecorder` abonniert EventBus-Events – keine Aufrufe in Gameplay-Code |
 | Messwerte (§28) | **Zeit pro Quest** (`QuestStarted` → `QuestCompleted`/`QuestFailed`, aktive Spielzeit), **Todesorte** (`PlayerDied`: Position, Region, Gegnertyp), **häufigste Builds** (Schnappschuss alle 30 min und bei `LevelUp`: Klassenpunkte, Attribute, ausgerüstete Waffentypen, Fähigkeiten), Pacing-Takt (Belohnungen pro 5/30 min, [GDD 00](../GDD/00_Vision_und_Ueberblick.md)), Level bei Hauptquest-Start |
+| Pacing-Zuordnung (**Vorschlag**, Namen aus [GDD 00](../GDD/00_Vision_und_Ueberblick.md), „Belohnungstaktung“, und [GDD 02, 1.2](../GDD/02_Quests_und_Dialoge.md)) | `ChestOpened` → `Interacted` (Verb `open`, Objekt mit Truhen-Tag); `LoreFound` → `DocumentRead`; `RegionEnteredFirstTime` → `LocationDiscovered` (Ortstyp Region); `FeatureUnlocked` und `MechanicIntroduced` → neues Event `FeatureUnlocked` (`FeatureId`), Sender Progression; `ExpeditionStarted` → für Phase 7 reserviert (`ExpeditionStarted` mit `ModifierSetId`, Sender Endgame); `MinigameAvailable` ist eine statische Datenprüfung (Validator), kein Event; `QuestLogOpened` → UI-Telemetrie-Event `ScreenOpened` (`ScreenId`), Sender UI.Screens. Neue Namen stehen in Tabelle 4.3. |
 | Format | JSON Lines, eine Datei je Sitzung: `persistentDataPath/Telemetry/<datum>_<sitzung>.jsonl` |
 | Übertragung | **keine Netzwerkübertragung**; Tester senden Dateien manuell (❓ **Offene Entscheidung:** externe Tester – Empfehlung: lokal mit Einwilligungsdialog) |
 | Auswertung | Editor-Werkzeug: Todesorte als Heatmap in der Scene View; Tabellen per CSV-Export |
@@ -2498,7 +2512,7 @@ Caches: `Library/` und LFS-Objekte (sonst LFS-Traffic pro Lauf). Budget-Limit st
 | A30 | Quests/Dialoge | getrennte Modelle, gemeinsame Infrastruktur | ein generisches Graph-Modell für alles | unterschiedliche Laufzeitsemantik | mittel |
 | A31 | Graph-Editor | zuerst Listen-Editor; Graph nach 6.7-Spike (Graph Toolkit bevorzugt, GraphView Rückfall) | sofort GraphView, xNode | API-Reife, Daten bleiben Wahrheit | ja (Editor ist nur Ansicht) |
 | A32 | KI | HFSM + datengetriebene Angriffswahl + Token-Manager | Behavior Tree, Unity Behavior | debugbar, ausreichend, §20.2 „schlank“ | ja (Bosse können eigene Logik bekommen) |
-| A33 | UI | UI Toolkit + eigene Fokus-Schicht, TMP für Schadenszahlen, Spike mit Abbruchkriterium | uGUI überall | Data Binding, Lokalisierung, Themes | ja bis Phase 2 (Spike), danach teuer |
+| A33 | UI | UI Toolkit + eigene Fokus-Schicht, TMP für Schadenszahlen und 3D-Weltlabels, Spike mit Abbruchkriterium | uGUI überall | Data Binding, Lokalisierung, Themes | ja bis Phase 2 (Spike), danach teuer |
 | A34 | Async | `Awaitable` | UniTask, Coroutines | eingebaut, CoreCLR-sicher | ja |
 | A35 | Input | eine Actions-Instanz, Maps Gameplay/UI/Dialog/Reiten/Bauen (+Debug), Overrides in `settings.json` | mehrere Assets, PlayerInput-Komponente | ein Ort für Rebinding und Glyphen | ja |
 | A36 | Kamera | Cinemachine 3, Umschalten per Priorität | eigene Kamera | §4.2 vorgegeben, Deoccluder/Decollider vorhanden | nein |
@@ -2528,6 +2542,8 @@ Caches: `Library/` und LFS-Objekte (sonst LFS-Traffic pro Lauf). Budget-Limit st
 | Signierung | Apple Developer Program + Windows-Authenticode / nur Apple / keine | Apple ab erster externer Mac-Version, Windows-Zertifikat vor Release | Gatekeeper/SmartScreen-Warnungen schrecken Spieler ab |
 | Würfel vs. feste Werte bei Dialogproben | deterministisch / Würfel | deterministisch (GDD 02, 12.3) – Datenmodell trägt beide | Textmenge je Probe, Testaufwand |
 | Modding | nein / später Addressables-Inhaltskataloge | nein, aber Daten-/ID-Modell nicht verbauen | würde Content-Pipeline und Sicherheit (Save-Typen) beeinflussen |
+| Schreibreihenfolge der Texte | DE zuerst / EN zuerst / parallel | DE zuerst ([GDD 02, 13.4](../GDD/02_Quests_und_Dialoge.md)) | Bestimmt Key-Erzeugung, Übersetzungsfluss und Pseudo-Locale-Tests |
+| Vertriebsplattform | Steam / GOG / itch.io / mehrere | Steam zuerst ([GDD 00](../GDD/00_Vision_und_Ueberblick.md)) | Bestimmt Cloud-Saves, Erfolge, Notarisierung und ggf. Unity Pro (Platform Toolkit) |
 
 ---
 
@@ -2535,7 +2551,7 @@ Caches: `Library/` und LFS-Objekte (sonst LFS-Traffic pro Lauf). Budget-Limit st
 
 | # | Risiko | Konkret | Gegenmaßnahme |
 |---|---|---|---|
-| 1 | Architektur-Overhead für ein kleines Team | 40 Assemblies, Installer, Validatoren, Migrationen kosten vor dem ersten Spielspaß mehrere Wochen | Alle asmdefs werden beim Setup leer angelegt (billig), **gefüllt** werden in Phase 1 nur Nr. 1–8, 11, 16, 24, 27, 30 (+ Tests). Validatoren und Migrationen wachsen mit den Systemen. Reihenfolge in [02_Systeme_und_Abhaengigkeiten](./02_Systeme_und_Abhaengigkeiten.md). |
+| 1 | Architektur-Overhead für ein kleines Team | 40 Assemblies, Installer, Validatoren, Migrationen kosten vor dem ersten Spielspaß mehrere Wochen | Alle asmdefs werden beim Setup leer angelegt (billig), **gefüllt** werden in Phase 1 die Nr. 1–11, 16, 24, 27, 30–33, 36 und 37–40 (laut 02, Phase 1 mit VV1, VV2, VV4). Validatoren und Migrationen wachsen mit den Systemen. Reihenfolge in [02_Systeme_und_Abhaengigkeiten](./02_Systeme_und_Abhaengigkeiten.md). |
 | 2 | `[SerializeReference]`-Datenverlust | Umbenennen von Klasse, Namespace oder asmdef macht Conditions/Actions/Ziele in allen Quests „missing“ | Namen einfrieren, `[MovedFrom]`-Pflicht, CI-Test auf fehlende Typen, Validator beim Speichern |
 | 3 | Engine-Umbruch | 6.3 → 6.7 → Unity 7 (CoreCLR) innerhalb ~12 Monaten, Spiel dauert länger | Upgrade-Fenster, CoreCLR-Regeln ab Tag 1, Engine-APIs hinter eigenen Schnittstellen, Tests als Netz |
 | 4 | Graph-Editor-Reife | Graph Toolkit bricht API, GraphView „experimental“ | Listen-Editor zuerst und dauerhaft; Graph nur Ansicht; Spike mit klaren Kriterien |
