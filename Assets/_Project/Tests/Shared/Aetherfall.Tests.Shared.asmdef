@@ -1,6 +1,6 @@
 {
     "name": "Aetherfall.Tests.Shared",
-    "rootNamespace": "Aetherfall.Tests",
+    "rootNamespace": "Aetherfall.Tests.Shared",
     "references": [
         "UnityEngine.TestRunner",
         "Aetherfall.Core"

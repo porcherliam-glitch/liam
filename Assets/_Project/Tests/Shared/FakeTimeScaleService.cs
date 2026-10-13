@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using Aetherfall.Core;
 
-namespace Aetherfall.Tests
+namespace Aetherfall.Tests.Shared
 {
     /// <summary><see cref="ITimeScaleService"/> test double without Unity calls; records every value that was set.</summary>
     public sealed class FakeTimeScaleService : ITimeScaleService

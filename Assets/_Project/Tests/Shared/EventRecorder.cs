@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using Aetherfall.Core;
 
-namespace Aetherfall.Tests
+namespace Aetherfall.Tests.Shared
 {
     /// <summary>
     /// Subscribes to one event type on an <see cref="IEventBus"/> and records every delivered event.

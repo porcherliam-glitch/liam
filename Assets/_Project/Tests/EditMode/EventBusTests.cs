@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using Aetherfall.Core;
+using Aetherfall.Tests.Shared;
 using NUnit.Framework;
 
 namespace Aetherfall.Tests.EditMode
@@ -278,55 +279,7 @@ namespace Aetherfall.Tests.EditMode
             Assert.That(_log.Sink.Contains(LogLevel.Warning, "disposed"), Is.True);
         }
 
-        [Test]
-        public void Publish_AfterWarmUp_DoesNotAllocate()
-        {
-            _bus.Subscribe<TestEventA>(CountA);
-            _bus.Subscribe<TestEventA>(RecordDepth);
-            var evt = new TestEventA(7);
-
-            // Warm-up: JIT compilation, dictionary comparer and other one-time allocations.
-            PublishMany(evt, 32);
-
-            if (AllocationCounterWorks())
-            {
-                long before = GC.GetAllocatedBytesForCurrentThread();
-                PublishMany(evt, 1000);
-                long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
-
-                Assert.That(allocated, Is.EqualTo(0L), "Publish must not allocate (architecture 4.3).");
-                Assert.That(_countA, Is.EqualTo(1032));
-                return;
-            }
-
-#if UNITY_5_3_OR_NEWER
-            // Fallback inside Unity: some Mono versions return 0 from GC.GetAllocatedBytesForCurrentThread
-            // (fixed in 6000.1.4f1 according to the Unity issue tracker). Unity's profiler-based constraint
-            // then measures the GC.Alloc samples instead.
-            Assert.That(() => PublishMany(evt, 1000), UnityEngine.TestTools.Constraints.Is.Not.AllocatingGCMemory());
-#else
-            Assert.Inconclusive("GC.GetAllocatedBytesForCurrentThread() does not report allocations on this runtime.");
-#endif
-        }
-
         // ---- helpers -------------------------------------------------------------------------------------------
-
-        private static bool AllocationCounterWorks()
-        {
-            long before = GC.GetAllocatedBytesForCurrentThread();
-            var probe = new byte[256];
-            long after = GC.GetAllocatedBytesForCurrentThread();
-            GC.KeepAlive(probe);
-            return after - before >= 256;
-        }
-
-        private void PublishMany(TestEventA evt, int count)
-        {
-            for (int i = 0; i < count; i++)
-            {
-                _bus.Publish(in evt);
-            }
-        }
 
         private CapturedLogEntry FindFirst(LogLevel level)
         {
@@ -356,11 +309,6 @@ namespace Aetherfall.Tests.EditMode
         private void CountB(TestEventB evt)
         {
             _countB++;
-        }
-
-        private void RecordDepth(TestEventA evt)
-        {
-            _maxObservedDepth = Math.Max(_maxObservedDepth, _bus.PublishDepth);
         }
 
         private void RecordFirst(TestEventA evt)

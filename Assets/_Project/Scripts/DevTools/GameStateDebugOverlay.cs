@@ -43,6 +43,7 @@ namespace Aetherfall.DevTools
         private IGameStateService _gameState;
         private IEventBus _eventBus;
         private bool _subscribed;
+        private bool _isEnabled;
         private bool _expanded;
         private string _currentText = string.Empty;
         private string _baseText = string.Empty;
@@ -96,6 +97,8 @@ namespace Aetherfall.DevTools
 
         private void OnEnable()
         {
+            _isEnabled = true;
+
             // In Boot.unity the bootstrapper (execution order -10000) has already registered the services here, so the
             // overlay also catches the first change Boot -> MainMenu. Elsewhere Start waits for them.
             if (_eventBus == null)
@@ -108,6 +111,7 @@ namespace Aetherfall.DevTools
 
         private void OnDisable()
         {
+            _isEnabled = false;
             Unsubscribe();
         }
 
@@ -131,7 +135,7 @@ namespace Aetherfall.DevTools
 
         private void Subscribe()
         {
-            if (_eventBus == null || _subscribed || !isActiveAndEnabled)
+            if (_eventBus == null || _subscribed || !_isEnabled)
             {
                 return;
             }

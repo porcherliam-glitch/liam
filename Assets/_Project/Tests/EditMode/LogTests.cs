@@ -1,5 +1,6 @@
 using System;
 using Aetherfall.Core;
+using Aetherfall.Tests.Shared;
 using NUnit.Framework;
 
 namespace Aetherfall.Tests.EditMode

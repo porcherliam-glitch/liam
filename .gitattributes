@@ -1,0 +1,169 @@
+# =====================================================================================
+# Aetherfall – .gitattributes
+# Quelle: docs/Technik/01_Architektur.md, Abschnitt 2.9 (Vorschlag vom 2026-10-12),
+# fachlich geprüft und übernommen am 2026-10-13 (Phase 0, Schritt 4).
+#
+# Reihenfolge ist wichtig: Passen mehrere Zeilen auf eine Datei, gewinnt für jedes Attribut
+# die SPÄTESTE Zeile, die dieses Attribut setzt. Darum stehen die LFS-Ausnahmen für binäre
+# *.asset-Dateien NACH der allgemeinen *.asset-Zeile.
+#
+# Grundsätze:
+#   - Code und Textformate: Zeilenende LF im Repo und im Arbeitsordner (Mac und Windows).
+#   - Unity-YAML (Asset Serialization = Force Text): keine Zeilenende-Umwandlung (-text),
+#     Diff als Text (diff), Merge über UnityYAMLMerge (merge=unityyamlmerge).
+#     Der Merge-Treiber "unityyamlmerge" wird lokal je Rechner in der Git-Konfiguration
+#     eingerichtet (docs/Anleitungen/01_Projekt-Setup.md). Ist er nicht eingerichtet,
+#     verwendet Git automatisch den normalen 3-Wege-Text-Merge.
+#   - *.meta, *.unity, *.prefab, *.asset, *.asmdef bleiben IMMER außerhalb von LFS
+#     (Textdateien, klein, müssen diff- und mergebar sein). Einzige Ausnahme: die
+#     ausdrücklich binären Unity-Assets im Block "Immer binäre Unity-Assets" unten.
+#   - Binärdateien (Modelle, Texturen, Audio, Video, Schriften, Bibliotheken) liegen in Git LFS.
+#     Quelldateien, die niemand parallel bearbeiten kann, sind "lockable"
+#     (git lfs lock <datei> vor dem Bearbeiten, git lfs unlock danach).
+#
+# Prüfung (Architektur 2.9, #47):
+#   git check-attr -a Assets/_Project/Scenes/Boot/Boot.unity  -> merge: unityyamlmerge, text: unset, diff: set
+#   git check-attr -a Assets/_Project/Art/Textures/x.png      -> filter: lfs
+#   git lfs ls-files                                           -> nur Binärdateien, keine .meta/.unity/.prefab/.asset
+#
+# Änderungen gegenüber dem Vorschlag in Architektur 2.9 (Ergebnis der fachlichen Prüfung):
+#   1. Ergänzt: weitere Unity-YAML-Typen (*.giparams, *.shadervariants, *.scenetemplate, *.vfx,
+#      *.vfxoperator, *.vfxblock). Ohne eigene Zeile fielen sie nur unter "* text=auto" und
+#      bekämen keinen Smart Merge.
+#   2. Ergänzt: **/NavMesh.asset (Dateiname des klassischen NavMesh-Bakes) neben **/NavMesh-*.asset
+#      (AI-Navigation-Paket) im Block der immer binären Unity-Assets.
+#   3. Ergänzt: SpeedTree-Formate, die Unity tatsächlich importiert: *.spm (SpeedTree 7) und
+#      *.st9 (SpeedTree 9). *.spt und *.st aus dem Vorschlag bleiben erhalten.
+#   4. Ergänzt: *.psb (große Photoshop-Dateien, 2D-PSD-Importer) als lockable wie *.psd.
+#   Fehler, die eine Änderung bestehender Zeilen erfordert hätten, wurden nicht gefunden:
+#   Reihenfolge (LFS-Ausnahmen nach *.asset), "-text" bei allen LFS-Mustern, keine Text-Typen
+#   in LFS und die Muster für *.meta sind korrekt.
+# =====================================================================================
+
+# --- Grundregel ---
+* text=auto
+
+# --- Code und Textformate: LF erzwingen ---
+*.cs               text eol=lf diff=csharp
+*.asmdef           text eol=lf
+*.asmref           text eol=lf
+*.json             text eol=lf
+*.xml              text eol=lf
+*.uxml             text eol=lf
+*.uss              text eol=lf
+*.tss              text eol=lf
+*.shader           text eol=lf
+*.hlsl             text eol=lf
+*.cginc            text eol=lf
+*.compute          text eol=lf
+*.shadergraph      text eol=lf
+*.shadersubgraph   text eol=lf
+*.inputactions     text eol=lf
+*.csv              text eol=lf
+*.md               text eol=lf
+*.txt              text eol=lf
+*.yml              text eol=lf
+*.yaml             text eol=lf
+*.sh               text eol=lf
+.editorconfig      text eol=lf
+.gitignore         text eol=lf
+.gitattributes     text eol=lf
+*.bat              text eol=crlf
+*.cmd              text eol=crlf
+*.ps1              text eol=crlf
+
+# --- Unity-YAML (Force Text): keine EOL-Umwandlung, Smart Merge ---
+*.unity            -text merge=unityyamlmerge diff
+*.prefab           -text merge=unityyamlmerge diff
+*.asset            -text merge=unityyamlmerge diff
+*.mat              -text merge=unityyamlmerge diff
+*.anim             -text merge=unityyamlmerge diff
+*.controller       -text merge=unityyamlmerge diff
+*.overrideController -text merge=unityyamlmerge diff
+*.mask             -text merge=unityyamlmerge diff
+*.playable         -text merge=unityyamlmerge diff
+*.signal           -text merge=unityyamlmerge diff
+*.mixer            -text merge=unityyamlmerge diff
+*.preset           -text merge=unityyamlmerge diff
+*.lighting         -text merge=unityyamlmerge diff
+*.giparams         -text merge=unityyamlmerge diff
+*.terrainlayer     -text merge=unityyamlmerge diff
+*.brush            -text merge=unityyamlmerge diff
+*.physicMaterial   -text merge=unityyamlmerge diff
+*.physicsMaterial  -text merge=unityyamlmerge diff
+*.renderTexture    -text merge=unityyamlmerge diff
+*.spriteatlas      -text merge=unityyamlmerge diff
+*.spriteatlasv2    -text merge=unityyamlmerge diff
+*.fontsettings     -text merge=unityyamlmerge diff
+*.guiskin          -text merge=unityyamlmerge diff
+*.flare            -text merge=unityyamlmerge diff
+*.shadervariants   -text merge=unityyamlmerge diff
+*.scenetemplate    -text merge=unityyamlmerge diff
+*.vfx              -text merge=unityyamlmerge diff
+*.vfxoperator      -text merge=unityyamlmerge diff
+*.vfxblock         -text merge=unityyamlmerge diff
+*.meta             text eol=lf
+
+# --- Immer binäre Unity-Assets: LFS (überschreibt *.asset oben) ---
+**/LightingData.asset                      filter=lfs diff=lfs merge=lfs -text
+**/NavMesh.asset                           filter=lfs diff=lfs merge=lfs -text
+**/NavMesh-*.asset                         filter=lfs diff=lfs merge=lfs -text
+Assets/_Project/Art/Terrain/Data/**/*.asset filter=lfs diff=lfs merge=lfs -text
+
+# --- 3D-Modelle und Quelldateien (sperrbar) ---
+*.fbx              filter=lfs diff=lfs merge=lfs -text lockable
+*.blend            filter=lfs diff=lfs merge=lfs -text lockable
+*.obj              filter=lfs diff=lfs merge=lfs -text
+*.glb              filter=lfs diff=lfs merge=lfs -text
+*.gltf             filter=lfs diff=lfs merge=lfs -text
+*.abc              filter=lfs diff=lfs merge=lfs -text
+*.spm              filter=lfs diff=lfs merge=lfs -text
+*.spt              filter=lfs diff=lfs merge=lfs -text
+*.st               filter=lfs diff=lfs merge=lfs -text
+*.st9              filter=lfs diff=lfs merge=lfs -text
+*.spp              filter=lfs diff=lfs merge=lfs -text lockable
+*.sbs              filter=lfs diff=lfs merge=lfs -text lockable
+*.sbsar            filter=lfs diff=lfs merge=lfs -text
+
+# --- Texturen und Bilder ---
+*.png              filter=lfs diff=lfs merge=lfs -text
+*.jpg              filter=lfs diff=lfs merge=lfs -text
+*.jpeg             filter=lfs diff=lfs merge=lfs -text
+*.tga              filter=lfs diff=lfs merge=lfs -text
+*.tif              filter=lfs diff=lfs merge=lfs -text
+*.tiff             filter=lfs diff=lfs merge=lfs -text
+*.exr              filter=lfs diff=lfs merge=lfs -text
+*.hdr              filter=lfs diff=lfs merge=lfs -text
+*.dds              filter=lfs diff=lfs merge=lfs -text
+*.bmp              filter=lfs diff=lfs merge=lfs -text
+*.gif              filter=lfs diff=lfs merge=lfs -text
+*.psd              filter=lfs diff=lfs merge=lfs -text lockable
+*.psb              filter=lfs diff=lfs merge=lfs -text lockable
+*.kra              filter=lfs diff=lfs merge=lfs -text lockable
+
+# --- Audio und Video ---
+*.wav              filter=lfs diff=lfs merge=lfs -text
+*.ogg              filter=lfs diff=lfs merge=lfs -text
+*.mp3              filter=lfs diff=lfs merge=lfs -text
+*.aif              filter=lfs diff=lfs merge=lfs -text
+*.aiff             filter=lfs diff=lfs merge=lfs -text
+*.flac             filter=lfs diff=lfs merge=lfs -text
+*.mp4              filter=lfs diff=lfs merge=lfs -text
+*.mov              filter=lfs diff=lfs merge=lfs -text
+*.webm             filter=lfs diff=lfs merge=lfs -text
+*.bank             filter=lfs diff=lfs merge=lfs -text
+
+# --- Schriften, Archive, native Bibliotheken, Rohdaten ---
+*.ttf              filter=lfs diff=lfs merge=lfs -text
+*.otf              filter=lfs diff=lfs merge=lfs -text
+*.cubemap          filter=lfs diff=lfs merge=lfs -text
+*.unitypackage     filter=lfs diff=lfs merge=lfs -text
+*.zip              filter=lfs diff=lfs merge=lfs -text
+*.7z               filter=lfs diff=lfs merge=lfs -text
+*.dll              filter=lfs diff=lfs merge=lfs -text
+*.dylib            filter=lfs diff=lfs merge=lfs -text
+*.so               filter=lfs diff=lfs merge=lfs -text
+*.a                filter=lfs diff=lfs merge=lfs -text
+*.raw              filter=lfs diff=lfs merge=lfs -text
+*.bytes            filter=lfs diff=lfs merge=lfs -text
+*.pdf              filter=lfs diff=lfs merge=lfs -text

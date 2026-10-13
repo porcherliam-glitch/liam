@@ -1,7 +1,7 @@
 using System;
 using Aetherfall.Core;
 
-namespace Aetherfall.Tests
+namespace Aetherfall.Tests.Shared
 {
     /// <summary>One message recorded by <see cref="FakeLogSink"/>.</summary>
     public readonly struct CapturedLogEntry

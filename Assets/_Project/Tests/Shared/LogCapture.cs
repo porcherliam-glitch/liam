@@ -1,7 +1,7 @@
 using System;
 using Aetherfall.Core;
 
-namespace Aetherfall.Tests
+namespace Aetherfall.Tests.Shared
 {
     /// <summary>
     /// Isolates a test from the static <see cref="Log"/> state: resets <see cref="Log"/>, installs a <see cref="FakeLogSink"/>

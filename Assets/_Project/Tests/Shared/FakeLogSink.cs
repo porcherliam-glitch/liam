@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using Aetherfall.Core;
 
-namespace Aetherfall.Tests
+namespace Aetherfall.Tests.Shared
 {
     /// <summary>
     /// <see cref="ILogSink"/> test double that records every message instead of printing it.

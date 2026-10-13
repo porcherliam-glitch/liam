@@ -1,0 +1,19 @@
+{
+    "name": "Aetherfall.EditorTools.Core",
+    "rootNamespace": "Aetherfall.EditorTools.Core",
+    "references": [
+        "Aetherfall.Core",
+        "Aetherfall.DevTools"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
