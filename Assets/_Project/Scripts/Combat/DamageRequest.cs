@@ -1,3 +1,5 @@
+using Aetherfall.Events;
+
 namespace Aetherfall.Combat
 {
     /// <summary>

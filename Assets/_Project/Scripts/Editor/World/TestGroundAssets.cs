@@ -1,5 +1,7 @@
 using System;
 using System.IO;
+using Aetherfall.AI;
+using Aetherfall.Combat;
 using Aetherfall.Core;
 using Aetherfall.EditorTools.Core;
 using Aetherfall.GameTime;
@@ -14,7 +16,7 @@ namespace Aetherfall.EditorTools.World
 {
     /// <summary>
     /// Assets of the test ground: folders, coloured URP/Lit materials, the player movement settings and the installers
-    /// of Input, Save and GameTime in the BootConfig. Existing assets are reused and never overwritten.
+    /// of Input, Save, GameTime, Combat and AI in the BootConfig. Existing assets are reused and never overwritten.
     /// </summary>
     public static class TestGroundAssets
     {
@@ -143,6 +145,38 @@ namespace Aetherfall.EditorTools.World
             bool time = save && EnsureInstallerInBootConfig<GameTimeInstaller>(TestGroundPaths.GameTimeInstallerPath, report,
                 typeof(SaveInstaller));
             return save && time;
+        }
+
+        /// <summary>
+        /// Loads or creates the CombatInstaller and AIInstaller assets and puts them into the BootConfig in the order of
+        /// architecture 4.1: CombatInstaller (step 12, domain services) behind the EventBus and GameTime installers, AIInstaller
+        /// (step 13, token manager) directly behind the CombatInstaller. Fills the empty field "Settings" of the combat installer.
+        /// </summary>
+        /// <param name="settings">Combat settings for the combat installer (may be null).</param>
+        /// <param name="report">Protocol.</param>
+        /// <returns>True if both installers are in the BootConfig afterwards.</returns>
+        public static bool EnsureCombatInstallersInBootConfig(CombatSettings settings, TestGroundReport report)
+        {
+            bool combat = EnsureInstallerInBootConfig<CombatInstaller>(TestGroundPaths.CombatInstallerPath, report, typeof(EventBusInstaller),
+                typeof(GameTimeInstaller));
+            if (combat && settings != null)
+            {
+                CombatInstaller installer = AssetDatabase.LoadAssetAtPath<CombatInstaller>(TestGroundPaths.CombatInstallerPath);
+                if (installer != null)
+                {
+                    var serialized = new SerializedObject(installer);
+                    SerializedProperty field = serialized.FindProperty("settings");
+                    if (field != null && field.objectReferenceValue == null)
+                    {
+                        field.objectReferenceValue = settings;
+                        serialized.ApplyModifiedPropertiesWithoutUndo();
+                        EditorUtility.SetDirty(installer);
+                    }
+                }
+            }
+
+            bool ai = combat && EnsureInstallerInBootConfig<AIInstaller>(TestGroundPaths.AIInstallerPath, report, typeof(CombatInstaller));
+            return combat && ai;
         }
 
         /// <summary>

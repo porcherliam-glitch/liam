@@ -27,6 +27,13 @@ namespace Aetherfall.Input
         bool LookIsPointerDelta { get; }
 
         /// <summary>
+        /// Switch lock-on target this frame (GDD 03 1.5 "SwitchTarget"): the mouse wheel (positive = up). Only the sign
+        /// matters; on the gamepad the target is switched by flicking the right stick, which the lock-on reads from
+        /// <see cref="Look"/>.
+        /// </summary>
+        float SwitchTarget { get; }
+
+        /// <summary>
         /// True in the frame a button action was pressed, i.e. its control crossed the press threshold. Also true for
         /// actions with a tap or hold interaction before the interaction decided (both actions of a shared tap/hold button
         /// report the press); read those with <see cref="WasPerformedThisFrame"/>.

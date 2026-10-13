@@ -110,6 +110,26 @@ namespace Aetherfall.Player
             return result >= 360f ? result - 360f : result;
         }
 
+        /// <summary>
+        /// Speed cap of lock-on strafing (GDD 03 3.1) for a movement direction relative to the facing: forwards the run
+        /// speed, sideways the side speed, backwards the back speed, blended by the angle in between.
+        /// </summary>
+        /// <param name="dirX">Normalized movement direction, X.</param>
+        /// <param name="dirZ">Normalized movement direction, Z.</param>
+        /// <param name="facingYaw">Facing in degrees.</param>
+        /// <param name="forwardSpeed">Speed straight ahead (run speed).</param>
+        /// <param name="sideSpeed">Speed sideways (4.0).</param>
+        /// <param name="backSpeed">Speed backwards (3.5).</param>
+        public static float StrafeSpeedCap(float dirX, float dirZ, float facingYaw, float forwardSpeed, float sideSpeed, float backSpeed)
+        {
+            double radians = facingYaw * (Math.PI / 180.0);
+            float forwardness = dirX * (float)Math.Sin(radians) + dirZ * (float)Math.Cos(radians);
+            forwardness = Math.Max(-1f, Math.Min(1f, forwardness));
+            return forwardness >= 0f
+                ? sideSpeed + (forwardSpeed - sideSpeed) * forwardness
+                : sideSpeed + (backSpeed - sideSpeed) * -forwardness;
+        }
+
         /// <summary>Clamps a value to [0, 1].</summary>
         /// <param name="value">Value.</param>
         public static float Clamp01(float value)

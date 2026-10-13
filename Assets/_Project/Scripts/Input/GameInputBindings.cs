@@ -16,8 +16,9 @@ namespace Aetherfall.Input
     /// (GDD 03 3.1, GDD 05 4.2).</para>
     /// <para>TODO (Options step): stick curve (exponential), sensitivity, Y inversion and dead zone as options
     /// (processor parameter overrides), rebinding persistence (<c>SaveBindingOverridesAsJson</c> → settings.json),
-    /// "hold/toggle" options. TODO: chord bindings (OneModifier) currently also trigger the plain action of the same
-    /// button (e.g. LB + Y also fires HeavyAttack); the combat step resolves that.</para>
+    /// "hold/toggle" options. Chord bindings (OneModifier) also trigger the plain action of the same button (LB + Y also
+    /// fires HeavyAttack); the player combat controller resolves that: while Block is held, a heavy attack press counts as
+    /// weapon art (GDD 03 1.5).</para>
     /// </remarks>
     public static class GameInputBindings
     {
@@ -70,8 +71,10 @@ namespace Aetherfall.Input
             Chord(weaponArt, "<Gamepad>/leftShoulder", "<Gamepad>/buttonNorth", Pad);
             Chord(weaponArt, "<Keyboard>/q", "<Mouse>/rightButton", Kbm);
 
-            Button(map, Names.Gameplay.LockOn, "<Gamepad>/rightStickPress", "<Mouse>/middleButton");
-            // TODO (lock-on step): on the gamepad the target is switched by flicking the right stick (read from Look).
+            InputAction lockOn = Button(map, Names.Gameplay.LockOn, "<Gamepad>/rightStickPress", "<Mouse>/middleButton");
+            // Vorschlag: T as a second key, because Mac trackpads and the Magic Mouse have no middle button.
+            lockOn.AddBinding("<Keyboard>/t", groups: Kbm);
+            // On the gamepad the target is switched by flicking the right stick (PlayerLockOn reads it from Look).
             InputAction switchTarget = Value(map, Names.Gameplay.SwitchTarget, AxisLayout);
             switchTarget.AddBinding("<Mouse>/scroll/y", groups: Kbm);
 

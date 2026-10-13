@@ -16,6 +16,7 @@ namespace Aetherfall.Input
         private readonly InputActionMap _map;
         private readonly InputAction _move;
         private readonly InputAction _look;
+        private readonly InputAction _switchTarget;
         private readonly InputAction[] _buttons;
 
         /// <summary>Resolves all Gameplay actions (throws if one is missing).</summary>
@@ -30,6 +31,7 @@ namespace Aetherfall.Input
             _map = actions.Gameplay;
             _move = _map.FindAction(InputActionNames.Gameplay.Move, true);
             _look = _map.FindAction(InputActionNames.Gameplay.Look, true);
+            _switchTarget = _map.FindAction(InputActionNames.Gameplay.SwitchTarget, true);
 
             Array values = Enum.GetValues(typeof(GameplayButton));
             int count = 0;
@@ -64,6 +66,9 @@ namespace Aetherfall.Input
                 return control != null && control.device is Pointer;
             }
         }
+
+        /// <inheritdoc />
+        public float SwitchTarget => _switchTarget.ReadValue<float>();
 
         /// <inheritdoc />
         public bool WasPressedThisFrame(GameplayButton button)

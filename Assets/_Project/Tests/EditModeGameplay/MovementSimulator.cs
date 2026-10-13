@@ -44,6 +44,9 @@ namespace Aetherfall.Tests.EditMode.Gameplay
         /// <summary>False simulates a hole: no ground contact at all (walked off a ledge).</summary>
         public bool HasGround { get; set; }
 
+        /// <summary>Combat limits passed to every step (lock-on, dodge, attacks); default = none.</summary>
+        public PlayerMovementOverride Limits { get; set; }
+
         /// <summary>Highest height reached since the last <see cref="ResetMaxHeight"/>.</summary>
         public float MaxHeight { get; private set; }
 
@@ -65,7 +68,7 @@ namespace Aetherfall.Tests.EditMode.Gameplay
         public MotionVector Step(PlayerMovementInput input, float deltaTime)
         {
             var contact = new GroundContact(TouchesGround, GroundNormal);
-            MotionVector velocity = Model.Step(input, contact, deltaTime);
+            MotionVector velocity = Model.Step(input, contact, deltaTime, Limits);
             X += velocity.X * deltaTime;
             Y += velocity.Y * deltaTime;
             Z += velocity.Z * deltaTime;

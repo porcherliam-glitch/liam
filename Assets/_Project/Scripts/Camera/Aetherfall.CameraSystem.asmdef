@@ -5,6 +5,8 @@
         "Aetherfall.Core",
         "Aetherfall.Events",
         "Aetherfall.Input",
+        "Aetherfall.Combat",
+        "Aetherfall.Player",
         "Unity.Cinemachine"
     ],
     "includePlatforms": [],
@@ -15,7 +17,8 @@
     "autoReferenced": false,
     "defineConstraints": [
         "AETHERFALL_INPUTSYSTEM",
-        "AETHERFALL_CINEMACHINE"
+        "AETHERFALL_CINEMACHINE",
+        "AETHERFALL_NEWTONSOFT"
     ],
     "versionDefines": [
         {
@@ -27,6 +30,11 @@
             "name": "com.unity.cinemachine",
             "expression": "3.0",
             "define": "AETHERFALL_CINEMACHINE"
+        },
+        {
+            "name": "com.unity.nuget.newtonsoft-json",
+            "expression": "3.0",
+            "define": "AETHERFALL_NEWTONSOFT"
         }
     ],
     "noEngineReferences": false

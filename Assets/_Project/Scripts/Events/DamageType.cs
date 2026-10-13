@@ -1,9 +1,13 @@
-namespace Aetherfall.Combat
+namespace Aetherfall.Events
 {
     /// <summary>
     /// The seven damage types of §9.7, with physical damage split into slash, stab and blunt (GDD 03 8.1).
     /// Values index arrays and may be stored: never renumber.
     /// </summary>
+    /// <remarks>
+    /// Lives in Aetherfall.Events (not Combat) because the global event <see cref="DamageDealt"/> carries it and Events
+    /// (no. 3) must not reference Combat (no. 16); same pattern as <see cref="SaveKind"/> (architecture 3.3, 4.3).
+    /// </remarks>
     public enum DamageType
     {
         /// <summary>Physical slash: builds up bleeding.</summary>

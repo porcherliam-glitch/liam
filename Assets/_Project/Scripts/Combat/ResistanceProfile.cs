@@ -1,3 +1,4 @@
+using Aetherfall.Events;
 using Aetherfall.Stats;
 
 namespace Aetherfall.Combat

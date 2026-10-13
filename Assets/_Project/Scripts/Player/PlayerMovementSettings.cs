@@ -26,6 +26,12 @@ namespace Aetherfall.Player
         [Tooltip("Stick-Auslenkung, ab der gelaufen statt gegangen wird (GDD 03 1.5: 50 %).")]
         [Range(0.1f, 1f)] [SerializeField] private float runInputThreshold = 0.5f;
 
+        [Tooltip("Lock-On: seitwärts in m/s (GDD 03 3.1: 4,0). Vorwärts gilt die Laufgeschwindigkeit.")]
+        [Min(0.1f)] [SerializeField] private float strafeSideSpeed = 4.0f;
+
+        [Tooltip("Lock-On: rückwärts in m/s (GDD 03 3.1: 3,5).")]
+        [Min(0.1f)] [SerializeField] private float strafeBackSpeed = 3.5f;
+
         [Header("Beschleunigung und Drehung")]
         [Tooltip("Zeit von 0 auf Laufgeschwindigkeit in Sekunden (GDD 03 3.1: 0,15 s).")]
         [Min(0.01f)] [SerializeField] private float accelerationTime = 0.15f;
@@ -103,6 +109,8 @@ namespace Aetherfall.Player
                 SprintSpeed = sprintSpeed,
                 SneakSpeed = sneakSpeed,
                 RunInputThreshold = runInputThreshold,
+                StrafeSideSpeed = strafeSideSpeed,
+                StrafeBackSpeed = strafeBackSpeed,
                 AccelerationTime = accelerationTime,
                 DecelerationTime = decelerationTime,
                 TurnRate = turnRate,

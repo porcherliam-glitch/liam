@@ -18,7 +18,9 @@ namespace Aetherfall.Player
     /// frame). Presses are kept until the motor consumes them, so none is lost if the order changes.</para>
     /// <para>Stamina: with a <see cref="CharacterStatsComponent"/> in the field "Stats" sprinting and jumping use its stamina
     /// pool (GDD 03 3.1/4.3, see <see cref="PlayerMovementModel"/>); without one the stamina is unlimited.</para>
-    /// <para>TODO: animation parameters (Animator step), dodge, climbing, swimming, gliding.</para>
+    /// <para>Combat limits (attacks, blocking, dodge roll, lock-on strafing, local hitstop) arrive through
+    /// <see cref="SetMovementOverride"/> from the player combat controller.</para>
+    /// <para>TODO: animation parameters (Animator step), climbing, swimming, gliding.</para>
     /// </remarks>
     [RequireComponent(typeof(CharacterController))]
     [DisallowMultipleComponent]
@@ -48,6 +50,8 @@ namespace Aetherfall.Player
         private PlayerMovementModel _model;
         private IGameStateService _gameState;
         private PlayerMovementInput _pendingInput;
+        private PlayerMovementOverride _limits;
+        private bool _frozen;
         private bool _warnedNoCamera;
 
         /// <summary>The movement model (read-only use: speed, gait, states for animation, UI and debug tools).</summary>
@@ -70,6 +74,19 @@ namespace Aetherfall.Player
             merged.WalkTogglePressed |= _pendingInput.WalkTogglePressed;
             merged.SprintSneakShared |= _pendingInput.SprintSneakShared;
             _pendingInput = merged;
+        }
+
+        /// <summary>
+        /// Passes the combat limits for the next movement step (attack lock, block speed, dodge/lunge velocity, facing,
+        /// lock-on strafing) and whether the character is frozen by its local hitstop. Called every frame by the player
+        /// combat controller before the motor runs; consumed by one step, so stale limits never stay.
+        /// </summary>
+        /// <param name="limits">Limits of this frame.</param>
+        /// <param name="frozen">True while the local hitstop freezes the character (architecture 4.4: hitstop is local).</param>
+        public void SetMovementOverride(in PlayerMovementOverride limits, bool frozen)
+        {
+            _limits = limits;
+            _frozen = frozen;
         }
 
         /// <summary>Current pose (feet position and yaw) for saving.</summary>
@@ -186,6 +203,16 @@ namespace Aetherfall.Player
                 return;
             }
 
+            PlayerMovementOverride limits = _limits;
+            bool frozen = _frozen;
+            _limits = default;
+            _frozen = false;
+            if (frozen)
+            {
+                // Local hitstop: the character stands still for a few milliseconds; presses stay pending.
+                return;
+            }
+
             float deltaTime = Time.deltaTime;
             PlayerMovementInput input = _pendingInput;
             input.CameraYaw = GetCameraYaw();
@@ -193,7 +220,7 @@ namespace Aetherfall.Player
 
             GroundContact ground = ProbeGround();
             bool wasGrounded = _model.IsGrounded;
-            MotionVector velocity = _model.Step(input, ground, deltaTime);
+            MotionVector velocity = _model.Step(input, ground, deltaTime, limits);
 
             CollisionFlags flags = _controller.Move(new Vector3(velocity.X, velocity.Y, velocity.Z) * deltaTime);
             if ((flags & CollisionFlags.Above) != 0)

@@ -9,6 +9,7 @@
         "Aetherfall.Events",
         "Aetherfall.Stats",
         "Aetherfall.Combat",
+        "Aetherfall.AI",
         "Aetherfall.EditorTools.Core",
         "Aetherfall.Tests.Shared"
     ],

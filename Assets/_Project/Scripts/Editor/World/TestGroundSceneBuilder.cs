@@ -1,4 +1,5 @@
 using System;
+using Aetherfall.AI;
 using Aetherfall.CameraSystem;
 using Aetherfall.Combat;
 using Aetherfall.DevTools;
@@ -20,7 +21,9 @@ namespace Aetherfall.EditorTools.World
     /// <see cref="PlayerInputReader"/>, <see cref="CharacterStatsComponent"/>, <see cref="DamageableComponent"/>,
     /// <see cref="PlayerPersistence"/>), main camera with <see cref="CinemachineBrain"/>, exploration camera
     /// <c>CM_Explore</c> (Cinemachine 3: orbital follow, rotation composer, deoccluder, <see cref="CameraLookInput"/>),
-    /// spawn point, <see cref="DevPlayStarter"/>, <see cref="QuickSaveInput"/> and the <see cref="PlayerStatusDebugOverlay"/>.
+    /// spawn point, <see cref="DevPlayStarter"/>, <see cref="QuickSaveInput"/> and the <see cref="PlayerStatusDebugOverlay"/>; the
+    /// combat part (player combat, lock-on camera, camera shake, arena with dummy and wolves, combat overlay) comes from
+    /// <see cref="TestGroundCombatBuilder"/>.
     /// </summary>
     /// <remarks>Camera values: GDD 03 2.1 "Erkundung" (4.0 m, pivot 1.6 m, 0.3 m shoulder, FOV 55°) and 2.2 (collision).</remarks>
     public static class TestGroundSceneBuilder
@@ -51,10 +54,13 @@ namespace Aetherfall.EditorTools.World
         /// <param name="materials">Materials.</param>
         /// <param name="playerLayer">Player layer index or -1.</param>
         /// <param name="environmentLayer">Environment layer index or -1.</param>
+        /// <param name="combat">Combat assets (null or incomplete = no combat part).</param>
+        /// <param name="enemyLayer">Enemy layer index or -1.</param>
+        /// <param name="hurtboxLayer">Hurtbox layer index or -1.</param>
         /// <param name="report">Protocol.</param>
         /// <returns>The player object, or null if the scene could not be saved.</returns>
         public static GameObject Build(PlayerMovementSettings settings, TestGroundMaterials materials, int playerLayer, int environmentLayer,
-            TestGroundReport report)
+            TestGroundCombatAssets combat, int enemyLayer, int hurtboxLayer, TestGroundReport report)
         {
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.DefaultGameObjects, NewSceneMode.Single);
             int envLayer = environmentLayer >= 0 ? environmentLayer : 0;
@@ -65,10 +71,12 @@ namespace Aetherfall.EditorTools.World
 
             var environment = new GameObject("Environment");
             environment.layer = envLayer;
-            new TestGroundGeometry(environment.transform, envLayer, materials, LoadLabelFont(report)).BuildAll();
+            Font labelFont = LoadLabelFont(report);
+            new TestGroundGeometry(environment.transform, envLayer, materials, labelFont).BuildAll();
 
             GameObject player = CreatePlayer(settings, materials, playerLayer, mainCamera, report, out Transform pivot);
-            CreateExplorationCamera(pivot, envMask, report);
+            CameraLookInput look = CreateExplorationCamera(pivot, envMask, report, out CinemachineCamera exploreCamera,
+                out CinemachineOrbitalFollow exploreOrbital);
 
             var spawn = new GameObject("PlayerSpawnPoint");
             PlayerSpawnPoint spawnPoint = spawn.AddComponent<PlayerSpawnPoint>();
@@ -78,6 +86,20 @@ namespace Aetherfall.EditorTools.World
             new GameObject("DevPlayStarter").AddComponent<DevPlayStarter>();
             new GameObject("QuickSaveInput").AddComponent<QuickSaveInput>();
             CreateStatusOverlay(player, report);
+
+            if (combat != null && combat.IsComplete)
+            {
+                Combatant playerCombatant = TestGroundCombatBuilder.SetUpPlayer(player, mainCamera, materials, combat, hurtboxLayer, envLayer, report);
+                TestGroundCombatBuilder.SetUpCameras(player, pivot, exploreCamera, exploreOrbital, envMask, report);
+                SetReference(look, "lockOn", player.GetComponent<PlayerLockOn>(), report);
+                SetReference(player.GetComponent<PlayerRespawn>(), "spawnPoint", spawnPoint, report);
+                EnemySpawner spawner = TestGroundCombatBuilder.BuildArena(materials, combat, enemyLayer, hurtboxLayer, envLayer, labelFont, report);
+                TestGroundCombatBuilder.CreateOverlays(playerCombatant, spawner, mainCamera, labelFont, report);
+            }
+            else
+            {
+                report.Warning("Kampf-Daten unvollständig (siehe Meldungen oben) – das Testgelände wird ohne Kampf erstellt.");
+            }
 
             EditorSceneManager.MarkSceneDirty(scene);
             if (!EditorSceneManager.SaveScene(scene, TestGroundPaths.ScenePath))
@@ -204,7 +226,8 @@ namespace Aetherfall.EditorTools.World
             report.Info("Debug-Overlay „PlayerStatusOverlay“ (rechts oben): LP, Ausdauer, Speicher-Status, Knöpfe zum Testen.");
         }
 
-        private static void CreateExplorationCamera(Transform pivot, int collisionMask, TestGroundReport report)
+        private static CameraLookInput CreateExplorationCamera(Transform pivot, int collisionMask, TestGroundReport report, out CinemachineCamera camera,
+            out CinemachineOrbitalFollow orbitalFollow)
         {
             var cameraObject = new GameObject("CM_Explore");
             cameraObject.transform.position = pivot.position + new Vector3(0f, 1f, -CameraDistance);
@@ -292,6 +315,9 @@ namespace Aetherfall.EditorTools.World
             EditorUtility.SetDirty(deoccluder);
             report.Info("Kamera CM_Explore: Abstand " + CameraDistance + " m, Pivot " + PivotHeight + " m, FOV " + FieldOfView +
                         "°, weiche Wandkollision (Radius " + CameraCollisionRadius + " m), Steuerung per CameraLookInput.");
+            camera = vcam;
+            orbitalFollow = orbital;
+            return look;
         }
 
         private static void PrepareVisual(GameObject visual, Transform parent, Vector3 localPosition, Vector3 localScale, Material material, int layer)
@@ -348,50 +374,17 @@ namespace Aetherfall.EditorTools.World
 
         private static void SetReference(Object target, string field, Object value, TestGroundReport report)
         {
-            SerializedProperty property = Find(target, field, report, out SerializedObject serialized);
-            if (property == null)
-            {
-                return;
-            }
-
-            property.objectReferenceValue = value;
-            serialized.ApplyModifiedPropertiesWithoutUndo();
+            TestGroundFields.SetReference(target, field, value, report);
         }
 
         private static void SetString(Object target, string field, string value, TestGroundReport report)
         {
-            SerializedProperty property = Find(target, field, report, out SerializedObject serialized);
-            if (property == null)
-            {
-                return;
-            }
-
-            property.stringValue = value;
-            serialized.ApplyModifiedPropertiesWithoutUndo();
+            TestGroundFields.SetString(target, field, value, report);
         }
 
         private static void SetLayerMask(Object target, string field, int mask, TestGroundReport report)
         {
-            SerializedProperty property = Find(target, field, report, out SerializedObject serialized);
-            if (property == null)
-            {
-                return;
-            }
-
-            property.intValue = mask;
-            serialized.ApplyModifiedPropertiesWithoutUndo();
-        }
-
-        private static SerializedProperty Find(Object target, string field, TestGroundReport report, out SerializedObject serialized)
-        {
-            serialized = new SerializedObject(target);
-            SerializedProperty property = serialized.FindProperty(field);
-            if (property == null)
-            {
-                report.Warning("Feld „" + field + "“ an " + target.GetType().Name + " nicht gefunden (Code umbenannt?). Bitte im Inspector von Hand setzen.");
-            }
-
-            return property;
+            TestGroundFields.SetInt(target, field, mask, report);
         }
     }
 }

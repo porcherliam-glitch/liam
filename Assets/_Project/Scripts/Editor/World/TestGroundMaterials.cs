@@ -18,6 +18,13 @@ namespace Aetherfall.EditorTools.World
             Tunnel = TestGroundAssets.EnsureMaterial("TestTunnel", new Color(0.5f, 0.35f, 0.7f), report);
             Player = TestGroundAssets.EnsureMaterial("TestPlayer", new Color(0.85f, 0.9f, 0.95f), report);
             Nose = TestGroundAssets.EnsureMaterial("TestPlayerNose", new Color(0.95f, 0.8f, 0.1f), report);
+            Sword = TestGroundAssets.EnsureMaterial("TestSword", new Color(0.78f, 0.8f, 0.85f), report);
+            Shield = TestGroundAssets.EnsureMaterial("TestShield", new Color(0.55f, 0.35f, 0.18f), report);
+            Wolf = TestGroundAssets.EnsureMaterial("TestWolf", new Color(0.46f, 0.43f, 0.4f), report);
+            AetherWolf = TestGroundAssets.EnsureMaterial("TestAetherWolf", new Color(0.27f, 0.33f, 0.4f), report);
+            Crystal = TestGroundAssets.EnsureMaterial("TestCrystal", new Color(0.2f, 0.95f, 0.85f), report);
+            Dummy = TestGroundAssets.EnsureMaterial("TestDummy", new Color(0.82f, 0.7f, 0.42f), report);
+            Arena = TestGroundAssets.EnsureMaterial("TestArena", new Color(0.4f, 0.33f, 0.27f), report);
         }
 
         /// <summary>Floor.</summary>
@@ -46,5 +53,26 @@ namespace Aetherfall.EditorTools.World
 
         /// <summary>Player "nose" (facing direction).</summary>
         public Material Nose { get; }
+
+        /// <summary>Placeholder sword.</summary>
+        public Material Sword { get; }
+
+        /// <summary>Placeholder shield.</summary>
+        public Material Shield { get; }
+
+        /// <summary>Grey wolf.</summary>
+        public Material Wolf { get; }
+
+        /// <summary>Aether wolf.</summary>
+        public Material AetherWolf { get; }
+
+        /// <summary>Crystal core (weak point).</summary>
+        public Material Crystal { get; }
+
+        /// <summary>Training dummy.</summary>
+        public Material Dummy { get; }
+
+        /// <summary>Arena floor marking.</summary>
+        public Material Arena { get; }
     }
 }

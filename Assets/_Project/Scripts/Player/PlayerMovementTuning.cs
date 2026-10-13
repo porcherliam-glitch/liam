@@ -79,6 +79,12 @@ namespace Aetherfall.Player
         /// <summary>Highest step the CharacterController climbs without jumping (Vorschlag: 0.3 m).</summary>
         public float StepOffset { get; set; } = 0.3f;
 
+        /// <summary>Lock-on strafing speed sideways (GDD 03 3.1: 4.0 m/s).</summary>
+        public float StrafeSideSpeed { get; set; } = 4.0f;
+
+        /// <summary>Lock-on strafing speed backwards (GDD 03 3.1: 3.5 m/s).</summary>
+        public float StrafeBackSpeed { get; set; } = 3.5f;
+
         /// <summary>Stamina cost of sprinting per second (GDD 03 3.1 / 4.3: 12/s).</summary>
         public float SprintStaminaPerSecond { get; set; } = 12f;
 
@@ -147,6 +153,11 @@ namespace Aetherfall.Player
             if (!(WalkableSlopeAngle > 0f && WalkableSlopeAngle < 90f && SlideStartAngle >= WalkableSlopeAngle && SlideStartAngle < 90f))
             {
                 return "Slope angles must satisfy 0 < walkable ≤ slide start < 90.";
+            }
+
+            if (!(StrafeSideSpeed > 0f && StrafeBackSpeed > 0f))
+            {
+                return "Strafe speeds must be greater than 0.";
             }
 
             if (!(SprintStaminaPerSecond >= 0f && SprintStartMinimumStamina >= 0f && JumpStaminaCost >= 0f))

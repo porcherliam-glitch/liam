@@ -95,6 +95,16 @@ namespace Aetherfall.Player
             }
         }
 
+        /// <summary>
+        /// Places the player here again and publishes <see cref="PlayerSpawned"/> (respawn after death, GDD 03 4.12; until
+        /// checkpoints exist the spawn point is the checkpoint).
+        /// </summary>
+        public void Respawn()
+        {
+            _spawned = false;
+            Spawn();
+        }
+
         private void Spawn()
         {
             if (_spawned)
@@ -113,7 +123,11 @@ namespace Aetherfall.Player
             player.Teleport(position, Quaternion.Euler(0f, transform.eulerAngles.y, 0f));
             var spawned = new PlayerSpawned(position, worldSpaceId);
             Log.Info(LogCategory.Player, "Player spawned at " + position + " in '" + worldSpaceId + "'.");
-            _eventBus.Publish(in spawned);
+            if (_eventBus != null)
+            {
+                _eventBus.Publish(in spawned);
+            }
+
             Unsubscribe();
         }
 

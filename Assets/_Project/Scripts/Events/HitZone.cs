@@ -1,6 +1,7 @@
-namespace Aetherfall.Combat
+namespace Aetherfall.Events
 {
     /// <summary>Hurtbox zone of a hit (GDD 03 8.2 step 4, architecture 11.4). Stored on hurtboxes: never renumber.</summary>
+    /// <remarks>Lives in Aetherfall.Events because the global event <see cref="DamageDealt"/> carries it (architecture 4.3).</remarks>
     public enum HitZone
     {
         /// <summary>Body: × 1.0.</summary>

@@ -3,10 +3,12 @@
     "rootNamespace": "Aetherfall.DevTools",
     "references": [
         "Aetherfall.Core",
+        "Aetherfall.Events",
         "Aetherfall.SaveSystem",
         "Aetherfall.GameTime",
         "Aetherfall.Stats",
-        "Aetherfall.Combat"
+        "Aetherfall.Combat",
+        "Aetherfall.AI"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

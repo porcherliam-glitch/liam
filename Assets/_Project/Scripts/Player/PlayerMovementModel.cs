@@ -17,7 +17,8 @@ namespace Aetherfall.Player
     /// with at least 10 and not while exhausted; at 0 the sprint ends (the pool then counts as exhausted for 1.2 s). A
     /// jump needs more than 0 and costs 10 (never below 0). Without a pool the stamina is unlimited. The pool's owner
     /// ticks the regeneration (25 per second after 0.8 s).
-    /// TODO (later steps): dodge roll, climbing, swimming, gliding, lock-on strafing, overload limits, fall damage.</para>
+    /// Combat (dodge roll, attack lunge, blocking speed, lock-on strafing) comes in through <see cref="PlayerMovementOverride"/>.
+    /// TODO (later steps): climbing, swimming, gliding, overload limits, fall damage.</para>
     /// </remarks>
     public sealed class PlayerMovementModel
     {
@@ -149,6 +150,20 @@ namespace Aetherfall.Player
         /// </returns>
         public MotionVector Step(in PlayerMovementInput input, in GroundContact ground, float deltaTime)
         {
+            return Step(input, ground, deltaTime, default);
+        }
+
+        /// <summary>
+        /// Advances the movement by one frame under the limits of the combat system (<see cref="PlayerMovementOverride"/>):
+        /// locked locomotion, speed limit, forced velocity (dodge, lunge, knockback), facing and lock-on strafing.
+        /// </summary>
+        /// <param name="input">Commands of this frame.</param>
+        /// <param name="ground">Ground below the character before this step.</param>
+        /// <param name="deltaTime">Frame time in seconds; 0 or less changes nothing.</param>
+        /// <param name="limits">Combat limits; the default value changes nothing.</param>
+        /// <returns>Velocity to move the character with this frame (m/s), see the overload without limits.</returns>
+        public MotionVector Step(in PlayerMovementInput input, in GroundContact ground, float deltaTime, in PlayerMovementOverride limits)
+        {
             JumpedThisStep = false;
             if (!(deltaTime > 0f))
             {
@@ -158,9 +173,20 @@ namespace Aetherfall.Player
             float dt = deltaTime;
             MotionVector direction = PlayerMovementMath.CameraRelativeDirection(input.MoveX, input.MoveY, input.CameraYaw);
             float magnitude = (float)Math.Sqrt(direction.X * direction.X + direction.Z * direction.Z);
-            bool hasInput = magnitude > InputEpsilon;
+            bool locked = limits.LockLocomotion || limits.HasForcedVelocity;
+            bool hasInput = magnitude > InputEpsilon && !locked;
 
             UpdateStance(input, magnitude);
+            if (limits.BlockSprint || locked)
+            {
+                IsSprinting = false;
+            }
+
+            if (limits.BlockJump || locked)
+            {
+                // No jump in attacks, dodges and while blocking; a buffered press does not fire afterwards.
+                _timeSinceJumpPressed = float.PositiveInfinity;
+            }
 
             // Ground classification. While rising from a jump the ground below is ignored.
             float slopeAngle = ground.IsGrounded ? PlayerMovementMath.SlopeAngle(ground.Normal) : 90f;
@@ -183,7 +209,7 @@ namespace Aetherfall.Player
             }
 
             // Jump buffer and coyote time (GDD 03 3.1: 0.15 s / 0.12 s).
-            _timeSinceJumpPressed = input.JumpPressed ? 0f : _timeSinceJumpPressed + dt;
+            _timeSinceJumpPressed = input.JumpPressed && !limits.BlockJump && !locked ? 0f : _timeSinceJumpPressed + dt;
             // A jump needs stamina above 0 and costs JumpStaminaCost, never more than what is left (GDD 03 4.3).
             bool canJump = !_jumpConsumed && !sliding && _timeSinceGrounded <= _tuning.CoyoteTime &&
                            (_stamina == null || !_stamina.IsEmpty);
@@ -203,8 +229,20 @@ namespace Aetherfall.Player
                 sliding = false;
             }
 
-            Gait = PlayerGaitRules.ResolveGait(magnitude, IsSprinting, IsSneaking, IsWalkMode, _tuning.RunInputThreshold);
+            Gait = PlayerGaitRules.ResolveGait(hasInput ? magnitude : 0f, IsSprinting, IsSneaking, IsWalkMode, _tuning.RunInputThreshold);
             float speed = PlayerGaitRules.TargetSpeed(Gait, magnitude, _tuning);
+            bool strafing = limits.Strafe && limits.HasFacing && Gait != PlayerGait.Sprint;
+            if (strafing && hasInput)
+            {
+                speed = Math.Min(speed, PlayerMovementMath.StrafeSpeedCap(direction.X / magnitude, direction.Z / magnitude, limits.FacingYaw,
+                    _tuning.RunSpeed, _tuning.StrafeSideSpeed, _tuning.StrafeBackSpeed));
+            }
+
+            if (limits.SpeedLimit > 0f)
+            {
+                speed = Math.Min(speed, limits.SpeedLimit);
+            }
+
             if (Gait == PlayerGait.Sprint && _stamina != null)
             {
                 // 12 stamina per second while sprinting; at 0 the sprint ends (and the pool is exhausted for 1.2 s).
@@ -217,7 +255,17 @@ namespace Aetherfall.Player
             float targetX = hasInput ? direction.X / magnitude * speed : 0f;
             float targetZ = hasInput ? direction.Z / magnitude * speed : 0f;
 
-            if (stable || JumpedThisStep)
+            if (limits.HasForcedVelocity)
+            {
+                // Dodge roll, attack lunge, knockback: the combat system sets the horizontal velocity directly.
+                _velocityX = limits.ForcedVelocityX;
+                _velocityZ = limits.ForcedVelocityZ;
+                if (stable)
+                {
+                    CaptureAirReference();
+                }
+            }
+            else if (stable || JumpedThisStep)
             {
                 AccelerateOnGround(targetX, targetZ, dt);
                 CaptureAirReference();
@@ -257,7 +305,14 @@ namespace Aetherfall.Player
                 outY = IntegrateAirborne(dt);
             }
 
-            if (hasInput)
+            // Sprinting in lock-on turns towards the movement direction (strafing ends while sprinting).
+            bool useFacing = limits.HasFacing && !(limits.Strafe && !strafing && hasInput);
+            if (useFacing)
+            {
+                float facingRate = limits.FacingTurnRate > 0f ? limits.FacingTurnRate : _tuning.TurnRate;
+                _yaw = PlayerMovementMath.MoveTowardsAngle(_yaw, limits.FacingYaw, facingRate * dt);
+            }
+            else if (hasInput)
             {
                 float targetYaw = PlayerMovementMath.YawOf(direction.X, direction.Z);
                 float turnRate = Gait == PlayerGait.Sprint ? _tuning.SprintTurnRate : _tuning.TurnRate;

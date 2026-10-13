@@ -29,6 +29,39 @@ namespace Aetherfall.EditorTools.World
         /// <summary>Installer asset of the playtime clock (added directly after the save installer, architecture 4.1 step 10).</summary>
         public const string GameTimeInstallerPath = SetupPaths.BootSettingsFolder + "/GameTimeInstaller.asset";
 
+        /// <summary>Folder of the attack assets (architecture 3.1: Data/…).</summary>
+        public const string AttackFolder = SetupPaths.ProjectFolder + "/Data/Combat/Attacks";
+
+        /// <summary>Folder of combo, weapon and shield assets.</summary>
+        public const string WeaponFolder = SetupPaths.ProjectFolder + "/Data/Combat/Weapons";
+
+        /// <summary>Folder of the enemy type assets (architecture 3.1: Data/Enemies).</summary>
+        public const string EnemyFolder = SetupPaths.ProjectFolder + "/Data/Enemies";
+
+        /// <summary>Folder of the combat settings.</summary>
+        public const string CombatSettingsFolder = SetupPaths.ProjectFolder + "/Settings/Combat";
+
+        /// <summary>Combat rules asset (GDD 03 values).</summary>
+        public const string CombatSettingsPath = CombatSettingsFolder + "/CombatSettings.asset";
+
+        /// <summary>Installer asset of the combat service (BootConfig, architecture 4.1 step 12).</summary>
+        public const string CombatInstallerPath = SetupPaths.BootSettingsFolder + "/CombatInstaller.asset";
+
+        /// <summary>Installer asset of the AI services (BootConfig, architecture 4.1 step 13).</summary>
+        public const string AIInstallerPath = SetupPaths.BootSettingsFolder + "/AIInstaller.asset";
+
+        /// <summary>Layer of the movement colliders of enemies (architecture 2.8: layer 7).</summary>
+        public const int EnemyLayerIndex = 7;
+
+        /// <summary>Name of the enemy layer.</summary>
+        public const string EnemyLayerName = "Enemy";
+
+        /// <summary>Layer of the hit zones (architecture 2.8: layer 9, collides with nothing).</summary>
+        public const int HurtboxLayerIndex = 9;
+
+        /// <summary>Name of the hurtbox layer.</summary>
+        public const string HurtboxLayerName = "Hurtbox";
+
         /// <summary>Layer of the player character (architecture 2.8: layer 6).</summary>
         public const int PlayerLayerIndex = 6;
 

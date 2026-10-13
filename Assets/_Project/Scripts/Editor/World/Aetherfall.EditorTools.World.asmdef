@@ -9,6 +9,7 @@
         "Aetherfall.GameTime",
         "Aetherfall.Stats",
         "Aetherfall.Combat",
+        "Aetherfall.AI",
         "Aetherfall.Player",
         "Aetherfall.CameraSystem",
         "Aetherfall.DevTools",

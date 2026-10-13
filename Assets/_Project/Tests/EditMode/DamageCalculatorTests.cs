@@ -1,4 +1,5 @@
 using Aetherfall.Combat;
+using Aetherfall.Events;
 using Aetherfall.Stats;
 using Aetherfall.Tests.Shared;
 using Aetherfall.Utilities;

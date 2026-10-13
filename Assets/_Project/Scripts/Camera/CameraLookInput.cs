@@ -2,6 +2,7 @@ using System;
 using Aetherfall.Core;
 using Aetherfall.Events;
 using Aetherfall.Input;
+using Aetherfall.Player;
 using Unity.Cinemachine;
 using UnityEngine;
 
@@ -21,8 +22,9 @@ namespace Aetherfall.CameraSystem
     /// (wait time after the last input) keep working.</para>
     /// <para>Input is read only while the Gameplay map is active: in menus, pause and dialogues the camera stays still.</para>
     /// <para>TODO (Options step): sensitivities and Y inversion from the options (GDD 05 4.2: stick 5/5, mouse 1.0), stick
-    /// curve. TODO (later camera steps): sprint distance/FOV (+0.5 m, +5°), sneak framing, lock-on, aiming, mount, dialogue
-    /// cameras, camera mode service with priorities (GDD 03 2.1, architecture 11.2).</para>
+    /// curve. Lock-on: while <see cref="PlayerLockOn"/> has a target the look input switches targets instead (the lock-on
+    /// camera <see cref="LockOnCamera"/> is live). TODO (later camera steps): sprint distance/FOV (+0.5 m, +5°), sneak
+    /// framing, aiming, mount, dialogue cameras, camera mode service with priorities (GDD 03 2.1, architecture 11.2).</para>
     /// </remarks>
     [DisallowMultipleComponent]
     public sealed class CameraLookInput : MonoBehaviour
@@ -46,6 +48,9 @@ namespace Aetherfall.CameraSystem
 
         [Tooltip("Nach dem Spawnen des Spielers die Kamera hinter ihn setzen.")]
         [SerializeField] private bool snapBehindPlayerOnSpawn = true;
+
+        [Tooltip("Lock-On des Spielers (optional): solange ein Ziel fixiert ist, dreht der rechte Stick bzw. die Maus nicht diese Kamera, sondern wechselt das Ziel.")]
+        [SerializeField] private PlayerLockOn lockOn = null;
 
         private IGameplayInput _gameplay;
         private IEventBus _eventBus;
@@ -116,7 +121,7 @@ namespace Aetherfall.CameraSystem
 
         private void Update()
         {
-            if (_gameplay == null || !_gameplay.IsActive)
+            if (_gameplay == null || !_gameplay.IsActive || (lockOn != null && lockOn.HasTarget))
             {
                 return;
             }

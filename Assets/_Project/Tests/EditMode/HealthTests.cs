@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Aetherfall.Combat;
+using Aetherfall.Events;
 using Aetherfall.Stats;
 using NUnit.Framework;
 

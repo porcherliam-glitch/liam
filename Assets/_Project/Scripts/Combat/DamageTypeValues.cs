@@ -1,3 +1,5 @@
+using Aetherfall.Events;
+
 namespace Aetherfall.Combat
 {
     /// <summary>One float per <see cref="DamageType"/> (immutable, any sign). Storage of packets and resistance profiles.</summary>

@@ -42,7 +42,7 @@ namespace Aetherfall.Stats
         [Tooltip("Stufe 1–80. Jede Stufe über 1 gibt +12 LP, +0,5 Ausdauer, +2 Mana (GDD 03, 10.3).")]
         [Range(1, 80)] [SerializeField] private int level = 1;
 
-        [Tooltip("In Kampf (später vom Kampfsystem gesetzt): Mana regeneriert dann 2,5 % statt 6 % pro Sekunde.")]
+        [Tooltip("Im Kampf (beim Spieler setzt das im Play-Modus der Player Combat Controller): Mana regeneriert dann 2,5 % statt 6 % pro Sekunde.")]
         [SerializeField] private bool inCombat;
 
         private StatCollection _stats;
@@ -82,7 +82,7 @@ namespace Aetherfall.Stats
         /// <summary>Kind of character (selects the caps).</summary>
         public StatActorKind ActorKind => actorKind;
 
-        /// <summary>Combat state for the regeneration rules (set by the combat system later).</summary>
+        /// <summary>Combat state for the regeneration rules (for the player set every frame by its combat controller).</summary>
         public bool InCombat
         {
             get => inCombat;
