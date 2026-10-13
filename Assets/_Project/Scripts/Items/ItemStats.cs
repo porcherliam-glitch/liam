@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Aetherfall.Stats;
 
@@ -12,8 +13,8 @@ namespace Aetherfall.Items
     public static class ItemStats
     {
         /// <summary>
-        /// Weapon damage W = Basis_Typ × (1 + 0.12 × (iLvl − 1)) × rarity factor × base roll (GDD 03 8.2 step 1, GDD 04 4.2);
-        /// 0 for items that are not weapons.
+        /// Weapon damage W = Basis_Typ × (1 + 0.12 × (iLvl − 1)) × rarity factor × base roll (GDD 03 8.2 step 1, GDD 04 4.2),
+        /// rounded to a whole number (<see cref="RoundItemValue"/>); 0 for items that are not weapons.
         /// </summary>
         /// <param name="spec">Item data.</param>
         /// <param name="instance">Instance (level, rarity, base roll).</param>
@@ -24,10 +25,10 @@ namespace Aetherfall.Items
                 return 0f;
             }
 
-            return ItemFormulas.BaseValue(spec.BaseStat, instance.ItemLevel, instance.Rarity, instance.BaseRoll);
+            return RoundItemValue(ItemFormulas.BaseValue(spec.BaseStat, instance.ItemLevel, instance.Rarity, instance.BaseRoll));
         }
 
-        /// <summary>Armor of armor pieces, cloaks and shields with the same formula; 0 for other items.</summary>
+        /// <summary>Armor of armor pieces, cloaks and shields with the same formula (whole number); 0 for other items.</summary>
         /// <param name="spec">Item data.</param>
         /// <param name="instance">Instance.</param>
         public static float Armor(ItemSpec spec, ItemInstance instance)
@@ -37,7 +38,22 @@ namespace Aetherfall.Items
                 return 0f;
             }
 
-            return ItemFormulas.BaseValue(spec.BaseStat, instance.ItemLevel, instance.Rarity, instance.BaseRoll);
+            return RoundItemValue(ItemFormulas.BaseValue(spec.BaseStat, instance.ItemLevel, instance.Rarity, instance.BaseRoll));
+        }
+
+        /// <summary>
+        /// Rounds an item value to a whole number like the item card does (GDD 03 8.3: W = 49.92 → 50, used with 50 in the
+        /// damage pipeline); at least 1 if the unrounded value is above 0.
+        /// </summary>
+        /// <param name="value">Unrounded value.</param>
+        public static float RoundItemValue(float value)
+        {
+            if (!(value > 0f))
+            {
+                return 0f;
+            }
+
+            return Math.Max(1f, (float)Math.Round(value, MidpointRounding.AwayFromZero));
         }
 
         /// <summary>Implicit value in display units (linear from item level 1 to 80), 0 without implicit.</summary>
