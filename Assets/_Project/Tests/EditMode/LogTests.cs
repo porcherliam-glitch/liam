@@ -56,8 +56,8 @@ namespace Aetherfall.Tests.EditMode
             Log.SetMinLevel(LogCategory.Events, LogLevel.Debug);
             Log.SetMinLevel(LogCategory.Audio, LogLevel.Error);
 
-            Log.Debug(LogCategory.Events, "events debug");
-            Log.Debug(LogCategory.Core, "core debug");
+            Log.Write(LogLevel.Debug, LogCategory.Events, "events debug"); // Write: independent of the [Conditional] stripping of Log.Debug
+            Log.Write(LogLevel.Debug, LogCategory.Core, "core debug");
             Log.Warning(LogCategory.Audio, "audio warning");
             Log.Error(LogCategory.Audio, "audio error");
 
@@ -117,7 +117,7 @@ namespace Aetherfall.Tests.EditMode
             Log.SetMinLevel(LogCategory.Input, LogLevel.Trace);
             Log.ClearMinLevel(LogCategory.Input);
 
-            Log.Debug(LogCategory.Input, "input debug");
+            Log.Write(LogLevel.Debug, LogCategory.Input, "input debug");
 
             Assert.That(_log.Sink.Entries.Count, Is.EqualTo(0));
             Assert.That(Log.HasMinLevel(LogCategory.Input), Is.False);
