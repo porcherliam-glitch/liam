@@ -12,6 +12,9 @@ namespace Aetherfall.Input
         /// <summary>Package-free read access to the Gameplay map (player controller, camera).</summary>
         IGameplayInput Gameplay { get; }
 
+        /// <summary>Package-free read access to the button actions of the UI map (menus outside of Aetherfall.UI).</summary>
+        IUiInput UI { get; }
+
         /// <summary>
         /// All actions (Input System types). For systems that reference <c>Unity.InputSystem</c> themselves: UI input
         /// module, rebinding menu, glyph lookup.

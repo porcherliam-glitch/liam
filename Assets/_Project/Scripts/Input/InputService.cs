@@ -29,6 +29,7 @@ namespace Aetherfall.Input
         private readonly ICursorController _cursor;
         private readonly bool _routePauseButton;
         private readonly GameplayInput _gameplay;
+        private readonly UiInput _ui;
         private readonly ActiveDeviceTracker _deviceTracker = new ActiveDeviceTracker();
         private readonly InputDeviceActivityPoller _devicePoller = new InputDeviceActivityPoller();
         private readonly InputAction[] _pauseActions;
@@ -53,6 +54,7 @@ namespace Aetherfall.Input
             _cursor = cursor;
             _routePauseButton = routePauseButton;
             _gameplay = new GameplayInput(actions);
+            _ui = new UiInput(actions);
             _pauseActions = new[]
             {
                 actions.GetAction(ActionMapId.Gameplay, InputActionNames.Gameplay.Pause),
@@ -68,6 +70,9 @@ namespace Aetherfall.Input
 
         /// <inheritdoc />
         public IGameplayInput Gameplay => _gameplay;
+
+        /// <inheritdoc />
+        public IUiInput UI => _ui;
 
         /// <inheritdoc />
         public GameInputActions Actions => _actions;

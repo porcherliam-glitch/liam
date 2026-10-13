@@ -151,7 +151,10 @@ namespace Aetherfall.Input
             InputAction click = map.AddAction(Names.UI.Click, InputActionType.PassThrough, expectedControlLayout: "Button");
             click.AddBinding("<Mouse>/leftButton", groups: Kbm);
 
-            Button(map, Names.UI.CloseHub, "<Gamepad>/start", "<Keyboard>/escape");
+            // GDD 03 1.5: CloseHub = Menu or Esc, and the direct key of the open tab (Tab for the inventory; M, J, K follow with
+            // their screens).
+            InputAction closeHub = Button(map, Names.UI.CloseHub, "<Gamepad>/start", "<Keyboard>/escape");
+            closeHub.AddBinding("<Keyboard>/tab", groups: Kbm);
 
             InputAction skip = Button(map, Names.UI.SkipCutscene, null, null);
             skip.AddBinding("<Gamepad>/buttonSouth", "hold(duration=1)", groups: Pad);

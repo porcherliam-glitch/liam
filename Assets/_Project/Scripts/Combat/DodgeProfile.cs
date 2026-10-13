@@ -50,6 +50,12 @@ namespace Aetherfall.Combat
         /// <summary>Heavy armor (GDD 03 3.2): 3.0 m, 800 ms, i-frames 60–260 ms, cancel from 600 ms, 20 stamina.</summary>
         public static DodgeProfile Heavy => new DodgeProfile(3.0f, 0.80f, 0.06f, 0.26f, 0.60f, 20f);
 
+        /// <summary>
+        /// Overloaded (GDD 03 3.2, GDD 04 1.3): only a dodge step of 1.5 m, 450 ms, i-frames 50–150 ms, cancel from 350 ms,
+        /// 15 stamina.
+        /// </summary>
+        public static DodgeProfile Overloaded => new DodgeProfile(1.5f, 0.45f, 0.05f, 0.15f, 0.35f, 15f);
+
         /// <summary>Back step without direction (GDD 03 3.2): 2.0 m, 350 ms, i-frames 50–200 ms, cancel from 250 ms, 8 stamina.</summary>
         public static DodgeProfile BackStep => new DodgeProfile(2.0f, 0.35f, 0.05f, 0.20f, 0.25f, 8f);
 

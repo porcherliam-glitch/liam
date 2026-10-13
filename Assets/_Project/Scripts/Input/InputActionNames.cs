@@ -79,6 +79,23 @@ namespace Aetherfall.Input
             }
         }
 
+        /// <summary>Returns the UI action name of a <see cref="UiButton"/>.</summary>
+        /// <param name="button">UI button action.</param>
+        /// <exception cref="ArgumentOutOfRangeException">Unknown value.</exception>
+        public static string ForUiButton(UiButton button)
+        {
+            switch (button)
+            {
+                case UiButton.Submit: return UI.Submit;
+                case UiButton.Cancel: return UI.Cancel;
+                case UiButton.TabPrev: return UI.TabPrev;
+                case UiButton.TabNext: return UI.TabNext;
+                case UiButton.CloseHub: return UI.CloseHub;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(button), button, "Unknown UI button.");
+            }
+        }
+
         /// <summary>Control scheme of gamepads (architecture 11.1).</summary>
         public const string GamepadScheme = "Gamepad";
 
