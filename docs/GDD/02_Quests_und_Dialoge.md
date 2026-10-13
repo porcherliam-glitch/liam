@@ -1,6 +1,6 @@
 # Quests & Dialoge – Chroniken von Aetherfall
 
-> Teil der Phase-0-Planung · Stand: 2026-10-12 · Quelle: [Master-Prompt](../00_Master-Prompt.md)
+> Teil der Phase-0-Planung · Stand: 2026-10-13 · Quelle: [Master-Prompt](../00_Master-Prompt.md)
 
 **Kennzeichnungen (wie in allen GDD-Dateien):**
 - **Vorschlag:** füllt eine Lücke im Master-Prompt.
@@ -28,7 +28,7 @@ Diese Datei beschreibt Quests und Dialoge aus **Designsicht**. Wie die Daten tec
 | Kräuterfrau | Deckname **Alwine**, wahrer Name **Ysolde** vom Zirkel der Nebelmütter, geschickt von Zirkelmutter Morra, Mentorin von Begleiterin Morwen. ID bleibt `npc.eichental.kraeuterfrau_alwine` |
 | Graue Gestalt | **Der Graue Wanderer**, ID `npc.main.graue_gestalt`. Gefolge: **Graumäntel** (`group.graumaentel`) = „die Grauen am Turm“ (Quest 3) und „Männer in Grau“ (Quest 6) |
 | Ersatz-Informantin Aurelion | **Nell Kettenbach**, Hehlerin im „Gebrochenen Rad“, `npc.aurelion.hehlerin_nell` |
-| Erste Aether-Kraft | **Aether-Stoß**. Platzhalter-ID hier `skill.aether.aether_stoss`, endgültige ID aus [03](./03_Kampf_Charakter_Progression.md) |
+| Erste Aether-Kraft | **Aether-Stoß**. ID `skill.aether.aether_stoss` (endgültig, [03](./03_Kampf_Charakter_Progression.md)); der Knoten schaltet die eingesetzte Fähigkeit `ability.aether.aether_stoss` frei |
 | Gegner | `enemy.wolf.grauwolf`, `enemy.bandit.schlaeger`, `enemy.bandit.armbrustschuetze`, `enemy.untot.skelett_krieger`, `enemy.rissbrut.rissling`. Benannte Gegner: `boss.eichental.rissbrut_prolog`, `boss.eichental.glutfang`, `boss.eichental.wachender_ritter`, `boss.eichental.grimmbart` |
 | Weltzustand-Präfixe | `flag.` = Bool oder Enum; `stat.` = Zähler und Skalen (z. B. `stat.global.banditen_getoetet`) |
 | Ruf-Größen | XS +10 · S +25 · M +50 · L +100 · XL +250 · XXL +500 ([01](./01_Welt_Story_Fraktionen.md), 9.2) |
@@ -132,7 +132,7 @@ Jede handgemachte Quest trägt im Feld „Twist-Typ“ genau einen Eintrag. Der 
 
 ### 2.1 Kategorie vs. Merkmal (Verbesserungsvorschlag)
 
-§16.2 listet 17 Kategorien. Vier davon beschreiben keine eigene Art von Quest, sondern eine **Eigenschaft**, die jede Quest haben kann. Eine Nebenquest kann z. B. gleichzeitig versteckt und zeitlich begrenzt sein.
+§16.2 listet 17 Kategorien. Drei davon (versteckt, zeitlich begrenzt, Kette) beschreiben keine eigene Art von Quest, sondern eine **Eigenschaft**, die jede Quest haben kann. Eine Nebenquest kann z. B. gleichzeitig versteckt und zeitlich begrenzt sein.
 
 - **Kategorie** (genau eine je Quest): bestimmt Questlog-Tab, Questgeber-Symbol, Belohnungsband und Budget.
 - **Merkmal** (beliebig viele): `versteckt`, `zeitlich_begrenzt`, `kette`.
@@ -146,7 +146,7 @@ Belohnungsniveau als **Level-Anteil (Lv)**: Anteil der XP, die beim empfohlenen 
 
 | Kategorie | ID-Kürzel | Zielanzahl (Budget C) | Ø-Dauer | Quelle / Questgeber | Belohnungsniveau | Marker-Symbol & Farbe | Wiederholbar |
 |---|---|---|---|---|---|---|---|
-| Hauptquest | `main` | 60 | 45 min (30–90) | Story-NPCs; automatisch nach der vorigen Hauptquest | 0,8–1,5 Lv; je Akt-Ende 1 Item Episch; Story-Freischaltungen | ! / ? Gold `#F2C14E`, Rautenrahmen | nein |
+| Hauptquest | `main` | 60 | 45 min (30–90) | Story-NPCs; automatisch nach der vorigen Hauptquest | 0,65–1,5 Lv (Untergrenze für Akt 3–5 laut Story-Korridor, [00](./00_Vision_und_Ueberblick.md)); je Akt-Ende 1 Item Episch; Story-Freischaltungen | ! / ? Gold `#F2C14E`, Rautenrahmen | nein |
 | Fraktionsquest | `faction` | 105 (7 × 15) | 25 min | Fraktions-NPCs, Fraktionsbüros; ab Rufstufe | 0,5–0,8 Lv; Ruf M (Nebenschritt) oder L (Hauptschritt) ([01](./01_Welt_Story_Fraktionen.md), 9.2); 5–20 Fraktionsmarken | ! / ? Bronze `#C98A4B`, Wappenschild mit Fraktionsemblem (Verbesserungsvorschlag aus 05 übernommen) | nein |
 | Regionsquest | `region` | 66 (Reihen à 3) | 25 min je Quest, 75 min je Reihe | Schlüssel-NPCs der Region | 0,5–0,7 Lv; 1 Item Selten je Reihe; sichtbare Ortsveränderung | ! / ? Silber `#D9DEE7`, Doppelrahmen | nein |
 | Nebenquest | `side` | 126 | 15 min (10–30) | NPCs, Fundstücke, Gerüchte, Aushänge | 0,3–0,5 Lv; Gold; 30 % Item Ungewöhnlich–Selten | ! / ? Weiß, ohne Rahmen | nein |
@@ -154,16 +154,18 @@ Belohnungsniveau als **Level-Anteil (Lv)**: Anteil der XP, die beim empfohlenen 
 | Kopfgeld (handgemacht) | `bounty` | 7 | 20 min | Kopfgeldbretter, Wachhauptleute | 0,5–0,6 Lv; Gold ×2; garantierter Boss-Loot | Fadenkreuz / ? Rot `#E5534B` | nein (prozedurale Kopfgelder: ja) |
 | Schatzsuche | `treasure` | 7 | 20 min (über mehrere Orte) | Karten aus Loot, Händler, NPCs, Lore-Bücher | 0,3 Lv; Gold ×3; 1 einzigartiges Schmuckstück | ! / ? Sand `#E3C08D`, Kartenrolle | nein |
 | Dungeon-Quest | `dungeon` | 7 | 30 min | Dungeon-Eingang (Entdeckung), NPCs, Aushänge | 0,5–0,7 Lv; Boss-Loot; Truhe | ! / ? Weiß, Torbogen | nein (Dungeon-Vorlagen prozedural: ja) |
-| Handwerksquest | `craft` | 7 (1 Meisterprüfung je Herstellungsberuf) | 15 min | Meister an Werkbänken; Berufsstufe 25/50/75/100 | 0,2 Lv + Berufs-XP; Rezept oder Werkzeug | ! / ? Kupfer `#D08A5A`, Hammer | nein (Berufsaufträge prozedural: ja) |
+| Handwerksquest | `craft` | 7 (1 Meisterprüfung je Herstellungsberuf) | 15 min | Meister an Werkbänken; Meisterprüfung II bei Berufsstufe 50 (handgemacht, 1 je Herstellungsberuf). Meisterprüfungen I (25) und III (75) laufen systemisch über `proc.handwerk` mit festem Prüfstück ([04](./04_Items_Crafting_Wirtschaft_Endgame.md), 6.4) | 0,2 Lv + Berufs-XP; Rezept oder Werkzeug | ! / ? Kupfer `#D08A5A`, Hammer | nein (Berufsaufträge prozedural: ja) |
 | Rätselquest | `puzzle` | 7 | 20 min | Lore-Bücher, Mechanismen | 0,3 Lv; Skillpunkt oder Geheimnis-Item | ! / ? Weiß, Rune | nein |
 | Legendäre Quest | `legendary` | 33 (11 Reihen × 3), Endgame | 40 min je Quest, 2–3 h je Reihe | Item-Fund plus Levelschwelle | 1,0 Lv je Quest; 1 legendäres Item je Reihe | ! / ? Orange `#FF8C1A`, Strahlenkranz | nein |
 | Täglicher Auftrag | `daily` | systemisch (Pool ≥ 30 Varianten) | 5–10 min | Endgame-Brett (Aurelion, Zerbrochener Himmel) | 0,1 Lv; Aether-Splitter | ! / ? Blau `#5AA9FF`, Kreispfeil | täglich |
 | Wöchentlicher Auftrag | `weekly` | systemisch (Pool ≥ 10 Varianten) | 30–45 min | Endgame-Brett | 0,5 Lv; Aether-Splitter; garantiert Episch | ! / ? Blau, Kreispfeil | wöchentlich |
-| Prozeduraler Auftrag | `proc` | unbegrenzt aus 12 Vorlagen | 5–10 min | Anschlagbretter, Fraktionsbüros, Wirte | 0,08–0,2 Lv (Formel 8.4) | ! / ? Blau, Kreispfeil | ja, mit Tageslimit |
+| Prozeduraler Auftrag | `proc` | unbegrenzt aus 12 Vorlagen | 5–10 min | Anschlagbretter, Fraktionsbüros, Wirte | 0,08–0,25 Lv bei Level 10 und Ø-Dauer 10 min (Formel 8.4; mit Überlevel-Abschwächung D bis 0,02 Lv); ab Level 11 kleiner | ! / ? Blau, Kreispfeil | ja, mit Tageslimit |
 | Weltereignis-Quest | `event` | systemisch (15 Ereignistypen aus [01](./01_Welt_Story_Fraktionen.md), 6.4) | 3–8 min | Weltereignis-System (§14.4) | 0,1–0,2 Lv; Gold, Material | nur Kompass-Ring; Riss-Ausbruch Aether-Türkis | ja, mit Abklingzeit |
 | *Merkmal* Versteckt | `versteckt` | ≥ 1 je Region (großes Geheimnis, §14.3) | wie Kategorie | Erkundung, besondere Handlungen | Kategorie-Band +25 %, oft Skillpunkt | kein Symbol (absichtlich) | wie Kategorie |
 | *Merkmal* Zeitlich begrenzt | `zeitlich_begrenzt` | ≤ 3 je Region | wie Kategorie | wie Kategorie | Kategorie-Band +20 % | Sanduhr-Badge an der Kategorie | nein |
 | *Merkmal* Kettenquest | `kette` | alle Regions-, Fraktions-, Begleiter-, Legendär-Reihen | wie Kategorie | Abschluss der Vorgängerquest | letzte Quest der Kette +50 % | Kategorie-Symbol, Questlog zeigt „Teil 2/3“ | nein |
+
+**Vorschlag – Minuten-Äquivalent ab Level 11 (übernommen aus [03](./03_Kampf_Charakter_Progression.md), 12.7):** Die festen Bänder oben gelten bis Level 10. Ab Level 11 gilt für alle Kategorien außer Hauptquests: **Lv = k × Ø-Dauer ÷ t(L_empf), höchstens 0,6 Lv** (t(L) = Zielzeit für ein Level in Minuten, [03](./03_Kampf_Charakter_Progression.md), 12.4). Werte für k: Neben 0,9 · Region/Fraktion 1,0 · Begleiter 0,9 · Kopfgeld/Schatz/Dungeon/Rätsel 0,9 · Handwerk 0,5 · Prozedural/Täglich 0,5 · Wöchentlich 0,8 · Legendär 1,0. Das Hauptquest-Band (0,65–1,5 Lv) bleibt, mit eigener Abschwächung (Abschnitt 3). Grund: Laut Simulation in [03](./03_Kampf_Charakter_Progression.md), 12.6 erreicht man mit festen Bändern Level 30 nach ~21 h statt ~40 h und Level 80 nach ~125 h. Das verfehlt §28 und hebelt die festen Gebietslevel (§20.4) aus. Beispiel Nebenquest (15 min) bei Level 45 (t = 160 min): 0,9 × 15 ÷ 160 = 0,084 Lv.
 
 **Hinweise zu Begleiterquests:** 4–5 Quests je Begleiter (§16.2: 4–6; Verteilung in [01](./01_Welt_Story_Fraktionen.md), 10.2). Die letzte Quest jeder Reihe entscheidet über die Spezialfähigkeit des Begleiters. Romanzen (❓ Offene Entscheidung in [01](./01_Welt_Story_Fraktionen.md), Empfehlung dort: 4 von 8) liegen **innerhalb** dieser Quests, nicht in Zusatzquests. Kosten je Romanze: geschätzt +1.000–1.500 Wörter DE und Testzweige für Eifersucht und Trennung.
 
@@ -286,7 +288,7 @@ Quest-Stunden = Σ (Anzahl × Ø-Dauer aus 2.2). Fraktionsquests sind voll gezä
 - Dazu kommen die 33 legendären Quests. Jede Reihe berührt ≥ 3 Regionen (9.4).
 - Die Rätselquests decken das „große Geheimnis“ je Region (§14.3) nur teilweise ab. In den übrigen Regionen ist das Geheimnis eine Nebenquest mit Merkmal `versteckt`.
 - **Überlevel-Problem im Eichental:** ~20 h Questinhalt stehen einem Levelband von 1–10 gegenüber. Laut §28 ist Level 10 nach ~4 h erreicht. Gegenmaßnahmen (**Vorschlag**):
-  - Quest-XP sinkt je Level über dem empfohlenen Level um 10 %, mindestens auf 25 % (gilt für alle Kategorien außer Hauptquests).
+  - Quest-XP sinkt je Level über dem empfohlenen Level um 10 %, mindestens auf 25 % (Hauptquests: −10 % je Level über Korridor-Level + 3, höchstens auf 50 %, [03](./03_Kampf_Charakter_Progression.md), 12.7).
   - ~6 der 18 Eichental-Nebenquests sind **Rückkehr-Quests**. Sie sind erst nach dem Wiederaufbau verfügbar (Bedingung `flag.eichental.dorf_wiederaufbau ≥ 1`, [01](./01_Welt_Story_Fraktionen.md), 6.5) und haben Level-Empfehlung 12–18. Sie belohnen mit Material und Haus-Gegenständen statt nur mit XP.
 - **Vertical Slice (Stufe A):** genau die 8 Beispiel-Quests aus Abschnitt 11 (1 Haupt, 4 Neben, 1 Kopfgeld, 1 Dungeon, 1 Schatz). Marens Rekrutierung ist ein Dialog-Ereignis, keine 9. Quest ([01](./01_Welt_Story_Fraktionen.md), 10.6).
 
@@ -329,7 +331,7 @@ Felder aus §16.3 ohne Kennzeichnung. Ergänzungen sind als **Vorschlag** markie
 | **Vorschlag:** Umfangsstufe | A / B / C | `A` |
 | **Vorschlag:** Status, Autor, Wortbudget, Notizen | Produktionssteuerung (Abschnitt 10) | `Entwurf`, `liam`, `1.500` |
 
-**Belohnung als Level-Anteil (Vorschlag):** In den Daten steht nicht „300 XP“, sondern „0,5 Lv“. Die Laufzeit rechnet mit der XP-Kurve aus [03](./03_Kampf_Charakter_Progression.md) um (Action `GiveXp` „als Level-Anteil“, [Technik/01](../Technik/01_Architektur.md), 7.7). Ändert sich die Kurve, bleiben alle Quests im Band. Bis zur Festlegung in 03 gilt die **Platzhalterkurve: XP für Level L → L+1 = 200 × L.**
+**Belohnung als Level-Anteil (Vorschlag):** In den Daten steht nicht „300 XP“, sondern „0,5 Lv“. Die Laufzeit rechnet mit der XP-Kurve aus [03](./03_Kampf_Charakter_Progression.md) um (Action `GiveXp` „als Level-Anteil“, [Technik/01](../Technik/01_Architektur.md), 7.7). Ändert sich die Kurve, bleiben alle Quests im Band. Es gilt die **XP-Kurve aus [03](./03_Kampf_Charakter_Progression.md), 12.3: XP_next(L) = runden_auf_10(200 × L × (1 + (L/30)²))**. Ab Level 11 bemisst sich der Level-Anteil nach dem Minuten-Äquivalent (2.2).
 
 ### 4.2 Felder einer Stage
 
@@ -412,7 +414,7 @@ Die 23 Typen aus §16.4 plus 3 Ergänzungen (**Vorschlag**). Die Kurzschreibweis
 | 22 | Warte bis Tageszeit X | `WarteBis` | Uhrzeit-Fenster (von–bis) | `TimeOfDayChanged`, `RestCompleted` | „Warte bis {Tageszeit} ({hh:mm})“ | Uhrzeit; Hinweis „Rasten verkürzt die Wartezeit“ |
 | 23 | Wähle eine Seite (Entscheidung) | `Wähle` | Optionen `a`, `b` … (je Option: Auslöser) | `ChoiceMade` | „Entscheide: {A} oder {B}“ | keine; Optionen werden aufgelistet |
 | 24 | **Vorschlag:** Lies Text | `Lies` | Buch-, Brief- oder Notiz-ID | `DocumentRead` | „Lies {Dokument}“ | Häkchen |
-| 25 | **Vorschlag:** Setze Fähigkeit ein | `Fähigkeit` | Skill-ID, Ziel-ID oder Ort | `AbilityUsedAt` | „Setze {Fähigkeit} bei {Ziel} ein“ | Häkchen |
+| 25 | **Vorschlag:** Setze Fähigkeit ein | `Fähigkeit` | Ability-ID (`ability.*`), Ziel-ID oder Ort | `AbilityUsedAt` | „Setze {Fähigkeit} bei {Ziel} ein“ | Häkchen |
 | 26 | **Vorschlag:** Quest-Zustand | `QuestStatus` | Quest-ID, Stage oder Status | `QuestStageChanged`, `QuestCompleted` | „Schließe „{Quest}“ ab“ | Verweis auf die andere Quest |
 
 **Untersuchen ohne Aether-Sicht:** Ziel-Typ 18 funktioniert mit normalem Untersuchen (Hinweise leuchten im Umkreis von 5 m beim Halten der Untersuchen-Taste). Aether-Sicht ([01](./01_Welt_Story_Fraktionen.md), 1.4; erlernt in HQ 4) zeigt zusätzlich Aether-Spuren auf größere Distanz. Kein Pflichtziel vor HQ 4 setzt Aether-Sicht voraus ([01](./01_Welt_Story_Fraktionen.md), 6.7: „Weg ohne Magie“).
@@ -423,7 +425,7 @@ Die 23 Typen aus §16.4 plus 3 Ergänzungen (**Vorschlag**). Die Kurzschreibweis
 - **Rückschritt:** `Sammle` zählt das Inventar. Verkauft der Spieler Items, sinkt der Zähler. `Töte`-Zähler sinken nie.
 - **Questgegenstände** (Tag `quest_item`) lassen sich nicht verkaufen, zerlegen oder ablegen, solange die Quest aktiv ist (Validator W11).
 - **Fremde Kills zählen:** Kills durch Begleiter oder Umgebung (Explosion, Falle) zählen für `Töte`.
-- **Versteckte Ziele:** Ein Ziel kann bis zu einer Bedingung unsichtbar sein (z. B. optionales Ziel „Zerschlag das Kriegshorn“ erst, wenn Grimmbarts Schwäche bekannt ist).
+- **Versteckte Ziele:** Ein Ziel kann bis zu einer Bedingung unsichtbar sein (z. B. optionales Ziel „Stiehl das Kriegshorn“ erst, wenn Grimmbarts Schwäche bekannt ist).
 - **Bedingungs-Ziel:** Ein Ziel kann statt auf ein Ereignis auf eine Bedingung aus §6.4 warten, z. B. „Gruppe feindlich“ oder „Flag gesetzt“. Es wird bei jeder passenden Zustandsänderung neu geprüft ([Technik/01](../Technik/01_Architektur.md), 7.5). Beispiel: „Greif das Lager an“ in Quest 4.
 - **Ziel-Text ≤ 50 Zeichen** inklusive Zähler.
 - **Marker:** Jedes Ziel nennt seine Marker-Ziele (Objekt-, NPC- oder Orts-IDs) oder ein Suchgebiet mit Radius.
@@ -446,11 +448,11 @@ Skizze im Muster von [Technik/01](../Technik/01_Architektur.md), 11.7 (nur zur V
 namespace Aetherfall.Quests {
   [Serializable, TypeMenu("Ziele/Fähigkeit einsetzen")]
   public sealed class UseAbilityObjective : QuestObjective, IObjectiveListener<AbilityUsedAt> {
-    [SerializeField, IdRef("skill.")] private string skillId;  // Platzhalter: "skill.aether.aether_stoss"
+    [SerializeField, IdRef("ability.")] private string abilityId;  // Platzhalter: "ability.aether.aether_stoss"
     [SerializeField] private string targetId;                  // Objekt- oder Orts-ID
     public override int RequiredCount => 1;
     public void Handle(in AbilityUsedAt e, ObjectiveRuntime rt, in QuestContext ctx) {
-      if (e.AbilityId == skillId && e.TargetId == targetId) rt.Add(1);
+      if (e.AbilityId == abilityId && e.TargetId == targetId) rt.Add(1);
     }
   }
 }
@@ -480,7 +482,7 @@ namespace Aetherfall.Quests {
 | Muster | Wann tritt es ein? | Umsetzung | Beispiel aus den 8 Quests |
 |---|---|---|---|
 | **Sofort** | Direkt beim Questabschluss | Aktion beim Abschluss: Flag, NPC entfernen/bewegen, Ort ändern | Mühlbach-Banditen ziehen ab, Wennas Bäckerei in Lindenhain backt wieder |
-| **Verzögert** | Stunden später, an einem anderen Ort | Flag + Bedingung in einer späteren Quest, Szene oder einem Bark; optional Mindestalter des Flags (`FlagAlter`) | Verschonter Harrik taucht ~30 h später in Aurelion als Informant auf (6.5) |
+| **Verzögert** | Stunden später, an einem anderen Ort | Flag + Bedingung in einer späteren Quest, Szene oder einem Bark; optional Mindestalter des Flags (`FlagAlter`) | Verschonter Harrik taucht ~18–28 h später in Aurelion als Informant auf (6.5) |
 | **Kumulativ** | Wenn ein Zähler eine Schwelle erreicht | `stat.`-Zähler, den mehrere Quests erhöhen | `stat.global.banditen_getoetet` ≥ 25 → Banditen im Eichental fliehen beim Anblick des Spielers; ≥ 50 → Titel „Banditenschreck“ |
 | **Versteckt** | Der Spieler erfährt die Ursache nicht direkt | Flag wird gelesen, aber im Ledger erst nach Entdeckung erklärt | Sabotierter Rissbann der Kräuterfrau schwächt den Zirkel der Nebelmütter (Quest 5) |
 | **Echo** (**Vorschlag**) | Zwischen Ursache und großer Folge | Bark, Gerücht, Brief; kostet wenig, zeigt „die Welt erinnert sich“ | Gerücht in Velmara: „Ein langer Kerl aus dem Eichental fragt nach dir.“ |
@@ -568,14 +570,14 @@ Banditen am Mühlbach                                   abgeschlossen
 | Schritt | ~Spielstunde | Ort | Bedingung | Aktion / Ergebnis | Muster |
 |---|---|---|---|---|---|
 | T0 | 1:30 | Banditenlager am Wehr | Mühlbach-Quest endet mit Harrik lebend (verhandelt, vertrieben, ergeben + verschont, verhaftet) | `harrik_verschont = true`; `harrik_status` = 0 oder 2; Harrik verlässt das Lager (`NPC−`) | sofort |
-| T1 | 1:30–3:30 | Grimmbarts Steinbruch | Grimmbart in der Verhandlung angesprochen (Dialogknoten n500, 12.10) oder Tributbuch gestohlen | `grimmbart_schwaeche_bekannt = true`; Kopfgeld-Quest bekommt optionales Ziel „Zerschlag das Kriegshorn“ | sofort, quest-übergreifend |
-| T2 | 3:30 | Straße am Grauwacht-Pass | `muehlbach_ausgang = 4` und Grimmbart lebend gefangen | Harriks Leute sichern den Gefangenentransport: kein Hinterhalt (11.6) | verzögert, klein |
+| T1 | 1:30–3:30 | Grimmbarts Steinbruch | Grimmbart in der Verhandlung angesprochen (Dialogknoten n500, 12.10) oder Tributbuch gestohlen | `grimmbart_schwaeche_bekannt = true`; Kopfgeld-Quest bekommt optionales Ziel „Stiehl das Kriegshorn“ | sofort, quest-übergreifend |
+| T2 | 3:30 | Straße beim Gefangenenwagen (`loc.eichental.strasse_gefangenenwagen`) | `muehlbach_ausgang = 4` und Grimmbart lebend gefangen | Harriks Leute sichern die Eskorte zum Wagen: kein Hinterhalt (11.6, s40_lebend) | verzögert, klein |
 | T3 | 10–15 | Velmara (Goldküste), Taverne | `harrik_verschont` und `harrik_status = 0` | Gerücht des Wirts: „Ein langer Kerl aus dem Eichental hat nach dir gefragt.“ | Echo |
-| T4 | 18–22 | Aurelion, Die Senke | `harrik_status = 0` und Region = Aurelion | Harrik als Ambient-NPC in einer Hafenkneipe sichtbar, nicht ansprechbar („Später, Rissgeborener. Nicht hier.“) | Echo |
-| T5 | ~25–30 | Aurelion, Die Senke | `harrik_verschont` und `FlagAlter(harrik_verschont) ≥ 15 h` und `QuestStage(quest.main.schatten_ueber_aurelion) ≥ s30` | Harrik bietet als Informant einen Zugang zur Unterstadt an: alternative Schleichroute statt Wachen-Kampf. `flag.aurelion.harrik_informant = true`. Ab jetzt Kontakt in Kapitel III „Das Netz“ der Schattenhand ([01](./01_Welt_Story_Fraktionen.md), 8.2) | verzögert |
-| T5a | ~25–30 | wie T5 | zusätzlich `harrik_belogen = true` | Harrik ist misstrauisch: Information nur gegen 200 Gold oder `[Einschüchtern 24]` | verzögert, Variante |
-| T5b | ~25–30 | Aurelion, Kerker der Silberwacht | `harrik_status = 2` | Harrik sitzt in Haft. Befreien (Schattenhand-Weg, Silberwacht −M bei Entdeckung) gibt Information, Schleichroute und `harrik_informant = true`. Verhören (Silberwacht-Weg, Silberwacht +S) gibt nur die Information | verzögert, Variante |
-| T5c | ~25–30 | Aurelion, „Das Gebrochene Rad“ | `harrik_status = 1` oder Harrik nie getroffen | **Ersatz-Informantin** Nell Kettenbach (`npc.aurelion.hehlerin_nell`): Information gegen 300 Gold, keine Schleichroute, kein Ally-Score-Punkt | Fallback gegen Soft-Lock |
+| T4 | ~18–20 | Aurelion, Die Senke | `harrik_status = 0` und Region = Aurelion | Harrik als Ambient-NPC in einer Hafenkneipe sichtbar, nicht ansprechbar („Später, Rissgeborener. Nicht hier.“) | Echo |
+| T5 | ~19–30 (frühestens direkt nach HQ 19, ≈ 18–28 h nach T0) | Aurelion, Die Senke | `harrik_verschont` und `FlagAlter(harrik_verschont) ≥ 15 h` und `QuestStage(quest.main.schatten_ueber_aurelion) ≥ s30` | Harrik bietet als Informant einen Zugang zur Unterstadt an: alternative Schleichroute statt Wachen-Kampf. `flag.aurelion.harrik_informant = true`. Ab jetzt Kontakt in Kapitel III „Das Netz“ der Schattenhand ([01](./01_Welt_Story_Fraktionen.md), 8.2) | verzögert |
+| T5a | ~19–30 | wie T5 | zusätzlich `harrik_belogen = true` | Harrik ist misstrauisch: Information nur gegen 200 Gold oder `[Einschüchtern 24]` | verzögert, Variante |
+| T5b | ~19–30 | Aurelion, Kerker der Silberwacht | `harrik_status = 2` | Harrik sitzt in Haft. Befreien (Schattenhand-Weg; bei Entdeckung Silberwacht −M und Delikt „Gefangenenbefreiung“, Kopfgeld 150 im Rechtsgebiet Aurelion, [01](./01_Welt_Story_Fraktionen.md), 7.3) gibt Information, Schleichroute und `harrik_informant = true`. Verhören (Silberwacht-Weg, Silberwacht +S) gibt nur die Information | verzögert, Variante |
+| T5c | ~19–30 | Aurelion, „Das Gebrochene Rad“ | `harrik_status = 1` oder Harrik nie getroffen | **Ersatz-Informantin** Nell Kettenbach (`npc.aurelion.hehlerin_nell`): Information gegen 300 Gold, keine Schleichroute, kein Ally-Score-Punkt | Fallback gegen Soft-Lock |
 | T6 | nach T5 | Questlog | T5 eingetreten | Ledger der Mühlbach-Quest bekommt den Folgen-Eintrag „In Aurelion hat Harrik dir einen Weg in die Senke gezeigt.“ | Ledger |
 | T7 | Akt 4 | Belagerung von Aurelion | `harrik_informant = true` | Ally-Score +1 ([01](./01_Welt_Story_Fraktionen.md), 2.3): Harriks Leute warnen vor dem Angriff | verzögert, groß |
 
@@ -586,8 +588,8 @@ flowchart LR
   A -->|"verhaftet"| C["harrik_verschont = true, Status 2"]
   B --> D["Grimmbart-Schwäche bekannt"]
   B --> E["Echo: Gerücht in Velmara, 10-15 h"]
-  E --> F["Echo: Harrik in Aurelion sichtbar, 18-22 h"]
-  F --> G["Informant in HQ 20: Schleichroute, ca. 25-30 h"]
+  E --> F["Echo: Harrik in Aurelion sichtbar, 18-20 h"]
+  F --> G["Informant in HQ 20: Schleichroute, ab ca. 19 h"]
   C --> H["Kerker in Aurelion: befreien oder verhören"]
   X --> I["Nell Kettenbach: 300 Gold, keine Schleichroute"]
   G --> L["Ledger-Folge und Ally-Score +1 in Akt 4"]
@@ -595,6 +597,8 @@ flowchart LR
 ```
 
 **Prüfung auf Soft-Lock:** Alle drei Zustände von `harrik_status` führen zu einer Lösung von HQ 20, Stage s30. Die Hauptquest hängt nie an Harrik.
+
+**Verbesserungsvorschlag – Zeitabstand:** §16.5 nennt als Beispiel „30 Stunden später“. Der Spieler erreicht Aurelion laut [00](./00_Vision_und_Ueberblick.md) mit HQ 19 bei ~19:15. HQ 20 folgt direkt, die Informanten-Szene liegt also ~18–28 h nach T0 (1:30). `FlagAlter(harrik_verschont) ≥ 15 h` ist dann bereits erfüllt. Die Szene bleibt an HQ 20 gebunden, weil die Hauptquest dort den Zugang zur Unterstadt braucht. Soll §16.5 wörtlich gelten, wird die Informanten-Szene als spätere Stage oder Folgeszene mit `FlagAlter(harrik_verschont) ≥ 28 h` angelegt.
 
 ### 6.6 NPC-Tod und Ortszerstörung absichern (Vorschlag)
 
@@ -614,7 +618,7 @@ flowchart LR
    - Verzweigung „NPC tot“ in der betroffenen Stage, z. B. Jannik tot → Ende „Trauer“ der Brief-Quest.
    - Scheitern mit erklärendem Questlog-Satz, z. B. „Hollmann ist tot. Niemand wird dich für die Wölfe bezahlen.“ Gilt nur für Nebenquests.
 3. **Questgegenstände toter NPCs** gehen nie verloren: Sie liegen im Leichnam und nach 1 Spieltag in einer „Nachlass“-Truhe im Haus des NPC.
-4. **Ortszerstörung nur durch Story oder Quest**, nie zufällig. Zustand als Enum: `flag.<region>.<ort>_zustand` (0 intakt, 1 beschädigt, 2 zerstört, 3 wieder aufgebaut).
+4. **Ortszerstörung nur durch Story oder Quest**, nie zufällig. Zustand als Enum: `flag.<region>.<ort>_zustand` (0 intakt, 1 beschädigt, 2 zerstört, 3 wieder aufgebaut). Story-Orte aus [01](./01_Welt_Story_Fraktionen.md) behalten ihre Kanon-Flags (`dorf_zerstoert` + `dorf_wiederaufbau`, `velmara_gebrannt`, `kaltenbrunn_gefallen`, `glockenviertel_gerettet`). Der Editor führt sie im Register der zerstörbaren Orte als Zustands-Flag des jeweiligen Orts, und Filter wie `[Siedlung]` „Ortszustand ≠ zerstört“ (8.1) lesen über dieses Register. Neue zerstörbare Orte nutzen `_zustand`.
 5. **Quests an zerstörbaren Orten** brauchen eine Startbedingung auf den Ortszustand. Laufende Quests haben eine Verzweigung oder einen Ersatzort. Der Editor kennt die Liste der zerstörbaren Orte und prüft das.
 6. **Hauptquests scheitern nie.** Fällt eine Person oder ein Ort weg, übernimmt eine Ersatzfigur, ein Brief oder ein Bote.
 7. **Absichtliches Töten durch den Spieler** wird respektiert. Die Welt reagiert: Kopfgeld der Wachen (§15.1, [01](./01_Welt_Story_Fraktionen.md), 7.3), Ledger-Eintrag, Barks, NPC-Erinnerungen (`mem.*`, [01](./01_Welt_Story_Fraktionen.md), 7.5).
@@ -642,7 +646,7 @@ Die 7 Tabs des Questlogs aus [05](./05_UI_Audio_Grafik_Barrierefreiheit.md), 1.3
 
 - Zeitlich begrenzte Quests stehen in ihrem Tab ganz oben, mit Sanduhr und Restzeit.
 - Questketten zeigen „Teil 2/3“ und den Titel der Kette.
-- [01](./01_Welt_Story_Fraktionen.md), 7.4 spricht von einem „Tab Gerüchte“. **Vorschlag:** Gerüchte als fester Abschnitt im Tab „Neben“, damit es bei 7 Tabs bleibt (Schultertasten-Navigation, [05](./05_UI_Audio_Grafik_Barrierefreiheit.md), 1.4). Die Funktion ist dieselbe.
+- **Vorschlag:** Gerüchte als fester Abschnitt im Tab „Neben“, damit es bei 7 Tabs bleibt (Schultertasten-Navigation, [05](./05_UI_Audio_Grafik_Barrierefreiheit.md), 1.4). Die Funktion ist dieselbe. [01](./01_Welt_Story_Fraktionen.md), 7.4 ist angeglichen (früher „Tab Gerüchte“).
 
 ### 7.2 Verfolgen (max. 3)
 
@@ -774,7 +778,7 @@ quellen: [anschlagbrett, wirt]
 | `proc.geleit` | „Begleite [NPC-Typ] nach [Siedlung]“ | `Eskortiere` (1 Hinterhalt garantiert) | Brett, Wirt | Normal |
 | `proc.verteidigung` | „Verteidige [Siedlung] bei Einbruch der Nacht“ | `WarteBis` → `Verteidige` (3 Wellen) | Brett, Fraktionsbüro | Normal |
 | `proc.botengang` | „Eine Nachricht für [NPC-Typ] in [Siedlung]“ | `Bringe` (Brief) → `Rede` | Wirt | Leicht |
-| `proc.handwerk` | „Bestellung: [Menge] × [Handwerksitem]“ | `StelleHer` → `Bringe` | Handwerksmeister | Leicht–Normal |
+| `proc.handwerk` | „Bestellung: [Menge] × [Handwerksitem]“; Variante „Meisterprüfung (festes Prüfstück)“ für die Meisterprüfungen I (Stufe 25) und III (Stufe 75), [04](./04_Items_Crafting_Wirtschaft_Endgame.md), 6.4 | `StelleHer` → `Bringe` | Handwerksmeister | Leicht–Normal |
 | `proc.riss` | „Schließe den Riss bei [Ort]“ | `Verteidige` (2 Wellen) → `Fähigkeit` (Riss-Siegel am Riss) | Fraktionsbüro (Silberwacht, Konvent), ab Ende Akt 1 | Schwer |
 
 ### 8.3 Wendungen (12)
@@ -800,22 +804,23 @@ quellen: [anschlagbrett, wirt]
 ### 8.4 Belohnungsformel (Vorschlag)
 
 ```
-XP   = XP_Level(L) × 0,10 × S × (1 + T) × D
+XP   = XP_next(L) × 0,5 × Ø-Dauer ÷ t(L) × S × (1 + T) × D
 Gold = G_Basis(L) × S × (1 + min(0,5; 0,1 × E)) × (1 + T)
 ```
 
 | Symbol | Bedeutung | Werte |
 |---|---|---|
 | `L` | Gebietslevel des Zielorts, **nicht** Spielerlevel (keine Mitskalierung, §20.4). Ab Weltstufe 1 (Endgame) = Spielerlevel | 1–80 |
-| `XP_Level(L)` | XP für ein Level-Up bei L (Kurve aus [03](./03_Kampf_Charakter_Progression.md); Platzhalter 200 × L) | – |
+| `XP_next(L)` | XP für ein Level-Up bei L: XP_next(L) = runden_auf_10(200 × L × (1 + (L/30)²)) aus [03](./03_Kampf_Charakter_Progression.md), 12.3 | L10: 2.220 · L30: 12.000 |
+| `0,5 × Ø-Dauer ÷ t(L)` | Minuten-Äquivalent mit k = 0,5 (2.2, [03](./03_Kampf_Charakter_Progression.md), 12.7): Ø-Dauer der Vorlage in min (5–10), t(L) = Zielzeit für Level L in min ([03](./03_Kampf_Charakter_Progression.md), 12.4). Ersetzt den früheren festen Faktor 0,10 | L10, 10 min: 0,5 × 10 ÷ 50 = 0,10 |
 | `S` | Schwierigkeit | Leicht 0,8 · Normal 1,0 · Schwer 1,4 · Elite 2,0 |
 | `T` | Wendungsbonus | 0 oder 0,25 |
 | `E` | Entfernung Quelle → Ziel in km (Luftlinie) | Bonus max. +50 % |
 | `D` | Überlevel-Abschwächung = max(0,25; 1 − 0,1 × max(0; Spielerlevel − L − 3)) | 0,25–1,0 |
 | `G_Basis(L)` | Platzhalter bis zur Balance in [04](./04_Items_Crafting_Wirtschaft_Endgame.md): 15 + 6 × L | L5: 45 · L30: 195 · L60: 375 |
 
-**Rechenbeispiel:** L = 10, Schwer, 1,5 km, keine Wendung, Spieler Level 11:
-XP = 2.000 × 0,10 × 1,4 × 1 × 1 = **280 XP** (0,14 Lv) · Gold = 75 × 1,4 × 1,15 = **121 Gold**.
+**Rechenbeispiel:** L = 10, Schwer, Ø-Dauer 10 min, 1,5 km, keine Wendung, Spieler Level 11:
+XP = 2.220 × (0,5 × 10 ÷ 50) × 1,4 × 1 × 1 = 2.220 × 0,10 × 1,4 ≈ **311 XP** (0,14 Lv) · Gold = 75 × 1,4 × 1,15 = **121 Gold**.
 
 **Items:** 30 % Chance auf ein Item aus der Loot-Tabelle der Region (mind. Ungewöhnlich). Bei Schwer und Elite garantiert ein Item, davon 10 % Selten.
 
@@ -834,7 +839,7 @@ XP = 2.000 × 0,10 × 1,4 × 1 × 1 = **280 XP** (0,14 Lv) · Gold = 75 × 1,4 �
 
 **Limits (Vorschlag):**
 - Höchstens **3 aktive prozedurale Aufträge** gleichzeitig.
-- Ein Spieltag dauert ~48 min (§14.4). Wer zwischen 2 Siedlungen pendelt, sieht höchstens ~10 neue Angebote pro Stunde Echtzeit, hat aber nur 3 Plätze.
+- Ein Spieltag dauert ~48 min (§14.4). Wer zwischen 2 Dörfern pendelt, sieht ~10 neue Angebote pro Stunde Echtzeit, zwischen 2 Städten bis ~35. Es gibt aber nur 3 Plätze.
 - **Vorrang für Handgemachtes:** Gibt es im Umkreis von 500 m eine handgemachte Quest, die der Spieler noch nicht kennt, ersetzt das Brett ein prozedurales Angebot durch einen Aushang oder ein Gerücht, das auf diese Quest hinweist.
 - **Start:** Prozedurale Aufträge erscheinen ab Velmara (~9:30, [00](./00_Vision_und_Ueberblick.md)). Im Eichental erst nach HQ 9 „Das erste Siegel“, damit die 18 handgemachten Nebenquests dort nicht verdrängt werden.
 
@@ -872,7 +877,7 @@ Inhalt und Belohnungen: [04](./04_Items_Crafting_Wirtschaft_Endgame.md). Quest-s
 **Beispiel: „Der Gefangenentransport“** (`quest.side.eichental.gefangenentransport`, Level 8, Stufe B; 01 führt Grimmbarts Transport als eigene Quest, nicht als Weltereignis 12)
 - Bedingung: `flag.eichental.grimmbart_ausgang = 2` (lebend ausgeliefert) und `QuestStatus(quest.bounty.eichental.grimmbart) = abgeschlossen`.
 - Hauptmann Dorn bringt Grimmbart über den Grauwacht-Pass nach Aurelion. Gerücht im Gasthaus „Zum Krummen Kessel“: Grimmbarts letzte Getreue wollen den Wagen am Pass überfallen. **Frist: 2 Spieltage.**
-- Erfolg: Hinterhalt vereitelt, Silberwacht +M, Grimmbart sitzt später im Kerker der Silberwacht in Aurelion (Echo; in Akt 4 bietet er sein Kriegshorn an, [01](./01_Welt_Story_Fraktionen.md), 2.3).
+- Erfolg: Hinterhalt vereitelt, Silberwacht +M, Grimmbart sitzt später im Kerker der Silberwacht in Aurelion (Echo; in Akt 4 bietet er die Signalfolge des Kriegshorns an (11.6), [01](./01_Welt_Story_Fraktionen.md), 2.3).
 - Ablauf: Grimmbart ist frei. `flag.eichental.grimmbart_entkommen = true`. Er taucht an der Goldküste als Champion-Variante wieder auf (verzögerte Konsequenz, eigenes Kopfgeld mit festem Ziel). Die Akt-4-Hilfe entfällt.
 
 ### 9.2 Versteckte Quests (Merkmal `versteckt`)
@@ -904,7 +909,7 @@ Inhalt und Belohnungen: [04](./04_Items_Crafting_Wirtschaft_Endgame.md). Quest-s
 
 **Beispiel: „Riss-Ausbruch am Hollmann-Hof“** (`event.welt.riss_ausbruch`, feste Instanz am Ort `loc.eichental.hof_hollmann`; im Vertical Slice eines von zwei Weltereignissen, [01](./01_Welt_Story_Fraktionen.md), 6.4)
 - Bedingung Stufe A: `QuestStatus(quest.side.eichental.woelfe_vom_nordhang) = abgeschlossen`, Nacht, nicht in den letzten 5 Spieltagen an diesem Ort. Ab Stufe B: regulär ab Ende Akt 1.
-- Ziele: `Verteidige(loc.eichental.hof_hollmann, 3 Wellen enemy.rissbrut.rissling)` → im Slice `Fähigkeit(skill.aether.aether_stoss, obj.eichental.risssplitter_hof)`, ab Stufe B Riss-Siegel (5 s kanalisieren, [01](./01_Welt_Story_Fraktionen.md), 1.2, A9).
+- Ziele: `Verteidige(loc.eichental.hof_hollmann, 3 Wellen enemy.rissbrut.rissling)` → im Slice `Fähigkeit(ability.aether.aether_stoss, obj.eichental.risssplitter_hof)`, ab Stufe B Riss-Siegel (5 s kanalisieren, [01](./01_Welt_Story_Fraktionen.md), 1.2, A9).
 - Erfolg: Gold und Aether-Splitter; Hollmann +5 Beziehung; `stat.global.risse_geschlossen` +1; Silberwacht S.
 - Ignoriert oder gescheitert: Hof 3 Spieltage beschädigt (Hollmann verkauft nichts), danach repariert.
 
@@ -955,7 +960,7 @@ Technik-Wahl für den Graph-Editor: [Technik/01](../Technik/01_Architektur.md), 
 | V01 | Doppelte ID (Quest, Stage, Ziel, Flag, Ledger), projektweit | Fehler | „ID `…s20` existiert zweimal in `woelfe_vom_nordhang`.“ |
 | V02 | ID verletzt das Schema (2.3, 6.3) | Fehler | „`quest.Side.Wölfe` – nur a–z, 0–9, _ und . erlaubt.“ |
 | V03 | Stage ohne Ziele (außer Endstage oder als „reine Aktionsstage“ markiert) | Fehler | „Stage `s30` hat keine Ziele.“ |
-| V04 | Kaputter Verweis: NPC-, Item-, Orts-, Quest-, Flag-, Dialog-, Gegnertyp-, Boss- oder Skill-ID existiert nicht | Fehler | „`npc.eichental.bauer_holman` nicht gefunden. Meintest du `bauer_hollmann`?“ |
+| V04 | Kaputter Verweis: NPC-, Item-, Orts-, Quest-, Flag-, Dialog-, Gegnertyp-, Boss-, Skill- oder Ability-ID existiert nicht | Fehler | „`npc.eichental.bauer_holman` nicht gefunden. Meintest du `bauer_hollmann`?“ |
 | V05 | Unerreichbare Stage: kein Pfad von der Start-Stage | Fehler | „`s45_abmachung` ist von `s10` aus nicht erreichbar.“ |
 | V06 | Sackgasse: Nicht-Endstage ohne Ausgang | Fehler | „`s30_schleichen` hat keinen Ausgang und ist keine Endstage.“ |
 | V07 | Zyklus ohne Ausgang: Stages verweisen im Kreis ohne Weg zu einer Endstage | Fehler | „Zyklus `s20 → s25 → s20` ohne Ausgang.“ |
@@ -971,7 +976,7 @@ Technik-Wahl für den Graph-Editor: [Technik/01](../Technik/01_Architektur.md), 
 | V17 | Enum-Wert eines Flags nicht in der Werteliste | Fehler | „`muehlbach_ausgang = 6` ist nicht definiert.“ |
 | V18 | Startbedingungen widersprechen sich offensichtlich (Level > Regionsmaximum + 20; Quest X aktiv UND abgeschlossen) | Fehler | „Startbedingung nie erfüllbar.“ |
 | W01 | Keine Belohnung (weder XP, Gold, Item, Ruf noch Beziehung) | Warnung | „Keine Belohnung.“ |
-| W02 | Belohnung außerhalb des Kategorie-Bands (±50 %) | Warnung | „0,9 Lv liegt über dem Band für `side` (0,3–0,5).“ |
+| W02 | Belohnung außerhalb des Kategorie-Bands (±50 %). Prüfband bis Level 10 aus 2.2, ab Level 11 aus dem Minuten-Äquivalent (2.2, [03](./03_Kampf_Charakter_Progression.md), 12.7) | Warnung | „0,9 Lv liegt über dem Band für `side` (0,3–0,5).“ |
 | W03 | Empfohlenes Level außerhalb des Regionsbands ±3 (Ausnahme: Rückkehr-Quests) | Warnung | „Level 15 in `region.eichental` (1–10).“ |
 | W04 | Text zu lang: Titel > 32, Ziel > 50, Stage-Text > 200, Ledger > 120, Erkundungshinweis > 140 Zeichen | Warnung | „Ziel-Text hat 63 Zeichen.“ |
 | W05 | Marker-Stage ohne Erkundungshinweis | Warnung | „`s30` hat Marker, aber keinen Hinweis.“ |
@@ -1117,7 +1122,7 @@ flowchart TD
   Q8["8 Schatzkarte des Seemanns"] -->|"Vers 1 am Mühlrad"| Q4
   Q8 -->|"Wachturm Grauwacht"| Q3
   Q7["7 Die vergessene Gruft"] -->|"Klingenfragment"| L["Legendär: Eidwahrer"]
-  Q4 -->|"Harrik verschont"| A["Aurelion: HQ 20, ca. 30 h"]
+  Q4 -->|"Harrik verschont"| A["Aurelion: HQ 20, ab ca. 19 h"]
   Q5 -->|"alwine_status"| M["HQ 17 Die Nebelmütter, Morwen"]
   Q6 -->|"Grimmbart lebend"| G["HQ 2 und Akt 4"]
   Q8 -->|"Merles Erbe"| V["Goldküste: Velmara"]
@@ -1187,7 +1192,7 @@ flowchart TD
 - Aktionen: `SetzeFlag(id, wert)`, `Stat+(id, n)`, `GibItem(id, n)`, `NimmItem(id, n)`, `GibGold(n)`, `GibXP(Lv)`, `Ruf(fraktion, XS/S/M/L)`, `Beziehung(npc, ±n)`, `Loyalität(begleiter, ±n)`, `Erinnerung(npc, mem.tag)`, `StarteQuest(id)`, `NPC+(id, ort)` (spawnen/bewegen), `NPC−(id)` (entfernen), `Gegner+(spawn-id)`, `Szene(id)`, `Tür(id, auf)`, `Musik(id)`, `Dialog(id)`, `Skill(id)`, `Ledger(id)`, `Autosave`.
 - Bedingungen: `Flag(id) = wert`, `Quest(id) = abgeschlossen`, `Zeit hh–hh`, `Hat(item, n)`.
 - Ruf-Größen ([01](./01_Welt_Story_Fraktionen.md), 9.2): XS = +10, S = +25, M = +50, L = +100.
-- XP: Level-Anteil (Lv) und Wert nach Platzhalterkurve 200 × L (4.1).
+- XP: Level-Anteil (Lv) und Wert nach der XP-Kurve aus [03](./03_Kampf_Charakter_Progression.md), 12.3: XP_next(L) = runden_auf_10(200 × L × (1 + (L/30)²)) (4.1).
 - `lokal.*` sind Hilfs-Flags `<quest-id>.lokal.*`, die beim Questende gelöscht werden.
 - Flags ohne Bereich in den Tabellen (z. B. `harrik_status`) meinen `flag.eichental.*`.
 - **Waffentypen im Slice:** Einhandschwert, Bogen, Zauberstab ([00](./00_Vision_und_Ueberblick.md)). Waffen anderer Typen erscheinen erst ab Stufe B (Validator W14).
@@ -1222,7 +1227,7 @@ flowchart TD
 | s30 | „Kreaturen aus dem Riss greifen an. Halte sie von den Überlebenden fern.“ | `Töte(enemy.rissbrut.rissling, 4)` | alle | – | `Gegner+(spawn.eichental.dorfrand_risslinge)`; Tutorial Ausweichen und Blocken | `Autosave` | → s40 |
 | s40 | „Eine Gestalt in grauem Mantel geht ruhig durch die Flammen zum Wald. Hedda führt die anderen nach Lindenhain. Du folgst der Gestalt.“ | `Folge(spur.eichental.graue_gestalt)` | alle | o2 `Untersuche(clue.eichental.verbrannte_runen, 2)` „Untersuche die verbrannten Runen“ → Codex „Messrunen“ | `Szene(cs.prolog.gestalt)`; `NPC+(hedda; tobold falls gerettet; wenna falls gerettet → loc.eichental.lindenhain)` | – | → s50 |
 | s50 | „Der Riss klafft am Waldrand. Die Gestalt wartet dort, als hätte sie dich erwartet.“ | `GeheZu(loc.eichental.riss_eichental, r=20)` | alle | – | – | `Szene(cs.prolog.aether_beruehrung)`, `Skill(skill.aether.aether_stoss)`, `SetzeFlag(flag.main.aether_kraft_erhalten, true)`; Verderbnis-Balken einblenden | → s60 |
-| s60 | „Etwas Großes kriecht aus dem Riss. Nutze die neue Kraft.“ | `TöteBestimmten(boss.eichental.rissbrut_prolog)` | alle | o2 `Fähigkeit(skill.aether.aether_stoss, boss.eichental.rissbrut_prolog)` „Triff die Rissbrut mit dem Aether-Stoß“ (Tutorial) | `Gegner+(spawn.eichental.rissbrut_prolog)`, `Musik(mus.boss_prolog)` | `Autosave` | → s70 |
+| s60 | „Etwas Großes kriecht aus dem Riss. Nutze die neue Kraft.“ | `TöteBestimmten(boss.eichental.rissbrut_prolog)` | alle | o2 `Fähigkeit(ability.aether.aether_stoss, boss.eichental.rissbrut_prolog)` „Triff die Rissbrut mit dem Aether-Stoß“ (Tutorial) | `Gegner+(spawn.eichental.rissbrut_prolog)`, `Musik(mus.boss_prolog)` | `Autosave` | → s70 |
 | s70 | „Der Riss ist still, die Gestalt verschwunden. Die Überlebenden warten in Lindenhain.“ | `GeheZu(loc.eichental.lindenhain)`, dann `Rede(npc.eichental.dorfvorsteherin_hedda)` | alle | – | – | Hedda fragt nach Lina ([01](./01_Welt_Story_Fraktionen.md), 4.1.3); Klassenwahl im Dialog ([00](./00_Vision_und_Ueberblick.md)); `GibGold(20)`; `StarteQuest(quest.main.die_graue_gestalt)`; `Ledger(c2)` | Ende (Erfolg) |
 
 Die Prolog-Rissbrut ist eine Champion-Variante von `enemy.rissbrut.rissling` und kein eigener Gegnertyp ([01](./01_Welt_Story_Fraktionen.md), 11.4). Das spart Produktionszeit.
@@ -1238,7 +1243,7 @@ Die Prolog-Rissbrut ist eine Champion-Variante von `enemy.rissbrut.rissling` und
 | `flag.eichental.wenna_gerettet` | `true` / `false` |
 | `flag.main.aether_kraft_erhalten` | `true` |
 
-**Belohnungen:** ~500 XP (Prolog-Ausnahme oberhalb des Hauptquest-Bands; bringt zusammen mit Kills von Level 1 auf 3) · 20 Gold (Heddas Notgroschen) · Startausrüstung der gewählten Klasse und 3 kleine Heiltränke (Details: 03) · Fähigkeit Aether-Stoß (Platzhalter-ID `skill.aether.aether_stoss`, endgültig in 03).
+**Belohnungen:** ~500 XP (Prolog-Ausnahme oberhalb des Hauptquest-Bands; bringt zusammen mit Kills von Level 1 auf 3) · 20 Gold (Heddas Notgroschen) · Startausrüstung der gewählten Klasse und 3 kleine Heiltränke (Details: 03) · Fähigkeit Aether-Stoß (ID `skill.aether.aether_stoss`, endgültig in [03](./03_Kampf_Charakter_Progression.md); schaltet `ability.aether.aether_stoss` frei).
 
 **Konsequenzen und Verknüpfungen:**
 - **Sofort:** Gerettete NPCs leben in Lindenhain. Tobold betreibt dort die Schmiede (Händler und Reparatur). Ohne Tobold führt sein Sohn Edwin sie mit kleinerem Angebot und trauert. Wenna eröffnet eine Bäckerei (Nahrung mit Buffs), sobald es Mehl gibt (Quest 4).
@@ -1274,7 +1279,7 @@ Die Prolog-Rissbrut ist eine Champion-Variante von `enemy.rissbrut.rissling` und
 | s10 | „Auf der oberen Weide liegen gerissene Schafe. Hollmann hat dir seinen alten Jagdbogen geliehen.“ | `Untersuche(clue.eichental.weide_schaf, clue.eichental.weide_pfoten, clue.eichental.weide_aetherspeichel; 3)` | alle | o2 `Interagiere(obj.eichental.strohziel_*, 3)` „Triff die Strohziele hinter der Scheune“ → +10 Pfeile (Bogen-Tutorial) | `GibItem(item.weapon.hollmanns_jagdbogen)`, `GibItem(item.ammo.pfeil, 30)`; Tutorial Untersuchen | – | → s20 |
 | s20 | „Die Abdrücke sind zu groß für Wölfe, und der Speichel leuchtet. Die Spur führt zum Nordhang.“ | `Folge(spur.eichental.wolfsspur)` | alle | o2 `Interagiere(obj.eichental.leiche_postreiter, „Untersuche den Toten am Weg“)` → Postsack mit Brief (startet Quest 3) | `Gegner+(spawn.eichental.nordhang_rudel)`: 3 × `enemy.wolf.grauwolf[aether_verderbt]` | – | → s30 |
 | s30 | „Am Nordhang leben Wölfe, die von innen leuchten. Ihr Bau liegt unter dem Wolfskopf-Felsen.“ | `GeheZu(loc.eichental.wolfsbau_nordhang, r=10)` | alle | o2 `Töte(enemy.wolf.grauwolf[aether_verderbt], 3)` → 3 × `item.material.wolfspelz_aether` | – | – | → s40 |
-| s40 | „Im Bau steckt ein Aether-Splitter im Fels. Der Leitwolf Glutfang ist mit ihm verwachsen. Töte ihn, zerstöre den Splitter oder brich ihn heraus.“ | o1 `TöteBestimmten(boss.eichental.glutfang)`; o2 `Fähigkeit(skill.aether.aether_stoss, obj.eichental.aethersplitter_bau)` „Zerstöre den Splitter“; o3 `Interagiere(obj.eichental.aethersplitter_bau, „Brich den Splitter heraus“)` | eines | o4 `Interagiere(obj.eichental.wolfswelpe, „Nimm den Welpen mit“)` (nur sichtbar, solange Glutfang schläft oder tot ist) | `Gegner+(spawn.eichental.glutfang)`: schläft von 06–20 Uhr | o4: `SetzeFlag(flag.eichental.wolfswelpe_gerettet, true)` | o1 → s50_kampf; o2 → s50_zerstoert; o3 → s45_geborgen |
+| s40 | „Im Bau steckt ein Aether-Splitter im Fels. Der Leitwolf Glutfang ist mit ihm verwachsen. Töte ihn, zerstöre den Splitter oder brich ihn heraus.“ | o1 `TöteBestimmten(boss.eichental.glutfang)`; o2 `Fähigkeit(ability.aether.aether_stoss, obj.eichental.aethersplitter_bau)` „Zerstöre den Splitter“; o3 `Interagiere(obj.eichental.aethersplitter_bau, „Brich den Splitter heraus“)` | eines | o4 `Interagiere(obj.eichental.wolfswelpe, „Nimm den Welpen mit“)` (nur sichtbar, solange Glutfang schläft oder tot ist) | `Gegner+(spawn.eichental.glutfang)`: schläft von 06–20 Uhr | o4: `SetzeFlag(flag.eichental.wolfswelpe_gerettet, true)` | o1 → s50_kampf; o2 → s50_zerstoert; o3 → s45_geborgen |
 | s45_geborgen | „Du hast den Splitter. Das Rudel ist außer sich vor Wut.“ | `TöteBestimmten(boss.eichental.glutfang)`, `Töte(enemy.wolf.grauwolf[aether_verderbt], 3)` | alle | – | `GibItem(item.quest.aethersplitter_nordhang)`, `Gegner+(spawn.eichental.bau_wut)` | – | → s50_geborgen |
 | s50_kampf | „Glutfang ist tot. Die übrigen Wölfe fliehen in die Berge.“ | `Rede(npc.eichental.bauer_hollmann)` | alle | – | – | `SetzeFlag(flag.eichental.woelfe_ausgang, 1)`, `SetzeFlag(flag.eichental.pim_fieber_bekannt, true)`, `GibGold(60)`, `Ledger(c1)` | Ende (Erfolg) |
 | s50_zerstoert | „Der Splitter ist zerbrochen. Das Leuchten erlischt. Die Wölfe sind wieder nur Wölfe und laufen davon.“ | `Rede(npc.eichental.bauer_hollmann)` | alle | – | – | `SetzeFlag(flag.eichental.woelfe_ausgang, 2)`, `SetzeFlag(flag.eichental.pim_fieber_bekannt, true)`, `Beziehung(hollmann, +10)`, `GibGold(60)`, `GibItem(item.food.hollmanns_kaese, 3)`, `Ledger(c2)` | Ende (Erfolg) |
@@ -1335,12 +1340,12 @@ Die Prolog-Rissbrut ist eine Champion-Variante von `enemy.rissbrut.rissling` und
 | `muehlbach_ausgang` = 0 (Quest 4 offen) | Banditenlager am Wehr |
 | `muehlbach_ausgang` ∈ {1, 2, 3, 4} und Jannik lebt | an der alten Linde (wartet dort tagsüber). Im Kampf ergibt er sich bei 50 % LP und flieht; er stirbt nur, wenn der Spieler ihn danach gezielt tötet |
 | `muehlbach_ausgang` = 5 (verhaftet) | Zelle im Wachturm Grauwacht (Silberwacht-Deserteur) |
-| `jannik_status` = 1 (tot) | – (→ s60_trauer) |
+| `Flag(flag.npc.jannik_hartwig.tot) = true` | – (→ s60_trauer) |
 
 | Stage | Questlog-Text (DE) | Objectives | Modus | Optionale Ziele | Aktionen beim Start | Aktionen beim Abschluss | Verzweigung |
 |---|---|---|---|---|---|---|---|
 | s10 | „Ein toter Postreiter, ein Brief ohne Empfänger. Er ist an Liese Brenner adressiert, die Müllerstochter.“ | o1 `Rede(npc.eichental.liese_brenner)` „Bring Liese den Brief“; o2 `BenutzeAn(item.quest.brief_jannik, tag:feuerstelle)` „Verbrenne den Brief“ | eines | o3 `Lies(item.quest.brief_jannik)` → `SetzeFlag(flag.eichental.brief_hinweis_gelesen, true)` | – | – | o1 → s20_liese; o2 → s90_verbrannt |
-| s20_liese | „Liese hat den Brief gelesen. Sie will wissen, ob Jannik lebt.“ | `Rede(npc.eichental.jannik_hartwig)` „Finde Jannik“ | alle | – | `Dialog(dlg.eichental.liese_brief)` setzt `lokal.liese_wahl`; `Erinnerung(liese, mem.hat_den_brief_gebracht)`; Weiche beim Start: `Flag(jannik_status) = 1` → s60_trauer | – | → s30_jannik |
+| s20_liese | „Liese hat den Brief gelesen. Sie will wissen, ob Jannik lebt.“ | `Rede(npc.eichental.jannik_hartwig)` „Finde Jannik“ | alle | – | `Dialog(dlg.eichental.liese_brief)` setzt `lokal.liese_wahl`; `Erinnerung(liese, mem.hat_den_brief_gebracht)`; Weiche beim Start: `Flag(flag.npc.jannik_hartwig.tot) = true` → s60_trauer | – | → s30_jannik |
 | s30_jannik | „Jannik lebt. Er will wissen, was Liese gesagt hat.“ | `Wähle`: a Wahrheit; b Lüge („Sie hat dich vergessen.“) | eines | – | `Dialog(dlg.eichental.jannik_brief)` | – | a + `liese_wahl = 1` → s40_linde; a + `liese_wahl = 2` → s50_ehrlich; b → s55_luege |
 | s40_linde | „Liese und Jannik wollen sich an der alten Linde treffen, nach Einbruch der Nacht.“ | `WarteBis(21:00–02:00)`, `GeheZu(loc.eichental.alte_linde)` | alle | – | Falls Jannik in Haft: zusätzliches Pflichtziel `Überzeuge(dlg.eichental.dorn_jannik, frei)` („[Überzeugen 16]“ oder 100 Gold Kaution) | `Szene(cs.eichental.linde_wiedersehen)`, `SetzeFlag(flag.eichental.brief_ende, 1)`, `SetzeFlag(flag.eichental.jannik_status, 2)`, `NPC−(liese)`, `NPC−(jannik)`, `Beziehung(edwin, −15)`, `GibItem(item.trinket.blaues_band)`, `Ledger(c1)` | Ende (Erfolg) |
 | s50_ehrlich | „Liese bleibt bei Edwin. Jannik nimmt es hin und will sich der Silberwacht stellen.“ | `Rede(npc.eichental.liese_brenner)` „Bring Liese Janniks Antwort“ | alle | – | `NPC+(jannik, loc.eichental.wachturm_grauwacht)` | `SetzeFlag(brief_ende, 2)`, `SetzeFlag(jannik_status, 3)`, `Ruf(faction.silberwacht, S)`, `GibItem(item.weapon.janniks_kurzschwert)`, `Ledger(c2)` | Ende (Erfolg) |
@@ -1356,9 +1361,9 @@ Die Prolog-Rissbrut ist eine Champion-Variante von `enemy.rissbrut.rissling` und
 | Ehrliche Antwort | 2 | 3 (bei der Silberwacht) | Liese bleibt bei Edwin. Jannik stellt sich der Silberwacht. | Janniks Kurzschwert (Einhandschwert, Ungewöhnlich, Silberwacht-Prägung), Silberwacht S |
 | Gnädige Lüge | 3 | 4 (fortgegangen) | Jannik geht. Liese erfährt nie, dass er auf sie gewartet hat. | Janniks Kurzschwert |
 | Verbrannt | 4 | unverändert | Niemand erfährt etwas. Janniks Schicksal hängt allein an Quest 4. | 15 Gold aus dem Postsack |
-| Trauer | 5 | 1 (tot) | Liese bekommt den Brief und Janniks Brosche. | Blaues Band (Andenken) |
+| Trauer | 5 | unverändert (`flag.npc.jannik_hartwig.tot = true`, 6.6) | Liese bekommt den Brief und Janniks Brosche. | Blaues Band (Andenken) |
 
-Weitere Werte von `jannik_status`: 0 = bei den Banditen (Start), 5 = in Haft im Wachturm Grauwacht (Quest 4, Ausgang 5).
+Weitere Werte von `jannik_status`: 0 = bei den Banditen (Start), 5 = in Haft im Wachturm Grauwacht (Quest 4, Ausgang 5, gesetzt in s35_gnade). Wert 1 ist nicht belegt: Janniks Tod läuft über das systemische Flag `flag.npc.jannik_hartwig.tot` (6.6).
 
 **Lösungswege:** Wahrheit, Lüge, Schweigen (Verbrennen), Diplomatie (Lieses Wahl beeinflussen; Janniks Freilassung über Probe oder Kaution).
 
@@ -1400,9 +1405,9 @@ Weitere Werte von `jannik_status`: 0 = bei den Banditen (Start), 5 = in Haft im 
 | Stage | Questlog-Text (DE) | Objectives | Modus | Optionale Ziele | Aktionen beim Start | Aktionen beim Abschluss | Verzweigung |
 |---|---|---|---|---|---|---|---|
 | s10 | „Banditen haben sich am Mühlbach festgesetzt und rauben Brenners Mehlkarren. Brenner will sie loswerden – egal wie.“ | `GeheZu(loc.eichental.banditenlager_muehlbach, r=60)` | alle | o2 `Interagiere(obj.eichental.aussichtsfels_muehlbach, „Beobachte das Lager“)` → alle Banditen markiert | – | – | → s20 |
-| s20 | „Das Lager liegt am Wehr. Du kannst angreifen, dich zu Harriks Zelt schleichen oder offen hineingehen und reden.“ | o1 Bedingungs-Ziel „Greif das Lager an“: erfüllt, sobald `Gruppe(banditen_muehlbach) = feindlich` (5.2); o2 `Schleiche(loc.eichental.harriks_zelt, bei Entdeckung → s30_kampf)` „Schleich dich zu Harriks Zelt“ (nachts schlafen die Banditen, [01](./01_Welt_Story_Fraktionen.md), 4.1.4); o3 `Rede(npc.eichental.banditenfuehrer_harrik)` „Geh offen ins Lager und verlange Harrik“ | eines | o4 `Interagiere(obj.eichental.tributbuch, „Stiehl das Tributbuch“)` → `SetzeFlag(grimmbart_schwaeche_bekannt, true)`, +0,1 Lv; o5 `Interagiere(obj.eichental.mehlsack, 3)` „Hol Brenners Mehlsäcke zurück“ → +40 Gold | – | o2: `SetzeFlag(lokal.messer_an_kehle, true)` | o1 → s30_kampf; o2 → s30_verhandlung; o3 → s30_verhandlung |
-| s30_kampf | „Das Lager wehrt sich. Harrik ruft seine Leute zusammen.“ | `TöteBestimmten(npc.eichental.banditenfuehrer_harrik, bezwingen)`: Harrik ergibt sich bei 20 % LP | alle | – | Gruppe `banditen_muehlbach` feindlich (2 × `enemy.bandit.schlaeger`, 2 × `enemy.bandit.armbrustschuetze`, Harrik als Elite-Schläger); Jannik ergibt sich bei 50 % LP und flieht aus dem Kampf | übrige Banditen ergeben sich mit Harrik | → s35_gnade |
-| s35_gnade | „Harrik wirft die Waffe weg. ‚Genug! Wir sind Bauern, keine Mörder.‘“ | `Wähle`: a töten; b laufen lassen; c an die Silberwacht ausliefern | eines | – | `Dialog(dlg.eichental.harrik_kapitulation)` | a: `harrik_status = 1`, `muehlbach_ausgang = 1`; b: `harrik_verschont = true`, `harrik_status = 0`, `muehlbach_ausgang = 2`; c: `harrik_verschont = true`, `harrik_status = 2`, `muehlbach_ausgang = 5`, `Ruf(faction.silberwacht, S)` | → s40 |
+| s20 | „Das Lager liegt am Wehr. Du kannst angreifen, dich zu Harriks Zelt schleichen oder offen hineingehen und reden.“ | o1 Bedingungs-Ziel „Greif das Lager an“: erfüllt, sobald `Gruppe(group.banditen_muehlbach) = feindlich` (5.2); o2 `Schleiche(loc.eichental.harriks_zelt, bei Entdeckung → s30_kampf)` „Schleich dich zu Harriks Zelt“ (nachts schlafen die Banditen, [01](./01_Welt_Story_Fraktionen.md), 4.1.4); o3 `Rede(npc.eichental.banditenfuehrer_harrik)` „Geh offen ins Lager und verlange Harrik“ | eines | o4 `Interagiere(obj.eichental.tributbuch, „Stiehl das Tributbuch“)` → `SetzeFlag(grimmbart_schwaeche_bekannt, true)`, +0,1 Lv; o5 `Interagiere(obj.eichental.mehlsack, 3)` „Hol Brenners Mehlsäcke zurück“ → +40 Gold | – | o2: `SetzeFlag(lokal.messer_an_kehle, true)` | o1 → s30_kampf; o2 → s30_verhandlung; o3 → s30_verhandlung |
+| s30_kampf | „Das Lager wehrt sich. Harrik ruft seine Leute zusammen.“ | `TöteBestimmten(npc.eichental.banditenfuehrer_harrik, bezwingen)`: Harrik ergibt sich bei 20 % LP | alle | – | Gruppe `group.banditen_muehlbach` feindlich (2 × `enemy.bandit.schlaeger`, 2 × `enemy.bandit.armbrustschuetze`, Harrik als Elite-Schläger); Jannik ergibt sich bei 50 % LP; bei Ausliefern (c) wird er mit verhaftet, sonst flieht er zur alten Linde | übrige Banditen ergeben sich mit Harrik | → s35_gnade |
+| s35_gnade | „Harrik wirft die Waffe weg. ‚Genug! Wir sind Bauern, keine Mörder.‘“ | `Wähle`: a töten; b laufen lassen; c an die Silberwacht ausliefern | eines | – | `Dialog(dlg.eichental.harrik_kapitulation)` | a: `harrik_status = 1`, `muehlbach_ausgang = 1`; b: `harrik_verschont = true`, `harrik_status = 0`, `muehlbach_ausgang = 2`; c: `harrik_verschont = true`, `harrik_status = 2`, `muehlbach_ausgang = 5`, `SetzeFlag(flag.eichental.jannik_status, 5)` (nur wenn `jannik_status = 0`, also Jannik noch im Lager), `Ruf(faction.silberwacht, S)` | → s40 |
 | s30_verhandlung | „Harrik hört dir zu – noch.“ | `Überzeuge(dlg.eichental.harrik_verhandlung, Ausgang ∈ {abzug, vertrieben, muehlenwache, abmachung, kampf, attentat})` | eines | – | – | Flags laut Dialog (12.10) | kampf → s30_kampf; muehlenwache → s38_brenner; abmachung → s45_abmachung; sonst → s40 |
 | s38_brenner | „Harriks Leute würden die Mühle bewachen – gegen Mehl. Jetzt muss Brenner zustimmen.“ | `Überzeuge(dlg.eichental.brenner_wache, Ausgang ∈ {ja, nein})` | eines | – | Brenner sagt automatisch ja, wenn `wenna_gerettet` (die Bäckerin braucht Mehl); sonst `[Überzeugen 12]` oder 50 Gold | ja: `muehlbach_ausgang = 4`; nein: `muehlbach_ausgang = 3` (Harrik zieht ab); beide: `harrik_verschont = true`, `harrik_status = 0` | → s40 |
 | s45_abmachung | „Harrik lässt die Mühle in Ruhe und zieht ab, sobald Grimmbart erledigt ist.“ | `QuestStatus(quest.bounty.eichental.grimmbart = abgeschlossen)` | alle | – | `StarteQuest(quest.bounty.eichental.grimmbart)` falls nicht aktiv; `SetzeFlag(grimmbart_schwaeche_bekannt, true)`; Lager friedlich | – | → s38_brenner |
@@ -1431,7 +1436,7 @@ Alle Wege geben dieselbe Basis-XP (Regel 6.1).
 
 **Konsequenzen und Verknüpfungen:**
 - **Sofort:** `muehle_frei = true` → Wennas Bäckerei in Lindenhain backt (wenn Wenna lebt, Quest 1). Bei Ausgang 3 leben die Flüchtlinge in Lindenhain (neue Ambient-NPCs, Barks; [01](./01_Welt_Story_Fraktionen.md), 6.5).
-- **Quest 6:** Ausgang 3 oder 4 bzw. das Tributbuch verraten Grimmbarts Kriegshorn. Ausgang 4 schützt den Gefangenentransport.
+- **Quest 6:** Ausgang 3 oder 4 bzw. das Tributbuch verraten Grimmbarts Kriegshorn. Ausgang 4 schützt die Eskorte zum Gefangenenwagen (11.6).
 - **Quest 3:** Janniks Aufenthaltsort hängt vom Ausgang ab. Stirbt Jannik im Kampf, bleibt Quest 3 nur das Ende „Trauer“.
 - **Quest 8:** Vers 1 der Schatzkarte liegt am Mühlrad. Solange das Lager feindlich ist, patrouillieren Banditen bis zur Mühle.
 - **Verzögert:** Kette nach Aurelion bis HQ 20 und Ally-Score in Akt 4 (6.5).
@@ -1487,7 +1492,7 @@ Alle Wege geben dieselbe Basis-XP (Regel 6.1).
 | 4 Bündnis | Zirkelmutter Morra empfängt den Spieler sofort | 40 |
 | 1 geduldet | normaler Zugang | 30 |
 | 2 verraten | zusätzliche Überzeugen-Probe nötig; Morwen erwähnt den Verrat am ersten Lagerfeuer | 20 |
-| 3 getötet | Zirkel feindlich, Zugang nur über Morwen; ihre Reihe heißt „Ysoldes Grab“ | 10 |
+| 3 getötet | Zirkel feindlich, Zugang nur über Morwen; ihre Reihe heißt „Ysoldes Grab“ | 15 (zwischen Warnung 20 und Verlassen ≤ 10, [01](./01_Welt_Story_Fraktionen.md), 10.3) |
 
 - **Versteckt:** `alwine_rissbann_sabotiert` → Ein Ritual des Zirkels im Moorschatten scheitert, der Zirkel verliert Mitglieder an die Leere. Erst wenn Ysolde im Moorschatten fragt „Das Moos war wertlos. Warst du das?“, erscheint der Ledger-Eintrag.
 - Das Rissmoos aus Weg c kann Corvin (Quest 7) verkauft werden: 60 Gold, Aether-Konvent S.
@@ -1518,11 +1523,11 @@ Alle Wege geben dieselbe Basis-XP (Regel 6.1).
 | Stage | Questlog-Text (DE) | Objectives | Modus | Optionale Ziele | Aktionen beim Start | Aktionen beim Abschluss | Verzweigung |
 |---|---|---|---|---|---|---|---|
 | s10 | „Gesucht: Grimmbart, tot oder lebendig. 250 Gold. Er soll sich in einem alten Steinbruch verschanzt haben.“ | `GeheZu(loc.eichental.steinbruch_grimmbart, r=80)` (Suchgebiet 150 m; genauer Marker, wenn `grimmbart_schwaeche_bekannt`) | alle | o2 `Rede(npc.eichental.hauptmann_dorn)` „Frag Dorn nach Grimmbart“ → Gerücht über das Horn | – | – | → s20 |
-| s20 | „Grimmbarts Leute bewachen den Steinbruch. Er selbst wartet unten im Kessel.“ | `GeheZu(loc.eichental.steinbruch_arena, r=10)` „Fordere Grimmbart heraus“ | alle | o2 `Interagiere(obj.eichental.kriegshorn_haken, „Stiehl das Kriegshorn“)` (Schleichen, sichtbar wenn `grimmbart_schwaeche_bekannt`); o3 `Töte(enemy.bandit.schlaeger, 4, gruppe=steinbruch_wache)` „Schalte die Wachen aus“ | – | o2 erfüllt: `GibItem(item.quest.kriegshorn_miliz)`, Horn-Rufe in Phase 1 entfallen; o3 erfüllt: Verstärkung nur 1 statt 2 Schläger | → s30 |
+| s20 | „Grimmbarts Leute bewachen den Steinbruch. Er selbst wartet unten im Kessel.“ | `GeheZu(loc.eichental.steinbruch_arena, r=10)` „Fordere Grimmbart heraus“ | alle | o2 `Interagiere(obj.eichental.kriegshorn_haken, „Stiehl das Kriegshorn“)` (Schleichen, sichtbar wenn `grimmbart_schwaeche_bekannt`); o3 `Töte(enemy.bandit.schlaeger, 4, gruppe=group.steinbruch_wache)` „Schalte die Wachen aus“ | – | o2 erfüllt: `GibItem(item.quest.kriegshorn_miliz)`, Horn-Rufe in Phase 1 entfallen; o3 erfüllt: Verstärkung nur 1 statt 2 Schläger | → s30 |
 | s30 | „Grimmbart.“ | `TöteBestimmten(boss.eichental.grimmbart, töten oder bezwingen)` | alle | – | `Dialog(dlg.eichental.grimmbart_herausforderung)`, `Musik(mus.boss_grimmbart)`, Boss-Lebensbalken | – | getötet → s40_tot; bezwungen (Interaktion „Fesseln“ bei ≤ 10 % LP) → s40_lebend |
-| s40_tot | „Grimmbart ist tot. Dorn will einen Beweis.“ | `Bringe(item.quest.grimmbarts_bartzopf, npc.eichental.hauptmann_dorn)` | alle | – | Bartzopf im Loot | `SetzeFlag(flag.eichental.grimmbart_ausgang, 1)`, `GibGold(250)`, `Ledger(c1)` | Ende (Erfolg) |
+| s40_tot | „Grimmbart ist tot. Dorn will einen Beweis.“ | `Bringe(item.quest.grimmbarts_bartzopf, npc.eichental.hauptmann_dorn)` | alle | – | Bartzopf im Loot | `SetzeFlag(flag.eichental.grimmbart_ausgang, 1)`, `SetzeFlag(flag.eichental.steinbruch_frei, true)`, `GibGold(250)`, `Ledger(c1)` | Ende (Erfolg) |
 | s40_lebend | „Grimmbart ist gefesselt. Dorns Wagen wartet an der Straße.“ | `Eskortiere(npc.eichental.grimmbart, loc.eichental.strasse_gefangenenwagen, max. Abstand 15 m)` | alle | – | `Gegner+(spawn.eichental.grimmbart_hinterhalt)`, **außer** `muehlbach_ausgang = 4` (Harriks Leute sichern den Weg) | Eskorte gescheitert → Grimmbart flieht mit 50 % LP in den Steinbruch | Erfolg → s50; gescheitert → s30 |
-| s50 | „Grimmbart sitzt in Dorns Wagen und flucht.“ | `Rede(npc.eichental.hauptmann_dorn)` | alle | – | – | `grimmbart_ausgang = 2`, `GibGold(375)`, `SetzeFlag(flag.eichental.grimmbart_verhoer_hinweis, true)`, Folgequest anbieten (Stufe B), `Ledger(c2)` | Ende (Erfolg) |
+| s50 | „Grimmbart sitzt in Dorns Wagen und flucht.“ | `Rede(npc.eichental.hauptmann_dorn)` | alle | – | – | `grimmbart_ausgang = 2`, `SetzeFlag(flag.eichental.steinbruch_frei, true)`, `GibGold(375)`, `SetzeFlag(flag.eichental.grimmbart_verhoer_hinweis, true)`, Folgequest anbieten (Stufe B), `Ledger(c2)` | Ende (Erfolg) |
 
 **Bossmechanik Grimmbart (Vorschlag, abgestimmt mit [01](./01_Welt_Story_Fraktionen.md), 11.4; Werte in [03](./03_Kampf_Charakter_Progression.md)):** eigener Boss auf dem Mensch-Rig, Steinhammer.
 
@@ -1540,14 +1545,14 @@ Alle Wege geben dieselbe Basis-XP (Regel 6.1).
 
 **Lösungswege:** Frontalkampf · Vorbereitung durch Schleichen (Horn stehlen, Wachen ausschalten) · Wissen aus Quest 4 (Horn-Hinweis) · Umgebung nutzen (Kran, Ölfässer) · Entscheidung tot oder lebendig.
 
-**Belohnungen:** 0,6 Lv ≈ 850 XP · 250 Gold (tot) / 375 Gold (lebend) · garantiert `item.armor.grimmbarts_eisenhandschuhe` (Hände, Selten, +Haltungsschaden); ab Stufe B zusätzlich `item.weapon.grimmbarts_steinhammer` (Streitkolben/Hammer, Selten), 2 % Chance auf ein legendäres Item (§20.3) · Trophäe `item.trophy.grimmbarts_bartzopf` für das Anwesen (§21; der Bartzopf kommt nach der Abgabe als Trophäe zurück) · Silberwacht M.
+**Belohnungen:** 0,6 Lv ≈ 850 XP · 250 Gold (tot) / 375 Gold (lebend) · garantiert `item.armor.grimmbarts_eisenhandschuhe` (Hände, Selten, +Haltungsschaden); ab Stufe C1 zusätzlich `item.weapon.grimmbarts_steinhammer` (Streitkolben/Hammer, Selten; Stufe B enthält laut [00](./00_Vision_und_Ueberblick.md) nur Einhandschwert, Bogen, Zauberstab, Zweihandschwert, Dolche und Axt, der Streitkolben kommt spätestens mit dem Kleriker in C1. Übernimmt 00 den Vorschlag aus [03](./03_Kampf_Charakter_Progression.md), 5.3, den Einhand-Streitkolben schon in Stufe A zu bauen, wird der Steinhammer bereits im Slice vergeben), 2 % Chance auf ein legendäres Item (§20.3) · Trophäe `item.trophy.grimmbarts_bartzopf` für das Anwesen (§21; der Bartzopf kommt nach der Abgabe als Trophäe zurück) · Silberwacht M.
 
 **Begleiter-Reaktion (Maren, Vorschlag):** lebend ausgeliefert → +5.
 
 **Konsequenzen und Verknüpfungen:**
 - **Sofort:** Der Steinbruch wird zum Sammelort für Bergbau. `flag.eichental.steinbruch_frei` liefert später Baumaterial für den Wiederaufbau von Eichental ([01](./01_Welt_Story_Fraktionen.md), 6.5).
 - **Quest 4:** Abmachung erfüllt → Harrik geht zu Brenner (s38).
-- **Verzögert (lebend):** `grimmbart_verhoer_hinweis` schaltet in HQ 2 einen Dialog über die „Männer in Grau“ frei. Stufe B: Folgequest „Der Gefangenentransport“ (9.1). In Akt 4 bietet Grimmbart aus dem Kerker von Aurelion die Signalfolge des Kriegshorns an: +1 bemannte Ballista gegen Ignareth ([01](./01_Welt_Story_Fraktionen.md), 2.3). Das Horn selbst bleibt immer erhalten (gestohlen, vom Gürtel geschossen oder im Loot).
+- **Verzögert (lebend):** `grimmbart_verhoer_hinweis` schaltet in HQ 2 einen Dialog über die „Männer in Grau“ frei. Stufe B: Folgequest „Der Gefangenentransport“ (9.1). In Akt 4 bietet Grimmbart aus dem Kerker von Aurelion die Signalfolge des Kriegshorns an: +1 bemannte Ballista gegen Ignareth ([01](./01_Welt_Story_Fraktionen.md), 2.3; entfällt bei `grimmbart_entkommen`, 9.1). Das Horn selbst bleibt immer erhalten (gestohlen, vom Gürtel geschossen oder im Loot).
 - **Kumulativ:** Getötete Banditen zählen in `stat.global.banditen_getoetet`.
 
 ---
@@ -1580,8 +1585,8 @@ Alle Wege geben dieselbe Basis-XP (Regel 6.1).
 | s40 | „Ein Strahl aus Aether-Licht fällt durch einen Spalt. Drei Spiegel stehen schief in ihren Halterungen.“ | `Rätsel(puzzle.eichental.gruft_spiegel)` | alle | – | – | `Tür(door.eichental.gruft_siegelkammer, auf)`, `Autosave` | → s50 |
 | s50 | „Vor dem Siegelstein erhebt sich der Wachende Ritter.“ | `TöteBestimmten(boss.eichental.wachender_ritter)` | alle | – | `Musik(mus.boss_gruft)`, Boss-Lebensbalken | Loot `item.quest.klingenfragment_eidwahrer` | → s60 |
 | s60 | „Der Siegelstein liegt frei. Die Inschrift warnt: ‚Wer den Riegel nimmt, öffnet die Gräber.‘“ | `Wähle`: a `Interagiere(obj.eichental.gruft_siegelstein, „Nimm den Siegelstein“)`; b `GeheZu(loc.eichental.gruft_ausgang)` „Lass ihn liegen“ | eines | – | – | – | a → s70_genommen; b → s70_belassen |
-| s70_genommen | „Du hast den Siegelstein. Hinter dir knirschen Sargdeckel.“ | o1 `Bringe(item.quest.siegelstein_gruft, npc.eichental.gelehrter_corvin)`; o2 `Rede(corvin)` mit Ausgang „Ich behalte ihn“ | eines | – | `GibItem(item.quest.siegelstein_gruft)`, `SetzeFlag(flag.eichental.gruft_untote_nachts, true)` | o1: `siegelstein_verbleib = 1`, `Ruf(faction.aether_konvent, M)`, `GibGold(120)`; o2: `siegelstein_verbleib = 3`, `Beziehung(corvin, −15)` | Ende (Erfolg) |
-| s70_belassen | „Die Gruft bleibt versiegelt. Corvin wird nicht erfreut sein.“ | `Rede(npc.eichental.gelehrter_corvin)` | alle | – | – | `siegelstein_verbleib = 2`, `Ruf(faction.silberwacht, M)`, `Beziehung(corvin, −10)`; Corvin zahlt 40 Gold, wenn die Wandreliefs untersucht wurden | Ende (Erfolg) |
+| s70_genommen | „Du hast den Siegelstein. Hinter dir knirschen Sargdeckel.“ | o1 `Bringe(item.quest.siegelstein_gruft, npc.eichental.gelehrter_corvin)` (nur sichtbar, solange Corvin lebt); o2 `Interagiere(item.quest.siegelstein_gruft, „Behalte den Stein“)` (ohne Corvin) | eines | – | `GibItem(item.quest.siegelstein_gruft)`, `SetzeFlag(flag.eichental.gruft_untote_nachts, true)` | o1: `siegelstein_verbleib = 1`, `Ruf(faction.aether_konvent, M)`, `GibGold(120)`; o2: `siegelstein_verbleib = 3`, `Beziehung(corvin, −15)` nur, wenn Corvin lebt | Ende (Erfolg) |
+| s70_belassen | „Die Gruft bleibt versiegelt. Corvin wird nicht erfreut sein.“ | `Rede(npc.eichental.gelehrter_corvin)`; Verzweigung beim Start: `Flag(flag.npc.gelehrter_corvin.tot) = true` → stattdessen `Rede(npc.eichental.hauptmann_dorn)` | alle | – | – | `siegelstein_verbleib = 2`, `Ruf(faction.silberwacht, M)`, `Beziehung(corvin, −10)` nur, wenn Corvin lebt; Corvin zahlt 40 Gold, wenn die Wandreliefs untersucht wurden (im Ersatzfall zahlt Dorn) | Ende (Erfolg) |
 
 **Rätsel (Vorschlag, Typen aus [01](./01_Welt_Story_Fraktionen.md), 6.7):**
 
@@ -1599,7 +1604,7 @@ Nach 120 s ohne Fortschritt gibt Maren (falls in der Gruppe) einen Hinweis ([01]
 
 **Lösungswege:** Kampf und Rätsel sind Pflicht (Dungeon). Schleich-Builds umgehen die Skelette in s30 über einen Seitengang (Kletterstelle). Die Entscheidung am Ende hat drei Ausgänge: Konvent, Silberwacht oder für sich behalten.
 
-**Belohnungen:** 0,6 Lv ≈ 700 XP + Mini-Boss-XP · Truhen (Nebenkammer Selten, Siegelkammer Ungewöhnlich) · 120 Gold (Konvent-Weg) bzw. 40 Gold (Lore) · Klingenfragment „Eidwahrer“ · Aether-Konvent M **oder** Silberwacht M.
+**Belohnungen:** 0,6 Lv ≈ 750 XP + Mini-Boss-XP · Truhen (Nebenkammer Selten, Siegelkammer Ungewöhnlich) · 120 Gold (Konvent-Weg) bzw. 40 Gold (Lore) · Klingenfragment „Eidwahrer“ · Aether-Konvent M **oder** Silberwacht M.
 
 **Begleiter-Reaktion (Maren, Vorschlag):** Siegelstein belassen → +5. Siegelstein behalten → −5.
 
@@ -1638,13 +1643,13 @@ Nach 120 s ohne Fortschritt gibt Maren (falls in der Gruppe) einen Hinweis ([01]
 | s20 | „Erster Vers: ‚Wo der Müller Wasser fängt, zähl die Speichen bis zur siebten – darunter schläft der Fisch.‘“ | `Interagiere(obj.eichental.muehlrad_speiche_7, „Untersuche die siebte Speiche“)` | alle | – | Suchgebiet 100 m um die Mühle | `GibItem(item.quest.messingplakette_vers2)`, `GibXP(0,1 Lv)` | → s30 |
 | s30 | „Zweiter Vers: ‚Wo die Wacht nach Westen späht und keine Möwe nistet, liegt die andere Hälfte.‘“ | `GeheZu(loc.eichental.wachturm_grauwacht)`, `Interagiere(obj.eichental.grauwacht_kraehennest, „Durchsuche das Krähennest“)` (Kletterpassage; Krähennest = erster Aussichtspunkt und Schnellreise-Punkt, [01](./01_Welt_Story_Fraktionen.md), 6.6) | alle | o3 `Untersuche(clue.eichental.grauwacht_asche, 1)` „Untersuche die graue Asche“ → Codex „Messrunen“; mit `brief_hinweis_gelesen` zusätzlicher Satz zu Jannik | Nachts vor Abschluss von HQ 2: zwei Graumäntel am Turmfuß, verschwinden bei Annäherung (kein Kampf, kein Gegnertyp nötig) | `GibItem(item.quest.schatzkarte_ole_teil2)` → beide Teile werden zu `item.quest.schatzkarte_ole`, `GibXP(0,1 Lv)` | → s40 |
 | s40 | „Die ganze Karte zeigt die Goldküste: den Möwenfels unter dem alten Hafen von Möwenbucht. ‚Bei Ebbe öffnet sich sein Mund.‘“ | `GeheZu(loc.goldkueste.moewenfels_grotte)`, `WarteBis(02:00–05:00 oder 14:00–17:00)` (Ebbe, Kanon aus [01](./01_Welt_Story_Fraktionen.md), 4.2) | alle | – | **Stufe A:** Bedingung `Region(region.goldkueste) freigeschaltet`; bis dahin Teaser-Text „Der Weg zur Goldküste führt über den Grauwacht-Pass. Noch ist er gesperrt.“ | – | → s50 |
-| s50 | „In der Grotte wartet nicht nur Oles Truhe. Schmuggler sind dir zuvorgekommen – fast.“ | o1 `Töte(gruppe=grotte_schmuggler)`; o2 `Überzeuge(dlg.goldkueste.schmuggler_grotte, Ausgang ∈ {bestochen 100 Gold, geteilt})`; o3 `Schleiche(obj.goldkueste.oles_truhe)` | eines | – | `Gegner+(spawn.goldkueste.grotte_schmuggler)` (Schmuggler-Typen aus [01](./01_Welt_Story_Fraktionen.md), 11.1) | „geteilt“: Truhe enthält nur 200 Gold | → s55 |
-| s55 | „Oles Truhe. Das Schloss ist verrostet, aber es hält noch.“ | `Interagiere(obj.goldkueste.oles_truhe, „Öffne die Truhe“)` | alle | – | – | `GibGold(400)`, `GibItem(item.trinket.oles_messingkompass)`, `GibItem(item.quest.brief_an_merle)` | → s60 |
-| s60 | „In der Truhe liegt ein Brief: ‚Für Merle. Von einem Vater, der zu feige war.‘ Merle lebt in Velmara.“ | `Wähle`: a „Bring Merle Gold und Brief“ `Bringe(item.quest.brief_an_merle + 400 Gold, npc.goldkueste.merle_brack)`; b „Bring Merle nur den Brief“; c „Behalte alles“ | eines | – | – | a: `SetzeFlag(flag.goldkueste.ole_erbe_ausgang, 1)`, Merle zahlt 100 Gold Finderlohn, `Ruf(faction.handelsgilde, M)`, Rabatt 10 % bei Merle; b: `ole_erbe_ausgang = 2`, Merle verbittert; c: `ole_erbe_ausgang = 3` | Ende (Erfolg) |
+| s50 | „In der Grotte wartet nicht nur Oles Truhe. Schmuggler sind dir zuvorgekommen – fast.“ | o1 `Töte(gruppe=group.grotte_schmuggler)`; o2 `Überzeuge(dlg.goldkueste.schmuggler_grotte, Ausgang ∈ {bestochen 100 Gold, geteilt})`; o3 `Schleiche(obj.goldkueste.oles_truhe)` | eines | – | `Gegner+(spawn.goldkueste.grotte_schmuggler)` (Schmuggler-Typen aus [01](./01_Welt_Story_Fraktionen.md), 11.1) | „geteilt“: `SetzeFlag(lokal.grotte_geteilt, true)`, Truhe enthält nur 200 Gold | → s55 |
+| s55 | „Oles Truhe. Das Schloss ist verrostet, aber es hält noch.“ | `Interagiere(obj.goldkueste.oles_truhe, „Öffne die Truhe“)` | alle | – | – | `GibGold(400; 200, wenn lokal.grotte_geteilt)`, `GibItem(item.trinket.oles_messingkompass)`, `GibItem(item.quest.brief_an_merle)` | → s60 |
+| s60 | „In der Truhe liegt ein Brief: ‚Für Merle. Von einem Vater, der zu feige war.‘ Merle lebt in Velmara.“ | `Wähle`: a „Bring Merle Gold und Brief“ `Bringe(item.quest.brief_an_merle + Truhen-Gold (400 bzw. 200), npc.goldkueste.merle_brack)`; b „Bring Merle nur den Brief“; c „Behalte alles“ | eines | – | – | a: `SetzeFlag(flag.goldkueste.ole_erbe_ausgang, 1)`, Merle zahlt 100 Gold Finderlohn, `Ruf(faction.handelsgilde, M)`, Rabatt 10 % bei Merle; b: `ole_erbe_ausgang = 2`, Merle verbittert; c: `ole_erbe_ausgang = 3` | Ende (Erfolg) |
 
 **Lösungswege:** Karte kaufen, gewinnen, erreden oder stehlen · Grotte: Kampf, Bestechung, Teilen oder Schleichen · Ende: Großzügigkeit, Teilwahrheit oder Gier.
 
-**Belohnungen:** 2 × 0,1 Lv Zwischenbelohnung im Eichental (≈ 200 XP bei Level 5) + 0,3 Lv bei Level 11 (≈ 660 XP) · 400 Gold (Weg c) bzw. 100 Gold Finderlohn (Weg a) · `item.trinket.oles_messingkompass` (Amulett, Selten: +5 % Glück, Kompass zeigt versteckte Truhen in 30 m; Effekt mit [04](./04_Items_Crafting_Wirtschaft_Endgame.md) abstimmen) · Handelsgilde M (Weg a).
+**Belohnungen:** 2 × 0,1 Lv Zwischenbelohnung im Eichental (≈ 200 XP bei Level 5) + 0,3 Lv bei Level 11 (≈ 750 XP) · 400 Gold (Weg b oder c; 200 nach „geteilt“) bzw. 100 Gold Finderlohn (Weg a) · `item.trinket.oles_messingkompass` (Amulett, Selten: +5 % Glück, Kompass zeigt versteckte Truhen in 30 m; Effekt mit [04](./04_Items_Crafting_Wirtschaft_Endgame.md) abstimmen) · Handelsgilde M (Weg a).
 
 **Konsequenzen und Verknüpfungen:**
 - **Quest 4:** Vers 1 liegt an der Mühle. Ist das Lager noch feindlich, patrouillieren Banditen in der Nähe.
@@ -1707,12 +1712,14 @@ Erfolg, wenn Probewert ≥ Schwelle
 - **Bestechen:** Preis = Basispreis × Gier des NPC × (1 − min(0,3; (Charisma − 10) × 0,02)). Die Option zeigt den Preis und ist grau, wenn das Gold fehlt. NPCs mit Tag `unbestechlich` bieten die Option nicht an.
 - **Passive Proben (Vorschlag):** Erreicht der Spieler eine verborgene Schwelle (z. B. Weisheit 14), erscheint eine zusätzliche Zeile: „[Weisheit] Er zittert. Er lügt.“ Passive Proben kosten nie etwas und sperren nichts.
 
-**Schwellen (Platzhalter, Kalibrierung mit der Attributskala aus [03](./03_Kampf_Charakter_Progression.md); Annahme: Startwert 8–12, Level 80 ≈ 40):**
+**Schwellen (Kalibrierung mit der Attributskala aus [03](./03_Kampf_Charakter_Progression.md): Startwerte 8–15, im Prolog alle 11 (03, 10.1); in die Probe geht der Rohwert ein, nicht E(x); Level 80 ≈ 40 für ein Nebenattribut):**
 
 | Stufe | Schwelle | Typisch für |
 |---|---|---|
 | Leicht | 10 | Eichental, Bauern, verängstigte NPCs |
+| Leicht+ | 12 | Eichental: Bewohner, die etwas zu verlieren haben (Ole, Brenner, Harrik, Alwine) |
 | Mittel | 14 | Banditenführer, Händler |
+| Mittel+ | 16 | Eichental: Amtspersonen (Dorn) |
 | Schwer | 18 | Hauptleute, Gildenmeister |
 | Sehr schwer | 24 | Fraktionsführer, misstrauische Informanten |
 | Legendär | 30 | Story-Wendepunkte, Endgame |
@@ -1857,19 +1864,19 @@ Optionen und Standardwerte: [05](./05_UI_Audio_Grafik_Barrierefreiheit.md), 4.2.
 | n020 | NPC-Zeile | Banditenanführer: „Noch ein Schritt, und meine Jungs spicken dich mit Bolzen. Wer schickt dich – Brenner oder die Silberwacht?“ | – | Kamera: Eröffnung, dann Schuss | n025 |
 | n025 | Spieler-Auswahl | a „Der Müller. Er will seine Mühle zurück.“ → n030 · b „Niemand. Ich will nur reden.“ → n030 · c „[Angriff] Ich bin hier, um euch zu erledigen.“ → n900 | – | – | je Option |
 | n030 | NPC-Zeile | Harrik: „Seine Mühle. Ich hab sein Mehl zehn Jahre lang gefahren, drüben nach Eichental. Ich bin Harrik. Und Eichental gibt's nicht mehr.“ | – | `Name bekannt(harrik)` | n040 |
-| n040 | Spieler-Auswahl (Hub) | a „Ihr seid alle aus Eichental?“ (einmalig, danach ausgegraut) → n050 · b „[Überzeugen 12] Lindenhain nimmt Flüchtlinge auf. Ihr müsst nicht stehlen.“ → n100 · c „[Einschüchtern 14] Zieht ab, oder ich hole mir eure Köpfe. Einen nach dem anderen.“ → n200 · d „[Lügen 13] Die Silberwacht rückt morgen mit dreißig Mann an.“ → n300 · e „[80 Gold] Nehmt das Gold und verschwindet.“ → n400 · f „Wem zahlt ihr eigentlich Tribut?“ → n500 · g „[Angriff] Dann regeln wir das mit Stahl.“ → n900 · h „[Töten] Du drückst die Klinge tiefer.“ → n910 · i „[Ende] Ich komme wieder.“ → n990 | f: Thema `thema.grimmbart` bekannt (über n050, Tributbuch oder aktive Kopfgeld-Quest) · h: `lokal.messer_an_kehle` · e: Gold ≥ 80 (sonst grau) | – | je Option |
+| n040 | Spieler-Auswahl (Hub) | a „Ihr seid alle aus Eichental?“ (einmalig, danach ausgegraut) → n050 · b „[Überzeugen 12] Lindenhain nimmt Flüchtlinge auf. Ihr müsst nicht stehlen.“ → n100 · c „[Einschüchtern 14] Zieht ab, oder ich hole mir eure Köpfe. Einen nach dem anderen.“ → n200 · d „[Lügen 12] Die Silberwacht rückt morgen mit dreißig Mann an.“ → n300 · e „[80 Gold] Nehmt das Gold und verschwindet.“ → n400 · f „Wem zahlt ihr eigentlich Tribut?“ → n500 · g „[Angriff] Dann regeln wir das mit Stahl.“ → n900 · h „[Töten] Du drückst die Klinge tiefer.“ → n910 · i „[Ende] Ich komme wieder.“ → n990 | f: Thema `thema.grimmbart` bekannt (über n050, Tributbuch oder aktive Kopfgeld-Quest) · h: `lokal.messer_an_kehle` · e: Gold ≥ 80 (sonst grau) | – | je Option |
 | n050 | NPC-Zeile | Harrik: „Die Hälfte von uns. Hast du gesehen, was von unseren Häusern übrig ist? Asche. Und Grimmbart will trotzdem seinen Anteil.“ | – | `Thema freischalten(thema.grimmbart)` | n040 |
 | n100 | Probe | Überzeugen, Schwelle 12; +2, wenn `wenna_gerettet` (die Bäckerin braucht Hände) | – | – | Erfolg → n110 · Misserfolg → n120 |
 | n110 | NPC-Zeile | Harrik: „Brot statt Beute … Und wenn sie uns in Lindenhain aufknüpfen?“ | – | – | n115 |
 | n115 | Spieler-Auswahl | a „◆ Ich bürge bei Hedda für euch.“ → n130 · b „◆ Bewacht die Mühle für Brenner. Gegen Mehl.“ → n140 | – | – | je Option |
 | n120 | NPC-Zeile | Harrik: „Schöne Worte. Davon wird keiner satt.“ | nur Würfelmodus | Option b in n040 ausgegraut | n040 |
-| n130 | Aktion | – | – | `SetzeFlag(muehlbach_ausgang, 3)`, `SetzeFlag(harrik_verschont, true)`, `SetzeFlag(harrik_status, 0)`, `NPC+(banditen_muehlbach, loc.eichental.lindenhain)` | n135 |
+| n130 | Aktion | – | – | `SetzeFlag(muehlbach_ausgang, 3)`, `SetzeFlag(harrik_verschont, true)`, `SetzeFlag(harrik_status, 0)`, `NPC+(group.banditen_muehlbach, loc.eichental.lindenhain)` | n135 |
 | n135 | NPC-Zeile | Harrik: „Wenn du gelogen hast, Rissgeborener, finden wir dich.“ | – | – | Ende `abzug` |
 | n140 | NPC-Zeile | Harrik: „Wächter statt Wegelagerer. Klingt fast ehrlich. Red mit Brenner.“ | – | – | Ende `muehlenwache` |
 | n200 | Probe | Einschüchtern, Schwelle 14; +4 mit `lokal.messer_an_kehle`; +2 je 3 Level über Harrik | – | – | Erfolg → n210 · Misserfolg → n220 |
 | n210 | NPC-Zeile | Harrik spuckt aus: „Schon gut. Wir ziehen weiter. Aber merk dir mein Gesicht.“ | – | `SetzeFlag(muehlbach_ausgang, 2)`, `harrik_verschont = true`, `harrik_status = 0` | Ende `vertrieben` |
 | n220 | NPC-Zeile | Harrik: „Große Worte für jemanden, der allein gekommen ist.“ | nur Würfelmodus | – | n900 |
-| n300 | Probe | Lügen, Schwelle 13 | – | – | Erfolg → n310 · Misserfolg → n320 |
+| n300 | Probe | Lügen, Schwelle 12 (Leicht+) | – | – | Erfolg → n310 · Misserfolg → n320 |
 | n310 | NPC-Zeile | Harrik: „Dreißig? … Packt zusammen! Wir gehen.“ | – | `muehlbach_ausgang = 2`, `harrik_verschont = true`, `harrik_status = 0`, `SetzeFlag(harrik_belogen, true)` | Ende `vertrieben` |
 | n320 | NPC-Zeile | Harrik: „Die Silberwacht hat keine dreißig Mann im ganzen Tal.“ | nur Würfelmodus | Lügen bei Harrik dauerhaft −5 | n040 |
 | n400 | Aktion | – | Gold ≥ 80 | `GibGold(−80)` | n410 |
@@ -1877,13 +1884,13 @@ Optionen und Standardwerte: [05](./05_UI_Audio_Grafik_Barrierefreiheit.md), 4.2.
 | n500 | NPC-Zeile | Harrik: „Grimmbart. Hockt im alten Steinbruch. Ohne sein Kriegshorn ist er nur ein fetter Kerl mit Hammer.“ | – | `SetzeFlag(grimmbart_schwaeche_bekannt, true)` | n510 |
 | n510 | Spieler-Auswahl | a „◆ Ich kümmere mich um Grimmbart. Dafür lasst ihr die Mühle in Ruhe.“ → n520 · b „Gut zu wissen.“ → n040 | a: Quest 6 nicht abgeschlossen | – | je Option |
 | n520 | NPC-Zeile | Harrik: „Bring mir seinen Bart, und wir reden über die Mühle.“ | – | – | Ende `abmachung` |
-| n900 | Aktion | – | – | Gruppe `banditen_muehlbach` feindlich, Kampf beginnt | Ende `kampf` |
+| n900 | Aktion | – | – | Gruppe `group.banditen_muehlbach` feindlich, Kampf beginnt | Ende `kampf` |
 | n910 | Aktion | – | `lokal.messer_an_kehle` | Harrik stirbt lautlos; `harrik_status = 1`, `muehlbach_ausgang = 1`; übrige Banditen fliehen beim Fund der Leiche | Ende `attentat` |
 | n990 | Ende | – | – | Quest bleibt in `s30_verhandlung`, Harrik wartet | Ende `vertagt` |
 
 **Ausgänge → Quest 4:** `abzug`, `vertrieben` → s40 · `muehlenwache` → s38_brenner · `abmachung` → s45_abmachung · `kampf` → s30_kampf · `attentat` → s40 · `vertagt` → bleibt in s30_verhandlung.
 
-**Textumfang:** rund 350 Wörter DE für 31 Knoten. Das liegt im Wortbudget der Nebenquest (13.3).
+**Textumfang:** rund 300 Wörter DE für 28 Knoten. Das liegt im Wortbudget der Nebenquest (13.3).
 
 ---
 
@@ -2023,7 +2030,7 @@ Verwandte Entscheidungen in anderen Kapiteln: Identität des Grauen Wanderers un
     → Gegenmaßnahme: XP-Abschwächung bei Überlevel, Rückkehr-Quests nach dem Wiederaufbau mit höherem Level, Pacing-Pass vor Content-Lock ([00](./00_Vision_und_Ueberblick.md)).
 11. **Der Slice braucht mehr Sondermechanik, als die Gegnerliste zeigt.** Neben den 5 Gegnertypen verlangen die 8 Quests 3 eigene Movesets (Grimmbart, Wachender Ritter, Alwines Mini-Kampf) und 2 Rätsel. Das ist Systemarbeit und nicht im Quest-Aufwand (10.6) enthalten.
     → Gegenmaßnahme: Mechaniken als wiederverwendbare Bausteine bauen (fallender Gegenstand, Umgebungs-Stagger, Licht-Strahl, Feuer + Öl). Rückfallebene für Alwine: kein Kampf, sie flieht im Nebel (`alwine_status = 2` ohne Silberwacht-Ruf).
-12. **Abhängigkeiten zu anderen Kapiteln sind noch offen.** XP-Kurve, Attributskala für Proben und Skill-IDs (03), Gold-Balance und Item-Werte (04) sind hier Platzhalter. Abstimmungspunkte mit Nachbarkapiteln: Zähler-Präfix `stat.` (01) gegenüber `flag.` ([Technik/01](../Technik/01_Architektur.md), 8.1); Aether-Sicht laut 00 bei ~1:15, laut 01 erst in HQ 4; Begleiterquest-Zahl 35 statt 32 und Nebenquests 126 statt 129 im Budget von 00.
+12. **Abhängigkeiten zu anderen Kapiteln sind noch offen.** Gold-Balance und Item-Werte (04) sind hier Platzhalter. XP-Kurve, Attributskala für Proben und Skill-IDs hat 03 inzwischen festgelegt; diese Datei übernimmt sie (4.1, 8.4, 12.3). Abstimmungspunkte mit Nachbarkapiteln: Zähler-Präfix `stat.` (01) gegenüber `flag.` ([Technik/01](../Technik/01_Architektur.md), 8.1); Aether-Sicht laut 00 bei ~1:15, laut 01 und 03 erst in HQ 4; Begleiterquest-Zahl 35 statt 32 und Nebenquests 126 statt 129 im Budget von 00. Die beiden letzten Punkte entfallen, sobald 00 angepasst ist.
     → Gegenmaßnahme: Belohnungen als Level-Anteil speichern (4.1), Proben-Schwellen als Stufen (12.3), Namen nur über IDs referenzieren, Platzhalter-IDs markieren. Abgleich der `canon`-Liste vor Phase 3.
 13. **Story-Hinweise hängen an einer offenen Antagonisten-Entscheidung.** Quest 1, 3 und 6 deuten auf die Graumäntel und den Grauen Wanderer hin ([01](./01_Welt_Story_Fraktionen.md), 2.2).
     → Gegenmaßnahme: Hinweise bleiben in Stufe A beschreibend („grau, misst mit Runen, kennt dich“) und legen kein Motiv fest. Die Entscheidung fällt vor dem Schreiben der Akt-1-Dialoge.

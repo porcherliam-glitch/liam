@@ -1,6 +1,6 @@
 # Kampf, Charakter & Progression
 
-> Teil der Phase-0-Planung · Stand: 2026-10-12 · Quelle: [Master-Prompt](../00_Master-Prompt.md)
+> Teil der Phase-0-Planung · Stand: 2026-10-13 · Quelle: [Master-Prompt](../00_Master-Prompt.md)
 
 **Kennzeichnungen** (wie in [00_Vision_und_Ueberblick](./00_Vision_und_Ueberblick.md)):
 - **Vorschlag:** füllt eine Lücke im Master-Prompt. Alle Zahlen dieses Kapitels sind Startwerte für das Balancing und liegen später in ScriptableObjects bzw. CSV-Tabellen (§28), nie im Code.
@@ -131,7 +131,7 @@ Eine Taste, eine **Absicht**: Der `InputService` liefert die Aktion, der `Player
 | Schwimmen | Auftauchen / an Land ziehen | Abtauchen | Schnell schwimmen | Kamera zentrieren | – | – |
 | Tauchen | Aufsteigen (halten) | Absinken (halten) | Schnell tauchen | Kamera zentrieren | – | – |
 | Gleiten | Schirm schließen | Schirm schließen | – | – | – | – |
-| Zielen (LT gehalten) | Springen (beendet Zielen) | Rolle (Zielen bleibt aktiv) | – | Schulter wechseln | RT schießt (X bleibt Nahkampf) | Blocken (beendet Zielen) |
+| Zielen (LT gehalten) | Springen (beendet Zielen) | Rolle (Zielen bleibt aktiv) | – | Schulter wechseln | RT schießt (X bleibt Nahkampf) | Blocken (beendet Zielen); auf M/T in der F-Haltung mit Bogen oder Armbrust: Q = Waffenkunst (5.1) |
 | Schleichen | Springen | Schleich-Rolle (Geräusch 4 statt 6 m) | Stick ≥ 50 %: Sprinten (beendet Schleichen) · sonst: Schleichen beenden | Lock-On | Schleichangriff von hinten (≤ 2 m, Gegner nicht im Kampf) | Blocken |
 
 ### 1.5 Action Maps (§7.3)
@@ -153,16 +153,16 @@ Original (§7.3): getrennte Maps für Gameplay, UI, Dialog, Reiten, Bauen. Asset
 | `LightAttack` | Leichter Angriff, Finisher, Konter | X | LMT | Drücken | §7 |
 | `HeavyAttack` | Schwerer Angriff; halten = aufladen | Y | RMT | Halten | §7 |
 | `Block` | Blocken; Drücken im Fenster = Parieren | LB | Q | Halten | §7 |
-| `WeaponArt` | Waffenkunst (Spezialangriff, 5.1) | LB + Y | Q + RMT | Akkord | Vorschlag |
+| `WeaponArt` | Waffenkunst (Spezialangriff, 5.1) | LB + Y; mit Bogen/Armbrust LT gehalten + Y | Q + RMT; in F-Haltung mit Bogen/Armbrust: Q | Akkord | Vorschlag |
 | `LockOn` | Ziel fixieren | R3 (mit Ziel) | MMT | Umschalten ([05](./05_UI_Audio_Grafik_Barrierefreiheit.md)) | §7.1, M/T Vorschlag |
 | `SwitchTarget` | Ziel wechseln | RS kippen (bei Lock-On) | Mausrad | Wert | Vorschlag |
 | `Investigate` | Untersuchen (5 m), ab HQ 4 Aether-Sicht | R3 (ohne Ziel) | R | Halten | Vorschlag |
-| `RangedStance` | Fernkampf-Haltung | – (implizit über LT) | F | Umschalten | Vorschlag |
-| `Aim` | Zielen (Bogen, Armbrust, Zauber) | LT | RMT in Fernkampf-Haltung | Halten ([05](./05_UI_Audio_Grafik_Barrierefreiheit.md): umschaltbar) | §7.1 |
-| `Fire` | Schießen / Zauber wirken; halten = spannen | RT | LMT in Fernkampf-Haltung | Halten | §7.1 |
+| `RangedStance` | Fernkampf-Haltung; mit Zauberstab oder Zauberbuch Zauber-Zielhaltung (6.3) | – (implizit über LT) | F | Umschalten | Vorschlag |
+| `Aim` | Zielen (Bogen, Armbrust, Zauber); mit Zauberstab oder Zauberbuch zielt es immer für das Zaubern, ohne Magiewaffe immer mit dem Fernkampf-Slot (6.3) | LT | RMT in Fernkampf-Haltung | Halten ([05](./05_UI_Audio_Grafik_Barrierefreiheit.md): umschaltbar) | §7.1 |
+| `Fire` | Schießen / Zauber wirken; halten = spannen; mit Magiewaffe Grundangriff des Stabs bzw. Buchgeschoss (6.3) | RT | LMT in Fernkampf-Haltung | Halten | §7.1 |
 | `CycleAmmo` | Pfeiltyp wechseln | Steuerkreuz ←/→ während LT | Mausrad während Zielen | Drücken | Vorschlag |
 | `SwapShoulder` | Schulter wechseln | R3 während LT | MMT während Zielen | Drücken | Vorschlag |
-| `UseAbility` | gewählte Fähigkeit | RB tippen | – | Tippen < 0,2 s | §7.1 |
+| `UseAbility` | gewählte Fähigkeit (entfällt bei Option „Fähigkeitsrad: Umschalten“, 1.6) | RB tippen | – | Tippen < 0,2 s | §7.1 |
 | `AbilityWheel` | Fähigkeitsrad (8 Fähigkeiten) | RB halten | – | Halten ≥ 0,2 s | §7.1 |
 | `Ability1`–`Ability4` | Fähigkeit 1–4 der aktiven Leiste | RB halten + X / Y / B / A | 1–4 | Akkord bzw. Drücken | §7.2, Akkord Verbesserungsvorschlag |
 | `SwitchBar` | Fähigkeitenleiste 1 ↔ 2 | RB halten + LB | X | Drücken | Vorschlag |
@@ -255,6 +255,7 @@ Zustände laut [Technik/01](../Technik/01_Architektur.md), 4.4. Es ist immer gen
 | Dialog (Voll- und Kurzmodus) | Dialog | Im Kurzmodus ([02](./02_Quests_und_Dialoge.md), 12.1) bleibt `Move` zusätzlich aktiv, damit man gehend zuhören kann. |
 | Zwischensequenz | UI (nur `SkipCutscene`, `Pause`) | – |
 | Bau-Modus | Bauen | – |
+| Bau-Modus, Möbelkatalog geöffnet (`BuildCatalog`) | UI | LB/RB wechseln die Katalog-Kategorien ([04](./04_Items_Crafting_Wirtschaft_Endgame.md), 7.3); beim Schließen zurück zu Bauen |
 | Entwicklungs-Builds | zusätzlich Debug | Konsole, Overlay ([Technik/01](../Technik/01_Architektur.md)) |
 
 ### 1.6 Rebinding und Optionen (§7.3)
@@ -276,6 +277,8 @@ Zustände laut [Technik/01](../Technik/01_Architektur.md), 4.4. Es ist immer gen
 | Angriffs-Ausrichtung ohne Lock-On (Soft-Lock) | aus / schwach (30°) / stark (60°) | schwach |
 | Zielen schaltet auf Leiste 2 | an / aus | aus |
 | Kontextregeln einzeln (A, L3, R3) | an / aus | an |
+
+- **Option „Fähigkeitsrad: Umschalten“** ([05](./05_UI_Audio_Grafik_Barrierefreiheit.md), 4.2): RB-Tippen öffnet und schließt das Rad. `UseAbility` entfällt, Fähigkeiten laufen dann über das Rad bzw. Rad + Akkord (X/Y/B/A). Bei „Halten“ (Standard) gilt K2 (1.3).
 
 ---
 
@@ -349,12 +352,14 @@ Original (§8.2): Gehen, Laufen, Sprinten (kostet Ausdauer), Springen mit Luftko
 | Coyote-Time / Sprungpuffer | 0,12 s / 0,15 s | bestätigt aus [Technik/01](../Technik/01_Architektur.md) |
 | Hochziehen an Kanten / Überspringen | automatisch bis 2,2 m / bis 1,0 m beim Laufen | Animator `MatchTarget` |
 | Hangneigung | begehbar bis 45°, ab 50° rutschen | – |
-| Traglast überschritten (§12.1) | max. 3 m/s, kein Sprint, keine Rolle (nur Ausweichschritt), keine Schnellreise | – |
+| Traglast überschritten (§12.1) | max. 3 m/s, kein Sprint, keine Rolle (nur Ausweichschritt), keine Schnellreise | Stufe „Überladen“ (> 100–125 %); darüber „Schwer überladen“ (7.3, [04](./04_Items_Crafting_Wirtschaft_Endgame.md) 1.3) |
 | Ausdauer-Regeneration | 25/s nach 0,8 s ohne Verbrauch | Details in 4.3 |
 
 ### 3.2 Ausweichrolle und I-Frames (Vorschlag)
 
-Das Rollen-Profil hängt von der **Rüstungsklasse** ab (Mehrheit der 6 Rüstungsslots: Stoff = leicht, Leder = mittel, Platte = schwer). Zeiten ab Tastendruck.
+Das Rollen-Profil hängt von der **Rüstungsklasse** ab (Stoff = leicht, Leder = mittel, Platte = schwer): relative Mehrheit der 5 Slots Kopf, Brust, Hände, Beine, Füße. Der Umhang ist klassenlos, ein leerer Slot zählt als leicht ([04](./04_Items_Crafting_Wirtschaft_Endgame.md), 2.1). Bei Gleichstand gilt die schwerere Klasse (z. B. 2 Platte + 2 Leder + 1 Stoff = schwer). Zeiten ab Tastendruck.
+
+**Verbesserungsvorschlag – drei Rüstungsklassen:** Original §13.1: Lederverarbeitung = leichte Rüstung. Vorschlag: drei Rüstungsklassen (Stoff leicht, Leder mittel, Platte schwer); „leicht“ im Sinne von §13.1 heißt „nicht Platte“ ([04](./04_Items_Crafting_Wirtschaft_Endgame.md), K30). Grund: Drei Stufen geben drei unterscheidbare Rollen-Profile und Standfestigkeitswerte (4.9), ohne die Berufe aus §13.1 zu ändern.
 
 | Profil | Distanz | Dauer gesamt | I-Frame-Fenster | Abbrechbar ab | Ausdauer |
 |---|---|---|---|---|---|
@@ -411,7 +416,7 @@ Das Rollen-Profil hängt von der **Rüstungsklasse** ab (Mehrheit der 6 Rüstung
 | Regel | Festlegung |
 |---|---|
 | Ziele | entdeckte Wegpunkte: Wegschreine, Aussichtspunkte ([01](./01_Welt_Story_Fraktionen.md)), Siedlungen, eigene Häuser, Dungeon-Eingänge (nur von außen) |
-| Start | von überall außerhalb von Sperren. **Option** „Schnellreise nur zwischen Wegpunkten“ (Standard aus; Teil der Albtraum-Herausforderung) |
+| Start | **Verbesserungsvorschlag:** Start von überall außerhalb von Sperren (Original §8.2: nur zwischen entdeckten Wegpunkten; bleibt als **Option** „Schnellreise nur zwischen Wegpunkten“, Standard aus, Teil der Albtraum-Herausforderung). Grund: Bequemlichkeit ohne Rückweg zum nächsten Wegpunkt. Säule 1 bleibt gewahrt, weil nur entdeckte Ziele erreichbar sind und die kostenlose Reise nie Pflicht ist. |
 | Sperren | im Kampf; überladen; in Dungeons und Innenräumen; in Leere-Zonen; während Quest-Stages mit `blocksFastTravel` (Eskorte, Zeitlimit, Verfolgung) |
 | Kosten | keine (Säule 1: Reisen bleibt Erkundung, Schnellreise ist Bequemlichkeit) |
 | Spielzeit | Die Spieluhr springt um die Reisedauer zu Pferd: Luftlinie ÷ 13 m/s, umgerechnet in Spielzeit (1 Echtzeitminute = 30 Spielminuten). Beispiel: 4 km → ~5,1 min Echtzeit → ~2,6 Spielstunden. |
@@ -441,7 +446,7 @@ Das Rollen-Profil hängt von der **Rüstungsklasse** ab (Mehrheit der 6 Rüstung
 Original (§9.1): Action-Kampf in Echtzeit, Mischung aus Witcher 3 und Elden Ring, aber zugänglicher. Ausdauer begrenzt Angriffe, Ausweichen und Blocken. Treffer sind wuchtig. Gegner haben lernbare Muster.
 
 **Vorschlag – „zugänglicher“ konkret:**
-1. Großzügige Fenster: Parieren 150 ms, I-Frames 250–300 ms, Eingabepuffer 200 ms (auf „Schwer“ und „Albtraum“ enger, 9.7).
+1. Großzügige Fenster: Parieren 150 ms, I-Frames der Rolle 200–300 ms je Rüstungsklasse (3.2), Eingabepuffer 200 ms (Parierfenster auf „Schwer“ und „Albtraum“ enger, I-Frames nur auf „Albtraum“ −50 ms, 9.7; Eingabepuffer auf allen Stufen 200 ms, 4.4).
 2. Jeder Gegnerangriff ist mit ≥ 400 ms Ausholen angekündigt (9.5), unblockbare zusätzlich rot.
 3. Vier Schwierigkeitsgrade, jederzeit änderbar (§29, 9.7).
 4. Heilung über Schnellslots ohne Item-Rotation.
@@ -472,12 +477,12 @@ Takt (Ziel): ein Austausch dauert 2–5 s ([00](./00_Vision_und_Ueberblick.md)).
 
 ### 4.3 Ausdauer-Ökonomie (Vorschlag)
 
-Max. Ausdauer = 100 + 2 × E(Konstitution) + 0,5 × (Level − 1), siehe 10.3. Beispiel Krieger Level 10, Konstitution 18: **120**.
+Max. Ausdauer = 100 + 2 × E(Konstitution) + 0,5 × (Level − 1), siehe 10.3. Beispiel Krieger Level 10, Konstitution 18: 120,5, angezeigt **120**; mit Kernknoten Kampfgeist **130**.
 
 | Aktion | Ausdauer | Anmerkung |
 |---|---|---|
-| Leichter Angriff | leichte Waffen 6–8 · mittlere 12–13 · schwere 16–18 | Werte je Waffentyp in 5.1 |
-| Schwerer Angriff | 16–36 je Waffe; aufgeladen Stufe 1 +6, Stufe 2 +12 | – |
+| Leichter Angriff | leichte Waffen 6–8 · mittlere 12–14 · schwere 16–18 | Werte je Waffentyp in 5.1 |
+| Schwerer Angriff | 14–36 je Waffe; aufgeladen Stufe 1 +6, Stufe 2 +12 | – |
 | Sprint- und Sprungangriff | 1,5 × leichter Angriff | – |
 | Sturzangriff | = schwerer Angriff | – |
 | Waffenkunst (Spezialangriff) | 25–35 + Abklingzeit 6–10 s | 5.1 |
@@ -521,7 +526,7 @@ Original (§9.2): leichte Angriffe als Kombo (3–5 Schläge). §9.8: Zustandsma
 
 | Stufe | Haltedauer | Schaden | Haltungsschaden | Ausdauer | Besonderheit |
 |---|---|---|---|---|---|
-| Tippen | < 0,3 s | ×1,5 | ×1,5 | Basis | – |
+| Ungeladen | Loslassen vor 0,6 s | ×1,5 | ×1,5 | Basis | ab 0,3 s Halten bereits Hyperarmor |
 | Aufgeladen I | ab 0,6 s | ×1,9 | ×2,0 | +6 | Hyperarmor ab 0,3 s Halten (Standfestigkeit ×2) |
 | Aufgeladen II | ab 1,2 s | ×2,3 | ×2,5 | +12 | Leuchten an der Waffe, Vibration 0,3 |
 | Höchstdauer | 2,0 s | – | – | – | löst automatisch Stufe II aus |
@@ -569,7 +574,7 @@ Original (§9.2): perfektes Parieren mit kurzem Zeitfenster öffnet den Gegner f
 | Konter | X oder Y innerhalb von 1,0 s: Waffenschaden ×3,0 (kein zusätzlicher Krit-Wurf), Haltungsschaden ×2 |
 | Nicht parierbar | rot markierte Angriffe, Greifangriffe, Flächen, Projektile (Ausnahme: Schild-Parade lenkt Pfeile ab; Knoten „Spiegelschild“ wirft sie zurück) |
 | Womit pariert wird | Blocken und Parieren nutzen immer Haupthand-Waffe bzw. Schild; Bogen und Armbrust (Fernkampf-Slot) parieren nie. Zauberstab und Zauberbuch parieren mit der Barriere („Gegenzauber“: perfekte Barriere wirft Zauber-Projektile zurück). |
-| Legendär „Eidwahrer“ ([02](./02_Quests_und_Dialoge.md)) | perfekte Parade lädt einen Aether-Schild für 5 s, der 20 % der max. LP absorbiert |
+| Legendär „Eidwahrer“ ([02](./02_Quests_und_Dialoge.md)) | perfekte Parade lädt einen Aether-Schild für 5 s, absorbiert 15–25 % der max. LP (gewürfelt, Referenz 20 %; bricht er, folgt eine Aether-Welle 4 m, 150 % Waffenschaden, `geweiht`; [04](./04_Items_Crafting_Wirtschaft_Endgame.md) 4.6) |
 
 ### 4.9 Haltung (Poise) und Standfestigkeit (Vorschlag)
 
@@ -596,7 +601,7 @@ Original (§9.2): Haltungsbalken; nach genug Treffern ist der Gegner betäubt.
 | Betäubung bei Bruch | 3,0 s | 2,5 s | 4,0 s, Finisher-Fenster 2,5 s |
 | Nach dem Bruch | Haltung voll | Haltung voll | Haltung voll, Haltung_max +25 % je Bruch (höchstens +75 %) |
 
-Beispiel: Grauwolf (35) bricht nach 4 leichten Einhandschwert-Treffern (10 + 10 + 10 + 15 als Kombo-Abschluss).
+Beispiel: Grauwolf (35) bricht nach 4 leichten Einhandschwert-Treffern (10 + 10 + 10 + 13,5; der Kombo-Abschluss ist ein Stich: 10 × 1,5 × 0,9) = 43,5 ≥ 35.
 
 **Spieler-Standfestigkeit (statt sichtbarem Balken):**
 - Standfestigkeit = 20 + Rüstungsklasse (leicht 0, mittel 15, schwer 30) + 0,5 × E(Konstitution) + Skills.
@@ -756,6 +761,7 @@ Original (§9.5): Mana als Ressource; Schulen Feuer, Eis, Blitz, Natur, Heilung,
 | Unterbrechung | Lange und Kanal-Zauber brechen ab bei Haltungsschaden ≥ Standfestigkeit. Das Mana ist anteilig verbraucht. |
 | Bewegung beim Wirken | Projektil 70 % · Kanal 40 % · Fläche und Falle 0 % (stehen) · Selbstverstärkung 100 % |
 | Zielen | Mit LT über das Fadenkreuz; Flächen zeigen einen Bodenmarker (max. 20 m). Ohne LT: Lock-On-Ziel bzw. Soft-Ziel. |
+| Belegung mit Magiewaffe | Ist Zauberstab oder Zauberbuch ausgerüstet, gehören LT/RT bzw. F-Haltung + RMT/LMT dem Zaubern: RT bzw. LMT = Grundangriff des Stabs bzw. Buchgeschoss, LT bzw. RMT = Zielen. Der Fernkampf-Slot ist dann nur über das Zweitset erreichbar (Schnellslot „Set wechseln“, [04](./04_Items_Crafting_Wirtschaft_Endgame.md) 2.2). Ohne Magiewaffe zielen und schießen LT/RT immer mit dem Fernkampf-Slot. |
 | Grenzen | max. 2 Beschwörungen gleichzeitig · max. 3 Fallen je Fallentyp |
 | Aether-Dichte (A2 aus [01](./01_Welt_Story_Fraktionen.md)) | Zauberkraft +10 % bei Dichte 2, +20 % bei Dichte 3, für Spieler und Gegner |
 
@@ -793,7 +799,7 @@ Original (§9.5): z. B. Wasser + Blitz = Schock-Fläche, Feuer + Öl = Explosion
 | # | Element A | + Element oder Zustand B | Effekt | Werte |
 |---|---|---|---|---|
 | 1 | Blitz | Nass oder Wasserfläche | **Schock-Fläche** | Wasserfläche leitet 4 s (max. 8 m): 30 % des Auslösers pro s als Blitz, Schock 25 pro s |
-| 2 | Feuer | Öl (Fläche oder Zustand „Ölig“) | **Explosion** | 3 m, 150 % des Auslösers (mind. 20 × Angreiferlevel) als Feuer + Wucht, Brennen 60, Haltung 40; Öl brennt danach 8 s |
+| 2 | Feuer | Öl (Fläche oder Zustand „Ölig“) | **Explosion** | 3 m, 150 % des Auslösers (mind. 20 × (1 + 0,12 × (Angreiferlevel − 1)): L1 20 · L10 42 · L40 114 · L80 210) als Feuer + Wucht, Brennen 60, Haltung 40; Öl brennt danach 8 s |
 | 3 | Feuer | trockenes Gras, Unterholz | **Flächenbrand** | breitet sich mit 1 m/s bis 10 m aus, Brennen 20 pro s, Aufwind für den Gleitschirm; nicht bei Regen oder Nässe |
 | 4 | Feuer | Frieren / Eingefroren / Eisfläche | **Schmelzen** | Einfrieren endet, einmalig ×1,5 Feuerschaden, Dampfwolke 3 m für 4 s; Eisfläche wird zu Wasser (→ #1 möglich) |
 | 5 | Eis | Nass oder Wasserfläche | **Schockfrost** | Frieren-Aufbau ×2; Wasserfläche gefriert 10 s zur Eisfläche (Gegner rutschen, Rolle +1 m) |
@@ -833,7 +839,7 @@ Original (§9.5): z. B. Wasser + Blitz = Schock-Fläche, Feuer + Öl = Explosion
 Original (§9.6): Jeder Effekt hat Aufbau-Balken, Dauer, Stärke und Resistenzen.
 
 - **Aufbau:** Jede Quelle trägt einen Statuswert (Waffe, Affix, Pfeil, Zauber, Fläche pro s). Ohne neuen Aufbau sinkt der Balken nach 2 s um 10 pro s.
-- **Schwelle:** `Schwelle = 100 × (1 + Res / 100)`. Res = Statusresistenz des Ziels für diesen Effekt (0–200; „immun“ ist ein eigenes Merkmal).
+- **Schwelle:** `Schwelle = 100 × (1 + Res / 100)`. Res = Statusresistenz des Ziels für diesen Effekt (Spieler 0–200, Cap 10.5; Gegner laut Daten 0–400, Bosse zusätzlich +50 je weiterer Auslösung im Kampf; „immun“ ist ein eigenes Merkmal).
   - Spieler: Res = 1,5 × E(Weisheit) + Ausrüstung + Tränke. Beispiel Weisheit 20 → Res 15 → Schwelle 115.
   - Gegner (Daten): Normal 0 · Elite 50 · Champion 100 · Boss 200–400.
 - **Nach dem Auslösen:** Balken leert sich. 10 s lang +50 Res gegen denselben Effekt (verhindert Dauer-Betäubung). Bosse: jede weitere Auslösung desselben Effekts +50 Res (dauerhaft für den Kampf).
@@ -861,7 +867,8 @@ Zustände sind keine Statuseffekte (kein Balken), werden aber im selben `StatusE
 | Nass | `effect.nass` | Regen, Wasser, Schwimmen | solange die Quelle wirkt + 20 s | Brennen-Aufbau ×0,5, Schock ×1,5 ([01](./01_Welt_Story_Fraktionen.md)), Frieren ×2 |
 | Ölig | `effect.oelig` | Ölfläche, Ölflasche | 15 s | Brennen-Aufbau ×2; Feuer-Treffer lösen #2 aus |
 | Erschöpft | `effect.erschoepft` | Ausdauer 0 | 1,2 s | kein Sprint, keine Rolle (4.3) |
-| Überladen | `effect.ueberladen` | Traglast > 100 % | solange | 3.1 |
+| Überladen | `effect.ueberladen` | Traglast > 100–125 % | solange | 3.1; zusätzlich Ausdauer-Regeneration −25 % ([04](./04_Items_Crafting_Wirtschaft_Endgame.md) 1.3) |
+| Schwer überladen | `effect.schwer_ueberladen` | Traglast > 125 % | solange | wie Überladen, dazu max. 1,5 m/s, kein Springen, Klettern, Gleiten und schnelles Schwimmen, Ausdauer-Regeneration −50 %, Aufsteigen unmöglich ([04](./04_Items_Crafting_Wirtschaft_Endgame.md) 1.3) |
 
 ---
 
@@ -975,7 +982,7 @@ Die Flags steuern die Schadenszahlen-Darstellung aus [05](./05_UI_Audio_Grafik_B
 20. Schwierigkeit „Schwer“ (×1,35) wirkt nur, wenn der Spieler Verteidiger ist.
 21. E(x): E(8) = −2, E(41) = 30,5, E(60) = 40.
 22. Determinismus: gleiche Eingaben und gleicher Seed ergeben 1.000-mal dasselbe Ergebnis.
-23. Haltungsschaden: Einhandschwert leicht gegen Grauwolf Level 8 = 10; nach 4 Treffern mit Abschluss bricht die Haltung (35).
+23. Haltungsschaden: Einhandschwert leicht gegen Grauwolf Level 8 = 10; nach 4 Treffern mit Abschluss (4. Treffer 13,5) bricht die Haltung (35).
 
 ---
 
@@ -1101,7 +1108,7 @@ Jeder Angriff hat eine eigene Kombination aus Animation und Ton, damit Spieler i
 | Phasen | an LP-Schwellen (typisch 100–60 / 60–30 / < 30 %, vgl. Grimmbart in [02](./02_Quests_und_Dialoge.md)). Übergang ≤ 3 s, ohne Zwischensequenz, Boss währenddessen unverwundbar, Haltung danach voll. |
 | Arena | geschlossen (Nebel-, Asche- oder Steinwand), mindestens 25 × 25 m, 2–4 Deckungen, ≥ 1 nutzbare Umgebungsmechanik (Pulverfass, Kran, Spiegel, Ballisten) |
 | Mechaniken | mindestens eine aus §20.3: Plattformen zerstören, Adds beschwören, Schwachpunkte. Jeder Boss ist mit Nahkampf-, Fernkampf- und Magie-Build schaffbar ([00](./00_Vision_und_Ueberblick.md), Säule 6). |
-| Haltung | 2–3 Haltungsbrüche pro Kampf vorgesehen; Bruch = 4 s Finisher-Fenster (4.9, 4.10) |
+| Haltung | 2–3 Haltungsbrüche pro Kampf vorgesehen; Bruch = 4,0 s betäubt, davon 2,5 s Finisher-Fenster (4.9, 4.10) |
 | Musik | eigenes Thema je Story-Boss, Schicht je Phase; gemeinsames Weltboss-Thema je Region ([01](./01_Welt_Story_Fraktionen.md)) |
 | Boss-Lebensbalken | oben Mitte (§20.3): Name, Titel, LP mit Phasenmarken, Haltung ([05](./05_UI_Audio_Grafik_Barrierefreiheit.md)) |
 | Wiederholung | Checkpoint vor der Arena, < 30 s bis zum neuen Versuch (4.12) |
@@ -1130,7 +1137,7 @@ Original (§20.4): feste Gegnerlevel je Gebiet (keine Oblivion-Mitskalierung). A
 | Abklingzeiten der Gegner | ×1,3 | ×1,0 | ×0,9 | ×0,8 |
 | Heilwirkung (Tränke, Nahrung) | ×1,5 | ×1,0 | ×1,0 | ×0,8 |
 | Fallschaden, Klima | ×0,5, kein LP-Verlust durch Klima ([01](./01_Welt_Story_Fraktionen.md)) | ×1,0 | ×1,0 | ×1,25 |
-| Loot | – | – | +5 % auf den Seltenheitswurf | +10 % (Bestätigung durch [04](./04_Items_Crafting_Wirtschaft_Endgame.md)) |
+| Loot | – | – | +5 Seltenheitsbonus (B_Schwierigkeit, [04](./04_Items_Crafting_Wirtschaft_Endgame.md) 5.3) | +10 Seltenheitsbonus (B_Schwierigkeit) |
 | XP | ×1,0 | ×1,0 | ×1,0 | ×1,0 |
 
 - Keine XP-Unterschiede, damit niemand den Schwierigkeitsgrad nur wegen der Progression wechselt.
@@ -1169,12 +1176,12 @@ Technik: `StatCollection` und Modifikatoren laut [Technik/01](../Technik/01_Arch
 |---|---|---|
 | Max. LP | 100 + 15 × E(Kon) + 12 × (Level − 1) + Ausrüstung | Krieger L1 (Kon 15): 175 · Krieger L10 (Kon 18): 328 · Magier L1 (Kon 10): 100 |
 | LP-Regeneration | im Kampf 0; außerhalb 1 % pro s nach 8 s ohne Schaden | – |
-| Max. Ausdauer | 100 + 2 × E(Kon) + 0,5 × (Level − 1) | Krieger L10: 120 |
+| Max. Ausdauer | 100 + 2 × E(Kon) + 0,5 × (Level − 1) | Krieger L10 (Kon 18): 120,5, angezeigt 120; mit Kernknoten Kampfgeist 130 |
 | Ausdauer-Regeneration | 25 pro s nach 0,8 s (4.3) | – |
 | Max. Mana | 50 + 5 × E(Int) + 2 × (Level − 1) | Magier L1 (Int 15): 75 · Krieger L1 (Int 8): 40 |
 | Mana-Regeneration | 2,5 % (Kampf) bzw. 6 % (außerhalb) der max. Mana pro s × (1 + 0,02 × E(Wei)) | – |
 | Angriff (Anzeige) | Waffenschaden × (1 + 0,025 × Σ wᵢ × E(Attributᵢ)) | Krieger L10 mit Langschwert: 57,5 |
-| Zauberkraft | Zauberkraft der Magiewaffe × (1 + 0,025 × E(Int)); Heilung × (1 + 0,02 × E(Wei)); ohne Magiewaffe 10 × Level | – |
+| Zauberkraft | Zauberkraft der Magiewaffe × (1 + 0,025 × E(Int)); Heilung × (1 + 0,02 × E(Wei)); ohne Magiewaffe 10 × (1 + 0,12 × (Level − 1)) × (1 + 0,025 × E(Int)) (= halbe Zauberkraft eines gewöhnlichen Zauberstabs gleichen Levels) | Grundwert ohne Magiewaffe: L1 10 · L10 20,8 · L40 56,8 · L80 104,8 |
 | Rüstung | Σ Rüstungsteile + Schild + Flat-Boni, dann Prozentboni | Wirkung in 8.2 |
 | Resistenzen | je Schadensart aus Ausrüstung, Tränken, Buffs | Spieler −1,0 bis +0,75 |
 | Statusresistenz | 1,5 × E(Wei) + Ausrüstung | Wei 20: 15 |

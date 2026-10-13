@@ -1,6 +1,6 @@
 # Vision & Überblick – Chroniken von Aetherfall
 
-> Teil der Phase-0-Planung · Stand: 2026-10-12 · Quelle: [Master-Prompt](../00_Master-Prompt.md)
+> Teil der Phase-0-Planung · Stand: 2026-10-13 · Quelle: [Master-Prompt](../00_Master-Prompt.md)
 
 **Kennzeichnungen in allen GDD-Dateien:**
 - **Vorschlag:** füllt eine Lücke im Master-Prompt.
@@ -254,36 +254,40 @@ Säulen: 1 Erkundung · 2 Entscheidungen · 3 Fortschritt · 4 Abwechslung · 5 
 |---|---|---|---|
 | 0:00 | Bewegung, leichter und schwerer Angriff, Springen, Interagieren | Prolog am Erntefest, Hauptquest „Asche über Eichental“ | 3 |
 | 0:10 | Ausweichrolle (I-Frames), Blocken | Erster Kampf gegen Risslinge im brennenden Dorf | 4 |
+| ~0:20–0:40 | Level-Up (Level 2–3), Attribut- und Skillpunkt | Quest 1: Kills und Questabschluss, Level 3 am Questende ([02](./02_Quests_und_Dialoge.md), 11.1) | 3 |
 | 0:25 | Erste Aether-Kraft (Aether-Stoß), Verderbnis-Balken | Kontakt mit dem Riss | 3 |
-| 0:40 | Wahl der Startklasse, Questlog, Kompass, Inventar | Ende der ersten Hauptquest in Lindenhain (**Vorschlag:** Klassenwahl im Dialog nach dem Prolog statt im Hauptmenü) | 6 |
-| 1:00 | Level-Up, Attribut- und Skillpunkt, Skilltree | Level 2–3 | 3 |
-| 1:15 | Bogen für alle Klassen, Kopftreffer, Aether-Sicht (Detektiv-Modus), Spuren | „Die Wölfe vom Nordhang“ | 4 |
-| 1:30 | Schleichen, Verhandeln, Dialogproben, perfektes Parieren; Quest-Start über ein Item | „Banditen am Mühlbach“, „Ein Brief, der nie ankam“ | 2 |
-| 1:45 | Minispiel Würfeln, Aussichtspunkt, Schnellreise | „Die Schatzkarte des alten Seemanns“ | 1, 4 |
-| 2:00 | Erster Begleiter (Ser Maren Falkenried): Kommentare, Loyalität, KI-Verhalten | Hauptquest „Die Prüfung der Silberwacht“ (E1.1) | 5 |
-| 2:30 | Dungeon, Umgebungsrätsel, Mini-Boss | „Die vergessene Gruft“ | 1, 4 |
-| 3:00 | Kräuterkunde, Alchemie-Grundlagen, Tageszeit als Questbedingung | „Das Kraut der Kräuterfrau“ | 3 |
-| 3:30 | Kopfgeldbrett, Boss mit eigener Mechanik, Elementkombination Feuer + Öl | „Kopfgeld: Grimmbart“ | 4 |
-| 4:30 | Weltereignisse (kleiner Riss-Ausbruch, Wanderhändler), erste Vision | Hauptquest „Der Steinkreis von Altenhain“, Wildnis am Riss | 5 |
-| 5:00 | Anwesen Gut Eichenruh (Haus Stufe 1), Lagerkiste, Schlafen | Hauptquest „Ein Dach über dem Kopf“ (§21) | 3 |
-| 6:00 | Reittier (Pferd), Reitkamera | Akt 1 (**Vorschlag:** Geschenk des Dorfvogts zum Anwesen) | 1 |
-| 7:30 | Erster Story-Boss (Ealdor, der Aschenhirsch), Riss-Siegel, Entscheidung E1.3 | Hauptquests „Der Zorn des Waldes“, „Das erste Siegel“ | 2, 3 |
-| 9:00 | Goldküste, Hafenstadt Velmara, Schwimmen und Tauchen, Gezeiten | Hauptquest „Nach Westen“, Beginn Akt 2 | 1 |
-| 9:30 | Prozedurale Aufträge | Anschlagbrett und Fraktionsbüro in Velmara | 3 |
-| 10:00 | Spezialhändler, Schmieden, Verzauberung (Affixe) | Velmara | 3 |
-| 10:30 | Fraktionen und Ruf: Handelsgilde, Aether-Konvent (Silberwacht kennt man seit Akt 1) | Velmara, Akademie Lumenspitze | 2 |
-| 11:00 | Kartenspiel „Rissduell“, Abschluss der Schatzsuche | Taverne in Velmara, Grotte am Möwenfels | 4 |
-| 12:00 | Zweiter Begleiter (Jasper), Gruppe zu dritt, Lagerfeuer-Gespräche | Velmara | 5 |
-| 13:00 | Erster Weltboss | Goldküste | 1, 4 |
-| 13:30 | Angeln; Falke als Tierbegleiter für Waldläufer | Küste, Kap Varro | 4 |
-| 15:00 | Haus Stufe 2: Schmiede, Küche, Garten, Bau-Modus | Gut Eichenruh | 3 |
-| 16:30 | Moorschatten: Gift-Sumpf, Untote, Hexenzirkel, Entscheidung E2.2 | Akt 2 | 2, 4 |
-| 18:00 | Aurelion: Schattenhand, Diebstahl, Hehler, Kopfgeld-System, Sperrstunde | Akt 2 | 2, 5 |
-| 20:00 | Gleitschirm; alte Regionen bieten neu erreichbare Geheimnisse | Aurelion, Uhrwerkturm-Quest | 1 |
+| 0:40 | Wahl der Startklasse, Skilltree (gesammelte Punkte verteilen), Questlog, Kompass, Inventar | Ende der ersten Hauptquest in Lindenhain (**Vorschlag:** Klassenwahl im Dialog nach dem Prolog statt im Hauptmenü) | 6 |
+| 0:40 | Erste Spur der Hauptstory: Lager der Graumäntel, Brief mit Hafensiegel von Velmara | Hauptquest „Die graue Gestalt“ (HQ 2), Lindenhain → Wachturm Grauwacht | 2 |
+| ~1:05 | Weitere Klassenbäume beim Lehrmeister (Klassen mischen) | Level 5, Lindenhain ([03](./03_Kampf_Charakter_Progression.md), 11.1) | 6 |
+| 1:25 | Bogen für alle Klassen, Kopftreffer, Untersuchen (Detektiv-Modus ohne Aether-Sicht, Hinweise im Umkreis von 5 m), Spuren | „Die Wölfe vom Nordhang“ | 4 |
+| 1:45 | Quest-Start über ein Item, mehrere Enden | „Ein Brief, der nie ankam“ | 2 |
+| 2:05 | Schleichen, Verhandeln, Dialogproben, perfektes Parieren | „Banditen am Mühlbach“ | 2 |
+| 2:30 | Minispiel Würfeln, Aussichtspunkt, Schnellreise | „Die Schatzkarte des alten Seemanns“ | 1, 4 |
+| 2:50 | Erster Begleiter (Ser Maren Falkenried): Kommentare, Loyalität, KI-Verhalten | Hauptquest „Die Prüfung der Silberwacht“ (HQ 3, E1.1), ab Stufe B; im Slice Prüfungsdialog `dlg.eichental.maren_pruefung` in Lindenhain (~2:00, [02](./02_Quests_und_Dialoge.md), 11.0) | 5 |
+| 3:35 | Dungeon, Umgebungsrätsel, Mini-Boss | „Die vergessene Gruft“ | 1, 4 |
+| 4:10 | Kräuterkunde, Alchemie-Grundlagen, Tageszeit als Questbedingung | „Das Kraut der Kräuterfrau“ | 3 |
+| 4:35 | Kopfgeldbrett, Boss mit eigener Mechanik, Elementkombination Feuer + Öl | „Kopfgeld: Grimmbart“ | 4 |
+| 5:00 | Weltereignis Wanderhändler, erste Vision, Aether-Sicht (Detektiv-Modus, Radius 40 m) | Hauptquest „Der Steinkreis von Altenhain“ (HQ 4); Wanderhändler an den Wegen ([01](./01_Welt_Story_Fraktionen.md), 6.4) | 1, 5 |
+| 5:45 | Anwesen Gut Eichenruh (Haus Stufe 1), Lagerkiste, Schlafen; Reittier (Pferd), Reitkamera | Hauptquest „Ein Dach über dem Kopf“ (HQ 5, §21): Hedda Eichholz übergibt Gut Eichenruh und das Pferd ([01](./01_Welt_Story_Fraktionen.md), 2.3) | 1, 3 |
+| 6:30 | Erster Riss-Ausbruch (Pflicht-Ereignis), verderbte Tiere | Hauptquest „Stimmen aus dem Riss“ (HQ 6). Reguläre Riss-Ausbrüche ab Ende Akt 1 ([01](./01_Welt_Story_Fraktionen.md), 6.4); im Slice nur die feste Instanz am Hollmann-Hof nach Quest 2 | 5 |
+| 8:00–8:45 | Erster Story-Boss (Ealdor, der Aschenhirsch), Riss-Siegel, Entscheidung E1.3; Rissläufer-Baum öffnet sich (Empfehlung [03](./03_Kampf_Charakter_Progression.md), 11.1, ❓ dort offen) | Hauptquests „Der Zorn des Waldes“, „Das erste Siegel“ | 2, 3 |
+| 10:15 | Goldküste, Hafenstadt Velmara, Schwimmen und Tauchen, Gezeiten | Hauptquest „Nach Westen“, Beginn Akt 2 | 1 |
+| 10:45 | Prozedurale Aufträge | Anschlagbrett und Fraktionsbüro in Velmara | 3 |
+| 11:15 | Spezialhändler, Schmieden, Verzauberung (Affixe) | Velmara | 3 |
+| 11:45 | Fraktionen und Ruf: Handelsgilde, Aether-Konvent (Silberwacht kennt man seit Akt 1) | Velmara, Akademie Lumenspitze | 2 |
+| 12:15 | Kartenspiel „Rissduell“, Abschluss der Schatzsuche | Taverne in Velmara, Grotte am Möwenfels | 4 |
+| 13:15 | Zweiter Begleiter (Jasper), Gruppe zu dritt, Lagerfeuer-Gespräche | Velmara | 5 |
+| 14:15 | Erster Weltboss | Goldküste | 1, 4 |
+| 14:45 | Angeln; Falke als Tierbegleiter für Waldläufer | Küste, Kap Varro | 4 |
+| 16:15 | Haus Stufe 2: Schmiede, Küche, Garten, Bau-Modus | Gut Eichenruh | 3 |
+| 17:45 | Moorschatten: Gift-Sumpf, Untote, Hexenzirkel, Entscheidung E2.2 | Akt 2 | 2, 4 |
+| 19:15 | Aurelion: Schattenhand, Diebstahl, Hehler, Kopfgeld-System, Sperrstunde | Akt 2 | 2, 5 |
+| 21:15 | Gleitschirm; alte Regionen bieten neu erreichbare Geheimnisse | Aurelion, Uhrwerkturm-Quest | 1 |
 
 - Die größte Lücke liegt bei ≤ 2 h. Damit ist R180 erfüllt.
-- Der Vertical Slice (Stufe A) deckt ungefähr Stunde 0–3:30 ab (Reihenfolge der 8 Beispiel-Quests laut [02](./02_Quests_und_Dialoge.md), 11.0), ohne Haus und Crafting-Stationen (Phase 5).
-- Akt 1 endet bei gemischtem Spielen nach ~8,5 h (reine Story: 6–8 h laut [01](./01_Welt_Story_Fraktionen.md)). Level 10 ist laut §28 schon nach ~4 h erreicht; die XP-Abschwächung bei Überlevel aus [02](./02_Quests_und_Dialoge.md) fängt das ab.
+- Die Zeiten rechnen ohne freie Erkundung mit den Ø-Dauern aus [02](./02_Quests_und_Dialoge.md) (Quest 1: 40 min, HQ 2–10: je 45 min, die 7 Slice-Nebenquests zusammen 170 min) und spielen HQ 2 beispielhaft direkt nach Quest 1.
+- Der Vertical Slice (Stufe A) deckt ungefähr Stunde 0–3:55 ab (Summe der Ø-Dauern der 8 Beispiel-Quests 210 min + Wege; Reihenfolge und Spielminuten laut [02](./02_Quests_und_Dialoge.md), 11.0), ohne Haus und Crafting-Stationen (Phase 5). Im Slice fehlen HQ 2 und die volle HQ 3 (Marens Prüfung ist dort ein Dialog-Ereignis bei ~2:00). Deshalb liegen die Slice-Inhalte in 02, 11.0 früher als in dieser Tabelle, die das volle Spiel zeigt.
+- Akt 1 endet bei gemischtem Spielen nach ~10–10,5 h (Story 6–8 h laut [01](./01_Welt_Story_Fraktionen.md), mit den Ø-Dauern aus 02 ≈ 7,4 h, dazu 2,8 h für die 7 Slice-Nebenquests; weitere Eichental-Inhalte kommen dazu). Level 10 ist laut §28 schon nach ~4 h erreicht; die XP-Abschwächung bei Überlevel aus [02](./02_Quests_und_Dialoge.md) fängt das ab.
 - Hybridklassen sind für ~Level 30, also ~40 h, vorgesehen und stehen deshalb nicht in der Tabelle. Details in [03](./03_Kampf_Charakter_Progression.md).
 
 ---
@@ -300,7 +304,7 @@ Säulen: 1 Erkundung · 2 Entscheidungen · 3 Fortschritt · 4 Abwechslung · 5 
 ### Überschlag
 
 Formel: **Spielzeit ≈ Σ (gespielte Quests × Ø-Dauer) + Erkundung außerhalb von Quests + Systemzeit.**
-Die Ø-Dauern sind Annahmen (**Vorschlag**) und enthalten die Reisezeit innerhalb der Quest. Durch Fraktionsausschlüsse spielt ein Durchgang ~60 % der Fraktionsquests ([01](./01_Welt_Story_Fraktionen.md), 8.4).
+Die Ø-Dauern sind Annahmen (**Vorschlag**) und enthalten die Reisezeit innerhalb der Quest. Durch Fraktionsausschlüsse spielt ein Durchgang ~4 von 7 Fraktionsreihen (≈ 57 % der Fraktionsquests, [01](./01_Welt_Story_Fraktionen.md), 8.4).
 
 **Rechnung 1 – Kategorien aus §16.2 am unteren und oberen Ende:**
 
@@ -311,11 +315,11 @@ Die Ø-Dauern sind Annahmen (**Vorschlag**) und enthalten die Reisezeit innerhal
 | Regionsquests | 3–6 Reihen je Region | 72 / 72 (3 Reihen × 3 × 8) | 192 / 192 (6 × 4 × 8) | 25 min | 30 / 80 |
 | Nebenquests | 20–30 je Region | 160 / 160 | 240 / 240 | 15 min | 40 / 60 |
 | Begleiterquests | 4–6 je Begleiter | 32 / 32 | 48 / 48 | 25 min | 13 / 20 |
-| Kleinformate (Kopfgeld, Schatz, Dungeon, Handwerk, Rätsel) | keine Zahl | 35 / 35 (1 je Kategorie und Region) | 35 / 35 | 15 min | 9 / 9 |
-| **Summe Quests** | **≥ 400** | **464 / 419** | **750 / 675** | | **162 / 256** |
+| Kleinformate (Kopfgeld, Schatz, Dungeon, Handwerk, Rätsel) | keine Zahl | 35 / 35 (1 je Kategorie in 7 Regionen, ohne Zerbrochenen Himmel) | 35 / 35 | 21 min | 12,3 / 12,3 |
+| **Summe Quests** | **≥ 400** | **464 / 419** | **750 / 675** | | **166 / 259** |
 | Erkundung ohne Quest (Dungeons, POIs, Truhen, Rätsel) | – | | | 4–6 h je Region | 32 / 48 |
 | Systeme (Crafting, Haus, Handel, Minispiele) | – | | | | 10 / 20 |
-| **Gesamt „Hauptstory + Nebenquests“** | **150–200 h** | | | | **≈ 204 / ≈ 324** |
+| **Gesamt „Hauptstory + Nebenquests“** | **150–200 h** | | | | **≈ 208 / ≈ 327** |
 
 **Rechnung 2 – „400 Quests × Ø-Dauer“ mit dem Budget aus [02](./02_Quests_und_Dialoge.md):**
 
@@ -324,28 +328,29 @@ Die Ø-Dauern sind Annahmen (**Vorschlag**) und enthalten die Reisezeit innerhal
 | Hauptquests | ca. 60 | 60 | 60 | 45,0 |
 | Fraktionsquests | 7 × 15–25 | 105 (7 × 15) | 60 | 25,0 |
 | Regionsquests | 3–6 Reihen je Region | 66 (7 × 3 Reihen × 3 + 3) | 66 | 27,5 |
-| Nebenquests | 20–30 je Region | 129 (7 × 18 + 3) | 129 | 32,3 |
-| Begleiterquests | 4–6 je Begleiter | 32 (8 × 4) | 32 | 13,3 |
-| Kleinformate | – | 35 (5 Kategorien × 7 Regionen) | 35 | 8,8 |
-| **Summe** | **≥ 400** | **427** | **382** | **151,9** |
+| Nebenquests | 20–30 je Region | 126 (7 × 18; Zerbrochener Himmel 0) | 126 | 31,5 |
+| Begleiterquests | 4–6 je Begleiter | 35 (Maren, Gundra, Kael je 5; [01](./01_Welt_Story_Fraktionen.md), 10.2) | 35 | 14,6 |
+| Kleinformate | – | 35 (5 Kategorien × 7 Regionen), Ø 21 min | 35 | 12,3 |
+| **Summe** | **≥ 400** | **427** | **382** | **155,9** |
 | Erkundung und Systeme | – | | | ~42 |
-| **„Hauptstory + Nebenquests“** | **150–200 h** | | | **≈ 194 h** |
+| **„Hauptstory + Nebenquests“** | **150–200 h** | | | **≈ 198 h** |
 | Legendäre Reihen (§23, Endgame) | eine je Waffentyp | +33 (11 × 3) | 33 | +22 |
 
-- Gewichtete Ø-Dauer über das Budget: 10.235 min / 427 Quests ≈ **24 min je Quest**.
-- **400 Quests × 24 min ≈ 160 h**. Abzüglich der Fraktionsausschlüsse ≈ 145 h gespielt. Plus ~42 h Erkundung und Systeme ≈ **187 h**.
+- Gewichtete Ø-Dauer über das Budget: 10.475 min / 427 Quests ≈ **24,5 min je Quest**.
+- **400 Quests × 24,5 min ≈ 163,5 h**. Abzüglich der Fraktionsausschlüsse (45 × 25 min × 400/427 ≈ 17,6 h) ≈ 146 h gespielt. Plus ~42 h Erkundung und Systeme ≈ **188 h**.
 
 **Ergebnis (offen):**
-1. **400 Quests plus Erkundung ergeben 150–200 h, aber nur knapp.** Voraussetzung: Nebenquests bleiben bei Ø 15 min und Erkundung bei ≤ 6 h je Region.
-2. **Die Kategorie-Minima aus §16.2 ergeben bereits 464 Quests und ~204 h.** Mit den Höchstwerten sind es ~750 Quests und > 300 h. „Mindestens 400“ und die Kategorien-Bandbreiten passen also nicht genau zusammen.
+1. **400 Quests plus Erkundung ergeben 150–200 h, aber nur knapp.** Voraussetzung: Nebenquests bleiben bei Ø 15 min und Erkundung bei ≤ ~4,3 h je Region (8 × 4,3 h + 10 h Systeme ≈ 44 h). Mit 6 h je Region wären es ~214 h.
+2. **Die Kategorie-Minima aus §16.2 ergeben bereits 464 Quests und ~208 h.** Mit den Höchstwerten sind es ~750 Quests und > 300 h. „Mindestens 400“ und die Kategorien-Bandbreiten passen also nicht genau zusammen.
 3. **Hauptstory:** 60 × 45 min = 45 h plus Reise. [01](./01_Welt_Story_Fraktionen.md) verteilt das auf die Akte mit 45–57 h. Das passt zu 40–60 h.
-4. **Komplettierung:** Laut [02](./02_Quests_und_Dialoge.md) ≈ 315–355 h (Legendär-Reihen, wiederholbares Endgame 80–120 h, zweiter Fraktionsweg in NG+). 300+ h sind plausibel, ohne weitere handgemachte Quests.
+4. **Komplettierung:** Laut [02](./02_Quests_und_Dialoge.md) ≈ 320–360 h (Legendär-Reihen, wiederholbares Endgame 80–120 h, zweiter Fraktionsweg in NG+). 300+ h sind plausibel, ohne weitere handgemachte Quests.
 
-**Verbesserungsvorschlag – Quest-Budget 427 für Stufe C** (statt der Kategorien-Summe von 464–750). Die Feinverteilung oben stammt aus [02](./02_Quests_und_Dialoge.md):
-- Nebenquests 18 statt 20–30 je Region; die Endgame-Region bekommt nur 3, weil dort prozedurale Inhalte tragen.
+**Verbesserungsvorschlag – Quest-Budget 427 für Stufe C** (statt der Kategorien-Summe von 464–750). Die Feinverteilung oben stammt aus [02](./02_Quests_und_Dialoge.md), 2.4–2.5:
+- Nebenquests 18 statt 20–30 je Region; der Zerbrochene Himmel bekommt keine (dort tragen prozedurale Inhalte), Summe 126.
+- Regionsquests im Zerbrochenen Himmel nur 1 Reihe à 3 statt 3–6 Reihen (§16.2); die übrigen 7 Regionen haben je 3 Reihen.
 - Fraktionsquests 15 je Fraktion (Original 15–25); die Kapitelstruktur in [01](./01_Welt_Story_Fraktionen.md) erlaubt später 20.
 - Die 33 legendären Quests zählen als Endgame zur Komplettierung, nicht zu „150–200 h“.
-- Hinweis: [01](./01_Welt_Story_Fraktionen.md) plant 35 statt 32 Begleiterquests (Maren, Gundra, Kael mit je 5). Das liegt innerhalb von §16.2 (4–6 je Begleiter); der Budget-Zähler im Quest-Editor führt die Abweichung.
+- [02](./02_Quests_und_Dialoge.md) übernimmt 35 Begleiterquests (Maren, Gundra, Kael mit je 5, [01](./01_Welt_Story_Fraktionen.md), 10.2) und gleicht über die Nebenquests aus (126 statt 129); die Summe bleibt 427. Das liegt innerhalb von §16.2 (4–6 je Begleiter).
 
 ### Story-Level-Lücke (wichtig)
 - §28 beschreibt gemischtes Spielen: Level 30 nach ~40 h, Level 60 nach ~120 h. Akt 4 spielt aber in Regionen mit Level 35–60 (Frostgipfel, Glutlande), Akt 5 im Zerbrochenen Himmel mit Level 60–80. Wer der Story folgt, käme dort deutlich unterlevelt an. Das widerspricht „Keine Pflicht zum Grinden für die Hauptstory“ (§23).
@@ -357,9 +362,11 @@ Die Ø-Dauern sind Annahmen (**Vorschlag**) und enthalten die Reisezeit innerhal
   | 2 | 10–24 | Goldküste 10–20, Moorschatten 18–28, Aurelion 20–60 |
   | 3 | 24–32 | Kar'Zul 25–38 |
   | 4 | 32–42 | Frostgipfel 35–48, Glutlande 45–60 |
-  | 5 | 40–48 (Story-Bereich mit festem Level) | Zerbrochener Himmel 60–80, erst nach der Story voll offen (§18) |
+  | 5 | 42–48 (Story-Bereich mit festem Level) | Zerbrochener Himmel 60–80, erst nach der Story voll offen (§18) |
 
-- **Folgerung für die XP:** Hauptquests liefern Ø ~0,7–1,0 Level je Quest (Akt 1: 10 Quests für 9 Level; Akt 3: 12 Quests für 8 Level). Das Belohnungsband in [02](./02_Quests_und_Dialoge.md) (0,8–1,5 Lv) wird in Akt 3–4 am unteren Rand genutzt.
+  Der Korridor ist lückenlos und steigt monoton: Jeder Akt beginnt bei dem Level, mit dem der vorige endet.
+
+- **Folgerung für die XP:** Nötig sind je Hauptquest Akt 1 0,90 (10 Quests für 9 Level) · Akt 2 0,88 (16 für 14) · Akt 3 0,67 (12 für 8) · Akt 4 0,77 (13 für 10) · Akt 5 0,67 (9 für 6) Level. Akt 3–5 liegen **unter** dem bisherigen Belohnungsband 0,8–1,5 Lv; mit dessen Minimum käme ein reiner Story-Spieler in Akt 3 auf +9,6 statt +8 Level, Kills nicht eingerechnet. [02](./02_Quests_und_Dialoge.md), 2.2 senkt die Untergrenze dafür auf 0,65 Lv. Zusätzlicher Ausgleich: Hauptquest-Abschwächung aus [03](./03_Kampf_Charakter_Progression.md), 12.7 (−10 % je Level über Korridor + 3, höchstens auf 50 %).
 - **Gegenseite:** Gemischt spielende Spieler kommen in Akt 4–5 eher überlevelt an. Gegenmittel: Schwierigkeit jederzeit änderbar (§29), XP-Abschwächung bei Überlevel ([02](./02_Quests_und_Dialoge.md)), optionale Story-Herausforderungen.
 - ❓ **Offene Entscheidung:** Story-Korridor (empfohlen) oder deutlich mehr XP aus Hauptquests? Abstimmung mit [03](./03_Kampf_Charakter_Progression.md).
 
@@ -378,14 +385,14 @@ Die Ø-Dauern sind Annahmen (**Vorschlag**) und enthalten die Reisezeit innerhal
 | Handgemachte Quests | 8 (§16.9) | ~150: Haupt 26, Fraktion 20 (Kapitel I von 5 Fraktionen), Region 27 (3 Regionen × 3 Reihen × 3), Neben 50, Begleiter 13, Kleinformate 14 | 427 + 33 legendäre (siehe oben) |
 | Prozedurale Vorlagen | 0–1 | 4–6 | 12 ([02](./02_Quests_und_Dialoge.md)) |
 | Gegnertypen | 5 ([01](./01_Welt_Story_Fraktionen.md), 11.4) | ~22 (Auswahl aus den 35 Typen dieser Regionen) | 67 laut Roster in [01](./01_Welt_Story_Fraktionen.md) (§20.1: ≥ 60) |
-| Bosse | Grimmbart (Kopfgeld), Ritter Odric (Gruft) | 2 Story-Bosse (Ealdor, Kaldris), ~17 Dungeon-Bosse, ~10 Weltbosse | alle (§20.3) |
-| Waffentypen | 3: Einhandschwert (+ Schild), Bogen, Zauberstab | 6: + Zweihandschwert, Dolche, Axt | 11 (§9.3) |
+| Bosse | Grimmbart (Kopfgeld), Der Wachende Ritter (`boss.eichental.wachender_ritter`, Mini-Boss der Gruft); dazu die benannten Gegner Prolog-Rissbrut und Glutfang ([01](./01_Welt_Story_Fraktionen.md), 11.4) | 2 Story-Bosse (Ealdor, Kaldris), ~17 Dungeon-Bosse, ~10 Weltbosse | alle (§20.3) |
+| Waffentypen | 4: Einhandschwert (+ Schild), Bogen, Zauberstab + Einhand-Streitkolben als Variante der Einhand-Familie ([03](./03_Kampf_Charakter_Progression.md), 5.3) | 7: + Zweihandschwert, Dolche, Axt | 11 (§9.3) |
 | Klassen | 2 (Krieger, Magier) + Aether-Grundkräfte | 4 Startklassen (Krieger, Waldläufer, Schurke, Magier) + Rissläufer mit 1 Ast | 6 + Hybridklassen |
 | Skilltree | ~15 Knoten je Klasse | ≥ 40 Knoten je Klassenbaum (§11.2) + Baum „Überleben“ | + Bäume „Handwerk“, „Sprache/Charisma“, Hybride |
 | Begleiter | 1 (Maren) | 3 (Maren, Jasper oder Ilvy, Morwen) + Tierbegleiter Wolf | 8 + Wolf, Falke, Bär (§19) |
-| Systeme | Kampf, Inventar, Loot, Quests, Dialog, Speichern, HUD | + Crafting, Händler, Fraktionen, Haus Stufe 1–2, Reittier, Weltereignisse, 2 Minispiele | alle |
+| Systeme | Kampf, Inventar, Loot, Quests, Dialog, Speichern, HUD, 2 Händler in Lindenhain, Minispiel Würfeln ([04](./04_Items_Crafting_Wirtschaft_Endgame.md), 12) | + Crafting, weitere Händler, Fraktionen, Haus Stufe 1–2, Reittier, Weltereignisse, + Angeln (zusammen 2 Minispiele: Würfeln, Angeln; [04](./04_Items_Crafting_Wirtschaft_Endgame.md), 12) | alle |
 | Endgame | – | **Vorschlag:** Riss-Expeditionen „Lite“ ab Level 25 | voll (§23) |
-| Spielzeit | 2–3 h (§31) | Story ~20–26 h, gesamt ~75–90 h | 45–57 h / ~194 h / 315–355 h |
+| Spielzeit | ~3,5–4 h (**Verbesserungsvorschlag**; Original §31: 2–3 h) | Story ~20–26 h, gesamt ~75–90 h | 45–57 h / ~198 h / ~320–360 h |
 
 **Überschlag Stufe B:** Haupt 26 × 45 min (19,5 h) + Fraktion 20 × 25 min (8,3 h) + Region 27 × 25 min (11,3 h) + Neben 50 × 15 min (12,5 h) + Begleiter 13 × 25 min (5,4 h) + Kleinformate 14 × 15 min (3,5 h) ≈ 60 h Quests, dazu 12–18 h Erkundung und 5–10 h Systeme.
 
@@ -394,8 +401,9 @@ Hinweise:
   - C1 = Akt 3 + Kar'Zul + Kleriker.
   - C2 = Akt 4 + Frostgipfel + Glutlande + Aurelion vollständig.
   - C3 = Akt 5 + Zerbrochener Himmel + volles Endgame.
-- **B-Minimal (Rückfallebene):** Eichental und Goldküste, Akt 1 und erste Hälfte von Akt 2 (~16 Hauptquests), ~70 Quests, ~40 h gesamt. Diese Variante greift, wenn die Messung nach Stufe A zeigt, dass B zu groß ist.
-- **Schatzkarte im Vertical Slice:** „Die Schatzkarte des alten Seemanns“ endet an der Goldküste (§16.9). [02](./02_Quests_und_Dialoge.md) empfiehlt, die letzten Stages bis Stufe B zu sperren. [01](./01_Welt_Story_Fraktionen.md) nennt in 3.1 noch „1 Küstenzelle“ im Slice. Die Entscheidung liegt in 02; diese Datei folgt deren Empfehlung (Sperre mit Teaser-Text).
+- **B-Minimal (Rückfallebene):** Eichental und Goldküste, Akt 1 und der Goldküsten-Teil von Akt 2 (HQ 11–14), also **14 Hauptquests**, ~70 Quests, ~40 h gesamt. Diese Variante greift, wenn die Messung nach Stufe A zeigt, dass B zu groß ist.
+- **Verbesserungsvorschlag – Länge des Vertical Slice:** Original §31 (Phase 4): „Ziel: 2–3 Stunden Spielspaß“. Die 8 Beispiel-Quests, die §16.9 für den Slice verlangt, dauern laut [02](./02_Quests_und_Dialoge.md) (11.1–11.8) zusammen 40 + 20 + 20 + 25 + 25 + 25 + 35 + 20 = 210 min, dazu Wege und Marens Prüfungsdialog. Quest 6 beginnt laut 02, 11.0 bei Minute 210. Daraus folgen ~3,5–4 h. Empfehlung: die 8 Quests vollständig behalten und die längere Spielzeit akzeptieren. Alternative ohne Abweichung: in 02 die Ø-Dauern der 8 Quests auf zusammen ≤ 180 min kürzen.
+- **Schatzkarte im Vertical Slice:** „Die Schatzkarte des alten Seemanns“ endet an der Goldküste (§16.9). [02](./02_Quests_und_Dialoge.md) empfiehlt, die letzten Stages bis Stufe B zu sperren. [01](./01_Welt_Story_Fraktionen.md), 3.1 plant den Slice ebenfalls ohne Küstenzelle. Die Entscheidung liegt in 02; diese Datei folgt deren Empfehlung (Sperre mit Teaser-Text).
 - ❓ **Offene Entscheidung:** Release-Modell. Empfohlener Standard: Early Access ab Stufe B (oder B-Minimal), Version 1.0 ab C1 oder später. Voraussetzung: Speicherstände bleiben ab dem ersten öffentlichen Build migrierbar (§25).
 
 ---
@@ -414,6 +422,7 @@ Hinweise:
 | [Technik/01_Architektur](../Technik/01_Architektur.md) | Technische Architektur: Bootstrapper, Services, EventBus, Datenmodell, Speichern, Streaming und UI-Technologie. |
 | [Technik/02_Systeme_und_Abhaengigkeiten](../Technik/02_Systeme_und_Abhaengigkeiten.md) | Liste aller Systeme mit Abhängigkeiten und Umsetzungsreihenfolge. |
 | [Technik/03_Technik-Recherche](../Technik/03_Technik-Recherche.md) | Verifizierte Fakten zu Unity-Version, Paketen, APIs, Builds und Speicherpfaden (Stand Oktober 2026). |
+| [Risiken](../Risiken.md) | Die 5 größten Projektrisiken mit Gegenmaßnahmen (§33.4) und das Risiko-Register aller Kapitel. |
 
 ---
 
@@ -449,8 +458,8 @@ Hinweise:
 | Objective | Einzelnes Ziel innerhalb einer Stage, z. B. „Rede mit NPC“ (§16.4). | [02](./02_Quests_und_Dialoge.md) |
 | Entscheidungs-Ledger | Zusammenfassung der Entscheidungen einer abgeschlossenen Quest im Questlog (§16.6). | [02](./02_Quests_und_Dialoge.md) |
 | Erkundungsmodus | Questanzeige ohne genaue Marker, nur mit Suchgebiet und Landmarken-Hinweisen (§16.6). | [05](./05_UI_Audio_Grafik_Barrierefreiheit.md) |
-| Story-Korridor | Eigene empfohlene Level für Hauptquests (Akt 1–5: 1–10 bis 40–48), unabhängig vom Regionslevel. | [Story-Level-Lücke](#story-level-lücke-wichtig) |
-| Vertical Slice | Spielbarer Ausschnitt in Zielqualität (Phase 4, §31): Teil des Eichentals, 8 Beispiel-Quests, 2–3 h. Entspricht Umfangsstufe A. | [Umfangsstufen](#umfangsstufen) |
+| Story-Korridor | Eigene empfohlene Level für Hauptquests (Akt 1–5: 1–10 bis 42–48), unabhängig vom Regionslevel. | [Story-Level-Lücke](#story-level-lücke-wichtig) |
+| Vertical Slice | Spielbarer Ausschnitt in Zielqualität (Phase 4, §31): Teil des Eichentals, 8 Beispiel-Quests, ~3,5–4 h (Original §31: 2–3 h). Entspricht Umfangsstufe A. | [Umfangsstufen](#umfangsstufen) |
 
 ---
 
@@ -466,8 +475,8 @@ Hinweise:
 | Monetarisierung | Premium · Premium + Erweiterungen · Free-to-Play | Premium, später bezahlte Erweiterungen möglich; keine Mikrotransaktionen | Beeinflusst Loot-Design, Endgame und Vertrauen der Spieler |
 | Spielfigur | frei gestaltbar · fester Charakter | Frei gestaltbar, Protagonist ohne Sprachausgabe in Dialogen | Kosten für Aufnahmen, Rüstungsvarianten und Cutscenes; Identifikation |
 | Ziel-Altersfreigabe | USK 12 · USK 16 · USK 18 | USK 16 / PEGI 16 | Blut, Gewalt, Themen in Quests, Romanzen |
-| Quest-Menge | „≥ 400“ als Untergrenze (Kategorie-Minima = 464) · Budget 427 + 33 legendäre | Budget 427 + 33 (Verbesserungsvorschlag) | Einige hundert Personentage Unterschied, Spielzeit über 200 h |
-| Story-Level-Lücke | Story-Korridor · mehr Story-XP · Status quo | Story-Korridor (Akt 4 ~32–42, Akt 5 ~40–48) | Sonst ist Grinden für die Hauptstory Pflicht (Widerspruch zu §23) |
+| Quest-Menge | „≥ 400“ als Untergrenze (Kategorie-Minima = 464) · Budget 427 + 33 legendäre | Budget 427 + 33 (Verbesserungsvorschlag) | ~37 Quests bzw. ~120–220 Personentage Unterschied ([02](./02_Quests_und_Dialoge.md), 2.4); mit den Kategorie-Minima liegt die Spielzeit bei ~208 h statt ~198 h |
+| Story-Level-Lücke | Story-Korridor · mehr Story-XP · Status quo | Story-Korridor (Akt 4 ~32–42, Akt 5 ~42–48) | Sonst ist Grinden für die Hauptstory Pflicht (Widerspruch zu §23) |
 | Zeitpunkt der Klassenwahl | im Hauptmenü · im Dialog nach dem Prolog | Nach dem Prolog (~0:40), damit der Spieler den Kampf erst erlebt | Erste Stunde, Onboarding, Charaktererstellung |
 | Umfang von Stufe B | B (3 Regionen + Aurelion-Hub) · B-Minimal (2 Regionen) | Nach Messung in Stufe A entscheiden, B-Minimal als Rückfallebene | Die erste Veröffentlichung darf nicht an Überumfang scheitern |
 

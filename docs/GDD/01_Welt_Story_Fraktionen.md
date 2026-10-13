@@ -1,6 +1,6 @@
 # Welt, Story & Fraktionen
 
-> Teil der Phase-0-Planung · Stand: 2026-10-12 · Quelle: [Master-Prompt](../00_Master-Prompt.md)
+> Teil der Phase-0-Planung · Stand: 2026-10-13 · Quelle: [Master-Prompt](../00_Master-Prompt.md)
 
 **Kennzeichnungen** (wie in [00_Vision_und_Ueberblick](./00_Vision_und_Ueberblick.md)):
 - **Vorschlag:** füllt eine Lücke im Master-Prompt.
@@ -13,7 +13,7 @@
 |---|---|---|
 | `region.` | `region.eichental` | Region |
 | `loc.<region>.` | `loc.eichental.vergessene_gruft` | Ort, Dungeon, POI, Siedlung, Trigger-Zone |
-| `npc.<region>.` | `npc.eichental.bauer_hollmann` | NPC. Begleiter: `npc.begleiter.<name>`. Story-Figuren ohne festen Ort: `npc.main.<name>` |
+| `npc.<region>.` | `npc.eichental.bauer_hollmann` | NPC. Begleiter: `npc.begleiter.<name>`. Story-Figuren ohne festen Ort: `npc.main.<name>`. Wandernde NPCs ohne festen Ort: `npc.welt.<name>` |
 | `group.` | `group.graumaentel` | NPC-Gruppe ohne eigenen Fraktionsruf |
 | `faction.` | `faction.silberwacht` | Fraktion |
 | `quest.<kategorie>.` | `quest.main.asche_ueber_eichental`, `quest.side.eichental.woelfe_vom_nordhang` | Quest (Kategorien und Schema: [02](./02_Quests_und_Dialoge.md)) |
@@ -197,8 +197,10 @@ Die 5 Akte und ihre Regionen stammen aus §18. Die Zahl der Hauptquests (≈ 60,
 | 2 | Bündnisse | Goldküste, Moorschatten, Aurelion | 16 | 10–24 | 14–18 h | Hierophant Kaldris |
 | 3 | Die Wahrheit im Sand | Sonnenwüste von Kar'Zul | 12 | 24–32 | 9–11 h | Ankhar, der letzte Sonnenkönig |
 | 4 | Feuer und Eis | Frostgipfel, Glutlande, Aurelion (Belagerung) | 13 | 32–42 | 10–12 h | Ignareth, der Leere-Drache |
-| 5 | Der Zerbrochene Himmel | Zerbrochener Himmel (Story-Bereich) | 9 | 40–48 | 6–8 h | Der Graue Wanderer / Herz der Leere |
+| 5 | Der Zerbrochene Himmel | Zerbrochener Himmel (Story-Bereich) | 9 | 42–48 | 6–8 h | Der Graue Wanderer / Herz der Leere |
 | **Σ** | | | **60** | | **45–57 h** | |
+
+**Verbesserungsvorschlag – Story-Zonen (ergänzt den Story-Korridor):** Spawner und Story-Dungeons auf dem kritischen Pfad tragen das Korridor-Level des Akts, unabhängig vom Regionsband. Nach Abschluss des Akts wechseln sie auf das Regionsband. Konkret: Akt 2 Krähenmoor, Dunkelwasser und Bernwald 14–18 · Akt 4 Kaltenbrunn, Runentor, Tiefen und Ahnenschmiede 33–38, Dampfpass, Brandwall, Kathedrale und Krater Ashkarr 37–41, Schlundrand während HQ 49–51 Level 42. Grund: Sonst trifft ein reiner Story-Spieler auf dem kritischen Pfad auf Gegner, die 5–20 Level über ihm liegen (z. B. HQ 44–46 bei Korridor ~36–38 in den Glutlanden mit Regionsband 45–60). Das widerspräche „Keine Pflicht zum Grinden für die Hauptstory“ (§23). Original (§20.4): „Gegner haben feste Level je Gebiet“. Das bleibt erhalten: Auch eine Story-Zone hat ein festes Level, es hängt vom Story-Fortschritt ab, nicht vom Spielerlevel. Abweichung von [03](./03_Kampf_Charakter_Progression.md), 9.7 („Spawner tragen ein festes Level aus dem Regionsband“) nur auf dem kritischen Pfad.
 
 **Hauptquests je Region** (für das Questbudget in [02](./02_Quests_und_Dialoge.md), Abschnitt 3): Eichental 10 · Goldküste 4 · Moorschatten 4 · Aurelion 13 (8 in Akt 2, 5 in Akt 4) · Kar'Zul 12 · Frostgipfel 4 · Glutlande 3 · Zerbrochener Himmel 9 · ortsvariabel 1 („Die Verteidigung“, Velmara oder Kaltenbrunn) = **60**.
 
@@ -282,9 +284,9 @@ Hauptquest-IDs folgen dem Schema `quest.main.<titel>`. Titel sind Arbeitstitel (
 | Quest ([02](./02_Quests_und_Dialoge.md)) | Flag | Folge in Akt 2–4 |
 |---|---|---|
 | 3 Ein Brief, der nie ankam | `flag.eichental.brief_hinweis_gelesen` | Dialogoption über „die Grauen am Turm“ in HQ 2. Endet die Quest mit Ende 2, dient Jannik in Aurelion als Wache und grüßt den Spieler. |
-| 4 Banditen am Mühlbach | `flag.eichental.harrik_verschont` | HQ 20 „Schatten über Aurelion“: Harrik als Informant mit Schleichroute (§16.5). Ally-Score +1 in Akt 4. Ohne Harrik hilft Nell Kettenbach gegen 300 Gold. |
-| 5 Das Kraut der Kräuterfrau | `flag.eichental.alwine_status` (1 geduldet, 2 verraten, 3 getötet, 4 Bündnis) | HQ 17 „Die Nebelmütter“: Bei 4 empfängt Zirkelmutter Morra den Spieler sofort. Bei 2 ist eine zusätzliche Überzeugen-Probe nötig. Bei 3 ist der Zirkel feindlich und der Zugang führt über Morwen. Morwens Start-Loyalität: 4 → 40, 1 → 30, 2 → 20, 3 → 10. |
-| 6 Kopfgeld: Grimmbart | `flag.eichental.grimmbart_ausgang` (1 tot, 2 lebend) | Lebend: Verhör-Hinweis auf die Graumäntel in HQ 2. In Akt 4 bietet Grimmbart aus dem Kerker von Aurelion sein Kriegshorn an: +1 bemannte Ballista gegen Ignareth. |
+| 4 Banditen am Mühlbach | `flag.eichental.harrik_verschont` | HQ 20 „Schatten über Aurelion“: Harrik als Informant mit Schleichroute (§16.5). Ally-Score +1 in Akt 4, wenn Harrik tatsächlich hilft (`flag.aurelion.harrik_informant`, [02](./02_Quests_und_Dialoge.md), 6.5). Ohne Harrik hilft Nell Kettenbach gegen 300 Gold. |
+| 5 Das Kraut der Kräuterfrau | `flag.eichental.alwine_status` (1 geduldet, 2 verraten, 3 getötet, 4 Bündnis) | HQ 17 „Die Nebelmütter“: Bei 4 empfängt Zirkelmutter Morra den Spieler sofort. Bei 2 ist eine zusätzliche Überzeugen-Probe nötig. Bei 3 ist der Zirkel feindlich und der Zugang führt über Morwen. Morwens Start-Loyalität: 4 → 40, 1 → 30, 2 → 20, 3 → 15. |
+| 6 Kopfgeld: Grimmbart | `flag.eichental.grimmbart_ausgang` (1 tot, 2 lebend) | Lebend: Verhör-Hinweis auf die Graumäntel in HQ 2. Bei `grimmbart_ausgang = 2` und `grimmbart_entkommen = false` bietet Grimmbart in Akt 4 aus dem Kerker von Aurelion die Signalfolge des Kriegshorns an ([02](./02_Quests_und_Dialoge.md), 11.6): +1 bemannte Ballista gegen Ignareth. |
 | 7 Die vergessene Gruft | `flag.eichental.siegelstein_verbleib` (1 Konvent, 2 belassen, 3 behalten) | 1: Corvin erforscht in der Lumenspitze die Eichenritter-Siegel (HQ 12). In Akt 4 braucht der Riss-Schlüssel dann 20 % weniger Kristalle. 2: Silberwacht +M. 3: Siegelstein als Sockel-Amulett. |
 
 #### Akt 2 – Bündnisse (Goldküste, Moorschatten, Aurelion, Level 10–24, 16 Hauptquests)
@@ -309,10 +311,10 @@ Hauptquest-IDs folgen dem Schema `quest.main.<titel>`. Titel sind Arbeitstitel (
 | 16 | Der Totenriss von Bernwald | `quest.main.totenriss_von_bernwald` | Bernwald, Feldlager Graufels | Untote, Silberwacht im Moor |
 | 17 | Die Nebelmütter | `quest.main.die_nebelmuetter` | Zirkel der Nebelmütter | Morra, Wissen über Rissgeborene, Morwen |
 | 18 | Hexenjagd | `quest.main.hexenjagd` | Bernwald | E2.2 |
-| 19 | Vor den Toren Aurelions | `quest.main.vor_den_toren_aurelions` | Aurelion, Tore und Gildenmarkt | Siegelbrief oder Verbotene Magie, Stadtregeln |
+| 19 | Vor den Toren Aurelions | `quest.main.vor_den_toren_aurelions` | Aurelion, Stadttor am Glockenviertel | Siegelbrief oder Verbotene Magie, Stadtregeln |
 | 20 | Schatten über Aurelion | `quest.main.schatten_ueber_aurelion` | Die Senke | Kult-Zelle. Ab Stage s30 Zugang zur Unterstadt über Harrik oder Nell ([02](./02_Quests_und_Dialoge.md), 6.5) |
 | 21 | Der Rat der Sieben | `quest.main.der_rat_der_sieben` | Ratshalle | Anhörung, die Fraktionen stellen sich vor |
-| 22 | Fünf Angebote | `quest.main.fuenf_angebote` | Aurelion, alle Viertel | Hub-Quest: je ein Gespräch und ein Auftrag pro Fraktion, Reihenfolge frei |
+| 22 | Fünf Angebote | `quest.main.fuenf_angebote` | Aurelion, Glockenviertel und Senke (Fraktionsvertreter in Gesandtenstuben) | Hub-Quest: je ein Gespräch und ein Auftrag pro Fraktion, Reihenfolge frei |
 | 23 | Die Nacht der Stillen Glocken | `quest.main.nacht_der_stillen_glocken` | Glockenviertel | Kult-Angriff, E2.3 |
 | 24 | Der Glockenturm | `quest.main.der_glockenturm` | Glockenturm | Boss Kaldris |
 | 25 | Der Pakt | `quest.main.der_pakt` | Ratshalle | E2.4 |
@@ -333,10 +335,10 @@ Hauptquest-IDs folgen dem Schema `quest.main.<titel>`. Titel sind Arbeitstitel (
 
 | ID | Entscheidung | Optionen | Konsequenz | Flag |
 |---|---|---|---|---|
-| E2.1 | Kristalllager der Gilde in Velmara | beschlagnahmen lassen / schützen / selbst ausräumen | Silberwacht +L bzw. Gilde +L bzw. Schattenhand +L. In Akt 4 fehlen die Kristalle für den Riss-Schlüssel oder werden geliefert. | `flag.goldkueste.kristalllager` (1/2/3) |
+| E2.1 | Kristalllager der Gilde in Velmara | beschlagnahmen lassen / schützen / selbst ausräumen | Silberwacht +L bzw. Gilde +L bzw. Schattenhand +L. In Akt 4 fehlen die Kristalle für den Riss-Schlüssel oder werden geliefert. | `flag.goldkueste.kristalllager_verbleib` (1/2/3) |
 | E2.2 | Hexenzirkel im Moorschatten | ausliefern / schützen | Ausliefern: Silberwacht +200, Stämme −300, Morwen flieht (siehe [10.1](#101-steckbriefe)). Schützen: umgekehrt. Bedingung für das Ende „Lied“. | `flag.moorschatten.zirkel_geschuetzt` |
 | E2.3 | Nacht der Stillen Glocken | Ratsherrin Elvira Quast (Konvent) retten / Glockenviertel evakuieren | Rettung: Der Konvent stimmt im Rat für den Spieler. Evakuierung: Das Glockenviertel bleibt bewohnt, sonst brennt es ab. | `flag.aurelion.glockenviertel_gerettet` |
-| E2.4 | Der Pakt | Silberwacht / Konvent / Gilde / Schattenhand / Stämme / keiner | Bestimmt Expedition, Ally-Score und Enden | `flag.main.pakt` (0 keiner, 1–5 Fraktion) |
+| E2.4 | Der Pakt | Silberwacht / Konvent / Gilde / Schattenhand / Stämme / keiner | Bestimmt Expedition, Ally-Score und Enden | `flag.main.pakt_ausgang` (0 keiner, 1–5 Fraktion) |
 
 #### Akt 3 – Die Wahrheit im Sand (Kar'Zul, Level 24–32, 12 Hauptquests)
 
@@ -367,7 +369,7 @@ Hauptquest-IDs folgen dem Schema `quest.main.<titel>`. Titel sind Arbeitstitel (
 
 | ID | Entscheidung | Optionen | Konsequenz | Flag |
 |---|---|---|---|---|
-| E3.1 | Die Wahrheit | dem Rat offenlegen / geheim halten / an die Schattenhand verkaufen | Offenlegen (bei Option A): Konvent −300, Silberwacht +150, Unruhen in Aurelion. Geheim halten: Druckmittel gegen den Konvent als Dialogoptionen in Akt 4. Verkaufen: 3.000 Gold, Schattenhand +200, die Wahrheit kursiert verzerrt als Gerücht. | `flag.main.wahrheit` (1/2/3) |
+| E3.1 | Die Wahrheit | dem Rat offenlegen / geheim halten / an die Schattenhand verkaufen | Offenlegen (bei Option A): Konvent −300, Silberwacht +150, Unruhen in Aurelion. Geheim halten: Druckmittel gegen den Konvent als Dialogoptionen in Akt 4. Verkaufen: 3.000 Gold, Schattenhand +200, die Wahrheit kursiert verzerrt als Gerücht. | `flag.main.wahrheit_ausgang` (1/2/3) |
 | E3.2 | Oase Ir-Hamad | Nomaden evakuieren / Archiv sichern | Evakuieren: Ally-Score +1, Stämme +200, nur 2 von 4 Tafeln. Die übrigen 2 gibt es über das Geheimnis von Kar'Zul und Ashkas Questreihe. Archiv sichern: alle 4 Tafeln, Oase verschlungen, Ashka-Loyalität −25. | `flag.karzul.ir_hamad_verschlungen` |
 | E3.3 | Pakt mit dem Grauen Wanderer | annehmen / ablehnen | Annehmen: Leere-Resonanz +15. Er hilft in Akt 4 gegen den Kult und öffnet das Ende „Krone“ über ihn. In Akt 5 verrät er den Spieler, außer die Leere-Resonanz ist ≥ 50. Ablehnen: Die Graumäntel sabotieren in Akt 4 den Riss-Schlüssel, eine Zusatz-Stage wird nötig. | `flag.main.a3_pakt_wanderer` |
 
@@ -407,7 +409,8 @@ Hauptquest-IDs folgen dem Schema `quest.main.<titel>`. Titel sind Arbeitstitel (
 | Jede weitere Fraktion mit Ruf ≥ Geachtet | +1 (max. +3) |
 | Tor von Khaz Morund friedlich geöffnet (E4.2) | +1 |
 | Nomaden von Ir-Hamad evakuiert (E3.2) | +1 |
-| Harrik verschont und Informant in Aurelion (§16.5, `flag.eichental.harrik_verschont`) | +1 |
+| Harrik verschont und Informant in Aurelion (§16.5, `flag.aurelion.harrik_informant = true`, gesetzt in HQ 20 als Informant oder nach einer Befreiung aus dem Kerker, [02](./02_Quests_und_Dialoge.md), 6.5) | +1 |
+| Kult verraten (Fraktions-Ende Kult „Verrat“ vor HQ 49 abgeschlossen, verdeckter Pfad [8.5](#85-beitritt-zum-kult-der-leere) B) | +1 |
 | Je 2 Begleiter mit Loyalität ≥ 70 | +1 (max. +2) |
 
 | Ally-Score | Ergebnis der Belagerung |
@@ -420,9 +423,9 @@ Hauptquest-IDs folgen dem Schema `quest.main.<titel>`. Titel sind Arbeitstitel (
 |---|---|---|---|---|
 | E4.1 | Signalfeuer | Velmara verteidigen / Kaltenbrunn (Frostgipfel) verteidigen | Der andere Ort brennt: Velmaras Hafen wird zur Ruine, oder Kaltenbrunn wird zum Flüchtlingslager. Das bleibt so bis zu einer Wiederaufbau-Quest. | `flag.goldkueste.velmara_gebrannt` / `flag.frostgipfel.kaltenbrunn_gefallen` |
 | E4.2 | Tor von Khaz Morund | Gundra überzeugt den Ahnenrat / Runenamboss stehlen | Überzeugen: Die Zwerge werden Verbündete, Ally-Score +1. Stehlen: Die Zwerge bleiben feindlich bis zu einer Sühnequest nach der Story. | `flag.frostgipfel.tor_offen` |
-| E4.3 | Gefangene Kultisten | hinrichten / bekehren / freilassen | Bekehren: Ein abtrünniger Kult-Zweig bietet nach der Story Händler und Quests. Freilassen: Sie verstärken den Kult in Akt 5. | `flag.glutlande.kultisten` (1/2/3) |
+| E4.3 | Gefangene Kultisten | hinrichten / bekehren / freilassen | Bekehren: Ein abtrünniger Kult-Zweig bietet nach der Story Händler und Quests. Freilassen: Sie verstärken den Kult in Akt 5. | `flag.glutlande.kultisten_ausgang` (1/2/3) |
 
-#### Akt 5 – Der Zerbrochene Himmel (Story-Bereich, Level 40–48, 9 Hauptquests)
+#### Akt 5 – Der Zerbrochene Himmel (Story-Bereich, Level 42–48, 9 Hauptquests)
 
 **Kernbeats:**
 1. Aufstieg über den Himmelssteg mit dem Riss-Schlüssel.
@@ -501,7 +504,7 @@ Hauptquest-IDs folgen dem Schema `quest.main.<titel>`. Titel sind Arbeitstitel (
 **Technische Grenze:** Alle spielbaren Punkte liegen ≤ 8 km vom Ursprung, die Welt misst also höchstens 16 × 16 km. Das Raster besteht aus Zellen von 512 m (siehe [03_Technik-Recherche](../Technik/03_Technik-Recherche.md)).
 
 **Vorschlag:**
-- **Kontinent:** Raster von 8 × 8 km (64 km², 16 × 16 Zellen). Davon sind **~41 km² begehbar**. Der Rest ist Meer, Gebirgskulisse und der Schlund.
+- **Kontinent:** Raster von ~8,2 × 8,2 km (16 × 16 Zellen à 512 m ≈ 67 km²). Davon sind **~41 km² begehbar**. Der Rest ist Meer, Gebirgskulisse und der Schlund.
 - **Zerbrochener Himmel:** eigener Weltbereich von ~5 km² mit eigenem Ursprung. Erreichbar über den Himmelssteg mit einer Aufstiegssequenz, die das Laden verdeckt.
 - **Gesamt begehbar: ~46 km².** Zum Vergleich: Für Skyrim werden häufig ~37–40 km² genannt (Schätzung, keine offizielle Angabe).
 
@@ -517,17 +520,17 @@ Hauptquest-IDs folgen dem Schema `quest.main.<titel>`. Titel sind Arbeitstitel (
 
 Bei diesen Zeiten bleibt Schnellreise eine Bequemlichkeit und wird keine Pflicht.
 
-**Content-Dichte:** Die 90-Sekunden-Regel aus [00](./00_Vision_und_Ueberblick.md#säule-1--erkundung-belohnt-immer) bedeutet bei 5 m/s alle ~450 m einen Interessenspunkt. Auf 41 km² sind das mindestens ~200 Punkte entlang der Wege. Die Mindestmengen aus §14.3 ergeben ~70 markierte Orte je Region, also ~560 auf dem Kontinent (~12 je km²). Das reicht, wenn die Orte gleichmäßig verteilt sind.
+**Content-Dichte:** Die 90-Sekunden-Regel aus [00](./00_Vision_und_Ueberblick.md#säule-1--erkundung-belohnt-immer) bedeutet bei 5 m/s alle ~450 m einen Interessenspunkt. Auf 41 km² sind das mindestens ~200 Punkte entlang der Wege. Die Mindestmengen aus §14.3 ergeben ~53 markierte Orte je Region, mit Aussichtspunkten und Rätseln ~60, also ~480 insgesamt (~10 je km² auf 46 km²). Das reicht, wenn die Orte gleichmäßig verteilt sind.
 
 | Region | Begehbare Fläche | ≈ Zellen (512 m) | Begründung |
 |---|---|---|---|
-| Eichental | 4 km² | 16 | Startregion: dicht, überschaubar, Tutorial |
-| Goldküste | 7 km² | 28 | Große Stadt Velmara und Küstenlinie |
-| Moorschatten | 6 km² | 24 | Nebel und Sicht < 50 m lassen die Region größer wirken |
-| Kar'Zul | 8 km² | 32 | Weite ist Teil der Fantasie. Darf dünner besiedelt sein, aber nicht leer. |
-| Frostgipfel | 7 km² | 28 | Viel Vertikalität, die begehbare Grundfläche ist kleiner als sie wirkt |
-| Glutlande | 6 km² | 24 | Lavaflüsse begrenzen den Raum |
-| Aurelion | 3 km² | 12 | Stadt ~1,2 km² plus Umland und Schlundrand |
+| Eichental | 4 km² | 15 | Startregion: dicht, überschaubar, Tutorial |
+| Goldküste | 7 km² | 27 | Große Stadt Velmara und Küstenlinie |
+| Moorschatten | 6 km² | 23 | Nebel und Sicht < 50 m lassen die Region größer wirken |
+| Kar'Zul | 8 km² | 31 | Weite ist Teil der Fantasie. Darf dünner besiedelt sein, aber nicht leer. |
+| Frostgipfel | 7 km² | 27 | Viel Vertikalität, die begehbare Grundfläche ist kleiner als sie wirkt |
+| Glutlande | 6 km² | 23 | Lavaflüsse begrenzen den Raum |
+| Aurelion | 3 km² | 11 | Stadt ~1,2 km² plus Umland und Schlundrand |
 | Zerbrochener Himmel | 5 km² | eigener Bereich | Inseln, vertikal, teils prozedural |
 | **Summe** | **46 km²** | | |
 
@@ -605,7 +608,7 @@ Name und Level stammen aus §14.2. Alles andere ist ein **Vorschlag**.
 | Tempelviertel (Ordensburg Weißwall), Die Senke (Unterstadt) | 22–30 | Akt 2 |
 | Kronenviertel (Rat der Sieben, Adel) | 30–40 | Ratshalle als Story-Ort ab Akt 2, frei begehbar ab Akt 3 |
 | Kanalisation und Katakomben (Dungeon-Netz) | 25–45 | Akt 2, tiefere Ebenen später |
-| Schlundrand (Ruinen des Kaiserpalasts) | 50–60 | mit der Belagerung (Akt 4), frei danach |
+| Schlundrand (Ruinen des Kaiserpalasts) | 50–60 (frei nach der Belagerung); während HQ 49–51 Story-Zone Level 42 ([2.1](#21-überblick)) | mit der Belagerung (Akt 4), frei danach |
 
 ### 4.1 Das Eichental (Level 1–10)
 
@@ -656,7 +659,7 @@ graph TD
   GW["Wachturm Grauwacht"] ---|"~270 m"| SK["Steinkreis von Altenhain"]
   SK ---|"~290 m"| AH["Alwines Hütte"]
   AH ---|"~330 m"| LH["Lindenhain (Hub)"]
-  LH ---|"170 m, Steinbrücke"| HH["Hollmann-Hof"]
+  LH ---|"~280 m, über die Steinbrücke (170 m)"| HH["Hollmann-Hof"]
   HH ---|"~330 m"| NH["Nordhang, Wolfsbau"]
   LH ---|"~250 m"| MU["Mühle am Mühlbach"]
   MU ---|"~135 m"| LI["Alte Linde"]
@@ -862,10 +865,10 @@ Die Mindestmengen stammen aus §14.3. Die Personentage (PT) je Einheit sind eine
 | Großes Geheimnis | 1 | 8 | 8 | ~10 | ~80 |
 | **Vorschlag:** Aussichtspunkte | 3 | 24 | – | ~1 | ~25 |
 | **Vorschlag:** Umgebungsrätsel außerhalb von Dungeons | 4 | 32 | – | ~2 | ~65 |
-| **Summe** | | **~560 Orte und Objekte** | | | **≈ 2.400 PT ≈ 11 Personenjahre** |
+| **Summe** | | **~480 Orte und Objekte** (Minimum; mit den Obergrenzen der Spannen ~580) | | | **≈ 2.400 PT ≈ 11 Personenjahre** |
 
 **Ehrliche Einschätzung:**
-- Die ~2.400 PT gelten **nur für den Ortsbau** (Layout, Platzierung, Scripting, Feinschliff). Sie überlappen teilweise mit der Welt-Art aus [3.1](#31-weltgröße-vorschlag). Zusammen sind es grob **3.500–4.500 PT**.
+- Die ~2.400 PT gelten **nur für den Ortsbau** (Layout, Platzierung, Scripting, Feinschliff). Sie überlappen teilweise mit der Welt-Art aus [3.1](#31-weltgröße-vorschlag). Zusammen sind es höchstens **~3.550–4.250 PT** (2.400 + 1.150–1.850; wegen der Überlappung eher weniger).
 - Dazu kommen die Quests (~2.000–3.100 PT laut [00](./00_Vision_und_Ueberblick.md#risiken--hinweise)), Figuren, Animation, Audio und Code. Der Inhalt von Stufe C liegt damit bei **über 25 Personenjahren**. Für ein kleines Team ist das nur über Jahre und in Etappen machbar.
 - Das Eichental allein (Stufe A + B) braucht nach dieser Rechnung ~300 PT Ortsbau und ~100–160 PT Welt-Art.
 - **Gegenmaßnahmen:**
@@ -893,7 +896,7 @@ Die Mindestmengen stammen aus §14.3. Die Personentage (PT) je Einheit sind eine
 **Kalender (Vorschlag):**
 - **Woche mit 7 Tagen:** Erdtag, Wassertag, Windtag, Feuertag, Aethertag, Markttag, Ruhetag. Am Markttag gibt es Märkte und mehr Wanderhändler. Am Ruhetag gehen NPCs in den Tempel, Läden öffnen 2 h später, an der Goldküste ist Springebbe.
 - **Mondzyklus von 8 Spieltagen:** Vollmond an Tag 1, Neumond an Tag 5. Daran hängen Geheimnisse (versunkener Hain), versteckte Quests (Lied der alten Linde) und Bosse (Kopfloser Vogt).
-- **Keine Jahreszeiten in der Landschaft** (zu teuer). Saisonale Ereignisse richten sich nach dem echten Kalender, siehe [04](./04_Items_Crafting_Wirtschaft_Endgame.md).
+- **Keine Jahreszeiten in der Landschaft** (zu teuer). Saisonale Ereignisse folgen einem Spieljahr: 4 Jahreszeiten × 4 Wochen × 7 Tage = 112 Spieltage ≈ 90 h Echtzeit, Tag 1 = Erntefest am Spielbeginn (Prolog). Ob Feste optional an echte Kalenderdaten gekoppelt werden, ist eine ❓ **Offene Entscheidung**, geführt in [04](./04_Items_Crafting_Wirtschaft_Endgame.md), 9.12.
 - **Nachtregel (§14.4):** Nachts erscheinen andere, gefährlichere Gegner (+2 Level oder eigene Nacht-Typen). Dafür +25 % XP und +1 Stufe beim Loot-Qualitätswurf.
 
 ### 6.2 Wetter mit Gameplay-Effekten
@@ -995,7 +998,7 @@ Die fünf Beispiele aus §14.4 (Karawanen, Überfälle, Riss-Ausbrüche, Wanderh
 
 | Ort | Auslöser | Vorher | Nachher |
 |---|---|---|---|
-| Dorf Eichental | HQ 9 „Das erste Siegel“, danach Regionsquest „Neue Wurzeln“ (`quest.region.eichental.neue_wurzeln`), Gold und Stein aus dem Steinbruch (`flag.eichental.steinbruch_frei`) | Ruine und Asche | `flag.eichental.dorf_wiederaufbau` = 1: Zelte und Zimmerleute. 2: Häuser stehen (leitet Tobold, −30 % Kosten). 3: Dorf mit Markt, Rückkehr-Quests ([02](./02_Quests_und_Dialoge.md), Abschnitt 3) |
+| Dorf Eichental | HQ 9 „Das erste Siegel“, danach Regionsquest „Neue Wurzeln“ (`quest.region.eichental.neue_wurzeln`), Gold und Stein aus dem Steinbruch (`flag.eichental.steinbruch_frei`) | Ruine und Asche | `flag.eichental.dorf_wiederaufbau` = 1: Zelte und Zimmerleute, Rückkehr-Quests verfügbar ([02](./02_Quests_und_Dialoge.md), Abschnitt 3). 2: Häuser stehen (leitet Tobold, −30 % Kosten). 3: Dorf mit Markt |
 | Lindenhain | Quest 1, 4 | Überfüllt mit Flüchtlingen | Wenna eröffnet die Bäckerei, sobald `flag.eichental.muehle_frei`. Bei friedlichem Ausgang von Quest 4 leben Harriks Leute im Dorf (neue Barks). |
 | Banditenlager am Wehr | Quest 4 (`flag.eichental.muehlbach_ausgang`) | Lager der Mühlbach-Banditen | Je nach Ausgang verlassen (später ziehen Wildtiere ein), Mühlenwache gegen Mehl oder geräumt nach Verhaftung |
 | Hollmann-Hof | Quest 2 und 5 | Schafsrisse, Pim krank | Kampf: Rudel vertrieben, Wolfspelze. Splitter zerstört: friedliches Rudel am Nordhang. Pim geheilt spielt auf dem Hof. |
@@ -1019,7 +1022,7 @@ Die Darstellung (HUD, Karte) steht in [05](./05_UI_Audio_Grafik_Barrierefreiheit
 |---|---|
 | Kartennebel | Lichtet sich im Radius von 60 m um den Spieler. Der aufgedeckte Bereich wird gespeichert. |
 | Aussichtspunkte | 3 je Region, erreichbar über eine Kletterpassage. Aktivieren startet eine Kamerafahrt (5 s, überspringbar), lichtet den Nebel im Radius von 600 m und markiert Orte in diesem Radius als „?“. Jeder Aussichtspunkt ist auch ein Schnellreise-Punkt. Eichental: Krähennest des Wachturms Grauwacht, Rabenfels-Spitze, Kronenhügel (Stufe B). |
-| Schnellreise | Zwischen entdeckten Wegpunkten (Aussichtspunkte, Siedlungen, Dungeon-Eingänge). Nicht im Kampf. Kostenlos. |
+| Schnellreise | Ziele: entdeckte Wegpunkte (Wegschreine, Aussichtspunkte, Siedlungen, eigene Häuser, Dungeon-Eingänge von außen). Start, Sperren (Kampf, überladen, Dungeons und Innenräume, Leere-Zonen, Stages mit `blocksFastTravel`) und Zeitsprung laut [03](./03_Kampf_Charakter_Progression.md), 3.6. Kostenlos. |
 | Kompass | Oben am Bildschirm. Zeigt Quest-Marker (bis zu 3 verfolgte Quests, §16.6), eigene Marker, entdeckte Orte bis 300 m, unentdeckte Orte erst ab 100 m als „?“ (nicht bei Nebel) und ein Gefahrensymbol bei Elite-Gegnern oder Weltbossen bis 150 m. |
 | Eigene Marker | Bis zu 50, mit 6 Symbolen, Farbe und kurzer Notiz |
 | Fundort-Zähler | Je Region und Kategorie mit der tatsächlichen Anzahl, z. B. Eichental: Truhen x/24, Lore x/12, Aussichtspunkte x/3, Dungeons x/7, Weltbosse x/4, Geheimnis 0/1 (als „?“ bis zum Fund). Eine komplett erkundete Region bringt einen Titel und eine Kosmetik. |
@@ -1072,7 +1075,7 @@ Regel (Säule 6): Jedes Rätsel ist mit jedem Build lösbar. Elementrätsel habe
 
 **UX-Regeln:**
 - Questrelevante NPCs sind während der passenden Quest-Stufe immer erreichbar. Falls nicht, nennt das Questlog das Zeitfenster („Hollmann ist von 7 bis 18 Uhr am Nordhang“).
-- Händler außerhalb der Ladenzeit: Anklopfen startet einen Dialog. Mit Charisma-Probe gibt es einen Nachtverkauf mit +20 % Preisaufschlag.
+- Händler außerhalb der Ladenzeit: Anklopfen startet einen Dialog. Mit Überzeugen-Probe (Mittel) gibt es einen Nachtverkauf mit +20 % Preisaufschlag.
 - NPCs außerhalb der geladenen Zellen werden nicht simuliert. Beim Laden stehen sie dort, wo ihr Plan sie zu dieser Uhrzeit vorsieht. Technik siehe [Technik/01_Architektur](../Technik/01_Architektur.md).
 
 ### 7.2 Reaktionsregeln
@@ -1120,8 +1123,8 @@ Regel (Säule 6): Jedes Rätsel ist mit jedem Build lösbar. Elementrätsel habe
 | Bezahlen | Kopfgeld zahlen. Gestohlene Ware wird konfisziert. |
 | Gefängnis | Dauer = Kopfgeld / 10 Spielstunden, höchstens 48. Die Zeit wird übersprungen (Abblende), es gibt keine Echtzeit-Wartezeit und keinen XP-Verlust. Gestohlenes wird konfisziert. Die Ausrüstung liegt in der Truhe der Wache und wird bei der Entlassung zurückgegeben. Eichental: Zelle im Wachturm Grauwacht. |
 | Ausbruch aus dem Gefängnis | Dietrich in der Zelle, Schleichpassage. Kopfgeld +100. |
-| Bestechen | 50 % des Kopfgelds plus Charisma-Probe, oder Ruf ≥ Freundlich bei der lokalen Fraktion |
-| Überreden | Charisma-Probe, nur bei Kopfgeld ≤ 50, einmal pro Spieltag |
+| Bestechen | keine Probe: Preis nach [02](./02_Quests_und_Dialoge.md), 12.3 mit Basispreis = 50 % des Kopfgelds (Charisma senkt ihn um bis zu 30 %), oder Ruf ≥ Freundlich bei der lokalen Fraktion |
+| Überzeugen | Überzeugen-Probe (Leicht 10 bei Kopfgeld ≤ 25, Mittel 14 bei ≤ 50), nur bei Kopfgeld ≤ 50, einmal pro Spieltag |
 | Ordensrecht | Silberwacht-Mitglied mit Ruf ≥ Geachtet: einmal pro Spielwoche Kopfgeld ≤ 100 erlassen (Aurelion) |
 | Flucht oder Widerstand | Verfolgung, bei Gegenwehr Kampf |
 
@@ -1136,7 +1139,7 @@ Regel (Säule 6): Jedes Rätsel ist mit jedem Build lösbar. Elementrätsel habe
 |---|---|---|---|
 | Bark | 1 Zeile | Nähe, Wetter, Tageszeit, Spieleraktion, Weltzustand | Dieselbe Zeile frühestens nach 10 min wieder |
 | Ambient-Gespräch | 2 NPCs, 3–6 Zeilen | Spieler < 10 m, beide NPCs untätig | Höchstens 1 Gespräch gleichzeitig in Hörweite (15 m) |
-| Gerücht | Ambient-Gespräch oder Thema beim Wirt | Wie oben, oder beim Wirt kaufbar (10–50 Gold) | Trägt einen Quest-Hinweis: Eintrag im Questlog-Tab „Gerüchte“ und ein ungefährer „?“-Kreis (150 m) auf der Karte |
+| Gerücht | Ambient-Gespräch oder Thema beim Wirt | Wie oben, oder beim Wirt kaufbar (10–50 Gold) | Trägt einen Quest-Hinweis: Eintrag im Abschnitt „Gerüchte“ des Questlog-Tabs „Neben“ ([02](./02_Quests_und_Dialoge.md), 7.1 und 7.7; [05](./05_UI_Audio_Grafik_Barrierefreiheit.md), 1.3) und ein ungefährer „?“-Kreis (150 m) auf der Karte |
 
 - Die Auswahl läuft über Conditions (§6.4). Neue Weltereignisse haben Vorrang: Nach einem Questabschluss sprechen NPCs 2 Spieltage lang darüber.
 - **Beispiel-Gerücht (Ulf, aus [02](./02_Quests_und_Dialoge.md)):** „Seit dem Riss summt es in der Senke unter dem Rabenfels. Der Gelehrte da hinten will unbedingt hin.“ → Quest 7.
@@ -1161,7 +1164,7 @@ NPCs erinnern sich auf drei Ebenen (**Vorschlag**):
 | Vertraut | +50 bis +100 | Gefälligkeiten, Geschenke per Bote, −10 % Preise |
 
 **Beispiele für verzögerte Erinnerung:**
-- Harrik verschont → ~30 h später Informant in Aurelion, Ally-Score +1 (§16.5, Kette in [02](./02_Quests_und_Dialoge.md), 6.5).
+- Harrik verschont → ~18–28 h später Informant in Aurelion (§16.5 nennt „30 Stunden später“), Ally-Score +1, wenn er dort hilft (Kette in [02](./02_Quests_und_Dialoge.md), 6.5).
 - Alwine an die Silberwacht verraten → Morwen beginnt mit Loyalität 20 und erwähnt es am ersten Lagerfeuer.
 - Vor der Silberwacht geflohen (E1.1) → Wachen in Aurelion sprechen den Spieler bis Akt 3 öfter an.
 - Liese belogen (Quest 3, Ende 3) → nach dem Wiederaufbau stellt sie den Spieler zur Rede ([02](./02_Quests_und_Dialoge.md)).
@@ -1186,7 +1189,7 @@ Namen und Grundziele stammen aus §15.2. Alles andere ist ein **Vorschlag**. Que
 | 6 | Der Kult der Leere | `faction.kult_der_leere` | Kathedrale der Stille, Glutlande | Die Stille Prophetin Nhalia | ❓ siehe [8.5](#85-beitritt-zum-kult-der-leere) | Akt 2 (Nacht der Stillen Glocken) |
 | 7 | Die Zwerge von Khaz Morund | `faction.zwerge_khaz_morund` | Khaz Morund, Frostgipfel | Runenkönig Durmar Eisenwort | eingeschränkt (Ehrentitel) | Akt 2 (Gundra in Aurelion), Akt 4 (Festung) |
 
-**Allgemeine Regel:** Jede Questreihe hat 4 Kapitel. Kapitel I (4 Quests) ist für alle offen („Anwärter“). Der **Eid** (Beitritt) folgt am Ende von Kapitel I, frühestens mit dem Pakt am Ende von Akt 2. Erst der Eid löst Ausschlüsse aus (siehe [8.3](#83-ausschlussregeln-wiederspielwert)). So sieht jeder Spieler ~20 Fraktionsquests, bevor er sich festlegen muss.
+**Allgemeine Regel:** Jede Questreihe hat 4 Kapitel. Kapitel I (4 Quests) ist für alle offen („Anwärter“). Der **Eid** (Beitritt) folgt am Ende von Kapitel I, frühestens mit dem Pakt am Ende von Akt 2. Erst der Eid löst Ausschlüsse aus (siehe [8.3](#83-ausschlussregeln-wiederspielwert)). So sieht jeder Spieler ~24 Fraktionsquests (Kapitel I von 6 Fraktionen), bevor er sich festlegen muss.
 
 ### 8.2 Die sieben Fraktionen
 
@@ -1290,7 +1293,7 @@ Namen und Grundziele stammen aus §15.2. Alles andere ist ein **Vorschlag**. Que
 | Ideologie | „Das Wort hält, der Stein hält.“ Ahnen und Clans. Schattenseite: Starrsinn, Schweigen über die Leere seit 190 n. R. |
 | Haltung zu Aether | Nur durch Runen gebunden nutzbar. Die sicherste Aether-Kunst des Kontinents. |
 | Haltung zur Leere | Kennen sie aus den eigenen Tiefen und haben darüber geschwiegen |
-| Sitz | Khaz Morund (Frostgipfel), Außenposten Runentor, Exilschmiede in Aurelion (Gundra) |
+| Sitz | Khaz Morund (Frostgipfel), Außenposten Runentor, Exilschmiede in der Senke von Aurelion (Gundra) |
 | Anführer | Runenkönig Durmar Eisenwort und der Ahnenrat |
 | Beitritt | Eingeschränkt: Ehrentitel statt Volkszugehörigkeit. Ränge: Gast → Steinfreund → Runenträger → Ahnenfreund. |
 | Belohnungen | Freundlich: Runensteine für Sockel · Geachtet: schweres Set „Runenwacht“, Titel „Steinfreund“ · Verehrt: Reittier „Bergwidder“ · Legende: legendärer Hammer „Ahnenwort“, Titel „Ahnenfreund“ |
@@ -1331,7 +1334,7 @@ Begründungen in Kurzform: Silberwacht und Konvent streiten über Versiegeln ode
 | Wildnis | Stämme, Schattenhand, Zwerge | – | Silberwacht, Konvent, Gilde |
 | Stille | Kult (verdeckt) zusätzlich zu einer der Kombinationen oben | – | Bei Bekehrung in Kapitel IV alle anderen |
 
-Ergebnis: Pro Durchgang lassen sich 3 Fraktionen vollständig, höchstens 1 weitere bis zum Bruch und der verdeckte Kult-Pfad spielen. Das sind ~45–71 Fraktionsquests und passt zu „4 von 7 Fraktionen spielbar“ in [00](./00_Vision_und_Ueberblick.md#überschlag). Die Zwerge sind in jeder Kombination dabei, außer bei Bekehrung zum Kult.
+Ergebnis: Pro Durchgang lassen sich 3 Fraktionen vollständig, höchstens 1 weitere bis zum Bruch und der verdeckte Kult-Pfad spielen. Das sind ~45–80 Fraktionsquests (≈ 43–76 % von 105, inkl. Kapitel I ausgeschlossener Fraktionen vor dem Eid) und passt zu „spielt ein Durchgang ~60 % der Fraktionsquests“ in [00](./00_Vision_und_Ueberblick.md#überschlag) und ~60 von 105 in [02](./02_Quests_und_Dialoge.md), 2.5. Die Zwerge sind in jeder Kombination dabei, außer bei Bekehrung zum Kult.
 
 ### 8.5 Beitritt zum Kult der Leere
 
@@ -1362,7 +1365,7 @@ Die 8 Stufennamen stammen aus §15.3. Die Punkteschwellen sind ein **Vorschlag**
 | Verehrt | 1.700 bis 2.699 | Kapitel III der Fraktion abgeschlossen. Sonst bleibt der Ruf bei 1.699 stehen. |
 | Legende | 2.700 bis 3.000 | Fraktions-Ende (Kapitel IV) abgeschlossen. Sonst bleibt der Ruf bei 2.699 stehen. |
 
-**Startwerte:** Silberwacht 0, danach +L oder −M durch E1.1 · Wilde Stämme +50 (Grünmäntel im Eichental) · Zwerge −100 (Isolation) · Kult −400 · alle anderen 0.
+**Startwerte:** Silberwacht 0, danach +L oder −M durch E1.1 · Wilde Stämme +50 (Grünmäntel im Eichental) · Zwerge −100 (Isolation) · Kult −400; beim Start von Kapitel I des verdeckten Pfads ([8.5](#85-beitritt-zum-kult-der-leere) B) wird `stat.ruf.kult_der_leere` auf 0 gesetzt (Tarnung) · alle anderen 0.
 
 **Kontrollrechnung** (mit den Größen aus 9.2):
 
@@ -1373,8 +1376,9 @@ Die 8 Stufennamen stammen aus §15.3. Die Punkteschwellen sind ein **Vorschlag**
 | Kapitel III: wie Kapitel I | +600 | 1.800 | Verehrt |
 | Kapitel IV: 1 × M + 2 × L, Fraktions-Ende XXL | +250 + 500 | 2.550 | Verehrt |
 | Hauptquest-Entscheidungen, Ereignisse, Aufträge (typisch 200–400) | ≥ +150 | ≥ 2.700 | Legende |
+| Zwerge (Start −100) | 500 / 1.100 / 1.700 / 2.450 nach Kapitel I–IV | ≥ 2.700 mit +250 aus Hauptquest-Entscheidungen | Legende |
 
-Ohne Grinden erreichbar, aber nur für die Fraktionen, deren Reihe man abschließt.
+Ohne Grinden erreichbar, aber nur für die Fraktionen, deren Reihe man abschließt. Voraussetzung ist die Ausnahme von der Übertragung in [9.3](#93-übertragung-zwischen-fraktionen): Sonst kostet z. B. in der Kombination „Schatten“ ([8.4](#84-beispiel-kombinationen)) die Gilde-Reihe bis zum Bruch (Kapitel I–III, 1.800 Ruf, −25 %) die Schattenhand 450 Ruf, und Legende wäre nur mit Grinden erreichbar.
 
 ### 9.2 Ruf-Quellen und -Senken
 
@@ -1422,6 +1426,7 @@ Ohne Grinden erreichbar, aber nur für die Fraktionen, deren Reihe man abschlie�
 - Gilt für Gewinne und Verluste aus Quests, Entscheidungen und Ereignissen, nicht für Spenden.
 - **Untergrenze:** Übertragung allein senkt den Ruf nicht unter −399 (Misstrauisch). Feindlich wird man nur durch direkte Taten oder einen Eid.
 - **Kult:** Auf dem verdeckten Pfad gibt es bis Kapitel IV keine Übertragung (Tarnung).
+- **Ausnahme Fraktionsquests:** Ruf aus Fraktionsquests wird nicht übertragen, wenn er aus der Anwärter-Phase (Kapitel I, [8.3](#83-ausschlussregeln-wiederspielwert) Regel 1) stammt oder auf eine Fraktion übertragen würde, der der Spieler ebenfalls den Eid geleistet hat (gilt für R-Paare bis zum Bruch in Kapitel IV). So bleibt die Kontrollrechnung in [9.1](#91-stufen-und-schwellen) gültig (2.550 + ≥ 150), auch wenn der Spieler Kapitel I mehrerer Fraktionen spielt.
 - **Beispiel:** Silberwacht +100 → Zwerge +25, Konvent −25, Stämme −25, Schattenhand −50, Kult −50, Gilde 0.
 
 ### 9.4 Freischaltungen je Stufe
@@ -1431,8 +1436,8 @@ Ohne Grinden erreichbar, aber nur für die Fraktionen, deren Reihe man abschlie�
 | Stufe | Händler | Preise | Quests | Weiteres |
 |---|---|---|---|---|
 | Verhasst | – | – | – | Angriff auf Sicht im Fraktionsgebiet. Kopfgeldjäger der Fraktion als Weltereignis. |
-| Feindlich | verweigert | – | Nur eine Sühnequest (setzt den Ruf auf −399) | Fraktionsorte gesperrt |
-| Misstrauisch | Grundsortiment | +20 % | Sühnequest | Wachen kontrollieren öfter |
+| Feindlich | verweigert | – | Nur eine Sühnequest (setzt den Ruf auf −399). Ausnahme Kult: Kapitel I des verdeckten Pfads ([8.5](#85-beitritt-zum-kult-der-leere) B) ist unabhängig vom Ruf zugänglich | Fraktionsorte gesperrt |
+| Misstrauisch | Grundsortiment | +20 % | Kapitel I ([8.3](#83-ausschlussregeln-wiederspielwert) Regel 1), Sühnequest | Wachen kontrollieren öfter |
 | Neutral | Grundsortiment | ±0 % | Kapitel I | Fraktionsbüro: 2 Aufträge pro Tag ([02](./02_Quests_und_Dialoge.md)) |
 | Freundlich | Stufe 2, erste Rezepte | −5 % | Eid möglich (ab Pakt), Kapitel II | Fraktionsmarken-Händler |
 | Geachtet | Stufe 3, erste Set-Teile | −10 % | Kapitel III | Titel, Nachsicht bei kleinen Delikten, Fraktionsbüro: 3 Aufträge pro Tag |
@@ -1454,12 +1459,12 @@ Rahmen aus §19: 8 Begleiter, höchstens 2 gleichzeitig in der Gruppe, Loyalitä
 | Magistra Ilvy Sternweber | `npc.begleiter.ilvy_sternweber` | Mensch, Aurelierin | Magierin, Elementarschaden (Feuer, Blitz) | neugierig, rücksichtslos, warmherzig | begeistert, nerdig | Aether-Konvent | Akt 2, Akademie Lumenspitze, ~14 h |
 | Morwen Schilfrohr | `npc.begleiter.morwen_schilfrohr` | Mensch, Moorvolk (Hexe) | Magierin, Beschwörung und Flüche (Natur, Schatten) | rätselhaft, boshaft, beschützend | schwarz | Wilde Stämme, Zirkel der Nebelmütter | Akt 2, Moorschatten (HQ 17), ~17 h |
 | Pater Ludo Weinrich | `npc.begleiter.ludo_weinrich` | Mensch, Aurelier, ehemaliger Feldkaplan | Kleriker, Heiler und Unterstützung (Streitkolben) | zynisch, gütig, trinkfest | zynisch | keine (früher Silberwacht) | Akt 2, Armenhospiz in der Senke (Aurelion), ~19 h |
-| Gundra Steinwort | `npc.begleiter.gundra_steinwort` | Zwergin, im Exil | Kriegerin, Kontrolle und Haltung brechen (Zweihandhammer) | stur, laut, sentimental | derb, laut | Zwerge | Akt 2, Exilschmiede (Aurelion), ~21 h |
+| Gundra Steinwort | `npc.begleiter.gundra_steinwort` | Zwergin, im Exil | Kriegerin, Kontrolle und Haltung brechen (Zweihandhammer) | stur, laut, sentimental | derb, laut | Zwerge | Akt 2, Exilschmiede in der Senke (Aurelion), ~21 h |
 | Ashka vom Sandpfad | `npc.begleiter.ashka` | Mensch, Sandläuferin | Waldläuferin, Fernkampf (Bogen, Speer, Fallen) | stolz, spöttisch, spirituell | spöttisch | Wilde Stämme | Akt 3, Karawanserei Drei Brunnen, ~30 h |
 | Kael | `npc.begleiter.kael` | Mensch, Rissgeborener | Rissläufer, Hybrid (Teleport, Aether, Nahkampf) | melancholisch, unberechenbar, sanft | unfreiwillig komisch (versteht Alltägliches nicht) | Kult-Vergangenheit, geflohen | Akt 3, Grabmal der Sonnenkönige, ~33 h |
 
 - **Abdeckung:** Jede Klasse aus §11.1 ist mindestens einmal vertreten (Krieger 2, Magier 2, Waldläufer, Schurke, Kleriker, Rissläufer). Alle Gruppenrollen sind abgedeckt: Tank (Maren, Gundra), Fernkampf (Ashka), Heilung (Ludo), Kontrolle (Morwen).
-- **Morwen ist verpassbar:** Wird der Zirkel ausgeliefert (E2.2), flieht sie und ist erst in Kar'Zul rekrutierbar, mit Loyalität 10. Sonst hängt ihre Start-Loyalität von Quest 5 ab: `flag.eichental.alwine_status` 4 → 40, 1 → 30, 2 → 20, 3 → 10.
+- **Morwen ist verpassbar:** Wird der Zirkel ausgeliefert (E2.2), flieht sie und ist erst in Kar'Zul rekrutierbar, mit Loyalität 15. Sonst hängt ihre Start-Loyalität von Quest 5 ab: `flag.eichental.alwine_status` 4 → 40, 1 → 30, 2 → 20, 3 → 15. Der niedrigste Startwert 15 liegt zwischen Warngespräch (20) und Verlassen (≤ 10, [10.3](#103-loyalität)).
 - Stufe B (laut [00](./00_Vision_und_Ueberblick.md#umfangsstufen)) enthält 3 Begleiter: Maren, Jasper oder Ilvy, Morwen.
 
 ### 10.2 Vorlieben, Questreihen, Spezialfähigkeiten
@@ -1531,7 +1536,7 @@ Regeln (§19): Nur für Waldläufer bzw. wer den Waldläufer-Ast „Tierbund“ 
 
 **Rekrutierung im Slice (Vorschlag):** Die volle HQ 3 gehört zu Stufe B. Im Slice trifft Maren nach Quest 1 und ~2 Nebenquests (~2:00) in Lindenhain ein. Ein Prüfungsdialog (`dlg.eichental.maren_pruefung`) hat 2 Ausgänge: annehmen (Loyalität 40) oder ablehnen (sie folgt „auf Befehl“, Loyalität 25). Die Flucht mit Duell am Nordhang kommt erst in Stufe B. Die Rekrutierung ist ein Dialog-Ereignis und keine 9. Quest. So bleibt der Slice bei den 8 Quests aus §16.9.
 
-**Umfang im Slice:** Loyalität (Warnung bei 20, Verlassen bei 10), Kommentare zu allen 8 Beispiel-Quests (Jannik ±5, Alwine verraten +5 / gedeckt −5), 2 Einzelgespräche am Lagerfeuer, KI-Verhalten. Bei Loyalität 40 gibt es nur ein Ausblick-Gespräch. Ihre persönliche Questreihe kommt erst in Stufe B.
+**Umfang im Slice:** Loyalität (Warnung bei 20, Verlassen bei 10), Kommentare zu den Beispiel-Quests 3–7 ([02](./02_Quests_und_Dialoge.md), 11.0) (Jannik ±5, Alwine verraten +5 / gedeckt −5), 2 Einzelgespräche am Lagerfeuer, KI-Verhalten. Bei Loyalität 40 gibt es nur ein Ausblick-Gespräch. Ihre persönliche Questreihe kommt erst in Stufe B.
 
 ❓ **Offene Entscheidung: Romanzen.** Optionen: keine · bei 4 von 8 Begleitern · bei allen. Empfehlung: 4 (Maren, Jasper, Ilvy, Kael), unabhängig vom Körpertyp der Spielfigur, höchstens 1 aktive Romanze, keine expliziten Szenen (passend zu USK 16).
 
@@ -1585,7 +1590,7 @@ Jeder Typ existiert in den Varianten aus §20.1. Die Varianten sind **Daten-Over
 | 1 | Ealdor, der Aschenhirsch | `boss.story.ealdor_aschenhirsch` | Lichtung am Steinkreis von Altenhain | **P1 (100–60 %):** Geweih-Ansturm, Hufstampfer. Haltung brechen legt den Kristallkern frei. **P2 (60–25 %):** Kristalle wachsen aus dem Boden, Mini-Risse spawnen Risslinge und Wölfe. **P3 (< 25 %):** Eine Aschewand lässt die Arena schrumpfen. Das Riss-Siegel ist der Finisher (Tutorial). |
 | 2 | Hierophant Kaldris | `boss.story.hierophant_kaldris` | Glockenturm von Aurelion, mehrere Ebenen | **P1:** Duell mit Kultisten, Akolythen heilen ihn (zuerst ausschalten). **P2:** Leere-Zonen breiten sich am Boden aus, der Spieler weicht auf Glockenplattformen aus. **P3:** Der Turm bricht, Kampf in der Glockenstube, Glockenschläge erzeugen Schockwellen im Takt. |
 | 3 | Ankhar, der letzte Sonnenkönig | `boss.story.ankhar` | Sarkophagkammer im Grabmal der Sonnenkönige | **P1:** Sonnenklinge, Mumienwächter. **P2:** Die Kammer wird dunkel, nur über Spiegel gelenkte Lichtstrahlen machen ihn verwundbar. **P3:** Sandsturm in der Kammer, Echo-Kopien. Echo-Lesen zeigt das echte Ziel. |
-| 4 | Ignareth, der Leere-Drache | `boss.story.ignareth` | Schlundrand von Aurelion, Ruine des Kaiserpalasts | **P1 (Boden):** Feueratem, Schwanzfeger auf dem Wehrgang. **P2 (Luft):** Lavaregen über der Stadt. Der Spieler holt den Drachen mit Ballisten herunter. Bemannte Ballisten = 1 + ⌊Ally-Score / 2⌋, höchstens 4, +1 wenn Grimmbart lebend gefangen wurde. **P3 (Leere):** Teile der Arena verschwinden im Schlund, der Drache wechselt zwischen Feuer- und Leere-Atem. |
+| 4 | Ignareth, der Leere-Drache | `boss.story.ignareth` | Schlundrand von Aurelion, Ruine des Kaiserpalasts | **P1 (Boden):** Feueratem, Schwanzfeger auf dem Wehrgang. **P2 (Luft):** Lavaregen über der Stadt. Der Spieler holt den Drachen mit Ballisten herunter. Bemannte Ballisten = 1 + ⌊Ally-Score / 2⌋, höchstens 4, +1 bei `flag.eichental.grimmbart_ausgang = 2` und `flag.eichental.grimmbart_entkommen = false`. **P3 (Leere):** Teile der Arena verschwinden im Schlund, der Drache wechselt zwischen Feuer- und Leere-Atem. |
 | 5 | Der Graue Wanderer | `boss.story.grauer_wanderer` | Sternwarte von Caelum | **P1:** Duell mit gespiegeltem Rissläufer-Moveset (Teleport). **P2:** Er ruft Echo-Ritter aus der Vergangenheit. **P3:** Er zapft das Herz an, die Inseln der Arena driften. Bei Pakt (E3.3) und Leere-Resonanz ≥ 50 folgt eine Verhandlung statt eines Kampfes. |
 | 5 | Finale je Ende | `boss.story.herz_der_leere` | Herz des Risses | **Siegel / Opfer:** Avatar der Leere in 3 Phasen, Plattformen schließen sich, Riss-Siegel als Kernmechanik. **Krone:** Avatar der Leere, dazu Aether-Türme laden (Kanalisieren unter Druck). **Lied:** kein Kampf, sondern eine Prüfung aus Echo-Rätseln und ein Dialog mit Lina. **Tor:** Kampf gegen die eigenen Verbündeten (Pakt-Anführer und ein Begleiter). |
 
@@ -1632,21 +1637,22 @@ Jeder Typ existiert in den Varianten aus §20.1. Die Varianten sind **Daten-Over
 | Fünftes Ende „Das Opfer“ | ja · nein | ja | Günstig (eine Szene und Epilog), belohnt hohe Loyalität |
 | Spielbare Echo-Sequenzen in Akt 3 | 3 kurze Sequenzen · nur Zwischensequenzen · keine | 3 kurze Sequenzen mit wiederverwendeten Assets | Zeigt die Enthüllung, statt sie zu erzählen. Kostet Level-Design-Zeit. |
 | Weltgröße ([3.1](#31-weltgröße-vorschlag)) | ~46 km² begehbar · kleiner (~30 km²) · größer | ~46 km², mit Option auf 70 % für Kar'Zul und Frostgipfel nach Messung | Größter Einzelfaktor für die Kosten der Welt-Art |
-| Würfel oder feste Werte bei Proben (Bestechen, Überreden) | Würfel · feste Schwellen | Wird in [02](./02_Quests_und_Dialoge.md) geführt | Betrifft hier Kopfgeld-Dialoge und Ruf-Nachsicht |
+| Würfel oder feste Werte bei Proben (Überzeugen, Einschüchtern, Lügen) | Würfel · feste Schwellen | Wird in [02](./02_Quests_und_Dialoge.md) geführt | Betrifft hier Kopfgeld-Dialoge und Ruf-Nachsicht |
+| Saisonale Ereignisse: Spieljahr oder echte Kalenderdaten ([6.1](#61-tagnacht-und-kalender)) | Spieljahr (112 Spieltage) · echtes Datum · Spieljahr + Option „echtes Datum“ | Wird in [04](./04_Items_Crafting_Wirtschaft_Endgame.md), 9.12 geführt (Empfehlung dort: Spieljahr, Option aus) | Offline-Spieler würden sonst Feste verpassen; Prolog am Erntefest = Tag 1 des Spieljahrs |
 | Fraktionsquests je Fraktion | 15 (Budget aus 00) · bis 25 (§15.3) | 15, Kapitelstruktur erweiterbar auf 20 | ~70 Quests Unterschied über alle Fraktionen |
 
 ---
 
 ## Risiken & Hinweise
 
-1. **Der Umfang der Welt allein übersteigt ein kleines Team.** Ortsbau (~2.400 PT) und Welt-Art (~1.150–1.850 PT) ergeben zusammen grob 3.500–4.500 PT, ohne Quests, Figuren und Audio.
+1. **Der Umfang der Welt allein übersteigt ein kleines Team.** Ortsbau (~2.400 PT) und Welt-Art (~1.150–1.850 PT) ergeben zusammen höchstens ~3.550–4.250 PT (2.400 + 1.150–1.850; wegen der Überlappung eher weniger), ohne Quests, Figuren und Audio.
    → Gegenmaßnahme: Mit den Minimalwerten aus §14.3 planen. Dungeon- und POI-Kits. PT pro km² und pro Dungeon nach Stufe A messen (Slice-Gebiet 1,1 km² als Messbasis), danach neu rechnen (Schrumpfoption in 3.1).
 2. **Verzweigungs-Explosion:** 13 Story-Entscheidungen, 5 Beispiel-Quest-Flags mit Story-Folgen, Ally-Score, 5 Enden und Fraktionsausschlüsse ergeben sehr viele Kombinationen.
    → Gegenmaßnahme: Nur 3 strukturelle Verzweigungen (Pakt, Belagerung, Ende). Alle anderen Entscheidungen ändern Details, nicht die Struktur. Automatisierte Tests setzen Flag-Kombinationen per Debug-Konsole (`set_flag`) und prüfen, ob jedes Ende erreichbar bleibt.
 3. **Teure Inhalte, die viele Spieler nie sehen** (Fraktionsenden, verpasste Begleiter, 4 von 5 Enden).
    → Gegenmaßnahme: Kapitel I aller Fraktionen für alle offen. Exklusive Inhalte als Dialog und Epilog statt neuer Gebiete. Orte und Assets zwischen Fraktionsreihen teilen.
 4. **Aurelion ist der teuerste Einzelort und ein Performance-Risiko** (NPC-Dichte, Draw Calls, Tagesabläufe). 13 der 60 Hauptquests spielen dort.
-   → Gegenmaßnahme: In Stufe B nur 2 Viertel. NPC-Budget je aktiver Zelle festlegen (Vorschlag: ≤ 40 simulierte NPCs). Früher Performance-Test auf dem MacBook.
+   → Gegenmaßnahme: In Stufe B 2 begehbare Viertel: Glockenviertel (mit Stadttor und Gildenmarkt-Rand) und Die Senke; Ratshalle, Ordensburg-Empfang und Exilschmiede als Innenraum-Szenen mit Ladebildschirm. NPC-Budget je aktiver Zelle festlegen (Vorschlag: ≤ 40 simulierte NPCs). Früher Performance-Test auf dem MacBook.
 5. **Inseldrift im Zerbrochenen Himmel** ist technisch heikel (NavMesh, Speichern, Orientierung).
    → Gegenmaßnahme: 3–4 vorgefertigte Layouts, die wöchentlich wechseln, statt freier Bewegung. Eigener Weltbereich mit eigenem Ursprung.
 6. **67 Gegnertypen** bedeuten viel Animation.

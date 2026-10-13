@@ -1,6 +1,6 @@
 # Items, Crafting, Wirtschaft & Endgame
 
-> Teil der Phase-0-Planung · Stand: 2026-10-12 · Quelle: [Master-Prompt](../00_Master-Prompt.md)
+> Teil der Phase-0-Planung · Stand: 2026-10-13 · Quelle: [Master-Prompt](../00_Master-Prompt.md)
 
 **Kennzeichnungen** (wie in [00_Vision_und_Ueberblick](./00_Vision_und_Ueberblick.md)):
 - **Vorschlag:** füllt eine Lücke im Master-Prompt. Alle Zahlen sind Startwerte. Sie liegen später in Balancing-SOs (`LootBalancing`, `EconomyBalancing`, …) bzw. CSV-Tabellen ([Technik/01](../Technik/01_Architektur.md), 5.3), nie im Code (§28).

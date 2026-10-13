@@ -1,6 +1,6 @@
 # UI/UX, Audio, Grafik & Barrierefreiheit
 
-> Teil der Phase-0-Planung · Stand: 2026-10-12 · Quelle: [Master-Prompt](../00_Master-Prompt.md)
+> Teil der Phase-0-Planung · Stand: 2026-10-13 · Quelle: [Master-Prompt](../00_Master-Prompt.md)
 
 Kennzeichnungen (**Vorschlag**, **Verbesserungsvorschlag**, ❓ **Offene Entscheidung**) wie in [00_Vision_und_Ueberblick](./00_Vision_und_Ueberblick.md).
 Die technische Wahl zwischen UI Toolkit und uGUI (§24.3) sowie SaveManager und `ISaveable` (§25) stehen in [Technik/01_Architektur](../Technik/01_Architektur.md); die Recherche dazu in [Technik/03_Technik-Recherche](../Technik/03_Technik-Recherche.md). Diese Datei beschreibt nur Verhalten und Gestaltung.
@@ -63,24 +63,27 @@ Layout-Skizze bei 16:9 (Vorschlag):
 | Statuseffekte (Spieler) | über dem Verderbnis-Balken | Icon, Aufbaubalken, Restdauer, Stärke | ja (nicht empfohlen) | wie der Lebensbalken |
 | Klima-Meter | rechts neben dem Verderbnis-Balken | Kälte (Frostgipfel) oder Hitze (Kar'Zul am Tag, Glutlande) mit Marken 50/75/100 | nein (spielrelevant) | nur in betroffenen Gebieten und bei Aufbau > 0 |
 | Leere-Laterne | rechts neben dem Verderbnis-Balken | Restbrenndauer (120 s), Warnton bei 20 s | nein (spielrelevant) | nur in Leere-Zonen oder bei brennender Laterne |
-| Fähigkeitenleiste | unten rechts | 4 Slots mit Glyphe; Abklingzeit radial plus Sekunden; Anzeige Leiste 1/2; rot getönt bei zu wenig Mana | ja | im Kampf und beim Halten von RB |
-| Fähigkeitsrad | Bildschirmmitte | Fähigkeiten beider Leisten (§7.1: RB halten) | nein | nur beim Halten |
+| Fähigkeitenleiste | unten rechts | 4 Slots mit Glyphe; Abklingzeit radial plus Sekunden; Anzeige Leiste 1/2; rot getönt bei zu wenig Mana oder Ausdauer (Krieger-, Schurken- und Waldläufer-Fähigkeiten kosten Ausdauer, [03](./03_Kampf_Charakter_Progression.md), 4.3) | ja | im Kampf und beim Halten von RB |
+| Fähigkeitsrad | Bildschirmmitte | Fähigkeiten beider Leisten (§7.1: RB halten) + KI-Modus je Begleiter ([03](./03_Kampf_Charakter_Progression.md), 13.2) | nein | nur beim Halten |
 | Schnellslots | unten rechts, unter den Fähigkeiten | 4 Slots in Kreuzform wie das Steuerkreuz, Anzahl, Abklingzeit | ja | bei Nutzung und im Kampf |
 | Kompass | oben Mitte | ±90° Blickfeld, Himmelsrichtungen, Marker (siehe 1.8) | ja | Immersiv: aus |
 | Verfolgte Quests | rechts oben | max. 3 Quests (§16.6): Titel, aktuelle Stage, Ziele mit Zähler (3/5), optionale Ziele kursiv | ja | blendet bei Fortschritt 8 s ein |
+| Angeheftetes Rezept | rechts oben unter den Quests | Zutaten mit Zähler, z. B. „Blutwurz 3/5“ ([04](./04_Items_Crafting_Wirtschaft_Endgame.md), 6.12) | ja | solange angeheftet |
 | Minikarte | oben rechts | Radius 120 m, Spielerpfeil, Marker, Tageszeit-Symbol | ja (§24.1) | Immersiv: aus |
 | Benachrichtigungen | siehe 1.7 | Loot, Quest, Level | filterbar | Minimal: nur P0 |
-| Gegner-Lebensbalken | über dem Gegner | LP, Haltung, Level, Symbol für Elite, Champion oder Aether-verderbt, Statusaufbau | ja | Standard: nur bei Schaden oder Lock-On |
+| Gegner-Lebensbalken | über dem Gegner | LP, Haltung, Level, Symbol für Elite, Champion oder Aether-verderbt, Statusaufbau; Totenkopf ab 6 Level über dem Spieler ([03](./03_Kampf_Charakter_Progression.md), 9.7) | ja | Standard: nur bei Schaden oder Lock-On |
 | Boss-Lebensbalken | oben Mitte, unter dem Kompass (§20.3) | Name, Titel, LP mit Phasenmarken, Haltung | ja (nicht empfohlen) | immer im Bosskampf |
+| Expedition | oben Mitte, unter dem Kompass (über einem Boss-Lebensbalken) | Riss-Stabilität 0–100 %, Zeit bis Gold/Silber/Bronze ([04](./04_Items_Crafting_Wirtschaft_Endgame.md), 9.2) | nein | nur in Riss-Expeditionen |
 | Lock-On-Marker | am Ziel | Raute | nein | nur bei Lock-On |
 | Fadenkreuz | Mitte | Spannungsgrad; Bestätigung für Treffer und Kopftreffer | ja | nur beim Zielen (LT) |
-| Interaktions-Hinweis | unter der Mitte | Glyphe und Verb („E Sprechen“), Ring bei Halte-Aktionen | nein | bei Interaktionsobjekten in ≤ 2,5 m |
+| Interaktions-Hinweis | unter der Mitte | Glyphe und Verb („E Sprechen“), Ring bei Halte-Aktionen | nein | bei Interaktionsobjekten in ≤ 2 m (Interaktionsradius laut [03](./03_Kampf_Charakter_Progression.md), 1.4 und [Technik/01](../Technik/01_Architektur.md), 11.3) |
 | Atemleiste | neben dem Lebensbalken | Atemluft (§8.2) | nein | nur beim Tauchen |
 | Entdeckungsanzeige | über dem Gegner und als Bogen um die Mitte | 0–100 %: weiß, dann gelb (misstrauisch), dann rot (entdeckt) | ja | nur beim Schleichen |
 | Treffer-Richtung | Bogen um die Bildschirmmitte | Richtung eines Angriffs außerhalb des Blickfelds | ja | nur bei Treffer |
 | Begleiter-Status | links oben | 2 Porträts, LP, KI-Verhalten, Spezialfähigkeit bereit | ja | im Kampf oder bei Verletzung |
 | XP-Leiste | unten Mitte, dünn | Fortschritt zum nächsten Level | ja | 4 s nach XP-Gewinn |
 | Reittier-Ausdauer | unter dem Lebensbalken | Galopp-Ausdauer | ja | nur beim Reiten |
+| Traglast | neben dem Ausdauerbalken | Symbol gelb > 90 %, orange > 100 %, rot > 125 % ([04](./04_Items_Crafting_Wirtschaft_Endgame.md), 1.3) | nein | ab > 90 % |
 | Speicher-Indikator | Ecke unten rechts | rotierendes Aether-Symbol | nein | während des Speicherns |
 | Untertitel | unten Mitte | siehe 4.2 | über Optionen | – |
 | Schadenszahlen | am Ziel | siehe 1.11 | ja (§9.7) | – |
@@ -120,7 +123,7 @@ flowchart TD
   GP -->|"J"| QL["Hub-Tab Questlog"]
   GP -->|"Tab"| INV["Hub-Tab Inventar"]
   GP -->|"K"| SK["Hub-Tab Skilltree"]
-  GP -->|"Interagieren"| CTX["Kontextbildschirme: Dialog, Handel, Werkbank, Lagerkiste, Bau-Modus"]
+  GP -->|"Interagieren"| CTX["Kontextbildschirme: Dialog, Handel, Werkbank, Lagerkiste, Loot-Fenster, Bau-Modus"]
   SYS --> SL["Speichern und Laden"]
   SYS --> OP
   SYS --> HM
@@ -139,8 +142,8 @@ flowchart LR
 |---|---|---|
 | Karte | Weltkarte (3 Zoomstufen, Filter, eigene Marker); Regionsübersicht mit Fundorte-Zählern („Truhen 12/24“); Legende | Select / Touchpad, M |
 | Questlog | Haupt, Fraktion, Region, Neben, Begleiter, Aufträge, Abgeschlossen mit Entscheidungs-Ledger (Zuordnung der Kategorien in [02](./02_Quests_und_Dialoge.md), 7.1) | J |
-| Inventar und Ausrüstung | Ausrüstung mit 3D-Vorschau; die 8 Kategorien aus §12.1; Aussehen (Transmog) | Tab |
-| Charakter | Attribute verteilen, abgeleitete Werte, Resistenzen, Verderbnis-Stufe, Leere-Resonanz (ab Akt 3, [01](./01_Welt_Story_Fraktionen.md)), Titel | – |
+| Inventar und Ausrüstung | Ausrüstung mit 3D-Vorschau; die 8 Kategorien aus §12.1; Aussehen (Transmog). Das Inventar ist eine Liste mit Spalten (Seltenheits-Formcode, Name, iLvl, Kernwert, Gewicht, Wert, Markierungen), kein Raster ([04](./04_Items_Crafting_Wirtschaft_Endgame.md), 1.2) | Tab |
+| Charakter | Attribute verteilen, abgeleitete Werte, Resistenzen, Verderbnis-Stufe, Leere-Resonanz (ab Akt 3, [01](./01_Welt_Story_Fraktionen.md)), Titel, Paragon (ab Level 80, Punkte jederzeit kostenlos umverteilbar, [04](./04_Items_Crafting_Wirtschaft_Endgame.md), 9.6) | – |
 | Skilltree | Klassenbäume, allgemeine Bäume, Belegung der Fähigkeitenleisten | K |
 | Handwerk | Rezeptbuch, Berufsstufen, Materialien. Hergestellt wird an Stationen, siehe [04](./04_Items_Crafting_Wirtschaft_Endgame.md) | – |
 | Fraktionen | Ruf je Fraktion, freigeschaltete Belohnungen, Feindschaften, Pakt | – |
@@ -152,7 +155,7 @@ Hinweise:
 - Dieselbe Direkttaste schließt das Menü wieder. B bzw. Esc schließt auf oberster Ebene und kehrt ins Gameplay zurück.
 - Z/C sind Positionsbelegungen. Auf QWERTZ-Tastaturen wird „Y/C“ angezeigt (siehe 1.5).
 - Q/E und Z/C gelten nur in der UI-Action-Map (§7.3). Im Gameplay bleibt Q = Blocken und E = Interagieren (§7.2).
-- Kontextbildschirme (Dialog, Handel, Werkbank, Lagerkiste, Bau-Modus) gehören nicht zum Hub. Sie nutzen eigene Action Maps (Dialog, Bauen laut §7.3) und dieselben Bedienregeln aus 1.4.
+- Kontextbildschirme (Dialog, Handel, Werkbank, Lagerkiste, Loot-Fenster, Bau-Modus) gehören nicht zum Hub. Sie nutzen eigene Action Maps (Dialog, Bauen laut §7.3) und dieselben Bedienregeln aus 1.4. Ausnahme im Loot-Fenster für Truhen: Y bzw. R = „Alles nehmen“ statt Sortieren ([04](./04_Items_Crafting_Wirtschaft_Endgame.md), 5.4 und 5.9).
 
 ### 1.4 Controller- und Bedienregeln (§24.3)
 
@@ -174,23 +177,24 @@ Hinweise:
 
 ### 1.5 Button-Glyphen je Gerät (§4.3, §7.3)
 
-| UI-Aktion | Xbox | PlayStation | Generisch (Positionssymbol) | Tastatur/Maus |
-|---|---|---|---|---|
-| Bestätigen | A | Kreuz | Süd-Taste | Enter / Linksklick |
-| Zurück | B | Kreis | Ost-Taste | Esc / Rechtsklick |
-| Sekundär | X | Quadrat | West-Taste | F |
-| Sortieren/Filtern | Y | Dreieck | Nord-Taste | R |
-| Haupttab ◀ ▶ | LB / RB | L1 / R1 | Schulter L / R | Q / E |
-| Unterkategorie ◀ ▶ | LT / RT | L2 / R2 | Trigger L / R | Z / C (Position) |
-| Details | R3 | R3 | rechter Stick drücken | Shift |
-| Karte | View | Touchpad | Select | M |
-| Menü | Menu | Options | Start | Esc |
+| UI-Aktion | Xbox | PlayStation | Nintendo (Switch Pro) | Generisch (Positionssymbol) | Tastatur/Maus |
+|---|---|---|---|---|---|
+| Bestätigen | A | Kreuz | B (Süd) | Süd-Taste | Enter / Linksklick |
+| Zurück | B | Kreis | A (Ost) | Ost-Taste | Esc / Rechtsklick |
+| Sekundär | X | Quadrat | Y (West) | West-Taste | F |
+| Sortieren/Filtern | Y | Dreieck | X (Nord) | Nord-Taste | R |
+| Haupttab ◀ ▶ | LB / RB | L1 / R1 | L / R | Schulter L / R | Q / E |
+| Unterkategorie ◀ ▶ | LT / RT | L2 / R2 | ZL / ZR | Trigger L / R | Z / C (Position) |
+| Details | R3 | R3 | R-Stick drücken | rechter Stick drücken | Shift |
+| Karte | View | Touchpad | − | Select | M |
+| Menü | Menu | Options | + | Start | Esc |
 
 **Wechselregeln (Vorschlag):**
 - Auf Gamepad-Glyphen wird umgeschaltet bei jeder Gamepad-Taste oder bei Stick-Ausschlag > 50 %.
 - Auf Tastatur-Glyphen wird umgeschaltet bei jedem Tastendruck oder bei > 10 px Mausbewegung innerhalb von 0,1 s.
 - 0,3 s Hysterese verhindert Flackern.
-- Option „Glyphen-Stil“: Automatisch (Standard) / Xbox / PlayStation / Generisch.
+- Option „Glyphen-Stil“: Automatisch (Standard) / Xbox / PlayStation / Nintendo / Generisch. Die Familien entsprechen den `GlyphSet`-Familien in [Technik/01](../Technik/01_Architektur.md), 11.1.
+- **Nintendo (Vorschlag):** Die Belegung bleibt positionsgleich (Süd-Taste = Bestätigen, §24.3). Weil Nintendo A und B anders beschriftet, zeigt die Glyphe dort „B“ für Bestätigen und „A“ für Zurück.
 - Glyphen spiegeln immer die **aktuelle** Belegung nach Rebinding (§7.3).
 - Tastatur-Glyphen zeigen die Beschriftung des aktiven Layouts (QWERTZ, AZERTY), nicht die US-Bezeichnung.
 - **Prüfpunkt (nicht verifiziert):** Ob Steam Input Controller als Xbox-Gerät meldet und dadurch falsche Glyphen erzeugt. Gehört in den UI-Spike vor Phase 2 ([Technik/03](../Technik/03_Technik-Recherche.md), Empfehlung 4).
@@ -586,7 +590,7 @@ Grundsätze (Vorschlag):
 | Typ | Erkennungsmerkmal |
 |---|---|
 | Plünderbar | Glitzern alle 3 s im Umkreis von 15 m. Truhenqualitäten unterscheiden sich in Form und Material (Holz, Eisen, Silber, Gold, Aether), nicht nur in der Farbe. |
-| Interagierbar | Hinweis ab ≤ 2,5 m; optional ein Umriss in der Nähe |
+| Interagierbar | Hinweis ab ≤ 2 m (Interaktionsradius laut [03](./03_Kampf_Charakter_Progression.md), 1.4 und [Technik/01](../Technik/01_Architektur.md), 11.3); optional ein Umriss in der Nähe |
 | Sammelpunkt | etwas höhere Sättigung, Glitzern ab ≤ 10 m |
 | Questgeber-Gegenstand (Brief, Karte, Aushang) | glitzert wie Loot, zeigt aber kein „!“ ([02](./02_Quests_und_Dialoge.md), 7.6) |
 | Kletterbar (§8.2) | heller, abgegriffener Fels, Kalkspuren, Seile oder Ranken in einheitlicher Form. Option „Kletterflächen hervorheben“. |
@@ -729,6 +733,13 @@ Die exakten FBX-Export-Einstellungen werden in Phase 1 mit einer Test-FBX verifi
 | Tutorial-Hinweise | An / Nur wichtige / Aus | An | Vorschlag |
 | Bestätigung beim Verkaufen oder Zerlegen ab | Selten / Episch / Legendär / Nie | Episch | Vorschlag |
 | Automatisch aufheben | Aus / Gold und Materialien / Alles | Gold und Materialien | Vorschlag |
+| Ausrüstung ab Seltenheit (Unteroption bei „Alles“) | Gewöhnlich / Ungewöhnlich / Selten / Episch | Ungewöhnlich | [04](./04_Items_Crafting_Wirtschaft_Endgame.md), 5.9 |
+| Plunder ignorieren („Alles nehmen“ im Loot-Fenster) | An / Aus | Aus | [04](./04_Items_Crafting_Wirtschaft_Endgame.md), 5.9 |
+| Strahlen ab Seltenheit | Ungewöhnlich / Selten / Episch / Legendär | Selten | [04](./04_Items_Crafting_Wirtschaft_Endgame.md), 5.8 |
+| Beim Betreten des Hauses Materialien einlagern | An / Aus | An | [04](./04_Items_Crafting_Wirtschaft_Endgame.md), 1.7 |
+| Schnellslot-Nachrücken (nächste Qualität, wenn der Stapel leer ist) | An / Aus | An | [04](./04_Items_Crafting_Wirtschaft_Endgame.md), 2.3 |
+| Einfaches Angeln | An / Aus | Aus | [04](./04_Items_Crafting_Wirtschaft_Endgame.md), 6.11 |
+| Schnellreise nur zwischen Wegpunkten | An / Aus | Aus | [03](./03_Kampf_Charakter_Progression.md), 3.6 (Teil der Albtraum-Herausforderung) |
 | Blut-Effekte | An / Reduziert / Aus | An | Vorschlag, hängt von der Altersfreigabe ab |
 
 **Steuerung**
@@ -737,7 +748,7 @@ Die exakten FBX-Export-Einstellungen werden in Phase 1 mit einer Test-FBX verifi
 |---|---|---|---|
 | Tastenbelegung Controller | je Action Map (Gameplay, UI, Dialog, Reiten, Bauen) | §7.1 | §7.3 |
 | Tastenbelegung Maus/Tastatur | je Action Map | §7.2 | §7.3 |
-| Glyphen-Stil | Automatisch / Xbox / PlayStation / Generisch | Automatisch | §4.3 |
+| Glyphen-Stil | Automatisch / Xbox / PlayStation / Nintendo / Generisch | Automatisch | §4.3 |
 | Kamera-Empfindlichkeit Stick (horizontal / vertikal) | 1–10 | 5 / 5 | §7.3 |
 | Empfindlichkeit beim Zielen (Stick) | 1–10 | 4 | Vorschlag |
 | Maus-Empfindlichkeit | 0,1–5,0 | 1,0 | Vorschlag |
@@ -750,6 +761,15 @@ Die exakten FBX-Export-Einstellungen werden in Phase 1 mit einer Test-FBX verifi
 | Sprinten | Halten / Umschalten | Controller: Umschalten (L3); Tastatur: Halten (Shift) | §29 |
 | Blocken / Zielen | Halten / Umschalten | Halten | §29 |
 | Fähigkeitsrad | Halten / Umschalten | Halten | §7.1, §29 |
+| Fähigkeiten-Schema (Controller) | Rad + Akkord / nur Rad (Original §7.1) | Rad + Akkord | [03](./03_Kampf_Charakter_Progression.md), 1.3 (K2) und 1.6 |
+| Zeit im Fähigkeitsrad | Normal / Zeitlupe 25 % / Pause | Zeitlupe 25 % (Schwierigkeit Geschichte: Pause) | [03](./03_Kampf_Charakter_Progression.md), 1.6 |
+| Rollen-Richtung | Stick-Richtung / Kamerablick | Stick-Richtung | [03](./03_Kampf_Charakter_Progression.md), 1.6 |
+| Nach Kill nächstes Ziel fixieren | An / Aus | An | [03](./03_Kampf_Charakter_Progression.md), 1.6 |
+| Angriffs-Ausrichtung ohne Lock-On (Soft-Lock) | Aus / Schwach (30°) / Stark (60°) | Schwach | [03](./03_Kampf_Charakter_Progression.md), 1.6 |
+| Zielen schaltet auf Leiste 2 | An / Aus | Aus | [03](./03_Kampf_Charakter_Progression.md), 1.6 |
+| Kontextregeln einzeln (A, L3, R3) | An / Aus je Regel | An | [03](./03_Kampf_Charakter_Progression.md), 1.4 und 1.6 |
+| Finisher-Kamera | An / Aus | An | [03](./03_Kampf_Charakter_Progression.md), 2.1 |
+| Straße folgen (Reiten) | An / Aus | An | [03](./03_Kampf_Charakter_Progression.md), 1.5 (Reiten) |
 | Kamera automatisch zentrieren | Aus / An (Verzögerung 1–5 s) | An, 2 s | Vorschlag |
 | Kamera-Abstand | Nah / Standard / Fern | Standard | Vorschlag |
 | Sichtfeld (vertikal) | 45–70° | 55° | Vorschlag |
@@ -860,7 +880,12 @@ Technik (SaveManager, `ISaveable`, JSON, Versionierung, Migration): siehe [Techn
 ### 5.2 Manuelles Speichern
 - Erlaubt überall außerhalb des Kampfes (§25).
 - **„Im Kampf“ (Vorschlag):** Ein Gegner hat den Spieler als Ziel, oder der Spieler hat in den letzten 5 s Schaden verursacht oder erlitten.
-- Zusätzlich gesperrt: in Dialog oder Zwischensequenz, im Fall oder Sprung, beim Tauchen, in Boss-Arenen, in zeitkritischen Quest-Stages (Stage-Feld „Speichersperre“, [02](./02_Quests_und_Dialoge.md), 4.2).
+- **Verbesserungsvorschlag – zusätzliche Sperren** (Original §25: „Manuelles Speichern überall außerhalb des Kampfes“). Technik in [Technik/01](../Technik/01_Architektur.md), 9.8:
+  - Dialog und Zwischensequenz: Laufende Dialoggraph- bzw. Timeline-Zustände werden nicht gespeichert.
+  - Fall, Sprung und Tauchen: Niemand soll unmittelbar vor dem Tod speichern (Fallschaden, Atemnot).
+  - Boss-Arena: zählt als Kampf.
+  - Zeitkritische Quest-Stages (Stage-Feld „Speichersperre“, [02](./02_Quests_und_Dialoge.md), 4.2): Schutz vor Softlocks, z. B. ein Speicherstand mit 3 s Restzeit.
+  - ❓ **Offene Entscheidung:** Diese Sperren übernehmen? Empfehlung: ja (siehe [Offene Entscheidungen](#offene-entscheidungen)).
 - Ist Speichern gesperrt, ist der Menüpunkt ausgegraut und nennt den Grund („Speichern im Kampf nicht möglich“).
 
 ### 5.3 Autosave-Auslöser
@@ -885,7 +910,7 @@ Technik (SaveManager, `ISaveable`, JSON, Versionierung, Migration): siehe [Techn
 ### 5.4 Schnellspeichern / Schnellladen (§25)
 - **PC/Mac:** F5 speichert schnell, F9 lädt schnell. Beide Tasten sind frei belegbar.
 - **Schnellladen:** Es erscheint die Abfrage „Schnellspeicherung von vor 4 min laden? Fortschritt seitdem geht verloren.“ Ein zweiter Druck auf F9 oder Enter bestätigt.
-- **Controller:** „Schnellspeichern“ ist der erste Eintrag im System-Tab. Schnellladen läuft über das Lademenü.
+- **Controller:** „Schnellspeichern“ ist der zweite Eintrag im System-Tab, direkt nach „Fortsetzen“ (1.3). Schnellladen läuft über das Lademenü.
 - Es gelten dieselben Sperren wie beim manuellen Speichern.
 
 ### 5.5 Vorschau je Speicherstand (§25)
@@ -935,17 +960,18 @@ Technik (SaveManager, `ISaveable`, JSON, Versionierung, Migration): siehe [Techn
 | Cloud-Speicher | keiner · Steam Cloud · eigener Dienst | Steam Auto-Cloud, falls Steam die Vertriebsplattform wird | Spieler mit Mac und PC; Support-Aufwand |
 | Zielniveau Barrierefreiheit | Basis · erweitert · umfassend | Grundstufe der Game Accessibility Guidelines komplett, ausgewählte Punkte der Mittelstufe; Screenreader für Menüs ab Stufe B | Kosten gegen Reichweite |
 | Kampftempo-Option | ja · nein | Ja, mit Ausschluss von den Arena-Rangstufen | Barrierefreiheit gegen Balance |
+| Speichersperren über §25 hinaus (5.2) | nur im Kampf (wörtlich §25) · zusätzlich Dialog, Zwischensequenz, Fall/Sprung/Tauchen, Boss-Arena, zeitkritische Stages | Ja, Sperren übernehmen (Verbesserungsvorschlag 5.2) | Schutz vor kaputten oder tödlichen Speicherständen gegen „überall speichern“ |
 
 ---
 
 ## Risiken & Hinweise
 
-1. **Der UI-Umfang wird unterschätzt.** 10 Hub-Tabs, 5 Kontextbildschirme, vollständige Controller-Bedienung, 2 Sprachen, Tooltips mit Vergleich.
+1. **Der UI-Umfang wird unterschätzt.** 10 Hub-Tabs, 6 Kontextbildschirme, vollständige Controller-Bedienung, 2 Sprachen, Tooltips mit Vergleich.
    → Gegenmaßnahme: Früh eine wiederverwendbare Komponentenbibliothek bauen (Tableiste, Fokusliste, Tooltip, Vergleich, Halten-Knopf, Dialog). Das HUD und ein Referenzmenü (Inventar) entstehen in Phase 2 komplett und dienen als Vorlage.
 2. **Gamepad-Navigation im UI Toolkit ist eine bekannte Schwachstelle** ([Technik/03](../Technik/03_Technik-Recherche.md), Abschnitt 3).
-   → Gegenmaßnahme: UI-Spike vor Phase 2 (Inventarraster, Tableiste, Rebinding, Tooltip, 3D-Vorschau, Sprachwechsel). Abbruchkriterium und Ausweichen auf uGUI laut Technik/03.
+   → Gegenmaßnahme: UI-Spike vor Phase 2 (Inventarliste mit Spalten ([04](./04_Items_Crafting_Wirtschaft_Endgame.md) 1.2), Tableiste, Rebinding, Tooltip, 3D-Vorschau, Sprachwechsel). Abbruchkriterium und Ausweichen auf uGUI laut Technik/03.
 3. **Glyphen, Rebinding und Steam Input sind fehleranfällig.**
-   → Gegenmaßnahme: Testmatrix ab Phase 1. Geräte: Xbox, DualSense, DualShock 4, generisches Gamepad, Tastatur DE und US. Systeme: Mac und Windows. Jedes Gerät wird bei jedem Meilenstein geprüft.
+   → Gegenmaßnahme: Testmatrix ab Phase 1. Geräte: Xbox, DualSense, DualShock 4, Switch Pro, generisches Gamepad, Tastatur DE und US. Systeme: Mac und Windows. Jedes Gerät wird bei jedem Meilenstein geprüft.
 4. **Native Retina-Auflösung auf dem MacBook ist für 60 FPS in einer offenen Welt zu teuer.** Ob ein temporaler Upscaler unter Metal verfügbar ist, ist nicht verifiziert.
    → Gegenmaßnahme: Render-Skalierung um 75 % im Preset „Mittel“. Ab Stufe A wird auf dem Referenz-Mac profiliert. Es gibt ein festes Performance-Budget je Szene.
 5. **Musikkosten (~90 Tracks in Stufe C).**
