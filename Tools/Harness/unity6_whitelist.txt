@@ -1,0 +1,64 @@
+# =============================================================================
+# Unity-6-Whitelist des Harness
+# =============================================================================
+# Der Harness kompiliert gegen Unity-2021.3-Referenzen (UnityEngine.Modules 2021.3.33)
+# und UnityEditor 2021.1.14 - neuere sind auf nuget.org nicht verfuegbar. APIs, die erst
+# ab Unity 2022/2023/6 existieren, werden auf drei Wegen behandelt:
+#
+#   shim    eigenstaendiger Typ in shims/ (C#-Quelltext, z. B. UnityEngine.Awaitable)
+#   patch   fehlender Member eines bestehenden Unity-Typs; RefPatcher fuegt ihn aus
+#           patches/Unity6Patches in die Referenz-DLLs ein (nur Signatur)
+#   filter  nichts davon - der Compilerfehler wird nur aus der Zaehlung gefiltert und
+#           separat aufgelistet. Achtung: die Assembly wird dann trotzdem NICHT gebaut,
+#           abhaengige Assemblies/Tests melden Folgefehler. Besser shim/patch ergaenzen.
+#
+# Format (eine Zeile je API):
+#   FEHLERCODE[,FEHLERCODE] | SYMBOL | MECHANISMUS | BEGRUENDUNG
+#   - FEHLERCODE: Code(s), die der Compiler OHNE Shim/Patch meldet (wichtig fuer --no-patch)
+#   - SYMBOL: Bezeichner, wie er in der Fehlermeldung bzw. im Code steht (ganzes Wort)
+#   - shim/patch-Eintraege listet die Zusammenfassung zusaetzlich mit Fundstellen im Code,
+#     weil ihr Verhalten nur in Unity 6.3 pruefbar ist.
+# =============================================================================
+
+# --- Async (Unity 2023.1+ / 6000.x) -----------------------------------------------
+CS0246,CS0103,CS0234 | Awaitable | shim | UnityEngine.Awaitable / Awaitable<T> gibt es erst ab Unity 2023.1 (Async-Standard laut Architektur 1.3, A34). Shim: kein Player-Loop, NextFrame/FixedUpdate/EndOfFrame schliessen sofort ab, doppeltes await wirft.
+CS0246,CS0103 | AwaitableCompletionSource | shim | Unity 2023.1+. Shim mit gleicher Oberflaeche.
+CS0246 | MainThreadAwaitable | shim | Rueckgabetyp von Awaitable.MainThreadAsync() (Unity 2023.1+). Shim: kein Threadwechsel.
+CS0246 | BackgroundThreadAwaitable | shim | Rueckgabetyp von Awaitable.BackgroundThreadAsync() (Unity 2023.1+). Shim: Thread-Pool.
+CS4036,CS1061 | GetAwaiter | filter | await auf AsyncOperation/UnityEvent (Unity 2023.1+: AsyncOperationAwaitableExtensions, UnityEventAwaitableExtensions) - im Harness per Shim vorhanden; Eintrag nur fuer --no-patch.
+
+# --- Lebensdauer / Abbruch (Unity 2022.2+) ------------------------------------------
+CS0103,CS1061 | destroyCancellationToken | patch | MonoBehaviour.destroyCancellationToken gibt es erst ab Unity 2022.2 (Regel 15.2 #10). Patch in UnityEngine.CoreModule, Getter wirft ausserhalb von Unity.
+CS0117 | exitCancellationToken | patch | Application.exitCancellationToken gibt es erst ab Unity 2022.2 (Regel 15.2 #10). Patch in UnityEngine.CoreModule.
+CS0117 | loadedSceneCount | patch | SceneManager.loadedSceneCount gibt es erst ab Unity 2022.2. Patch in UnityEngine.CoreModule.
+
+# --- Physik (Unity 6 Umbenennungen) -------------------------------------------------
+CS1061 | linearVelocity | patch | Rigidbody.linearVelocity ersetzt velocity ab Unity 6 (Regel 15.2 #6). velocity ist im Harness wie in 6.3 [Obsolete].
+CS1061 | linearDamping | patch | Rigidbody.linearDamping ersetzt drag ab Unity 6. drag ist im Harness wie in 6.3 [Obsolete].
+CS1061 | angularDamping | patch | Rigidbody.angularDamping ersetzt angularDrag ab Unity 6. angularDrag ist im Harness wie in 6.3 [Obsolete].
+
+# --- Editor: Build-Ziele und PlayerSettings (Unity 2021.2+) -----------------------
+CS0246,CS0234,CS0103,CS1503 | NamedBuildTarget | shim | UnityEditor.Build.NamedBuildTarget gibt es erst ab Unity 2021.2 (die Editor-Referenz ist 2021.1). PlayerSettings-Overloads mit NamedBuildTarget per Patch; BuildTargetGroup-Overloads sind wie in 6.3 [Obsolete].
+CS0117 | GetScriptingDefineSymbols | patch | PlayerSettings.GetScriptingDefineSymbols(NamedBuildTarget) ab Unity 2021.2.
+CS0117 | SetScriptingDefineSymbols | patch | PlayerSettings.SetScriptingDefineSymbols(NamedBuildTarget, ...) ab Unity 2021.2.
+CS0117 | GetAdditionalCompilerArguments | patch | PlayerSettings.GetAdditionalCompilerArguments(NamedBuildTarget) ab Unity 2021.2.
+CS0117 | SetAdditionalCompilerArguments | patch | PlayerSettings.SetAdditionalCompilerArguments(NamedBuildTarget, string[]) ab Unity 2021.2.
+CS0117 | GetIl2CppStacktraceInformation | patch | PlayerSettings.GetIl2CppStacktraceInformation(NamedBuildTarget) ab Unity 2022.2.
+CS0117 | SetIl2CppStacktraceInformation | patch | PlayerSettings.SetIl2CppStacktraceInformation(NamedBuildTarget, ...) ab Unity 2022.2.
+CS0117 | GetIl2CppCodeGeneration | patch | PlayerSettings.GetIl2CppCodeGeneration(NamedBuildTarget) ab Unity 2022.1.
+CS0117 | SetIl2CppCodeGeneration | patch | PlayerSettings.SetIl2CppCodeGeneration(NamedBuildTarget, ...) ab Unity 2022.1.
+CS0246,CS0234 | Il2CppCodeGeneration | shim | Enum UnityEditor.Build.Il2CppCodeGeneration ab Unity 2022.1 (Zahlenwerte im Shim nicht verifiziert).
+CS0246 | Il2CppStacktraceInformation | shim | Enum UnityEditor.Il2CppStacktraceInformation ab Unity 2022.2.
+CS0117 | NET_Standard | patch | ApiCompatibilityLevel.NET_Standard (= .NET Standard 2.1 in Unity 6) ab Unity 2021.2; als Enum-Wert gepatcht.
+CS0117 | NET_Unity_4_8 | patch | ApiCompatibilityLevel.NET_Unity_4_8 ab Unity 2021.2; als Enum-Wert gepatcht.
+CS1061 | boxedValue | patch | SerializedProperty.boxedValue ab Unity 2022.1.
+CS0117 | SaveAssetIfDirty | patch | AssetDatabase.SaveAssetIfDirty fehlt in der 2021.1-Editor-Referenz (in 6.3 vorhanden).
+
+# --- Weitere Unity-6-APIs ohne Shim/Patch (nur Filter) ------------------------------
+CS0117,CS1061,CS0103 | InstantiateAsync | filter | Object.InstantiateAsync ab Unity 2022.3.20 / 6. Bei Bedarf als Patch ergaenzen.
+CS0246 | AsyncInstantiateOperation | filter | Rueckgabetyp von Object.InstantiateAsync (Unity 6). Bei Bedarf als Shim ergaenzen.
+CS0246,CS0234 | EntityId | filter | UnityEngine.EntityId ab Unity 6.2 (nie speichern, Regel 15.2 #5).
+CS1061,CS0103 | GetEntityId | filter | Object.GetEntityId() ab Unity 6.2.
+CS0246,CS0234 | BuildProfile | filter | UnityEditor.Build.Profile.BuildProfile ab Unity 6.0. Bei Bedarf als Shim ergaenzen.
+CS0246 | AddAndRemoveRequest | shim | UnityEditor.PackageManager.Requests.AddAndRemoveRequest gibt es erst ab Unity 2021.2 (Editor-Referenz 2021.1).
+CS0117 | AddAndRemove | patch | Client.AddAndRemove(string[], string[]) ab Unity 2021.2, Signatur aus 6000.3.26f1.

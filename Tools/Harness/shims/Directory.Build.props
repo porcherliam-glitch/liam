@@ -1,0 +1,4 @@
+<Project>
+  <!-- Harness only: stops MSBuild's upward search so that Directory.Build.* /
+       Directory.Packages.props files in parent folders do not affect the harness projects. -->
+</Project>

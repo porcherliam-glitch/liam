@@ -1,0 +1,27 @@
+# Harness only. Raises selected Microsoft.Unity.Analyzers rules from "info" to "warning"
+# so that they show up in the build output and in the harness summary.
+# Mapping to the project rules (docs/Technik/01_Architektur.md, section 15.2).
+is_global = true
+
+# Rule 15.2 #8: no ?. / ?? / ??= / "is null" on UnityEngine.Object
+dotnet_diagnostic.UNT0007.severity = warning
+dotnet_diagnostic.UNT0008.severity = warning
+dotnet_diagnostic.UNT0023.severity = warning
+dotnet_diagnostic.UNT0029.severity = warning
+# Rule 15.2 #8: TryGetComponent instead of GetComponent + null check
+dotnet_diagnostic.UNT0026.severity = warning
+# Rule 15.2 #14: no empty Unity messages (Update etc.)
+dotnet_diagnostic.UNT0001.severity = warning
+# Correctness: message signatures/case, RuntimeInitializeOnLoadMethod/InitializeOnLoadMethod signatures
+dotnet_diagnostic.UNT0006.severity = warning
+dotnet_diagnostic.UNT0033.severity = warning
+dotnet_diagnostic.UNT0015.severity = warning
+dotnet_diagnostic.UNT0020.severity = warning
+# Components / ScriptableObjects must not be created with "new"
+dotnet_diagnostic.UNT0010.severity = warning
+dotnet_diagnostic.UNT0011.severity = warning
+# Unused coroutine return value, editor-only API in runtime code
+dotnet_diagnostic.UNT0012.severity = warning
+dotnet_diagnostic.UNT0040.severity = warning
+# Rule 15.2 #13 (hot paths): non-allocating physics queries
+dotnet_diagnostic.UNT0028.severity = warning

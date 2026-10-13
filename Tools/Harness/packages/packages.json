@@ -1,0 +1,24 @@
+{
+  "_comment": "HARNESS ONLY. Unity packages the harness provides: compile-only stubs (signatures of the package version named here; assemblies = asmdef name -> stub project) or real NuGet DLLs (nuget = precompiled DLL name -> [NuGet id, version]). Key = package id from Packages/manifest.json.",
+  "com.unity.inputsystem": {
+    "version": "1.14.2",
+    "assemblies": {
+      "Unity.InputSystem": "Unity.InputSystem/Unity.InputSystem.csproj"
+    }
+  },
+  "com.unity.cinemachine": {
+    "version": "3.1.4",
+    "assemblies": {
+      "Unity.Cinemachine": "Unity.Cinemachine/Unity.Cinemachine.csproj"
+    }
+  },
+  "com.unity.nuget.newtonsoft-json": {
+    "version": "3.2.2",
+    "nuget": {
+      "Newtonsoft.Json.dll": [
+        "Newtonsoft.Json",
+        "13.0.2"
+      ]
+    }
+  }
+}

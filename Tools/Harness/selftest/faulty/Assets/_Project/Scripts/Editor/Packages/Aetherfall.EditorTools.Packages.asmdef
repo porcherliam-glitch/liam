@@ -1,0 +1,7 @@
+{
+    "name": "Aetherfall.EditorTools.Packages",
+    "rootNamespace": "Aetherfall.EditorTools.Packages",
+    "references": [ "Unity.InputSystem" ],
+    "includePlatforms": [ "Editor" ],
+    "autoReferenced": false
+}

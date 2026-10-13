@@ -1,0 +1,95 @@
+{
+  "_comment": "Harness only: expected results of ./run_checks.sh --selftest (checked by scripts/selftest_check.py).",
+  "clean": {
+    "exit": 0,
+    "rows": {
+      "a/editor": {
+        "errors": 0,
+        "warnings": 0
+      },
+      "a/player-win": {
+        "errors": 0,
+        "warnings": 0
+      },
+      "b/editor": {
+        "errors": 0,
+        "warnings": 0
+      },
+      "c/build": {
+        "errors": 0
+      },
+      "c/compat": {
+        "errors": 0
+      },
+      "c/run": {
+        "failed": 0,
+        "passed_min": 5,
+        "skipped_min": 1
+      },
+      "structure": {
+        "errors": 0
+      }
+    },
+    "summary_contains": [
+      "OK (Exit-Code 0)",
+      "destroyCancellationToken [patch]",
+      "NamedBuildTarget [shim]"
+    ]
+  },
+  "faulty": {
+    "exit": 1,
+    "rows": {
+      "a/editor": {
+        "errors_min": 1,
+        "warnings_min": 2,
+        "whitelisted_min": 1
+      },
+      "a/player-win": {
+        "errors_min": 2
+      },
+      "b/editor": {
+        "errors_min": 1,
+        "warnings_min": 1
+      },
+      "c/build": {
+        "errors": 0
+      },
+      "c/compat": {
+        "errors_min": 2
+      },
+      "c/run": {
+        "failed_min": 3,
+        "passed_min": 1,
+        "skipped_min": 1
+      },
+      "lint": {
+        "errors_min": 3,
+        "warnings_min": 2
+      },
+      "structure": {
+        "errors_min": 1
+      }
+    },
+    "summary_contains": [
+      "error CS0103: The name 'Input' does not exist",
+      "EditorApplication",
+      "InstantiateAsync",
+      "warning CS0618",
+      "UNT0008",
+      "R-INPUT",
+      "R-FIND",
+      "R-STATIC",
+      "R-PUBFIELD",
+      "ThrowIfNull",
+      "Multiple",
+      "brauchen Unity",
+      "awaited a second time",
+      "LogAssert needs the Unity log",
+      "per GUID",
+      "FEHLER (Exit-Code 1)",
+      "ohne Referenz auf Aetherfall.EditorTools.Packages",
+      "'InputSystem' does not exist in the namespace 'UnityEngine'",
+      "Pakete fehlen im Harness"
+    ]
+  }
+}

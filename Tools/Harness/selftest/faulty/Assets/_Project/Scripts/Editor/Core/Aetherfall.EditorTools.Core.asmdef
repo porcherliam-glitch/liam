@@ -1,0 +1,7 @@
+{
+    "name": "Aetherfall.EditorTools.Core",
+    "rootNamespace": "Aetherfall.EditorTools.Core",
+    "references": [ "Aetherfall.Core", "GUID:0123456789abcdef0123456789abcdef" ],
+    "includePlatforms": [ "Editor" ],
+    "autoReferenced": false
+}

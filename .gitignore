@@ -135,3 +135,10 @@ InitTestScene*.unity*
 /ArtSource/**/*.blend1
 /ArtSource/**/*.blend@
 *.swp
+
+# --- Test-Harness (Tools/Harness): Build-Ausgaben und heruntergeladene Unity-Referenzen nie einchecken ---
+/Tools/Harness/.work/
+/Tools/Harness/.cache/
+/Tools/Harness/**/bin/
+/Tools/Harness/**/obj/
+/Tools/node_modules/

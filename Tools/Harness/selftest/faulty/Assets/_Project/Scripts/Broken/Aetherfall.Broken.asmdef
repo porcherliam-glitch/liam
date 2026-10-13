@@ -1,0 +1,6 @@
+{
+    "name": "Aetherfall.Broken",
+    "rootNamespace": "Aetherfall.Broken",
+    "references": [ "Aetherfall.Core" ],
+    "autoReferenced": false
+}

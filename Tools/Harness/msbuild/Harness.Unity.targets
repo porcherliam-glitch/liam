@@ -1,0 +1,41 @@
+<Project>
+  <!--
+    Harness only. Adds the Unity reference assemblies, the harness shims and the
+    analyzers to a generated project. Controlled by properties set in the generated
+    project file:
+      HarnessUnityRefs        none | engine | editor   (asmdef "noEngineReferences" -> none)
+      HarnessCopyUnityRefs    true for runnable test projects (types must load at run time)
+      HarnessTestRunnerShims  true if the asmdef references UnityEngine/UnityEditor.TestRunner
+      HarnessAnalyzers        true to run Microsoft.Unity.Analyzers
+  -->
+  <PropertyGroup>
+    <HarnessCopyUnityRefs Condition="'$(HarnessCopyUnityRefs)' == ''">false</HarnessCopyUnityRefs>
+    <HarnessAnalyzers Condition="'$(HarnessAnalyzers)' == ''">true</HarnessAnalyzers>
+  </PropertyGroup>
+
+  <!-- UnityEngine modules (patched copies) + Harness.Unity6Shims.Engine.dll.
+       UnityEngine.InputLegacyModule is left out on purpose: the old Input class is banned
+       (rule 15.2 #7), so using it is a compile error in the harness. -->
+  <ItemGroup Condition="'$(HarnessUnityRefs)' == 'engine' Or '$(HarnessUnityRefs)' == 'editor'">
+    <Reference Include="$(HarnessEngineRefDir)/*.dll"
+               Exclude="$(HarnessEngineRefDir)/UnityEngine.InputLegacyModule.dll"
+               Private="$(HarnessCopyUnityRefs)" />
+  </ItemGroup>
+
+  <!-- UnityEditor.dll (patched copy) + Harness.Unity6Shims.Editor.dll. -->
+  <ItemGroup Condition="'$(HarnessUnityRefs)' == 'editor'">
+    <Reference Include="$(HarnessEditorRefDir)/*.dll" Private="$(HarnessCopyUnityRefs)" />
+  </ItemGroup>
+
+  <!-- [UnityTest] / LogAssert stand-ins for test assemblies. -->
+  <ItemGroup Condition="'$(HarnessTestRunnerShims)' == 'true'">
+    <Reference Include="$(HarnessTestRunnerRefDir)/*.dll" Private="$(HarnessCopyUnityRefs)" />
+  </ItemGroup>
+
+  <!-- Unity-specific analyzers (null checks on Unity objects, message signatures, ...).
+       Severities are raised in Harness.globalconfig. -->
+  <ItemGroup Condition="'$(HarnessAnalyzers)' == 'true'">
+    <PackageReference Include="Microsoft.Unity.Analyzers" Version="1.28.0" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers" />
+    <GlobalAnalyzerConfigFiles Include="$(HarnessRoot)/msbuild/Harness.globalconfig" />
+  </ItemGroup>
+</Project>
