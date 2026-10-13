@@ -848,12 +848,14 @@ def job_arena(args):
 
 
 def job_truhen(args):
-    # Staged: the player stands in front of the iron chest (opened, lid at -105 degrees) and has pressed "Test-Beute".
-    player_position = (7.2, 0.0, 3.3)
-    scene, b, _ = build_scene(player_position, 0.0, opened=("Eisentruhe",))
+    # Staged: the player stands in front of the iron chest and has opened it (lid at -105 degrees, LootChest.openAngle).
+    # Chest loot goes straight into the bag (LootService.TryOpenChest), so no pickups appear here.
+    player_position = (9.3, 0.0, 3.8)
+    yaw = math.degrees(math.atan2(8.0 - player_position[0], 5.0 - player_position[2]))
+    scene, b, _ = build_scene(player_position, yaw, loot_at_player=False, opened=("Eisentruhe",))
     setup_render(scene, OUT_STILL, args.samples, args.test)
     cam = make_camera(scene)
-    place_camera(cam, (2.6, 3.4, -2.6), (7.6, 0.6, 4.4), 45.0)
+    place_camera(cam, (7.0, 2.9, -2.6), (8.0, 0.9, 5.0), 42.0)
     render_still(scene, os.path.join(args.out, "02b_truhen_roh.png"))
 
 
