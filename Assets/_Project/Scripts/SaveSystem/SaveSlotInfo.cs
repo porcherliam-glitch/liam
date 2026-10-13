@@ -10,12 +10,14 @@ namespace Aetherfall.SaveSystem
         /// <param name="slotName">Slot name.</param>
         /// <param name="header">Parsed header, or null if the header file is missing or damaged.</param>
         /// <param name="hasBackup">True if a <c>.sav.bak</c> exists.</param>
-        public SaveSlotInfo(string characterId, string slotName, SaveHeader header, bool hasBackup)
+        /// <param name="hasSave">True if the <c>.sav</c> main file exists (false after it was moved to <c>Beschaedigt/</c>).</param>
+        public SaveSlotInfo(string characterId, string slotName, SaveHeader header, bool hasBackup, bool hasSave = true)
         {
             CharacterId = characterId;
             SlotName = slotName;
             Header = header;
             HasBackup = hasBackup;
+            HasSave = hasSave;
             SaveKindIds.TryParse(header != null ? header.Kind : null, out SaveKind kind);
             Kind = header != null ? kind : KindFromName(slotName);
         }
@@ -35,14 +37,24 @@ namespace Aetherfall.SaveSystem
         /// <summary>The header, or null if it is missing or damaged.</summary>
         public SaveHeader Header { get; }
 
-        /// <summary>True if the header could not be read: the slot shows the warning "Beschaedigt" (GDD 05 5.6).</summary>
-        public bool IsDamaged => Header == null;
+        /// <summary>
+        /// True if the slot cannot be loaded: the header is unreadable, or neither the main file nor a backup is left (the
+        /// damaged main file was moved to <c>Beschaedigt/</c>). The slot shows the warning "Beschaedigt" (GDD 05 5.6),
+        /// quick load and "Fortsetzen" skip it, the rotation overwrites it first.
+        /// </summary>
+        public bool IsDamaged => Header == null || (!HasSave && !HasBackup);
 
         /// <summary>True if a backup exists.</summary>
         public bool HasBackup { get; }
 
+        /// <summary>True if the main file (<c>.sav</c>) exists.</summary>
+        public bool HasSave { get; }
+
         /// <summary>Creation time (ISO 8601 UTC) or empty.</summary>
         public string CreatedUtc => Header != null ? Header.CreatedUtc ?? string.Empty : string.Empty;
+
+        /// <summary>Save number of the character (<see cref="SaveHeader.SaveSequence"/>), -1 without readable header.</summary>
+        public long Sequence => Header != null ? Header.SaveSequence : -1L;
 
         private static SaveKind KindFromName(string slotName)
         {

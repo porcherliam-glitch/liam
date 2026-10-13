@@ -1,26 +1,33 @@
 using System;
 using Aetherfall.Player;
+using Aetherfall.Stats;
 
 namespace Aetherfall.Tests.EditMode.Gameplay
 {
     /// <summary>
     /// Test helper: moves a point with <see cref="PlayerMovementModel"/> over an infinite ground plane through the origin
     /// with the normal <see cref="GroundNormal"/>, like a CharacterController that cannot sink into the ground.
-    /// Pure C#, no Unity calls.
+    /// Pure C#, no Unity calls. An optional stamina pool is ticked after every step, like the character stats component
+    /// does in the game.
     /// </summary>
     public sealed class MovementSimulator
     {
         /// <summary>Creates a simulator standing on flat ground.</summary>
         /// <param name="tuning">Tuning; null = GDD defaults.</param>
-        public MovementSimulator(PlayerMovementTuning tuning = null)
+        /// <param name="stamina">Stamina pool for sprint and jump costs; null = unlimited stamina.</param>
+        public MovementSimulator(PlayerMovementTuning tuning = null, ResourcePool stamina = null)
         {
-            Model = new PlayerMovementModel(tuning ?? PlayerMovementTuning.CreateDefault());
+            Model = new PlayerMovementModel(tuning ?? PlayerMovementTuning.CreateDefault(), 0f, stamina);
+            Stamina = stamina;
             GroundNormal = MotionVector.Up;
             HasGround = true;
         }
 
         /// <summary>The model under test.</summary>
         public PlayerMovementModel Model { get; }
+
+        /// <summary>Stamina pool of the model (ticked after every step), or null.</summary>
+        public ResourcePool Stamina { get; }
 
         /// <summary>Position along X.</summary>
         public float X { get; private set; }
@@ -68,6 +75,7 @@ namespace Aetherfall.Tests.EditMode.Gameplay
             }
 
             MaxHeight = Math.Max(MaxHeight, Y);
+            Stamina?.Tick(deltaTime);
             return velocity;
         }
 

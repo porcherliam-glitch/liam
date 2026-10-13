@@ -120,9 +120,9 @@ namespace Aetherfall.Combat
             }
 
             bool killed = false;
-            if (!_dead && !(after > 0f))
+            if (!_dead && !(_pool.Current > 0f))
             {
-                // A Damaged handler may have healed or killed already; die only once.
+                // Read the pool again: a Damaged handler may have healed (cheat death, last stand) or killed already; die only once.
                 killed = Die(damage);
             }
 

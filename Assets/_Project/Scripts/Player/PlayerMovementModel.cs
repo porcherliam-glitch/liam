@@ -89,6 +89,13 @@ namespace Aetherfall.Player
         /// <summary>True if the character slid down a too steep slope in the last step.</summary>
         public bool IsSliding { get; private set; }
 
+        /// <summary>
+        /// True while the character is in the air: at once after a jump (or a teleport until the next step finds ground),
+        /// after walking off an edge only once the coyote time has passed (no flicker on stairs). Sliding on a too steep
+        /// slope does not count. Used for the save lock "falling, jumping" (architecture 9.8, GDD 05 5.2).
+        /// </summary>
+        public bool IsAirborne => !IsGrounded && !IsSliding && _timeSinceGrounded > _tuning.CoyoteTime;
+
         /// <summary>True in the step in which a jump started.</summary>
         public bool JumpedThisStep { get; private set; }
 

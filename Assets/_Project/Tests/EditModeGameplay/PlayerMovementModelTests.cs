@@ -464,6 +464,59 @@ namespace Aetherfall.Tests.EditMode.Gameplay
             Assert.That(sim.Model.HorizontalSpeed, Is.EqualTo(0f));
         }
 
+        [Test]
+        public void IsAirborne_AtOnceWhenJumping_UntilTheLanding()
+        {
+            var sim = new MovementSimulator();
+            sim.Run(MovementSimulator.Move(0f, 0f), Dt, 4);
+            Assert.That(sim.Model.IsAirborne, Is.False, "standing");
+
+            PlayerMovementInput jump = MovementSimulator.Move(0f, 0f);
+            jump.JumpPressed = true;
+            sim.Step(jump, Dt);
+            Assert.That(sim.Model.IsAirborne, Is.True, "a jump counts at once (save lock, architecture 9.8)");
+
+            int steps = 0;
+            while (!sim.Model.IsGrounded && steps < Steps(3f))
+            {
+                sim.Step(MovementSimulator.Move(0f, 0f), Dt);
+                steps++;
+                Assert.That(sim.Model.IsAirborne, Is.EqualTo(!sim.Model.IsGrounded), "in the air until the landing");
+            }
+
+            Assert.That(sim.Model.IsGrounded, Is.True, "landed within 3 s");
+            Assert.That(sim.Model.IsAirborne, Is.False);
+        }
+
+        [Test]
+        public void IsAirborne_AfterWalkingOffAnEdge_OnlyAfterTheCoyoteTime()
+        {
+            const float dt = 0.02f;
+            MovementSimulator sim = LeaveLedge(dt);
+
+            sim.Run(MovementSimulator.Move(0f, 1f), dt, 5);
+            Assert.That(sim.Model.IsAirborne, Is.False, "0.10 s <= 0.12 s coyote time: no flicker on stairs and edges");
+
+            sim.Run(MovementSimulator.Move(0f, 1f), dt, 2);
+            Assert.That(sim.Model.IsAirborne, Is.True, "0.14 s > 0.12 s: falling");
+        }
+
+        [Test]
+        public void IsAirborne_NotWhileSliding_AndAfterATeleportUntilTheNextStep()
+        {
+            var sliding = new MovementSimulator { GroundNormal = SlopeNormal(60f) };
+            sliding.Run(MovementSimulator.Move(0f, 0f), Dt, 10);
+            Assert.That(sliding.Model.IsSliding, Is.True);
+            Assert.That(sliding.Model.IsAirborne, Is.False, "sliding down a steep slope is no fall");
+
+            var teleported = new MovementSimulator();
+            teleported.Run(MovementSimulator.Move(0f, 0f), Dt, 4);
+            teleported.Model.Reset(90f);
+            Assert.That(teleported.Model.IsAirborne, Is.True, "after a teleport the ground is unknown until the next step");
+            teleported.Step(MovementSimulator.Move(0f, 0f), Dt);
+            Assert.That(teleported.Model.IsAirborne, Is.False);
+        }
+
         private static PlayerMovementInput JumpForward()
         {
             PlayerMovementInput input = MovementSimulator.Move(0f, 1f);

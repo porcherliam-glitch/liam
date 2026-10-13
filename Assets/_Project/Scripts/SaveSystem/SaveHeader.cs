@@ -1,3 +1,4 @@
+using Newtonsoft.Json;
 using UnityEngine.Scripting;
 
 namespace Aetherfall.SaveSystem
@@ -63,5 +64,16 @@ namespace Aetherfall.SaveSystem
 
         /// <summary>SHA-256 of the <c>.sav</c> file (only in <c>.head.json</c>; null inside the <c>.sav</c> file).</summary>
         public string Sha256;
+
+        /// <summary>
+        /// Running number of the saves of a character (one more than the highest existing one, 0 for the first). Orders two
+        /// saves created in the same second, because <see cref="CreatedUtc"/> has whole seconds only (F5 pressed twice).
+        /// </summary>
+        /// <remarks>
+        /// Optional field without migration: it is written only when it is not 0, and a missing field reads as 0 (files from
+        /// before the field, the first save of a character). Those files therefore keep their exact bytes.
+        /// </remarks>
+        [JsonProperty(DefaultValueHandling = DefaultValueHandling.Ignore)]
+        public long SaveSequence;
     }
 }

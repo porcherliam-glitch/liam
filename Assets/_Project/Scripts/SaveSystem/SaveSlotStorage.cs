@@ -95,6 +95,14 @@ namespace Aetherfall.SaveSystem
             return _files.FileExists(Paths.BackupFile(characterId, slotName));
         }
 
+        /// <summary>True if the header file of the slot exists.</summary>
+        /// <param name="characterId">Character folder.</param>
+        /// <param name="slotName">Slot name.</param>
+        public bool HasHead(string characterId, string slotName)
+        {
+            return _files.FileExists(Paths.HeadFile(characterId, slotName));
+        }
+
         /// <summary>True if the main file of the slot exists.</summary>
         /// <param name="characterId">Character folder.</param>
         /// <param name="slotName">Slot name.</param>
@@ -105,7 +113,8 @@ namespace Aetherfall.SaveSystem
 
         /// <summary>
         /// Moves the damaged main file into <c>Beschaedigt/&lt;slot&gt;_&lt;stamp&gt;.sav</c> for error reports; never deletes it
-        /// (architecture 9.4).
+        /// (architecture 9.4). The header file stays: without main file and backup the slot counts as damaged
+        /// (<see cref="SaveSlotInfo.IsDamaged"/>), is shown with the warning "Beschaedigt" and skipped by quick load (GDD 05 5.6).
         /// </summary>
         /// <param name="characterId">Character folder.</param>
         /// <param name="slotName">Slot name.</param>

@@ -47,8 +47,7 @@ namespace Aetherfall.SaveSystem
         public static string ChooseRotating(SaveKind kind, IReadOnlyList<SaveSlotInfo> existing)
         {
             string prefix = SaveKindIds.SlotPrefix(kind);
-            string oldestName = null;
-            string oldestTime = null;
+            SaveSlotInfo oldest = null;
             for (int index = 0; index < RotatingSlotCount; index++)
             {
                 string name = prefix + index.ToString(CultureInfo.InvariantCulture);
@@ -58,19 +57,18 @@ namespace Aetherfall.SaveSystem
                     return name;
                 }
 
-                // Damaged headers count as oldest, so a broken slot is overwritten first.
-                string time = slot.CreatedUtc;
-                if (oldestName == null || string.CompareOrdinal(time, oldestTime) < 0)
+                // Damaged slots count as oldest, so a broken slot is overwritten first.
+                if (oldest == null || (slot.IsDamaged && !oldest.IsDamaged) ||
+                    (slot.IsDamaged == oldest.IsDamaged && CompareCreation(slot, oldest) < 0))
                 {
-                    oldestName = name;
-                    oldestTime = time;
+                    oldest = slot;
                 }
             }
 
-            return oldestName;
+            return oldest.SlotName;
         }
 
-        /// <summary>The newest slot (by creation time), optionally of one kind; damaged slots are skipped.</summary>
+        /// <summary>The newest slot (by creation time and save number), optionally of one kind; damaged slots are skipped.</summary>
         /// <param name="slots">Slots.</param>
         /// <param name="kind">Kind or null for any.</param>
         public static SaveSlotInfo FindLatest(IReadOnlyList<SaveSlotInfo> slots, SaveKind? kind)
@@ -89,13 +87,47 @@ namespace Aetherfall.SaveSystem
                     continue;
                 }
 
-                if (latest == null || string.CompareOrdinal(slot.CreatedUtc, latest.CreatedUtc) > 0)
+                if (latest == null || CompareCreation(slot, latest) > 0)
                 {
                     latest = slot;
                 }
             }
 
             return latest;
+        }
+
+        /// <summary>
+        /// Orders slots by age: creation time (whole seconds), then <see cref="SaveHeader.SaveSequence"/> for saves of the
+        /// same second. Negative if <paramref name="a"/> is older.
+        /// </summary>
+        /// <param name="a">First slot.</param>
+        /// <param name="b">Second slot.</param>
+        public static int CompareCreation(SaveSlotInfo a, SaveSlotInfo b)
+        {
+            int byTime = string.CompareOrdinal(a.CreatedUtc, b.CreatedUtc);
+            return byTime != 0 ? byTime : a.Sequence.CompareTo(b.Sequence);
+        }
+
+        /// <summary>Save number for the next save of a character: one more than the highest existing one, 0 for the first.</summary>
+        /// <param name="existing">Existing slots of the character.</param>
+        public static long NextSequence(IReadOnlyList<SaveSlotInfo> existing)
+        {
+            long next = 0;
+            if (existing == null)
+            {
+                return next;
+            }
+
+            for (int i = 0; i < existing.Count; i++)
+            {
+                long sequence = existing[i].Sequence;
+                if (sequence >= next)
+                {
+                    next = sequence + 1;
+                }
+            }
+
+            return next;
         }
 
         private static string NextNumbered(SaveKind kind, IReadOnlyList<SaveSlotInfo> existing, int max)

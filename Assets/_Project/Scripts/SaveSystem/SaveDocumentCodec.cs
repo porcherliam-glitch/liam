@@ -15,7 +15,8 @@ namespace Aetherfall.SaveSystem
     /// </summary>
     /// <remarks>
     /// <para>Sections are deserialized only into the DTO types the caller passes (the types of the registered saveables);
-    /// each type is checked once with <see cref="SaveDtoValidator"/>. Type names in the file are never evaluated.</para>
+    /// each type is checked once with <see cref="SaveDtoValidator"/>. Type names in the file are never evaluated. Raw
+    /// sections (<see cref="SaveSnapshot.AddRaw"/>) are written back unchanged without being deserialized.</para>
     /// <para>Thread-safe for one operation at a time per instance (the save manager never runs two).</para>
     /// </remarks>
     public sealed class SaveDocumentCodec
@@ -51,6 +52,13 @@ namespace Aetherfall.SaveSystem
             for (int i = 0; i < list.Count; i++)
             {
                 object data = list[i].Data;
+                if (data is JToken raw)
+                {
+                    // Section kept from the loaded save (SaveSnapshot.AddRaw): written unchanged, as a copy.
+                    sections.Add(list[i].Key, raw.DeepClone());
+                    continue;
+                }
+
                 if (data != null)
                 {
                     RequireDto(data.GetType());
@@ -156,21 +164,39 @@ namespace Aetherfall.SaveSystem
                     continue;
                 }
 
-                RequireDto(type);
-                object data;
-                try
-                {
-                    data = property.Value.Type == JTokenType.Null ? null : property.Value.ToObject(type, _serializer);
-                }
-                catch (JsonException exception)
-                {
-                    throw new InvalidDataException("Section '" + property.Name + "' does not match " + type.Name + ": " + exception.Message, exception);
-                }
-
-                snapshot.Add(property.Name, data);
+                snapshot.Add(property.Name, ToSectionData(property.Name, property.Value, type));
             }
 
             return snapshot;
+        }
+
+        /// <summary>Deserializes the JSON of one section into its DTO type.</summary>
+        /// <param name="key">Save key (for the error message).</param>
+        /// <param name="json">Section JSON.</param>
+        /// <param name="type">DTO type of the saveable.</param>
+        /// <returns>The DTO, or null for a JSON <c>null</c>.</returns>
+        /// <exception cref="InvalidDataException">The JSON does not match the DTO, or the type is not allowed.</exception>
+        public object ToSectionData(string key, JToken json, Type type)
+        {
+            if (type == null)
+            {
+                throw new ArgumentNullException(nameof(type));
+            }
+
+            RequireDto(type);
+            if (json == null || json.Type == JTokenType.Null)
+            {
+                return null;
+            }
+
+            try
+            {
+                return json.ToObject(type, _serializer);
+            }
+            catch (JsonException exception)
+            {
+                throw new InvalidDataException("Section '" + key + "' does not match " + type.Name + ": " + exception.Message, exception);
+            }
         }
 
         /// <summary>Parses and deserializes a file without migration (current format only).</summary>

@@ -11,8 +11,9 @@ namespace Aetherfall.SaveSystem
     /// </summary>
     /// <remarks>
     /// Saveables register in their installer, in <c>PostInitialize</c> or (scene objects) in <c>Start</c>, and unregister
-    /// when they go away. All members are main thread only; serialization and file access of the async methods run on a
-    /// background thread.
+    /// when they go away. A saveable that registers after a load receives its section of that load at once; sections whose
+    /// saveable is missing are written unchanged into later saves (nothing is lost). All members are main thread only;
+    /// serialization and file access of the async methods run on a background thread.
     /// </remarks>
     public interface ISaveManager
     {
@@ -31,7 +32,11 @@ namespace Aetherfall.SaveSystem
         /// <summary>Result of the last load attempt; <see cref="LoadResult.HasValue"/> is false before the first.</summary>
         LoadResult LastLoadResult { get; }
 
-        /// <summary>Registers a saveable. Its <see cref="ISaveable.SaveKey"/> must be unique and its DTO type valid.</summary>
+        /// <summary>
+        /// Registers a saveable. Its <see cref="ISaveable.SaveKey"/> must be unique and its DTO type valid. If the last loaded
+        /// save has a section for it that no saveable took yet, it is loaded right away (<see cref="ISaveable.Load"/>, then
+        /// <see cref="IPostLoad.OnAfterLoad"/>, with the context of that load).
+        /// </summary>
         /// <param name="saveable">Saveable.</param>
         /// <exception cref="System.ArgumentException">Key empty, DTO type invalid (see <see cref="SaveDtoValidator"/>).</exception>
         /// <exception cref="System.InvalidOperationException">Another saveable already uses the key.</exception>
@@ -71,7 +76,7 @@ namespace Aetherfall.SaveSystem
         /// <param name="ct">Cancellation (checked before applying).</param>
         Awaitable<LoadResult> NewGameAsync(NewGameSettings settings, CancellationToken ct);
 
-        /// <summary>Lists the slots of a character (reads only the header files), newest first.</summary>
+        /// <summary>Lists the slots of a character (reads only the header files), newest first (creation time, then save number).</summary>
         /// <param name="characterId">Character folder; null = current character.</param>
         IReadOnlyList<SaveSlotInfo> ListSlots(string characterId);
 

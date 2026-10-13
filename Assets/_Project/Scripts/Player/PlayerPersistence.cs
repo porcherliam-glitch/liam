@@ -10,13 +10,15 @@ namespace Aetherfall.Player
     /// <summary>
     /// Connects the player character with the save system: registers <see cref="PlayerLocationSaveable"/> (section
     /// <c>player</c>: position, yaw, world space) and <see cref="PlayerResourcesSaveable"/> (section <c>stats.player</c>:
-    /// health, stamina, mana) with <see cref="ISaveManager"/>, and places the character when a save is loaded.
+    /// health, stamina, mana) with <see cref="ISaveManager"/>, places the character when a save is loaded, and blocks saving
+    /// while the character jumps or falls (<see cref="AirborneSaveLock"/>, architecture 9.8).
     /// </summary>
     /// <remarks>
     /// <para>GameObject: the player root next to <see cref="PlayerMotor"/>, <see cref="DamageableComponent"/> and
     /// <see cref="CharacterStatsComponent"/> (the test ground menu sets the references).</para>
     /// <para>Waits in <c>Start</c> until the boot has registered the services (in the editor the boot scene loads after the
-    /// test scene) and unregisters in <c>OnDestroy</c>. Without SaveInstaller in the BootConfig it logs a warning and the
+    /// test scene) and unregisters in <c>OnDestroy</c>. Registering this late is fine: if a save was loaded before, the save
+    /// manager hands over the kept sections at once. Without SaveInstaller in the BootConfig it logs a warning and the
     /// player is not saved.</para>
     /// </remarks>
     [DisallowMultipleComponent]
@@ -37,6 +39,7 @@ namespace Aetherfall.Player
         private ISaveManager _saves;
         private PlayerLocationSaveable _location;
         private PlayerResourcesSaveable _resources;
+        private AirborneSaveLock _airborneLock;
 
         /// <inheritdoc />
         public PlayerPose CurrentPose => motor.CurrentPose;
@@ -107,6 +110,7 @@ namespace Aetherfall.Player
                 saves.Register(_resources);
                 saves.Register(_location);
                 _saves = saves;
+                _airborneLock = new AirborneSaveLock(saves);
             }
             catch (OperationCanceledException)
             {
@@ -118,6 +122,14 @@ namespace Aetherfall.Player
             }
         }
 
+        private void Update()
+        {
+            if (_airborneLock != null)
+            {
+                _airborneLock.Update(motor.IsAirborne);
+            }
+        }
+
         private void OnDestroy()
         {
             if (_saves == null)
@@ -125,6 +137,8 @@ namespace Aetherfall.Player
                 return;
             }
 
+            _airborneLock.Release();
+            _airborneLock = null;
             _saves.Unregister(_location);
             _saves.Unregister(_resources);
             _saves = null;

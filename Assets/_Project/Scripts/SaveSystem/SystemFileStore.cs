@@ -8,10 +8,14 @@ namespace Aetherfall.SaveSystem
     /// <see cref="IFileStore"/> on the real file system (System.IO, works on macOS and Windows with Mono and IL2CPP).
     /// </summary>
     /// <remarks>
-    /// <see cref="Replace"/> uses <see cref="File.Replace(string, string, string, bool)"/>. If the platform does not support
-    /// it, it falls back to two renames (destination → backup, source → destination); a crash between them leaves the
-    /// backup and the <c>.tmp</c> file, from which the loader recovers (architecture 9.4: "Verhalten von File.Replace auf
-    /// macOS und Windows in Phase 1 testen").
+    /// <see cref="Replace"/> first copies the old destination to the backup and then calls
+    /// <see cref="File.Replace(string, string, string, bool)"/> <b>without</b> a backup name. Reason: with a backup name Mono
+    /// (the editor on macOS) does two renames (destination to backup, then source to destination); a crash between them
+    /// leaves no main file, and the newest, already verified <c>.tmp</c> is deleted at the next start. Without a backup name
+    /// it is a single, atomic rename on macOS (Windows uses ReplaceFile). There is always a complete main file
+    /// (architecture 9.4: "Verhalten von File.Replace auf macOS und Windows in Phase 1 testen"). If the platform does not
+    /// support File.Replace, the fallback deletes the destination and renames the source; a crash between the two leaves the
+    /// backup, which the loader then uses.
     /// </remarks>
     public sealed class SystemFileStore : IFileStore
     {
@@ -52,22 +56,23 @@ namespace Aetherfall.SaveSystem
         /// <inheritdoc />
         public void Replace(string source, string destination, string backup)
         {
+            if (backup != null)
+            {
+                // Copy instead of rename (see remarks): the destination stays in place until the atomic swap below.
+                File.Copy(destination, backup, true);
+            }
+
             try
             {
-                if (backup != null && File.Exists(backup))
-                {
-                    File.Delete(backup);
-                }
-
-                File.Replace(source, destination, backup, true);
+                File.Replace(source, destination, null, true);
             }
             catch (PlatformNotSupportedException)
             {
-                ReplaceByRenaming(source, destination, backup);
+                ReplaceByRenaming(source, destination);
             }
             catch (NotSupportedException)
             {
-                ReplaceByRenaming(source, destination, backup);
+                ReplaceByRenaming(source, destination);
             }
         }
 
@@ -115,22 +120,9 @@ namespace Aetherfall.SaveSystem
             return result;
         }
 
-        private static void ReplaceByRenaming(string source, string destination, string backup)
+        private static void ReplaceByRenaming(string source, string destination)
         {
-            if (backup != null)
-            {
-                if (File.Exists(backup))
-                {
-                    File.Delete(backup);
-                }
-
-                File.Move(destination, backup);
-            }
-            else
-            {
-                File.Delete(destination);
-            }
-
+            File.Delete(destination);
             File.Move(source, destination);
         }
     }

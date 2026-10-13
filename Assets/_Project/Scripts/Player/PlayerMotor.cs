@@ -56,6 +56,9 @@ namespace Aetherfall.Player
         /// <summary>True while the motor moves the character (services found, game state Playing).</summary>
         public bool IsActive => _model != null && _gameState != null && _gameState.Current == GameState.Playing;
 
+        /// <summary>True while the character jumps or falls (see <see cref="PlayerMovementModel.IsAirborne"/>); false without model.</summary>
+        public bool IsAirborne => _model != null && _model.IsAirborne;
+
         /// <summary>Passes this frame's movement commands. Presses (jump, sprint, sneak, walk toggle) accumulate until consumed.</summary>
         /// <param name="input">Commands from the input reader (camera yaw is filled in by the motor).</param>
         public void SubmitInput(in PlayerMovementInput input)

@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
+using Newtonsoft.Json.Linq;
 
 namespace Aetherfall.SaveSystem
 {
     /// <summary>
-    /// A save in memory: header plus the DTO of every section in load order. Taken on the main thread
+    /// A save in memory: header plus the DTO of every section in load order (raw JSON for sections kept from the loaded
+    /// save, see <see cref="AddRaw"/>). Taken on the main thread
     /// (<see cref="ISaveable.Save"/>), serialized on a background thread (<see cref="SaveDocumentCodec"/>).
     /// </summary>
     public sealed class SaveSnapshot
@@ -41,6 +43,18 @@ namespace Aetherfall.SaveSystem
             }
 
             _sections.Add(new SaveSection(key, data));
+        }
+
+        /// <summary>
+        /// Adds a section that is written unchanged: the raw JSON of a system that is not registered right now (kept from
+        /// the loaded save, so its data is not lost by the next save).
+        /// </summary>
+        /// <param name="key">Save key (unique).</param>
+        /// <param name="json">Raw section JSON; never changed (the codec writes a copy).</param>
+        /// <exception cref="ArgumentException">The key is empty or already present.</exception>
+        public void AddRaw(string key, JToken json)
+        {
+            Add(key, json ?? throw new ArgumentNullException(nameof(json)));
         }
 
         /// <summary>Finds a section.</summary>

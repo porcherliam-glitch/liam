@@ -24,6 +24,14 @@ namespace Aetherfall.SaveSystem
     /// Playing. A damaged or too new file therefore changes nothing (GDD 05 5.6).</para>
     /// <para>The synchronous <see cref="Save"/>, <see cref="Load"/> and <see cref="NewGame"/> do the same on the calling thread
     /// (tests, editor tools).</para>
+    /// <para><b>Sections without saveable:</b> sections of the loaded save whose system is not registered (yet) are kept as raw
+    /// JSON and written unchanged into every following save, so no data is lost. A saveable that registers later (scene
+    /// objects in <c>Start</c>, systems of a scene loaded after the save) receives its section at once:
+    /// <see cref="ISaveable.Load"/> and <see cref="IPostLoad.OnAfterLoad"/> with the context of that load.</para>
+    /// <para><b>Slot list:</b> the slots of the current character are read once (<see cref="PostInitialize"/> or first use)
+    /// and kept in memory; every save updates its entry, every load re-reads the loaded slot in the background. Quick
+    /// save, autosave and quick load therefore read no header files on the main thread (architecture 9.3, 13.2).
+    /// <see cref="ListSlots"/> always reads the files and refreshes the list (files changed by hand while the game runs).</para>
     /// </remarks>
     public sealed class SaveManager : ISaveManager, IPostInitializable, IUnscaledTickable, IDisposable
     {
@@ -37,10 +45,15 @@ namespace Aetherfall.SaveSystem
         private readonly SaveManagerSettings _settings;
         private readonly SaveSlotStorage _storage;
         private readonly SaveDocumentCodec _codec = new SaveDocumentCodec();
+        private readonly SaveDocumentCodec _mainThreadCodec = new SaveDocumentCodec();
+        private readonly List<KeyValuePair<string, JToken>> _carriedSections = new List<KeyValuePair<string, JToken>>();
         private readonly List<ISaveable> _saveables = new List<ISaveable>();
         private readonly List<ISaveHeaderContributor> _contributors = new List<ISaveHeaderContributor>();
         private readonly SaveBlockerSet _blockers = new SaveBlockerSet();
         private readonly AutosaveScheduler _autosave;
+        private LoadContext _carriedContext = LoadContext.NewGame;
+        private List<SaveSlotInfo> _knownSlots;
+        private string _knownSlotsCharacter;
         private bool _busy;
         private bool _subscribed;
         private bool _disposed;
@@ -149,6 +162,7 @@ namespace Aetherfall.SaveSystem
             }
 
             _saveables.Insert(insertAt, saveable);
+            DeliverCarriedSection(saveable);
         }
 
         /// <inheritdoc />
@@ -210,29 +224,30 @@ namespace Aetherfall.SaveSystem
         }
 
         /// <inheritdoc />
+        /// <remarks>Reads the files (main thread; for menus) and refreshes the slot list kept in memory.</remarks>
         public IReadOnlyList<SaveSlotInfo> ListSlots(string characterId)
         {
             string character = string.IsNullOrEmpty(characterId) ? CharacterId : characterId;
-            var result = new List<SaveSlotInfo>();
             if (!SaveSlotId.IsValidName(character))
             {
-                return result;
+                return new List<SaveSlotInfo>();
             }
 
-            IReadOnlyList<string> names = _storage.ListSlotNames(character);
-            for (int i = 0; i < names.Count; i++)
+            List<SaveSlotInfo> result = ReadSlots(character, _mainThreadCodec);
+            if (string.Equals(character, CharacterId, StringComparison.Ordinal))
             {
-                result.Add(new SaveSlotInfo(character, names[i], ReadHeader(character, names[i]), _storage.HasBackup(character, names[i])));
+                _knownSlots = new List<SaveSlotInfo>(result);
+                _knownSlotsCharacter = character;
             }
 
-            result.Sort((a, b) => string.CompareOrdinal(b.CreatedUtc, a.CreatedUtc));
             return result;
         }
 
         /// <inheritdoc />
+        /// <remarks>Uses the slot list kept in memory (no file access after the first use).</remarks>
         public bool TryGetLatestSlot(SaveKind? kind, out SaveSlotInfo slot)
         {
-            slot = SaveSlotRotation.FindLatest(ListSlots(CharacterId), kind);
+            slot = SaveSlotRotation.FindLatest(KnownSlots(CharacterId), kind);
             return slot != null;
         }
 
@@ -310,6 +325,7 @@ namespace Aetherfall.SaveSystem
                 }
 
                 prepared = Prepare(job);
+                ReadSlotAfterLoad(job);
             }
             catch (Exception exception)
             {
@@ -342,6 +358,7 @@ namespace Aetherfall.SaveSystem
             try
             {
                 prepared = Prepare(job);
+                ReadSlotAfterLoad(job);
             }
             catch (Exception exception)
             {
@@ -413,6 +430,16 @@ namespace Aetherfall.SaveSystem
             catch (Exception exception) when (exception is IOException || exception is UnauthorizedAccessException)
             {
                 Log.Warning(LogCategory.Save, "Could not clean up temp files in '" + RootDirectory + "': " + exception.Message);
+            }
+
+            try
+            {
+                // Read the slot list once at boot, so saving and quick load need no file access on the main thread later.
+                KnownSlots(CharacterId);
+            }
+            catch (Exception exception) when (exception is IOException || exception is UnauthorizedAccessException)
+            {
+                Log.Warning(LogCategory.Save, "Could not read the slot list of '" + SaveDirectory + "': " + exception.Message);
             }
 
             Log.Info(LogCategory.Save, "Save folder: " + SaveDirectory + " (" + _saveables.Count + " saveable(s) registered, " +
@@ -502,7 +529,8 @@ namespace Aetherfall.SaveSystem
                 return false;
             }
 
-            string slotName = SaveSlotRotation.ChooseSlot(request, ListSlots(characterId));
+            IReadOnlyList<SaveSlotInfo> existing = KnownSlots(characterId);
+            string slotName = SaveSlotRotation.ChooseSlot(request, existing);
             if (slotName == null)
             {
                 bool invalidName = request.Kind == SaveKind.Manual && !string.IsNullOrEmpty(request.SlotName);
@@ -521,7 +549,8 @@ namespace Aetherfall.SaveSystem
                 SlotId = slotId,
                 Kind = SaveKindIds.ToId(request.Kind),
                 CreatedUtc = now.ToString(SaveFormat.TimestampFormat, CultureInfo.InvariantCulture),
-                Compressed = _settings.Compress
+                Compressed = _settings.Compress,
+                SaveSequence = SaveSlotRotation.NextSequence(existing)
             };
 
             for (int i = 0; i < _contributors.Count; i++)
@@ -559,6 +588,15 @@ namespace Aetherfall.SaveSystem
                 }
             }
 
+            // Sections of the loaded save whose system is not registered: keep them unchanged (no silent data loss).
+            for (int i = 0; i < _carriedSections.Count; i++)
+            {
+                if (!IsRegistered(_carriedSections[i].Key))
+                {
+                    snapshot.AddRaw(_carriedSections[i].Key, _carriedSections[i].Value);
+                }
+            }
+
             prepared = new PreparedSave(characterId, slotName, slotId, request.Kind, snapshot);
             _busy = true;
             refused = default;
@@ -587,6 +625,7 @@ namespace Aetherfall.SaveSystem
             if (result.Success)
             {
                 _autosave.NotifySaved();
+                RememberWrittenSlot(prepared);
             }
 
             return CompleteSave(result, true);
@@ -641,6 +680,8 @@ namespace Aetherfall.SaveSystem
 
             if (!_storage.HasSave(characterId, slotName) && !_storage.HasBackup(characterId, slotName))
             {
+                // Cheap without a .sav (at most the small header file): drops a slot that vanished from the kept list.
+                UpdateKnownSlot(characterId, slotName, ReadSlot(characterId, slotName, _mainThreadCodec));
                 refused = CompleteLoad(new LoadResult(false, slotId, 0, false, SaveReasonKeys.NotFound, "No save '" + slotId + "'.", Now()));
                 return false;
             }
@@ -735,12 +776,24 @@ namespace Aetherfall.SaveSystem
                 return PreparedLoad.Failed(SaveReasonKeys.Corrupt, exception.Message);
             }
 
+            var carried = new List<KeyValuePair<string, JToken>>(unknown.Count);
             if (unknown.Count > 0)
             {
-                notes.Add("sections without saveable ignored: " + string.Join(", ", unknown));
+                JObject sections = root[SaveFormat.SectionsKey] as JObject;
+                for (int i = 0; i < unknown.Count; i++)
+                {
+                    JToken token = sections != null ? sections[unknown[i]] : null;
+                    if (token != null)
+                    {
+                        // Copy without parent, so the rest of the document can be freed.
+                        carried.Add(new KeyValuePair<string, JToken>(unknown[i], token.DeepClone()));
+                    }
+                }
+
+                notes.Add("sections without saveable kept for later: " + string.Join(", ", unknown));
             }
 
-            return PreparedLoad.Succeeded(snapshot, originalVersion, fromBackup, string.Join("; ", notes));
+            return PreparedLoad.Succeeded(snapshot, originalVersion, fromBackup, string.Join("; ", notes), carried);
         }
 
         private JObject ParseVerified(byte[] bytes, SaveHeader head, List<string> notes, out string problem)
@@ -781,6 +834,16 @@ namespace Aetherfall.SaveSystem
 
         private LoadResult FinishLoad(LoadJob job, PreparedLoad prepared)
         {
+            if (job.SlotAfterLoadRead)
+            {
+                UpdateKnownSlot(job.CharacterId, job.SlotName, job.SlotAfterLoad);
+            }
+            else
+            {
+                // Unknown state of the slot (read error): read the list again at the next use.
+                _knownSlots = null;
+            }
+
             if (!prepared.Success)
             {
                 _busy = false;
@@ -801,18 +864,26 @@ namespace Aetherfall.SaveSystem
                     "The game state refused the switch to Loading (" + _gameState.Current + ").", Now());
             }
 
+            _carriedSections.Clear();
+            if (prepared != null)
+            {
+                _carriedSections.AddRange(prepared.CarriedSections);
+            }
+
+            _carriedContext = context;
             ISaveable[] targets = _saveables.ToArray();
             var failedSections = new List<string>();
             for (int i = 0; i < targets.Length; i++)
             {
-                object data = null;
-                if (prepared != null)
-                {
-                    prepared.Snapshot.TryGet(targets[i].SaveKey, out data);
-                }
-
                 try
                 {
+                    object data = null;
+                    if (prepared != null && !prepared.Snapshot.TryGet(targets[i].SaveKey, out data))
+                    {
+                        // Registered while the file was read in the background: its section was kept as raw JSON.
+                        TryTakeCarriedSection(targets[i], out data);
+                    }
+
                     targets[i].Load(data, context);
                 }
                 catch (Exception exception)
@@ -873,13 +944,192 @@ namespace Aetherfall.SaveSystem
             return result;
         }
 
-        private SaveHeader ReadHeader(string characterId, string slotName)
+        private bool IsRegistered(string saveKey)
+        {
+            for (int i = 0; i < _saveables.Count; i++)
+            {
+                if (string.Equals(_saveables[i].SaveKey, saveKey, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private void DeliverCarriedSection(ISaveable saveable)
+        {
+            // Late registration (scene object in Start, scene loaded after the save): load the kept section at once.
+            LoadContext context = _carriedContext;
+            try
+            {
+                if (!TryTakeCarriedSection(saveable, out object data))
+                {
+                    return;
+                }
+
+                saveable.Load(data, context);
+                if (saveable is IPostLoad postLoad)
+                {
+                    postLoad.OnAfterLoad(context);
+                }
+
+                Log.Info(LogCategory.Save, "Section '" + saveable.SaveKey + "' of '" + context.SlotId + "' loaded into the late registered " +
+                                           saveable.GetType().Name + ".");
+            }
+            catch (Exception exception)
+            {
+                Log.Exception(LogCategory.Save, exception, "Saveable '" + saveable.SaveKey + "' failed to load its kept section (" + context.SlotId + ").");
+            }
+        }
+
+        private bool TryTakeCarriedSection(ISaveable saveable, out object data)
+        {
+            data = null;
+            for (int i = 0; i < _carriedSections.Count; i++)
+            {
+                if (!string.Equals(_carriedSections[i].Key, saveable.SaveKey, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                JToken json = _carriedSections[i].Value;
+                _carriedSections.RemoveAt(i);
+                data = _mainThreadCodec.ToSectionData(saveable.SaveKey, json, saveable.DataType);
+                return true;
+            }
+
+            return false;
+        }
+
+        private IReadOnlyList<SaveSlotInfo> KnownSlots(string characterId)
+        {
+            if (!string.Equals(characterId, CharacterId, StringComparison.Ordinal))
+            {
+                return ReadSlots(characterId, _mainThreadCodec);
+            }
+
+            if (_knownSlots == null || !string.Equals(_knownSlotsCharacter, characterId, StringComparison.Ordinal))
+            {
+                _knownSlots = ReadSlots(characterId, _mainThreadCodec);
+                _knownSlotsCharacter = characterId;
+            }
+
+            return _knownSlots;
+        }
+
+        private List<SaveSlotInfo> ReadSlots(string characterId, SaveDocumentCodec codec)
+        {
+            var result = new List<SaveSlotInfo>();
+            IReadOnlyList<string> names = _storage.ListSlotNames(characterId);
+            for (int i = 0; i < names.Count; i++)
+            {
+                result.Add(new SaveSlotInfo(characterId, names[i], ReadHeader(characterId, names[i], codec),
+                    _storage.HasBackup(characterId, names[i]), _storage.HasSave(characterId, names[i])));
+            }
+
+            result.Sort(NewestFirst);
+            return result;
+        }
+
+        private SaveSlotInfo ReadSlot(string characterId, string slotName, SaveDocumentCodec codec)
+        {
+            // Same rule as SaveSlotStorage.ListSlotNames: a slot exists if its header file or its main file exists.
+            bool hasSave = _storage.HasSave(characterId, slotName);
+            if (!hasSave && !_storage.HasHead(characterId, slotName))
+            {
+                return null;
+            }
+
+            return new SaveSlotInfo(characterId, slotName, ReadHeader(characterId, slotName, codec), _storage.HasBackup(characterId, slotName), hasSave);
+        }
+
+        private void ReadSlotAfterLoad(LoadJob job)
+        {
+            // Runs next to Prepare (background thread): the load may have moved a damaged file to Beschaedigt/.
+            try
+            {
+                job.SlotAfterLoad = ReadSlot(job.CharacterId, job.SlotName, _codec);
+                job.SlotAfterLoadRead = true;
+            }
+            catch (Exception exception) when (exception is IOException || exception is UnauthorizedAccessException)
+            {
+                job.SlotAfterLoadRead = false;
+            }
+        }
+
+        private void RememberWrittenSlot(PreparedSave prepared)
+        {
+            if (_knownSlots == null || !string.Equals(_knownSlotsCharacter, prepared.CharacterId, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            int index = IndexOfKnownSlot(prepared.SlotName);
+            SaveSlotInfo previous = index >= 0 ? _knownSlots[index] : null;
+
+            // Replacing an existing main file turns it into the backup; an older backup stays when there was none.
+            bool hasBackup = previous != null && (previous.HasSave || previous.HasBackup);
+            UpdateKnownSlot(prepared.CharacterId, prepared.SlotName,
+                new SaveSlotInfo(prepared.CharacterId, prepared.SlotName, prepared.Snapshot.Header, hasBackup, true));
+        }
+
+        private void UpdateKnownSlot(string characterId, string slotName, SaveSlotInfo slot)
+        {
+            if (_knownSlots == null || !string.Equals(_knownSlotsCharacter, characterId, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            int index = IndexOfKnownSlot(slotName);
+            if (slot == null)
+            {
+                if (index >= 0)
+                {
+                    _knownSlots.RemoveAt(index);
+                }
+
+                return;
+            }
+
+            if (index >= 0)
+            {
+                _knownSlots[index] = slot;
+            }
+            else
+            {
+                _knownSlots.Add(slot);
+            }
+
+            _knownSlots.Sort(NewestFirst);
+        }
+
+        private int IndexOfKnownSlot(string slotName)
+        {
+            for (int i = 0; i < _knownSlots.Count; i++)
+            {
+                if (string.Equals(_knownSlots[i].SlotName, slotName, StringComparison.Ordinal))
+                {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+
+        private static int NewestFirst(SaveSlotInfo a, SaveSlotInfo b)
+        {
+            return SaveSlotRotation.CompareCreation(b, a);
+        }
+
+        // codec: _codec on the background thread, _mainThreadCodec on the main thread (one operation per codec at a time).
+        private SaveHeader ReadHeader(string characterId, string slotName, SaveDocumentCodec codec)
         {
             if (_storage.TryReadHead(characterId, slotName, out byte[] headBytes))
             {
                 try
                 {
-                    return _codec.DecodeHeader(headBytes);
+                    return codec.DecodeHeader(headBytes);
                 }
                 catch (InvalidDataException)
                 {
@@ -892,7 +1142,7 @@ namespace Aetherfall.SaveSystem
             {
                 try
                 {
-                    return _codec.ReadHeader(_codec.ParseDocument(saveBytes));
+                    return codec.ReadHeader(codec.ParseDocument(saveBytes));
                 }
                 catch (InvalidDataException)
                 {
@@ -948,11 +1198,18 @@ namespace Aetherfall.SaveSystem
             public string SlotName { get; }
 
             public Dictionary<string, Type> SectionTypes { get; }
+
+            /// <summary>The slot as found on disk after the load attempt (null = gone).</summary>
+            public SaveSlotInfo SlotAfterLoad { get; set; }
+
+            /// <summary>True if <see cref="SlotAfterLoad"/> could be read.</summary>
+            public bool SlotAfterLoadRead { get; set; }
         }
 
         private sealed class PreparedLoad
         {
-            private PreparedLoad(bool success, SaveSnapshot snapshot, int originalVersion, bool fromBackup, string reasonKey, string message)
+            private PreparedLoad(bool success, SaveSnapshot snapshot, int originalVersion, bool fromBackup, string reasonKey, string message,
+                IReadOnlyList<KeyValuePair<string, JToken>> carriedSections)
             {
                 Success = success;
                 Snapshot = snapshot;
@@ -960,6 +1217,7 @@ namespace Aetherfall.SaveSystem
                 FromBackup = fromBackup;
                 ReasonKey = reasonKey;
                 Message = message ?? string.Empty;
+                CarriedSections = carriedSections ?? Array.Empty<KeyValuePair<string, JToken>>();
             }
 
             public bool Success { get; }
@@ -974,14 +1232,18 @@ namespace Aetherfall.SaveSystem
 
             public string Message { get; }
 
-            public static PreparedLoad Succeeded(SaveSnapshot snapshot, int originalVersion, bool fromBackup, string message)
+            /// <summary>Raw sections without registered saveable (kept for later saves and late registrations).</summary>
+            public IReadOnlyList<KeyValuePair<string, JToken>> CarriedSections { get; }
+
+            public static PreparedLoad Succeeded(SaveSnapshot snapshot, int originalVersion, bool fromBackup, string message,
+                IReadOnlyList<KeyValuePair<string, JToken>> carriedSections)
             {
-                return new PreparedLoad(true, snapshot, originalVersion, fromBackup, string.Empty, message);
+                return new PreparedLoad(true, snapshot, originalVersion, fromBackup, string.Empty, message, carriedSections);
             }
 
             public static PreparedLoad Failed(string reasonKey, string message)
             {
-                return new PreparedLoad(false, null, 0, false, reasonKey, message);
+                return new PreparedLoad(false, null, 0, false, reasonKey, message, null);
             }
         }
     }

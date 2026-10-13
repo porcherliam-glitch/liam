@@ -7,7 +7,9 @@ namespace Aetherfall.SaveSystem
     /// Platform adapter for the save folder (architecture 9.9). In the editor the saves go to <c>&lt;project&gt;/SavesDev/</c>
     /// (ignored by Git), so editor and player saves do not mix. In a build they go to
     /// <c>Application.persistentDataPath/Saves/</c>:
-    /// macOS <c>~/Library/Application Support/&lt;company&gt;.&lt;product&gt;/Saves/</c>,
+    /// macOS <c>~/Library/Application Support/unity.&lt;company&gt;.&lt;product&gt;/Saves/</c> (or
+    /// <c>&lt;company&gt;/&lt;product&gt;/Saves/</c> if that folder of the editor already exists; the log line "Save folder: …" shows
+    /// the real path),
     /// Windows <c>%userprofile%\AppData\LocalLow\&lt;company&gt;\&lt;product&gt;\Saves\</c>.
     /// </summary>
     /// <remarks>The only class of the save system that touches Unity paths; everything else gets the folder from here.</remarks>

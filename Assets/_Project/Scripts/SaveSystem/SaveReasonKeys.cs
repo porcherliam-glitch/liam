@@ -18,6 +18,9 @@ namespace Aetherfall.SaveSystem
         /// <summary>The player is in combat (CombatStateChanged).</summary>
         public const string Combat = "save.blocked.combat";
 
+        /// <summary>The player is falling, jumping or diving (lock set by the Player, architecture 9.8, GDD 05 5.2).</summary>
+        public const string Falling = "save.blocked.falling";
+
         /// <summary>A saveable threw while taking the snapshot.</summary>
         public const string CaptureFailed = "save.error.capture";
 
@@ -63,11 +66,27 @@ namespace Aetherfall.SaveSystem
         /// <summary>A system threw while loading its section (the other sections were loaded).</summary>
         public const string SectionFailed = "load.error.section";
 
-        /// <summary>Key of the state lock for a game state.</summary>
+        /// <summary>Key of the state lock for a game state (<see cref="StatePrefix"/> + state name in lower case).</summary>
         /// <param name="state">Game state in which saving is not allowed.</param>
+        /// <remarks>
+        /// Constant strings for the known states: the save manager asks every frame (autosave tick), and architecture 13.2
+        /// allows no allocation per frame.
+        /// </remarks>
         public static string ForState(GameState state)
         {
-            return StatePrefix + state.ToString().ToLowerInvariant();
+            switch (state)
+            {
+                case GameState.Boot: return StatePrefix + "boot";
+                case GameState.MainMenu: return StatePrefix + "mainmenu";
+                case GameState.Loading: return StatePrefix + "loading";
+                case GameState.Playing: return StatePrefix + "playing";
+                case GameState.Menu: return StatePrefix + "menu";
+                case GameState.Paused: return StatePrefix + "paused";
+                case GameState.Dialogue: return StatePrefix + "dialogue";
+                case GameState.Cutscene: return StatePrefix + "cutscene";
+                case GameState.Building: return StatePrefix + "building";
+                default: return StatePrefix + state.ToString().ToLowerInvariant();
+            }
         }
 
         /// <summary>German text of a key for debug tools (placeholder until the localization tables exist).</summary>
@@ -88,6 +107,7 @@ namespace Aetherfall.SaveSystem
             {
                 case Busy: return "Es wird gerade gespeichert oder geladen";
                 case Combat: return "Speichern im Kampf nicht möglich";
+                case Falling: return "Speichern beim Fallen oder Springen nicht möglich";
                 case CaptureFailed: return "Speichern fehlgeschlagen: Spielzustand konnte nicht erfasst werden";
                 case SerializeFailed: return "Speichern fehlgeschlagen: Daten konnten nicht umgewandelt werden";
                 case WriteFailed: return "Speichern fehlgeschlagen: Datei konnte nicht geschrieben werden. Dein vorheriger Stand ist unverändert";
