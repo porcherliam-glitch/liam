@@ -12,8 +12,10 @@ namespace Aetherfall.Player
     /// <remarks>
     /// A new game (data null) fills all pools. A loaded game never starts dead: health is restored to at least 1
     /// (saving while dead is not possible in normal play; this protects against broken files).
+    /// <para>The section loads before <c>inventory</c> (45 before 50), whose equipment may raise the maximum values (e.g. an
+    /// affix "Vital"). The loaded values are therefore applied again in <see cref="OnAfterLoad"/>, when every modifier is back.</para>
     /// </remarks>
-    public sealed class PlayerResourcesSaveable : Saveable<PlayerResourcesDto>
+    public sealed class PlayerResourcesSaveable : Saveable<PlayerResourcesDto>, IPostLoad
     {
         /// <summary>Save key (table 9.2).</summary>
         public const string Key = "stats.player";
@@ -24,6 +26,7 @@ namespace Aetherfall.Player
         private readonly Health _health;
         private readonly ResourcePool _stamina;
         private readonly ResourcePool _mana;
+        private PlayerResourcesDto _loaded;
 
         /// <summary>Creates the saveable.</summary>
         /// <param name="health">Health of the player.</param>
@@ -48,8 +51,20 @@ namespace Aetherfall.Player
         }
 
         /// <inheritdoc />
+        public void OnAfterLoad(in LoadContext ctx)
+        {
+            PlayerResourcesDto data = _loaded;
+            _loaded = null;
+            if (data != null)
+            {
+                Apply(data);
+            }
+        }
+
+        /// <inheritdoc />
         protected override void Restore(PlayerResourcesDto data, in LoadContext ctx)
         {
+            _loaded = data;
             if (data == null)
             {
                 _health.RestoreState(_health.Max);
@@ -66,6 +81,11 @@ namespace Aetherfall.Player
                 return;
             }
 
+            Apply(data);
+        }
+
+        private void Apply(PlayerResourcesDto data)
+        {
             _health.RestoreState(Math.Max(1f, data.Health));
             if (_stamina != null)
             {

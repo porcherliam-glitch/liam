@@ -23,7 +23,8 @@ namespace Aetherfall.EditorTools.World
     /// <c>CM_Explore</c> (Cinemachine 3: orbital follow, rotation composer, deoccluder, <see cref="CameraLookInput"/>),
     /// spawn point, <see cref="DevPlayStarter"/>, <see cref="QuickSaveInput"/> and the <see cref="PlayerStatusDebugOverlay"/>; the
     /// combat part (player combat, lock-on camera, camera shake, arena with dummy and wolves, combat overlay) comes from
-    /// <see cref="TestGroundCombatBuilder"/>.
+    /// <see cref="TestGroundCombatBuilder"/>, the items part (loot in the world, chests, interaction, equipment, inventory
+    /// overlay) from <see cref="TestGroundItemBuilder"/>.
     /// </summary>
     /// <remarks>Camera values: GDD 03 2.1 "Erkundung" (4.0 m, pivot 1.6 m, 0.3 m shoulder, FOV 55°) and 2.2 (collision).</remarks>
     public static class TestGroundSceneBuilder
@@ -57,10 +58,14 @@ namespace Aetherfall.EditorTools.World
         /// <param name="combat">Combat assets (null or incomplete = no combat part).</param>
         /// <param name="enemyLayer">Enemy layer index or -1.</param>
         /// <param name="hurtboxLayer">Hurtbox layer index or -1.</param>
+        /// <param name="items">Item assets (null or incomplete = no items part).</param>
+        /// <param name="interactableLayer">Interactable layer index or -1.</param>
+        /// <param name="pickupLayer">Pickup layer index or -1.</param>
         /// <param name="report">Protocol.</param>
         /// <returns>The player object, or null if the scene could not be saved.</returns>
         public static GameObject Build(PlayerMovementSettings settings, TestGroundMaterials materials, int playerLayer, int environmentLayer,
-            TestGroundCombatAssets combat, int enemyLayer, int hurtboxLayer, TestGroundReport report)
+            TestGroundCombatAssets combat, int enemyLayer, int hurtboxLayer, TestGroundItemAssets items, int interactableLayer, int pickupLayer,
+            TestGroundReport report)
         {
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.DefaultGameObjects, NewSceneMode.Single);
             int envLayer = environmentLayer >= 0 ? environmentLayer : 0;
@@ -85,9 +90,10 @@ namespace Aetherfall.EditorTools.World
 
             new GameObject("DevPlayStarter").AddComponent<DevPlayStarter>();
             new GameObject("QuickSaveInput").AddComponent<QuickSaveInput>();
-            CreateStatusOverlay(player, report);
+            PlayerStatusDebugOverlay statusOverlay = CreateStatusOverlay(player, report);
 
-            if (combat != null && combat.IsComplete)
+            bool hasCombat = combat != null && combat.IsComplete;
+            if (hasCombat)
             {
                 Combatant playerCombatant = TestGroundCombatBuilder.SetUpPlayer(player, mainCamera, materials, combat, hurtboxLayer, envLayer, report);
                 TestGroundCombatBuilder.SetUpCameras(player, pivot, exploreCamera, exploreOrbital, envMask, report);
@@ -99,6 +105,16 @@ namespace Aetherfall.EditorTools.World
             else
             {
                 report.Warning("Kampf-Daten unvollständig (siehe Meldungen oben) – das Testgelände wird ohne Kampf erstellt.");
+            }
+
+            if (hasCombat && items != null && items.IsComplete)
+            {
+                TestGroundItemBuilder.Build(player, items, interactableLayer, pickupLayer, envLayer, labelFont, report);
+                TestGroundItemBuilder.CreateOverlays(player, statusOverlay, report);
+            }
+            else
+            {
+                report.Warning("Item-Daten oder Kampf unvollständig (siehe Meldungen oben) – das Testgelände wird ohne Truhen, Beute und Inventar erstellt.");
             }
 
             EditorSceneManager.MarkSceneDirty(scene);
@@ -210,7 +226,7 @@ namespace Aetherfall.EditorTools.World
             return player;
         }
 
-        private static void CreateStatusOverlay(GameObject player, TestGroundReport report)
+        private static PlayerStatusDebugOverlay CreateStatusOverlay(GameObject player, TestGroundReport report)
         {
             PlayerStatusDebugOverlay overlay = new GameObject("PlayerStatusOverlay").AddComponent<PlayerStatusDebugOverlay>();
             if (player.TryGetComponent(out DamageableComponent damageable))
@@ -224,6 +240,7 @@ namespace Aetherfall.EditorTools.World
             }
 
             report.Info("Debug-Overlay „PlayerStatusOverlay“ (rechts oben): LP, Ausdauer, Speicher-Status, Knöpfe zum Testen.");
+            return overlay;
         }
 
         private static CameraLookInput CreateExplorationCamera(Transform pivot, int collisionMask, TestGroundReport report, out CinemachineCamera camera,

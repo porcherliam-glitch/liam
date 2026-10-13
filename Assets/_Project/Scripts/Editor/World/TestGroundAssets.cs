@@ -3,9 +3,11 @@ using System.IO;
 using Aetherfall.AI;
 using Aetherfall.Combat;
 using Aetherfall.Core;
+using Aetherfall.Data;
 using Aetherfall.EditorTools.Core;
 using Aetherfall.GameTime;
 using Aetherfall.Input;
+using Aetherfall.Inventory;
 using Aetherfall.Player;
 using Aetherfall.SaveSystem;
 using UnityEditor;
@@ -16,7 +18,8 @@ namespace Aetherfall.EditorTools.World
 {
     /// <summary>
     /// Assets of the test ground: folders, coloured URP/Lit materials, the player movement settings and the installers
-    /// of Input, Save, GameTime, Combat and AI in the BootConfig. Existing assets are reused and never overwritten.
+    /// of Input, Save, GameTime, Content, Inventory, Combat and AI in the BootConfig. Existing assets are reused and never
+    /// overwritten.
     /// </summary>
     public static class TestGroundAssets
     {
@@ -180,6 +183,52 @@ namespace Aetherfall.EditorTools.World
         }
 
         /// <summary>
+        /// Loads or creates the ContentInstaller and InventoryInstaller assets and puts them into the BootConfig in the order
+        /// of architecture 4.1: ContentInstaller (step 7, content database) behind the EventBus and Input installers,
+        /// InventoryInstaller (step 12, Items/Loot and Inventory before the combat configuration) behind the Save, GameTime and
+        /// Content installers. Adds the catalog to the content installer if it is missing and fills the empty field
+        /// "Startausruestung" (starting equipment) of the inventory installer.
+        /// </summary>
+        /// <param name="catalog">Content catalog (may be null).</param>
+        /// <param name="startingEquipment">Starting equipment of the warrior (may be null).</param>
+        /// <param name="report">Protocol.</param>
+        /// <returns>True if both installers are in the BootConfig afterwards.</returns>
+        public static bool EnsureItemInstallersInBootConfig(ContentCatalog catalog, StartingEquipment startingEquipment, TestGroundReport report)
+        {
+            bool content = EnsureInstallerInBootConfig<ContentInstaller>(TestGroundPaths.ContentInstallerPath, report, typeof(EventBusInstaller),
+                typeof(InputInstaller));
+            if (content && catalog != null)
+            {
+                ContentInstaller installer = AssetDatabase.LoadAssetAtPath<ContentInstaller>(TestGroundPaths.ContentInstallerPath);
+                if (installer != null)
+                {
+                    AddToList(installer, "catalogs", catalog, report);
+                }
+            }
+
+            bool inventory = content && EnsureInstallerInBootConfig<InventoryInstaller>(TestGroundPaths.InventoryInstallerPath, report,
+                typeof(SaveInstaller), typeof(GameTimeInstaller), typeof(ContentInstaller));
+            if (inventory && startingEquipment != null)
+            {
+                InventoryInstaller installer = AssetDatabase.LoadAssetAtPath<InventoryInstaller>(TestGroundPaths.InventoryInstallerPath);
+                if (installer != null)
+                {
+                    var serialized = new SerializedObject(installer);
+                    SerializedProperty field = serialized.FindProperty("startingEquipment");
+                    if (field != null && field.objectReferenceValue == null)
+                    {
+                        field.objectReferenceValue = startingEquipment;
+                        serialized.ApplyModifiedPropertiesWithoutUndo();
+                        EditorUtility.SetDirty(installer);
+                        report.Info("InventoryInstaller: Startausrüstung " + TestGroundPaths.StartingEquipmentPath + " eingetragen.");
+                    }
+                }
+            }
+
+            return content && inventory;
+        }
+
+        /// <summary>
         /// Loads or creates an installer asset and makes sure the BootConfig lists it once, behind every entry of the
         /// <paramref name="placeAfter"/> types (the installers whose services it requires).
         /// </summary>
@@ -278,6 +327,37 @@ namespace Aetherfall.EditorTools.World
             EditorUtility.SetDirty(bootConfig);
             report.Info(typeName + " in die BootConfig eingetragen (Element " + insertAt + ", hinter " + DescribeTypes(placeAfter) + ").");
             return true;
+        }
+
+        private static void AddToList(Object target, string field, Object value, TestGroundReport report)
+        {
+            var serialized = new SerializedObject(target);
+            SerializedProperty list = serialized.FindProperty(field);
+            if (list == null || !list.isArray)
+            {
+                report.Warning("Feld „" + field + "“ an " + target.GetType().Name + " nicht gefunden – bitte " + value.name + " von Hand eintragen.");
+                return;
+            }
+
+            for (int i = list.arraySize - 1; i >= 0; i--)
+            {
+                Object entry = list.GetArrayElementAtIndex(i).objectReferenceValue;
+                if (entry == value)
+                {
+                    return;
+                }
+
+                if (entry == null)
+                {
+                    list.DeleteArrayElementAtIndex(i);
+                }
+            }
+
+            list.arraySize++;
+            list.GetArrayElementAtIndex(list.arraySize - 1).objectReferenceValue = value;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(target);
+            report.Info(target.name + ": " + value.name + " eingetragen.");
         }
 
         private static string DescribeTypes(Type[] types)

@@ -14,7 +14,8 @@ namespace Aetherfall.Player
     /// 0.3 s delay and is only meant for the button glyphs).
     /// </summary>
     /// <remarks>
-    /// GameObject: the player root next to <see cref="PlayerMotor"/>. Runs before the motor in the frame (execution order -50).
+    /// GameObject: the player root next to <see cref="PlayerMotor"/>. Runs before the motor in the frame (execution order -50),
+    /// after <see cref="PlayerInteractor"/> (-60), which decides whether the shared gamepad button A interacted.
     /// TODO (Options step): options "Sprinten: Halten/Umschalten" per device and "Kontextregeln einzeln" (GDD 03 1.6).
     /// </remarks>
     [DefaultExecutionOrder(-50)]
@@ -23,6 +24,9 @@ namespace Aetherfall.Player
     {
         [Tooltip("Motor, der die Eingaben bekommt. Leer = PlayerMotor am selben GameObject.")]
         [SerializeField] private PlayerMotor motor = null;
+
+        [Tooltip("Interaktion der Figur (optional). Leer = PlayerInteractor am selben GameObject. Ein A-Druck, der interagiert hat, springt nicht.")]
+        [SerializeField] private PlayerInteractor interactor = null;
 
         private IGameplayInput _gameplay;
         private bool _sprintToggleMode;
@@ -33,6 +37,12 @@ namespace Aetherfall.Player
             {
                 Log.Error(LogCategory.Player, "PlayerInputReader on '" + name + "' finds no PlayerMotor.");
                 enabled = false;
+                return;
+            }
+
+            if (interactor == null)
+            {
+                TryGetComponent(out interactor);
             }
         }
 
@@ -90,7 +100,7 @@ namespace Aetherfall.Player
             {
                 MoveX = move.x,
                 MoveY = move.y,
-                JumpPressed = _gameplay.WasPressedThisFrame(GameplayButton.Jump),
+                JumpPressed = _gameplay.WasPressedThisFrame(GameplayButton.Jump) && !InteractConsumedJump(),
                 SprintPressed = sprintPressed,
                 SprintHeld = _gameplay.IsPressed(GameplayButton.Sprint),
                 SprintToggleMode = _sprintToggleMode,
@@ -101,6 +111,13 @@ namespace Aetherfall.Player
                 WalkTogglePressed = _gameplay.WasToggledThisFrame(GameplayButton.WalkToggle)
             };
             motor.SubmitInput(in input);
+        }
+
+        private bool InteractConsumedJump()
+        {
+            // GDD 03 1.5: A = Jump and Interact ("A mit Ziel"). The interactor runs first; if the gamepad press interacted, it
+            // must not also jump. On the keyboard Space and E are different keys, both may happen in one frame.
+            return interactor != null && interactor.InteractedThisFrame && _gameplay.SourceDeviceOf(GameplayButton.Interact) == DeviceKind.Gamepad;
         }
     }
 }

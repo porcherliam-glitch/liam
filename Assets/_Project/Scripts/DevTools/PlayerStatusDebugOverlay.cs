@@ -4,6 +4,8 @@ using System.IO;
 using Aetherfall.Combat;
 using Aetherfall.Core;
 using Aetherfall.GameTime;
+using Aetherfall.Inventory;
+using Aetherfall.Items;
 using Aetherfall.SaveSystem;
 using Aetherfall.Stats;
 using UnityEngine;
@@ -12,7 +14,8 @@ namespace Aetherfall.DevTools
 {
     /// <summary>
     /// Developer overlay (IMGUI, mouse only) for the stats and save step: shows health, stamina, mana and playtime of the
-    /// player, whether saving is allowed, the last save and load result, and offers the buttons "Schnellspeichern",
+    /// player, the values that equipment changes (armor, attack, poise, armor class, move speed, load, luck, gold), whether
+    /// saving is allowed, the last save and load result, and offers the buttons "Schnellspeichern",
     /// "Schnellladen", "10 Schaden", "Heilen" and "Speicherordner oeffnen".
     /// </summary>
     /// <remarks>
@@ -36,6 +39,9 @@ namespace Aetherfall.DevTools
         [Tooltip("Werte des Spielers mit Ausdauer und Mana (CharacterStatsComponent am Objekt „Player“).")]
         [SerializeField] private CharacterStatsComponent playerStats = null;
 
+        [Tooltip("Ausrüstungs-Brücke der Figur (Angriffswert aus der angelegten Waffe). Optional.")]
+        [SerializeField] private Aetherfall.Player.PlayerEquipment playerEquipment = null;
+
         [Tooltip("Overlay beim Start aufgeklappt anzeigen.")]
         [SerializeField] private bool startExpanded = true;
 
@@ -48,11 +54,13 @@ namespace Aetherfall.DevTools
 
         private ISaveManager _saves;
         private IPlaytimeClock _playtime;
+        private IInventoryService _inventory;
         private bool _expanded;
         private float _nextRefresh;
         private string _healthText = string.Empty;
         private string _staminaText = string.Empty;
         private string _manaText = string.Empty;
+        private string _gearText = string.Empty;
         private string _playtimeText = string.Empty;
         private string _allowedText = string.Empty;
         private string _lastSaveText = string.Empty;
@@ -99,6 +107,7 @@ namespace Aetherfall.DevTools
                 {
                     locator.TryGet(out _saves);
                     locator.TryGet(out _playtime);
+                    locator.TryGet(out _inventory);
                 }
 
                 if (_saves == null)
@@ -159,6 +168,7 @@ namespace Aetherfall.DevTools
                 _manaText = string.Empty;
             }
 
+            _gearText = DescribeGear();
             _playtimeText = _playtime != null
                 ? "Spielzeit: " + PlaytimeClock.Format(_playtime.PlaytimeSeconds) + (_playtime.IsRunning ? string.Empty : "  (angehalten)")
                 : "Spielzeit: (GameTimeInstaller fehlt)";
@@ -228,6 +238,11 @@ namespace Aetherfall.DevTools
                 GUILayout.Label(_manaText);
             }
 
+            if (_gearText.Length > 0)
+            {
+                GUILayout.Label(_gearText);
+            }
+
             GUILayout.Label(_playtimeText);
             GUILayout.Space(4f);
             GUILayout.Label(_allowedText);
@@ -290,6 +305,33 @@ namespace Aetherfall.DevTools
             }
 
             GUILayout.Label("Maus: im Spiel erst Esc drücken (Pause), dann klicken.");
+        }
+
+        private string DescribeGear()
+        {
+            if (playerStats == null)
+            {
+                return string.Empty;
+            }
+
+            StatCollection stats = playerStats.Stats;
+            string text = "Rüstung " + Round(stats.Get(StatId.Armor)) + "   Standfestigkeit " + Round(stats.Get(StatId.Poise)) +
+                          "   Tempo " + Round(stats.Get(StatId.MoveSpeed) * 100f) + " %";
+            if (playerEquipment != null)
+            {
+                text += "\nAngriff " + Round(playerEquipment.AttackDisplay) + " (Waffenschaden " + Round(playerEquipment.WeaponDamage) + ")   " +
+                        ArmorRules.GermanName(playerEquipment.ArmorClass);
+            }
+
+            if (_inventory != null)
+            {
+                EncumbranceState load = _inventory.PlayerEncumbrance;
+                text += "\nTraglast " + ItemTexts.Kilograms(load.Load) + " / " + ItemTexts.Kilograms(load.Capacity) + " – " +
+                        EncumbranceRules.GermanName(load.Level) + "\nGold " + _inventory.GetCurrency(InventoryOwners.Player, CurrencyIds.Gold) +
+                        "   Glück " + stats.Get(StatId.Luck).ToString("0.#", CultureInfo.InvariantCulture) + "   Inventar: Tab";
+            }
+
+            return text;
         }
 
         private void DealDebugDamage()

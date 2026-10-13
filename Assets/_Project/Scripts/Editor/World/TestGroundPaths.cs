@@ -76,5 +76,44 @@ namespace Aetherfall.EditorTools.World
 
         /// <summary>World space ID published with PlayerSpawned (ID rules, architecture 6.1).</summary>
         public const string WorldSpaceId = "worldspace.test.testgelaende";
+
+        /// <summary>Folder of the item definitions (architecture 3.1: Data/Items).</summary>
+        public const string ItemFolder = SetupPaths.ProjectFolder + "/Data/Items";
+
+        /// <summary>Folder of the affix definitions.</summary>
+        public const string AffixFolder = ItemFolder + "/Affixes";
+
+        /// <summary>Folder of the loot tables (architecture 3.1: Data/LootTables).</summary>
+        public const string LootTableFolder = SetupPaths.ProjectFolder + "/Data/LootTables";
+
+        /// <summary>Catalog of all definitions that the content installer registers.</summary>
+        public const string ContentCatalogPath = SetupPaths.ProjectFolder + "/Data/ContentCatalog.asset";
+
+        /// <summary>Folder of item settings (starting equipment).</summary>
+        public const string ItemSettingsFolder = SetupPaths.ProjectFolder + "/Settings/Items";
+
+        /// <summary>Starting equipment of the warrior (GDD 03 11.2).</summary>
+        public const string StartingEquipmentPath = ItemSettingsFolder + "/Startausruestung_Krieger.asset";
+
+        /// <summary>Installer asset of the content database (BootConfig, architecture 4.1 step 7).</summary>
+        public const string ContentInstallerPath = SetupPaths.BootSettingsFolder + "/ContentInstaller.asset";
+
+        /// <summary>Installer asset of inventory and loot (BootConfig, architecture 4.1 step 12).</summary>
+        public const string InventoryInstallerPath = SetupPaths.BootSettingsFolder + "/InventoryInstaller.asset";
+
+        /// <summary>Layer of interaction colliders (architecture 2.8: layer 10, collides with nothing).</summary>
+        public const int InteractableLayerIndex = 10;
+
+        /// <summary>Name of the interactable layer.</summary>
+        public const string InteractableLayerName = "Interactable";
+
+        /// <summary>Layer of loot in the world (architecture 2.8: layer 16).</summary>
+        public const int PickupLayerIndex = 16;
+
+        /// <summary>Name of the pickup layer.</summary>
+        public const string PickupLayerName = "Pickup";
+
+        /// <summary>Area level of the test ground (item level of chest content, GDD 04 4.1).</summary>
+        public const int AreaLevel = 10;
     }
 }

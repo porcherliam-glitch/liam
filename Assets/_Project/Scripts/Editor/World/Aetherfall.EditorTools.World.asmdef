@@ -4,10 +4,13 @@
     "references": [
         "Aetherfall.Core",
         "Aetherfall.Events",
+        "Aetherfall.Data",
         "Aetherfall.SaveSystem",
         "Aetherfall.Input",
         "Aetherfall.GameTime",
         "Aetherfall.Stats",
+        "Aetherfall.Items",
+        "Aetherfall.Inventory",
         "Aetherfall.Combat",
         "Aetherfall.AI",
         "Aetherfall.Player",

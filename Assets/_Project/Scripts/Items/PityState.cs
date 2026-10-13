@@ -52,21 +52,19 @@ namespace Aetherfall.Items
         /// <summary>True from Z_M = 30 on: the next legendary becomes mythic.</summary>
         public bool MythicGuaranteed => MythicCounter >= MythicGuarantee;
 
-        /// <summary>Counts a random equipment drop (only item level ≥ 10): legendary or mythic resets Z_L, anything else adds 1.</summary>
+        /// <summary>
+        /// Counts a random equipment drop: every random legendary or mythic resets Z_L (also below item level 10, e.g. a boss
+        /// special roll), any other drop adds 1 if its item level is at least 10.
+        /// </summary>
         /// <param name="rarity">Rarity of the drop.</param>
         /// <param name="itemLevel">Item level of the drop.</param>
         public void RecordEquipmentDrop(ItemRarity rarity, int itemLevel)
         {
-            if (itemLevel < MinItemLevel)
-            {
-                return;
-            }
-
             if (rarity == ItemRarity.Legendary || rarity == ItemRarity.Mythic)
             {
                 LegendaryCounter = 0;
             }
-            else
+            else if (itemLevel >= MinItemLevel)
             {
                 LegendaryCounter++;
             }

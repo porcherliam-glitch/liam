@@ -29,7 +29,7 @@ namespace Aetherfall.EditorTools.World
 
         /// <summary>
         /// Adds the combat components to the player and sets its stats to the warrior of GDD 03 8.3 (level 10, strength 20,
-        /// dexterity 10, constitution 18; test armor 60).
+        /// dexterity 10, constitution 18). Weapon damage and armor come from the equipped items (<see cref="TestGroundItemBuilder"/>).
         /// </summary>
         /// <param name="player">Player root.</param>
         /// <param name="mainCamera">Main camera.</param>
@@ -119,7 +119,8 @@ namespace Aetherfall.EditorTools.World
             TestGroundFields.SetReference(respawn, "combat", combat, report);
             TestGroundFields.SetReference(respawn, "stats", stats, report);
             report.Info("Spieler-Kampf: Combatant, Trefferzonen (Körper, Kopf), Hitbox, Lock-On, Kampfsteuerung, Schwert und Schild (Quader), " +
-                        "Wiederbeleben nach 3 s. Werte: Krieger Stufe 10 aus GDD 03, 8.3 (Stärke 20, Geschick 10, Konstitution 18, Rüstung 60).");
+                        "Wiederbeleben nach 3 s. Werte: Krieger Stufe 10 aus GDD 03, 8.3 (Stärke 20, Geschick 10, Konstitution 18; Rüstung und " +
+                        "Waffenschaden aus der angelegten Ausrüstung).");
             return combatant;
         }
 
