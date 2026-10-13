@@ -1,0 +1,33 @@
+{
+    "name": "Aetherfall.CameraSystem",
+    "rootNamespace": "Aetherfall.CameraSystem",
+    "references": [
+        "Aetherfall.Core",
+        "Aetherfall.Events",
+        "Aetherfall.Input",
+        "Unity.Cinemachine"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "AETHERFALL_INPUTSYSTEM",
+        "AETHERFALL_CINEMACHINE"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.unity.inputsystem",
+            "expression": "1.0",
+            "define": "AETHERFALL_INPUTSYSTEM"
+        },
+        {
+            "name": "com.unity.cinemachine",
+            "expression": "3.0",
+            "define": "AETHERFALL_CINEMACHINE"
+        }
+    ],
+    "noEngineReferences": false
+}

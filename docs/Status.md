@@ -35,6 +35,7 @@ Laufende Liste „Erledigt / In Arbeit / Als Nächstes“ nach §32.14. Ab dem A
 |---|---|---|
 | Phase 0, Schritt 4 – Projekt-Setup | Code fertig und geprüft: `.gitignore`, `.gitattributes`, Editor-Werkzeug „Aetherfall > Projekt-Setup …“, Einsteiger-Anleitung [Anleitungen/01](./Anleitungen/01_Projekt-Setup.md) (GitHub Desktop + Vorlagen-Kopie). **Wartet auf den ersten Lauf in Unity auf dem Mac.** | Auftraggeber |
 | Phase 1, Schritt 1 – Fundament | Code fertig und geprüft: `GameBootstrapper`, `ServiceLocator`, `EventBus`, `GameStateService`, Logging, Installer, Debug-Overlay. Außerhalb von Unity mit .NET 8 kompiliert, 148 EditMode-Tests grün. **Wartet auf den Test in Unity** ([Anleitungen/02](./Anleitungen/02_Test_Phase1_Fundament.md)). | Auftraggeber |
+| Phase 1 – Spielfigur, Steuerung, Kamera, Testgelände | Code fertig und geprüft: Input-System (5 Action Maps im Code, Geräteerkennung, Pause), Spielfigur (Gehen/Laufen/Sprinten/Schleichen/Springen, Coyote-Time, Hänge), Cinemachine-Kamera, Menü „Aetherfall > Testgelände erstellen“. Außerhalb von Unity kompiliert, 271 Tests grün (157 auch ohne Pakete). **Wartet auf den Test in Unity** ([Anleitungen/03](./Anleitungen/03_Test_Spielfigur.md)). | Auftraggeber |
 | Antworten auf die [10 Fragen](./Offene_Fragen.md#die-10-wichtigsten-fragen) | Bis zur Antwort gelten die Empfehlungen als vorläufiger Standard (u. a. Unity 6.3 LTS, Kommentare auf Englisch) | Auftraggeber |
 
 ---

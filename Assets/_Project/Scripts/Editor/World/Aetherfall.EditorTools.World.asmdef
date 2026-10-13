@@ -1,0 +1,40 @@
+{
+    "name": "Aetherfall.EditorTools.World",
+    "rootNamespace": "Aetherfall.EditorTools.World",
+    "references": [
+        "Aetherfall.Core",
+        "Aetherfall.Events",
+        "Aetherfall.Input",
+        "Aetherfall.Player",
+        "Aetherfall.CameraSystem",
+        "Aetherfall.DevTools",
+        "Aetherfall.EditorTools.Core",
+        "Unity.Cinemachine",
+        "Unity.InputSystem"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "AETHERFALL_INPUTSYSTEM",
+        "AETHERFALL_CINEMACHINE"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.unity.inputsystem",
+            "expression": "1.0",
+            "define": "AETHERFALL_INPUTSYSTEM"
+        },
+        {
+            "name": "com.unity.cinemachine",
+            "expression": "3.0",
+            "define": "AETHERFALL_CINEMACHINE"
+        }
+    ],
+    "noEngineReferences": false
+}

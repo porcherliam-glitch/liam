@@ -1,0 +1,34 @@
+{
+    "name": "Aetherfall.Tests.EditMode.Gameplay",
+    "rootNamespace": "Aetherfall.Tests.EditMode.Gameplay",
+    "references": [
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner",
+        "Aetherfall.Core",
+        "Aetherfall.Events",
+        "Aetherfall.Input",
+        "Aetherfall.Player"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS",
+        "AETHERFALL_INPUTSYSTEM"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.unity.inputsystem",
+            "expression": "1.0",
+            "define": "AETHERFALL_INPUTSYSTEM"
+        }
+    ],
+    "noEngineReferences": false
+}

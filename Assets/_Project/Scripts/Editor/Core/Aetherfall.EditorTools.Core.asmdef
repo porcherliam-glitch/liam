@@ -13,6 +13,17 @@
     "precompiledReferences": [],
     "autoReferenced": false,
     "defineConstraints": [],
-    "versionDefines": [],
+    "versionDefines": [
+        {
+            "name": "com.unity.inputsystem",
+            "expression": "1.0",
+            "define": "AETHERFALL_INPUTSYSTEM"
+        },
+        {
+            "name": "com.unity.cinemachine",
+            "expression": "3.0",
+            "define": "AETHERFALL_CINEMACHINE"
+        }
+    ],
     "noEngineReferences": false
 }

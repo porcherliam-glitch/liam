@@ -5,6 +5,7 @@
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner",
         "Aetherfall.Core",
+        "Aetherfall.Events",
         "Aetherfall.EditorTools.Core",
         "Aetherfall.Tests.Shared"
     ],

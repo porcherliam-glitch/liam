@@ -62,6 +62,12 @@ namespace Aetherfall.Core
         Telemetry = 17,
 
         /// <summary>Debug console, overlays and other developer tools.</summary>
-        DevTools = 18
+        DevTools = 18,
+
+        /// <summary>Player character: movement, spawning, player components.</summary>
+        Player = 19,
+
+        /// <summary>Cameras (Cinemachine rigs, look input, camera modes).</summary>
+        Camera = 20
     }
 }

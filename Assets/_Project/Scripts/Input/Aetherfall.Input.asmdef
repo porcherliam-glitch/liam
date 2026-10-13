@@ -1,0 +1,26 @@
+{
+    "name": "Aetherfall.Input",
+    "rootNamespace": "Aetherfall.Input",
+    "references": [
+        "Aetherfall.Core",
+        "Aetherfall.Events",
+        "Unity.InputSystem"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "AETHERFALL_INPUTSYSTEM"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.unity.inputsystem",
+            "expression": "1.0",
+            "define": "AETHERFALL_INPUTSYSTEM"
+        }
+    ],
+    "noEngineReferences": false
+}
