@@ -57,6 +57,19 @@ Ab Phase 1 bekommt jeder Schritt hier zusätzlich Ist-Aufwand (PW) und Datum der
 
 ---
 
+## Kurskorrektur nach Antwort 1 (Solo, 50 €)
+
+Der Auftraggeber arbeitet allein, das Geldbudget beträgt 50 €. Das ändert nicht die Vision, aber die Reihenfolge der Ziele:
+
+1. **Neues erstes Ziel: „Mini-Slice“ (Stufe A0, Vorschlag).** Ein Ausschnitt des Eichentals, der in 30–60 Minuten durchspielbar ist: Dorf Eichental mit Umgebung und „Die vergessene Gruft“. 3 der 8 Beispiel-Quests („Asche über Eichental“, „Die Wölfe vom Nordhang“, „Die vergessene Gruft“), 2–3 Gegnertypen (Wolf, Aether-Wolf, Gruftwächter als Mini-Boss), 1 Waffentyp (Einhandschwert mit Schild), 1 Startklasse (Krieger), kein Begleiter. Speichern und Laden funktionieren vollständig. Danach wird der echte Aufwand gemessen und der Vertical Slice (Stufe A, §31 Phase 4) neu geplant.
+2. **Kostenlos statt gekauft:** Unity Personal (0 €), privates GitHub-Repo mit LFS-Freikontingent (10 GiB Speicher und 10 GiB Download pro Monat). Im GitHub-Billing ein Budget-Limit von **0 $** setzen: keine Überraschungskosten; bei Überschreitung sperrt LFS bis Monatsende, deshalb Binärdateien klein halten. Platzhalter aus CC0-Quellen (Kenney, Quaternius, Poly Haven, ambientCG), Unity „Starter Assets – Third Person“, Animationen über Mixamo (kostenlos mit Adobe-Konto), Sounds von Freesound (Lizenz je Datei prüfen). Jede Quelle kommt ins Lizenzregister ([Risiken, W5](./Risiken.md#weitere-risiken-register)).
+3. **Die 50 € nicht vor Phase 2 ausgeben.** Größter Hebel laut [R3](./Risiken.md#r3--art--animations--und-welt-pipeline-blender) ist ein Nahkampf-Animationspaket (im Asset-Store-Sale). Entscheidung erst, wenn der Kampf-Prototyp mit Mixamo-Animationen steht.
+4. **Kein Windows-PC nötig:** Windows-Testbuilds entstehen als Mono-Build auf dem Mac. IL2CPP-Builds für Windows erst, wenn ein Windows-Rechner verfügbar ist.
+5. **Werkzeuge schlank:** Listen-Editor statt Graph-Editor für Quests und Dialoge (bereits Empfehlung), keine kostenpflichtigen CI-Runner. Tests laufen lokal im Unity Test Runner.
+6. **Steam-Gebühr (100 $)** wird erst bei einer Veröffentlichung fällig und ist aus dem jetzigen Budget nicht eingeplant.
+
+---
+
 ## Entscheidungs-Log
 
 Hier stehen nur Entscheidungen des Auftraggebers. Bis zu einem Eintrag gilt die Empfehlung aus [Offene Fragen](./Offene_Fragen.md) als vorläufiger Standard.
@@ -64,3 +77,4 @@ Hier stehen nur Entscheidungen des Auftraggebers. Bis zu einem Eintrag gilt die 
 | Datum | Entscheidung | Quelle |
 |---|---|---|
 | 2026-10-13 | OK für Phase 0, Schritt 4 (Projekt-Setup) und Phase 1. Offene Fragen gelten bis zur Antwort mit der Empfehlung (Unity 6.3 LTS, Code und Kommentare auf Englisch). | Chat ("OK, fang an") |
+| 2026-10-13 | Frage 1 (Kapazität): Solo, Budget 50 € (verfügbar in zwei Tagen). Erstes Ziel wird der „Mini-Slice“ (Stufe A0), siehe Kurskorrektur. | Chat |

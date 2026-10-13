@@ -49,6 +49,8 @@ Dieses Dokument erfüllt §33.5 („Stelle mir bis zu 10 Fragen zu Entscheidunge
 - **Bündelt:** Teamgröße und Budget, Zeitrahmen (GDD 00) · Teamgröße bis zum Vertical Slice, zugekaufte Bausteine (Technik/02) · Teamgröße, Budget und Zeitrahmen, Zukauf und externe Grafik (Risiken R1, R3).
 - **Betroffene Dokumente:** [Risiken, R1](./Risiken.md#r1--der-umfang-übersteigt-die-kapazität-das-projekt-wird-nie-veröffentlicht) · [Technik/02, Kritischer Pfad und Gesamtaufwand](./Technik/02_Systeme_und_Abhaengigkeiten.md#kritischer-pfad-bis-zum-vertical-slice) · [GDD 00, Umfangsstufen](./GDD/00_Vision_und_Ueberblick.md#umfangsstufen)
 
+- ✅ **Antwort (2026-10-13):** Solo, Budget **50 €** (verfügbar in zwei Tagen). Damit gilt Option 1 („Solo, kostenlose Platzhalter“) mit kleinem Reservetopf. Konsequenzen siehe [Status, Kurskorrektur](./Status.md#kurskorrektur-nach-antwort-1-solo-50-).
+
 ### 2. Projekt-Setup: Engine, Versionsverwaltung, Name und Hardware
 
 **Frage:** Dürfen wir Phase 0, Schritt 4 so aufsetzen, und unter welchem Namen?
