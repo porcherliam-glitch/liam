@@ -2,7 +2,7 @@
 
 > Bootstrapper, ServiceLocator, EventBus, GameStateManager · Stand: 2026-10-13 · Bezug: [Master-Prompt §31 Phase 1.1, §32.3, §32.10](../00_Master-Prompt.md) · [Architektur 4.1–4.4](../Technik/01_Architektur.md#4-kernsysteme-62) · [Systeme, Schritt 1.2](../Technik/02_Systeme_und_Abhaengigkeiten.md#phase-1--fundament)
 
-Diese Anleitung beschreibt, welche Dateien neu sind, was das Setup-Werkzeug im Editor anlegt und wie du das Fundament in Unity prüfst. Sie setzt voraus, dass das Projekt-Setup (Phase 0, Schritt 4, Anleitung 01) erledigt ist: Unity 6.3 LTS, Domain Reload aus, Test Framework installiert.
+Diese Anleitung beschreibt, welche Dateien neu sind, was das Setup-Werkzeug im Editor anlegt und wie du das Fundament in Unity prüfst. Sie setzt voraus, dass das Projekt-Setup (Phase 0, Schritt 4) nach [Anleitung 01](./01_Projekt-Setup.md), Schritte 1–8, erledigt ist: Unity 6.3 LTS, im Fenster **Aetherfall > Projekt-Setup …** alle Schritte a) bis f) ✓ (damit sind Domain Reload aus und Test Framework installiert). Den kurzen Play-Test aus Anleitung 01, Schritt 7, beschreibt Abschnitt 5 hier ausführlich.
 
 ---
 
@@ -27,10 +27,10 @@ Diese Anleitung beschreibt, welche Dateien neu sind, was das Setup-Werkzeug im E
 | `GameBootstrapper` | Startet das Spiel in 7 Schritten: Log-Ausgabe setzen → ServiceLocator erzeugen → Installer-Reihenfolge prüfen → Installer ausführen → Dienste asynchron initialisieren → `PostInitialize` → Wechsel ins Hauptmenü. Fehler oder Zeitüberschreitung (Standard 20 s) führen zu einem Fehlerbildschirm statt zu einem halb gestarteten Spiel. | 4.1 |
 | `ServiceLocator` + `Services` | Zentrale Ablage der Dienste. Doppelte Registrierung und fehlende Dienste melden den genauen Typnamen. | 4.2 |
 | `EventBus` | Synchrone, typisierte Events. 0 Byte Speicher pro `Publish`, Schutz vor Endlosschleifen (Tiefe 8), Fehler in einem Empfänger stoppen die anderen nicht. | 4.3 |
-| `GameStateService` | Spielzustand mit Basiszustand (Boot, Hauptmenü, Laden, Spielen) und Stapel für Menü, Pause, Dialog, Zwischensequenz, Bau-Modus. Setzt die Zeitskala (Menü und Pause = 0). | 4.4 |
+| `GameStateService` | Spielzustand mit Basiszustand (Boot, Hauptmenü, Laden, Spielen) und Stapel für Menü, Pause, Dialog, Zwischensequenz, Bau-Modus. Setzt die Zeitskala (Menü und Pause = 0). Löst ein Empfänger selbst einen Zustandswechsel aus, kommen die Events trotzdem bei allen in zeitlicher Reihenfolge an. | 4.4 |
 | `Log` | Logging mit Kategorien und Mindest-Stufe je Kategorie. `Trace`/`Debug` fehlen im Release-Build vollständig. | 14.4 |
 | `GameStateDebugOverlay` | Entwickler-Overlay mit Zustand, Stapel, Zeitskala, letzten 10 Zustandswechseln und Test-Knöpfen (nur Maus). | 14.3 |
-| EditMode-Tests | 136 Testfälle für EventBus, ServiceLocator, Installer-Prüfung, Übergangstabelle, GameStateService, Log und TickLoop. | 14.1 |
+| EditMode-Tests | 148 Testfälle für EventBus, ServiceLocator, Installer-Prüfung, Übergangstabelle, GameStateService, Log, TickLoop und die Paket-Planung des Setup-Werkzeugs. | 14.1 |
 
 ---
 
@@ -69,7 +69,7 @@ Alle Pfade relativ zu `Assets/_Project/`. **Keine Datei musst du von Hand an ein
 | Datei | Ordner | Zweck | Kommt an ein GameObject? |
 |---|---|---|---|
 | `Aetherfall.DevTools.asmdef` | `Scripts/DevTools/` | Assembly-Definition Nr. 32, referenziert `Aetherfall.Core` | nein |
-| `GameStateDebugOverlay.cs` | `Scripts/DevTools/` | Debug-Overlay (Abschnitt 5.3), aktiv nur im Editor und in Development-Builds | **ja:** ein GameObject in `Boot.unity` (das Setup-Werkzeug legt es an) |
+| `GameStateDebugOverlay.cs` | `Scripts/DevTools/` | Debug-Overlay (Abschnitt 5.3), aktiv nur im Editor und in Development-Builds | **ja:** GameObject `DevTools` in `Boot.unity` (das Setup-Werkzeug legt es in Schritt e) an) |
 
 ### 2.3 Tests `Tests/`
 
@@ -77,8 +77,8 @@ Alle Pfade relativ zu `Assets/_Project/`. **Keine Datei musst du von Hand an ein
 |---|---|---|---|
 | `Aetherfall.Tests.Shared.asmdef` | `Tests/Shared/` | Test-Hilfen (Assembly Nr. 38), auch für spätere PlayMode-Tests | nein |
 | `FakeLogSink.cs`, `CapturedLogEntry.cs`, `LogCapture.cs`, `FakeTimeScaleService.cs`, `EventRecorder.cs` | `Tests/Shared/` | Test-Doubles: Log mitschreiben, Zeitskala ohne Unity, Events aufzeichnen | nein |
-| `Aetherfall.Tests.EditMode.asmdef` | `Tests/EditMode/` | EditMode-Test-Assembly (Nr. 39, nur Editor) | nein |
-| `EventBusTests.cs`, `EventBusAllocationTests.cs`, `ServiceLocatorTests.cs`, `InstallerOrderValidatorTests.cs`, `GameStateTransitionsTests.cs`, `GameStateServiceTests.cs`, `LogTests.cs`, `TickLoopTests.cs`, `TestEvents.cs` | `Tests/EditMode/` | die Unit-Tests | nein |
+| `Aetherfall.Tests.EditMode.asmdef` | `Tests/EditMode/` | EditMode-Test-Assembly (Nr. 39, nur Editor; referenziert `Aetherfall.Core`, `Aetherfall.EditorTools.Core` und `Aetherfall.Tests.Shared`) | nein |
+| `EventBusTests.cs`, `EventBusAllocationTests.cs`, `ServiceLocatorTests.cs`, `InstallerOrderValidatorTests.cs`, `GameStateTransitionsTests.cs`, `GameStateServiceTests.cs`, `LogTests.cs`, `TickLoopTests.cs`, `PackagePlannerTests.cs`, `TestEvents.cs` | `Tests/EditMode/` | die Unit-Tests | nein |
 
 > `.meta`-Dateien legt Unity beim ersten Öffnen selbst an. Bitte mit committen.
 
@@ -86,11 +86,11 @@ Alle Pfade relativ zu `Assets/_Project/`. **Keine Datei musst du von Hand an ein
 
 ## 3. Was das Setup-Werkzeug anlegt
 
-Das Setup-Werkzeug aus dem Projekt-Setup (Menü **Aetherfall** in der Unity-Menüleiste, siehe Anleitung 01) erzeugt Szene und Assets mit eindeutigen GUIDs. Nach dem Lauf sollte Folgendes existieren:
+Das Setup-Werkzeug (Menü **Aetherfall > Projekt-Setup …**, Schritt **e) Boot-Inhalte und Boot-Szene**, siehe [Anleitung 01, Abschnitt 6](./01_Projekt-Setup.md#6-setup-werkzeug-ausführen)) erzeugt Szene und Assets mit eindeutigen GUIDs. Nach dem Lauf sollte Folgendes existieren:
 
 | Was | Wo | Inhalt |
 |---|---|---|
-| Boot-Szene | `Assets/_Project/Scenes/Boot/Boot.unity` | GameObject `GameBootstrapper` mit den Komponenten **Game Bootstrapper** und **Tick Runner**; ein GameObject mit **Game State Debug Overlay** |
+| Boot-Szene | `Assets/_Project/Scenes/Boot/Boot.unity` | GameObject `GameBootstrapper` mit den Komponenten **Game Bootstrapper** und **Tick Runner**; GameObject `DevTools` mit **Game State Debug Overlay**. Keine Kamera (kommt in einem späteren Schritt). |
 | Build-Liste | File > Build Profiles > Scene List | `Scenes/Boot/Boot.unity` als **einzige** Szene mit Index 0 |
 | Boot-Konfiguration | `Assets/_Project/Settings/Boot/BootConfig.asset` | Liste **Installers** in dieser Reihenfolge: Element 0 = Log-Installer, Element 1 = EventBus-Installer, Element 2 = GameState-Installer; **Initialization Timeout Seconds** = 20 |
 | Installer-Assets | `Assets/_Project/Settings/Boot/` | je ein Asset für Log, EventBus, GameState |
@@ -105,7 +105,7 @@ Das Setup-Werkzeug aus dem Projekt-Setup (Menü **Aetherfall** in der Unity-Men�
 3. Rechtsklick > **Create > Aetherfall > Boot > Installer: Log**, danach **Installer: EventBus** und **Installer: GameState**.
 4. Optional: Rechtsklick > **Create > Aetherfall > Boot > Log-Einstellungen** → `LogSettings`. Dieses Asset in das Feld **Log Settings** des Log-Installers ziehen.
 5. `BootConfig` anklicken → bei **Installers** auf **+** klicken, bis 3 Einträge da sind → Log-, EventBus- und GameState-Installer in genau dieser Reihenfolge hineinziehen.
-6. **File > New Scene** (Vorlage „Basic (Built-in)“ oder „Empty“) → speichern als `Assets/_Project/Scenes/Boot/Boot.unity`.
+6. **File > New Scene** → Vorlage **Empty** → **Create** → **File > Save As…** → als `Assets/_Project/Scenes/Boot/Boot.unity` speichern (so legt es auch das Setup-Werkzeug an: leere Szene ohne Kamera).
 7. In der Hierarchy: Rechtsklick > **Create Empty** → Name `GameBootstrapper` → im Inspector **Add Component** > `Game Bootstrapper` und `Tick Runner`. Feld **Boot Config** mit `BootConfig.asset` belegen.
 8. Noch ein **Create Empty** → Name `DevTools` → **Add Component** > `Game State Debug Overlay`.
 9. **File > Build Profiles** → Scene List → **Add Open Scenes**; `Boot` muss Index 0 sein, andere Szenen entfernen.
@@ -117,10 +117,10 @@ Das Setup-Werkzeug aus dem Projekt-Setup (Menü **Aetherfall** in der Unity-Men�
 
 1. Menü **Window > General > Test Runner**.
 2. Reiter **EditMode** wählen.
-3. Es erscheint `Aetherfall.Tests.EditMode.dll` mit den Klassen `EventBusTests`, `EventBusAllocationTests`, `GameStateServiceTests`, `GameStateTransitionsTests`, `InstallerOrderValidatorTests`, `LogTests`, `ServiceLocatorTests`, `TickLoopTests`.
+3. Es erscheint `Aetherfall.Tests.EditMode.dll` mit den Klassen `EventBusTests`, `EventBusAllocationTests`, `GameStateServiceTests`, `GameStateTransitionsTests`, `InstallerOrderValidatorTests`, `LogTests`, `PackagePlannerTests`, `ServiceLocatorTests`, `TickLoopTests`.
 4. **Run All** klicken.
 
-**Erwartung:** alle **136** Testfälle grün (parametrisierte Tests zählen einzeln). Dauer wenige Sekunden.
+**Erwartung:** alle **148** Testfälle grün (parametrisierte Tests zählen einzeln). Dauer wenige Sekunden.
 
 | Testklasse | Prüft unter anderem |
 |---|---|
@@ -129,9 +129,10 @@ Das Setup-Werkzeug aus dem Projekt-Setup (Menü **Aetherfall** in der Unity-Men�
 | `ServiceLocatorTests` | Registrieren, doppelte Registrierung, fehlender Dienst mit Typname, `TryGet`, Reihenfolge der Instanzen, `Services` setzen/zurücksetzen |
 | `InstallerOrderValidatorTests` | gültige Reihenfolge, fehlender/zu später/eigener Bedarf, doppelte Dienste, leere Slots, Klassen statt Interfaces, Abgleich „deklariert ↔ registriert“ |
 | `GameStateTransitionsTests` | die komplette Übergangstabelle (jede Kombination aus 9 × 9 Zuständen) gegen das Diagramm in Architektur 4.4 |
-| `GameStateServiceTests` | alle erlaubten Übergänge, Auswahl verbotener Übergänge, `Pop` mit falschem oberstem Eintrag, Zeitskala je Zustand, Events und Reihenfolge |
+| `GameStateServiceTests` | alle erlaubten Übergänge, Auswahl verbotener Übergänge, `Pop` mit falschem oberstem Eintrag, Zeitskala je Zustand, Events und Reihenfolge, Zustandswechsel aus einem Empfänger heraus (alle Empfänger bekommen die Events in zeitlicher Reihenfolge, Abbruch einer Endlosschleife nach 8 Folgewechseln mit Fehler-Log) |
 | `LogTests` | Filter je Kategorie, `Off`, Rückfall auf die globale Stufe, `Reset`, ohne Ausgabeziel keine Fehler |
 | `TickLoopTests` | Reihenfolge, fehlerhafter Dienst wird einmal gemeldet und danach übersprungen |
+| `PackagePlannerTests` | Setup-Werkzeug, Schritt a): Paketname aus `name@version`, Abgleich „angefordert ↔ installiert“ (entscheidet über die Protokollzeile „a) abgeschlossen“), ein zweiter Lauf plant nichts |
 
 > Hinweis zu `EventBusAllocationTests`: Der Test misst mit `GC.GetAllocatedBytesForCurrentThread`. Liefert dieser Zähler in einer Unity-Version nichts (bekannter, inzwischen behobener Mono-Fehler), schaltet der Test automatisch auf Unitys eigene Messung `Is.Not.AllocatingGCMemory()` um. Er ist also in jedem Fall aussagekräftig.
 
@@ -142,8 +143,8 @@ Das Setup-Werkzeug aus dem Projekt-Setup (Menü **Aetherfall** in der Unity-Men�
 ### 5.1 Vorbereitung
 
 1. `Assets/_Project/Scenes/Boot/Boot.unity` öffnen (Doppelklick).
-2. **Console** öffnen (**Window > General > Console**), oben **Clear** klicken und **Clear on Play** einschalten.
-3. Game-Fenster sichtbar machen (Reiter **Game**).
+2. **Console** öffnen (**Window > General > Console**), oben **Clear** klicken und über den kleinen Pfeil neben **Clear** den Punkt **Clear on Play** einschalten.
+3. Game-Fenster sichtbar machen (Reiter **Game**). In der Mitte kann im Play Mode „Display 1 – No cameras rendering“ stehen: normal, die Boot-Szene hat noch keine Kamera. Das Overlay (5.3) wird trotzdem gezeichnet.
 
 ### 5.2 Erwartete Konsolen-Ausgabe
 
@@ -172,8 +173,8 @@ Links oben im Game-Fenster erscheint das Overlay **Game State (debug)**:
 
 - `Current:` aktueller Zustand · `Base state:` Basiszustand · `Modal stack:` Stapel über dem Basiszustand
 - `Time.timeScale` und `AudioListener.pause`
-- Knöpfe **SwitchBase** (MainMenu, Loading, Playing), **Push** (Menu, Paused, Dialogue, Cutscene, Building) und **Pop**
-- unten die letzten 10 Zustandswechsel, neuester oben (direkt nach dem Start: `Boot -> MainMenu`)
+- Knöpfe unter **SwitchBase** (MainMenu, Loading, Playing) und unter **Push** (Menu, Paused, Dialogue, Cutscene, Building), dazu ein Knopf **Pop (…)**, der immer den aktuellen Zustand nennt (z. B. **Pop (Menu)**)
+- unten unter `Last 10 GameStateChanged events (newest first):` die letzten 10 Zustandswechsel, neuester oben, im Format `Frame <Nr>: <vorher> -> <nachher>  (t = <Sekunden> s)` – direkt nach dem Start genau eine Zeile `Frame …: Boot -> MainMenu  (t = … s)`
 
 **Blasse Knöpfe** sind Übergänge, die die Tabelle vom aktuellen Zustand aus nicht erlaubt. Ein Klick darauf ist trotzdem möglich und zeigt die Ablehnung als gelbe Warnung, z. B. `[GameState] Rejected SwitchBase(Playing) [Debug overlay]: not allowed from MainMenu. Current: MainMenu, base: MainMenu.` Das ist gewollt.
 
@@ -218,13 +219,13 @@ Ziel aus [Systeme, Schritt 1.2](../Technik/02_Systeme_und_Abhaengigkeiten.md#pha
 | 4 | Einen leeren Eintrag anhängen: **+** klicken (Unity kopiert dabei den letzten Eintrag), dann im neuen Element 3 das Feld leeren (Feld anklicken und Entf/Backspace drücken oder im Objekt-Picker „None“ wählen) | `Element 3 is empty. Assign an installer asset or remove the element.` (Ohne das Leeren meldet die Prüfung stattdessen `… is listed twice …` – auch das ist ein gültiger Fail-Fast-Test.) |
 | 5 | Feld **Boot Config** am `GameBootstrapper` leeren | `No BootConfig assigned. Select the GameObject 'GameBootstrapper' …` |
 
-In allen Fällen gilt: Es erscheint **kein** `[GameState] Boot -> MainMenu`, das Overlay zeigt `Waiting for services …`, und der Fehlerbildschirm nennt den Pfad der Log-Datei. Der Knopf **Quit** beendet nur einen Build; im Editor stoppst du Play Mode wie gewohnt.
+In allen Fällen gilt: Es erscheint **kein** `[GameState] Boot -> MainMenu`. Der schwarze Fehlerbildschirm liegt über allem und verdeckt das Overlay vollständig. Er nennt unter `Log file:` den Pfad der Log-Datei (im Editor die `Editor.log`). Der Knopf **Quit** beendet nur einen Build; im Editor stoppst du Play Mode wie gewohnt.
 
 ---
 
 ## 7. Start aus einer anderen Szene (EditorBootstrap)
 
-1. **File > New Scene** → Vorlage „Basic (Built-in)“ → speichern als `Assets/_Project/Scenes/Test/Test_Leer.unity`. Diese Szene **nicht** in die Build-Liste aufnehmen.
+1. **File > New Scene** → Vorlage **Empty** → **Create** → **File > Save As…** → als `Assets/_Project/Scenes/Test/Test_Leer.unity` speichern. Diese Szene **nicht** in die Build-Liste aufnehmen.
 2. Play drücken.
 
 **Erwartung:**
@@ -235,7 +236,7 @@ In allen Fällen gilt: Es erscheint **kein** `[GameState] Boot -> MainMenu`, das
 
 Wichtig für spätere Skripte in Test- und Zellen-Szenen: Diese Szene startet **einen Frame vor** der Boot-Szene. Skripte dort dürfen sich nicht darauf verlassen, dass `Services.Locator` schon in `Awake` gesetzt ist. Muster: in `Start` prüfen, ob `Services.Locator` gesetzt ist, dann `TryGet` aufrufen und bei Bedarf pro Frame warten (so macht es `GameStateDebugOverlay`).
 
-Der EditorBootstrap greift **nicht**, wenn die Boot-Szene schon geöffnet ist, die Build-Liste leer ist (dann gelbe Warnung) oder der Test Runner PlayMode-Tests startet.
+Der EditorBootstrap erkennt die Boot-Szene an ihrem Pfad `Assets/_Project/Scenes/Boot/Boot.unity` und lädt sie auch dann, wenn sie in der Szenenliste fehlt. Er greift **nicht**, wenn die Boot-Szene schon geöffnet ist, die Datei `Boot.unity` fehlt (dann gelbe Warnung `EditorBootstrap: the boot scene '…' does not exist …`) oder der Test Runner PlayMode-Tests startet. Steht `Boot.unity` nicht an erster Stelle der Szenenliste, lädt er sie trotzdem und zeigt zusätzlich die gelbe Warnung `EditorBootstrap: '…/Boot.unity' is not the first enabled scene of the scene list …` – dann im Setup-Werkzeug Schritt e) erneut ausführen (Dialog **Szenenliste ersetzen?** → **Ersetzen**).
 
 ---
 
@@ -243,7 +244,7 @@ Der EditorBootstrap greift **nicht**, wenn die Boot-Szene schon geöffnet ist, d
 
 | Symptom | Ursache | Lösung |
 |---|---|---|
-| Rote Compiler-Fehler „The type or namespace name 'NUnit' could not be found“ | Test Framework fehlt | **Window > Package Manager** → Unity Registry → „Test Framework“ installieren (ist bei Unity 6 normalerweise schon dabei) |
+| Rote Compiler-Fehler „The type or namespace name 'NUnit' could not be found“ | Test Framework fehlt | **Aetherfall > Projekt-Setup …** → **Alles ausführen** (Schritt a) installiert es) oder **Window > Package Manager** → Unity Registry → „Test Framework“ installieren (ist bei Unity 6 normalerweise schon dabei) |
 | Test Runner zeigt keine Tests | Test-Assemblies werden nicht kompiliert | Console auf Compiler-Fehler prüfen; in `Aetherfall.Tests.EditMode.asmdef` muss im Inspector **Define Constraints** `UNITY_INCLUDE_TESTS` und **Platforms** nur „Editor“ stehen |
 | „Can't add script component 'GameBootstrapper' because the script class cannot be found“ | Compiler-Fehler im Projekt oder Datei umbenannt | erst alle roten Fehler in der Console beheben; Dateiname muss exakt dem Klassennamen entsprechen |
 | Fehlerbildschirm „No BootConfig assigned“ | Feld **Boot Config** leer | `GameBootstrapper` anklicken, `BootConfig.asset` hineinziehen |
@@ -255,6 +256,9 @@ Der EditorBootstrap greift **nicht**, wenn die Boot-Szene schon geöffnet ist, d
 | Overlay winzig auf dem Retina-Display | IMGUI rechnet in Pixeln | Feld **Ui Scale** am Overlay erhöhen (z. B. 1,5) |
 | Gelbe Warnung `Rejected …` | verbotener Übergang angeklickt | gewollt, siehe 5.3 |
 | Gelbe Warnung `… is already subscribed …` | ein Skript abonniert ein Event doppelt (z. B. `OnEnable` ohne `OnDisable`) | Abo in `OnEnable`, Abmelden in `OnDisable` |
+| Gelbe Warnung `EditorBootstrap: '…/Boot.unity' is not the first enabled scene of the scene list …` | Szenenliste falsch (z. B. **Szenenliste ersetzen?** mit **Nicht ändern** beantwortet) | Setup-Werkzeug, Schritt e) erneut ausführen und **Ersetzen** wählen |
+| Gelbe Warnung `SetTimeScale(…) ignored: the time scale service was already shut down …` | etwas benutzt nach einem fehlgeschlagenen oder beendeten Start noch die alten Dienste | harmlos (die Zeitskala bleibt 1); Zeile an Claude schicken |
+| Rote Zeile `[GameState] Dropped … GameStateChanged event(s) … (possible endless loop)` | zwei Empfänger lösen sich gegenseitig immer neue Zustandswechsel aus | Fehler im Code: Zeile an Claude schicken |
 | Rider/VS: „Namespace does not correspond to file location“ | alle Core-Dateien nutzen bewusst den Namespace `Aetherfall.Core` (Abschnitt 9) | Hinweis ignorieren oder in Rider für die Unterordner „Namespace Provider“ abschalten |
 | `[Core] No LogSettings assigned …` | Log-Installer ohne Log-Einstellungen | nur Info, keine Fehler; optional `LogSettings` anlegen (3.1, Punkt 4) |
 
@@ -276,7 +280,13 @@ Der EditorBootstrap greift **nicht**, wenn die Boot-Szene schon geöffnet ist, d
 | Hub-Menüs | Zeitskala 0 | dokumentierte Empfehlung der offenen Entscheidung, gilt bis zur Antwort |
 | Overlay-Knopf „Loading“ | zusätzlich zu MainMenu/Playing | ohne ihn ist „Spielen“ vom Hauptmenü aus laut Tabelle nicht erreichbar |
 | Lesender Zugriff auf den Stapel | `IGameStateService` hat zusätzlich `ModalCount` und `GetModalAt(i)` | für Overlay und spätere Debug-Seite „Zustand“ (14.3) |
+| Zustandswechsel aus einem Empfänger von `GameStateChanged` | Der Wechsel selbst (Zustand, Zeitskala) passiert sofort, sein Event wird aber erst zugestellt, wenn das laufende Event alle Empfänger erreicht hat. Höchstens 8 solche Folgewechsel je Wechsel, danach Fehler-Log | Jeder Empfänger bekommt die Events in zeitlicher Reihenfolge, sein letztes Event passt immer zum aktuellen Zustand (Input, UI, Audio und Spieluhr richten sich danach). Die Grenze schützt vor Endlosschleifen wie die Tiefe 8 des EventBus |
+| Fehlerbildschirm | liegt über allen anderen IMGUI-Anzeigen (`GUI.depth = -1000`) und schluckt Mausklicks; der Zeitskala-Dienst ignoriert nach dem Herunterfahren weitere Änderungen | Das Overlay darf nach einem Fehlstart weder die Meldung verdecken noch über alte Dienste die Zeitskala wieder auf 0 setzen |
 
 **Grenzen dieses Schritts:** Beim Wechsel ins Hauptmenü wird noch keine Hauptmenü-Szene geladen – das übernimmt der SceneLoader (Schritt 1.4). Tastatur und Gamepad steuern noch nichts (Input System, Schritt 1.7). Der Zeitüberschreitungs-Fall lässt sich erst prüfen, sobald es einen Dienst mit `IInitializable` gibt (ab Schritt 1.3).
+
+**Aus Architektur 4.3 bewusst später** (Entwickler-Builds, noch nicht umgesetzt):
+- **Leck-Erkennung des EventBus** (beim Wechsel ins Hauptmenü Empfänger melden, deren Objekt schon zerstört ist): folgt in **Schritt 1.4** zusammen mit dem SceneLoader und dessen Leck-Bericht. Erst dann werden Szenen entladen und Objekte zerstört, vorher gibt es nichts zu melden. Bis dahin meldet der Bus einen solchen Empfänger nur, wenn er beim Zustellen einen Fehler wirft (rote Zeile `Handler … threw an exception …`).
+- **Event-Tracer** (Kategorie `Events`, Ringpuffer der letzten 256 Events, `ToString()` nur bei aktivem Tracer): folgt in **Schritt 1.11** mit Debug-Konsole und Overlay-Seite „Events“ (Architektur 14.3), die ihn einschalten und anzeigen. `Publish` bleibt dabei ohne Tracer allokationsfrei.
 
 **Als Nächstes:** Phase 1, Schritt 1.3 – IDs, Content-Datenbank und Validator (siehe [Status](../Status.md)).

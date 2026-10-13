@@ -367,6 +367,63 @@ namespace Aetherfall.Tests.EditMode
         }
 
         [Test]
+        public void ChangeRequestedByHandler_AllHandlersReceiveEventsInChronologicalOrder()
+        {
+            // Regression (review): a handler that pops Paused used to make the nested event overtake the outer one for
+            // handlers subscribed after it, so their last event said Paused while the service was in Playing.
+            Reach(GameState.Playing);
+            _bus.Subscribe<GameStateChanged>(PopPausedImmediately);
+            var laterSubscriber = new EventRecorder<GameStateChanged>(_bus);
+            _events.Clear();
+            try
+            {
+                Assert.That(_service.Push(GameState.Paused, "start button"), Is.True);
+            }
+            finally
+            {
+                laterSubscriber.Dispose();
+                _bus.Unsubscribe<GameStateChanged>(PopPausedImmediately);
+            }
+
+            Assert.That(_service.Current, Is.EqualTo(GameState.Playing));
+            Assert.That(_timeScale.TimeScale, Is.EqualTo(1f));
+            AssertEventSequence(_events, "earlier subscriber", GameState.Playing, GameState.Paused, GameState.Playing);
+            AssertEventSequence(laterSubscriber, "later subscriber", GameState.Playing, GameState.Paused, GameState.Playing);
+            Assert.That(laterSubscriber.Last.Current, Is.EqualTo(_service.Current), "The last event must match the current state.");
+            Assert.That(_log.Sink.ErrorCount, Is.EqualTo(0), _log.Sink.Dump());
+        }
+
+        [Test]
+        public void ChangesRequestedByHandlers_EndlessLoop_IsStoppedAndLogged()
+        {
+            Reach(GameState.Playing);
+            _bus.Subscribe<GameStateChanged>(PopPausedImmediately);
+            _bus.Subscribe<GameStateChanged>(PushPausedWhenPlaying);
+            _events.Clear();
+            try
+            {
+                Assert.That(_service.Push(GameState.Paused, "start button"), Is.True);
+            }
+            finally
+            {
+                _bus.Unsubscribe<GameStateChanged>(PushPausedWhenPlaying);
+                _bus.Unsubscribe<GameStateChanged>(PopPausedImmediately);
+            }
+
+            Assert.That(_events.Count, Is.EqualTo(1 + GameStateService.MaxFollowUpChanges), "Outer change plus the allowed follow-up changes.");
+            Assert.That(_log.Sink.Count(LogLevel.Error), Is.EqualTo(1), _log.Sink.Dump());
+            Assert.That(_log.Sink.Contains(LogLevel.Error, "possible endless loop"), Is.True, _log.Sink.Dump());
+
+            // The service keeps working normally afterwards.
+            _events.Clear();
+            GameState before = _service.Current;
+            Assert.That(_service.SwitchBase(GameState.Loading, "after loop"), Is.True);
+            Assert.That(_events.Count, Is.EqualTo(1));
+            Assert.That(_events.Last.Previous, Is.EqualTo(before));
+            Assert.That(_events.Last.Current, Is.EqualTo(GameState.Loading));
+        }
+
+        [Test]
         public void GetModalAt_OutOfRange_Throws()
         {
             Reach(GameState.Playing);
@@ -398,6 +455,38 @@ namespace Aetherfall.Tests.EditMode
             if (_service.Current != evt.Current || _timeScale.TimeScale != GameStateService.GetTimeScale(evt.Current))
             {
                 throw new InvalidOperationException("State or time scale not updated before the event was published.");
+            }
+        }
+
+        private void PopPausedImmediately(GameStateChanged evt)
+        {
+            if (evt.Current == GameState.Paused)
+            {
+                _service.Pop(GameState.Paused);
+            }
+        }
+
+        private void PushPausedWhenPlaying(GameStateChanged evt)
+        {
+            if (evt.Current == GameState.Playing)
+            {
+                _service.Push(GameState.Paused, "loop test");
+            }
+        }
+
+        private static void AssertEventSequence(EventRecorder<GameStateChanged> recorder, string who, params GameState[] states)
+        {
+            string actual = string.Empty;
+            for (int i = 0; i < recorder.Count; i++)
+            {
+                actual += recorder.Events[i].Previous + "->" + recorder.Events[i].Current + "; ";
+            }
+
+            Assert.That(recorder.Count, Is.EqualTo(states.Length - 1), who + " received: " + actual);
+            for (int i = 0; i < recorder.Count; i++)
+            {
+                Assert.That(recorder.Events[i].Previous, Is.EqualTo(states[i]), who + ", event " + i + ". Received: " + actual);
+                Assert.That(recorder.Events[i].Current, Is.EqualTo(states[i + 1]), who + ", event " + i + ". Received: " + actual);
             }
         }
 

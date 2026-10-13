@@ -100,6 +100,59 @@ namespace Aetherfall.EditorTools.Core
             return new PackagePlan(toAdd, toRemove, notes);
         }
 
+        /// <summary>
+        /// Compares a requested <c>Client.AddAndRemove</c> change with the package list read afterwards. A package to add
+        /// counts as done when it is a direct dependency (its version is not compared: the Package Manager may resolve a
+        /// different one); a package to remove counts as done when it is no longer a direct dependency.
+        /// </summary>
+        /// <param name="installed">Packages reported by the Package Manager after the change.</param>
+        /// <param name="added">Requested package specifications ("name" or "name@version").</param>
+        /// <param name="removed">Requested package names to remove.</param>
+        /// <returns>German descriptions of the parts that have not arrived yet; empty if the change is complete.</returns>
+        public static List<string> FindOutstandingChanges(IReadOnlyList<InstalledPackage> installed, IReadOnlyList<string> added, IReadOnlyList<string> removed)
+        {
+            var outstanding = new List<string>();
+            if (added != null)
+            {
+                for (int i = 0; i < added.Count; i++)
+                {
+                    string name = GetPackageName(added[i]);
+                    if (name.Length > 0 && (!TryFind(installed, name, out InstalledPackage package) || !package.IsDirectDependency))
+                    {
+                        outstanding.Add(name + " (noch nicht installiert)");
+                    }
+                }
+            }
+
+            if (removed != null)
+            {
+                for (int i = 0; i < removed.Count; i++)
+                {
+                    string name = GetPackageName(removed[i]);
+                    if (name.Length > 0 && TryFind(installed, name, out InstalledPackage package) && package.IsDirectDependency)
+                    {
+                        outstanding.Add(name + " (noch nicht entfernt)");
+                    }
+                }
+            }
+
+            return outstanding;
+        }
+
+        /// <summary>Returns the package name of a specification: "com.unity.timeline@1.8.9" → "com.unity.timeline".</summary>
+        /// <param name="specification">"name" or "name@version"; may be null.</param>
+        public static string GetPackageName(string specification)
+        {
+            if (string.IsNullOrEmpty(specification))
+            {
+                return string.Empty;
+            }
+
+            string trimmed = specification.Trim();
+            int at = trimmed.IndexOf('@');
+            return at > 0 ? trimmed.Substring(0, at) : trimmed;
+        }
+
         /// <summary>Finds a package by exact name.</summary>
         /// <param name="installed">Installed packages; may be null.</param>
         /// <param name="name">Package name.</param>

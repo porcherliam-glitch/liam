@@ -11,14 +11,23 @@ namespace Aetherfall.EditorTools.Core
     /// writes what it does into the protocol (and the console) and asks before destructive actions.
     /// </summary>
     /// <remarks>
-    /// Steps: a) packages, b) editor/player settings, c) folders, d) template cleanup, e) boot assets and boot scene,
-    /// f) read-only checks. Guide for the user: docs/Anleitungen/01_Projekt-Setup.md.
+    /// <para>Steps: a) packages, b) editor/player settings, c) folders, d) template cleanup, e) boot assets and boot scene,
+    /// f) read-only checks. Guide for the user: docs/Anleitungen/01_Projekt-Setup.md.</para>
+    /// <para>The "run all" button runs b) to f) at once and only schedules a): b) (API level, scripting backend, unsafe code)
+    /// and d) (removes the template scripts in Assets/TutorialInfo) can make Unity recompile and reload the domain a few
+    /// seconds later, which would cut off a running Package Manager request. The schedule is kept in
+    /// <see cref="SessionState"/>; a) starts once Unity is neither compiling nor importing, also after a domain reload.</para>
     /// </remarks>
     public sealed class ProjectSetupWindow : EditorWindow
     {
         private const string MenuPath = "Aetherfall/Projekt-Setup …";
         private const string WindowTitle = "Projekt-Setup";
         private const float LogHeight = 170f;
+        private const string RunPackagesKey = "Aetherfall.ProjectSetup.RunPackagesWhenIdle";
+        private const string RunPackagesNotBeforeKey = "Aetherfall.ProjectSetup.RunPackagesWhenIdle.NotBefore";
+
+        // Time Unity gets to start a recompilation after b) to f) before a) may start.
+        private const double PackageStartDelaySeconds = 3.0;
 
         [SerializeField] private SetupLog log = new SetupLog();
         [SerializeField] private PackageSetupStep packageStep = new PackageSetupStep();
@@ -34,6 +43,8 @@ namespace Aetherfall.EditorTools.Core
         private SetupStep[] _steps;
         private bool _wasBusy;
         private bool _actionPending;
+        private bool _packagesScheduled;
+        private double _packagesNotBefore;
         private GUIStyle _statusStyle;
         private GUIStyle _foldoutStyle;
         private GUIStyle _itemLabelStyle;
@@ -62,11 +73,18 @@ namespace Aetherfall.EditorTools.Core
             // Defer the first refresh: Package Manager requests and AssetDatabase queries are safer outside of OnEnable,
             // which also runs during domain reloads.
             EditorApplication.delayCall += DeferredRefresh;
+
+            // Continue a step a) scheduled by "run all" (also after a domain reload).
+            _packagesScheduled = SessionState.GetBool(RunPackagesKey, false);
+            _packagesNotBefore = SessionState.GetFloat(RunPackagesNotBeforeKey, 0f);
+            EditorApplication.update -= PollScheduledPackageStep;
+            EditorApplication.update += PollScheduledPackageStep;
         }
 
         private void OnDisable()
         {
             EditorApplication.delayCall -= DeferredRefresh;
+            EditorApplication.update -= PollScheduledPackageStep;
             if (log != null)
             {
                 log.Changed -= OnLogChanged;
@@ -80,6 +98,21 @@ namespace Aetherfall.EditorTools.Core
             for (int i = 0; i < _steps.Length; i++)
             {
                 _steps[i].OnWindowDisabled();
+            }
+        }
+
+        private void OnDestroy()
+        {
+            // Only called when the user closes the window, not on domain reloads.
+            ClearPackageSchedule();
+            if (_steps == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < _steps.Length; i++)
+            {
+                _steps[i].OnWindowClosed();
             }
         }
 
@@ -133,10 +166,16 @@ namespace Aetherfall.EditorTools.Core
                 EditorGUILayout.HelpBox("Unity kompiliert bzw. importiert gerade. Bitte warten …", MessageType.Info);
             }
 
+            if (_packagesScheduled)
+            {
+                EditorGUILayout.HelpBox("Schritt a) Pakete startet automatisch, sobald Unity mit dem Kompilieren fertig ist. Bitte warten und das Fenster offen lassen.",
+                    MessageType.Info);
+            }
+
             EditorGUILayout.BeginHorizontal();
             using (new EditorGUI.DisabledScope(blocked || IsAnyStepBusy()))
             {
-                if (GUILayout.Button(new GUIContent("Alles ausführen", "Reihenfolge: b → c → d → e → f → a (Pakete zuletzt, weil Unity danach neu kompiliert)."),
+                if (GUILayout.Button(new GUIContent("Alles ausführen", "Reihenfolge: b → c → d → e → f, danach a) automatisch, sobald Unity fertig kompiliert hat."),
                         GUILayout.Height(28f), GUILayout.Width(160f)))
                 {
                     Schedule(RunAll);
@@ -155,7 +194,7 @@ namespace Aetherfall.EditorTools.Core
             scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition);
             for (int i = 0; i < _steps.Length; i++)
             {
-                DrawStep(_steps[i], blocked);
+                DrawStep(_steps[i], blocked || _packagesScheduled);
             }
 
             EditorGUILayout.EndScrollView();
@@ -298,8 +337,8 @@ namespace Aetherfall.EditorTools.Core
             if (!EditorUtility.DisplayDialog(
                     "Alle Schritte ausführen?",
                     "Reihenfolge: b) Einstellungen → c) Ordner → d) Template aufräumen → e) Boot-Inhalte → f) Prüfungen → a) Pakete.\n\n" +
-                    "Die Pakete kommen zuletzt, weil Unity danach neu kompiliert. Jeder Schritt fragt vor dem Löschen, Ersetzen oder Umbenennen " +
-                    "einzeln nach. Ungespeicherte Szenen werden vorher abgefragt.",
+                    "Die Pakete kommen zuletzt: a) startet automatisch, sobald Unity mit dem Kompilieren fertig ist. Jeder Schritt fragt vor dem " +
+                    "Löschen, Ersetzen oder Umbenennen einzeln nach. Ungespeicherte Szenen werden vorher abgefragt.",
                     "Ausführen",
                     "Abbrechen"))
             {
@@ -307,14 +346,53 @@ namespace Aetherfall.EditorTools.Core
             }
 
             log.Info("=== Alles ausführen ===");
-            SetupStep[] order = { settingsStep, folderStep, cleanupStep, bootStep, checksStep, packageStep };
+            SetupStep[] order = { settingsStep, folderStep, cleanupStep, bootStep, checksStep };
             for (int i = 0; i < order.Length; i++)
             {
                 RunStep(order[i]);
             }
 
-            log.Info("=== Alle Schritte gestartet. Die Paketinstallation (a) läuft im Hintergrund weiter; danach kompiliert Unity neu. " +
-                     "Anschließend Active Input Handling von Hand umstellen (Schritt b, Anleitung 01). ===");
+            // b) and d) may trigger a recompilation (and domain reload) that would cut off the Package Manager request.
+            SchedulePackageStep();
+            log.Info("=== b) bis f) ausgeführt. a) Pakete startet automatisch, sobald Unity fertig kompiliert hat (einige Sekunden). Fenster bitte offen lassen. ===");
+            if (!ProjectSettingsSetupStep.IsNewInputSystemOnly)
+            {
+                log.Info("Hinweis: Active Input Handling steht noch nicht auf „Input System Package (New)“. Fragt Unity nach der Paketinstallation " +
+                         "„… enable the backends?“, dort Yes klicken. Zeigt b) danach weiter ✗: von Hand umstellen (Anleitung 01, Abschnitt 6.5 A).");
+            }
+        }
+
+        private void SchedulePackageStep()
+        {
+            _packagesScheduled = true;
+            _packagesNotBefore = EditorApplication.timeSinceStartup + PackageStartDelaySeconds;
+            SessionState.SetBool(RunPackagesKey, true);
+            SessionState.SetFloat(RunPackagesNotBeforeKey, (float)_packagesNotBefore);
+        }
+
+        private void ClearPackageSchedule()
+        {
+            _packagesScheduled = false;
+            SessionState.EraseBool(RunPackagesKey);
+            SessionState.EraseFloat(RunPackagesNotBeforeKey);
+        }
+
+        private void PollScheduledPackageStep()
+        {
+            if (!_packagesScheduled || _actionPending || packageStep == null || packageStep.IsBusy)
+            {
+                return;
+            }
+
+            if (EditorApplication.isCompiling || EditorApplication.isUpdating || EditorApplication.isPlayingOrWillChangePlaymode ||
+                EditorApplication.timeSinceStartup < _packagesNotBefore)
+            {
+                return;
+            }
+
+            ClearPackageSchedule();
+            log.Info("Unity ist bereit (kompiliert und importiert nicht mehr). Schritt a) startet jetzt.");
+            RunStep(packageStep);
         }
 
         private void RefreshAll(bool invalidate)
@@ -371,6 +449,11 @@ namespace Aetherfall.EditorTools.Core
 
         private bool IsAnyStepBusy()
         {
+            if (_packagesScheduled)
+            {
+                return true;
+            }
+
             if (_steps == null)
             {
                 return false;

@@ -1,565 +1,485 @@
 # Anleitung 01: Projekt-Setup (Phase 0, Schritt 4)
 
-> Für Einsteiger auf einem MacBook mit Apple Silicon · Stand: 2026-10-13 · Bezug: [Master-Prompt §31 Phase 0.4, §32.4](../00_Master-Prompt.md) · [Architektur, Abschnitt 2 (Projekt-Setup-Checkliste)](../Technik/01_Architektur.md#2-projekt-setup-checkliste) · [Architektur 3.1 (Ordner)](../Technik/01_Architektur.md#31-ordnerstruktur) · [Technik-Recherche](../Technik/03_Technik-Recherche.md)
+> Für Einsteiger auf einem MacBook mit Apple Silicon · Kosten: 0 € · Stand: 2026-10-13 · Bezug: [Master-Prompt §31 Phase 0.4, §32.4](../00_Master-Prompt.md) · [Architektur, Abschnitt 2 (Projekt-Setup-Checkliste)](../Technik/01_Architektur.md#2-projekt-setup-checkliste) · [Architektur 3.1 (Ordner)](../Technik/01_Architektur.md#31-ordnerstruktur)
 
-Diese Anleitung führt dich Schritt für Schritt vom leeren Mac bis zum ersten Commit des Unity-Projekts. Sie sagt bei jeder Einstellung, **welches Menü** und **welcher Haken**. Das meiste erledigt das Editor-Werkzeug **Aetherfall > Projekt-Setup …**. Von Hand bleiben nur Dinge, für die Unity keine öffentliche Schnittstelle hat (z. B. „Active Input Handling“).
+Diese Anleitung bringt dich vom Mac ohne Unity bis zu einem fertig eingerichteten Unity-Projekt, das auf GitHub liegt. Die Aufgaben sind so verteilt: **Claude schreibt Code und Anleitungen, du klickst in Unity.** Claude kann Unity nicht selbst starten. Deshalb öffnest du das Projekt, klickst die genannten Knöpfe, drückst Play und meldest zurück, was du siehst. Den größten Teil der Einrichtung erledigt das Unity-Werkzeug **Aetherfall > Projekt-Setup …** mit einem einzigen Knopf.
 
-**Zeitbedarf:** etwa 2–3 Stunden, davon viel Wartezeit für Downloads (Unity-Editor ca. 10 GB).
+| | |
+|---|---|
+| **Kosten** | 0 €. Unity Personal, GitHub Desktop und GitHub Free sind kostenlos. Du gibst nirgends Zahlungsdaten ein. |
+| **Zeit** | etwa 2 Stunden. Das meiste davon ist Wartezeit für Downloads. |
+| **Speicherplatz** | rund 30 GB frei (Unity allein braucht mehrere GB) |
+| **Terminal** | ein einziger Befehl (Schritt 4.1). Mit dem Finder-Weg (4.2) brauchst du gar keinen. |
 
 ---
 
 ## Inhalt
 
-0. [Überblick: Was am Ende dasteht](#0-überblick-was-am-ende-dasteht)
-1. [Voraussetzungen installieren](#1-voraussetzungen-installieren)
-2. [Zugriff auf GitHub](#2-zugriff-auf-github)
-3. [Unity-Projekt anlegen](#3-unity-projekt-anlegen)
-4. [Das Repository in den Projektordner holen](#4-das-repository-in-den-projektordner-holen)
-5. [Setup-Werkzeug in Unity ausführen](#5-setup-werkzeug-in-unity-ausführen)
-6. [Manuelle Prüf-Checkliste](#6-manuelle-prüf-checkliste)
-7. [Erster Commit](#7-erster-commit)
-8. [Fertig, wenn …](#8-fertig-wenn-)
-9. [Fehlerbehebung](#9-fehlerbehebung)
-10. [Dateien dieses Schritts](#10-dateien-dieses-schritts)
+0. [Bevor du anfängst](#0-bevor-du-anfängst)
+1. [Kostenlose Programme installieren](#1-kostenlose-programme-installieren)
+2. [Das Repository holen](#2-das-repository-holen)
+3. [Vorlagen-Projekt erzeugen](#3-vorlagen-projekt-erzeugen)
+4. [Vorlage in das Repository kopieren](#4-vorlage-in-das-repository-kopieren)
+5. [Projekt in Unity öffnen](#5-projekt-in-unity-öffnen)
+6. [Setup-Werkzeug ausführen](#6-setup-werkzeug-ausführen)
+7. [Play-Test](#7-play-test)
+8. [Ergebnis an Claude zurückmelden (Commit und Push)](#8-ergebnis-an-claude-zurückmelden-commit-und-push)
+9. [Updates von Claude holen](#9-updates-von-claude-holen)
+10. [Fehlerbehebung](#10-fehlerbehebung)
+- [Anhang A: Für Fortgeschrittene (UnityYAMLMerge, Kommandozeile)](#anhang-a-für-fortgeschrittene-unityyamlmerge-kommandozeile)
+- [Anhang B: Was das Werkzeug noch nicht erledigt](#anhang-b-was-das-werkzeug-noch-nicht-erledigt)
+- [Anhang C: Dateien dieses Schritts](#anhang-c-dateien-dieses-schritts)
 
 ---
 
-## 0. Überblick: Was am Ende dasteht
+## 0. Bevor du anfängst
 
-| Ergebnis | Wo |
+### 0.1 Mini-Wörterbuch
+
+| Begriff | Bedeutung |
 |---|---|
-| Unity 6.3 LTS mit den Modulen für Mac- und Windows-Builds | Unity Hub |
-| Unity-Projekt „Aetherfall“ (Vorlage „Universal 3D“), das gleichzeitig das Git-Repository ist | z. B. `~/Projekte/Aetherfall` |
-| Pakete aus Architektur 1.4 (Input System, Cinemachine, Addressables, Localization …) | `Packages/manifest.json` |
-| Editor- und Player-Einstellungen aus Architektur 2.3/2.4 (Force Text, Domain Reload aus, Linear, .NET Standard 2.1 …) | `ProjectSettings/` |
-| Ordnerstruktur aus Architektur 3.1 | `Assets/_Project/…`, `ArtSource/` |
-| Boot-Szene mit Bootstrapper, Installern und Debug-Overlay | `Assets/_Project/Scenes/Boot/Boot.unity`, `Assets/_Project/Settings/Boot/` |
-| Git mit LFS und UnityYAMLMerge, erster Commit auf GitHub | Branch `claude/new-session-2ye8ds` |
+| **Unity Hub** | Startprogramm von Unity. Es installiert Unity-Versionen und öffnet Projekte. |
+| **Unity** (der Editor) | das eigentliche Programm, in dem das Spiel entsteht |
+| **Projekt** | ein Ordner mit allem, was zum Spiel gehört. Wichtig sind die Unterordner `Assets` (Inhalte), `Packages` (Paketliste) und `ProjectSettings` (Einstellungen). |
+| **Vorlage** (engl. Template) | ein fertig eingerichtetes Startprojekt von Unity. Wir nutzen die Vorlage „Universal 3D“. |
+| **Paket** (engl. Package) | ein Zusatzbaustein für Unity, z. B. für Kameras oder die Eingabe |
+| **Console** | Unity-Fenster mit Meldungen: weiß = Information, gelb = Warnung, rot = Fehler |
+| **Project, Hierarchy, Inspector** | drei Unity-Fenster: **Project** zeigt die Dateien des Projekts, **Hierarchy** die Objekte der offenen Szene, **Inspector** die Einstellungen dessen, was du gerade angeklickt hast |
+| **Szene** | eine Spielumgebung in Unity, gespeichert als `.unity`-Datei. Unsere Start-Szene heißt `Boot`. |
+| **Kompilieren** | Unity übersetzt den Code in ein lauffähiges Programm. Das dauert Sekunden bis Minuten; unten rechts im Unity-Fenster läuft dann eine Anzeige. |
+| **Play Mode** | Unity startet das Spiel direkt im Editor (Knopf ▶) |
+| **Safe Mode** | Notbetrieb von Unity, wenn der Code Fehler enthält |
+| **Build** | eine fertige, startbare Spielversion (z. B. für Mac oder Windows) |
+| **GitHub** | Webseite, auf der die Projektdateien online liegen. Dort arbeitet auch Claude. |
+| **Repository** (kurz Repo) | der Projektordner samt Versionsgeschichte. Unseres heißt `porcherliam-glitch/liam`. |
+| **Branch** | eine eigene Arbeitslinie im Repo. Wir arbeiten auf `claude/new-session-2ye8ds`. |
+| **Commit** | ein gespeicherter Zwischenstand mit kurzer Beschreibung, zunächst nur auf deinem Mac |
+| **Push / Pull / Fetch** | Push lädt deine Commits zu GitHub hoch. Pull holt neue Commits (z. B. von Claude) herunter. Fetch fragt nur nach, ob es Neues gibt. |
+| **Git LFS** | Zusatz für große Dateien wie Bilder und Sounds. Steckt schon in GitHub Desktop. |
+| **`.meta`-Datei** | Unity legt zu jeder Datei eine `.meta`-Datei an. Sie ist der „Ausweis“ der Datei mit einer eindeutigen Nummer (GUID) und gehört immer mit ins Repo. |
+| **Terminal** | Mac-Programm, in das man Befehle tippt. Du brauchst es höchstens einmal. |
 
-**Reihenfolge:** Unity legt zuerst ein leeres Projekt an (Abschnitt 3). Danach holst du das Repository mit Code und Dokumenten **in diesen Ordner** (Abschnitt 4). So entstehen keine Konflikte: Das Repository enthält keine Dateien, die Unity beim Anlegen erzeugt (kein `Packages/`, kein `ProjectSettings/`, keine `.meta`-Dateien).
+### 0.2 So liest du diese Anleitung
 
-> **Hinweis zum Terminal:** Kopiere Befehle aus den grauen Kästen Zeile für Zeile (oder den ganzen Kasten) ins Terminal und drücke Enter. Die Kästen enthalten bewusst keine Kommentarzeilen mit `#`: Die Standard-Shell des Mac (zsh) meldet bei eingefügten `#`-Zeilen sonst `command not found: #`.
+- **A > B > C** heißt: auf A klicken, dann auf B, dann auf C (meist im Menü ganz oben am Bildschirm).
+- Der Finder ist deutsch, die Pfade in dieser Anleitung sind englisch. **Dokumente** im Finder ist derselbe Ordner wie `~/Documents`, **Programme** ist `Applications`. Das Zeichen `~` steht für deinen Benutzerordner.
+- Unity Hub, Unity und GitHub Desktop sind englisch. Knopf- und Menünamen stehen hier genau so, wie sie dort heißen.
+- Fragt macOS, ob ein Programm (Unity Hub, Unity, Terminal, GitHub Desktop) auf den Ordner **Dokumente** zugreifen darf: **Erlauben** bzw. **OK**.
+- Sieht etwas anders aus als beschrieben oder erscheint eine rote Meldung, rate nicht. Mach ein Bildschirmfoto und schick es Claude ([Abschnitt 8.3](#83-wenn-etwas-nicht-klappt-fehler-an-claude-schicken)).
 
 ---
 
-## 1. Voraussetzungen installieren
+## 1. Kostenlose Programme installieren
 
-### 1.1 Terminal öffnen
+### 1.1 Unity Hub und Unity-Konto
 
-**Cmd + Leertaste** → „Terminal“ eintippen → Enter. (Oder Finder > Programme > Dienstprogramme > Terminal.)
+1. Im Browser **unity.com/download** öffnen und den Download für den Mac starten (bei der Auswahl **Apple silicon** nehmen, falls gefragt).
+   **Du siehst danach:** eine Datei `UnityHubSetup….dmg` im Ordner **Downloads**.
+2. Die `.dmg`-Datei doppelklicken. Im Fenster, das aufgeht, das Symbol **Unity Hub** auf den Ordner **Applications** ziehen.
+   **Du siehst danach:** Unity Hub im Finder unter **Programme**.
+3. Unity Hub starten: **Cmd + Leertaste** drücken, `Unity Hub` tippen, Enter. Fragt macOS, ob du ein Programm aus dem Internet öffnen willst: **Öffnen**.
+   **Du siehst danach:** das Hub-Fenster mit einem Anmeldeknopf.
+4. **Sign in** klicken und dich im Browser mit deinem Unity-Konto anmelden. Hast du keines: **Create account** (kostenlos, danach die E-Mail bestätigen). Fragt der Browser, ob er Unity Hub öffnen darf: erlauben.
+   **Du siehst danach:** oben links im Hub dein Konto-Symbol statt des Anmeldeknopfs.
+5. Lizenz prüfen: Der Hub aktiviert die kostenlose Lizenz „Personal“ meist von selbst. Zur Kontrolle oben links auf das Zahnrad (Settings) klicken, dann **Licenses**. Steht dort keine Lizenz: **Add license** > **Get a free personal license** > **Agree and get personal edition license**.
+   **Du siehst danach:** unter **Licenses** eine Lizenz „Personal“.
+6. Bietet der Hub beim ersten Start an, eine Unity-Version zu installieren: nur annehmen, wenn die Nummer mit **6000.3** beginnt (das ist Unity 6.3 LTS; LTS heißt „Long Term Support“, also lange gepflegt). Sonst den Vorschlag überspringen, die richtige Version kommt in 1.2.
+   **Du siehst danach:** das normale Hub-Fenster mit **Projects** und **Installs** links.
 
-### 1.2 Homebrew (Paketverwaltung für den Mac)
+### 1.2 Unity 6.3 LTS installieren
 
-Prüfen, ob Homebrew schon da ist:
-
-```bash
-brew --version
-```
-
-Erscheint `command not found: brew`, installieren:
-
-```bash
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-```
-
-Das Skript fragt nach deinem Mac-Passwort (beim Tippen erscheint nichts – das ist normal) und installiert bei Bedarf die „Command Line Tools for Xcode“. Am Ende zeigt es unter **Next steps** zwei Befehle. Auf Apple Silicon sind das:
-
-```bash
-echo 'eval "$(/opt/homebrew/bin/brew shellenv)"' >> ~/.zprofile
-eval "$(/opt/homebrew/bin/brew shellenv)"
-brew --version
-```
-
-### 1.3 git, Git LFS und GitHub CLI
-
-```bash
-brew install git git-lfs gh
-git --version
-git lfs version
-git lfs install
-```
-
-- `git --version` muss mindestens **2.23** zeigen (für `git switch`), Homebrew liefert die aktuelle Version.
-- `git lfs version` soll **3.8.0 oder neuer** zeigen (Architektur 2.1 #2).
-- `git lfs install` richtet Git LFS **einmal für deinen Benutzer** ein. Erwartete Ausgabe: `Git LFS initialized.`
-
-Deinen Namen und deine E-Mail für Commits einmalig festlegen (die E-Mail ist in Commits sichtbar; GitHub bietet unter Settings > Emails eine „noreply“-Adresse an):
-
-```bash
-git config --global user.name "Dein Name"
-git config --global user.email "deine-adresse@example.com"
-```
-
-### 1.4 Unity Hub
-
-```bash
-brew install --cask unity-hub
-```
-
-(Alternativ von https://unity.com/download laden.) Unity Hub starten → oben links mit deiner **Unity ID** anmelden (Konto bei Bedarf anlegen).
-
-Lizenz aktivieren: **Unity Hub > Einstellungen (Zahnrad oben links) > Licenses > Add > „Get a free personal license“**. Unity Personal ist kostenlos bis 200.000 USD Umsatz und Finanzierung pro Jahr (Technik-Recherche §1).
-
-### 1.5 Unity 6.3 LTS mit Modulen
-
-1. **Unity Hub > Installs > Install Editor**.
-2. Reiter **Official releases** → in der Gruppe **Unity 6.3 (LTS)** den **neuesten 6000.3.x**-Eintrag wählen (zum Zeitpunkt dieser Anleitung z. B. `6000.3.26f1`) → **Install**.
-   Achte darauf, dass der Hub die **Apple-silicon**-Variante installiert (Standard auf M-Chips).
-3. Im Dialog **Add modules** diese Haken setzen (Architektur 2.2 #6):
+1. Im Hub links **Installs** klicken, dann oben rechts **Install Editor**.
+   **Du siehst danach:** eine Liste mit den Reitern **Official releases**, **Pre-releases** und **Archive**.
+2. Reiter **Official releases**: beim Eintrag **Unity 6.3 (LTS)** mit der höchsten Nummer `6000.3.…` auf **Install** klicken. Fragt der Hub nach „Apple silicon“ oder „Intel“: **Apple silicon**.
+   **Du siehst danach:** die Liste der Zusatzmodule („Add modules“).
+3. Genau diese zwei Haken setzen:
    - **Mac Build Support (IL2CPP)**
    - **Windows Build Support (Mono)**
-   - **Documentation**
-   Alle anderen Haken (Android, iOS, WebGL, Linux, Sprachpakete …) aus lassen. „Mac Build Support (Mono)“ ist automatisch dabei.
-4. **Install** → Lizenzbedingungen bestätigen → warten (Fortschritt links unter „Downloads“).
-5. **Notiere die genaue Version** (z. B. `6000.3.26f1`). Du brauchst sie für UnityYAMLMerge (4.3) und den Tag beim ersten Commit (7).
 
-> Xcode (aus dem App Store) brauchst du erst später für IL2CPP-Release-Builds auf dem Mac. Für das Setup ist es nicht nötig.
+   Alle anderen Haken bleiben aus (Android, iOS, Web, Linux, Sprachpakete, Visual Studio). „Documentation“ darfst du dazunehmen, musst aber nicht. Dann **Continue** bzw. **Install** klicken und Lizenzbedingungen bestätigen, falls gefragt.
+   **Du siehst danach:** einen Fortschrittsbalken bei **Installs**. Am Ende steht dort `6000.3.…` mit dem Zusatz **LTS**.
 
-### 1.6 Optional: Code-Editor (IDE)
+> Warum diese Module: Damit lassen sich später Spielversionen für Mac und Windows bauen. „IL2CPP“ und „Mono“ sind zwei Arten, wie Unity den Code für die fertige Spielversion übersetzt. Windows-Versionen mit IL2CPP lassen sich nur auf einem Windows-PC bauen, deshalb auf dem Mac für Windows „Mono“ (Architektur 1.3).
 
-Eine der beiden Möglichkeiten:
+### 1.3 GitHub Desktop
 
-| IDE | Installation | Danach in Unity (nach Abschnitt 5) |
+1. Im Browser **desktop.github.com** öffnen und **Download for macOS** klicken.
+   **Du siehst danach:** GitHub Desktop (oder eine `.zip`-Datei) im Ordner **Downloads**.
+2. Eine `.zip`-Datei doppelklicken, damit sie entpackt wird. Dann **GitHub Desktop** in den Ordner **Programme** ziehen und von dort starten. Frage von macOS: **Öffnen**.
+   **Du siehst danach:** „Welcome to GitHub Desktop“.
+3. **Sign in to GitHub.com** klicken. Im Browser mit **dem GitHub-Konto anmelden, dem das Repo `porcherliam-glitch/liam` gehört**. Erscheint **Authorize desktop**: klicken. Fragt der Browser, ob er GitHub Desktop öffnen darf: erlauben.
+   **Du siehst danach:** in GitHub Desktop die Seite **Configure Git**.
+4. Bei **Configure Git** den Vorschlag (Name und E-Mail deines GitHub-Kontos) übernehmen und **Finish** klicken.
+   **Du siehst danach:** das Hauptfenster von GitHub Desktop.
+
+GitHub Desktop bringt Git und Git LFS selbst mit und richtet Git LFS bei jedem Start ein. Homebrew und Terminal-Befehle brauchst du dafür nicht.
+
+---
+
+## 2. Das Repository holen
+
+1. In GitHub Desktop: **File > Clone Repository…**, dann Reiter **GitHub.com**.
+   **Du siehst danach:** das Fenster „Clone a Repository“ mit einer Liste deiner Repos.
+2. Ins Suchfeld `liam` tippen und **porcherliam-glitch/liam** anklicken. Das Feld **Local Path** zeigt `/Users/<dein Name>/Documents/GitHub/liam` – so lassen. Dann **Clone** klicken.
+   **Du siehst danach:** einen Fortschritt, dann das Repo im Hauptfenster. Erscheint das Fenster **Initialize Git LFS** („This repository uses Git LFS …“): auf **Initialize Git LFS** klicken.
+3. Oben in der Mitte auf **Current Branch** klicken, ins Suchfeld `new-session` tippen und **claude/new-session-2ye8ds** anklicken. (Der Eintrag kann auch als `origin/claude/new-session-2ye8ds` erscheinen – dann diesen nehmen.)
+   **Du siehst danach:** unter **Current Branch** steht `claude/new-session-2ye8ds`.
+4. Zur Kontrolle **Repository > Show in Finder** klicken.
+   **Du siehst danach:** ein Finder-Fenster **Dokumente > GitHub > liam** mit den Ordnern `Assets` und `docs` und der Datei `README.md`. Im Ordner `Assets` liegt nur `_Project`.
+
+Fehlt `Assets/_Project`, steht noch der falsche Branch. Dann Punkt 3 wiederholen.
+
+---
+
+## 3. Vorlagen-Projekt erzeugen
+
+Unity soll für deine genaue Unity-Version die passenden Grafik-Einstellungen (URP, die Render-Pipeline von Unity) und Paketversionen erzeugen. Dafür legst du ein Wegwerf-Projekt aus der Vorlage an. Drei Teile davon kopierst du in Schritt 4 ins Repo, den Rest brauchst du nicht mehr.
+
+1. Im Unity Hub links **Projects** klicken, dann oben rechts **New project**.
+   **Du siehst danach:** die Vorlagen-Auswahl.
+2. Ganz oben bei **Editor Version** deine `6000.3.…` wählen.
+   **Du siehst danach:** die Vorlagen für diese Version.
+3. Die Vorlage **Universal 3D** anklicken. Steht rechts **Download template**, zuerst darauf klicken und warten.
+   **Du siehst danach:** rechts die Felder für Name und Speicherort.
+4. Rechts ausfüllen:
+   - **Project name:** `AetherfallVorlage` (genau so, ohne Leerzeichen)
+   - **Location:** auf das Ordner-Symbol klicken und **Dokumente** wählen
+   - **Use Unity Version Control:** aus
+   - Gibt es eine Unity-Cloud-Option (z. B. den Haken „Connect to Unity Cloud“ oder eine Auswahl ohne Cloud): ausschalten bzw. die Variante ohne Cloud wählen. Lässt sie sich nicht ausschalten, ist das kein Problem – einfach weiter.
+
+   **Du siehst danach:** als Speicherort `/Users/<dein Name>/Documents`.
+5. **Create project** klicken.
+   **Du siehst danach:** Unity startet und importiert. Nach einigen Minuten ist der Editor offen und zeigt eine Beispielszene.
+6. Warten, bis unten rechts im Unity-Fenster kein Fortschritt mehr läuft. Dann Unity beenden: **Unity > Quit Unity** (Cmd + Q). Fragt Unity nach dem Speichern: **Don't Save**.
+   **Du siehst danach:** Unity ist geschlossen. Im Finder gibt es **Dokumente > AetherfallVorlage** mit den Ordnern `Assets`, `Library`, `Logs`, `Packages`, `ProjectSettings` und `UserSettings`.
+
+---
+
+## 4. Vorlage in das Repository kopieren
+
+Unity muss dabei geschlossen sein. Kopiert werden genau drei Dinge:
+
+| Aus `Dokumente/AetherfallVorlage/` | Nach `Dokumente/GitHub/liam/` | Was es ist |
 |---|---|---|
-| **JetBrains Rider** (für nicht-kommerzielle Nutzung kostenlos) | `brew install --cask rider` | **Unity > Settings… > External Tools > External Script Editor** = Rider |
-| **Visual Studio Code** | `brew install --cask visual-studio-code`, dann in VS Code links **Extensions** (Cmd+Shift+X): **C# Dev Kit** (Microsoft) und **Unity** (Microsoft) installieren | **Unity > Settings… > External Tools > External Script Editor** = Visual Studio Code. Das Unity-Paket „Visual Studio Editor“ (`com.unity.ide.visualstudio`) muss installiert sein – im Template ist es dabei. |
+| der **Inhalt** von `Assets` | in den vorhandenen Ordner `Assets` (neben `_Project`) | Beispielinhalte und Grafik-Einstellungen der Vorlage. Das Setup-Werkzeug räumt sie in Schritt 6 auf. |
+| der Ordner `Packages` | als neuer Ordner `Packages` | Paketliste mit den passenden Versionen |
+| der Ordner `ProjectSettings` | als neuer Ordner `ProjectSettings` | Projekteinstellungen, darin auch die Unity-Version |
 
-In beiden Fällen unter **External Tools** zusätzlich die Haken **Generate .csproj files for: Embedded packages** und **Local packages** setzen (Architektur 2.3 #14). Die `.csproj`/`.sln`-Dateien ignoriert Git automatisch.
+**Nicht** kopieren: `Library`, `Logs`, `UserSettings`. Das sind Zwischenspeicher, die Unity selbst neu anlegt.
 
----
+Wähle **einen** der beiden Wege.
 
-## 2. Zugriff auf GitHub
+### 4.1 Mit dem Terminal (empfohlen, ein Befehl)
 
-- **Repository:** https://github.com/porcherliam-glitch/liam
-- **Branch:** `claude/new-session-2ye8ds`
+1. Terminal öffnen: **Cmd + Leertaste**, `Terminal` tippen, Enter.
+   **Du siehst danach:** ein Fenster mit einer Zeile, die auf `%` endet.
+2. Diese **eine** Zeile vollständig kopieren, im Terminal einfügen (Cmd + V) und Enter drücken:
 
-> **Wichtig:** Die Dateien kommen erst auf GitHub an, wenn der Claude-Zugriff auf das Repository freigeschaltet ist. Prüfe deshalb zuerst im Browser: Repository öffnen → oben links das Branch-Menü (zeigt meist `main`) → `claude/new-session-2ye8ds` wählen. Dort muss der Ordner `Assets/_Project/Scripts/Editor/Core/` mit der Datei `ProjectSetupWindow.cs` zu sehen sein. Fehlt der Branch oder die Datei, hier stoppen und Claude Bescheid geben.
-
-Das Repository ist privat. Melde Git deshalb einmalig bei GitHub an:
-
-```bash
-gh auth login
-```
-
-Antworten: **GitHub.com** → **HTTPS** → „Authenticate Git with your GitHub credentials?“ **Yes** → **Login with a web browser** → den angezeigten Code im Browser eingeben. Danach prüfen:
-
-```bash
-git ls-remote --heads https://github.com/porcherliam-glitch/liam.git
-```
-
-In der Ausgabe muss eine Zeile mit `refs/heads/claude/new-session-2ye8ds` stehen.
-
----
-
-## 3. Unity-Projekt anlegen
-
-1. Projektordner anlegen:
-
-   ```bash
-   mkdir -p ~/Projekte
+   ```
+   cd ~/Documents/GitHub/liam && rsync -a ~/Documents/AetherfallVorlage/Assets ~/Documents/AetherfallVorlage/Packages ~/Documents/AetherfallVorlage/ProjectSettings ./
    ```
 
-2. **Unity Hub > Projects > New project**.
-3. Oben **Editor Version**: die installierte **6000.3.x** wählen.
-4. Vorlage (Template) **Universal 3D** anklicken. Steht dort „Download template“, zuerst darauf klicken.
-5. Rechts unter **Project settings**:
-   - **Project name:** `Aetherfall`
-   - **Location:** `~/Projekte` (über das Ordner-Symbol: Benutzerordner > Projekte)
-   - Haken **Use Unity Version Control: AUS** (wichtig – wir nutzen Git, nicht Unity Version Control).
-   - Haken **Connect to Unity Cloud:** aus (wird nicht gebraucht).
-6. **Create project** → Unity öffnet sich und importiert das Template (einige Minuten).
-7. Sobald der Editor bereit ist (unten rechts kein Fortschrittsbalken mehr): **Unity > Quit Unity** (Cmd+Q). Fragt Unity nach dem Speichern der Szene: **Don't Save**.
+   Fragt macOS, ob das Terminal auf **Dokumente** zugreifen darf: **Erlauben** (danach den Befehl noch einmal einfügen und Enter drücken).
+   **Du siehst danach:** keine Meldung, nur eine neue Zeile mit `%`. Genau so soll es sein.
+3. Terminal beenden (Cmd + Q).
+   **Du siehst danach:** nichts mehr vom Terminal. Weiter mit [4.3](#43-prüfen).
 
-Unity muss **geschlossen** sein, bevor du im nächsten Abschnitt Dateien mit Git holst. Der Ordner `~/Projekte/Aetherfall` enthält jetzt `Assets/`, `Packages/`, `ProjectSettings/`, `Library/`, `Logs/` und `UserSettings/`.
+**Was der Befehl tut:**
 
----
+- `cd ~/Documents/GitHub/liam` wechselt in den Repo-Ordner. Gibt es ihn nicht, bricht der Befehl mit `no such file or directory` ab und kopiert nichts.
+- `&&` bedeutet: den zweiten Teil nur ausführen, wenn der erste geklappt hat.
+- `rsync -a` kopiert die drei Ordner mit allen Unterordnern und Dateien in den aktuellen Ordner `./` (also ins Repo). Hinter den drei Quellordnern steht absichtlich **kein** Schrägstrich: Dann entstehen im Repo die Ordner `Assets`, `Packages` und `ProjectSettings`, und der Inhalt von `Assets` wird mit dem vorhandenen `Assets`-Ordner **zusammengeführt**. rsync löscht dabei nichts. `Assets/_Project` bleibt unverändert.
+- Die Pfade enthalten keine Leerzeichen, deshalb braucht der Befehl keine Anführungszeichen. Hast du in Schritt 2 oder 3 einen anderen Ort oder Namen gewählt, passt der Befehl nicht. Dann frag Claude nach einer angepassten Zeile.
 
-## 4. Das Repository in den Projektordner holen
+**Mögliche Meldungen:**
 
-### 4.1 Befehle
-
-```bash
-cd ~/Projekte/Aetherfall
-git init
-git lfs install
-git remote add origin https://github.com/porcherliam-glitch/liam.git
-git fetch origin
-git switch --track origin/claude/new-session-2ye8ds
-```
-
-Was die Befehle tun:
-
-| Befehl | Wirkung |
+| Meldung | Bedeutung und Lösung |
 |---|---|
-| `git init` | macht den Projektordner zu einem (noch leeren) Git-Repository. Alle Unity-Dateien sind danach „untracked“ (Git kennt sie noch nicht). |
-| `git lfs install` | installiert die Git-LFS-Hooks in diesem Repository. Erwartet: `Updated Git hooks. Git LFS initialized.` |
-| `git remote add origin …` | merkt sich die GitHub-Adresse unter dem Namen `origin`. |
-| `git fetch origin` | lädt alle Branches herunter, ohne Dateien im Ordner zu ändern. |
-| `git switch --track origin/claude/new-session-2ye8ds` | legt den lokalen Branch `claude/new-session-2ye8ds` an, verbindet ihn mit dem GitHub-Branch und schreibt dessen Dateien in den Ordner: `docs/`, `README.md`, `.gitignore`, `.gitattributes` und den Code unter `Assets/_Project/`. |
+| `cd: no such file or directory: …/GitHub/liam` | Das Repo liegt nicht in **Dokumente > GitHub > liam**. Schritt 2 prüfen. |
+| `rsync: … No such file or directory` | Die Vorlage liegt nicht in **Dokumente > AetherfallVorlage** oder ist anders geschrieben. Schritt 3 prüfen. |
+| `Operation not permitted` | macOS hat den Zugriff verweigert. **Systemeinstellungen > Datenschutz & Sicherheit > Dateien und Ordner > Terminal > Ordner „Dokumente“** einschalten und den Befehl wiederholen. |
 
-**Warum das ohne Konflikt klappt:** Git bricht einen Checkout nur ab, wenn eine **untracked** Datei überschrieben würde. Das Repository enthält keine Datei, die Unity beim Anlegen erzeugt hat. Die Template-Dateien bleiben deshalb unverändert liegen und kommen erst mit dem ersten Commit (Abschnitt 7) dazu.
+### 4.2 Alternative: mit dem Finder (ohne Terminal)
 
-**Prüfen:**
+1. Zwei Finder-Fenster öffnen (im Finder Cmd + N). Im ersten **Dokumente > AetherfallVorlage** öffnen, im zweiten **Dokumente > GitHub > liam**.
+   **Du siehst danach:** links die Vorlage, rechts das Repo.
+2. Links den Ordner **Assets** per Doppelklick **öffnen**. Mit **Cmd + A** alles darin markieren (auch die `.meta`-Dateien) und mit **Cmd + C** kopieren.
+   **Du siehst danach:** alle Einträge in der Vorlage blau markiert.
+3. Rechts den Ordner **Assets** per Doppelklick **öffnen** (darin liegt `_Project`) und **Cmd + V** drücken.
+   **Du siehst danach:** rechts neben `_Project` die Vorlagen-Inhalte (z. B. `Scenes`, `Settings`, `TutorialInfo`, `Readme.asset`), jeweils mit `.meta`-Datei.
+4. Links zurück in den Ordner **AetherfallVorlage**. **Packages** anklicken, mit gedrückter Cmd-Taste zusätzlich **ProjectSettings** anklicken, Cmd + C. Rechts zurück in den Ordner **liam** (nicht in `Assets`) und Cmd + V.
+   **Du siehst danach:** in **liam** die Ordner `Assets`, `docs`, `Packages`, `ProjectSettings`.
 
-```bash
-git status
-```
+> **Achtung:** Kopiere niemals den **ganzen Ordner** `Assets` in den Ordner `liam`. Fragt der Finder „Ein Objekt mit dem Namen „Assets“ existiert bereits … ersetzen?“, klicke **Abbrechen** bzw. **Stopp**. „Ersetzen“ würde `Assets/_Project` mit dem ganzen Code löschen.
 
-Erwartet: `On branch claude/new-session-2ye8ds`, `Your branch is up to date with 'origin/claude/new-session-2ye8ds'`, darunter **Untracked files** mit z. B. `Assets/Readme.asset`, `Assets/Scenes/`, `Assets/Settings/`, `Assets/TutorialInfo/`, `Packages/`, `ProjectSettings/`. **Nicht** in der Liste stehen dürfen `Library/`, `Logs/`, `Temp/` und `UserSettings/` – die ignoriert die `.gitignore`. Stehen sie doch da, fehlt die `.gitignore` (Checkout fehlgeschlagen → Abschnitt 4.2).
+### 4.3 Prüfen
 
-> **Branch-Name:** Die Anleitung legt den lokalen Branch mit **demselben Namen** wie auf GitHub an. Dann funktionieren `git pull` und `git push` ohne Zusatzangaben. Die Variante `git checkout -b main --track origin/claude/new-session-2ye8ds` funktioniert auch, aber dann verweigert ein einfaches `git push` den Upload (lokaler und entfernter Name unterscheiden sich). Du müsstest jedes Mal `git push origin HEAD:claude/new-session-2ye8ds` schreiben. Deshalb: gleicher Name.
-
-### 4.2 Wenn Git einen Konflikt meldet
-
-**Meldung:** `error: The following untracked working tree files would be overwritten by checkout:` mit einer Liste von Dateien, danach `Aborting`.
-
-Git hat dann **nichts verändert**. Vorgehen:
-
-1. Die genannten Dateien an einen sicheren Ort verschieben (Beispiel für eine Datei `README.md`):
-
-   ```bash
-   mkdir -p ~/Desktop/aetherfall-konflikt
-   mv README.md ~/Desktop/aetherfall-konflikt/
-   ```
-
-   Bei Dateien in Unterordnern den Pfad mitnehmen, z. B. `mv Assets/_Project/irgendwas.cs ~/Desktop/aetherfall-konflikt/`.
-2. Den Befehl `git switch --track origin/claude/new-session-2ye8ds` wiederholen.
-3. Danach vergleichen: Die Version aus dem Repository gilt. Das gilt besonders für `.meta`-Dateien: Sie enthalten die GUID, über die Unity Verweise findet. Eine lokal erzeugte `.meta` darf eine `.meta` aus dem Repository nie ersetzen.
-
-**Nicht** verwenden: `git switch -f` oder `git checkout -f`. Diese Befehle überschreiben ohne Sicherung.
-
-**Meldung:** `fatal: invalid reference: origin/claude/new-session-2ye8ds` → Der Branch ist (noch) nicht auf GitHub. Mit `git branch -r` siehst du, welche Branches angekommen sind. Siehe Hinweis in Abschnitt 2 (Claude-Zugriff).
-
-### 4.3 UnityYAMLMerge in der lokalen Git-Konfiguration
-
-Szenen (`.unity`), Prefabs (`.prefab`) und andere Unity-Dateien sind Text im YAML-Format. Unity liefert dafür ein eigenes Zusammenführungs-Programm (Smart Merge). Die `.gitattributes` im Repository verweist schon darauf; Git muss nur noch wissen, **wo** das Programm liegt. Das trägst du einmal pro Rechner und Editor-Version ein (Architektur 2.9 #46).
-
-**Einfachster Weg:** Nach Abschnitt 5 zeigt das Setup-Fenster in Schritt **f)** unter „Git-Befehle für UnityYAMLMerge (Smart Merge) anzeigen“ die fertigen Befehle **mit dem richtigen Pfad** und einem Knopf **Kopieren**.
-
-**Von Hand:** Der Pfad auf dem Mac lautet:
-
-```
-/Applications/Unity/Hub/Editor/<Version>/Unity.app/Contents/Tools/UnityYAMLMerge
-```
-
-Deine Version findest du mit `ls /Applications/Unity/Hub/Editor/`. Beispiel für `6000.3.26f1` (Version anpassen):
-
-```bash
-UYM="/Applications/Unity/Hub/Editor/6000.3.26f1/Unity.app/Contents/Tools/UnityYAMLMerge"
-ls -l "$UYM"
-git config --local merge.tool unityyamlmerge
-git config --local mergetool.unityyamlmerge.trustExitCode false
-git config --local mergetool.unityyamlmerge.cmd "'$UYM' merge -p \"\$BASE\" \"\$REMOTE\" \"\$LOCAL\" \"\$MERGED\""
-```
-
-`ls -l` muss die Datei anzeigen (sonst stimmt der Pfad nicht – Hub-Installationsort unter **Unity Hub > Einstellungen > Installs** prüfen). Diese Einrichtung als **Merge-Tool** entspricht dem Unity-Handbuch („Smart Merge“). Bei einem Konflikt in einer Szene startest du es mit `git mergetool`.
-
-**Optional – automatischer Merge-Treiber** (Architektur 2.9, dort als „nicht verifiziert“ markiert):
-
-```bash
-git config --local merge.unityyamlmerge.name "Unity SmartMerge"
-git config --local merge.unityyamlmerge.driver "'$UYM' merge -p %O %B %A %A"
-git config --local merge.unityyamlmerge.recursive binary
-```
-
-Damit versucht Git bei jedem Merge selbst, Unity-Dateien mit UnityYAMLMerge zusammenzuführen. Teste das **nach dem ersten Commit** (Abschnitt 7) einmal:
-
-1. `git switch -c test/merge-a` → in Unity in `Boot.unity` das Objekt `GameBootstrapper` anklicken, im Inspector bei **Transform > Position X** `1` eintragen, speichern (Cmd+S) → `git commit -am "test: merge a"`.
-2. `git switch claude/new-session-2ye8ds` → `git switch -c test/merge-b` → in Unity das Objekt `DevTools` auf **Position X** `2` setzen, speichern → `git commit -am "test: merge b"`.
-3. `git merge test/merge-a` → Erwartung: Merge ohne Konflikt; in Unity hat `GameBootstrapper` X = 1 und `DevTools` X = 2.
-4. Aufräumen: `git switch claude/new-session-2ye8ds`, dann `git branch -D test/merge-a test/merge-b`.
-
-Gibt es dabei Fehlermeldungen von UnityYAMLMerge, den Treiber wieder entfernen (das Merge-Tool bleibt):
-
-```bash
-git config --local --remove-section merge.unityyamlmerge
-```
-
-> Nach einem Unity-Update ändert sich der Pfad (andere Versionsnummer). Dann die Befehle mit dem neuen Pfad erneut ausführen.
+1. Im Finder **Dokumente > GitHub > liam** öffnen.
+   **Du siehst danach:** die Ordner `Assets`, `docs`, `Packages`, `ProjectSettings` und `README.md`. In `Assets` liegen `_Project` und daneben die Vorlagen-Inhalte (z. B. `Scenes`, `Settings`, `TutorialInfo`, `Readme.asset`, `InputSystem_Actions.inputactions`, jeweils mit `.meta`).
+2. Zu GitHub Desktop wechseln.
+   **Du siehst danach:** links unter **Changes** sehr viele neue Dateien. Das ist richtig. **Noch nicht committen** – das kommt erst in Schritt 8, nachdem Unity aufgeräumt hat.
 
 ---
 
-## 5. Setup-Werkzeug in Unity ausführen
+## 5. Projekt in Unity öffnen
 
-### 5.1 Projekt öffnen
+1. Im Unity Hub links **Projects** klicken. Oben rechts beim Knopf **Add** auf den kleinen Pfeil klicken und **Add project from disk** wählen.
+   **Du siehst danach:** ein Fenster zur Ordnerauswahl.
+2. **Dokumente > GitHub > liam** einmal anklicken (nicht hineingehen) und **Öffnen** (bzw. **Open**) klicken.
+   **Du siehst danach:** das Projekt **liam** in der Projektliste, daneben die Editor-Version `6000.3.…`. Das Projekt **AetherfallVorlage** steht auch in der Liste – das ist die Vorlage, **nicht** öffnen.
+3. Nur falls bei **liam** statt der Version ein Warnsymbol oder „not installed“ steht: auf die Versionsangabe klicken und die installierte `6000.3.…` wählen.
+   **Du siehst danach:** bei **liam** die Version `6000.3.…` ohne Warnsymbol.
+4. Auf **liam** klicken.
+   **Du siehst danach:** Unity startet und importiert alle Dateien (beim ersten Mal 5 bis 20 Minuten). Danach ist der Editor offen, und in der Menüleiste ganz oben gibt es den Eintrag **Aetherfall**.
 
-**Unity Hub > Projects** → `Aetherfall` anklicken. In der Spalte **Editor Version** muss `6000.3.x` stehen.
+Erscheint beim Öffnen das Fenster **Enter Safe Mode?**, enthält der Code einen Fehler: siehe [Abschnitt 10](#10-fehlerbehebung), Zeile „Safe Mode“.
 
-Unity importiert jetzt die Dateien aus dem Repository und kompiliert den Code. Dabei legt Unity für jede neue Datei unter `Assets/_Project/` eine `.meta`-Datei an. Das ist richtig so – sie kommen mit dem ersten Commit ins Repository.
+---
 
-Erscheint beim Öffnen der Dialog **„Enter Safe Mode?“**, gibt es Compiler-Fehler → **Enter Safe Mode** und Abschnitt 9 („Skripte kompilieren nicht“).
+## 6. Setup-Werkzeug ausführen
 
-### 5.2 Das Fenster
+### 6.1 Fenster öffnen
 
-Menü **Aetherfall > Projekt-Setup …** öffnet das Fenster „Projekt-Setup“. Am besten neben den Inspector andocken (Reiter mit der Maus ziehen).
+1. Menü **Aetherfall > Projekt-Setup …** klicken.
+   **Du siehst danach:** das Fenster **Projekt-Setup** mit den Schritten a) bis f), dem Knopf **Alles ausführen** oben und dem **Protokoll** unten. Zieh das Fenster ruhig größer.
 
-| Element | Bedeutung |
+| Zeichen | Bedeutung |
 |---|---|
 | **✓** grün | erledigt |
-| **✗** rot | offen – der Schritt erledigt es, oder die Zeile sagt, was du von Hand tun musst |
-| **–** grau | unbekannt oder nur ein Hinweis (z. B. „noch nicht eingetragen – Empfehlung“) |
-| **Ausführen** (je Schritt) | führt nur diesen Schritt aus. Jeder Schritt darf beliebig oft laufen und ändert nur, was fehlt. |
-| **Alles ausführen** | führt alle Schritte in der Reihenfolge b → c → d → e → f → a aus (Pakete zuletzt, weil Unity danach neu kompiliert) |
-| **Status aktualisieren** | liest alles neu, auch die Paketliste |
-| **Protokoll** (unten) | jede Aktion mit Uhrzeit; dieselben Zeilen stehen mit `[Aetherfall-Setup]` in der Console. **Kopieren** legt das Protokoll in die Zwischenablage (praktisch für Rückfragen an Claude). |
+| **✗** rot | noch offen |
+| **–** grau | nur ein Hinweis oder nicht prüfbar – kein Problem |
 
-Vor dem Löschen, Ersetzen oder Umbenennen fragt jeder Schritt in einem Dialog nach. Gelöschtes landet im **Papierkorb des Mac** und lässt sich von dort wiederherstellen.
-
-### 5.3 Ablauf
-
-Empfehlung: Zuerst in Schritt **b)** Firmen- und Produktnamen eintragen (siehe unten), dann **Alles ausführen** klicken. Die Dialoge erscheinen in dieser Reihenfolge:
-
-**b) Editor- und Player-Einstellungen**
-
-1. Vorher im aufgeklappten Schritt b) die Felder **Firmenname (Company Name)** und **Produktname (Product Name)** ausfüllen. Vorschlag: Produkt `Aetherfall` (Empfehlung aus [Offene Fragen, Frage 2 (c)](../Offene_Fragen.md)), Firma: dein eigener Name oder ein Label **ohne Sonderzeichen** (der Vorschlag `AetherfallStudio` ist nur ein Platzhalter).
-   **Wichtig:** Beide Namen bestimmen den Speicherpfad der Spielstände (Windows: `%USERPROFILE%\AppData\LocalLow\<Firma>\<Produkt>`, macOS: unter `~/Library/Application Support/`). Nach dem ersten Build, der deinen Rechner verlässt, **nie mehr ändern** – sonst „verschwinden“ Spielstände.
-2. Dialog **„Firmen- und Produktname jetzt festlegen?“** → **Übernehmen**.
-3. Der Schritt setzt automatisch: Asset Serialization = **Force Text**, Version Control = **Visible Meta Files**, Enter Play Mode = **Reload Scene only** (Domain Reload aus), Zeilenenden neuer Skripte = **Unix**, Color Space = **Linear**, Api Compatibility Level = **.NET Standard 2.1**, Scripting Backend = **Mono**, **Use incremental GC** an, **Allow 'unsafe' Code** aus, Fullscreen Mode = **Fullscreen Window**, Grafik-API Windows = **Direct3D12, Direct3D11**. Unity importiert danach Texturen neu und kompiliert neu – kurz warten.
-4. Zwei Zeilen bleiben vorerst ✗ und brauchen dich: **Active Input Handling** (Abschnitt 5.4) und – nur falls dort etwas steht – **Scripting Define Symbols** (Architektur 2.7 #43: Entwickler-Defines gehören in Build-Profile, nicht in die Player-Einstellungen).
-
-**c) Ordnerstruktur anlegen** – kein Dialog. Legt alle Ordner aus Architektur 3.1 an (gut 100 Stück), dazu `Assets/ThirdParty/` und `ArtSource/` (neben `Assets/`, für Blender- und Photoshop-Quellen). Leere Ordner bekommen eine Datei `.gitkeep`, damit Git sie behält. Unity zeigt diese Datei nicht an.
-
-**d) Template aufräumen**
-
-1. Dialog **„Template aufräumen?“** listet, was passiert: `Assets/TutorialInfo`, `Assets/Readme.asset` und `Assets/Scenes/SampleScene.unity` kommen in den Papierkorb; der Inhalt von `Assets/Settings/` (URP-Assets, Renderer, Volume-Profile) wandert nach `Assets/_Project/Settings/Rendering/`; `Assets/InputSystem_Actions.inputactions` wandert nach `Assets/_Project/Settings/Input/`. → **Aufräumen**.
-2. Ist die Beispielszene geöffnet und verändert, fragt Unity nach dem Speichern → **Don't Save**.
-
-Verschieben über Unity behält die GUIDs. Deshalb bleiben URP-Pipeline, Qualitätsstufen und die projektweiten Input-Actions korrekt zugewiesen.
-
-**e) Boot-Inhalte und Boot-Szene**
-
-1. Legt in `Assets/_Project/Settings/Boot/` an: `LogSettings`, `LogInstaller`, `EventBusInstaller`, `GameStateInstaller`, `BootConfig` (Installer-Liste: Log → EventBus → GameState).
-2. Legt `Assets/_Project/Scenes/Boot/Boot.unity` an: GameObject **GameBootstrapper** (Komponenten *Game Bootstrapper* mit Feld *Boot Config* und *Tick Runner*) und GameObject **DevTools** (Komponente *Game State Debug Overlay*). Die Szene bleibt danach geöffnet.
-3. Dialog **„Szenenliste ersetzen?“** (die Liste enthält noch die gelöschte Beispielszene) → **Ersetzen**. Danach ist `Boot.unity` die einzige Szene mit Index 0 (**File > Build Profiles > Scene List**).
-
-Vorhandene Assets überschreibt der Schritt nie. Fehlt in einer vorhandenen Boot-Szene etwas, fragt er vor dem Ergänzen.
-
-**f) Prüfungen (nur lesen)** – ändert nichts, schreibt das Ergebnis ins Protokoll:
-
-| Zeile | Erwartung | Wenn nicht |
-|---|---|---|
-| Unity-Version | 6000.3.x | Projekt im Hub mit 6000.3.x öffnen |
-| URP ist aktive Render-Pipeline | ✓ (z. B. `PC_RPAsset`) | Projekt wurde nicht mit „Universal 3D“ angelegt → Abschnitt 3 neu |
-| Qualitätsstufen nutzen URP | ✓ | **Edit > Project Settings > Quality** → je Stufe **Render Pipeline Asset** prüfen |
-| Rendering Path: Forward+ | ✓ für alle Renderer | Project-Fenster: `Assets/_Project/Settings/Rendering/` → jedes Renderer-Asset (z. B. `PC_Renderer`, `Mobile_Renderer`) anklicken → Inspector **Rendering > Rendering Path = Forward+** |
-| Git-Repository | ✓ | Abschnitt 4 |
-| Git LFS | ✓ | `brew install git-lfs`, dann im Projektordner `git lfs install` |
-| UnityYAMLMerge-Programm | ✓ mit Pfad | – (Hinweis) |
-| UnityYAMLMerge in der lokalen Git-Konfiguration | ✓ | Befehle aus „Git-Befehle … anzeigen“ kopieren (Abschnitt 4.3) |
-
-**a) Pakete installieren** (läuft als letzter Schritt)
-
-1. Dialog **„Pakete entfernen?“** (Visual Scripting, Multiplayer Center) → **Entfernen**. Der Haken „Visual Scripting und Multiplayer Center entfernen“ in Schritt a) ist standardmäßig an; nimmst du ihn heraus, bleiben beide installiert.
-2. Der Package Manager installiert die fehlenden Pakete: Input System, Cinemachine, ProBuilder, Terrain Tools, AI Navigation, Addressables, Timeline, Animation Rigging, Localization, Test Framework, Newtonsoft JSON und uGUI (enthält TextMeshPro). Das dauert je nach Internet einige Minuten; unten rechts läuft ein Fortschrittsbalken, danach kompiliert Unity neu.
-3. Das Fenster liest die Paketliste danach selbst neu. Erwartung: alle Pakete ✓, Visual Scripting und Multiplayer Center „nicht installiert“.
-4. Steht bei einem Paket **„Hinweis: weicht von der Planung ab“**, ist das kein Fehler: Das Werkzeug installiert die Version, die der Package Manager für 6.3 empfiehlt. Notiere die angezeigten Versionen (Protokoll → **Kopieren**) und gib sie Claude – sie werden in [Technik-Recherche, „Nicht verifiziert“](../Technik/03_Technik-Recherche.md#nicht-verifiziert) eingetragen.
-
-Die Pakete stehen danach mit **exakter Version** in `Packages/manifest.json` (Architektur 1.4: keine Versionsbereiche).
-
-### 5.4 Active Input Handling von Hand umstellen
-
-Für diese Einstellung hat Unity keine öffentliche Schnittstelle, deshalb von Hand – **erst nachdem Schritt a) fertig ist** (das Input System muss installiert sein):
-
-1. **Edit > Project Settings…** → links **Player**.
-2. Reiter mit dem **Bildschirm-Symbol** (Windows, Mac, Linux) → **Other Settings** aufklappen → Abschnitt **Configuration**.
-3. **Active Input Handling\*** → **Input System Package (New)** wählen.
-4. Dialog „Unity editor restart required“ → **Apply** (bzw. **Yes**). Unity startet neu.
-5. Danach **Aetherfall > Projekt-Setup …** → Schritt b) → Zeile **Active Input Handling** zeigt ✓.
-
-### 5.5 TextMeshPro-Grundressourcen
-
-**Window > TextMeshPro > Import TMP Essential Resources** → im Import-Dialog **Import**. Es entsteht `Assets/TextMesh Pro/` (von TMP erzwungene Ausnahme vom Ordnerschema, Architektur 3.1).
-
-### 5.6 Speichern
-
-**File > Save Project**. Erst dadurch stehen alle geänderten Einstellungen sicher in `ProjectSettings/`.
-
----
-
-## 6. Manuelle Prüf-Checkliste
-
-Alles, was das Werkzeug nicht setzen kann oder bewusst nicht anfasst (Architektur 2.3–2.7). Haken in der ersten Spalte zum Abhaken.
-
-### 6.1 Jetzt (vor dem ersten Commit)
-
-| ☐ | Architektur | Einstellung | Menüpfad | Wert |
-|---|---|---|---|---|
-| ☐ | 2.4 #20 | Active Input Handling | Abschnitt 5.4 | **Input System Package (New)**, Editor neu gestartet |
-| ☐ | 2.3 #14 | Script-Editor | **Unity > Settings… > External Tools > External Script Editor** | Rider oder Visual Studio Code; Haken **Embedded packages** und **Local packages** bei „Generate .csproj files for“ |
-| ☐ | 2.3 #15 | Auto Refresh | **Unity > Settings… > Asset Pipeline > Auto Refresh** | an (Standard) |
-| ☐ | 2.3 #15 | Parallel Import | **Edit > Project Settings > Editor > Asset Pipeline > Parallel Import** | an (falls in 6.3 vorhanden – prüfen) |
-| ☐ | 2.4 #16 | Version | **Edit > Project Settings > Player > Version** | `0.1.0` |
-| ☐ | 2.4 #18 | Grafik-API Mac | **Player > Reiter Bildschirm-Symbol > Other Settings > Rendering > Auto Graphics API for Mac** | Liste enthält nur **Metal** (Standard) |
-| ☐ | 2.4 #23b | Splash Screen | **Player > Splash Image > Splash Screen > Show Splash Screen** | aus (ab Unity 6 für Personal erlaubt) |
-| ☐ | 2.5 #29 | Render Graph | **Player > Other Settings > Script Compilation > Scripting Define Symbols** | **kein** `URP_COMPATIBILITY_MODE` (das Werkzeug prüft das in Schritt b) |
-| ☐ | 2.5 #30 | Zeit | **Edit > Project Settings > Time** | **Fixed Timestep** `0.02`, **Maximum Allowed Timestep** `0.1` |
-| ☐ | 2.5 #33 | Audio | **Edit > Project Settings > Audio** | **Max Real Voices** `48`, **Max Virtual Voices** `256` |
-| ☐ | 2.6 #35 | TMP Essentials | Abschnitt 5.5 | `Assets/TextMesh Pro/` vorhanden |
-| ☐ | 2.6 #39 | Projektweite Input-Actions | **Edit > Project Settings > Input System Package > Project-wide Actions** | zeigt `InputSystem_Actions` (liegt nach Schritt d) in `Assets/_Project/Settings/Input/`; das eigene Asset `AetherfallInput` folgt in Phase 1, Schritt 1.7) |
-| ☐ | 2.2 #9 | Template-Pakete | **Window > Package Manager > In Project** | kein „Visual Scripting“, kein „Multiplayer Center“ |
-| ☐ | 2.1 #4 | GitHub-Budget | github.com > dein Profilbild > **Settings > Billing and licensing > Budgets and alerts** | Budget für Git LFS und Actions gesetzt. Laut [Status, Kurskorrektur](../Status.md#kurskorrektur-nach-antwort-1-solo-50-) **0 $**: keine Kosten, aber LFS sperrt bei Überschreitung bis Monatsende – Binärdateien klein halten |
-
-### 6.2 Grafik: URP-Qualitätsstufen (Architektur 2.5 #24–#28)
-
-Gehört zum Setup. Wenn die Zeit knapp ist, darf es als zweiter Commit kommen, aber vor dem nächsten Phase-1-Schritt.
-
-1. Project-Fenster: `Assets/_Project/Settings/Rendering/` öffnen.
-2. Renderer: `PC_Renderer` anklicken → **F2** → umbenennen in `UR_ForwardPlus`. Inspector: **Rendering > Rendering Path = Forward+**.
-3. Pipeline-Assets: `PC_RPAsset` umbenennen in `URP_Hoch`. Dann `URP_Hoch` dreimal mit **Cmd+D** duplizieren und die Kopien `URP_Niedrig`, `URP_Mittel`, `URP_Ultra` nennen. In jedem: **Rendering > Renderer List** = `UR_ForwardPlus`; **Rendering > GPU Resident Drawer = Instanced Drawing**; **SRP Batcher** an (im Inspector ggf. über das Drei-Punkte-Menü „Show Additional Properties“ sichtbar machen). Die übrigen Werte kommen später aus [GDD 05, 3.7](../GDD/05_UI_Audio_Grafik_Barrierefreiheit.md).
-4. **Edit > Project Settings > Graphics**: **Default Render Pipeline** = `URP_Mittel`. Weiter unten **Shader Stripping > BatchRendererGroup Variants = Keep All**.
-5. **Edit > Project Settings > Quality**: vier Stufen `Niedrig`, `Mittel`, `Hoch`, `Ultra` (vorhandene Stufen umbenennen, fehlende mit **Add Quality Level** ergänzen, überzählige mit dem Papierkorb-Symbol löschen). Jede Stufe anklicken → **Render Pipeline Asset** = passendes URP-Asset. In der Tabelle oben in der Zeile **Default** (grüne Häkchen je Plattform): Mac/PC-Standalone = **Mittel**.
-6. Die Mobile-Assets des Templates (`Mobile_RPAsset`, `Mobile_Renderer`) werden danach nicht mehr gebraucht und dürfen gelöscht werden, sobald keine Qualitätsstufe sie mehr nutzt.
-7. **Aetherfall > Projekt-Setup … > f) Prüfen** → URP, Qualitätsstufen und Forward+ zeigen ✓.
-
-> Hinweis zur Windows-Standardstufe „Hoch“ (Architektur 2.5 #28): Unity hat für Windows und Mac eine gemeinsame Standalone-Spalte. Die getrennte Vorgabe je Betriebssystem übernimmt später das Optionen-System beim ersten Start.
-
-### 6.3 Später (mit dem jeweiligen System)
-
-| Architektur | Was | Wann |
-|---|---|---|
-| 2.5 #31–#32 | Layer (**Edit > Project Settings > Tags and Layers**) und Physik-Matrix (**Edit > Project Settings > Physics > Settings > Reiter Shared > Layer Collision Matrix**, Tabelle 2.8) | mit dem Spielercontroller (Phase 1) |
-| 2.6 #36, 2.7 #43 | Build-Profile `Mac_Dev`, `Mac_Release`, `Win_Dev`, `Win_Release` (**File > Build Profiles**) mit den Defines `AETHERFALL_DEV` usw. Unity 6 speichert neue Profile unter `Assets/Settings/Build Profiles/` – Schritt d) verschiebt sie beim nächsten Lauf nach `Assets/_Project/Settings/Build/` | spätestens mit dem ersten Windows-Mono-Build |
-| 2.6 #37 | Localization-Einstellungen (**Edit > Project Settings > Localization > Create**, speichern in `Assets/_Project/Settings/Localization/`) | Phase 1, Optionen und Lokalisierung |
-| 2.6 #38 | Addressables (**Window > Asset Management > Addressables > Groups > Create Addressables Settings**; Play Mode Script = **Use Asset Database**) | Phase 1, IDs und Content-Datenbank |
-| 2.7 #41 | weitere Assembly Definitions aus Tabelle 3.3 | jeweils mit dem System, das sie füllt |
-
-### 6.4 Notieren für „Nicht verifiziert“
-
-Die [Technik-Recherche](../Technik/03_Technik-Recherche.md#nicht-verifiziert) listet Punkte, die erst im echten Editor prüfbar sind. Notiere beim Setup bitte und gib es Claude weiter:
-
-- genaue Editor-Version (Unity Hub > Installs),
-- Versionen von Addressables, Test Framework und den übrigen Paketen (Protokoll von Schritt a),
-- welche Version von „Performance Testing“ der Package Manager anbietet (**Window > Package Manager > Unity Registry**, Suche „Performance“, nur ansehen),
-- ob „Visible Meta Files“ vor Schritt b) schon gesetzt war (Protokoll von Schritt b: Steht dort „Version Control Mode = Visible Meta Files“, war es vorher nicht gesetzt).
-
----
-
-## 7. Erster Commit
-
-### 7.1 Was hinein gehört – und was nicht
-
-| Gehört hinein | Gehört **nicht** hinein (ignoriert die `.gitignore`) |
+| Schritt im Fenster | Was er tut |
 |---|---|
-| `Assets/` mit **allen `.meta`-Dateien** | `Library/` (Cache, wird neu erzeugt) |
-| `Packages/manifest.json` und `Packages/packages-lock.json` | `Temp/`, `Logs/`, `obj/` |
-| `ProjectSettings/` (alle Dateien) | `UserSettings/` (persönliche Editor-Einstellungen) |
-| `.gitignore`, `.gitattributes` | `*.csproj`, `*.sln` (erzeugt die IDE) |
-| `docs/`, `README.md` | `.DS_Store`, `.idea/`, `.vscode/` (außer `settings.json`) |
-| `ArtSource/` und alle `.gitkeep`-Dateien | Builds (`Build/`, `Builds/`, `*.app`) |
+| a) Pakete installieren | installiert die Pakete aus Architektur 1.4 und entfernt zwei unnötige Vorlagen-Pakete |
+| b) Editor- und Player-Einstellungen | setzt die Projekteinstellungen aus Architektur 2.3/2.4 |
+| c) Ordnerstruktur anlegen | legt alle Projektordner an |
+| d) Template aufräumen | wirft die Beispielinhalte der Vorlage in den Papierkorb und verschiebt ihre Einstellungen nach `Assets/_Project/Settings/` |
+| e) Boot-Inhalte und Boot-Szene | legt die Start-Szene `Assets/_Project/Scenes/Boot/Boot.unity` und ihre Einstellungsdateien an |
+| f) Prüfungen (nur lesen) | prüft Unity-Version, Grafik und Git, ändert nichts |
 
-**Regel für `.meta`-Dateien:** Jede Datei und jeder Ordner unter `Assets/` hat eine `.meta`-Datei mit einer GUID. Asset und `.meta` immer **zusammen** committen, nie einzeln löschen oder umbenennen. Dateien nur im Project-Fenster von Unity verschieben oder umbenennen, nicht im Finder.
+Jeder Schritt hat rechts einen eigenen Knopf (**Ausführen**, bei f **Prüfen**). Du brauchst sie normalerweise nicht – **Alles ausführen** reicht.
 
-### 7.2 Befehle
+### 6.2 Optional: Firmen- und Produktname
 
-Unity vorher mit **File > Save Project** speichern und dann beenden (**Cmd+Q**), damit alle Dateien geschrieben sind.
+Im Schritt b) stehen die Felder **Firmenname (Company Name)** = `AetherfallStudio` und **Produktname (Product Name)** = `Aetherfall`. Du kannst beide so lassen. Möchtest du deinen eigenen Namen als Firmenname: einfach ins Feld tippen, ohne die Zeichen `/ \ : * ? " < > |`.
 
-```bash
-cd ~/Projekte/Aetherfall
-git status
-git add -A
-git status
-git lfs status
-```
+Die beiden Namen bestimmen, in welchem Ordner später die Spielstände liegen. Ändern ist kein Problem, solange noch keine Spielversion an andere Leute gegangen ist. Danach nie mehr ändern.
 
-Prüfen:
+### 6.3 Alles ausführen
 
-- `git status` nach `git add -A` zeigt unter **Changes to be committed** u. a. `Assets/…` (inklusive `.meta`), `Packages/manifest.json`, `Packages/packages-lock.json`, `ProjectSettings/ProjectVersion.txt` und viele `ProjectSettings/*.asset`.
-- **Nicht** dabei: `Library/`, `Temp/`, `Logs/`, `UserSettings/`. Steht davon etwas da: `git reset` (nimmt alles wieder aus dem Commit-Vorrat, Dateien bleiben erhalten) und Abschnitt 9 „.gitignore greift nicht“.
-- `git lfs status` listet unter **Objects to be committed** Binärdateien (z. B. die Schrift unter `Assets/TextMesh Pro/` als `LFS`). `.unity`, `.prefab`, `.asset` und `.meta` müssen dort als **Git** (nicht LFS) erscheinen oder fehlen.
+1. Oben auf **Alles ausführen** klicken.
+   **Du siehst danach:** die Frage **Alle Schritte ausführen?** Dort **Ausführen** klicken.
+2. Jetzt erscheinen nacheinander einige Fragen. Nicht jede kommt jedes Mal. Klicke jeweils:
 
-Dann committen (Commit-Nachrichten auf Englisch, Architektur 15.3) und hochladen. Die Versionsnummer an deine Editor-Version anpassen:
+   | Fenster (Titel) | Klicken | Was passiert |
+   |---|---|---|
+   | **Firmen- und Produktname** („Firmen- und Produktname jetzt festlegen?“) | **Übernehmen** | trägt die Namen aus 6.2 ein |
+   | **Template aufräumen?** | **Aufräumen** | Beispielinhalte in den Papierkorb (wiederherstellbar), Einstellungen nach `Assets/_Project/Settings/` |
+   | **Scene(s) Have Been Modified** (von Unity) | **Don't Save** | die Beispielszene wird nicht mehr gebraucht |
+   | **Szenenliste ersetzen?** | **Ersetzen** | `Boot.unity` wird die einzige Start-Szene |
+   | **Boot-Szene ergänzen?** oder **Installer-Liste ersetzen?** (nur bei einem zweiten Lauf) | **Ergänzen** bzw. **Ersetzen** | fehlende Teile der Boot-Szene werden nachgetragen |
+   | **Pakete entfernen?** (Visual Scripting, Multiplayer Center) | **Entfernen** | zwei unnötige Vorlagen-Pakete fliegen raus |
+   | **Warning** („… Do you want to enable the backends? Doing so will \*RESTART\* the editor.“) | **Yes** | schaltet die neue Eingabe (Input System) ein. Unity startet neu. |
 
-```bash
-git commit -m "chore(setup): Unity 6000.3.26f1 project, packages, settings, folders, boot scene"
-git lfs ls-files
-git check-attr -a Assets/_Project/Scenes/Boot/Boot.unity
-git push
-git tag setup-6000.3.26f1
-git push origin setup-6000.3.26f1
-```
+3. Warten. Zuerst erledigt das Werkzeug b) bis f). Schritt a) (Pakete) startet erst danach von selbst, sobald Unity mit dem Kompilieren fertig ist – oben im Fenster steht solange „Schritt a) Pakete startet automatisch, sobald Unity mit dem Kompilieren fertig ist …“. Dann lädt der Package Manager die Pakete (einige Minuten), und Unity kompiliert neu, eventuell mehrmals. Im Fenster stehen solange **läuft …** und „Unity kompiliert bzw. importiert gerade. Bitte warten …“. Fenster offen lassen und nichts anklicken.
+   **Du siehst danach:** keine Fortschrittsbalken mehr. Im Protokoll steht eine Zeile, die mit **„a) abgeschlossen:“** beginnt, z. B. „a) abgeschlossen: installiert com.unity.cinemachine@3.…, com.unity.probuilder@6.…, … · entfernt com.unity.visualscripting, com.unity.multiplayer.center.“ Hat Unity zwischendurch neu geladen, steht davor „a) Unity hat neu geladen, während eine Paketänderung lief …“ – das ist normal, das Fenster prüft dann selbst weiter. Fehlt die Zeile „a) abgeschlossen“, weil Unity nach **Yes** im Input-System-Fenster neu gestartet hat: auch normal, weiter mit Punkt 4.
+4. Hat Unity neu gestartet (nach **Yes** im Input-System-Fenster), ist das Setup-Fenster zu. Dann wieder **Aetherfall > Projekt-Setup …** öffnen.
+   **Du siehst danach:** das Fenster wie vorher.
+5. Auf **Status aktualisieren** klicken.
+   **Du siehst danach:** im Idealfall bei a) bis f) überall ✓. Bei f) sind einzelne – normal.
 
-Prüfen:
+> Steht im Protokoll „Hinweis: Active Input Handling steht noch nicht auf „Input System Package (New)“ …“: Bei der Frage **„… enable the backends?“** (Tabelle oben) **Yes** klicken. Von Hand umstellen musst du nur, wenn bei b) die Zeile **Active Input Handling** danach immer noch ein ✗ zeigt ([6.5 A](#65-nur-falls-noch-ein--bleibt-drei-handgriffe)).
 
-- `git lfs ls-files` listet **nur Binärdateien** (Schriften, Bilder, Audio). Keine `.meta`, `.unity`, `.prefab`, `.asset` (Architektur 2.9 #47). Eine leere Liste ist auch in Ordnung, falls noch keine Binärdateien im Projekt sind.
-- `git check-attr` zeigt `diff: set`, `merge: unityyamlmerge`, `text: unset`.
-- `git push` endet ohne Fehler; auf GitHub sind im Branch `claude/new-session-2ye8ds` jetzt `Packages/` und `ProjectSettings/` zu sehen.
-- `git status` zeigt `nothing to commit, working tree clean`.
+### 6.4 Wenn danach noch ✗ zu sehen sind
 
-Gib Claude danach Bescheid („Setup gepusht“), damit der nächste Schritt auf deinem Stand aufbaut.
+1. Einfach noch einmal **Alles ausführen** klicken und die Fragen wie in 6.3 beantworten. Jeder Schritt erledigt nur, was noch fehlt, und lässt Fertiges unverändert. Das kann nach einem Neustart von Unity nötig sein: Ein Neustart beendet eine laufende Prüfung des Werkzeugs (nach bloßem Neukompilieren macht das Fenster dagegen selbst weiter).
+   **Du siehst danach:** weniger oder keine ✗ mehr.
+2. Bleibt dieselbe Zeile auch nach dem zweiten oder dritten Lauf ✗: in 6.5 nachsehen. Steht sie dort nicht, im Protokoll auf **Kopieren** klicken und den Text an Claude schicken.
+   **Du siehst danach:** entweder alles ✓ oder eine konkrete Zeile für Claude.
+
+### 6.5 Nur falls noch ein ✗ bleibt: drei Handgriffe
+
+Für diese drei Punkte gibt es keinen automatischen Weg. Mach sie **nur**, wenn genau diese Zeile ✗ zeigt.
+
+**A) Schritt b), Zeile „Active Input Handling: Input System Package (New)“ zeigt ✗**
+
+1. **Edit > Project Settings…** öffnen und links **Player** wählen.
+   **Du siehst danach:** rechts die Player-Einstellungen.
+2. **Other Settings** aufklappen, nach unten zum Abschnitt **Configuration** scrollen, bei **Active Input Handling** die Auswahl **Input System Package (New)** wählen.
+   **Du siehst danach:** ein Fenster, dass Unity neu starten muss.
+3. **Apply** klicken.
+   **Du siehst danach:** Unity startet neu.
+4. **Aetherfall > Projekt-Setup …** öffnen, **Status aktualisieren**.
+   **Du siehst danach:** bei b) die Zeile mit ✓.
+
+**B) Schritt f), Zeile „Rendering Path: Forward+“ zeigt ✗**
+
+Die Zeile nennt die betroffenen Dateien, z. B. `Mobile_Renderer = Forward`.
+
+1. Im Fenster **Project** (unten) zu **Assets > _Project > Settings > Rendering** gehen.
+   **Du siehst danach:** die Grafik-Dateien der Vorlage, z. B. `Mobile_Renderer` und `PC_Renderer`.
+2. Die Datei mit dem Namen aus der Zeile anklicken (z. B. `Mobile_Renderer`).
+   **Du siehst danach:** rechts im **Inspector** ihre Einstellungen.
+3. Im Abschnitt **Rendering** bei **Rendering Path** die Auswahl **Forward+** wählen. Für jede genannte Datei wiederholen.
+   **Du siehst danach:** **Rendering Path = Forward+**.
+4. **File > Save Project**, dann im Setup-Fenster **Status aktualisieren**.
+   **Du siehst danach:** bei f) die Zeile mit ✓ (das Fenster schreibt den Wert als `ForwardPlus`).
+
+**C) Schritt f), Zeile „Git LFS“ zeigt ✗**
+
+1. GitHub Desktop einmal beenden (Cmd + Q) und neu starten. Es richtet Git LFS bei jedem Start ein. Erscheint **Initialize Git LFS**: darauf klicken.
+   **Du siehst danach:** GitHub Desktop mit dem Repo **liam**.
+2. Im Setup-Fenster **Status aktualisieren**.
+   **Du siehst danach:** bei f) die Zeile **Git LFS** mit ✓.
+
+**Zeilen mit – bei f) („UnityYAMLMerge …“):** nur eine Empfehlung für Fortgeschrittene ([Anhang A](#anhang-a-für-fortgeschrittene-unityyamlmerge-kommandozeile)). Für dich nicht nötig.
+
+### 6.6 Speichern
+
+1. **File > Save Project** klicken.
+   **Du siehst danach:** keine Meldung. Unity hat alle Einstellungen in den Ordner `ProjectSettings` geschrieben.
 
 ---
 
-## 8. Fertig, wenn …
+## 7. Play-Test
 
-- [ ] **Aetherfall > Projekt-Setup …** zeigt bei **a) bis f)** jeweils **✓** (in f dürfen einzelne Hinweiszeilen „–“ zeigen).
-- [ ] In Schritt b) ist **Active Input Handling** ✓ und der Editor wurde danach neu gestartet.
-- [ ] Die Console (**Window > General > Console**) zeigt nach dem Neustart **keine roten Fehler**.
-- [ ] `ProjectSettings/ProjectVersion.txt` nennt die installierte `6000.3.x`-Version.
-- [ ] Die URP-Qualitätsstufen sind eingerichtet (6.2) oder als nächster Commit eingeplant.
-- [ ] Der erste Commit ist gepusht, `git status` ist sauber, `git lfs ls-files` enthält nur Binärdateien, der Tag `setup-6000.3.x` ist gepusht.
-- [ ] Weiter mit **[Anleitung 02: Test Phase 1, Schritt 1 (Fundament)](./02_Test_Phase1_Fundament.md)**: EditMode-Tests (alle grün) und Play Mode in `Boot.unity`.
+1. Im Fenster **Project** zu **Assets > _Project > Scenes > Boot** gehen und **Boot** doppelklicken (oft ist sie schon offen).
+   **Du siehst danach:** im Fenster **Hierarchy** die Szene **Boot** mit den Objekten `GameBootstrapper` und `DevTools`.
+2. **Window > General > Console** öffnen und dort oben links **Clear** klicken.
+   **Du siehst danach:** eine leere Console.
+3. Oben in der Mitte auf **▶** (Play) klicken (oder Cmd + P).
+   **Du siehst danach:**
+   - Im Fenster **Game** links oben einen Kasten **Game State (debug)** mit `Current: MainMenu` und Knöpfen darunter. In der Mitte kann „Display 1 – No cameras rendering“ stehen. Das ist normal: Die Boot-Szene hat noch keine Kamera.
+   - In der Console weiße Zeilen, die mit `[Boot] Step 1/7: …` beginnen. Die letzte heißt `[Boot] Boot completed in … s (3 service(s)).` **Keine roten Zeilen.**
+4. Optional: Im Kasten auf **Loading** und dann auf **Playing** klicken.
+   **Du siehst danach:** `Current:` wechselt auf `Loading`, dann auf `Playing`.
+5. Noch einmal auf **▶** klicken, um Play zu beenden.
+   **Du siehst danach:** den normalen Editor. In der Console steht zusätzlich `[Boot] Services shut down (2 disposed in reverse registration order).`
+
+Siehst du rote Zeilen oder keinen Kasten: [Abschnitt 8.3](#83-wenn-etwas-nicht-klappt-fehler-an-claude-schicken). Alle Einzelheiten (erwartete Zeilen, Test-Knöpfe, automatische Tests): [Anleitung 02](./02_Test_Phase1_Fundament.md).
 
 ---
 
-## 9. Fehlerbehebung
+## 8. Ergebnis an Claude zurückmelden (Commit und Push)
 
-| Problem | Ursache | Lösung |
+### 8.1 Warum das wichtig ist
+
+Unity und das Setup-Werkzeug haben viele Dateien erzeugt: `Packages/`, `ProjectSettings/`, die Ordner, die Boot-Szene und zu jeder Datei eine `.meta`-Datei. Erst wenn sie auf GitHub liegen, sieht Claude den echten Stand: deine genaue Unity-Version, die installierten Paketversionen, die Einstellungen und die Ausweis-Nummern (GUIDs) der Dateien. Darauf baut jeder nächste Schritt auf. Ohne Push arbeitet Claude blind, und spätere Änderungen von Claude können mit deinem Stand zusammenstoßen.
+
+### 8.2 Commit und Push in GitHub Desktop
+
+1. In Unity **File > Save Project**, dann **Unity > Quit Unity** (Cmd + Q).
+   **Du siehst danach:** Unity ist geschlossen.
+2. GitHub Desktop öffnen, links den Reiter **Changes** wählen.
+   **Du siehst danach:** eine lange Liste (mehrere hundert Dateien), alle mit Haken, u. a. `Packages/manifest.json`, `ProjectSettings/…` und viele `….meta`. Kein Eintrag darf mit `Library/`, `Temp/`, `Logs/` oder `UserSettings/` beginnen – sonst hier stoppen und Claude fragen.
+3. Unten links ins Feld **Summary (required)** `Unity-Setup` eintragen.
+   **Du siehst danach:** der blaue Knopf darunter ist anklickbar.
+4. Auf den blauen Knopf **Commit … to claude/new-session-2ye8ds** klicken (er zeigt die Zahl der Dateien, z. B. „Commit 734 files to claude/new-session-2ye8ds“).
+   **Du siehst danach:** die Liste ist leer („No local changes“). Oben rechts steht **Push origin** mit einem Pfeil nach oben.
+5. Auf **Push origin** klicken.
+   **Du siehst danach:** einen Fortschritt, danach steht dort wieder **Fetch origin**.
+6. Claude im Chat Bescheid geben, z. B. „Setup gepusht“, und kurz sagen, ob irgendwo ✗ oder rote Meldungen geblieben sind.
+   **Du siehst danach:** Claude antwortet und macht mit deinem echten Stand weiter.
+
+**Fertig, wenn:** im Setup-Fenster a) bis f) ✓ zeigen (bei f einzelne – sind in Ordnung), der Play-Test aus Schritt 7 geklappt hat und GitHub Desktop nach dem Push wieder **Fetch origin** und „No local changes“ zeigt.
+
+### 8.3 Wenn etwas nicht klappt: Fehler an Claude schicken
+
+- **Rote Meldung in Unity:** **Window > General > Console** öffnen, die **erste** rote Zeile anklicken, **Cmd + C** drücken und im Chat mit Cmd + V einfügen.
+- **Bildschirmfoto:** **Cmd + Shift + 4** drücken und mit der Maus einen Rahmen um die Stelle ziehen. Das Bild landet auf dem Schreibtisch. Zieh es in den Chat.
+- **Protokoll des Setup-Werkzeugs:** im Fenster **Projekt-Setup** unten auf **Kopieren** klicken und im Chat einfügen.
+- Ändere keinen Code selbst. Claude schickt eine Korrektur, die du mit Schritt 9 holst.
+
+---
+
+## 9. Updates von Claude holen
+
+Claude arbeitet auf demselben Branch `claude/new-session-2ye8ds`. So holst du neue Dateien:
+
+1. In Unity speichern (Cmd + S) und Unity beenden (Cmd + Q). Das ist am sichersten. Lässt du Unity offen, musst du nach dem Pull warten, bis Unity fertig neu kompiliert hat.
+   **Du siehst danach:** Unity ist geschlossen.
+2. In GitHub Desktop auf **Changes** schauen. Stehen dort Dateien, zuerst committen wie in 8.2, Punkt 3–4 (Summary z. B. `Unity-Änderungen`).
+   **Du siehst danach:** „No local changes“.
+3. Oben rechts auf **Fetch origin** klicken.
+   **Du siehst danach:** Gibt es etwas Neues, steht dort jetzt **Pull origin** mit einer Zahl und einem Pfeil nach unten. Sonst bleibt es bei **Fetch origin** – dann gibt es nichts Neues.
+4. Auf **Pull origin** klicken.
+   **Du siehst danach:** wieder **Fetch origin**. Hast du in Punkt 2 committet, steht dort stattdessen **Push origin** – dann auch darauf klicken.
+5. Das Projekt **liam** im Unity Hub öffnen und warten, bis unten rechts kein Fortschritt mehr läuft.
+   **Du siehst danach:** die neuen Dateien von Claude. Die Console zeigt keine roten Fehler.
+
+---
+
+## 10. Fehlerbehebung
+
+| Problem | Lösung |
+|---|---|
+| **Hub findet den Editor nicht** („not installed“, Warnsymbol bei der Version) | Im Hub unter **Installs** prüfen, ob `6000.3.…` installiert ist, sonst 1.2 wiederholen. Dann unter **Projects** bei **liam** auf die Versionsangabe klicken und die installierte `6000.3.…` wählen. |
+| Unity meldet, dass **keine gültige Lizenz** da ist | Hub > Zahnrad > **Licenses** > **Add license** > **Get a free personal license** (siehe 1.1, Punkt 5). Dann das Projekt neu öffnen. |
+| **Pakete lösen nicht auf** (rote Meldungen wie „Unable to add package“ oder „Cannot connect to Unity Package Manager“, Schritt a) bleibt ✗) | Internet prüfen, im Hub angemeldet sein, VPN aus. Im Setup-Fenster **Status aktualisieren**, dann **Alles ausführen** noch einmal. Hilft das nicht: Unity beenden, im Finder in **liam > Library** den Ordner **PackageCache** in den Papierkorb legen (nur ein Zwischenspeicher), Projekt neu öffnen. |
+| Schritt a) zeigt sehr lange **läuft …** | Bis zu 15 Minuten warten: Das Fenster prüft die Pakete alle 5 Sekunden selbst und schreibt danach entweder „a) abgeschlossen: …“ oder eine rote Zeile „a) Paketänderung nach 15 Minuten nicht bestätigt …“. Im zweiten Fall im aufgeklappten Schritt a) auf **Package Manager öffnen** klicken und dort nach roten Meldungen schauen (Internet, Anmeldung im Hub), dann **Alles ausführen** noch einmal. Hilft das nicht: Unity beenden, neu öffnen, Setup-Fenster öffnen, **Status aktualisieren** und **Alles ausführen**. |
+| **Rote Fehler in der Console** | Nichts selbst ändern. Die erste rote Zeile kopieren oder ein Bildschirmfoto machen und an Claude schicken (8.3). Nach Claudes Korrektur Schritt 9. |
+| Menü **Aetherfall** fehlt | Unity ist noch nicht fertig (unten rechts läuft noch etwas) oder es gibt rote Fehler in der Console. Warten bzw. die Fehler an Claude schicken. Das Werkzeug erscheint erst, wenn der ganze Code fehlerfrei kompiliert. |
+| Fenster **Enter Safe Mode?** beim Öffnen | **Enter Safe Mode** klicken. Die Console zeigt die Fehler: an Claude schicken. Unity im Safe Mode offen lassen oder beenden. Sobald du Claudes Korrektur mit Schritt 9 geholt hast, verlässt Unity den Safe Mode von selbst bzw. öffnet normal. |
+| Setup-Fenster zeigt „Play Mode ist aktiv“ | Play mit **▶** beenden. Das Werkzeug arbeitet nur außerhalb von Play. |
+| Im Game-Fenster steht „No cameras rendering“ | Normal, die Boot-Szene hat noch keine Kamera. Der Kasten **Game State (debug)** muss trotzdem erscheinen. |
+| **Pull-Konflikt** in GitHub Desktop (Fenster „Resolve conflicts before Merge“) | **Abort Merge** klicken. Dabei geht nichts verloren. Bildschirmfoto an Claude schicken – Claude sagt dir, welche Variante du nehmen sollst. |
+| Push klappt nicht, oben steht **Pull origin** statt **Push origin** | Auf GitHub gibt es neuere Dateien von Claude. Erst **Pull origin**, dann **Push origin** (Schritt 9). |
+| Fenster **Initialize Git LFS** in GitHub Desktop | **Initialize Git LFS** klicken. Das richtet die Behandlung großer Dateien für dieses Repo ein. |
+| Setup-Fenster f) **Git LFS ✗** | GitHub Desktop beenden und neu starten, dann **Status aktualisieren** (6.5 C). |
+| GitHub meldet beim Push etwas wie **„LFS … quota“** oder **„over its data quota“** | Das kostenlose Kontingent für große Dateien (10 GB Speicher und 10 GB Download pro Monat bei GitHub Free) ist erschöpft. Nichts bezahlen und keine Zahlungsdaten eingeben, sondern Claude Bescheid geben. Ohne hinterlegte Zahlungsweise sperrt GitHub nur bis zum Monatsende. |
+| Bilder oder Sounds sind nach einem Pull kaputt, die Datei enthält nur Text mit `version https://git-lfs.github.com/spec/v1` | Git LFS war nicht eingerichtet. GitHub Desktop neu starten, bei **Initialize Git LFS** zustimmen, dann **Repository > Pull**. |
+| GitHub Desktop listet Dateien aus `Library/`, `Temp/`, `Logs/` oder `UserSettings/` | Nicht committen. Wahrscheinlich liegt etwas im falschen Ordner. Bildschirmfoto an Claude. |
+| Der Finder fragt beim Kopieren „… ersetzen?“ | **Abbrechen**. Siehe Warnung in 4.2. |
+| Versehentlich **AetherfallVorlage** statt **liam** geöffnet | Unity beenden und im Hub **liam** öffnen. Die Vorlage darfst du nach Schritt 8 löschen (Ordner in den Papierkorb, im Hub beim Eintrag **…** > **Remove from list**). |
+
+---
+
+## Anhang A: Für Fortgeschrittene (UnityYAMLMerge, Kommandozeile)
+
+**Für dich nicht nötig.** Nur als Hinweis, falls später mehrere Rechner oder Personen gleichzeitig an Szenen arbeiten.
+
+- **UnityYAMLMerge (Smart Merge):** Ein Unity-Programm, das Änderungen von zwei Seiten an derselben Szene oder demselben Prefab zusammenführt. Die Datei `.gitattributes` verweist schon darauf. Git muss nur noch wissen, wo das Programm auf diesem Mac liegt. Im Setup-Fenster bei f) **Git-Befehle für UnityYAMLMerge (Smart Merge) anzeigen** aufklappen, auf **Kopieren** klicken, in GitHub Desktop **Repository > Open in Terminal** wählen und die Befehle einfügen. Beim ersten `git`-Befehl im Terminal bietet macOS an, die kostenlosen „Command Line Tools“ zu installieren. Details, der optionale Merge-Treiber und die Prüfbefehle (`git check-attr`, `git lfs ls-files`): [Architektur 2.9](../Technik/01_Architektur.md#29-git-und-lfs), Punkte #46 und #47.
+- **Kommandozeile statt GitHub Desktop:** Klonen, Branch wechseln, Commit, Pull und Push gehen auch mit `git` im Terminal. GitHub Desktop reicht aber vollständig. Grundlagen und Regeln: [Architektur 2.9](../Technik/01_Architektur.md#29-git-und-lfs).
+
+---
+
+## Anhang B: Was das Werkzeug noch nicht erledigt
+
+**Du musst jetzt nichts davon tun.** Diese Punkte aus [Architektur, Abschnitt 2](../Technik/01_Architektur.md#2-projekt-setup-checkliste) sind bewusst offen. Claude ergänzt sie später im Setup-Werkzeug oder in der Anleitung zu dem Schritt, der sie braucht:
+
+| Architektur | Punkt | Wann |
 |---|---|---|
-| `command not found: brew` nach der Installation | Homebrew ist nicht im Suchpfad | Die zwei Zeilen aus 1.2 (`echo 'eval …' >> ~/.zprofile` und `eval …`) ausführen, Terminal neu öffnen |
-| `zsh: command not found: #` | Kommentarzeile eingefügt | harmlos; nur die Befehlszeilen kopieren |
-| `git: 'lfs' is not a git command` | Git LFS fehlt | `brew install git-lfs`, dann `git lfs install` (global) und im Projektordner noch einmal `git lfs install` |
-| Bilder oder Schriften sind nach `git pull` kaputt; Inhalt beginnt mit `version https://git-lfs.github.com/spec/v1` | LFS war beim Holen nicht eingerichtet | `git lfs install`, dann `git lfs pull` |
-| Push: `This repository is over its data quota` / LFS-Fehler | LFS-Kontingent oder Budget (0 $) erschöpft | GitHub > Settings > Billing prüfen; bis Monatsende keine großen Binärdateien committen |
-| `Authentication failed` bei fetch/push | nicht bei GitHub angemeldet | `gh auth login` wiederholen, danach `gh auth setup-git` |
-| `fatal: invalid reference: origin/claude/new-session-2ye8ds` | Branch noch nicht auf GitHub | `git branch -r` prüfen; Claude-Zugriff auf das Repo freischalten lassen (Abschnitt 2) |
-| `untracked working tree files would be overwritten` | gleichnamige Datei liegt schon im Ordner | Abschnitt 4.2 |
-| `Library/` oder `UserSettings/` erscheinen in `git status` | `.gitignore` fehlt (Checkout nicht gelaufen) | `ls -la` im Projektordner: `.gitignore` muss da sein; sonst Abschnitt 4.1 wiederholen |
-| **Unity Hub findet den Editor nicht** / „Editor version not installed“ | Editor an anderem Ort oder falsche Version gewählt | **Unity Hub > Installs > Locate** → `/Applications/Unity/Hub/Editor/<Version>/Unity.app` wählen. In **Projects** beim Projekt die Spalte **Editor Version** anklicken und `6000.3.x` wählen |
-| Hub fragt „Upgrade project?“ oder „Change Editor version?“ | Projekt wird mit anderer Version geöffnet | abbrechen, im Hub `6000.3.x` wählen |
-| Mac meldet „Unity ist beschädigt“ | unvollständiger Download | Editor im Hub deinstallieren (**Installs** > Drei-Punkte-Menü > **Uninstall**) und neu installieren |
-| **Pakete lösen nicht auf** (rote Meldungen wie `Cannot connect to Unity Package Manager local server`, `Unable to add package`, `No 'versions' key`) | keine Internetverbindung, Hub nicht angemeldet, Proxy/VPN, beschädigter Paket-Cache | Internet prüfen, im Hub angemeldet sein, VPN aus; Unity beenden, im Projektordner `rm -rf Library/PackageCache` (nur Cache, wird neu geladen), Unity neu öffnen, Schritt a) erneut ausführen. `Packages/manifest.json` nicht von Hand mit Tippfehlern versehen |
-| Schritt a) bleibt bei „läuft …“ | Package Manager arbeitet noch oder hängt | warten; sonst **Window > Package Manager** öffnen (zeigt Fehler), Unity neu starten, im Fenster **Status aktualisieren** |
-| **Skripte kompilieren nicht**, Menü **Aetherfall** fehlt, Safe-Mode-Dialog | Compiler-Fehler; das Setup-Werkzeug ist selbst ein Skript und erscheint erst, wenn alles kompiliert | **Window > General > Console** → den **ersten** roten Fehler lesen. Häufig: `NUnit`/`TestRunner` fehlt → **Window > Package Manager > Unity Registry > Test Framework > Install**; `Awaitable` unbekannt → falsche Unity-Version (muss 6000.x sein); Dateien fehlen → `git status` prüfen. Im Safe Mode ist das Menü nicht verfügbar – erst Fehler beheben |
-| Gelbe Warnung `A meta data file (.meta) exists but its asset '…' can't be found` | Asset gelöscht, `.meta` übrig | die genannte `.meta`-Datei löschen (Finder: **Cmd+Shift+.** zeigt versteckte Dateien) |
-| Warnung zu doppelten GUIDs (`GUID [...] for asset '…' conflicts with …`) | Datei samt `.meta` im Finder kopiert | Kopie in Unity löschen und über das Project-Fenster duplizieren (**Cmd+D**) |
-| `.meta`-Dateien fehlen auf GitHub | nicht mit committet | `git add -A` erfasst sie; nie nur `git add Assets/*.cs` verwenden |
-| Schritt b) zeigt **Active Input Handling ✗**, obwohl umgestellt | Editor nicht neu gestartet | Unity beenden und neu öffnen |
-| Schritt f) zeigt **Forward+ ✗** | Renderer steht auf Forward/Deferred | Abschnitt 5.3, Tabelle bei f) |
-| Schritt e) meldet „existiert, ist aber kein …“ | an diesem Pfad liegt eine andere Datei | Datei prüfen und umbenennen; das Werkzeug überschreibt nichts |
-| Fenster zeigt „Play Mode ist aktiv“ | Setup läuft nur im Edit Mode | Play Mode beenden |
+| 2.5 #24–#28 | eigene URP-Qualitätsstufen (Niedrig, Mittel, Hoch, Ultra), gemeinsamer Forward+-Renderer, GPU Resident Drawer | vor dem ersten Grafik-Schritt |
+| 2.5 #30, #33 | Zeit (Fixed Timestep 0,02, Maximum Allowed Timestep 0,1) und Audio-Stimmen (48/256) | mit Spieler-Controller bzw. Audio |
+| 2.4 #16, #22, 23b | Version `0.1.0`, Bundle-ID (offene Entscheidung), Splash Screen aus | vor dem ersten Build |
+| 2.6 #35 | TextMeshPro-Grundressourcen | mit der ersten Benutzeroberfläche |
+| 2.6 #36, 2.7 #43 | Build-Profile `Mac_Dev`, `Mac_Release`, `Win_Dev`, `Win_Release` mit Entwickler-Defines | vor dem ersten Build |
+| 2.6 #37–#39 | Einstellungen für Localization, Addressables und das eigene Input-Asset | Phase 1, mit dem jeweiligen System |
+| 2.5 #31–#32 | Layer und Physik-Matrix | mit dem Spieler-Controller |
+| 2.3 #14 | Code-Editor (Rider oder VS Code) | nicht nötig, solange Claude den Code schreibt |
+| 2.10 #51 | Git-Tag `setup-6000.3.<patch>` für den Setup-Commit | kann Claude nach deinem Push setzen |
 
 ---
 
-## 10. Dateien dieses Schritts
+## Anhang C: Dateien dieses Schritts
 
-Nach §32.3: wohin jede Datei gehört und ob sie an ein GameObject kommt. **Keine** dieser Dateien kommt an ein GameObject – das Setup-Werkzeug ist ein Editor-Fenster.
+Nach Master-Prompt §32.3: wohin jede Datei gehört und ob sie an ein GameObject kommt. **Keine** dieser Dateien kommt an ein GameObject. Das Setup-Werkzeug ist ein Editor-Fenster.
 
 | Datei | Ordner | Zweck |
 |---|---|---|
-| `.gitignore` | Repo-Wurzel | offizielle Unity-Vorlage (`github/gitignore`, unverändert) plus Aetherfall-Ergänzungen (Architektur 2.9) |
-| `.gitattributes` | Repo-Wurzel | Zeilenenden, Smart Merge für Unity-YAML, Git LFS für Binärdateien (geprüfte Fassung von Architektur 2.9, Änderungen im Kopfkommentar) |
-| `Aetherfall.EditorTools.Core.asmdef` | `Assets/_Project/Scripts/Editor/Core/` | Assembly Nr. 33, nur Editor, referenziert `Aetherfall.Core` und `Aetherfall.DevTools` |
+| `.gitignore` | Repo-Wurzel | sorgt dafür, dass Zwischenspeicher wie `Library/` nicht ins Repo kommen (Architektur 2.9) |
+| `.gitattributes` | Repo-Wurzel | Zeilenenden, Smart Merge für Unity-Dateien, Git LFS für große Dateien (Architektur 2.9) |
+| `Aetherfall.EditorTools.Core.asmdef` | `Assets/_Project/Scripts/Editor/Core/` | Assembly des Werkzeugs, nur im Editor. Referenziert nur `Aetherfall.Core` (Architektur 3.3, Nr. 33); das Overlay aus `Aetherfall.DevTools` findet Schritt e) über seinen Namen |
 | `ProjectSetupWindow.cs` | `Assets/_Project/Scripts/Editor/Core/` | das Fenster **Aetherfall > Projekt-Setup …** |
-| `SetupStep.cs`, `SetupStatus.cs`, `SetupStatuses.cs`, `SetupCheckItem.cs`, `SetupLog.cs`, `SetupPaths.cs`, `AssetFolderUtility.cs` | `Assets/_Project/Scripts/Editor/Core/` | Grundgerüst: Schritt-Basis, Status ✓/✗/–, Protokoll, feste Pfade, Ordner-Hilfen |
-| `PackageSetupStep.cs`, `PackageCatalog.cs`, `PackagePlanner.cs`, `PackagePlan.cs`, `PackageRequirement.cs`, `InstalledPackage.cs` | `Assets/_Project/Scripts/Editor/Core/` | Schritt a) Pakete (Planung als reine Logik) |
-| `ProjectSettingsSetupStep.cs`, `SettingRule.cs`, `ProductIdentity.cs` | `Assets/_Project/Scripts/Editor/Core/` | Schritt b) Einstellungen, Firmen-/Produktname |
+| `SetupStep.cs`, `SetupStatus.cs`, `SetupStatuses.cs`, `SetupCheckItem.cs`, `SetupLog.cs`, `SetupPaths.cs`, `AssetFolderUtility.cs` | `Assets/_Project/Scripts/Editor/Core/` | Grundgerüst: Schritte, ✓/✗/–, Protokoll, feste Pfade |
+| `PackageSetupStep.cs`, `PackageCatalog.cs`, `PackagePlanner.cs`, `PackagePlan.cs`, `PackageRequirement.cs`, `InstalledPackage.cs` | `Assets/_Project/Scripts/Editor/Core/` | Schritt a) Pakete |
+| `ProjectSettingsSetupStep.cs`, `SettingRule.cs`, `ProductIdentity.cs` | `Assets/_Project/Scripts/Editor/Core/` | Schritt b) Einstellungen, Firmen- und Produktname |
 | `FolderSetupStep.cs`, `ProjectFolderLayout.cs` | `Assets/_Project/Scripts/Editor/Core/` | Schritt c) Ordner aus Architektur 3.1 |
-| `TemplateCleanupStep.cs` | `Assets/_Project/Scripts/Editor/Core/` | Schritt d) Template aufräumen |
+| `TemplateCleanupStep.cs` | `Assets/_Project/Scripts/Editor/Core/` | Schritt d) Vorlage aufräumen |
 | `BootContentSetupStep.cs` | `Assets/_Project/Scripts/Editor/Core/` | Schritt e) Boot-Assets, Boot-Szene, Szenenliste |
-| `ProjectChecksStep.cs`, `GitRepositoryInspector.cs` | `Assets/_Project/Scripts/Editor/Core/` | Schritt f) Prüfungen (URP, Forward+, Git, LFS, UnityYAMLMerge) |
+| `ProjectChecksStep.cs`, `GitRepositoryInspector.cs` | `Assets/_Project/Scripts/Editor/Core/` | Schritt f) Prüfungen |
+| `PackagePlannerTests.cs` | `Assets/_Project/Tests/EditMode/` | automatische Tests der Paket-Planung von Schritt a) ([Anleitung 02, Abschnitt 4](./02_Test_Phase1_Fundament.md#4-editmode-tests-ausführen)) |
 | `01_Projekt-Setup.md` | `docs/Anleitungen/` | diese Anleitung |
 
-**Was das Werkzeug erzeugt** (im Editor, mit eigenen GUIDs): die Ordner aus Architektur 3.1 mit `.gitkeep`, `ArtSource/`, die Assets in `Assets/_Project/Settings/Boot/`, `Assets/_Project/Scenes/Boot/Boot.unity` und die Einträge in `ProjectSettings/`. Szenen, Assets und `.meta`-Dateien werden bewusst nicht von Hand ins Repository geschrieben.
-
-**Bewusste Entscheidungen:**
-
-| Thema | Entscheidung | Grund |
-|---|---|---|
-| Paketversionen | Installation ohne Versionsangabe, Unity trägt die exakte Version ins Manifest ein; vorhandene Pakete werden nie geändert | Architektur 1.4: maßgeblich ist, was der Package Manager unter 6.3 als „released“ anbietet; Abweichungen zur Planung werden nur gemeldet |
-| Indirekt installierte Pakete | werden mit ihrer aktuellen Version als direkte Abhängigkeit eingetragen (`name@version`) | kein unbemerkter Versionswechsel |
-| `TickRunner` | am GameObject `GameBootstrapper` (kein eigenes GameObject) | so beschreiben es `TickRunner.cs` und Anleitung 02, Abschnitt 3 |
-| Löschen | über den Papierkorb des Mac (`AssetDatabase.MoveAssetToTrash`) | wiederherstellbar |
-| Prüfung der Boot-Szene | über die Abhängigkeiten der Szene, ohne sie zu öffnen | der Status lässt die geöffnete Szene unangetastet |
-| URP-Prüfung | über den Typnamen, ohne Assembly-Referenz auf URP; Rendering Path über die öffentliche Eigenschaft `renderingMode` | das Editor-Werkzeug kompiliert auch, bevor Pakete installiert sind |
-| Git-Prüfungen | lesen Dateien (`.git/config`, Hooks, `~/.gitconfig`), starten kein `git` | Unity sieht auf dem Mac den Homebrew-Pfad oft nicht |
-| Active Input Handling | nur geprüft (über die Compiler-Symbole `ENABLE_INPUT_SYSTEM`/`ENABLE_LEGACY_INPUT_MANAGER`), nicht gesetzt | keine öffentliche Unity-API; keine Hacks über interne Felder |
+**Was in Unity entsteht** (mit eigenen GUIDs, nicht von Hand angelegt): `Packages/`, `ProjectSettings/`, alle `.meta`-Dateien, die Ordner aus Architektur 3.1 mit `.gitkeep`-Platzhaltern, `ArtSource/`, die Assets in `Assets/_Project/Settings/Boot/` und die Szene `Assets/_Project/Scenes/Boot/Boot.unity`.

@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using Aetherfall.Core;
-using Aetherfall.DevTools;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -20,7 +19,10 @@ namespace Aetherfall.EditorTools.Core
     /// completing an existing boot scene and replacing the scene list ask first.</para>
     /// <para>Scene layout (as described in docs/Anleitungen/02_Test_Phase1_Fundament.md, section 3): GameObject
     /// "GameBootstrapper" with <see cref="GameBootstrapper"/> and <see cref="TickRunner"/> (the field <c>tickRunner</c> points
-    /// to it), GameObject "DevTools" with <see cref="GameStateDebugOverlay"/>.</para>
+    /// to it), GameObject "DevTools" with the developer overlay <c>Aetherfall.DevTools.GameStateDebugOverlay</c>.</para>
+    /// <para>The overlay type is looked up by name (<see cref="OverlayTypeName"/>): this assembly (no. 33) may only reference
+    /// the assemblies 1–5 (architecture 3.3), not Aetherfall.DevTools (no. 32). If the type cannot be found, the step skips
+    /// the overlay and says so in the protocol.</para>
     /// </remarks>
     [Serializable]
     internal sealed class BootContentSetupStep : SetupStep
@@ -30,6 +32,11 @@ namespace Aetherfall.EditorTools.Core
         private const string TickRunnerField = "tickRunner";
         private const string InstallersField = "installers";
         private const string LogSettingsField = "logSettings";
+
+        // Assembly-qualified name of the overlay in Aetherfall.DevTools (resolved at runtime, see remarks).
+        private const string OverlayTypeName = "Aetherfall.DevTools.GameStateDebugOverlay, Aetherfall.DevTools";
+        private const string OverlayFullName = "Aetherfall.DevTools.GameStateDebugOverlay";
+        private const string OverlayDisplayName = "GameStateDebugOverlay";
 
         /// <inheritdoc />
         public override string Letter => "e";
@@ -161,7 +168,8 @@ namespace Aetherfall.EditorTools.Core
             string[] dependencies = AssetDatabase.GetDependencies(SetupPaths.BootScenePath, false);
             bool hasBootstrapper = UsesScript(dependencies, typeof(GameBootstrapper));
             bool hasTickRunner = UsesScript(dependencies, typeof(TickRunner));
-            bool hasOverlay = UsesScript(dependencies, typeof(GameStateDebugOverlay));
+            Type overlayType = FindOverlayType();
+            bool hasOverlay = overlayType != null && UsesScript(dependencies, overlayType);
             bool referencesBootConfig = Array.IndexOf(dependencies, SetupPaths.BootConfigAssetPath) >= 0;
 
             items.Add(new SetupCheckItem(SetupPaths.BootScenePath, SetupStatus.Done, "vorhanden"));
@@ -172,8 +180,10 @@ namespace Aetherfall.EditorTools.Core
                 "Hierarchy: GameBootstrapper > Inspector > Boot Config"));
             items.Add(new SetupCheckItem("Boot-Szene: TickRunner", hasTickRunner ? SetupStatus.Done : SetupStatus.Open,
                 hasTickRunner ? "vorhanden" : "fehlt – wird am GameBootstrapper ergänzt (nach Rückfrage)"));
-            items.Add(new SetupCheckItem("Boot-Szene: GameStateDebugOverlay", hasOverlay ? SetupStatus.Done : SetupStatus.Open,
-                hasOverlay ? "vorhanden" : "fehlt – wird als GameObject „DevTools“ ergänzt (nach Rückfrage)"));
+            items.Add(overlayType == null
+                ? new SetupCheckItem("Boot-Szene: " + OverlayDisplayName, SetupStatus.Unknown, DescribeMissingOverlayType())
+                : new SetupCheckItem("Boot-Szene: " + OverlayDisplayName, hasOverlay ? SetupStatus.Done : SetupStatus.Open,
+                    hasOverlay ? "vorhanden" : "fehlt – wird als GameObject „DevTools“ ergänzt (nach Rückfrage)"));
         }
 
         private static SetupCheckItem DescribeSceneList()
@@ -331,9 +341,10 @@ namespace Aetherfall.EditorTools.Core
             if (sceneExists)
             {
                 string[] dependencies = AssetDatabase.GetDependencies(SetupPaths.BootScenePath, false);
+                Type overlayType = FindOverlayType();
                 bool complete = UsesScript(dependencies, typeof(GameBootstrapper)) &&
                                 UsesScript(dependencies, typeof(TickRunner)) &&
-                                UsesScript(dependencies, typeof(GameStateDebugOverlay)) &&
+                                (overlayType == null || UsesScript(dependencies, overlayType)) &&
                                 Array.IndexOf(dependencies, SetupPaths.BootConfigAssetPath) >= 0;
                 if (complete)
                 {
@@ -401,14 +412,46 @@ namespace Aetherfall.EditorTools.Core
             FillEmptyReference(bootstrapper, BootConfigField, bootConfig, log);
             FillEmptyReference(bootstrapper, TickRunnerField, tickRunner, log);
 
-            if (FindInScene<GameStateDebugOverlay>(scene) == null)
+            Type overlayType = FindOverlayType();
+            if (overlayType == null)
+            {
+                log.Warning("e) " + OverlayDisplayName + " nicht angelegt: " + DescribeMissingOverlayType());
+            }
+            else if (FindInScene(scene, overlayType) == null)
             {
                 GameObject devTools = CreateGameObject(scene, SetupPaths.DevToolsObjectName);
-                devTools.AddComponent<GameStateDebugOverlay>();
-                log.Info("e) GameObject „" + SetupPaths.DevToolsObjectName + "“ mit GameStateDebugOverlay angelegt.");
+                devTools.AddComponent(overlayType);
+                log.Info("e) GameObject „" + SetupPaths.DevToolsObjectName + "“ mit " + OverlayDisplayName + " angelegt.");
             }
 
             EditorSceneManager.MarkSceneDirty(scene);
+        }
+
+        /// <summary>Finds the overlay type of Aetherfall.DevTools by name; null if that assembly is missing or failed to compile.</summary>
+        private static Type FindOverlayType()
+        {
+            Type type = Type.GetType(OverlayTypeName, false);
+            if (type != null)
+            {
+                return type;
+            }
+
+            // Fallback in case the assembly-qualified lookup does not resolve the assembly name.
+            foreach (Type candidate in TypeCache.GetTypesDerivedFrom<MonoBehaviour>())
+            {
+                if (candidate.FullName == OverlayFullName)
+                {
+                    return candidate;
+                }
+            }
+
+            return null;
+        }
+
+        private static string DescribeMissingOverlayType()
+        {
+            return "Der Typ " + OverlayFullName + " wurde nicht gefunden (Assembly Aetherfall.DevTools fehlt oder hat Compiler-Fehler). " +
+                   "Console auf rote Fehler prüfen; danach Schritt e) erneut ausführen.";
         }
 
         private static GameObject CreateGameObject(Scene scene, string name)
@@ -424,10 +467,15 @@ namespace Aetherfall.EditorTools.Core
 
         private static T FindInScene<T>(Scene scene) where T : Component
         {
+            return FindInScene(scene, typeof(T)) as T;
+        }
+
+        private static Component FindInScene(Scene scene, Type componentType)
+        {
             GameObject[] roots = scene.GetRootGameObjects();
             for (int i = 0; i < roots.Length; i++)
             {
-                T component = roots[i].GetComponentInChildren<T>(true);
+                Component component = roots[i].GetComponentInChildren(componentType, true);
                 if (component != null)
                 {
                     return component;

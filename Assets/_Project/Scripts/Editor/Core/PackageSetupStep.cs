@@ -14,14 +14,26 @@ namespace Aetherfall.EditorTools.Core
     /// The status is read asynchronously with <see cref="Client.List(bool, bool)"/>.
     /// </summary>
     /// <remarks>
-    /// Only missing packages are added (never re-added or upgraded), see <see cref="PackagePlanner"/>. After the
-    /// Package Manager has resolved the change, Unity recompiles and reloads the domain; the window then reads the
-    /// package list again on its own.
+    /// <para>Only missing packages are added (never re-added or upgraded), see <see cref="PackagePlanner"/>. After the
+    /// Package Manager has resolved the change, Unity recompiles and reloads the domain.</para>
+    /// <para><b>Domain reloads:</b> a reload discards the request objects and the polling callback. Therefore the
+    /// requested change (packages to add and remove, start time) and a pending "run after the list was read" are kept in
+    /// <see cref="SessionState"/>. After a reload the step never assumes success: it reads the package list again every
+    /// <see cref="VerifyIntervalSeconds"/> seconds until the change has arrived (log "a) abgeschlossen: …") or
+    /// <see cref="VerifyTimeoutSeconds"/> have passed (error with a hint to the Package Manager window). While it waits,
+    /// <see cref="IsBusy"/> stays true, so no second change can be started.</para>
     /// </remarks>
     [Serializable]
     internal sealed class PackageSetupStep : SetupStep
     {
-        private const string PendingChangeKey = "Aetherfall.ProjectSetup.PackageChangePending";
+        private const string PendingChangeKey = "Aetherfall.ProjectSetup.PendingPackageChange";
+        private const string PendingAddKey = "Aetherfall.ProjectSetup.PendingPackageChange.Add";
+        private const string PendingRemoveKey = "Aetherfall.ProjectSetup.PendingPackageChange.Remove";
+        private const string PendingSinceKey = "Aetherfall.ProjectSetup.PendingPackageChange.Since";
+        private const string RunAfterListKey = "Aetherfall.ProjectSetup.RunPackagesAfterList";
+        private const char ListSeparator = '\n';
+        private const double VerifyIntervalSeconds = 5.0;
+        private const double VerifyTimeoutSeconds = 15.0 * 60.0;
 
         [SerializeField] private bool removeTemplatePackages = true;
 
@@ -30,6 +42,9 @@ namespace Aetherfall.EditorTools.Core
         private List<InstalledPackage> _installed;
         private string _listError;
         private bool _runAfterList;
+        private bool _verifying;
+        private bool _waitingLogged;
+        private double _nextVerifyTime;
         private bool _pollingSubscribed;
         private SetupLog _log;
 
@@ -46,7 +61,7 @@ namespace Aetherfall.EditorTools.Core
             "Danach kompiliert Unity neu (dauert einige Minuten).";
 
         /// <inheritdoc />
-        public override bool IsBusy => _listRequest != null || _changeRequest != null;
+        public override bool IsBusy => _listRequest != null || _changeRequest != null || _verifying || _runAfterList;
 
         /// <inheritdoc />
         public override void Invalidate()
@@ -62,20 +77,40 @@ namespace Aetherfall.EditorTools.Core
         public override void OnWindowEnabled(SetupLog log)
         {
             _log = log;
+            _waitingLogged = false;
+
+            // Requests are started from the polling callback, not here: OnEnable also runs during domain reloads.
             if (SessionState.GetBool(PendingChangeKey, false))
             {
-                SessionState.EraseBool(PendingChangeKey);
-                log.Info("a) Unity hat nach der Paketänderung neu kompiliert. Die Paketliste wird neu gelesen – bitte den Status unten prüfen.");
+                _verifying = true;
+                _nextVerifyTime = 0.0;
+                StartPolling();
+                log.Info("a) Unity hat neu geladen, während eine Paketänderung lief. Das Fenster prüft jetzt, ob sie angekommen ist …");
+            }
+
+            if (SessionState.GetBool(RunAfterListKey, false))
+            {
+                _runAfterList = true;
+                StartPolling();
             }
         }
 
         /// <inheritdoc />
         public override void OnWindowDisabled()
         {
+            // Only the in-memory state is dropped; the SessionState entries continue the work after a domain reload.
             StopPolling();
             _listRequest = null;
             _changeRequest = null;
             _runAfterList = false;
+            _verifying = false;
+        }
+
+        /// <inheritdoc />
+        public override void OnWindowClosed()
+        {
+            // Closing the window cancels a pending start; the check of an already requested change continues next time.
+            SessionState.EraseBool(RunAfterListKey);
         }
 
         /// <inheritdoc />
@@ -91,7 +126,7 @@ namespace Aetherfall.EditorTools.Core
             if (_installed == null)
             {
                 log.Info("a) Lese die installierten Pakete (Client.List) …");
-                _runAfterList = true;
+                SetRunAfterList(true);
                 StartList();
                 return;
             }
@@ -120,7 +155,10 @@ namespace Aetherfall.EditorTools.Core
             {
                 EditorGUILayout.HelpBox(_changeRequest != null
                     ? "Der Package Manager installiert bzw. entfernt Pakete … Danach kompiliert Unity neu. Fenster bitte offen lassen."
-                    : "Paketliste wird gelesen …", MessageType.Info);
+                    : _verifying
+                        ? "Die Paketänderung wird geprüft: Das Fenster liest die Paketliste alle " + VerifyIntervalSeconds.ToString("0") +
+                          " s, bis alles angekommen ist (höchstens " + (VerifyTimeoutSeconds / 60.0).ToString("0") + " Minuten). Fenster bitte offen lassen."
+                        : "Paketliste wird gelesen …", MessageType.Info);
             }
         }
 
@@ -213,6 +251,7 @@ namespace Aetherfall.EditorTools.Core
 
         private void StartChanges(SetupLog log)
         {
+            SetRunAfterList(false);
             PackagePlan plan = PackagePlanner.CreatePlan(_installed, PackageCatalog.CreateRequiredPackages(), PackageCatalog.CreateRemovablePackages(), removeTemplatePackages);
             for (int i = 0; i < plan.Notes.Count; i++)
             {
@@ -254,7 +293,7 @@ namespace Aetherfall.EditorTools.Core
             }
 
             _changeRequest = Client.AddAndRemove(toAdd.Count > 0 ? toAdd.ToArray() : null, toRemove.Count > 0 ? toRemove.ToArray() : null);
-            SessionState.SetBool(PendingChangeKey, true);
+            SavePendingChange(toAdd, toRemove);
             StartPolling();
             log.Info("a) Der Package Manager arbeitet (je nach Internetverbindung einige Minuten). Danach kompiliert Unity neu; " +
                      "das Fenster liest den Paketstatus anschließend selbst neu.");
@@ -294,6 +333,13 @@ namespace Aetherfall.EditorTools.Core
                 CompleteChange();
             }
 
+            // Restored after a domain reload, or waiting for the next check of a requested change.
+            if (_listRequest == null && _changeRequest == null &&
+                (_runAfterList || (_verifying && EditorApplication.timeSinceStartup >= _nextVerifyTime)))
+            {
+                StartList();
+            }
+
             if (!IsBusy)
             {
                 StopPolling();
@@ -320,18 +366,28 @@ namespace Aetherfall.EditorTools.Core
             {
                 _installed = null;
                 _listError = request.Error != null ? request.Error.message : "unbekannter Fehler";
-                _runAfterList = false;
-                if (_log != null)
+                if (!_verifying)
                 {
-                    _log.Error("a) Paketliste konnte nicht gelesen werden: " + _listError);
+                    // While verifying, a failed read is simply retried (the Package Manager may still be busy).
+                    SetRunAfterList(false);
+                    if (_log != null)
+                    {
+                        _log.Error("a) Paketliste konnte nicht gelesen werden: " + _listError);
+                    }
                 }
             }
 
             Refresh();
 
+            if (_verifying && _changeRequest == null)
+            {
+                VerifyPendingChange();
+                return;
+            }
+
             if (_runAfterList && _installed != null)
             {
-                _runAfterList = false;
+                SetRunAfterList(false);
                 if (_log != null)
                 {
                     StartChanges(_log);
@@ -343,34 +399,139 @@ namespace Aetherfall.EditorTools.Core
         {
             AddAndRemoveRequest request = _changeRequest;
             _changeRequest = null;
-            SessionState.EraseBool(PendingChangeKey);
+            _installed = null;
 
-            if (_log != null)
+            if (request.Status == StatusCode.Success)
             {
-                if (request.Status == StatusCode.Success)
-                {
-                    var names = new List<string>();
-                    foreach (UpmPackageInfo info in request.Result)
-                    {
-                        if (info.isDirectDependency)
-                        {
-                            names.Add(info.name + "@" + info.version);
-                        }
-                    }
+                // Confirmed against Client.List like after a domain reload, so both paths end with the same log line.
+                WriteLog("a) Package Manager fertig. Das Ergebnis wird mit der Paketliste abgeglichen …", false);
+                _verifying = true;
+                _nextVerifyTime = 0.0;
+                return;
+            }
 
-                    _log.Info("a) Package Manager fertig. Gemeldete direkte Pakete: " + (names.Count > 0 ? string.Join(", ", names) : "-") +
-                              ". Unity kompiliert jetzt neu.");
-                }
-                else
+            ClearPendingChange();
+            string message = request.Error != null ? request.Error.message : "unbekannter Fehler";
+            WriteLog("a) Paketänderung fehlgeschlagen: " + message +
+                " – Internetverbindung und Unity-Anmeldung im Hub prüfen, dann erneut ausführen (Anleitung 01, Abschnitt 10).", true);
+            StartList();
+        }
+
+        private void VerifyPendingChange()
+        {
+            double now = EditorApplication.timeSinceStartup;
+            double since = SessionState.GetFloat(PendingSinceKey, (float)now);
+            List<string> added = ReadList(PendingAddKey);
+            List<string> removed = ReadList(PendingRemoveKey);
+
+            List<string> outstanding = null;
+            if (_installed != null)
+            {
+                outstanding = PackagePlanner.FindOutstandingChanges(_installed, added, removed);
+                if (outstanding.Count == 0)
                 {
-                    string message = request.Error != null ? request.Error.message : "unbekannter Fehler";
-                    _log.Error("a) Paketänderung fehlgeschlagen: " + message +
-                               " – Internetverbindung und Unity-Anmeldung im Hub prüfen, dann erneut ausführen (Anleitung 01, Fehlerbehebung).");
+                    ClearPendingChange();
+                    WriteLog("a) abgeschlossen: " + DescribeAppliedChange(added, removed) + ".", false);
+                    return;
                 }
             }
 
-            _installed = null;
-            StartList();
+            string open = outstanding != null ? string.Join(", ", outstanding) : "Paketliste nicht lesbar (" + _listError + ")";
+            if (now - since > VerifyTimeoutSeconds)
+            {
+                ClearPendingChange();
+                WriteLog("a) Paketänderung nach " + (VerifyTimeoutSeconds / 60.0).ToString("0") + " Minuten nicht bestätigt. Noch offen: " + open +
+                    ". Bitte Window > Package Manager öffnen und dort nach Fehlermeldungen sehen (Internet, Anmeldung im Hub), " +
+                    "dann a) erneut ausführen (Anleitung 01, Abschnitt 10).", true);
+                return;
+            }
+
+            if (!_waitingLogged)
+            {
+                _waitingLogged = true;
+                WriteLog("a) Noch nicht angekommen: " + open + ". Das Fenster prüft alle " + VerifyIntervalSeconds.ToString("0") + " s erneut (höchstens " +
+                    (VerifyTimeoutSeconds / 60.0).ToString("0") + " Minuten).", false);
+            }
+
+            _nextVerifyTime = now + VerifyIntervalSeconds;
+        }
+
+        private string DescribeAppliedChange(List<string> added, List<string> removed)
+        {
+            var parts = new List<string>();
+            if (added.Count > 0)
+            {
+                var names = new List<string>(added.Count);
+                for (int i = 0; i < added.Count; i++)
+                {
+                    string name = PackagePlanner.GetPackageName(added[i]);
+                    names.Add(PackagePlanner.TryFind(_installed, name, out InstalledPackage package) ? name + "@" + package.Version : name);
+                }
+
+                parts.Add("installiert " + string.Join(", ", names));
+            }
+
+            if (removed.Count > 0)
+            {
+                parts.Add("entfernt " + string.Join(", ", removed));
+            }
+
+            return parts.Count > 0 ? string.Join(" · ", parts) : "keine Änderung";
+        }
+
+        private void SavePendingChange(List<string> added, List<string> removed)
+        {
+            SessionState.SetString(PendingAddKey, string.Join(ListSeparator.ToString(), added));
+            SessionState.SetString(PendingRemoveKey, string.Join(ListSeparator.ToString(), removed));
+            SessionState.SetFloat(PendingSinceKey, (float)EditorApplication.timeSinceStartup);
+            SessionState.SetBool(PendingChangeKey, true);
+            _waitingLogged = false;
+        }
+
+        private void ClearPendingChange()
+        {
+            SessionState.EraseBool(PendingChangeKey);
+            SessionState.EraseString(PendingAddKey);
+            SessionState.EraseString(PendingRemoveKey);
+            SessionState.EraseFloat(PendingSinceKey);
+            _verifying = false;
+            _waitingLogged = false;
+        }
+
+        private void SetRunAfterList(bool value)
+        {
+            _runAfterList = value;
+            if (value)
+            {
+                SessionState.SetBool(RunAfterListKey, true);
+            }
+            else
+            {
+                SessionState.EraseBool(RunAfterListKey);
+            }
+        }
+
+        private static List<string> ReadList(string key)
+        {
+            string text = SessionState.GetString(key, string.Empty);
+            return new List<string>(text.Split(new[] { ListSeparator }, StringSplitOptions.RemoveEmptyEntries));
+        }
+
+        private void WriteLog(string message, bool isError)
+        {
+            if (_log == null)
+            {
+                return;
+            }
+
+            if (isError)
+            {
+                _log.Error(message);
+            }
+            else
+            {
+                _log.Info(message);
+            }
         }
     }
 }

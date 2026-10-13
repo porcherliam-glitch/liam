@@ -91,6 +91,14 @@ namespace Aetherfall.EditorTools.Core
         {
         }
 
+        /// <summary>
+        /// Called when the user closes the window (not on domain reloads): cancel work that would otherwise continue
+        /// from <see cref="UnityEditor.SessionState"/> the next time the window opens.
+        /// </summary>
+        public virtual void OnWindowClosed()
+        {
+        }
+
         /// <summary>Adds the checklist items of this step.</summary>
         /// <param name="items">List to fill.</param>
         protected abstract void CollectItems(List<SetupCheckItem> items);

@@ -7,10 +7,17 @@ namespace Aetherfall.Core
     /// Added at runtime by <see cref="GameBootstrapper"/> only in that case, so normal runs pay no IMGUI cost.
     /// Works without any other service (no localization, no UI framework), mouse only.
     /// </summary>
+    /// <remarks>
+    /// Drawn above every other IMGUI script (<see cref="GuiDepth"/>, e.g. the developer overlay) and swallows the mouse
+    /// events it does not use itself, so nothing underneath can be clicked while the screen is shown.
+    /// </remarks>
     [DisallowMultipleComponent]
     [AddComponentMenu("")]
     public sealed class BootFailureScreen : MonoBehaviour
     {
+        /// <summary>IMGUI depth of the screen. Lower values are drawn on top and receive input first (default 0).</summary>
+        public const int GuiDepth = -1000;
+
         private const float ReferenceHeight = 1080f;
 
         private string _message = string.Empty;
@@ -31,6 +38,7 @@ namespace Aetherfall.Core
 
         private void OnGUI()
         {
+            GUI.depth = GuiDepth;
             EnsureStyles();
 
             float scale = Mathf.Max(1f, Screen.height / ReferenceHeight);
@@ -58,6 +66,13 @@ namespace Aetherfall.Core
             }
 
             GUILayout.EndArea();
+
+            // The screen covers everything: mouse input must not reach (invisible) controls of other IMGUI scripts.
+            Event current = Event.current;
+            if (current.isMouse || current.type == EventType.ScrollWheel)
+            {
+                current.Use();
+            }
         }
 
         private void EnsureStyles()

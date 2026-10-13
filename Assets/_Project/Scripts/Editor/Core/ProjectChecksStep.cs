@@ -72,7 +72,7 @@ namespace Aetherfall.EditorTools.Core
             }
 
             string yamlMergePath = GetYamlMergePath();
-            EditorGUILayout.HelpBox("Im Terminal im Projektordner ausführen (Anleitung 01, Abschnitt 4.3). Der Pfad gehört zum gerade laufenden Editor; " +
+            EditorGUILayout.HelpBox("In GitHub Desktop Repository > Open in Terminal wählen und dort ausführen (Anleitung 01, Anhang A). Der Pfad gehört zum gerade laufenden Editor; " +
                                     "nach einem Editor-Update die Befehle erneut ausführen.", MessageType.Info);
             commandScroll = EditorGUILayout.BeginScrollView(commandScroll, GUILayout.Height(190f));
             DrawCommandBlock("1. Merge-Tool (Unity-Manual „Smart Merge“, empfohlen):", GitRepositoryInspector.BuildYamlMergeToolCommands(yamlMergePath));
@@ -236,7 +236,7 @@ namespace Aetherfall.EditorTools.Core
             items.Add(hasRepository
                 ? new SetupCheckItem("Git-Repository", SetupStatus.Done, root)
                 : new SetupCheckItem("Git-Repository", SetupStatus.Open,
-                    "Der Projektordner ist noch kein Git-Repository. Anleitung 01, Abschnitt 4 (Repo in den Projektordner holen)."));
+                    "Der Projektordner ist noch kein Git-Repository. Das Projekt aus Dokumente/GitHub/liam öffnen (Anleitung 01, Abschnitte 2, 4 und 5)."));
 
             bool attributes = GitRepositoryInspector.AttributesUseLfs(root);
             bool lfsConfigured = GitRepositoryInspector.IsLfsConfigured(root, home);
@@ -244,7 +244,7 @@ namespace Aetherfall.EditorTools.Core
             string lfsDetail = attributes && lfsConfigured
                 ? ".gitattributes nutzt LFS, Git LFS ist eingerichtet. Nach dem ersten Commit mit „git lfs ls-files“ prüfen."
                 : (!attributes ? ".gitattributes fehlt oder enthält keine LFS-Regeln. " : string.Empty) +
-                  (!lfsConfigured ? "Git LFS ist nicht eingerichtet: im Terminal „brew install git-lfs“ und danach im Projektordner „git lfs install“. " : string.Empty) +
+                  (!lfsConfigured ? "Git LFS ist nicht eingerichtet: GitHub Desktop beenden und neu starten (es richtet Git LFS beim Start ein), bei „Initialize Git LFS“ zustimmen, dann „Status aktualisieren“ (Anleitung 01, Abschnitt 6.5 C). " : string.Empty) +
                   "Ohne LFS landen Texturen, Audio und Modelle direkt in Git (Repo wird riesig).";
             items.Add(new SetupCheckItem("Git LFS", lfsStatus, lfsDetail));
 
@@ -257,7 +257,7 @@ namespace Aetherfall.EditorTools.Core
             items.Add(new SetupCheckItem("UnityYAMLMerge in der lokalen Git-Konfiguration", mergeConfigured ? SetupStatus.Done : SetupStatus.Unknown,
                 mergeConfigured
                     ? "eingetragen (.git/config)"
-                    : "noch nicht eingetragen – Empfehlung. Befehle über „Git-Befehle … anzeigen“ oben kopieren (Anleitung 01, Abschnitt 4.3)."));
+                    : "noch nicht eingetragen – Empfehlung für später. Befehle über „Git-Befehle … anzeigen“ oben kopieren (Anleitung 01, Anhang A)."));
         }
 
         private static string GetYamlMergePath()

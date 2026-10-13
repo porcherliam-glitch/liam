@@ -23,6 +23,22 @@ namespace Aetherfall.EditorTools.Core
         [SerializeField] private string productName = string.Empty;
         [SerializeField] private bool identityInitialized;
 
+        /// <summary>
+        /// True if Active Input Handling is "Input System Package (New)" (only the new input system is enabled). Read from the
+        /// compiler defines of the editor, which follow this player setting.
+        /// </summary>
+        public static bool IsNewInputSystemOnly
+        {
+            get
+            {
+#if ENABLE_INPUT_SYSTEM && !ENABLE_LEGACY_INPUT_MANAGER
+                return true;
+#else
+                return false;
+#endif
+            }
+        }
+
         /// <inheritdoc />
         public override string Letter => "b";
 

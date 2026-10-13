@@ -2,8 +2,7 @@
     "name": "Aetherfall.EditorTools.Core",
     "rootNamespace": "Aetherfall.EditorTools.Core",
     "references": [
-        "Aetherfall.Core",
-        "Aetherfall.DevTools"
+        "Aetherfall.Core"
     ],
     "includePlatforms": [
         "Editor"

@@ -8,16 +8,29 @@ namespace Aetherfall.Core
     /// time scale changes go through <see cref="ITimeScaleService"/>, notifications through <see cref="IEventBus"/>.
     /// </summary>
     /// <remarks>
-    /// Order of a successful change: update base state/modal stack → log → set time scale → publish
-    /// <see cref="GameStateChanged"/>. Handlers may request further changes; those are applied immediately
-    /// (state is already consistent), and their events are delivered nested.
+    /// <para>Order of a successful change: update base state/modal stack → log → set time scale → publish
+    /// <see cref="GameStateChanged"/>.</para>
+    /// <para><b>Changes requested by handlers:</b> a <see cref="GameStateChanged"/> handler may call
+    /// <see cref="SwitchBase"/>, <see cref="Push"/> or <see cref="Pop"/>. The change itself (state, log, time scale) is
+    /// applied immediately, but its event is queued and published only after the current event has reached all handlers.
+    /// So every handler receives the events in chronological order, and the last event it received always matches
+    /// <see cref="Current"/> (Input, UI, Audio and GameTime align themselves with the last event, architecture 4.3).
+    /// The queue is preallocated; publishing stays allocation-free.</para>
+    /// <para><b>Endless loops:</b> at most <see cref="MaxFollowUpChanges"/> changes requested by handlers are delivered
+    /// per outer change. Further queued events are dropped with an error log (the same protection the event bus applies
+    /// to nested publishing).</para>
     /// </remarks>
     public sealed class GameStateService : IGameStateService
     {
+        /// <summary>Maximum number of follow-up changes (requested by event handlers) delivered per outer change.</summary>
+        public const int MaxFollowUpChanges = 8;
+
         private readonly IEventBus _eventBus;
         private readonly ITimeScaleService _timeScale;
         private readonly List<GameState> _modalStack = new List<GameState>(4);
+        private readonly Queue<GameStateChanged> _pendingEvents = new Queue<GameStateChanged>(MaxFollowUpChanges + 1);
         private GameState _baseState = GameState.Boot;
+        private bool _publishing;
 
         /// <summary>Creates the service in state <see cref="GameState.Boot"/> and applies its time scale (1).</summary>
         /// <param name="eventBus">Bus for <see cref="GameStateChanged"/>.</param>
@@ -156,8 +169,44 @@ namespace Aetherfall.Core
 
             _timeScale.SetTimeScale(timeScale);
 
-            var changed = new GameStateChanged(previous, current);
-            _eventBus.Publish(in changed);
+            _pendingEvents.Enqueue(new GameStateChanged(previous, current));
+            if (_publishing)
+            {
+                // Requested by a handler: the outer call publishes it after the current event (chronological order).
+                return;
+            }
+
+            PublishPendingEvents();
+        }
+
+        private void PublishPendingEvents()
+        {
+            _publishing = true;
+            try
+            {
+                int delivered = 0;
+                while (_pendingEvents.Count > 0)
+                {
+                    if (delivered > MaxFollowUpChanges)
+                    {
+                        Log.Error(LogCategory.GameState,
+                            "Dropped " + _pendingEvents.Count + " GameStateChanged event(s): GameStateChanged handlers requested more than " +
+                            MaxFollowUpChanges + " follow-up state changes (possible endless loop). Current: " + Current +
+                            ". Check handlers that call SwitchBase/Push/Pop.");
+                        break;
+                    }
+
+                    GameStateChanged changed = _pendingEvents.Dequeue();
+                    _eventBus.Publish(in changed);
+                    delivered++;
+                }
+            }
+            finally
+            {
+                // Normally already empty. Not empty after the loop protection or an exception: those events are stale.
+                _pendingEvents.Clear();
+                _publishing = false;
+            }
         }
 
         private void LogRejected(string operation, GameState requested, string reason, string why)
