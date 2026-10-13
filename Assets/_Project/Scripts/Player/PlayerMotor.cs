@@ -19,7 +19,8 @@ namespace Aetherfall.Player
     /// <para>Stamina: with a <see cref="CharacterStatsComponent"/> in the field "Stats" sprinting and jumping use its stamina
     /// pool (GDD 03 3.1/4.3, see <see cref="PlayerMovementModel"/>); without one the stamina is unlimited.</para>
     /// <para>Combat limits (attacks, blocking, dodge roll, lock-on strafing, local hitstop) arrive through
-    /// <see cref="SetMovementOverride"/> from the player combat controller.</para>
+    /// <see cref="SetMovementOverride"/> from the player combat controller; load limits through <see cref="SetLoadLimits"/>
+    /// and the stat MoveSpeed (equipment, overload) from the stats.</para>
     /// <para>TODO: animation parameters (Animator step), climbing, swimming, gliding.</para>
     /// </remarks>
     [RequireComponent(typeof(CharacterController))]
@@ -53,6 +54,9 @@ namespace Aetherfall.Player
         private PlayerMovementOverride _limits;
         private bool _frozen;
         private bool _warnedNoCamera;
+        private float _loadMaxSpeed;
+        private bool _loadBlocksSprint;
+        private bool _loadBlocksJump;
 
         /// <summary>The movement model (read-only use: speed, gait, states for animation, UI and debug tools).</summary>
         public PlayerMovementModel Model => _model;
@@ -87,6 +91,21 @@ namespace Aetherfall.Player
         {
             _limits = limits;
             _frozen = frozen;
+        }
+
+        /// <summary>
+        /// Sets the limits of the carried load (GDD 04 1.3, GDD 03 3.1): highest ground speed (0 = none; overloaded 3 m/s,
+        /// heavily 1.5 m/s), no sprint, no jump. Called by the player's equipment bridge whenever the load stage changes; the
+        /// speed penalty itself arrives through the stat MoveSpeed.
+        /// </summary>
+        /// <param name="maxSpeed">Highest ground speed in m/s; 0 or less = no limit.</param>
+        /// <param name="blockSprint">True: no sprint.</param>
+        /// <param name="blockJump">True: no jump.</param>
+        public void SetLoadLimits(float maxSpeed, bool blockSprint, bool blockJump)
+        {
+            _loadMaxSpeed = maxSpeed > 0f ? maxSpeed : 0f;
+            _loadBlocksSprint = blockSprint;
+            _loadBlocksJump = blockJump;
         }
 
         /// <summary>Current pose (feet position and yaw) for saving.</summary>
@@ -204,6 +223,7 @@ namespace Aetherfall.Player
             }
 
             PlayerMovementOverride limits = _limits;
+            ApplyLoadLimits(ref limits);
             bool frozen = _frozen;
             _limits = default;
             _frozen = false;
@@ -217,6 +237,12 @@ namespace Aetherfall.Player
             PlayerMovementInput input = _pendingInput;
             input.CameraYaw = GetCameraYaw();
             _pendingInput = default;
+
+            if (stats != null)
+            {
+                // GDD 03 10.3 "Bewegungstempo 100 % + Boni": equipment and overload change it through modifiers.
+                _model.SpeedMultiplier = stats.Stats.Get(StatId.MoveSpeed);
+            }
 
             GroundContact ground = ProbeGround();
             bool wasGrounded = _model.IsGrounded;
@@ -234,6 +260,24 @@ namespace Aetherfall.Player
             }
 
             transform.rotation = Quaternion.Euler(0f, _model.Yaw, 0f);
+        }
+
+        private void ApplyLoadLimits(ref PlayerMovementOverride limits)
+        {
+            if (_loadBlocksSprint)
+            {
+                limits.BlockSprint = true;
+            }
+
+            if (_loadBlocksJump)
+            {
+                limits.BlockJump = true;
+            }
+
+            if (_loadMaxSpeed > 0f)
+            {
+                limits.SpeedLimit = limits.SpeedLimit > 0f ? Mathf.Min(limits.SpeedLimit, _loadMaxSpeed) : _loadMaxSpeed;
+            }
         }
 
         private float GetCameraYaw()

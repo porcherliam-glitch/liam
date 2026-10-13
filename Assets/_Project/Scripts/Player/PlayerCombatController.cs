@@ -19,8 +19,10 @@ namespace Aetherfall.Player
     /// <remarks>
     /// <para>GameObject: the player root next to <see cref="PlayerMotor"/>, <see cref="Combatant"/>, <see cref="Hitbox"/> and
     /// <see cref="PlayerLockOn"/>. Runs after the input reader and before the motor (execution order -40).</para>
-    /// <para>Armor: until the inventory exists, the field "Test-Ruestung" adds a flat armor modifier (GDD 03 8.3 example:
-    /// 60). On the gamepad LB + Y is the weapon art: while Block is held, a heavy attack press is ignored (weapon art comes
+    /// <para>Equipment: the weapon damage W comes from the equipped main hand weapon and the block values from the equipped
+    /// shield (<see cref="ApplyEquipment"/>, called by <see cref="PlayerEquipment"/>); armor comes from the equipped armor
+    /// as stat modifiers (Inventory). The weapon asset here only gives the moveset of the weapon type. The roll profile follows
+    /// the armor class and the load (<see cref="SetRollProfile"/>). On the gamepad LB + Y is the weapon art: while Block is held, a heavy attack press is ignored (weapon art comes
     /// later, GDD 03 5.1), except in the counter window after a parry, where it is the counter (GDD 03 4.8).</para>
     /// <para>Outside of <c>Playing</c> (pause, menu, dialogue) no presses reach the state machine, but held buttons stay held,
     /// so a pause neither releases a charged attack nor drops the guard. The combat state of the combat service ("in
@@ -35,8 +37,6 @@ namespace Aetherfall.Player
     [DisallowMultipleComponent]
     public sealed class PlayerCombatController : MonoBehaviour, ICombatantController, IHitWindowReceiver, ICombatDebugSource
     {
-        private const string ArmorSourceId = "test:ruestung";
-
         [Tooltip("Bewegung der Figur. Leer = PlayerMotor am selben GameObject.")]
         [SerializeField] private PlayerMotor motor = null;
 
@@ -56,18 +56,14 @@ namespace Aetherfall.Player
         [SerializeField] private Transform cameraTransform = null;
 
         [Header("Daten")]
-        [Tooltip("Waffe mit Moveset (Assets/_Project/Data/Combat/Weapons/…). Pflichtfeld.")]
+        [Tooltip("Bewegungsset des Waffentyps (Assets/_Project/Data/Combat/Weapons/…). Pflichtfeld. Den Waffenschaden liefert die angelegte Waffe.")]
         [SerializeField] private WeaponDefinition weapon = null;
 
-        [Tooltip("Schild in der Nebenhand (optional). Leer = die Waffe blockt.")]
+        [Tooltip("Schild-Werte ohne Ausrüstungs-System (optional). Mit PlayerEquipment kommen die Blockwerte vom angelegten Schild.")]
         [SerializeField] private ShieldDefinition shield = null;
 
         [Tooltip("Kampf-Regeln (Assets/_Project/Settings/Combat/CombatSettings.asset). Leer = Werte aus GDD 03.")]
         [SerializeField] private CombatSettings settings = null;
-
-        [Header("Platzhalter bis Inventar/Ausrüstung")]
-        [Tooltip("Test-Rüstung: fester Rüstungswert bis zum Ausrüstungs-System (GDD 03, 8.3: Krieger mit Rüstung 60).")]
-        [Min(0f)] [SerializeField] private float testArmor = 60f;
 
         [Header("Zielhilfe (GDD 03, 2.3)")]
         [Tooltip("Soft-Lock ohne Lock-On: Angriffe drehen die Figur zum nächsten Gegner in dieser Entfernung (3 m).")]
@@ -82,6 +78,7 @@ namespace Aetherfall.Player
         private CombatStateMachine _machine;
         private CombatTuning _tuning;
         private WeaponSpec _weapon;
+        private BlockSpec _weaponBlock = BlockSpec.OneHandedWeapon;
         private IGameplayInput _gameplay;
         private IGameStateService _gameState;
         private ICombatService _service;
@@ -95,6 +92,12 @@ namespace Aetherfall.Player
 
         /// <summary>The combat state machine (read-only use: weapon pose, overlays); null if the setup is invalid.</summary>
         public CombatStateMachine StateMachine => _machine;
+
+        /// <summary>Weapon damage W in use (GDD 03 8.2 step 1); 0 before the setup.</summary>
+        public float WeaponDamage => _weapon != null ? _weapon.BaseDamage : 0f;
+
+        /// <summary>Attribute weights of the weapon type (for the displayed attack value).</summary>
+        public AttributeScaling WeaponScaling => _weapon != null ? _weapon.Scaling : AttributeScaling.None;
 
         /// <summary>Type id of the last enemy that hit the player (for <c>PlayerDied</c>).</summary>
         public string LastAttackerTypeId { get; private set; } = string.Empty;
@@ -203,6 +206,34 @@ namespace Aetherfall.Player
             }
         }
 
+        /// <summary>
+        /// Sets what the equipment gives the combat (architecture 11.6 → Combat): weapon damage W of the main hand weapon and
+        /// the block values of the shield in the off hand (without shield the weapon blocks with its own values, GDD 03 4.7).
+        /// </summary>
+        /// <param name="weaponDamage">W of the equipped weapon (unarmed: a small value).</param>
+        /// <param name="hasShield">True if a shield is equipped.</param>
+        /// <param name="shieldBlock">Block values of the shield (ignored without shield).</param>
+        public void ApplyEquipment(float weaponDamage, bool hasShield, in BlockSpec shieldBlock)
+        {
+            if (_weapon == null)
+            {
+                return;
+            }
+
+            _weapon.BaseDamage = Mathf.Max(0f, weaponDamage);
+            _weapon.Block = hasShield ? shieldBlock : _weaponBlock;
+        }
+
+        /// <summary>Sets the dodge roll profile (armor class light/medium/heavy, overloaded = dodge step only, GDD 03 3.2).</summary>
+        /// <param name="profile">Roll profile.</param>
+        public void SetRollProfile(in DodgeProfile profile)
+        {
+            if (_tuning != null && profile.Duration > 0f)
+            {
+                _tuning.Roll = profile;
+            }
+        }
+
         /// <summary>Back to ready after a respawn: state machine, knockback, combatant (health, poise) and lock-on reset.</summary>
         public void ResetAfterRespawn()
         {
@@ -269,6 +300,12 @@ namespace Aetherfall.Player
                 return;
             }
 
+            WeaponSpec shieldless = weapon.CreateSpec(null, out _);
+            if (shieldless != null)
+            {
+                _weaponBlock = shieldless.Block;
+            }
+
             ResourcePool stamina = stats != null ? stats.Stamina : null;
             float stability = stats != null ? stats.Stats.Get(StatId.Poise) : 20f;
             try
@@ -280,11 +317,6 @@ namespace Aetherfall.Player
                 Log.Error(LogCategory.Player, "PlayerCombatController: " + exception.Message);
                 enabled = false;
                 return;
-            }
-
-            if (stats != null && testArmor > 0f)
-            {
-                stats.Stats.AddModifier(StatModifier.Flat(StatId.Armor, testArmor, ArmorSourceId));
             }
 
             combatant.SetController(this);

@@ -18,7 +18,9 @@ namespace Aetherfall.Player
     /// jump needs more than 0 and costs 10 (never below 0). Without a pool the stamina is unlimited. The pool's owner
     /// ticks the regeneration (25 per second after 0.8 s).
     /// Combat (dodge roll, attack lunge, blocking speed, lock-on strafing) comes in through <see cref="PlayerMovementOverride"/>.
-    /// TODO (later steps): climbing, swimming, gliding, overload limits, fall damage.</para>
+    /// The stat <c>MoveSpeed</c> scales the ground speeds (<see cref="SpeedMultiplier"/>); overload limits (max. speed, no
+    /// sprint, no jump) arrive as limits from the motor.
+    /// TODO (later steps): climbing, swimming, gliding, fall damage.</para>
     /// </remarks>
     public sealed class PlayerMovementModel
     {
@@ -43,6 +45,7 @@ namespace Aetherfall.Player
         private float _airReferenceX;
         private float _airReferenceZ;
         private float _yaw;
+        private float _speedMultiplier = 1f;
 
         /// <summary>Creates the model standing still, facing <paramref name="yaw"/>, not yet grounded.</summary>
         /// <param name="tuning">Tuning values (GDD 03 3.1); validated.</param>
@@ -111,6 +114,16 @@ namespace Aetherfall.Player
 
         /// <summary>Gait of the last step.</summary>
         public PlayerGait Gait { get; private set; }
+
+        /// <summary>
+        /// Factor on the ground speeds from the stat <c>MoveSpeed</c> (1 = 100 %; equipment "+% Bewegungstempo", overload
+        /// −40 %/−60 %, GDD 03 10.3, GDD 04 1.3). Set by the motor every frame; never below 0.
+        /// </summary>
+        public float SpeedMultiplier
+        {
+            get => _speedMultiplier;
+            set => _speedMultiplier = value > 0f ? value : 0f;
+        }
 
         /// <summary>Stops all movement and sets the facing (teleport, respawn). The next step starts airborne.</summary>
         /// <param name="yaw">New facing in degrees.</param>
@@ -238,6 +251,7 @@ namespace Aetherfall.Player
                     _tuning.RunSpeed, _tuning.StrafeSideSpeed, _tuning.StrafeBackSpeed));
             }
 
+            speed *= _speedMultiplier;
             if (limits.SpeedLimit > 0f)
             {
                 speed = Math.Min(speed, limits.SpeedLimit);

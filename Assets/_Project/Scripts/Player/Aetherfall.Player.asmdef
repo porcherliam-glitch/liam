@@ -8,6 +8,8 @@
         "Aetherfall.SaveSystem",
         "Aetherfall.Input",
         "Aetherfall.Stats",
+        "Aetherfall.Items",
+        "Aetherfall.Inventory",
         "Aetherfall.Combat"
     ],
     "includePlatforms": [],
