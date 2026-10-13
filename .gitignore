@@ -142,3 +142,6 @@ InitTestScene*.unity*
 /Tools/Harness/**/bin/
 /Tools/Harness/**/obj/
 /Tools/node_modules/
+
+# --- Claude-Arbeitskopien (Git-Worktrees) nie einchecken ---
+/.claude/worktrees/
