@@ -8,8 +8,8 @@ namespace Aetherfall.Tests.EditMode.Inventory
 {
     /// <summary>
     /// <see cref="InventoryContainer"/> (GDD 04 2.1/2.2): stacking up to the stack size, new stacks with own ids, one entry per
-    /// equipment piece, the limit of 1000 entries, weight, taking and removing (smallest stacks first), and the sorting and
-    /// filtering of <see cref="InventorySorting"/>.
+    /// equipment piece (also for a count above 1), the limit of 1000 entries, splitting instead of cutting when loading,
+    /// weight, taking and removing (smallest stacks first), and the sorting and filtering of <see cref="InventorySorting"/>.
     /// </summary>
     [TestFixture]
     public sealed class InventoryContainerTests
@@ -80,6 +80,65 @@ namespace Aetherfall.Tests.EditMode.Inventory
             Assert.That(_bag.TryAdd(Create(InventoryTestItems.IronRing)), Is.False);
             Assert.That(_bag.TryAdd(Create(InventoryTestItems.WolfFur)), Is.False, "a new stack would need entry 1001");
             Assert.That(_bag.Entries.Count, Is.EqualTo(InventoryContainer.MaxEntries));
+        }
+
+        [Test]
+        public void SingleItems_WithACountAboveOne_BecomeOneEntryPerPiece()
+        {
+            ItemInstance swords = Create(InventoryTestItems.Sword, 3);
+            string firstId = swords.InstanceId;
+            _catalog.TryGetItem(InventoryTestItems.Sword, out ItemSpec spec);
+
+            Assert.That(_bag.EntriesNeeded(swords), Is.EqualTo(3));
+            Assert.That(_bag.TryAdd(swords), Is.True);
+
+            Assert.That(_bag.Entries.Count, Is.EqualTo(3));
+            Assert.That(_bag.Entries[0].InstanceId, Is.EqualTo(firstId), "the instance itself is the first piece");
+            Assert.That(_bag.Entries[1].InstanceId, Is.Not.EqualTo(firstId));
+            Assert.That(_bag.Entries[2].InstanceId, Is.Not.EqualTo(_bag.Entries[1].InstanceId));
+            for (int i = 0; i < 3; i++)
+            {
+                Assert.That(_bag.Entries[i].Count, Is.EqualTo(1));
+                Assert.That(ItemInstanceIds.IsValid(_bag.Entries[i].InstanceId), Is.True);
+            }
+
+            Assert.That(_bag.CountOf(InventoryTestItems.Sword), Is.EqualTo(3));
+            Assert.That(_bag.TotalWeight, Is.EqualTo(3f * spec.Weight).Within(1e-3f));
+        }
+
+        [Test]
+        public void SingleItems_NeedOneFreeEntryPerPiece()
+        {
+            for (int i = 0; i < InventoryContainer.MaxEntries - 2; i++)
+            {
+                Assert.That(_bag.TryAdd(Create(InventoryTestItems.IronRing)), Is.True);
+            }
+
+            ItemInstance swords = Create(InventoryTestItems.Sword, 3);
+            Assert.That(_bag.FreeEntries, Is.EqualTo(2));
+            Assert.That(_bag.CanAdd(swords), Is.False);
+            Assert.That(_bag.TryAdd(swords), Is.False, "3 pieces need 3 entries");
+            Assert.That(_bag.Entries.Count, Is.EqualTo(InventoryContainer.MaxEntries - 2), "nothing added");
+            Assert.That(swords.Count, Is.EqualTo(3), "a refused instance stays unchanged");
+            Assert.That(_bag.TryAdd(Create(InventoryTestItems.Sword, 2)), Is.True);
+            Assert.That(_bag.FreeEntries, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void AddRaw_SplitsCountsAboveTheStackSize_InsteadOfCuttingThem()
+        {
+            var potions = new ItemInstance("00000000000000a1", InventoryTestItems.Potion, 1, ItemRarity.Common, 1f, 45, ItemFlags.None, null);
+            var swords = new ItemInstance("00000000000000a2", InventoryTestItems.Sword, 5, ItemRarity.Common, 1f, 2, ItemFlags.None, null);
+
+            Assert.That(_bag.AddRaw(potions), Is.True);
+            Assert.That(_bag.AddRaw(swords), Is.True);
+
+            Assert.That(_bag.Entries.Count, Is.EqualTo(5), "potions 20 + 20 + 5, swords 1 + 1");
+            Assert.That(_bag.Find("00000000000000a1").Count, Is.EqualTo(20));
+            Assert.That(_bag.CountOf(InventoryTestItems.Potion), Is.EqualTo(45));
+            Assert.That(_bag.Find("00000000000000a2").Count, Is.EqualTo(1));
+            Assert.That(_bag.CountOf(InventoryTestItems.Sword), Is.EqualTo(2));
+            Assert.That(_bag.AddRaw(swords), Is.False, "duplicate id");
         }
 
         [Test]

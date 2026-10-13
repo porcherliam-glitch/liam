@@ -103,7 +103,10 @@ namespace Aetherfall.Events
         /// <summary>Loot table of the enemy type (from the enemy type definition; empty for now).</summary>
         public readonly string LootTableId;
 
-        /// <summary>Level of the enemy (for XP_Kill, GDD 03 12.7).</summary>
+        /// <summary>
+        /// Level the enemy fights with, variant and night bonus included (GDD 03 9.7: elite +2, champion +3, night +2): XP_Kill
+        /// (GDD 03 12.7) and the source level of its loot (GDD 04 4.1) use it unchanged.
+        /// </summary>
         public readonly int EnemyLevel;
 
         /// <summary>World position of the enemy at death.</summary>

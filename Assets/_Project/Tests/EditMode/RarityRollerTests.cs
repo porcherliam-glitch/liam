@@ -153,11 +153,13 @@ namespace Aetherfall.Tests.EditMode
                 counts[(int)RarityRoller.Roll(10, 1, LuckFormula.Bonus(0f, 1, 0f, 0, 0f), 0, null, random)]++;
             }
 
-            Assert.That(counts[0] / (float)rolls, Is.EqualTo(0.580f).Within(0.01f));
-            Assert.That(counts[1] / (float)rolls, Is.EqualTo(0.283f).Within(0.01f));
-            Assert.That(counts[2] / (float)rolls, Is.EqualTo(0.097f).Within(0.01f));
-            Assert.That(counts[3] / (float)rolls, Is.EqualTo(0.036f).Within(0.01f));
-            Assert.That(counts[4] / (float)rolls, Is.EqualTo(0.0057f).Within(0.01f));
+            // Tolerances of about 4 standard deviations at 100,000 rolls (sqrt(p(1 - p) / n)), so the rare rows are checked too:
+            // a fixed tolerance of 1 percentage point would pass even if legendary never dropped.
+            Assert.That(counts[0] / (float)rolls, Is.EqualTo(0.580f).Within(0.006f), "common");
+            Assert.That(counts[1] / (float)rolls, Is.EqualTo(0.283f).Within(0.006f), "uncommon");
+            Assert.That(counts[2] / (float)rolls, Is.EqualTo(0.097f).Within(0.004f), "rare");
+            Assert.That(counts[3] / (float)rolls, Is.EqualTo(0.036f).Within(0.0025f), "epic");
+            Assert.That(counts[4] / (float)rolls, Is.EqualTo(0.0057f).Within(0.001f), "legendary");
             Assert.That(counts[5] + counts[6], Is.EqualTo(0));
         }
     }

@@ -8,7 +8,8 @@ namespace Aetherfall.Tests.EditMode.Inventory
     /// <summary>
     /// Save section <c>inventory</c> (architecture 9.3, ISaveable): bag, equipment, quick slots, gold, pity counters, the loot
     /// seed and counter and the opened chests survive a round trip through the JSON serializer of the save system; a missing
-    /// section starts a new game with the starting kit; broken entries are dropped instead of breaking the load.
+    /// section starts a new game with the starting kit; broken entries are dropped instead of breaking the load; counts above
+    /// the stack size are split instead of cut, a shield next to a two-handed weapon goes into the bag.
     /// </summary>
     [TestFixture]
     public sealed class InventorySaveableTests
@@ -125,6 +126,90 @@ namespace Aetherfall.Tests.EditMode.Inventory
                 Assert.That(env.Inventory.CountOf(InventoryOwners.Player, InventoryTestItems.WolfFur), Is.EqualTo(0));
                 Assert.That(env.Inventory.PlayerEquipment.Get(EquipmentSlot.MainHand).ItemId, Is.EqualTo(InventoryTestItems.Sword));
                 Assert.That(env.Loot.IsChestOpened("obj.test.truhe_holz"), Is.False);
+            }
+        }
+
+        [Test]
+        public void RoundTrip_SeveralSingleItems_KeepsEveryPiece()
+        {
+            InventoryDto saved;
+            using (var source = new InventoryTestEnvironment(false, 13UL))
+            {
+                source.Inventory.TryAddNew(InventoryOwners.Player, InventoryTestItems.Sword, 3, "test");
+                source.Inventory.TryAddNew(InventoryOwners.Player, InventoryTestItems.Potion, 45, "test");
+                saved = RoundTrip((InventoryDto)new InventorySaveable(source.Inventory, source.Loot).Save());
+            }
+
+            using (var target = new InventoryTestEnvironment(false, 14UL))
+            {
+                new InventorySaveable(target.Inventory, target.Loot).Load(saved, Context);
+
+                Assert.That(target.Inventory.CountOf(InventoryOwners.Player, InventoryTestItems.Sword), Is.EqualTo(3));
+                Assert.That(target.Inventory.CountOf(InventoryOwners.Player, InventoryTestItems.Potion), Is.EqualTo(45));
+                Assert.That(target.Inventory.PlayerContainer.Entries.Count, Is.EqualTo(6), "3 swords, potions 20 + 20 + 5");
+                Assert.That(target.LogCapture.Sink.Count(Aetherfall.Core.LogLevel.Warning), Is.EqualTo(0));
+            }
+        }
+
+        [Test]
+        public void Load_CountsAboveTheStackSize_AreSplit_NotCut()
+        {
+            using (var env = new InventoryTestEnvironment(false))
+            {
+                var dto = new InventoryDto();
+                dto.Items.Add(new ItemInstanceDto { InstanceId = "1111111111111111", ItemId = InventoryTestItems.Sword, ItemLevel = 5, Rarity = "gewoehnlich", Count = 3 });
+                dto.Items.Add(new ItemInstanceDto { InstanceId = "2222222222222222", ItemId = InventoryTestItems.Potion, ItemLevel = 1, Rarity = "gewoehnlich", Count = 45 });
+                dto.Equipment["brust"] = new ItemInstanceDto { InstanceId = "3333333333333333", ItemId = InventoryTestItems.PlateChest, ItemLevel = 5, Rarity = "gewoehnlich", Count = 2 };
+
+                new InventorySaveable(env.Inventory, env.Loot).Load(dto, Context);
+
+                Assert.That(env.Inventory.CountOf(InventoryOwners.Player, InventoryTestItems.Sword), Is.EqualTo(3));
+                Assert.That(env.Inventory.PlayerContainer.Find("1111111111111111").Count, Is.EqualTo(1));
+                Assert.That(env.Inventory.CountOf(InventoryOwners.Player, InventoryTestItems.Potion), Is.EqualTo(45));
+                Assert.That(env.Inventory.PlayerContainer.Find("2222222222222222").Count, Is.EqualTo(20));
+                Assert.That(env.Inventory.PlayerEquipment.Get(EquipmentSlot.Chest).InstanceId, Is.EqualTo("3333333333333333"));
+                Assert.That(env.Inventory.PlayerEquipment.Get(EquipmentSlot.Chest).Count, Is.EqualTo(1));
+                Assert.That(env.Inventory.CountInBag(InventoryOwners.Player, InventoryTestItems.PlateChest), Is.EqualTo(1), "the second chest piece");
+                Assert.That(env.LogCapture.Sink.Count(Aetherfall.Core.LogLevel.Warning), Is.GreaterThanOrEqualTo(3));
+            }
+        }
+
+        [Test]
+        public void Load_ShieldNextToATwoHandedWeapon_GoesIntoTheBag()
+        {
+            using (var env = new InventoryTestEnvironment(false))
+            {
+                var dto = new InventoryDto();
+                dto.Equipment["haupthand"] = new ItemInstanceDto { InstanceId = "4444444444444444", ItemId = InventoryTestItems.TwoHandedSword, ItemLevel = 5, Rarity = "gewoehnlich", Count = 1 };
+                dto.Equipment["nebenhand"] = new ItemInstanceDto { InstanceId = "5555555555555555", ItemId = InventoryTestItems.WoodenShield, ItemLevel = 5, Rarity = "gewoehnlich", Count = 1 };
+
+                new InventorySaveable(env.Inventory, env.Loot).Load(dto, Context);
+
+                Assert.That(env.Inventory.PlayerEquipment.Get(EquipmentSlot.MainHand).ItemId, Is.EqualTo(InventoryTestItems.TwoHandedSword));
+                Assert.That(env.Inventory.PlayerEquipment.Get(EquipmentSlot.OffHand), Is.Null);
+                Assert.That(env.Inventory.PlayerContainer.Find("5555555555555555"), Is.Not.Null);
+                Assert.That(env.LogCapture.Sink.Count(Aetherfall.Core.LogLevel.Warning), Is.EqualTo(1));
+            }
+        }
+
+        [Test]
+        public void Load_MoreThanThousandEntries_LogsTheDroppedOnes()
+        {
+            using (var env = new InventoryTestEnvironment(false))
+            {
+                var dto = new InventoryDto();
+                for (int i = 0; i < InventoryContainer.MaxEntries + 2; i++)
+                {
+                    dto.Items.Add(new ItemInstanceDto
+                    {
+                        InstanceId = (0x100000UL + (ulong)i).ToString("x16"), ItemId = InventoryTestItems.IronRing, ItemLevel = 1, Rarity = "gewoehnlich", Count = 1
+                    });
+                }
+
+                new InventorySaveable(env.Inventory, env.Loot).Load(dto, Context);
+
+                Assert.That(env.Inventory.PlayerContainer.Entries.Count, Is.EqualTo(InventoryContainer.MaxEntries));
+                Assert.That(env.LogCapture.Sink.Count(Aetherfall.Core.LogLevel.Warning), Is.EqualTo(2));
             }
         }
 

@@ -30,7 +30,7 @@ namespace Aetherfall.AI
         [Tooltip("Anzeigename (Debug).")]
         [SerializeField] private string displayName = "Gegner";
 
-        [Tooltip("Stufe (fest je Gebiet, §20.4).")]
+        [Tooltip("Stufe, mit der dieser Gegner kämpft (fest je Gebiet, §20.4). Bei Elite +2 und Champion +3 schon eingerechnet (GDD 03, 9.7) – Beute und XP übernehmen sie unverändert.")]
         [Range(1, 80)] [SerializeField] private int level = 8;
 
         [Tooltip("Loot-Tabelle (vorerst leer, kommt mit dem Loot-System).")]
@@ -153,7 +153,7 @@ namespace Aetherfall.AI
         /// <summary>Display name.</summary>
         public string DisplayName => displayName;
 
-        /// <summary>Level.</summary>
+        /// <summary>Level the enemy fights with (variant bonus included); also <c>EnemyKilled.EnemyLevel</c>.</summary>
         public int Level => level;
 
         /// <summary>Loot table id (empty for now).</summary>

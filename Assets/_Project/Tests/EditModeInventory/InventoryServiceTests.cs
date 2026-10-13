@@ -238,6 +238,42 @@ namespace Aetherfall.Tests.EditMode.Inventory
         }
 
         [Test]
+        public void TryAddNew_ThreeSwords_AreThreePieces_EquippingTakesOne()
+        {
+            using (var picked = new EventRecorder<ItemPickedUp>(_env.Bus))
+            {
+                Assert.That(_env.Inventory.TryAddNew(InventoryOwners.Player, InventoryTestItems.Sword, 3, "test"), Is.True);
+                Assert.That(picked.Count, Is.EqualTo(1));
+                Assert.That(picked.Last.Amount, Is.EqualTo(3));
+            }
+
+            ItemInstance bagSword = _env.FindInBag(InventoryTestItems.Sword);
+            Assert.That(bagSword.Count, Is.EqualTo(1));
+            Assert.That(_env.Inventory.CountInBag(InventoryOwners.Player, InventoryTestItems.Sword), Is.EqualTo(3));
+            Assert.That(_env.Inventory.CountOf(InventoryOwners.Player, InventoryTestItems.Sword), Is.EqualTo(4), "3 in the bag + the equipped one");
+
+            Assert.That(_env.Inventory.TryEquip(bagSword.InstanceId, EquipmentSlot.MainHand, out string reason), Is.True, reason);
+            Assert.That(_env.Inventory.PlayerEquipment.Get(EquipmentSlot.MainHand).Count, Is.EqualTo(1));
+            Assert.That(_env.Inventory.CountInBag(InventoryOwners.Player, InventoryTestItems.Sword), Is.EqualTo(3), "2 left + the old sword");
+            Assert.That(_env.Inventory.CountOf(InventoryOwners.Player, InventoryTestItems.Sword), Is.EqualTo(4));
+        }
+
+        [Test]
+        public void CountInBag_LeavesOutEquipment_LikeTryRemove()
+        {
+            Assert.That(_env.Inventory.CountOf(InventoryOwners.Player, InventoryTestItems.PlateChest), Is.EqualTo(1), "equipped chest counts as owned");
+            Assert.That(_env.Inventory.CountInBag(InventoryOwners.Player, InventoryTestItems.PlateChest), Is.EqualTo(0));
+            Assert.That(_env.Inventory.TryRemove(InventoryOwners.Player, InventoryTestItems.PlateChest, 1, "quest.test"), Is.False,
+                "a hand-in never takes equipped pieces: check CountInBag before");
+            Assert.That(_env.Inventory.PlayerEquipment.Get(EquipmentSlot.Chest), Is.Not.Null);
+
+            _env.AddToBag(InventoryTestItems.PlateChest);
+            Assert.That(_env.Inventory.CountInBag(InventoryOwners.Player, InventoryTestItems.PlateChest), Is.EqualTo(1));
+            Assert.That(_env.Inventory.TryRemove(InventoryOwners.Player, InventoryTestItems.PlateChest, 1, "quest.test"), Is.True);
+            Assert.That(_env.Inventory.CountOf(InventoryOwners.Player, InventoryTestItems.PlateChest), Is.EqualTo(1));
+        }
+
+        [Test]
         public void Revision_AndChangedEvent_FollowEveryChange()
         {
             int calls = 0;
