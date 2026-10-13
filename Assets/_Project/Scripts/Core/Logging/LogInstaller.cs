@@ -12,7 +12,7 @@ namespace Aetherfall.Core
     public sealed class LogInstaller : ServiceInstaller
     {
         [Tooltip("Log-Einstellungen (Mindest-Stufe global und je Kategorie). Leer = Standardwerte (global 'Info').")]
-        [SerializeField] private LogSettings logSettings;
+        [SerializeField] private LogSettings logSettings = null;
 
         /// <inheritdoc />
         public override IEnumerable<Type> Provides => Array.Empty<Type>();

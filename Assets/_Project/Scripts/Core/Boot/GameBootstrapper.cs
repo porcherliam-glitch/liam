@@ -34,10 +34,10 @@ namespace Aetherfall.Core
     public sealed class GameBootstrapper : MonoBehaviour
     {
         [Tooltip("Boot-Konfiguration mit der geordneten Installer-Liste (Assets/_Project/Settings/Boot/BootConfig.asset). Pflichtfeld.")]
-        [SerializeField] private BootConfig bootConfig;
+        [SerializeField] private BootConfig bootConfig = null;
 
         [Tooltip("Zentraler Update-Runner für ITickable-Dienste. Leer lassen = der TickRunner am selben GameObject wird verwendet bzw. automatisch ergänzt.")]
-        [SerializeField] private TickRunner tickRunner;
+        [SerializeField] private TickRunner tickRunner = null;
 
         private ServiceLocator _locator;
         private TickRunner _activeTickRunner;
