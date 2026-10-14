@@ -6,6 +6,10 @@ Stand: 2026-10-14. Der Mini-Slice ist jetzt von Anfang bis Ende spielbar: Dorf E
 
 ## 1. Starten
 
+**Am einfachsten, ohne Unity:** Auf dem Desktop den Ordner **Aetherfall Spiel** öffnen und **Aetherfall.exe** doppelklicken. Im Hauptmenü **Neues Spiel**. Im Ordner liegt auch „So spielst du.txt“ mit allen Tasten. Claude baut diese Version neu, wenn sich etwas ändert.
+
+**In Unity (zum Testen):**
+
 1. Unity Hub → Projekt `Desktop\Aetherfall` öffnen (Version 6000.6.5f1).
 2. Im Project-Fenster `Assets/_Project/Scenes/Boot/Boot.unity` doppelklicken.
 3. Oben auf ▶ (Play) drücken und einmal ins Game-Fenster klicken.

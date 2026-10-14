@@ -148,6 +148,7 @@ Batchmode-Einstiegspunkte (jeweils mit `-batchmode -nographics -projectPath . -q
 | Projekt-Setup (ohne `-quit`, beendet sich selbst; nach Paketänderungen ein zweites Mal ausführen) | `Aetherfall.EditorTools.Core.ProjectSetupBatch.RunBatch` |
 | Quests prüfen | `Aetherfall.EditorTools.Narrative.QuestValidationMenu.RunBatch` |
 | Dialoge prüfen | `Aetherfall.Dialogue.DialogueValidationMenu.RunBatch` |
+| Windows-Spiel bauen (Mono, x64, Boot → Eichental → Gruft; Ziel `Desktop\Aetherfall Spiel`, anders mit `-buildFolder <Ordner>`; erster Lauf > 10 min wegen Shadern). Starttest danach: `"Desktop\Aetherfall Spiel\Aetherfall.exe" -smoketest -logFile <Datei>` (Exit 0 = Neues Spiel bis Eichental ohne Fehler) | `Aetherfall.EditorTools.Core.WindowsBuild.RunBatch` |
 | Figuren aus Blender prüfen (Achsen, Gelenke; vorher `Tools/Blender/build_characters.py` mit Blender 5.2 aus Steam, siehe `Tools/Blender/README.md`) | `Aetherfall.EditorTools.World.CharacterModels.CheckBatch` |
 
 - Kompilierfehler stehen in der Logdatei (nach `error CS` suchen).
