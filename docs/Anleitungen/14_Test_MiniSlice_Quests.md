@@ -34,14 +34,20 @@ Nach Quest 1 mit **Hollmann** am Hof im Nordwesten sprechen und annehmen. Dann: 
 
 Nach Quest 1 mit **Corvin** im Gasthaus in Lindenhain sprechen. Oder einfach zum Gruft-Eingang unter dem Rabenfels gehen, dann beginnt sie von selbst. In der Gruft: Grabplatten-Rätsel, Hallen, Spiegel-Rätsel, der Wachende Ritter. Am Ende entscheidest du, ob du den **Siegelstein** nimmst (dann zu Corvin bringen) oder liegen lässt (dann mit Corvin sprechen).
 
-## 5. Was du prüfen sollst
+## 5. Automatischer Durchlauf (macht Claude)
+
+Claude lässt alle drei Quests von einem Werkzeug durchspielen (`PlayTour`, Modus `quests`). Die Spielfigur geht dabei wie ein Spieler zu jedem Ort, jeder Figur und jedem Objekt und drückt dort **Interagieren**: Hedda, Tobold und Wenna retten, Kreaturen besiegen, Spur folgen, Hollmann, Wolfsbau (Splitter herausbrechen), Corvin, durch das Portal in die Gruft, Wandreliefs, Grabplatten in der richtigen Reihenfolge, Spiegel drehen, Wachender Ritter, Siegelstein nehmen, zurück zu Corvin. Nach jedem Schritt prüft das Werkzeug die Quest-Stufe. Die Spielfigur ist dabei unverwundbar, Kämpfe werden abgekürzt.
+
+Ergebnis steht in `Logs/Tour/Boot_Quests/` (Bericht `bericht.txt` und 11 Bilder). Du musst dafür nichts tun.
+
+## 6. Was du prüfen sollst
 
 - Steht oben rechts immer ein sinnvolles Ziel?
 - Erscheinen Hedda, Tobold und Wenna an den richtigen Orten?
 - Wird jede Quest abgeschlossen (Meldung „Quest abgeschlossen“, Eintrag im Questlog)?
 - Speichern (F5) und Laden (F9) mitten in einer Quest: Geht es danach richtig weiter?
 
-## 6. Was noch fehlt (bewusst, kommt später)
+## 7. Was noch fehlt (bewusst, kommt später)
 
 | Was | Warum |
 |---|---|

@@ -1,0 +1,658 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using Aetherfall.AI;
+using Aetherfall.AI.Bosses;
+using Aetherfall.Core;
+using Aetherfall.Dialogue;
+using Aetherfall.NPC;
+using Aetherfall.Player;
+using Aetherfall.Quests;
+using Aetherfall.World;
+using Aetherfall.World.Dungeons;
+using Aetherfall.World.Puzzles;
+using Aetherfall.WorldState;
+using UnityEngine;
+using Object = UnityEngine.Object;
+using Q = Aetherfall.EditorTools.Narrative.MiniSliceQuestLibrary;
+
+namespace Aetherfall.EditorTools.World
+{
+    /// <summary>
+    /// Automated play-through of the mini slice quests (<c>-tourMode quests</c>): "Asche über Eichental", "Die Wölfe vom
+    /// Nordhang" and "Die vergessene Gruft" from the first step to the reward, the way a player does it – the player is placed in
+    /// front of each object, NPC or portal and uses it through the <see cref="PlayerInteractor"/> (range, facing and "usable now"
+    /// as in play), walks into the location zones and along the trails, solves the crypt puzzles slab by slab and mirror by
+    /// mirror, and the enemies of the quest groups are defeated. After every step the tour checks the quest stage and writes it
+    /// into the report. The player is invulnerable during the run.
+    /// </summary>
+    public static partial class PlayTour
+    {
+        private const string TourInvulnerability = "tour.quests";
+
+        private static void BuildQuestPlan()
+        {
+            Steps.Enqueue(MakePlayerInvulnerable);
+
+            // GDD 02 11.1 "Asche über Eichental".
+            Steps.Enqueue(() => WaitStage(Q.Prologue, "s10"));
+            Steps.Enqueue(GoToArea("loc.eichental.dorfplatz"));
+            Steps.Enqueue(() => WaitStage(Q.Prologue, "s20"));
+            Steps.Enqueue(TalkTo(Q.Hedda));
+            Steps.Enqueue(() => WaitStage(Q.Prologue, "s25"));
+            Steps.Enqueue(() => Capture("q01_hedda_dorfplatz", null));
+            Steps.Enqueue(UseObject("obj.eichental.balken_tobold", QuestObjectAction.Use));
+            Steps.Enqueue(() => WaitFlag(Q.FlagToboldSaved, 1));
+            Steps.Enqueue(GoToArea(MiniSliceWorld.WennaDoorId));
+            Steps.Enqueue(() => WaitFlag(Q.FlagWennaSaved, 1));
+            Steps.Enqueue(GoToArea("loc.eichental.dorfrand"));
+            Steps.Enqueue(() => WaitStage(Q.Prologue, "s30"));
+            Steps.Enqueue(() => Wait(1.0));
+            Steps.Enqueue(() => Capture("q02_dorfrand", null));
+            Steps.Enqueue(KillGroup("spawn.eichental.dorfrand_risslinge"));
+            Steps.Enqueue(() => WaitStage(Q.Prologue, "s40"));
+            Steps.Enqueue(UseObject("clue.eichental.verbrannte_runen_1", QuestObjectAction.Inspect));
+            Steps.Enqueue(UseObject("clue.eichental.verbrannte_runen_2", QuestObjectAction.Inspect));
+            Steps.Enqueue(FollowTrail("spur.eichental.graue_gestalt"));
+            Steps.Enqueue(() => WaitStage(Q.Prologue, "s50"));
+            Steps.Enqueue(GoToArea("loc.eichental.riss_eichental"));
+            Steps.Enqueue(() => WaitStage(Q.Prologue, "s60"));
+            Steps.Enqueue(() => Wait(1.0));
+            Steps.Enqueue(() => Capture("q03_riss", null));
+            Steps.Enqueue(KillGroup("spawn.eichental.rissbrut_prolog"));
+            Steps.Enqueue(() => WaitStage(Q.Prologue, "s70"));
+            Steps.Enqueue(GoToArea("loc.eichental.lindenhain"));
+            Steps.Enqueue(TalkTo(Q.Hedda));
+            Steps.Enqueue(() => WaitQuest(Q.Prologue, QuestStatus.Completed));
+            Steps.Enqueue(() => Capture("q04_prolog_fertig", null));
+
+            // GDD 02 11.2 "Die Wölfe vom Nordhang" (splinter broken out: the longest way).
+            Steps.Enqueue(TalkTo(Q.Hollmann));
+            Steps.Enqueue(() => WaitStage(Q.Wolves, "s10"));
+            Steps.Enqueue(UseObject("clue.eichental.weide_schaf", QuestObjectAction.Inspect));
+            Steps.Enqueue(UseObject("clue.eichental.weide_pfoten", QuestObjectAction.Inspect));
+            Steps.Enqueue(UseObject("obj.eichental.strohziel_1", QuestObjectAction.Use));
+            Steps.Enqueue(UseObject("obj.eichental.strohziel_2", QuestObjectAction.Use));
+            Steps.Enqueue(UseObject("obj.eichental.strohziel_3", QuestObjectAction.Use));
+            Steps.Enqueue(UseObject("clue.eichental.weide_aetherspeichel", QuestObjectAction.Inspect));
+            Steps.Enqueue(() => WaitStage(Q.Wolves, "s20"));
+            Steps.Enqueue(UseObject("obj.eichental.leiche_postreiter", QuestObjectAction.Use));
+            Steps.Enqueue(() => WaitFlag(Q.FlagPostRider, 1));
+            Steps.Enqueue(FollowTrail("spur.eichental.wolfsspur"));
+            Steps.Enqueue(() => WaitStage(Q.Wolves, "s30"));
+            Steps.Enqueue(GoToArea("loc.eichental.wolfsbau_nordhang"));
+            Steps.Enqueue(() => WaitStage(Q.Wolves, "s40"));
+            Steps.Enqueue(() => Wait(1.0));
+            Steps.Enqueue(() => Capture("q05_wolfsbau", null));
+            Steps.Enqueue(UseObject("obj.eichental.wolfswelpe", QuestObjectAction.PickUp));
+            Steps.Enqueue(() => WaitFlag(Q.FlagPup, 1));
+            Steps.Enqueue(UseObject(MiniSliceWorld.SplinterId, QuestObjectAction.PickUp));
+            Steps.Enqueue(() => WaitStage(Q.Wolves, "s45_geborgen"));
+            Steps.Enqueue(KillGroup("spawn.eichental.glutfang"));
+            Steps.Enqueue(KillGroup("spawn.eichental.bau_wut"));
+            Steps.Enqueue(() => WaitStage(Q.Wolves, "s50_geborgen"));
+            Steps.Enqueue(TalkTo(Q.Hollmann));
+            Steps.Enqueue(() => WaitQuest(Q.Wolves, QuestStatus.Completed));
+            Steps.Enqueue(() => WaitFlag(Q.FlagWolvesOutcome, 3));
+            Steps.Enqueue(() => Capture("q06_woelfe_fertig", null));
+
+            // GDD 02 11.7 "Die vergessene Gruft" (seal stone taken and brought to Corvin).
+            Steps.Enqueue(TalkTo(Q.Corvin));
+            Steps.Enqueue(() => WaitStage(Q.Crypt, "s10"));
+            Steps.Enqueue(Travel(EichentalDungeonLinks.EntranceId));
+            Steps.Enqueue(GoToArea("loc.eichental.vergessene_gruft"));
+            Steps.Enqueue(() => WaitStage(Q.Crypt, "s20"));
+            Steps.Enqueue(() => Capture("q07_gruft_tor", null));
+            Steps.Enqueue(UseById("obj.eichental.gruft_wandrelief_1"));
+            Steps.Enqueue(UseById("obj.eichental.gruft_wandrelief_2"));
+            Steps.Enqueue(UseById("obj.eichental.gruft_wandrelief_3"));
+            Steps.Enqueue(() => WaitFlag(Q.FlagReliefsRead, 1));
+            Steps.Enqueue(SolveSequence("puzzle.eichental.gruft_grabplatten"));
+            Steps.Enqueue(() => WaitStage(Q.Crypt, "s30"));
+            Steps.Enqueue(() => Wait(1.0));
+            Steps.Enqueue(KillEnemiesInScene());
+            Steps.Enqueue(GoToArea("loc.eichental.gruft_siegelkammer_vorraum"));
+            Steps.Enqueue(() => WaitStage(Q.Crypt, "s40"));
+            Steps.Enqueue(SolveMirrors("puzzle.eichental.gruft_spiegel"));
+            Steps.Enqueue(() => WaitStage(Q.Crypt, "s50"));
+            Steps.Enqueue(() => Capture("q08_spiegel", null));
+            Steps.Enqueue(ApproachBoss(GruftBossId));
+            Steps.Enqueue(() => Wait(2.0));
+            Steps.Enqueue(() => Capture("q09_ritter", null));
+            Steps.Enqueue(KillBoss(GruftBossId));
+            Steps.Enqueue(() => WaitStage(Q.Crypt, "s60"));
+            Steps.Enqueue(UseById("obj.eichental.gruft_siegelstein"));
+            Steps.Enqueue(() => WaitStage(Q.Crypt, "s70_genommen"));
+            Steps.Enqueue(() => WaitFlag(Q.FlagUndead, 1));
+            Steps.Enqueue(Travel("obj.eichental.gruft_ausgang_fluchtweg"));
+            Steps.Enqueue(TalkTo(Q.Corvin));
+            Steps.Enqueue(() => WaitQuest(Q.Crypt, QuestStatus.Completed));
+            Steps.Enqueue(() => WaitFlag(Q.FlagSealStone, 1));
+            Steps.Enqueue(() => Capture("q10_gruft_fertig", null));
+        }
+
+        private const string GruftBossId = "boss.eichental.wachender_ritter";
+
+        // ---- Checks -------------------------------------------------------------------------------------------------
+
+        private static bool MakePlayerInvulnerable()
+        {
+            PlayerMotor player = FindPlayer();
+            if (player != null)
+            {
+                player.GetComponent<Aetherfall.Combat.DamageableComponent>().Health.AddInvulnerability(TourInvulnerability);
+                Note("Spielfigur für den Quest-Durchlauf unverwundbar.");
+            }
+
+            return true;
+        }
+
+        private static bool WaitStage(string questId, string stageId)
+        {
+            IQuestService quests = Services.Locator.Get<IQuestService>();
+            if (quests.IsStageReached(questId, stageId))
+            {
+                Note("Quest " + Short(questId) + ": Stufe " + stageId + " erreicht (" + Elapsed.ToString("0.0") + " s).");
+                return true;
+            }
+
+            return Fail(Elapsed > 20.0, "Quest " + Short(questId) + ": Stufe " + stageId + " nicht erreicht. Status " + quests.GetStatus(questId) +
+                                        ", aktuelle Stufe " + CurrentStage(quests, questId) + ".");
+        }
+
+        private static bool WaitQuest(string questId, QuestStatus status)
+        {
+            IQuestService quests = Services.Locator.Get<IQuestService>();
+            if (quests.GetStatus(questId) == status)
+            {
+                Note("Quest " + Short(questId) + ": " + status + ".");
+                return true;
+            }
+
+            return Fail(Elapsed > 20.0, "Quest " + Short(questId) + " ist nicht " + status + " (Status " + quests.GetStatus(questId) + ", Stufe " +
+                                        CurrentStage(quests, questId) + ").");
+        }
+
+        private static bool WaitFlag(string flagId, int value)
+        {
+            int current = Services.Locator.Get<IWorldState>().GetInt(flagId);
+            if (current == value)
+            {
+                Note("Flag " + flagId + " = " + value + ".");
+                return true;
+            }
+
+            return Fail(Elapsed > 10.0, "Flag " + flagId + " ist " + current + " statt " + value + ".");
+        }
+
+        private static string CurrentStage(IQuestService quests, string questId)
+        {
+            return quests.TryGetInstance(questId, out QuestInstance instance) ? instance.StageId : "–";
+        }
+
+        private static string Short(string questId)
+        {
+            int dot = questId.LastIndexOf('.');
+            return dot >= 0 ? questId.Substring(dot + 1) : questId;
+        }
+
+        // ---- Actions like a player ----------------------------------------------------------------------------------
+
+        /// <summary>Walks into a location zone (or the timed area at a door): the player is placed at its centre.</summary>
+        private static Func<bool> GoToArea(string areaId)
+        {
+            return () =>
+            {
+                AreaTrigger area = Object.FindObjectsByType<AreaTrigger>(FindObjectsInactive.Exclude).FirstOrDefault(a => a.AreaId == areaId);
+                if (area == null)
+                {
+                    return Fail(true, "Ort " + areaId + " nicht gefunden.");
+                }
+
+                Collider zone = area.GetComponent<Collider>();
+                Vector3 centre = zone != null ? zone.bounds.center : area.transform.position;
+                PlaceOnGround(centre, FindPlayer().transform.forward);
+                Note("Gehe zu " + areaId + ".");
+                return true;
+            };
+        }
+
+        /// <summary>Walks the nodes of a trail in order.</summary>
+        private static Func<bool> FollowTrail(string trailId)
+        {
+            List<TrailNodeTrigger> nodes = null;
+            int next = 0;
+            return () =>
+            {
+                if (nodes == null)
+                {
+                    nodes = Object.FindObjectsByType<TrailNodeTrigger>(FindObjectsInactive.Exclude).Where(n => n.TrailId == trailId)
+                        .OrderBy(n => n.Index).ToList();
+                    if (nodes.Count == 0)
+                    {
+                        return Fail(true, "Spur " + trailId + " nicht gefunden.");
+                    }
+
+                    Note("Folge der Spur " + trailId + " (" + nodes.Count + " Knoten).");
+                }
+
+                if (Elapsed < 0.5 * next)
+                {
+                    return false;
+                }
+
+                if (next >= nodes.Count)
+                {
+                    return true;
+                }
+
+                Vector3 here = nodes[next].transform.position;
+                Vector3 ahead = next + 1 < nodes.Count ? nodes[next + 1].transform.position - here : FindPlayer().transform.forward;
+                PlaceOnGround(here, ahead);
+                next++;
+                return false;
+            };
+        }
+
+        /// <summary>Uses a quest object: stands in front of it and presses "Interagieren".</summary>
+        private static Func<bool> UseObject(string objectId, QuestObjectAction action)
+        {
+            return UseTarget(() => Object.FindObjectsByType<QuestObjectMarker>(FindObjectsInactive.Exclude)
+                .FirstOrDefault(m => m.ObjectId == objectId && m.Action == action), objectId + " (" + action + ")", null);
+        }
+
+        /// <summary>Talks to the visible NPC: stands in front of it, presses "Interagieren" and clicks through the dialogue.</summary>
+        private static Func<bool> TalkTo(string npcId)
+        {
+            return UseTarget(() => Object.FindObjectsByType<NpcInteractable>(FindObjectsInactive.Exclude).FirstOrDefault(n => n.NpcId == npcId),
+                npcId, DriveDialogue);
+        }
+
+        private static Func<bool> UseTarget(Func<Component> find, string label, Func<bool> afterUse)
+        {
+            Component target = null;
+            int phase = 0;
+            return () =>
+            {
+                switch (phase)
+                {
+                    case 0:
+                        target = find();
+                        if (target == null)
+                        {
+                            return Fail(Elapsed > 5.0, label + " nicht gefunden (nicht sichtbar oder nicht benutzbar).");
+                        }
+
+                        var interactable = (IInteractable)target;
+                        Vector3 point = interactable.InteractionPosition;
+                        Vector3 from = FindPlayer().transform.position - point;
+                        Transform parent = target.transform.parent;
+                        if (parent != null && parent.GetComponent<QuestObjectMarker>() != null)
+                        {
+                            // A second interaction beside its object (splinter "herausbrechen"): step up from the outer side.
+                            from = target.transform.position - parent.position;
+                        }
+                        else if (target is DungeonPortal || target is ReadableObject)
+                        {
+                            // Doorways and wall reliefs: stand on the open side along their axis, the side the player is on.
+                            Vector3 axis = target.transform.forward;
+                            from = Vector3.Dot(from, axis) >= 0f || target is ReadableObject ? axis : -axis;
+                        }
+
+                        from.y = 0f;
+                        if (from.sqrMagnitude < 0.01f)
+                        {
+                            from = -target.transform.forward;
+                        }
+
+                        PlaceOnGround(point + from.normalized * 1.3f, -from);
+                        phase = 1;
+                        _stepStart = UnityEditor.EditorApplication.timeSinceStartup;
+                        return false;
+                    case 1:
+                        PlayerInteractor interactor = FindPlayer().GetComponent<PlayerInteractor>();
+                        if (interactor.CurrentTarget == (IInteractable)target)
+                        {
+                            if (!interactor.InteractWithCurrentTarget())
+                            {
+                                return Fail(true, label + ": Interaktion abgelehnt.");
+                            }
+
+                            Note("Benutzt: " + label + " („" + ((IInteractable)target).InteractionPrompt + "“).");
+                            phase = 2;
+                            _stepStart = UnityEditor.EditorApplication.timeSinceStartup;
+                            return afterUse == null;
+                        }
+
+                        IInteractable current = interactor.CurrentTarget;
+                        return Fail(Elapsed > 4.0, label + ": Die Spielfigur findet es nicht (aktuelles Ziel: " +
+                                                   (current != null ? current.InteractionObjectId : "keins") + ").");
+                    default:
+                        return afterUse();
+                }
+            };
+        }
+
+        private static bool DriveDialogue()
+        {
+            IDialogueService dialogues = Services.Locator.Get<IDialogueService>();
+            if (!dialogues.IsRunning)
+            {
+                return true;
+            }
+
+            if (Elapsed < 0.4)
+            {
+                return false;
+            }
+
+            _stepStart = UnityEditor.EditorApplication.timeSinceStartup;
+            if (dialogues.View.State == DialogueViewState.Choice)
+            {
+                DialogueOptionView option = dialogues.View.Options.FirstOrDefault(o => o.IsEnabled);
+                int index = option != null ? dialogues.View.Options.ToList().IndexOf(option) : 0;
+                Note("Antwort: " + (option != null ? option.Text : "?"));
+                dialogues.Choose(index);
+            }
+            else
+            {
+                dialogues.Continue();
+            }
+
+            return false;
+        }
+
+        /// <summary>Defeats the enemies of a quest group as soon as the quest switched it on.</summary>
+        private static Func<bool> KillGroup(string spawnId)
+        {
+            return () =>
+            {
+                SpawnGroupMarker marker = Object.FindObjectsByType<SpawnGroupMarker>(FindObjectsInactive.Exclude).FirstOrDefault(m => m.SpawnId == spawnId);
+                if (marker == null || marker.Group == null || !marker.Group.activeInHierarchy)
+                {
+                    return Fail(Elapsed > 10.0, "Gegnergruppe " + spawnId + " ist nicht aktiv.");
+                }
+
+                if (Elapsed < 0.4)
+                {
+                    return false;
+                }
+
+                _stepStart = UnityEditor.EditorApplication.timeSinceStartup;
+                foreach (EnemyController enemy in marker.Group.GetComponentsInChildren<EnemyController>())
+                {
+                    var combatant = enemy.GetComponent<Aetherfall.Combat.Combatant>();
+                    if (combatant != null && combatant.Health != null && combatant.Health.IsAlive)
+                    {
+                        PlaceOnGround(enemy.transform.position + enemy.transform.forward * 2f, -enemy.transform.forward);
+                        combatant.Health.Kill(SubjectIdsPlayer);
+                        Note("Besiegt: " + combatant.CombatantId + " (" + spawnId + ").");
+                        return false;
+                    }
+                }
+
+                return true;
+            };
+        }
+
+        private const string SubjectIdsPlayer = "player";
+
+        /// <summary>Uses any interactable (relief, seal stone, portal …) by its object id.</summary>
+        private static Func<bool> UseById(string objectId)
+        {
+            return UseTarget(() => FindInteractable(objectId), objectId, null);
+        }
+
+        private static Component FindInteractable(string objectId)
+        {
+            foreach (MonoBehaviour behaviour in Object.FindObjectsByType<MonoBehaviour>(FindObjectsInactive.Exclude))
+            {
+                if (behaviour is IInteractable interactable && interactable.InteractionObjectId == objectId)
+                {
+                    return behaviour;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>Walks through a portal ("Gruft betreten", "Gruft verlassen") and waits until the new scene is playable.</summary>
+        private static Func<bool> Travel(string portalId)
+        {
+            string before = string.Empty;
+            return UseTarget(() =>
+            {
+                before = FindPlayer().gameObject.scene.name;
+                return Object.FindObjectsByType<DungeonPortal>(FindObjectsInactive.Exclude).FirstOrDefault(p => p.ObjectId == portalId);
+            }, portalId, () =>
+            {
+                PlayerMotor player = FindPlayer();
+                if (player != null && player.gameObject.scene.name != before && _gameState.Current == GameState.Playing)
+                {
+                    Note("Angekommen in „" + player.gameObject.scene.name + "“ nach " + Elapsed.ToString("0.0") + " s.");
+                    return true;
+                }
+
+                return Fail(Elapsed > PlayingTimeoutSeconds, "Reise durch " + portalId + " nicht abgeschlossen (Zustand " + _gameState.Current + ").");
+            });
+        }
+
+        /// <summary>Presses the slabs of a sequence puzzle in the order of the solution.</summary>
+        private static Func<bool> SolveSequence(string puzzleId)
+        {
+            return Chain(() =>
+            {
+                var parts = new List<Func<bool>>();
+                SequencePuzzleController puzzle = Object.FindObjectsByType<SequencePuzzleController>(FindObjectsInactive.Exclude)
+                    .FirstOrDefault(p => p.PuzzleId == puzzleId);
+                if (puzzle == null)
+                {
+                    Fail(true, "Rätsel " + puzzleId + " nicht gefunden.");
+                    return parts;
+                }
+
+                UnityEditor.SerializedProperty steps = new UnityEditor.SerializedObject(puzzle).FindProperty("steps");
+                for (int i = 0; i < steps.arraySize; i++)
+                {
+                    if (steps.GetArrayElementAtIndex(i).objectReferenceValue is PuzzleSwitch slab)
+                    {
+                        parts.Add(UseTarget(() => slab, slab.ObjectId, null));
+                        parts.Add(() => Wait(0.3));
+                    }
+                }
+
+                Note("Rätsel " + puzzleId + ": " + parts.Count / 2 + " Schritte in der Reihenfolge der Lösung.");
+                parts.Add(() => PuzzleSolved(puzzleId, puzzle.IsSolved));
+                return parts;
+            });
+        }
+
+        /// <summary>Turns the mirrors of a light puzzle until each points in the direction of the solution (crypt layout).</summary>
+        private static Func<bool> SolveMirrors(string puzzleId)
+        {
+            return Chain(() =>
+            {
+                var parts = new List<Func<bool>>();
+                DungeonPuzzle puzzle = DungeonLayoutReader.Read(System.IO.File.ReadAllText(GruftPaths.LayoutPath)).Puzzles
+                    .FirstOrDefault(p => p.Id == puzzleId);
+                MirrorPuzzleController controller = Object.FindObjectsByType<MirrorPuzzleController>(FindObjectsInactive.Exclude)
+                    .FirstOrDefault(p => p.PuzzleId == puzzleId);
+                if (puzzle == null || controller == null)
+                {
+                    Fail(true, "Rätsel " + puzzleId + " nicht gefunden.");
+                    return parts;
+                }
+
+                foreach (DungeonPuzzleMirror mirror in puzzle.Mirrors)
+                {
+                    parts.Add(TurnMirror(mirror.Id, mirror.Solution));
+                }
+
+                parts.Add(() => PuzzleSolved(puzzleId, controller.IsSolved));
+                return parts;
+            });
+        }
+
+        private static Func<bool> TurnMirror(string mirrorId, GridDirection solution)
+        {
+            Func<bool> use = null;
+            int turns = 0;
+            return () =>
+            {
+                RotatableMirror mirror = Object.FindObjectsByType<RotatableMirror>(FindObjectsInactive.Exclude).FirstOrDefault(m => m.ObjectId == mirrorId);
+                if (mirror == null)
+                {
+                    return Fail(true, "Spiegel " + mirrorId + " nicht gefunden.");
+                }
+
+                if (use == null)
+                {
+                    if (mirror.Direction == solution)
+                    {
+                        Note("Spiegel " + mirrorId + " zeigt nach " + solution + " (" + turns + "× gedreht).");
+                        return true;
+                    }
+
+                    if (turns >= 4)
+                    {
+                        return Fail(true, "Spiegel " + mirrorId + " erreicht " + solution + " nicht (steht auf " + mirror.Direction + ").");
+                    }
+
+                    use = UseTarget(() => mirror, mirrorId, null);
+                    turns++;
+                }
+
+                if (use())
+                {
+                    use = null;
+                    _stepStart = UnityEditor.EditorApplication.timeSinceStartup;
+                }
+
+                return false;
+            };
+        }
+
+        private static bool PuzzleSolved(string puzzleId, bool solved)
+        {
+            if (solved)
+            {
+                Note("Rätsel " + puzzleId + " gelöst.");
+                return true;
+            }
+
+            return Fail(Elapsed > 3.0, "Rätsel " + puzzleId + " ist nicht gelöst.");
+        }
+
+        /// <summary>Defeats every awake enemy in the player's scene (the crypt halls wake when the gate opens).</summary>
+        private static Func<bool> KillEnemiesInScene()
+        {
+            return () =>
+            {
+                if (Elapsed < 0.4)
+                {
+                    return false;
+                }
+
+                _stepStart = UnityEditor.EditorApplication.timeSinceStartup;
+                UnityEngine.SceneManagement.Scene scene = FindPlayer().gameObject.scene;
+                foreach (EnemyController enemy in Object.FindObjectsByType<EnemyController>(FindObjectsInactive.Exclude))
+                {
+                    var combatant = enemy.GetComponent<Aetherfall.Combat.Combatant>();
+                    if (enemy.gameObject.scene == scene && combatant != null && combatant.Health != null && combatant.Health.IsAlive)
+                    {
+                        combatant.Health.Kill(SubjectIdsPlayer);
+                        Note("Besiegt: " + combatant.CombatantId + ".");
+                        return false;
+                    }
+                }
+
+                return true;
+            };
+        }
+
+        /// <summary>Steps into the boss arena, 5 m in front of the boss.</summary>
+        private static Func<bool> ApproachBoss(string bossId)
+        {
+            return () =>
+            {
+                BossController boss = FindBoss(bossId);
+                if (boss == null)
+                {
+                    return Fail(Elapsed > 5.0, "Boss " + bossId + " nicht gefunden.");
+                }
+
+                Vector3 front = boss.transform.forward;
+                front.y = 0f;
+                PlaceOnGround(boss.transform.position + front.normalized * 5f, -front);
+                Note("Arena von " + bossId + " betreten.");
+                return true;
+            };
+        }
+
+        private static Func<bool> KillBoss(string bossId)
+        {
+            return () =>
+            {
+                BossController boss = FindBoss(bossId);
+                if (boss == null || boss.Combatant == null || boss.Combatant.Health == null)
+                {
+                    return Fail(true, "Boss " + bossId + " nicht gefunden.");
+                }
+
+                if (boss.Combatant.Health.IsAlive)
+                {
+                    boss.Combatant.Health.Kill(SubjectIdsPlayer);
+                    Note("Besiegt: " + bossId + ".");
+                }
+
+                return true;
+            };
+        }
+
+        private static BossController FindBoss(string bossId)
+        {
+            return Object.FindObjectsByType<BossController>(FindObjectsInactive.Exclude).FirstOrDefault(b => b.BossId == bossId);
+        }
+
+        /// <summary>Runs steps built on first use (they need the loaded scene) one after the other.</summary>
+        private static Func<bool> Chain(Func<List<Func<bool>>> build)
+        {
+            List<Func<bool>> parts = null;
+            int index = 0;
+            return () =>
+            {
+                if (parts == null)
+                {
+                    parts = build();
+                }
+
+                if (index < parts.Count && parts[index]())
+                {
+                    index++;
+                    _stepStart = UnityEditor.EditorApplication.timeSinceStartup;
+                }
+
+                return index >= parts.Count;
+            };
+        }
+
+        private static void PlaceOnGround(Vector3 position, Vector3 look)
+        {
+            PlayerMotor player = FindPlayer();
+            int ignore = 1 << player.gameObject.layer;
+            Vector3 ground = position;
+            // Short rays first (no roofs or crypt ceilings above doors and NPCs), then from high above (zone centres can lie
+            // below a slope).
+            if (Physics.Raycast(position + Vector3.up * 0.3f, Vector3.down, out RaycastHit hit, 60f, ~ignore, QueryTriggerInteraction.Ignore) ||
+                Physics.Raycast(position + Vector3.up * 2.5f, Vector3.down, out hit, 60f, ~ignore, QueryTriggerInteraction.Ignore) ||
+                Physics.Raycast(position + Vector3.up * 40f, Vector3.down, out hit, 120f, ~ignore, QueryTriggerInteraction.Ignore))
+            {
+                ground = hit.point + Vector3.up * 0.05f;
+            }
+
+            look.y = 0f;
+            float yaw = look.sqrMagnitude > 0.0001f ? Quaternion.LookRotation(look.normalized, Vector3.up).eulerAngles.y : player.transform.eulerAngles.y;
+            player.Teleport(new PlayerPose(ground.x, ground.y, ground.z, yaw));
+        }
+    }
+}

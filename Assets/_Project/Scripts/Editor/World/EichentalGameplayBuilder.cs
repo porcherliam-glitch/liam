@@ -464,7 +464,8 @@ namespace Aetherfall.EditorTools.World
                     // Second way to deal with the splinter (break it out instead of smashing it): same object id, other verb.
                     var breakOut = new GameObject("Herausbrechen");
                     breakOut.transform.SetParent(root.transform, false);
-                    breakOut.transform.localPosition = new Vector3(0f, 0f, 0.6f);
+                    // Beside the splinter, so the player can choose by where he stands (one prompt per spot).
+                    breakOut.transform.localPosition = new Vector3(1.4f, 0f, 0f);
                     QuestObjectMarker second = breakOut.AddComponent<QuestObjectMarker>();
                     TestGroundFields.SetString(second, "objectId", q.Id, _report);
                     TestGroundFields.SetString(second, "questId", q.QuestId, _report);

@@ -29,7 +29,7 @@ namespace Aetherfall.EditorTools.World
     /// every shot renders a camera into a render texture and, for the UI, points the UI Toolkit panels at a second render
     /// texture for two frames and blends both images.</para>
     /// </remarks>
-    public static class PlayTour
+    public static partial class PlayTour
     {
         private const string MenuPath = "Aetherfall/Entwicklung/Spiel-Rundgang (Screenshots)";
         private const string DefaultScene = "Assets/_Project/Scenes/Boot/Boot.unity";
@@ -87,7 +87,7 @@ namespace Aetherfall.EditorTools.World
             Messages.Clear();
             Steps.Clear();
             string projectRoot = Path.GetDirectoryName(Application.dataPath) ?? ".";
-            _outputFolder = Path.Combine(projectRoot, "Logs", "Tour", Path.GetFileNameWithoutExtension(scenePath));
+            _outputFolder = Path.Combine(projectRoot, "Logs", "Tour", Path.GetFileNameWithoutExtension(scenePath) + (ReadArgument("-tourMode") == "quests" ? "_Quests" : string.Empty));
             Directory.CreateDirectory(_outputFolder);
             foreach (string old in Directory.GetFiles(_outputFolder))
             {
@@ -125,6 +125,13 @@ namespace Aetherfall.EditorTools.World
 
             Steps.Enqueue(() => WaitForState(GameState.Playing, PlayingTimeoutSeconds));
             Steps.Enqueue(() => Wait(4.0));
+            if (ReadArgument("-tourMode") == "quests")
+            {
+                // Automated play-through of the mini slice quests instead of the screenshot tour (PlayTour.Quests.cs).
+                BuildQuestPlan();
+                return;
+            }
+
             Steps.Enqueue(ReportPlayer);
             Steps.Enqueue(() => Capture("02_spiel_mit_hud", null));
             Steps.Enqueue(() => Capture("03_hinter_spieler", ViewBehindPlayer));

@@ -62,7 +62,8 @@ namespace Aetherfall.EditorTools.World
                 return baseType;
             }
 
-            string path = EnemyFolder + "/" + baseType.name + "_Stufe" + level + ".asset";
+            string name = baseType.name + "_Stufe" + level;
+            string path = EnemyFolder + "/" + name + ".asset";
             var copy = AssetDatabase.LoadAssetAtPath<EnemyTypeDefinition>(path);
             if (copy == null)
             {
@@ -75,6 +76,8 @@ namespace Aetherfall.EditorTools.World
                 EditorUtility.CopySerialized(baseType, copy);
             }
 
+            // CopySerialized also copies the name; the main object must keep the file name.
+            copy.name = name;
             var serialized = new SerializedObject(copy);
             serialized.FindProperty("level").intValue = level;
             serialized.ApplyModifiedPropertiesWithoutUndo();

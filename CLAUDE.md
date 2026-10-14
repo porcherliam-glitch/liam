@@ -144,6 +144,7 @@ Batchmode-Einstiegspunkte (jeweils mit `-batchmode -nographics -projectPath . -q
 | Eichental erzeugen | `Aetherfall.EditorTools.World.EichentalMenu.RunBatch` |
 | Gruft erzeugen | `Aetherfall.EditorTools.World.GruftMenu.RunBatch` |
 | Spiel-Rundgang mit Screenshots (mit Grafik: **ohne** `-nographics` und ohne `-quit`; `-tourScene <Szenenpfad>`) | `Aetherfall.EditorTools.World.PlayTour.RunBatch` |
+| Die 3 Mini-Slice-Quests automatisch durchspielen (wie oben, dazu `-tourScene Assets/_Project/Scenes/Boot/Boot.unity -tourMode quests`; Bilder und Bericht in `Logs/Tour/Boot_Quests/`) | `Aetherfall.EditorTools.World.PlayTour.RunBatch` |
 | Projekt-Setup (ohne `-quit`, beendet sich selbst; nach Paketänderungen ein zweites Mal ausführen) | `Aetherfall.EditorTools.Core.ProjectSetupBatch.RunBatch` |
 | Quests prüfen | `Aetherfall.EditorTools.Narrative.QuestValidationMenu.RunBatch` |
 | Dialoge prüfen | `Aetherfall.Dialogue.DialogueValidationMenu.RunBatch` |

@@ -129,12 +129,36 @@ namespace Aetherfall.Player
                 return;
             }
 
-            IInteractable used = _target;
+            Use(_target, context);
+        }
+
+        /// <summary>
+        /// Uses the current target like a press of "Interagieren" (also for automated play-throughs and debug tools): only in
+        /// the game state Playing and only the target the interactor found (range, facing, <c>CanInteract</c>).
+        /// </summary>
+        /// <returns>True if the target was used.</returns>
+        public bool InteractWithCurrentTarget()
+        {
+            if (_gameState == null || _gameState.Current != GameState.Playing || _target == null)
+            {
+                return false;
+            }
+
+            return Use(_target, CreateContext());
+        }
+
+        private bool Use(IInteractable used, in InteractionContext context)
+        {
+            if (!IsAlive(used) || !used.CanInteract(context))
+            {
+                return false;
+            }
+
             string objectId = used.InteractionObjectId;
             string verb = used.InteractionVerb;
             if (!used.Interact(context))
             {
-                return;
+                return false;
             }
 
             _interactFrame = Time.frameCount;
@@ -146,6 +170,8 @@ namespace Aetherfall.Player
                 var interacted = new Interacted(objectId, verb);
                 _eventBus.Publish(in interacted);
             }
+
+            return true;
         }
 
         private InteractionContext CreateContext()
