@@ -163,3 +163,12 @@ Batchmode-Einstiegspunkte (jeweils mit `-batchmode -nographics -projectPath . -q
 5. Die 3 Quests als Daten nach GDD 02, Abschnitt 11 („Asche über Eichental“, „Die Wölfe vom Nordhang“, „Die vergessene Gruft“)
 6. Startstufe wieder auf 1 setzen, Neues Spiel/Laden aus dem Hauptmenü, Tod/Wiedereinstieg
 7. Platzhalter durch Blender-Modelle ersetzen (Häuser, Gruft, Wolf), Animationen
+
+## Danach: wie es weitergeht
+
+Der ganze Fahrplan steht in [docs/Status.md, „Als Nächstes“](docs/Status.md). Kurz:
+1. **Mini-Slice** (oben) fertig und einmal komplett durchgespielt.
+2. **Stufe A – Vertical Slice** (etwa 3,5–4 Stunden): die 5 übrigen Beispiel-Quests aus GDD 02, Abschnitt 11, Lindenhain mit Händlern, Würfeln, Begleiterin Maren, Klasse Magier. Danach die echte Arbeitsgeschwindigkeit messen (Gate G2).
+3. **Stufe B / B-Minimal / C** erst nach dieser Messung entscheiden ([GDD 00, Umfangsstufen](docs/GDD/00_Vision_und_Ueberblick.md#umfangsstufen)).
+
+Nach jedem Baustein: Tests grün, Testanleitung, `docs/Status.md` aktualisieren, committen und pushen (siehe Arbeitsregeln).
