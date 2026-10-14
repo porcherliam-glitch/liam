@@ -31,6 +31,15 @@ namespace Aetherfall.EditorTools.World
         /// <summary>Base villager with optional pieces ("Acc_<Name>@<Joint>") and colour-slot materials ("Dorf_<Slot>").</summary>
         public const string Villager = Folder + "/Dorfbewohner.fbx";
 
+        /// <summary>Skeleton warrior of the crypt (material slots "Gruft_…").</summary>
+        public const string Skeleton = Folder + "/Skelett.fbx";
+
+        /// <summary>Der Wachende Ritter (built at 1.8 m, scaled by the crypt builder).</summary>
+        public const string Knight = Folder + "/Ritter.fbx";
+
+        /// <summary>Tower shield of the elite skeletons and the knight.</summary>
+        public const string TowerShield = Folder + "/Turmschild.fbx";
+
         /// <summary>Loads a model (the FBX root object), or null with a warning.</summary>
         /// <param name="path">Asset path.</param>
         /// <param name="report">Protocol.</param>
@@ -53,7 +62,7 @@ namespace Aetherfall.EditorTools.World
         {
             AssetDatabase.ImportAsset(Folder, ImportAssetOptions.ImportRecursive | ImportAssetOptions.ForceUpdate);
             bool ok = true;
-            foreach (string path in new[] { Warrior, Sword, WoodenShield, Wolf, AetherWolf, Villager })
+            foreach (string path in new[] { Warrior, Sword, WoodenShield, Wolf, AetherWolf, Villager, Skeleton, Knight, TowerShield })
             {
                 var model = AssetDatabase.LoadAssetAtPath<GameObject>(path);
                 if (model == null)

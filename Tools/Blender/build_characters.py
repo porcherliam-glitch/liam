@@ -493,9 +493,147 @@ def dorfbewohner():
         lambda p: p.sphere(0.1, (0.24, 0, 0.42), metal, scale=(1.1, 1.1, 0.75), segments=8, rings=5))
 
 
+def gruft_materials():
+    """Material slots of the crypt models; Unity swaps them for the crypt materials (GruftMaterials) by name."""
+    return {
+        "bone": material("Gruft_Knochen", "D8CFB8", 0.8),
+        "rust": material("Gruft_Ruestung", "6E5A48", 0.6, 0.5),
+        "plate": material("Gruft_Ritter", "8A8E94", 0.35, 0.8),
+        "cloth": material("Gruft_Stoff", "5A2A2A", 0.9),
+        "iron": material("Gruft_Eisen", "4A4A4E", 0.45, 0.8),
+        "glow": material("Gruft_Augen_Leuchten", "7FF4FF", 0.2),
+        "dark": material("Gruft_Schatten", "101012", 0.9),
+    }
+
+
+def skelett():
+    """Skeleton warrior of the crypt (GDD 01 11.1 "Untote"): bones, rusty breastplate, tattered loincloth, glowing eye sockets.
+    Same joints as the humanoids (HumanoidPuppet)."""
+    g = gruft_materials()
+    bone, rust, cloth, iron, glow = g["bone"], g["rust"], g["cloth"], g["iron"], g["glow"]
+    root = empty("Skelett")
+    parts = {}
+
+    pelvis = PartBuilder("Pelvis")
+    pelvis.box((0.28, 0.13, 0.1), (0, 0, 0), bone, top_scale=(1.15, 1.0))
+    pelvis.box((0.32, 0.17, 0.04), (0, 0, 0.06), iron)
+    pelvis.box((0.2, 0.02, 0.3), (0, -0.09, -0.12), cloth, top_scale=(1.1, 1.0))
+    pelvis.box((0.2, 0.02, 0.26), (0, 0.09, -0.1), cloth, top_scale=(1.1, 1.0))
+    parts["Pelvis"] = pelvis.build(root, (0, 0, 0.95))
+
+    torso = PartBuilder("Torso")
+    torso.cylinder(0.028, 0.5, (0, 0.05, 0.24), bone, segments=6)
+    for i in range(4):
+        width = 0.3 - i * 0.025
+        torso.box((width, 0.17, 0.03), (0, 0, 0.1 + i * 0.07), bone, top_scale=(1.0, 1.0))
+    torso.box((0.36, 0.22, 0.2), (0, -0.005, 0.36), rust, top_scale=(1.12, 1.05))
+    torso.box((0.42, 0.06, 0.04), (0, 0, 0.47), bone)
+    parts["Torso"] = torso.build(parts["Pelvis"], (0, 0, 0.06))
+
+    head = PartBuilder("Head")
+    head.cylinder(0.028, 0.08, (0, 0, 0.03), bone, segments=6)
+    head.sphere(0.11, (0, 0.005, 0.18), bone, scale=(0.9, 1.0, 1.05), segments=10, rings=7)
+    head.box((0.12, 0.09, 0.06), (0, -0.045, 0.08), bone, top_scale=(1.1, 1.0))
+    for side in (-1, 1):
+        head.box((0.042, 0.02, 0.036), (side * 0.04, -0.098, 0.185), glow)
+    head.box((0.03, 0.02, 0.03), (0, -0.105, 0.14), g["dark"])
+    parts["Head"] = head.build(parts["Torso"], (0, 0, 0.5))
+
+    for side, tag in ((-1, "R"), (1, "L")):
+        upper = PartBuilder("UpperArm." + tag)
+        upper.sphere(0.045, (0, 0, 0), bone, segments=6, rings=4)
+        upper.cylinder(0.024, 0.3, (0, 0, -0.16), bone, segments=6)
+        if tag == "R":
+            upper.box((0.13, 0.15, 0.09), (0, 0, 0.0), rust, top_scale=(0.8, 0.9))
+        parts["UpperArm." + tag] = upper.build(parts["Torso"], (side * 0.23, 0, 0.42))
+        fore = PartBuilder("Forearm." + tag)
+        fore.box((0.02, 0.02, 0.26), (0.016, 0, -0.13), bone)
+        fore.box((0.02, 0.02, 0.26), (-0.016, 0, -0.13), bone)
+        fore.box((0.06, 0.08, 0.09), (0, -0.005, -0.29), bone)
+        parts["Forearm." + tag] = fore.build(parts["UpperArm." + tag], (0, 0, -0.31))
+        thigh = PartBuilder("Thigh." + tag)
+        thigh.cylinder(0.03, 0.42, (0, 0, -0.21), bone, segments=6)
+        thigh.sphere(0.045, (0, 0, -0.42), bone, segments=6, rings=4)
+        parts["Thigh." + tag] = thigh.build(parts["Pelvis"], (side * 0.1, 0, -0.06))
+        shin = PartBuilder("Shin." + tag)
+        shin.box((0.022, 0.022, 0.4), (0.015, 0, -0.2), bone)
+        shin.box((0.022, 0.022, 0.4), (-0.015, 0, -0.2), bone)
+        shin.box((0.08, 0.2, 0.04), (0, -0.05, -0.42), bone)
+        parts["Shin." + tag] = shin.build(parts["Thigh." + tag], (0, 0, -0.42))
+
+
+def ritter():
+    """Der Wachende Ritter (boss of the crypt): skeleton knight in full plate, great helm with a glowing slit, tabard and cape.
+    Built at 1.8 m; Unity scales it (1.22)."""
+    g = gruft_materials()
+    plate, cloth, iron, glow, dark = g["plate"], g["cloth"], g["iron"], g["glow"], g["dark"]
+    root = empty("Ritter")
+    parts = {}
+
+    pelvis = PartBuilder("Pelvis")
+    pelvis.box((0.36, 0.22, 0.14), (0, 0, 0), iron)
+    pelvis.box((0.44, 0.28, 0.24), (0, 0, -0.08), plate, top_scale=(0.92, 0.92))
+    pelvis.box((0.3, 0.02, 0.5), (0, -0.15, -0.2), cloth, top_scale=(1.05, 1.0))
+    pelvis.box((0.3, 0.02, 0.5), (0, 0.15, -0.2), cloth, top_scale=(1.05, 1.0))
+    parts["Pelvis"] = pelvis.build(root, (0, 0, 0.95))
+
+    torso = PartBuilder("Torso")
+    torso.box((0.4, 0.27, 0.48), (0, 0, 0.25), plate, top_scale=(1.15, 1.05))
+    torso.box((0.3, 0.02, 0.4), (0, -0.142, 0.18), cloth)
+    torso.box((0.06, 0.025, 0.3), (0, -0.155, 0.22), material("Gruft_Wappen", "C8B45A", 0.5, 0.3))
+    torso.box((0.5, 0.03, 1.15), (0, 0.17, -0.12), cloth, top_scale=(0.85, 1.0))
+    torso.box((0.22, 0.2, 0.06), (0, 0, 0.5), plate)
+    parts["Torso"] = torso.build(parts["Pelvis"], (0, 0, 0.06))
+
+    head = PartBuilder("Head")
+    head.cylinder(0.05, 0.08, (0, 0, 0.03), iron, segments=8)
+    head.cylinder(0.13, 0.3, (0, 0, 0.18), plate, segments=10, radius_top=0.12)
+    head.box((0.17, 0.02, 0.03), (0, -0.128, 0.2), glow)
+    head.box((0.02, 0.02, 0.12), (0, -0.13, 0.12), dark)
+    head.box((0.03, 0.26, 0.04), (0, 0, 0.34), iron)
+    parts["Head"] = head.build(parts["Torso"], (0, 0, 0.52))
+
+    for side, tag in ((-1, "R"), (1, "L")):
+        upper = PartBuilder("UpperArm." + tag)
+        upper.sphere(0.12, (0, 0, 0.0), plate, scale=(1.1, 1.1, 0.8), segments=8, rings=5)
+        upper.box((0.12, 0.13, 0.3), (0, 0, -0.16), plate, top_scale=(1.05, 1.05))
+        parts["UpperArm." + tag] = upper.build(parts["Torso"], (side * 0.26, 0, 0.42))
+        fore = PartBuilder("Forearm." + tag)
+        fore.box((0.11, 0.12, 0.22), (0, 0, -0.11), plate, top_scale=(1.08, 1.08))
+        fore.box((0.1, 0.11, 0.1), (0, -0.005, -0.28), iron)
+        parts["Forearm." + tag] = fore.build(parts["UpperArm." + tag], (0, 0, -0.31))
+        thigh = PartBuilder("Thigh." + tag)
+        thigh.box((0.16, 0.18, 0.42), (0, 0, -0.21), plate, top_scale=(1.08, 1.08))
+        parts["Thigh." + tag] = thigh.build(parts["Pelvis"], (side * 0.1, 0, -0.08))
+        shin = PartBuilder("Shin." + tag)
+        shin.sphere(0.07, (0, -0.02, 0), plate, segments=6, rings=4)
+        shin.box((0.14, 0.16, 0.36), (0, 0, -0.19), plate, top_scale=(1.08, 1.08))
+        shin.box((0.14, 0.26, 0.07), (0, -0.05, -0.415), iron)
+        parts["Shin." + tag] = shin.build(parts["Thigh." + tag], (0, 0, -0.42))
+
+
+def turmschild():
+    """Tower shield of the elite skeletons and the knight: grip at the origin, face along -Y. Slot "Gruft_Schild" becomes wood
+    or knight plate in Unity."""
+    g = gruft_materials()
+    face = material("Gruft_Schild", "6E4A2E", 0.85)
+    root = empty("Turmschild")
+    shield = PartBuilder("Schild")
+    shield.box((0.74, 0.07, 1.32), (0, -0.05, 0), face)
+    shield.box((0.78, 0.05, 0.05), (0, -0.05, 0.66), g["iron"])
+    shield.box((0.78, 0.05, 0.05), (0, -0.05, -0.66), g["iron"])
+    shield.box((0.05, 0.05, 1.36), (0.38, -0.05, 0), g["iron"])
+    shield.box((0.05, 0.05, 1.36), (-0.38, -0.05, 0), g["iron"])
+    shield.sphere(0.1, (0, -0.1, 0.1), g["iron"], scale=(1.0, 0.6, 1.0), segments=8, rings=4)
+    shield.build(root, (0, 0, 0))
+
+
 MODELS = {
     "krieger": ("Krieger.fbx", krieger),
     "dorfbewohner": ("Dorfbewohner.fbx", dorfbewohner),
+    "skelett": ("Skelett.fbx", skelett),
+    "ritter": ("Ritter.fbx", ritter),
+    "turmschild": ("Turmschild.fbx", turmschild),
     "wolf": ("Wolf.fbx", wolf),
     "aetherwolf": ("AetherWolf.fbx", aetherwolf),
     "schwert": ("Schwert.fbx", schwert),
@@ -530,7 +668,7 @@ def render_preview(path, height):
     print("Vorschau:", path)
 
 
-PREVIEW_HEIGHT = {"schwert": 1.0, "holzschild": 1.0, "wolf": 1.1, "aetherwolf": 1.1}
+PREVIEW_HEIGHT = {"schwert": 1.0, "holzschild": 1.0, "wolf": 1.1, "aetherwolf": 1.1, "turmschild": 1.5}
 
 
 def main():

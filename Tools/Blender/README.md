@@ -12,6 +12,9 @@ Stand: 2026-10-14.
 | `Wolf.fbx` | Grauwolf (Gelenke `Torso`, `Head`, `Tail`, `FrontUpper/FrontLower`, `HindUpper/HindLower` je `.L/.R`), bewegt von `QuadrupedPuppet` |
 | `AetherWolf.fbx` | Aether-Wolf: dunkles Fell, leuchtende Augen, Kristalle auf dem Rücken (Materialien mit „_Leuchten“ bekommen in Unity das Kristall-Material) |
 | `Dorfbewohner.fbx` | Grundfigur aller NPCs mit Zubehör `Acc_<Name>@<Gelenk>` (Haare, Zopf, Bart, Haarkranz, Strohhut, Mütze, Kapuze, Schürze, Latz, Tuch, Rock, Robe, Mantel, Wappenrock, Rüstung) und Farb-Plätzen `Dorf_<Platz>` (Haut, Haare, Oberteil, Ärmel, Unterteil, Schuhe, Gürtel, Schürze, Akzent, Metall). `VillagerFigures` behält je Person das passende Zubehör und färbt die Plätze. |
+| `Skelett.fbx` | Skelett-Krieger der Gruft: Knochen, rostiger Brustpanzer, zerrissener Lendenschurz, leuchtende Augenhöhlen (Material-Plätze `Gruft_<Platz>` werden in Unity zu den Gruft-Materialien) |
+| `Ritter.fbx` | Der Wachende Ritter: Plattenpanzer, Topfhelm mit leuchtendem Sehschlitz, Wappenrock, Umhang (in Unity 1,22-fach) |
+| `Turmschild.fbx` | Turmschild der Elite-Skelette und des Ritters (Platz `Gruft_Schild`: Holz bzw. Ritterpanzer) |
 
 ## Aufbau der Figuren
 

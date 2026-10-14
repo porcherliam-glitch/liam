@@ -54,9 +54,13 @@ namespace Aetherfall.Combat
         [Tooltip("Größter Beinausschlag in Grad.")]
         [Range(5f, 70f)] [SerializeField] private float legSwing = 38f;
 
+        [Tooltip("Beim Tod selbst umfallen. Aus, wenn ein Körper-Drehpunkt des Gegners das Umfallen schon zeigt (Skelette, Ritter).")]
+        [SerializeField] private bool fallOnDeath = true;
+
         private Quaternion[] _rest;
         private Transform[] _joints;
         private Vector3 _pelvisRest;
+        private Transform _mover;
         private Vector3 _lastPosition;
         private float _speed;
         private float _verticalSpeed;
@@ -85,6 +89,13 @@ namespace Aetherfall.Combat
             shinLeft = FindPart(root, "Shin.L");
         }
 
+        /// <summary>Whether the puppet falls over by itself when the combatant dies (editor tools).</summary>
+        /// <param name="fall">False if another transform shows the fall.</param>
+        public void SetFallOnDeath(bool fall)
+        {
+            fallOnDeath = fall;
+        }
+
         /// <summary>Sets the hand targets (null = the arm swings).</summary>
         /// <param name="right">Right hand target.</param>
         /// <param name="left">Left hand target.</param>
@@ -100,6 +111,9 @@ namespace Aetherfall.Combat
             {
                 combatant = GetComponentInParent<Combatant>();
             }
+
+            // Speed from the character, not from the model: an enemy body pivot that rears up must not look like walking.
+            _mover = combatant != null ? combatant.transform : transform;
 
             _joints = new[] { pelvis, torso, head, upperArmRight, forearmRight, upperArmLeft, forearmLeft, thighRight, shinRight, thighLeft, shinLeft };
             _rest = new Quaternion[_joints.Length];
@@ -142,7 +156,7 @@ namespace Aetherfall.Combat
                 return;
             }
 
-            Vector3 position = transform.position;
+            Vector3 position = _mover.position;
             if (!_started)
             {
                 _lastPosition = position;
@@ -219,7 +233,10 @@ namespace Aetherfall.Combat
             }
 
             // Falling over backwards around the feet.
-            transform.localRotation = Quaternion.Euler(-82f * Smooth(_death), 0f, 0f);
+            if (fallOnDeath)
+            {
+                transform.localRotation = Quaternion.Euler(-82f * Smooth(_death), 0f, 0f);
+            }
         }
 
         private bool Reach(Transform upper, Transform fore, Transform target, float side)

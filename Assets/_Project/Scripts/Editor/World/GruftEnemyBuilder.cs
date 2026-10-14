@@ -229,6 +229,12 @@ namespace Aetherfall.EditorTools.World
 
             int layer = root.layer;
             body = GruftParts.Empty(root.transform, "Body", new Vector3(0f, 0.95f * scale, 0f));
+            Transform model = CharacterModels.Instantiate(knight ? CharacterModels.Knight : CharacterModels.Skeleton, body, "Modell", layer, ctx.Report);
+            if (model != null)
+            {
+                return DressModel(ctx, root, body, model, scale, knight, towerShield, out shield, out flashRenderers);
+            }
+
             Material torsoMaterial = knight ? m.KnightArmor : m.Armor;
             GameObject torso = GruftParts.Part(body, "Rumpf", PrimitiveType.Cube, new Vector3(0f, 0.32f, 0f) * scale, new Vector3(0.5f, 0.62f, 0.28f) * scale,
                 torsoMaterial, layer, false);
@@ -269,6 +275,91 @@ namespace Aetherfall.EditorTools.World
             targetPoint.gameObject.layer = layer;
             flashRenderers = new[] { torso.GetComponent<Renderer>(), head.GetComponent<Renderer>() };
             return root;
+        }
+
+        /// <summary>
+        /// Blender model of a skeleton or the knight under the body pivot (rearing up and falling over stay with the pivot): crypt
+        /// materials by slot name, sword and tower shield models in the hands, <see cref="HumanoidPuppet"/> with the hands on
+        /// sword and shield.
+        /// </summary>
+        private static GameObject DressModel(GruftContext ctx, GameObject root, Transform body, Transform model, float scale, bool knight, bool towerShield,
+            out Transform shield, out Renderer[] flashRenderers)
+        {
+            GruftMaterials m = ctx.Materials;
+            int layer = root.layer;
+            model.localPosition = -body.localPosition;
+            model.localScale = Vector3.one * scale;
+            Recolour(model, m, knight);
+
+            Transform swordHand = GruftParts.Empty(body, "Schwerthand", new Vector3(0.36f, 0.05f, 0.15f) * scale);
+            Transform sword = CharacterModels.Instantiate(CharacterModels.Sword, swordHand, "Schwert", layer, ctx.Report);
+            if (sword != null)
+            {
+                sword.localScale = Vector3.one * scale;
+                sword.localRotation = Quaternion.Euler(-30f, 0f, 0f);
+            }
+
+            shield = null;
+            if (towerShield)
+            {
+                shield = GruftParts.Empty(body, "Schildarm", new Vector3(-0.36f, 0.15f, 0.25f) * scale);
+                Transform tower = CharacterModels.Instantiate(CharacterModels.TowerShield, shield, "Turmschild", layer, ctx.Report);
+                if (tower != null)
+                {
+                    tower.localScale = Vector3.one * scale;
+                    Recolour(tower, m, knight);
+                }
+            }
+
+            HumanoidPuppet puppet = model.gameObject.AddComponent<HumanoidPuppet>();
+            puppet.BindByName(model);
+            puppet.SetHandTargets(swordHand, shield);
+            puppet.SetFallOnDeath(false);
+
+            Transform targetPoint = GruftParts.Empty(root.transform, "TargetPoint", new Vector3(0f, 1.25f * scale, 0f));
+            targetPoint.gameObject.layer = layer;
+            flashRenderers = model.GetComponentsInChildren<Renderer>();
+            return root;
+        }
+
+        private static void Recolour(Transform model, GruftMaterials m, bool knight)
+        {
+            foreach (Renderer part in model.GetComponentsInChildren<Renderer>(true))
+            {
+                Material[] slots = part.sharedMaterials;
+                for (int i = 0; i < slots.Length; i++)
+                {
+                    switch (slots[i] != null ? slots[i].name : string.Empty)
+                    {
+                        case "Gruft_Knochen":
+                            slots[i] = m.Bone;
+                            break;
+                        case "Gruft_Ruestung":
+                            slots[i] = m.Armor;
+                            break;
+                        case "Gruft_Ritter":
+                            slots[i] = m.KnightArmor;
+                            break;
+                        case "Gruft_Stoff":
+                            slots[i] = m.Cloth;
+                            break;
+                        case "Gruft_Eisen":
+                            slots[i] = m.Iron;
+                            break;
+                        case "Gruft_Wappen":
+                            slots[i] = m.Gold;
+                            break;
+                        case "Gruft_Augen_Leuchten":
+                            slots[i] = m.AetherGlow;
+                            break;
+                        case "Gruft_Schild":
+                            slots[i] = knight ? m.KnightArmor : m.Wood;
+                            break;
+                    }
+                }
+
+                part.sharedMaterials = slots;
+            }
         }
 
         private static Combatant AddCombatant(GruftContext ctx, GameObject root, DamageableComponent damageable, HitFlash flash, float scale)
