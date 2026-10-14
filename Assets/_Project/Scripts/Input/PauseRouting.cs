@@ -9,8 +9,8 @@ namespace Aetherfall.Input
     /// <remarks>
     /// <para>Pause request = <c>Pause</c> of the Gameplay, Dialog or Riding map. Resume request = <c>CloseHub</c>
     /// (Start / Esc) or <c>Cancel</c> (B / Esc / right mouse button) of the UI map.</para>
-    /// <para>This routing is a stand-in until the pause menu exists (UI step): the pause screen will then handle the UI
-    /// buttons itself and the routing is switched off in the InputInstaller.</para>
+    /// <para>This routing is a stand-in for scenes without the UI: the UI pause menu handles the buttons itself and switches
+    /// the routing off (<see cref="IInputService.SetPauseButtonRouting"/>).</para>
     /// </remarks>
     public static class PauseRouting
     {

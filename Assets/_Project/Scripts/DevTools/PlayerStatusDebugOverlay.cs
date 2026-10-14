@@ -3,6 +3,7 @@ using System.Globalization;
 using System.IO;
 using Aetherfall.Combat;
 using Aetherfall.Core;
+using Aetherfall.Events;
 using Aetherfall.GameTime;
 using Aetherfall.Inventory;
 using Aetherfall.Items;
@@ -19,6 +20,8 @@ namespace Aetherfall.DevTools
     /// "Schnellladen", "10 Schaden", "Heilen" and "Speicherordner oeffnen".
     /// </summary>
     /// <remarks>
+    /// <para>Hidden until F3 is pressed (<see cref="DevOverlaySwitch"/>, architecture 14.3): the player-facing interface is the UI
+    /// Toolkit UI (Aetherfall.UI.Screens); this overlay is a developer tool.</para>
     /// <para>GameObject: "PlayerStatusOverlay" in the test ground (the test ground menu adds it and sets the references to
     /// the player). Active only in the editor and in development builds; in release builds it disables itself.</para>
     /// <para>The mouse is locked while playing: press Esc (pause) to click the buttons. Texts are rebuilt at most ten
@@ -53,6 +56,8 @@ namespace Aetherfall.DevTools
         [SerializeField] private Vector2 marginTopRight = new Vector2(10f, 10f);
 
         private ISaveManager _saves;
+        private IEventBus _eventBus;
+        private int _testLevel = 1;
         private IPlaytimeClock _playtime;
         private IInventoryService _inventory;
         private bool _expanded;
@@ -106,6 +111,7 @@ namespace Aetherfall.DevTools
                 if (locator != null)
                 {
                     locator.TryGet(out _saves);
+                    locator.TryGet(out _eventBus);
                     locator.TryGet(out _playtime);
                     locator.TryGet(out _inventory);
                 }
@@ -127,6 +133,7 @@ namespace Aetherfall.DevTools
 
         private void Update()
         {
+            DevOverlaySwitch.PollToggleKey();
             float now = Time.unscaledTime;
             if (now < _nextRefresh)
             {
@@ -192,6 +199,11 @@ namespace Aetherfall.DevTools
 
         private void OnGUI()
         {
+            if (!DevOverlaySwitch.IsVisible)
+            {
+                return;
+            }
+
             float scale = uiScale * Mathf.Max(1f, Screen.height / ReferenceHeight);
             Matrix4x4 previousMatrix = GUI.matrix;
             GUI.matrix = Matrix4x4.Scale(new Vector3(scale, scale, 1f));
@@ -284,6 +296,26 @@ namespace Aetherfall.DevTools
                 HealFully();
             }
 
+            if (GUILayout.Button("Tödlich"))
+            {
+                DealLethalDamage();
+            }
+
+            GUI.enabled = true;
+            GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal();
+            GUI.enabled = _eventBus != null;
+            if (GUILayout.Button("Meldung: +50 EP"))
+            {
+                PublishTestExperience();
+            }
+
+            if (GUILayout.Button("Meldung: Level-Up"))
+            {
+                PublishTestLevelUp();
+            }
+
             GUI.enabled = true;
             GUILayout.EndHorizontal();
 
@@ -304,7 +336,7 @@ namespace Aetherfall.DevTools
                 GUILayout.Label(_actionText);
             }
 
-            GUILayout.Label("Maus: im Spiel erst Esc drücken (Pause), dann klicken.");
+            GUILayout.Label("Maus: im Spiel erst Esc drücken (Pausemenü), dann klicken. F3 blendet die Debug-Anzeigen aus.");
         }
 
         private string DescribeGear()
@@ -341,6 +373,31 @@ namespace Aetherfall.DevTools
                 ? "10 Schaden: " + Round(outcome.Applied) + " LP abgezogen" + (outcome.Killed ? " – Spieler ist tot (Heilen belebt wieder)." : ".")
                 : "10 Schaden ignoriert: " + outcome.IgnoredReason;
             RefreshTexts();
+        }
+
+        private void DealLethalDamage()
+        {
+            Health health = playerHealth.Health;
+            DamageOutcome outcome = playerHealth.ApplyDamage(new DamageInfo(health.Current + health.Max, DamageSourceId));
+            _actionText = outcome.Killed ? "Tödlicher Schaden: Spieler ist tot (Todesbildschirm)." : "Tödlicher Schaden ignoriert: " + outcome.IgnoredReason;
+            RefreshTexts();
+        }
+
+        private void PublishTestExperience()
+        {
+            // Developer cheat: a fake fact for the HUD message test until the progression system sends real ones.
+            var gained = new XpGained(50, DamageSourceId);
+            _eventBus.Publish(in gained);
+            _actionText = "Test-Meldung „+50 EP“ gesendet (erscheint im Spiel, nicht im Menü).";
+        }
+
+        private void PublishTestLevelUp()
+        {
+            // Developer cheat: a fake fact for the HUD banner test until the progression system sends real ones.
+            _testLevel++;
+            var levelUp = new LevelUp(_testLevel);
+            _eventBus.Publish(in levelUp);
+            _actionText = "Test-Meldung „Stufe " + _testLevel + " erreicht“ gesendet (erscheint im Spiel, nicht im Menü).";
         }
 
         private void HealFully()

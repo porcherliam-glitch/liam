@@ -262,7 +262,8 @@ namespace Aetherfall.Core
             EnsureTickRunner().SetTickables(tickables);
             Log.Info(LogCategory.Boot, "Step 6/7: PostInitialize called on " + postInitializedCount + " service(s); " + tickables.Count + " tickable(s) registered.");
 
-            // Step 7: enter the main menu. (Loading the MainMenu scene follows with the SceneLoader, Phase 1 step 1.4.)
+            // Step 7: enter the main menu. The main menu is a UI screen of the boot scene (UI.Screens); a separate MainMenu
+            // scene (architecture 4.5) follows when the menu needs 3D content.
             _currentStep = "switching to MainMenu";
             IGameStateService gameState = _locator.Get<IGameStateService>();
             _phase = BootPhase.Running;

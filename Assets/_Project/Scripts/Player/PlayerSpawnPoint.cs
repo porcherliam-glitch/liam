@@ -9,7 +9,8 @@ namespace Aetherfall.Player
     /// Start position of the player in a scene. Places the referenced <see cref="PlayerMotor"/> here when the game enters
     /// <see cref="GameState.Playing"/> from <see cref="GameState.Loading"/> ("Loading → Playing: Zellen aktiv, Spieler
     /// platziert", architecture 4.4) – or right away if the game already plays – and publishes <see cref="PlayerSpawned"/>.
-    /// Spawns once per scene lifetime.
+    /// Spawns once per scene lifetime. If a loaded save places the player first (<see cref="PlayerSpawned"/> before
+    /// Loading → Playing, e.g. "Laden" from the main menu), the spawn point keeps that position.
     /// </summary>
     /// <remarks>
     /// GameObject: an empty object in the scene; its position and Y rotation are the spawn pose. The forward direction is
@@ -75,6 +76,7 @@ namespace Aetherfall.Player
             }
 
             _eventBus.Subscribe<GameStateChanged>(OnGameStateChanged);
+            _eventBus.Subscribe<PlayerSpawned>(OnPlayerSpawned);
             _subscribed = true;
         }
 
@@ -83,8 +85,22 @@ namespace Aetherfall.Player
             if (_subscribed)
             {
                 _eventBus.Unsubscribe<GameStateChanged>(OnGameStateChanged);
+                _eventBus.Unsubscribe<PlayerSpawned>(OnPlayerSpawned);
                 _subscribed = false;
             }
+        }
+
+        private void OnPlayerSpawned(PlayerSpawned evt)
+        {
+            // A loaded save placed the player (published before Loading -> Playing): keep that position, do not spawn here.
+            if (_spawned)
+            {
+                return;
+            }
+
+            _spawned = true;
+            Log.Info(LogCategory.Player, "PlayerSpawnPoint '" + name + "': the player was placed by a save, no spawn here.");
+            Unsubscribe();
         }
 
         private void OnGameStateChanged(GameStateChanged evt)

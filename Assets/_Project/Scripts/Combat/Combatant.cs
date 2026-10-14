@@ -334,15 +334,20 @@ namespace Aetherfall.Combat
             }
         }
 
-        /// <summary>Full health, full poise, no hitstop (respawn).</summary>
-        public void ResetForRespawn()
+        /// <summary>Full poise and no hitstop; health stays as it is (after loading a save, which restored the health).</summary>
+        public void ResetTransientState()
         {
             _hitStop.Clear();
             if (_poise != null)
             {
                 _poise.Reset();
             }
+        }
 
+        /// <summary>Full health, full poise, no hitstop (respawn).</summary>
+        public void ResetForRespawn()
+        {
+            ResetTransientState();
             Health health = Health;
             if (health != null)
             {

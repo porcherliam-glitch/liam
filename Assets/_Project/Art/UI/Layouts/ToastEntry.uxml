@@ -1,0 +1,6 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- One message. ToastView adds the priority class (af-toast-p0 style, see Toasts.uss) and the accent class. -->
+    <ui:VisualElement class="af-toast" picking-mode="Ignore">
+        <ui:Label name="toast-text" class="af-text af-toast__text" picking-mode="Ignore" />
+    </ui:VisualElement>
+</ui:UXML>

@@ -237,6 +237,28 @@ namespace Aetherfall.Player
         /// <summary>Back to ready after a respawn: state machine, knockback, combatant (health, poise) and lock-on reset.</summary>
         public void ResetAfterRespawn()
         {
+            ResetControllerState();
+            if (combatant != null)
+            {
+                combatant.ResetForRespawn();
+            }
+        }
+
+        /// <summary>
+        /// Back to ready after a save was loaded (e.g. from the death screen): state machine, knockback, poise and lock-on
+        /// reset, but the health keeps the value the save restored.
+        /// </summary>
+        public void ResetAfterLoad()
+        {
+            ResetControllerState();
+            if (combatant != null)
+            {
+                combatant.ResetTransientState();
+            }
+        }
+
+        private void ResetControllerState()
+        {
             if (_machine != null)
             {
                 _machine.Reset();
@@ -247,11 +269,6 @@ namespace Aetherfall.Player
             _finisherActive = false;
             _heavyHeld = false;
             _blockHeld = false;
-            if (combatant != null)
-            {
-                combatant.ResetForRespawn();
-            }
-
             if (lockOn != null)
             {
                 lockOn.Release();

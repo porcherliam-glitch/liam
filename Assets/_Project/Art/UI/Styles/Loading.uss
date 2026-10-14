@@ -1,0 +1,62 @@
+/* Loading screen (GDD 05 1.1: progress bar, title, a tip). */
+
+.af-loading {
+    background-color: #090B0E;
+}
+
+.af-loading__glow {
+    position: absolute;
+    left: -320px;
+    bottom: -520px;
+    width: 1400px;
+    height: 1000px;
+    border-radius: 700px;
+    background-color: rgba(201, 162, 77, 0.06);
+}
+
+.af-loading__content {
+    position: absolute;
+    left: 160px;
+    right: 160px;
+    bottom: 110px;
+}
+
+.af-loading__title {
+    font-size: 54px;
+    color: var(--text-title);
+    -unity-font-style: bold;
+    letter-spacing: 2px;
+}
+
+.af-loading__tip {
+    margin: 14px 0 36px 0;
+    font-size: var(--font-body);
+    color: var(--text-secondary);
+    white-space: normal;
+}
+
+.af-loading__bar-row {
+    flex-direction: row;
+    align-items: center;
+}
+
+.af-progress {
+    flex-grow: 1;
+    height: 8px;
+    background-color: rgba(237, 230, 214, 0.12);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.af-progress__fill {
+    height: 100%;
+    width: 0%;
+    background-color: var(--accent-gold);
+}
+
+.af-loading__percent {
+    width: 110px;
+    font-size: var(--font-body);
+    color: var(--text-secondary);
+    -unity-text-align: middle-right;
+}

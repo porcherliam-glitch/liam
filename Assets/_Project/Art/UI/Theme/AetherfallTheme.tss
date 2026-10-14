@@ -1,0 +1,13 @@
+/*
+ * Aetherfall runtime theme (architecture 12, GDD 05 1.1).
+ * Assigned to Assets/_Project/Settings/UI/AetherfallPanelSettings.asset (Theme Style Sheet) by the menu
+ * "Aetherfall > Oberflaeche einrichten". The default runtime theme comes first, so all built-in controls keep working;
+ * the project sheets after it override what they need (later sheets win at equal specificity).
+ */
+@import url("unity-theme://default");
+@import url("../Styles/Tokens.uss");
+@import url("../Styles/Base.uss");
+@import url("../Styles/Menus.uss");
+@import url("../Styles/Hud.uss");
+@import url("../Styles/Toasts.uss");
+@import url("../Styles/Loading.uss");

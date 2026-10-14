@@ -1,0 +1,95 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- HUD (GDD 05 1.2). Texts come from Aetherfall.UI.Framework.UiTexts (element name = key) or from HudView. -->
+    <ui:VisualElement name="hud" class="af-root af-hud" picking-mode="Ignore">
+        <ui:VisualElement name="hud-top" class="af-hud__top" picking-mode="Ignore">
+            <ui:VisualElement name="hud-compass" class="af-compass" picking-mode="Ignore">
+                <ui:VisualElement class="af-compass__line" picking-mode="Ignore" />
+                <ui:Label name="hud-compass-n" class="af-text af-compass__label af-compass__label--cardinal af-compass__label--north" picking-mode="Ignore" />
+                <ui:Label name="hud-compass-ne" class="af-text af-compass__label" picking-mode="Ignore" />
+                <ui:Label name="hud-compass-e" class="af-text af-compass__label af-compass__label--cardinal" picking-mode="Ignore" />
+                <ui:Label name="hud-compass-se" class="af-text af-compass__label" picking-mode="Ignore" />
+                <ui:Label name="hud-compass-s" class="af-text af-compass__label af-compass__label--cardinal" picking-mode="Ignore" />
+                <ui:Label name="hud-compass-sw" class="af-text af-compass__label" picking-mode="Ignore" />
+                <ui:Label name="hud-compass-w" class="af-text af-compass__label af-compass__label--cardinal" picking-mode="Ignore" />
+                <ui:Label name="hud-compass-nw" class="af-text af-compass__label" picking-mode="Ignore" />
+                <ui:VisualElement class="af-compass__needle" picking-mode="Ignore" />
+            </ui:VisualElement>
+            <ui:VisualElement name="hud-target" class="af-target" picking-mode="Ignore">
+                <ui:Label name="hud-target-name" class="af-text af-target__name" picking-mode="Ignore" />
+                <ui:VisualElement name="hud-target-health" class="af-bar af-bar--target" picking-mode="Ignore">
+                    <ui:VisualElement name="hud-target-health-trail" class="af-bar__trail" picking-mode="Ignore" />
+                    <ui:VisualElement name="hud-target-health-fill" class="af-bar__fill af-bar__fill--enemy" picking-mode="Ignore" />
+                </ui:VisualElement>
+                <ui:VisualElement class="af-target__poise-row" picking-mode="Ignore">
+                    <ui:Label name="hud-target-poise-label" class="af-text af-target__poise-label" picking-mode="Ignore" />
+                    <ui:VisualElement name="hud-target-poise" class="af-bar af-bar--poise" picking-mode="Ignore">
+                        <ui:VisualElement name="hud-target-poise-fill" class="af-bar__fill af-bar__fill--poise" picking-mode="Ignore" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement name="hud-prompt" class="af-prompt" picking-mode="Ignore">
+            <ui:Label name="hud-prompt-glyph-interact" class="af-text af-glyph af-glyph--large af-glyph--face" picking-mode="Ignore" />
+            <ui:Label name="hud-prompt-text" class="af-text af-prompt__text" picking-mode="Ignore" />
+        </ui:VisualElement>
+        <ui:VisualElement name="hud-vitals" class="af-vitals" picking-mode="Ignore">
+            <ui:VisualElement name="hud-health" class="af-bar af-bar--health" picking-mode="Ignore">
+                <ui:VisualElement name="hud-health-trail" class="af-bar__trail" picking-mode="Ignore" />
+                <ui:VisualElement name="hud-health-fill" class="af-bar__fill af-bar__fill--health" picking-mode="Ignore" />
+            </ui:VisualElement>
+            <ui:VisualElement class="af-vitals__row" picking-mode="Ignore">
+                <ui:VisualElement name="hud-stamina" class="af-bar af-bar--stamina" picking-mode="Ignore">
+                    <ui:VisualElement name="hud-stamina-trail" class="af-bar__trail" picking-mode="Ignore" />
+                    <ui:VisualElement name="hud-stamina-fill" class="af-bar__fill af-bar__fill--stamina" picking-mode="Ignore" />
+                </ui:VisualElement>
+                <ui:VisualElement name="hud-mana" class="af-bar af-bar--mana" picking-mode="Ignore">
+                    <ui:VisualElement name="hud-mana-trail" class="af-bar__trail" picking-mode="Ignore" />
+                    <ui:VisualElement name="hud-mana-fill" class="af-bar__fill af-bar__fill--mana" picking-mode="Ignore" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:Label name="hud-stamina-exhausted" class="af-text af-vitals__exhausted" picking-mode="Ignore" />
+        </ui:VisualElement>
+        <ui:VisualElement name="hud-actions" class="af-actions" picking-mode="Ignore">
+            <ui:VisualElement name="hud-abilities" class="af-abilities" picking-mode="Ignore">
+                <ui:VisualElement name="hud-ability-1" class="af-slot af-slot--ability" picking-mode="Ignore">
+                    <ui:VisualElement class="af-slot__icon" picking-mode="Ignore" />
+                    <ui:Label name="hud-ability-1-glyph-ability1" class="af-text af-glyph" picking-mode="Ignore" />
+                </ui:VisualElement>
+                <ui:VisualElement name="hud-ability-2" class="af-slot af-slot--ability" picking-mode="Ignore">
+                    <ui:VisualElement class="af-slot__icon" picking-mode="Ignore" />
+                    <ui:Label name="hud-ability-2-glyph-ability2" class="af-text af-glyph" picking-mode="Ignore" />
+                </ui:VisualElement>
+                <ui:VisualElement name="hud-ability-3" class="af-slot af-slot--ability" picking-mode="Ignore">
+                    <ui:VisualElement class="af-slot__icon" picking-mode="Ignore" />
+                    <ui:Label name="hud-ability-3-glyph-ability3" class="af-text af-glyph" picking-mode="Ignore" />
+                </ui:VisualElement>
+                <ui:VisualElement name="hud-ability-4" class="af-slot af-slot--ability" picking-mode="Ignore">
+                    <ui:VisualElement class="af-slot__icon" picking-mode="Ignore" />
+                    <ui:Label name="hud-ability-4-glyph-ability4" class="af-text af-glyph" picking-mode="Ignore" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement name="hud-quickslots" class="af-quickslots" picking-mode="Ignore">
+                <ui:VisualElement name="hud-quick-1" class="af-slot af-slot--quick af-slot--quick-up" picking-mode="Ignore">
+                    <ui:Label name="hud-quick-1-name" class="af-text af-slot__name" picking-mode="Ignore" />
+                    <ui:Label name="hud-quick-1-count" class="af-text af-slot__count" picking-mode="Ignore" />
+                    <ui:Label name="hud-quick-1-glyph-quick1" class="af-text af-glyph" picking-mode="Ignore" />
+                </ui:VisualElement>
+                <ui:VisualElement name="hud-quick-2" class="af-slot af-slot--quick af-slot--quick-right" picking-mode="Ignore">
+                    <ui:Label name="hud-quick-2-name" class="af-text af-slot__name" picking-mode="Ignore" />
+                    <ui:Label name="hud-quick-2-count" class="af-text af-slot__count" picking-mode="Ignore" />
+                    <ui:Label name="hud-quick-2-glyph-quick2" class="af-text af-glyph" picking-mode="Ignore" />
+                </ui:VisualElement>
+                <ui:VisualElement name="hud-quick-3" class="af-slot af-slot--quick af-slot--quick-down" picking-mode="Ignore">
+                    <ui:Label name="hud-quick-3-name" class="af-text af-slot__name" picking-mode="Ignore" />
+                    <ui:Label name="hud-quick-3-count" class="af-text af-slot__count" picking-mode="Ignore" />
+                    <ui:Label name="hud-quick-3-glyph-quick3" class="af-text af-glyph" picking-mode="Ignore" />
+                </ui:VisualElement>
+                <ui:VisualElement name="hud-quick-4" class="af-slot af-slot--quick af-slot--quick-left" picking-mode="Ignore">
+                    <ui:Label name="hud-quick-4-name" class="af-text af-slot__name" picking-mode="Ignore" />
+                    <ui:Label name="hud-quick-4-count" class="af-text af-slot__count" picking-mode="Ignore" />
+                    <ui:Label name="hud-quick-4-glyph-quick4" class="af-text af-glyph" picking-mode="Ignore" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

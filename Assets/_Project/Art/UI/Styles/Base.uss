@@ -1,0 +1,342 @@
+/*
+ * Shared building blocks: document roots, text, buttons with focus frame and hold progress, glyph caps, footer hints,
+ * panels and the open/close transition of screens (GDD 05 1.4: open 0.15 s, close 0.10 s, < 0.2 s per section 24.3).
+ */
+
+/* Every UIDocument of the panel fills the screen. */
+.unity-ui-document__root {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+}
+
+.af-root {
+    flex-grow: 1;
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+}
+
+/* ---------- Text ---------- */
+
+.af-text {
+    margin: 0;
+    padding: 0;
+    font-size: var(--font-body);
+    color: var(--text-primary);
+    -unity-font-style: normal;
+    -unity-text-align: middle-left;
+    white-space: nowrap;
+}
+
+/* ---------- Screens: open and close transition ---------- */
+
+.af-screen {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    opacity: 1;
+    scale: 1 1;
+    transition-property: opacity, scale;
+    transition-duration: 0.15s;
+    transition-timing-function: ease-out-cubic;
+}
+
+.af-screen.is-hidden {
+    opacity: 0;
+    scale: 0.98 0.98;
+}
+
+.af-screen.is-closing {
+    transition-duration: 0.1s;
+    transition-timing-function: ease-in-cubic;
+}
+
+.af-overlay {
+    background-color: var(--ui-backdrop);
+    align-items: center;
+    justify-content: center;
+}
+
+.af-panel {
+    background-color: var(--ui-panel-strong);
+    border-width: 1px;
+    border-color: var(--ui-panel-border);
+    border-radius: 6px;
+}
+
+/* ---------- Buttons (menu items) ---------- */
+
+.af-button {
+    position: relative;
+    height: 64px;
+    margin: 0 0 12px 0;
+    padding: 0 28px;
+    background-color: var(--button-bg);
+    border-width: 1px;
+    border-color: var(--button-border);
+    border-radius: 4px;
+    color: var(--text-primary);
+    font-size: 26px;
+    -unity-text-align: middle-left;
+    flex-direction: row;
+    align-items: center;
+    scale: 1 1;
+    transition-property: scale, background-color, border-color;
+    transition-duration: 0.08s;
+}
+
+.af-button:hover {
+    background-color: var(--button-bg);
+    border-color: var(--button-border);
+}
+
+.af-button:active {
+    background-color: var(--button-bg);
+}
+
+/* GDD 05 1.4: 3 px frame in ui.focus, 104 % scale, lighter background. */
+.af-button.is-focused,
+.af-button.is-focused:hover {
+    border-width: 3px;
+    border-color: var(--ui-focus);
+    background-color: var(--button-bg-focus);
+    color: #FFFFFF;
+    scale: 1.04 1.04;
+}
+
+.af-button.is-disabled {
+    color: var(--text-muted);
+    background-color: rgba(16, 20, 24, 0.55);
+}
+
+.af-button.is-disabled.is-focused {
+    color: var(--text-secondary);
+}
+
+.af-button__info {
+    position: absolute;
+    right: 24px;
+    font-size: var(--font-small);
+    color: var(--text-secondary);
+    -unity-text-align: middle-right;
+}
+
+.af-button.is-focused .af-button__info {
+    color: var(--text-title);
+}
+
+.af-button__badge {
+    position: absolute;
+    right: 24px;
+    font-size: 18px;
+    color: var(--text-muted);
+    -unity-text-align: middle-right;
+}
+
+.af-button.is-focused .af-button__badge {
+    color: var(--ui-focus);
+}
+
+/* Hold-to-confirm progress (GDD 05 1.4) along the bottom edge of the button. */
+.af-button__hold {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 5px;
+}
+
+.af-button__hold-fill {
+    height: 100%;
+    width: 0%;
+    background-color: var(--ui-focus);
+}
+
+/* ---------- Lists ---------- */
+
+.af-menu-list {
+    width: 520px;
+}
+
+.af-divider {
+    width: 420px;
+    height: 2px;
+    margin: 28px 0 40px 0;
+    background-color: var(--accent-gold);
+    opacity: 0.7;
+}
+
+/* ---------- Glyph caps (text glyphs until sprites exist, GDD 05 1.5) ---------- */
+
+.af-glyph {
+    min-width: 36px;
+    height: 36px;
+    padding: 0 8px;
+    margin: 0 10px 0 0;
+    border-width: 2px;
+    border-color: rgba(237, 230, 214, 0.85);
+    border-radius: 7px;
+    background-color: rgba(8, 10, 13, 0.6);
+    font-size: 18px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    color: var(--text-primary);
+}
+
+/* Gamepad face buttons are round. */
+.glyphs-xbox .af-glyph--face,
+.glyphs-playstation .af-glyph--face,
+.glyphs-nintendo .af-glyph--face,
+.glyphs-generic .af-glyph--face {
+    border-radius: 18px;
+}
+
+.af-glyph--large {
+    min-width: 44px;
+    height: 44px;
+    font-size: 22px;
+    border-radius: 8px;
+}
+
+.glyphs-xbox .af-glyph--large,
+.glyphs-playstation .af-glyph--large,
+.glyphs-nintendo .af-glyph--large,
+.glyphs-generic .af-glyph--large {
+    border-radius: 22px;
+}
+
+/* ---------- Footer hints ---------- */
+
+.af-footer {
+    position: absolute;
+    left: 160px;
+    right: 160px;
+    bottom: 48px;
+    flex-direction: row;
+    align-items: center;
+}
+
+.af-footer--panel {
+    position: relative;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 18px 40px;
+    border-top-width: 1px;
+    border-color: var(--ui-panel-border);
+}
+
+.af-footer--center {
+    justify-content: center;
+}
+
+.af-hint {
+    flex-direction: row;
+    align-items: center;
+    margin: 0 36px 0 0;
+}
+
+.af-hint__text {
+    font-size: var(--font-small);
+    color: var(--text-secondary);
+}
+
+.af-version {
+    position: absolute;
+    right: 48px;
+    bottom: 52px;
+    font-size: 18px;
+    color: var(--text-muted);
+    -unity-text-align: middle-right;
+}
+
+/* ---------- Pages (load list, options) ---------- */
+
+.af-page,
+.af-load,
+.af-options {
+    flex-grow: 1;
+}
+
+.af-page__title {
+    font-size: var(--font-heading);
+    color: var(--text-title);
+    margin: 0 0 24px 0;
+}
+
+.af-page__empty {
+    font-size: var(--font-body);
+    color: var(--text-secondary);
+    white-space: normal;
+}
+
+.af-page__note {
+    margin: 20px 0 0 0;
+    font-size: var(--font-small);
+    color: var(--text-secondary);
+    white-space: normal;
+}
+
+.af-page__status {
+    margin: 12px 0 0 0;
+    font-size: var(--font-small);
+    color: var(--ui-worse);
+    white-space: normal;
+}
+
+/* Save slot rows (GDD 05 5.5: kind, date and time, playtime). */
+.af-slot-list {
+    flex-shrink: 1;
+}
+
+.af-slot-row {
+    height: 76px;
+    justify-content: space-between;
+}
+
+.af-slot-row__main {
+    flex-direction: column;
+    justify-content: center;
+}
+
+.af-slot-row__kind {
+    font-size: 24px;
+    color: var(--text-primary);
+}
+
+.af-slot-row__date {
+    font-size: 18px;
+    color: var(--text-secondary);
+}
+
+.af-slot-row__playtime {
+    font-size: 20px;
+    color: var(--text-secondary);
+    -unity-text-align: middle-right;
+}
+
+.af-slot-row.is-damaged .af-slot-row__kind {
+    color: var(--ui-worse);
+}
+
+/* Option rows: label left, value with arrows right. */
+.af-option {
+    justify-content: space-between;
+}
+
+.af-option__label {
+    font-size: 24px;
+}
+
+.af-option__value {
+    font-size: 24px;
+    color: var(--text-title);
+    -unity-text-align: middle-right;
+}

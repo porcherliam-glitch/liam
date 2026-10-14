@@ -1,0 +1,329 @@
+/*
+ * HUD (GDD 05 1.2): compass and target bar at the top centre, interaction prompt below the centre, health/stamina/mana
+ * bottom left, abilities and quick slots bottom right. Elements are hidden with display none by the HUD rules
+ * (context mode); everything ignores the mouse (picking-mode Ignore in the UXML).
+ */
+
+.af-hud {
+    font-size: var(--font-body);
+}
+
+.af-hud .af-text {
+    text-shadow: 0px 2px 3px var(--text-shadow-color);
+}
+
+/* ---------- Top: compass and target ---------- */
+
+.af-hud__top {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 24px;
+    align-items: center;
+}
+
+.af-compass {
+    width: 640px;
+    height: 40px;
+    overflow: hidden;
+    background-color: rgba(8, 10, 13, 0.55);
+    border-bottom-width: 1px;
+    border-color: rgba(232, 210, 160, 0.35);
+    border-radius: 3px;
+}
+
+.af-compass__line {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 6px;
+    height: 1px;
+    background-color: rgba(232, 210, 160, 0.18);
+}
+
+.af-compass__label {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 60px;
+    margin: 0 0 0 -30px;
+    font-size: 20px;
+    color: var(--text-secondary);
+    -unity-text-align: middle-center;
+}
+
+.af-compass__label--cardinal {
+    font-size: 24px;
+    color: var(--text-primary);
+    -unity-font-style: bold;
+}
+
+.af-compass__label--north {
+    color: var(--text-title);
+}
+
+.af-compass__needle {
+    position: absolute;
+    left: 319px;
+    top: 0;
+    width: 2px;
+    height: 10px;
+    background-color: var(--ui-focus);
+}
+
+.af-target {
+    margin: 18px 0 0 0;
+    width: 640px;
+    align-items: center;
+}
+
+.af-target__name {
+    font-size: 26px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    margin: 0 0 8px 0;
+}
+
+.af-target__poise-row {
+    width: 100%;
+    flex-direction: row;
+    align-items: center;
+    margin: 6px 0 0 0;
+}
+
+.af-target__poise-label {
+    width: 96px;
+    font-size: 18px;
+    color: var(--text-secondary);
+}
+
+/* ---------- Bars with delayed loss trail (GDD 05 1.2) ---------- */
+
+.af-bar {
+    position: relative;
+    overflow: hidden;
+    background-color: var(--hud-bar-bg);
+    border-width: 2px;
+    border-color: var(--hud-bar-border);
+    border-radius: 3px;
+}
+
+.af-bar__trail,
+.af-bar__fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 100%;
+}
+
+.af-bar__trail {
+    background-color: var(--hud-trail);
+    opacity: 0.85;
+}
+
+.af-bar__fill--health {
+    background-color: var(--hud-health);
+}
+
+.af-bar--health.is-low .af-bar__fill--health {
+    background-color: var(--hud-health-low);
+}
+
+.af-bar__fill--stamina {
+    background-color: var(--hud-stamina);
+}
+
+.af-bar__fill--mana {
+    background-color: var(--hud-mana);
+}
+
+.af-bar__fill--enemy {
+    background-color: var(--hud-enemy);
+}
+
+.af-bar__fill--poise {
+    background-color: var(--hud-poise);
+}
+
+.af-bar--target {
+    width: 100%;
+    height: 16px;
+}
+
+.af-bar--poise {
+    flex-grow: 1;
+    height: 8px;
+    border-width: 1px;
+}
+
+.af-bar--poise.is-broken .af-bar__fill--poise {
+    background-color: var(--ui-focus);
+}
+
+.af-vitals {
+    position: absolute;
+    left: 48px;
+    bottom: 48px;
+}
+
+.af-bar--health {
+    width: 460px;
+    height: 22px;
+}
+
+.af-vitals__row {
+    flex-direction: row;
+    margin: 8px 0 0 0;
+}
+
+.af-bar--stamina {
+    width: 300px;
+    height: 12px;
+    margin: 0 12px 0 0;
+}
+
+.af-bar--stamina.is-exhausted {
+    border-color: var(--hud-health-low);
+}
+
+.af-bar--mana {
+    width: 220px;
+    height: 12px;
+}
+
+.af-vitals__exhausted {
+    margin: 6px 0 0 0;
+    font-size: var(--font-small);
+    color: var(--hud-health-low);
+    -unity-font-style: bold;
+}
+
+.af-vitals__exhausted.is-blink-off {
+    opacity: 0.25;
+}
+
+/* ---------- Bottom right: abilities and quick slots ---------- */
+
+.af-actions {
+    position: absolute;
+    right: 48px;
+    bottom: 40px;
+    align-items: flex-end;
+}
+
+.af-abilities {
+    flex-direction: row;
+}
+
+.af-slot {
+    background-color: rgba(8, 10, 13, 0.62);
+    border-width: 2px;
+    border-color: rgba(232, 210, 160, 0.32);
+    border-radius: 6px;
+    align-items: center;
+    justify-content: center;
+}
+
+.af-slot--ability {
+    width: 76px;
+    height: 76px;
+    margin: 0 0 0 10px;
+}
+
+.af-slot__icon {
+    width: 34px;
+    height: 34px;
+    rotate: 45deg;
+    border-width: 2px;
+    border-color: rgba(232, 210, 160, 0.22);
+}
+
+.af-slot .af-glyph {
+    position: absolute;
+    bottom: -14px;
+    min-width: 30px;
+    height: 28px;
+    margin: 0;
+    padding: 0 6px;
+    font-size: 15px;
+}
+
+.af-quickslots {
+    width: 216px;
+    height: 216px;
+    margin: 26px 92px 0 0;
+}
+
+.af-slot--quick {
+    position: absolute;
+    width: 72px;
+    height: 72px;
+    padding: 4px;
+}
+
+.af-slot--quick-up {
+    left: 72px;
+    top: 0;
+}
+
+.af-slot--quick-right {
+    left: 144px;
+    top: 72px;
+}
+
+.af-slot--quick-down {
+    left: 72px;
+    top: 144px;
+}
+
+.af-slot--quick-left {
+    left: 0;
+    top: 72px;
+}
+
+.af-slot--quick.is-empty {
+    border-color: rgba(232, 210, 160, 0.14);
+}
+
+.af-slot__name {
+    font-size: 15px;
+    white-space: normal;
+    -unity-text-align: middle-center;
+    color: var(--text-primary);
+}
+
+.af-slot__count {
+    position: absolute;
+    right: 5px;
+    top: 2px;
+    font-size: 15px;
+    -unity-font-style: bold;
+    color: var(--text-title);
+}
+
+.af-slot--quick .af-glyph {
+    bottom: -12px;
+    min-width: 26px;
+    height: 24px;
+    font-size: 14px;
+}
+
+/* ---------- Interaction prompt ("[E] Aufheben: Wolfsfell", GDD 05 1.2) ---------- */
+
+.af-prompt {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 650px;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+}
+
+.af-prompt__text {
+    padding: 6px 16px;
+    font-size: 26px;
+    background-color: rgba(8, 10, 13, 0.55);
+    border-radius: 4px;
+}

@@ -12,7 +12,8 @@ namespace Aetherfall.EditorTools.Core
     /// Step e) of the project setup (architecture 2.7 #42, 4.1): creates the boot assets in
     /// <c>Assets/_Project/Settings/Boot/</c> (LogSettings, LogInstaller, EventBusInstaller, GameStateInstaller, BootConfig
     /// with the installer order Log → EventBus → GameState), the boot scene <c>Scenes/Boot/Boot.unity</c> and enters it as
-    /// the only scene with index 0 in the scene list.
+    /// the first scene (index 0) of the scene list. Other scenes behind it stay (the test ground menu adds the test ground
+    /// as index 1, so "Neues Spiel" can load it).
     /// </summary>
     /// <remarks>
     /// <para>Existing assets are never overwritten. Empty references are filled. Replacing a non-empty installer list,
@@ -48,7 +49,7 @@ namespace Aetherfall.EditorTools.Core
         public override string Description =>
             "Legt in Assets/_Project/Settings/Boot/ die Assets LogSettings, LogInstaller, EventBusInstaller, GameStateInstaller und BootConfig an " +
             "(Installer-Reihenfolge Log → EventBus → GameState), dazu die Boot-Szene Assets/_Project/Scenes/Boot/Boot.unity mit GameBootstrapper, " +
-            "TickRunner und DevTools-Overlay, und trägt sie als einzige Szene mit Index 0 in die Szenenliste ein. Vorhandenes wird nicht überschrieben.";
+            "TickRunner und DevTools-Overlay, und trägt sie als erste Szene (Index 0) in die Szenenliste ein. Vorhandenes wird nicht überschrieben.";
 
         /// <inheritdoc />
         public override void Run(SetupLog log)
@@ -189,14 +190,14 @@ namespace Aetherfall.EditorTools.Core
         private static SetupCheckItem DescribeSceneList()
         {
             EditorBuildSettingsScene[] scenes = EditorBuildSettings.scenes;
-            const string label = "Szenenliste: nur Boot.unity mit Index 0";
+            const string label = "Szenenliste: Boot.unity mit Index 0";
             const string menu = "File > Build Profiles > Scene List";
             if (IsSceneListCorrect(scenes))
             {
                 return new SetupCheckItem(label, SetupStatus.Done, SetupPaths.BootScenePath, menu);
             }
 
-            return new SetupCheckItem(label, SetupStatus.Open, "aktuell: " + DescribeScenes(scenes) + " – wird ersetzt (nach Rückfrage, falls andere Szenen enthalten sind)", menu);
+            return new SetupCheckItem(label, SetupStatus.Open, "aktuell: " + DescribeScenes(scenes) + " – Boot.unity wird an Index 0 gesetzt, andere Szenen bleiben dahinter", menu);
         }
 
         private static T EnsureAsset<T>(string path, SetupLog log) where T : ScriptableObject
@@ -491,38 +492,43 @@ namespace Aetherfall.EditorTools.Core
             EditorBuildSettingsScene[] current = EditorBuildSettings.scenes;
             if (IsSceneListCorrect(current))
             {
-                log.Info("e) Szenenliste korrekt (unverändert): nur " + SetupPaths.BootScenePath + " mit Index 0.");
+                log.Info("e) Szenenliste korrekt (unverändert): " + SetupPaths.BootScenePath + " hat Index 0.");
                 return;
             }
 
-            bool hasOtherScenes = false;
+            // Boot first (enabled), all other entries keep their order behind it; nothing is removed.
+            var scenes = new List<EditorBuildSettingsScene>(current.Length + 1) { new EditorBuildSettingsScene(SetupPaths.BootScenePath, true) };
             for (int i = 0; i < current.Length; i++)
             {
                 if (current[i].path != SetupPaths.BootScenePath)
                 {
-                    hasOtherScenes = true;
-                    break;
+                    scenes.Add(current[i]);
                 }
             }
 
-            if (hasOtherScenes && !EditorUtility.DisplayDialog(
-                    "Szenenliste ersetzen?",
-                    "Die Szenenliste (File > Build Profiles > Scene List) enthält:\n\n" + DescribeScenes(current) +
-                    "\n\nLaut Architektur 4.1 ist Boot.unity die einzige Szene (Index 0); alle anderen Szenen werden später additiv geladen. Liste ersetzen?",
-                    "Ersetzen",
-                    "Nicht ändern"))
-            {
-                log.Warning("e) Szenenliste nicht geändert. Boot.unity muss Index 0 haben, sonst startet der Build nicht über den Bootstrapper.");
-                return;
-            }
-
-            EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(SetupPaths.BootScenePath, true) };
-            log.Info("e) Szenenliste gesetzt: " + SetupPaths.BootScenePath + " (Index 0, einzige Szene).");
+            EditorBuildSettings.scenes = scenes.ToArray();
+            log.Info("e) Szenenliste gesetzt: " + DescribeScenes(EditorBuildSettings.scenes) + " (Boot.unity hat Index 0).");
         }
 
         private static bool IsSceneListCorrect(EditorBuildSettingsScene[] scenes)
         {
-            return scenes != null && scenes.Length == 1 && scenes[0].enabled && scenes[0].path == SetupPaths.BootScenePath;
+            if (scenes == null)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < scenes.Length; i++)
+            {
+                if (!scenes[i].enabled)
+                {
+                    continue;
+                }
+
+                // The first enabled entry gets build index 0.
+                return scenes[i].path == SetupPaths.BootScenePath;
+            }
+
+            return false;
         }
 
         private static bool UsesScript(string[] dependencies, Type componentType)

@@ -36,6 +36,16 @@ namespace Aetherfall.Input
         /// <summary>On foot or mounted; selects Gameplay or Riding while the game state is Playing.</summary>
         PlayerControlMode ControlMode { get; }
 
+        /// <summary>
+        /// True while the service itself routes the pause button (Start/Esc pushes and pops <c>Paused</c>, see
+        /// <see cref="PauseRouting"/>). The UI switches it off as soon as its pause menu handles the button.
+        /// </summary>
+        bool RoutesPauseButton { get; }
+
+        /// <summary>Switches the stand-in pause routing on or off (the UI takes over with its pause menu).</summary>
+        /// <param name="enabled">True = the service pauses and resumes the game on Start/Esc.</param>
+        void SetPauseButtonRouting(bool enabled);
+
         /// <summary>Switches between on foot and mounted (called by the riding system) and updates the active map.</summary>
         /// <param name="mode">New control mode.</param>
         void SetControlMode(PlayerControlMode mode);

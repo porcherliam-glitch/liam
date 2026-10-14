@@ -1,0 +1,21 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- Options placeholder page (main menu and pause menu): UI size, HUD mode, glyph style. Left/right change a value. -->
+    <ui:VisualElement class="af-page af-options">
+        <ui:Label name="options-title" class="af-text af-page__title" />
+        <ui:VisualElement name="options-list" class="af-menu-list">
+            <ui:Button name="options-ui-scale" class="af-text af-button af-option" focusable="false">
+                <ui:Label name="options-ui-scale-label" class="af-text af-option__label" picking-mode="Ignore" />
+                <ui:Label name="options-ui-scale-value" class="af-text af-option__value" picking-mode="Ignore" />
+            </ui:Button>
+            <ui:Button name="options-hud-mode" class="af-text af-button af-option" focusable="false">
+                <ui:Label name="options-hud-mode-label" class="af-text af-option__label" picking-mode="Ignore" />
+                <ui:Label name="options-hud-mode-value" class="af-text af-option__value" picking-mode="Ignore" />
+            </ui:Button>
+            <ui:Button name="options-glyphs" class="af-text af-button af-option" focusable="false">
+                <ui:Label name="options-glyphs-label" class="af-text af-option__label" picking-mode="Ignore" />
+                <ui:Label name="options-glyphs-value" class="af-text af-option__value" picking-mode="Ignore" />
+            </ui:Button>
+        </ui:VisualElement>
+        <ui:Label name="options-placeholder" class="af-text af-page__note" />
+    </ui:VisualElement>
+</ui:UXML>

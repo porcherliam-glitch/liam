@@ -55,6 +55,7 @@ namespace UnityEngine.InputSystem
         public AnyKeyControl anyKey { get; protected set; }
         public ReadOnlyArray<KeyControl> allKeys => throw HarnessStub.NotSupported();
         public KeyControl capsLockKey => throw HarnessStub.NotSupported();
+        public KeyControl f3Key => throw HarnessStub.NotSupported();
         public static Keyboard current => throw HarnessStub.NotSupported();
     }
 

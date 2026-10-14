@@ -4,6 +4,7 @@ using Aetherfall.Player;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace Aetherfall.EditorTools.World
 {
@@ -14,8 +15,11 @@ namespace Aetherfall.EditorTools.World
     /// (attacks, weapon, shield, enemy types, combat settings), the item data (items, affixes, loot tables, starting
     /// equipment, content catalog; <see cref="TestGroundItemAssets"/>), the user layers
     /// Player/Enemy/Hurtbox/Interactable/Environment/Pickup and the Input, Save, GameTime, Content, Inventory, Combat and AI
-    /// installers in the BootConfig. Idempotent: existing assets are reused, an existing scene is rebuilt only after asking.
-    /// Guides: docs/Anleitungen/03_Test_Spielfigur.md, 04_Test_Werte_Speichern.md, 05_Test_Kampf.md, 06_Test_Items_Loot.md.
+    /// installers in the BootConfig, and the user interface (<see cref="TestGroundUiBuilder"/>: SceneLoader and UI installers,
+    /// panel settings, UI object in the boot scene, scene list Boot + test ground). Idempotent: existing assets are reused, an
+    /// existing scene is rebuilt only after asking.
+    /// Guides: docs/Anleitungen/03_Test_Spielfigur.md, 04_Test_Werte_Speichern.md, 05_Test_Kampf.md, 06_Test_Items_Loot.md,
+    /// 07_Test_Oberflaeche.md.
     /// </summary>
     public static class TestGroundMenu
     {
@@ -48,7 +52,9 @@ namespace Aetherfall.EditorTools.World
                 "• Items, Affixe, Loot-Tabellen und Startausrüstung (" + TestGroundPaths.ItemFolder + ", " + TestGroundPaths.LootTableFolder +
                 "), " + TestGroundPaths.ContentCatalogPath + ", ContentInstaller und InventoryInstaller in der BootConfig\n" +
                 "• 3 Truhen (Holz, Eisen, versteckt) und Beute-Anzeige\n" +
-                "• Layer 6 „Player“, 7 „Enemy“, 9 „Hurtbox“, 10 „Interactable“, 11 „Environment“ und 16 „Pickup“, falls frei\n\n" +
+                "• Layer 6 „Player“, 7 „Enemy“, 9 „Hurtbox“, 10 „Interactable“, 11 „Environment“ und 16 „Pickup“, falls frei\n" +
+                "• Oberfläche: SceneLoaderInstaller und UIInstaller in der BootConfig, " + TestGroundUiBuilder.PanelSettingsPath +
+                ", Objekt „UI“ in der Boot-Szene (Hauptmenü, HUD, Pausemenü, Todesbildschirm, Ladebildschirm), Szenenliste Boot + Testgelände\n\n" +
                 (sceneExists
                     ? "Die Szene existiert bereits und wird NEU AUFGEBAUT. Eigene Änderungen in dieser Szene gehen verloren. " +
                       "Die Assets (Materialien, Einstellungen) bleiben erhalten."
@@ -75,10 +81,12 @@ namespace Aetherfall.EditorTools.World
             else
             {
                 Selection.activeGameObject = player;
-                message = "Fertig! Die Szene „Testgelaende“ ist geöffnet.\n\nDrücke jetzt Play und klicke einmal ins Game-Fenster. " +
+                message = "Fertig! Die Szene „Testgelaende“ ist geöffnet.\n\nDrücke jetzt Play und klicke einmal ins Game-Fenster: " +
+                          "Das Spiel startet direkt im Testgelände. Mit Hauptmenü startest du über die Boot-Szene " +
+                          "(Assets/_Project/Scenes/Boot/Boot.unity öffnen, dann Play).\n\n" +
                           "Steuerung und Prüfliste: docs/Anleitungen/03_Test_Spielfigur.md, Ausdauer, Schaden und Speichern: " +
                           "docs/Anleitungen/04_Test_Werte_Speichern.md, Kampf: docs/Anleitungen/05_Test_Kampf.md, Items und Beute: " +
-                          "docs/Anleitungen/06_Test_Items_Loot.md.";
+                          "docs/Anleitungen/06_Test_Items_Loot.md, Oberfläche: docs/Anleitungen/07_Test_Oberflaeche.md.";
             }
 
             if (report.Warnings.Count > 0)
@@ -138,6 +146,7 @@ namespace Aetherfall.EditorTools.World
             var items = new TestGroundItemAssets(report);
             items.AssignWolfLoot(combat.Wolf, combat.AetherWolf);
             TestGroundAssets.EnsureItemInstallersInBootConfig(items.Catalog, items.StartingEquipment, report);
+            TestGroundUiBuilder.EnsureInstallers(report);
             AssetDatabase.SaveAssets();
 
             if (settings == null)
@@ -146,8 +155,18 @@ namespace Aetherfall.EditorTools.World
                 return null;
             }
 
+            // The boot scene part (UI object, panel settings) first: it opens and saves the boot scene, the scene builder then
+            // replaces it by the new test ground.
+            PanelSettings panel = TestGroundUiBuilder.EnsurePanelSettings(report);
+            if (panel == null || !TestGroundUiBuilder.EnsureBootUi(panel, report))
+            {
+                report.Warning("Die Oberfläche in der Boot-Szene ist unvollständig (siehe Meldungen oben). Das Testgelände funktioniert " +
+                               "trotzdem, Hauptmenü und HUD fehlen aber. Danach „" + TestGroundUiBuilder.MenuPath + "“ ausführen.");
+            }
+
             GameObject player = TestGroundSceneBuilder.Build(settings, materials, playerLayer, environmentLayer, combat, enemyLayer, hurtboxLayer, items,
                 interactableLayer, pickupLayer, report);
+            TestGroundUiBuilder.EnsureSceneList(report);
             AssetDatabase.SaveAssets();
             return player;
         }

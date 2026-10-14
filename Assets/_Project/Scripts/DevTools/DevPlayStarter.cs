@@ -5,9 +5,10 @@ using UnityEngine;
 namespace Aetherfall.DevTools
 {
     /// <summary>
-    /// Developer shortcut for test scenes: as soon as the boot has finished (game state <see cref="GameState.MainMenu"/>),
-    /// switches through the allowed transitions MainMenu → Loading → Playing, so Play Mode starts directly in the game
-    /// (there is no main menu yet). Does nothing if the game already left the main menu.
+    /// Developer shortcut for test scenes: if Play Mode was started directly in this scene (not in the boot scene, see
+    /// <see cref="PlayModeStart"/>), it switches through the allowed transitions MainMenu → Loading → Playing as soon as the
+    /// boot has finished, so the game starts without the main menu. If the scene was loaded through the main menu ("Neues
+    /// Spiel", "Laden"), it does nothing.
     /// </summary>
     /// <remarks>
     /// <para>GameObject: any object in a test scene (the menu "Aetherfall > Testgelaende erstellen" (German menu text) adds "DevPlayStarter").
@@ -51,6 +52,12 @@ namespace Aetherfall.DevTools
             // async void is the documented exception for Unity event adapters (architecture 15.2, rule 10).
             if (!enabled || !startPlaying)
             {
+                return;
+            }
+
+            if (!PlayModeStart.IsDirectStartOf(gameObject.scene.path))
+            {
+                // Loaded by the scene loader (main menu → "Neues Spiel"/"Laden"): the game flow sets the state itself.
                 return;
             }
 

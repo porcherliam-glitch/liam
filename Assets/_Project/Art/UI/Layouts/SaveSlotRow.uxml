@@ -1,0 +1,13 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- One save slot (GDD 05 5.5: kind, date and time, playtime). -->
+    <ui:Button class="af-text af-button af-slot-row" focusable="false">
+        <ui:VisualElement class="af-slot-row__main" picking-mode="Ignore">
+            <ui:Label name="slot-kind" class="af-text af-slot-row__kind" picking-mode="Ignore" />
+            <ui:Label name="slot-date" class="af-text af-slot-row__date" picking-mode="Ignore" />
+        </ui:VisualElement>
+        <ui:Label name="slot-playtime" class="af-text af-slot-row__playtime" picking-mode="Ignore" />
+        <ui:VisualElement class="af-button__hold" picking-mode="Ignore">
+            <ui:VisualElement class="af-button__hold-fill" picking-mode="Ignore" />
+        </ui:VisualElement>
+    </ui:Button>
+</ui:UXML>

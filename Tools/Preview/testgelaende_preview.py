@@ -217,6 +217,11 @@ class Builder:
         emission.inputs["Color"].default_value = (*[srgb_to_linear(c) for c in rgb], 1.0)
         emission.inputs["Strength"].default_value = strength
         mat.node_tree.links.new(emission.outputs["Emission"], out.inputs["Surface"])
+        # Unlit surfaces (labels, beams) light nothing in Unity either; not sampling them as lights also saves a lot of time.
+        if hasattr(mat, "cycles") and hasattr(mat.cycles, "emission_sampling"):
+            mat.cycles.emission_sampling = "NONE"
+        if hasattr(mat, "shadow_method"):
+            mat.shadow_method = "NONE"    # EEVEE: unlit text and beams cast no shadow (Unity: ShadowCastingMode.Off)
         self.materials[name] = mat
         return mat
 
@@ -550,23 +555,36 @@ def setup_world_and_light(scene):
     scene.collection.objects.link(sun)
 
 
-def setup_render(scene, resolution, samples, test):
-    scene.render.engine = "CYCLES"
-    scene.cycles.device = "CPU"
-    scene.cycles.samples = max(4, samples // 6) if test else samples
-    scene.cycles.use_denoising = False
-    scene.cycles.use_adaptive_sampling = True
-    scene.cycles.max_bounces = 4
-    scene.cycles.diffuse_bounces = 2
-    scene.cycles.glossy_bounces = 1
-    scene.cycles.transmission_bounces = 0
-    scene.cycles.volume_bounces = 0
-    scene.cycles.transparent_max_bounces = 2
-    scene.cycles.caustics_reflective = False
-    scene.cycles.caustics_refractive = False
-    scene.cycles.blur_glossy = 1.0
+def setup_render(scene, resolution, samples, test, engine="cycles"):
+    """Cycles (CPU, no denoiser) for stills; EEVEE for videos when an X display (e.g. xvfb-run) is available, because Cycles
+    needs about 9 s per 1280x720 frame at 16 samples on 4 CPU cores."""
+    if engine == "eevee":
+        scene.render.engine = "BLENDER_EEVEE"
+        scene.eevee.taa_render_samples = max(4, samples // 2) if test else samples
+        scene.eevee.use_soft_shadows = True
+        scene.eevee.use_gtao = False      # URP default renderer: no SSAO
+        scene.eevee.use_bloom = False
+        scene.eevee.use_ssr = False
+        scene.eevee.shadow_cascade_size = "1024"
+    else:
+        scene.render.engine = "CYCLES"
+        scene.cycles.device = "CPU"
+        scene.cycles.samples = max(4, samples // 6) if test else samples
+        scene.cycles.use_denoising = False
+        scene.cycles.use_adaptive_sampling = True
+        scene.cycles.use_light_tree = False
+        # Few bounces: Unity's real-time lighting has direct light, sky ambient and shadows, but no bounce light.
+        scene.cycles.max_bounces = 2
+        scene.cycles.diffuse_bounces = 1
+        scene.cycles.glossy_bounces = 1
+        scene.cycles.transmission_bounces = 0
+        scene.cycles.volume_bounces = 0
+        scene.cycles.transparent_max_bounces = 2
+        scene.cycles.caustics_reflective = False
+        scene.cycles.caustics_refractive = False
+        scene.cycles.blur_glossy = 1.0
+        scene.render.use_persistent_data = True
     scene.render.threads_mode = "AUTO"
-    scene.render.use_persistent_data = True
     scene.render.resolution_x = resolution[0] // (2 if test else 1)
     scene.render.resolution_y = resolution[1] // (2 if test else 1)
     scene.render.resolution_percentage = 100
@@ -830,20 +848,20 @@ def job_uebersicht(args):
     scene, b, _ = build_scene(loot_at_player=False)
     setup_render(scene, OUT_STILL, args.samples, args.test)
     cam = make_camera(scene)
-    place_camera(cam, (40.0, 34.0, -60.0), (-5.0, -2.0, -6.0), 44.0)
+    place_camera(cam, (22.0, 41.0, -77.0), (-7.5, 0.0, -12.5), 43.5)
     render_still(scene, os.path.join(args.out, "01_uebersicht_roh.png"))
 
 
 def job_arena(args):
-    # Staged: the player stands in the arena south-east of the wolves, facing the Aether wolf, and has pressed
-    # "Test-Beute" (debug inventory) - the loot lies between him and the wolves.
-    player_position = (-25.5, 0.0, -53.0)
+    # Staged: the player stands in the south of the arena, facing the Aether wolf, and has pressed "Test-Beute"
+    # (debug inventory) - the loot lies between him and the wolves.
+    player_position = (-29.5, 0.0, -53.5)
     target = (-30.0, -48.0)
     yaw = math.degrees(math.atan2(target[0] - player_position[0], target[1] - player_position[2]))
     scene, b, _ = build_scene(player_position, yaw)
     setup_render(scene, OUT_STILL, args.samples, args.test)
     cam = make_camera(scene)
-    place_camera(cam, (-10.0, 4.2, -58.5), (-27.3, 0.9, -48.3), 25.0)
+    place_camera(cam, (-11.0, 3.4, -60.0), (-27.5, 1.1, -48.5), 26.0)
     render_still(scene, os.path.join(args.out, "02_arena_roh.png"))
 
 
@@ -897,7 +915,7 @@ def job_karte(args):
     cam.data.ortho_scale = OUT_STILL[0] / pixels_per_meter
     # Map on the left 900 px (north up), legend on the right (added later by nachbearbeiten.py).
     center_x = -46.0 + (OUT_STILL[0] / 2 - 50) / pixels_per_meter
-    center_z = -10.5
+    center_z = -12.0
     cam.location = bvec(center_x, 120.0, center_z)
     cam.rotation_mode = "XYZ"
     cam.rotation_euler = (0.0, 0.0, 0.0)   # looking straight down, north (+y in Blender) up
@@ -929,37 +947,63 @@ def catmull_rom(points, t):
     return 0.5 * ((2 * p1) + (-p0 + p2) * u + (2 * p0 - 5 * p1 + 4 * p2 - p3) * u * u + (-p0 + 3 * p1 - 3 * p2 + p3) * u * u * u)
 
 
-# Camera flight: (camera position, look-at target) in Unity coordinates, evenly spaced in time.
+# Camera flight: (camera position, look-at target) in Unity coordinates, evenly spaced in time. The signs of the generator
+# face away from the origin (readable from the spawn), so the camera stays near the spawn and looks outwards before it
+# flies to the arena (whose sign is readable from the north).
 FLIGHT = [
-    ((44.0, 30.0, -52.0), (2.0, 0.0, -8.0)),     # south-east, high: whole course
-    ((50.0, 13.0, -6.0), (26.0, 0.8, 4.0)),      # east: tunnel and jump platforms
-    ((34.0, 10.0, 24.0), (9.0, 1.0, 9.0)),       # north-east: platforms, chests, stairs
-    ((4.0, 11.0, 38.0), (-10.0, 1.0, 12.0)),     # north: stairs and ramps
-    ((-24.0, 10.0, 36.0), (-30.0, 1.0, 8.0)),    # north-west: ramps and gaps
-    ((-50.0, 11.0, 6.0), (-24.0, 0.5, -16.0)),   # west: gaps, pillars, dummy
-    ((-46.0, 10.0, -32.0), (-27.0, 0.5, -42.0)), # south-west: arena
-    ((-18.0, 5.0, -33.0), (-28.0, 0.6, -44.0)),  # arena close
+    ((0.0, 4.0, -7.5), (0.0, 1.5, 12.0)),        # behind the spawn, looking north: ramps, stairs, chests
+    ((1.5, 6.5, -5.0), (13.0, 1.0, 13.0)),       # north-east: stairs and chests
+    ((3.5, 7.5, -2.5), (28.0, 1.0, 6.0)),        # east: jump platforms
+    ((4.0, 8.0, -1.0), (20.0, 1.0, -16.0)),      # south-east: tunnel
+    ((1.0, 8.5, 1.0), (-1.0, 1.0, -13.0)),       # south: wall and pillars
+    ((-3.0, 8.5, 1.0), (-30.0, 1.0, 6.0)),       # west: gaps
+    ((-7.0, 9.0, -6.0), (-22.0, 0.5, -30.0)),    # south-west: training dummy, arena far away
+    ((-19.0, 7.0, -17.0), (-27.5, 0.5, -40.0)),  # towards the arena
+    ((-27.0, 4.8, -23.5), (-28.0, 0.4, -43.0)),  # north of the arena: its sign in front
+    ((-28.0, 3.4, -31.5), (-28.5, 0.5, -45.0)),  # over the sign into the arena: wolves, rocks
 ]
+
+
+def keyframe_object(ob, matrix, frame):
+    loc, rot, scale = matrix.decompose()
+    ob.rotation_mode = "QUATERNION"
+    ob.location = loc
+    ob.rotation_quaternion = rot
+    ob.scale = scale
+    ob.keyframe_insert("location", frame=frame)
+    ob.keyframe_insert("rotation_quaternion", frame=frame)
+    ob.keyframe_insert("scale", frame=frame)
+
+
+def render_animation(scene, frames_dir, first, last):
+    """Renders the keyframed frames first..last as frames_dir/NNNN.png (one Blender render job: much less overhead)."""
+    os.makedirs(frames_dir, exist_ok=True)
+    scene.frame_start = first
+    scene.frame_end = last
+    scene.render.filepath = os.path.join(frames_dir, "####")
+    scene.render.use_file_extension = True
+    bpy.ops.render.render(animation=True)
+    print("GESCHRIEBEN", frames_dir, first, last)
 
 
 def job_rundflug(args):
     scene, b, _ = build_scene(loot_at_player=False)
-    setup_render(scene, OUT_VIDEO, args.samples, args.test)
+    setup_render(scene, OUT_VIDEO, args.samples, args.test, args.engine)
     cam = make_camera(scene)
     cam.data.sensor_fit = "VERTICAL"
     cam.data.angle_y = math.radians(50)
     total = int(round(args.seconds * FPS))
-    frames_dir = os.path.join(args.out, "05_rundflug_frames")
-    os.makedirs(frames_dir, exist_ok=True)
     positions = [p for p, _ in FLIGHT]
     targets = [t for _, t in FLIGHT]
-    first, last = args.frames if args.frames else (0, total - 1)
-    for frame in range(first, min(last, total - 1) + 1):
+    for frame in range(total):
         u = frame / (total - 1)
         eased = u * u * (3 - 2 * u) * 0.35 + u * 0.65   # gentle start and end
         k = eased * (len(FLIGHT) - 1)
         look_at(cam, catmull_rom(positions, k), catmull_rom(targets, k))
-        render_still(scene, os.path.join(frames_dir, "%04d.png" % frame))
+        cam.keyframe_insert("location", frame=frame)
+        cam.keyframe_insert("rotation_quaternion", frame=frame)
+    first, last = args.frames if args.frames else (0, total - 1)
+    render_animation(scene, os.path.join(args.out, "05_rundflug_frames"), first, min(last, total - 1))
 
 
 def job_sprungtest(args):
@@ -969,14 +1013,22 @@ def job_sprungtest(args):
     for event in info["events"]:
         print("EREIGNIS", event)
     scene, b, player = build_scene(loot_at_player=False)
-    setup_render(scene, OUT_VIDEO, args.samples, args.test)
+    setup_render(scene, OUT_VIDEO, args.samples, args.test, args.engine)
     cam = make_camera(scene)
 
     # Player objects: keep their local matrices relative to the player root at the origin, then move the root.
     rest = {ob.name: ob.matrix_world.copy() for ob in player}
 
-    frames_dir = os.path.join(args.out, "06_sprungtest_frames")
-    os.makedirs(frames_dir, exist_ok=True)
+    # The computed path of the body centre (0.9 m above the feet) as small dots, every 2nd frame from the first step on.
+    trail = b.unlit("Bahn", (1.0, 0.85, 0.2))
+    dots = []
+    for index in range(0, len(frames), 2):
+        fr = frames[index]
+        if fr["speed"] < 0.05 and fr["t"] < 1.0:
+            continue
+        centre = Vector((fr["x"], fr["y"] + CHARACTER_HEIGHT * 0.5, fr["z"]))
+        dots.append((index, centre, b.prim("sphere", "Bahn %d" % index, u_trs(centre, None, (0.07, 0.07, 0.07)), trail,
+                                           cast_shadow=False)))
 
     # Camera: the orbit follows the pivot with Cinemachine-style damping (99 % in 0.1 s); the camera yaw is turned by the
     # (simulated) player with the mouse/right stick towards the running direction.
@@ -984,24 +1036,31 @@ def job_sprungtest(args):
     dt = 1.0 / FPS
     pivot = Vector((0.0, PIVOT_HEIGHT, 0.0))
     cam_yaw = 0.0
-    states = []
-    for fr in frames:
+    last_hidden = {}
+    for index, fr in enumerate(frames):
         target_pivot = Vector((fr["x"], fr["y"] + PIVOT_HEIGHT, fr["z"]))
         pivot = pivot + (target_pivot - pivot) * (1.0 - math.exp(-k_follow * dt))
         if fr["speed"] > 0.5:
             diff = (fr["yaw"] - cam_yaw + 180.0) % 360.0 - 180.0
             cam_yaw += diff * (1.0 - math.exp(-2.2 * dt))
-        states.append((pivot.copy(), cam_yaw))
-
-    first, last = args.frames if args.frames else (0, len(frames) - 1)
-    for index in range(first, min(last, len(frames) - 1) + 1):
-        fr = frames[index]
+        third_person(cam, scene, tuple(pivot), cam_yaw)
+        cam.keyframe_insert("location", frame=index)
+        cam.keyframe_insert("rotation_quaternion", frame=index)
         root = to_blender_matrix(u_trs((fr["x"], fr["y"], fr["z"]), u_euler(0, fr["yaw"], 0)))
         for ob in player:
-            ob.matrix_world = root @ rest[ob.name]
-        pivot_now, yaw_now = states[index]
-        third_person(cam, scene, tuple(pivot_now), yaw_now)
-        render_still(scene, os.path.join(frames_dir, "%04d.png" % index))
+            keyframe_object(ob, root @ rest[ob.name], index)
+        body = Vector((fr["x"], fr["y"] + CHARACTER_HEIGHT * 0.5, fr["z"]))
+        for dot_frame, centre, dot in dots:
+            # Hide dots inside the capsule and the ones just passed (they would sit between the camera and the player).
+            distance = (centre - body).length
+            hidden = distance < 0.75 or (dot_frame < index and distance < 3.0)
+            if last_hidden.get(dot.name) != hidden:
+                dot.hide_render = hidden
+                dot.keyframe_insert("hide_render", frame=index)
+                last_hidden[dot.name] = hidden
+
+    first, last = args.frames if args.frames else (0, len(frames) - 1)
+    render_animation(scene, os.path.join(args.out, "06_sprungtest_frames"), first, min(last, len(frames) - 1))
 
 
 def main():
@@ -1014,6 +1073,8 @@ def main():
     parser.add_argument("--seconds", type=float, default=None)
     parser.add_argument("--frames", type=str, default=None, help="Bereich a-b (nur für Videos)")
     parser.add_argument("--test", action="store_true", help="klein und schnell rendern")
+    parser.add_argument("--engine", choices=["cycles", "eevee"], default="cycles",
+                        help="eevee braucht ein X-Display (xvfb-run), ist aber für Videos etwa 4x schneller")
     parser.add_argument("--kamera", type=str, default=None, help="px,py,pz,tx,ty,tz,fov (Unity-Koordinaten) zum Ausprobieren")
     parser.add_argument("--name", type=str, default=None, help="anderer Dateiname (nur Einzelbilder)")
     args = parser.parse_args(argv)
@@ -1026,7 +1087,7 @@ def main():
         a, b = args.frames.split("-")
         args.frames = (int(a), int(b))
     if args.seconds is None:
-        args.seconds = 15.0 if args.job == "rundflug" else 8.0
+        args.seconds = 14.0 if args.job == "rundflug" else 8.0
     jobs = {"uebersicht": job_uebersicht, "arena": job_arena, "truhen": job_truhen, "spielersicht": job_spielersicht,
             "karte": job_karte, "rundflug": job_rundflug, "sprungtest": job_sprungtest}
     if args.job == "alle_bilder":

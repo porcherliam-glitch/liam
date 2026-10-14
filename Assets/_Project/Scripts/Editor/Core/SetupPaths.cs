@@ -21,7 +21,7 @@ namespace Aetherfall.EditorTools.Core
         /// <summary>Folder of the boot scene.</summary>
         public const string BootSceneFolder = ProjectFolder + "/Scenes/Boot";
 
-        /// <summary>The boot scene: build index 0 and the only scene in the scene list (architecture 4.1).</summary>
+        /// <summary>The boot scene: build index 0 of the scene list (architecture 4.1); further scenes follow behind it.</summary>
         public const string BootScenePath = BootSceneFolder + "/Boot.unity";
 
         /// <summary>Log levels applied at boot.</summary>

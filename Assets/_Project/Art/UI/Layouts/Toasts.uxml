@@ -1,0 +1,12 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- Messages P0/P1/P2 (GDD 05 1.7) and the save indicator. Entries are ToastEntry.uxml instances created by ToastView. -->
+    <ui:VisualElement name="toasts" class="af-root af-toasts" picking-mode="Ignore">
+        <ui:VisualElement name="toast-p0" class="af-toasts__p0" picking-mode="Ignore" />
+        <ui:VisualElement name="toast-p1" class="af-toasts__p1" picking-mode="Ignore" />
+        <ui:VisualElement name="toast-p2" class="af-toasts__p2" picking-mode="Ignore" />
+        <ui:VisualElement name="save-indicator" class="af-save-indicator" picking-mode="Ignore">
+            <ui:VisualElement name="save-indicator-icon" class="af-save-indicator__icon" picking-mode="Ignore" />
+            <ui:Label name="save-indicator-text" class="af-text af-save-indicator__text" picking-mode="Ignore" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

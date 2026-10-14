@@ -1,0 +1,23 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- Death screen: "Du bist gefallen" with "Letzten Stand laden" and "Am Spawnpunkt wiederbeleben". -->
+    <ui:VisualElement name="death" class="af-root af-screen af-overlay af-death">
+        <ui:VisualElement class="af-death__vignette" picking-mode="Ignore" />
+        <ui:VisualElement class="af-death__content">
+            <ui:Label name="death-title" class="af-text af-death__title" />
+            <ui:VisualElement class="af-death__divider" />
+            <ui:Label name="death-subtitle" class="af-text af-death__subtitle" />
+            <ui:VisualElement name="death-buttons" class="af-menu-list af-menu-list--center">
+                <ui:Button name="death-load-last" class="af-text af-button" focusable="false" />
+                <ui:Label name="death-load-info" class="af-text af-hint__text af-death__info" />
+                <ui:Button name="death-respawn" class="af-text af-button" focusable="false" />
+            </ui:VisualElement>
+            <ui:Label name="death-status" class="af-text af-page__status af-death__info" />
+        </ui:VisualElement>
+        <ui:VisualElement class="af-footer af-footer--center" picking-mode="Ignore">
+            <ui:VisualElement class="af-hint" picking-mode="Ignore">
+                <ui:Label name="death-hint-glyph-confirm" class="af-text af-glyph af-glyph--face" picking-mode="Ignore" />
+                <ui:Label name="death-hint-select" class="af-text af-hint__text" picking-mode="Ignore" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

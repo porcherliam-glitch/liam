@@ -1,4 +1,5 @@
 using System;
+using UnityEngine;
 using UnityEngine.InputSystem;
 
 namespace Aetherfall.Input
@@ -8,6 +9,7 @@ namespace Aetherfall.Input
     {
         private readonly InputActionMap _map;
         private readonly InputAction[] _buttons;
+        private readonly InputAction _navigate;
 
         /// <summary>Resolves the UI button actions (throws if one is missing).</summary>
         /// <param name="actions">The action instance of the input service.</param>
@@ -19,6 +21,7 @@ namespace Aetherfall.Input
             }
 
             _map = actions.UI;
+            _navigate = _map.FindAction(InputActionNames.UI.Navigate, true);
             Array values = Enum.GetValues(typeof(UiButton));
             int count = 0;
             foreach (object value in values)
@@ -38,7 +41,21 @@ namespace Aetherfall.Input
         public bool IsActive => _map.enabled;
 
         /// <inheritdoc />
+        public Vector2 Navigate => _map.enabled ? _navigate.ReadValue<Vector2>() : Vector2.zero;
+
+        /// <inheritdoc />
         public bool WasPressedThisFrame(UiButton button)
+        {
+            return Action(button).WasPressedThisFrame();
+        }
+
+        /// <inheritdoc />
+        public bool IsPressed(UiButton button)
+        {
+            return Action(button).IsPressed();
+        }
+
+        private InputAction Action(UiButton button)
         {
             int index = (int)button;
             if (index < 0 || index >= _buttons.Length)
@@ -46,7 +63,7 @@ namespace Aetherfall.Input
                 throw new ArgumentOutOfRangeException(nameof(button), button, "Unknown UI button.");
             }
 
-            return _buttons[index].WasPressedThisFrame();
+            return _buttons[index];
         }
     }
 }

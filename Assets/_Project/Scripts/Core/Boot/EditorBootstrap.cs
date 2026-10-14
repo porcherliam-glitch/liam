@@ -22,7 +22,8 @@ namespace Aetherfall.Core
     /// If Boot.unity is not the first scene of the scene list, a warning names the menu to fix it (builds need it there).</para>
     /// <para>Skipped when: the boot scene is already open (e.g. Play Mode started in Boot.unity or Boot is open additively),
     /// the boot scene asset does not exist (warning), or the Unity Test Framework runs Play Mode tests (scene "InitTestScene…").</para>
-    /// <para>Later (Phase 1 step 1.10) the player will additionally be spawned at the scene's <c>DevSpawnPoint</c>.</para>
+    /// <para>The start scene is recorded in <see cref="PlayModeStart"/>, so test scenes can start playing directly
+    /// (<c>DevPlayStarter</c>) while a start in the boot scene shows the main menu.</para>
     /// </remarks>
     internal static class EditorBootstrap
     {
@@ -63,7 +64,9 @@ namespace Aetherfall.Core
                                               " (or run step e of Aetherfall > Projekt-Setup …).");
             }
 
-            Log.Info(LogCategory.Boot, "EditorBootstrap: Play Mode started in '" + SceneManager.GetActiveScene().name +
+            Scene startScene = SceneManager.GetActiveScene();
+            PlayModeStart.RecordDirectStart(startScene.path);
+            Log.Info(LogCategory.Boot, "EditorBootstrap: Play Mode started in '" + startScene.name +
                                        "'. Loading boot scene '" + BootScenePath + "' additively.");
             EditorSceneManager.LoadSceneInPlayMode(BootScenePath, new LoadSceneParameters(LoadSceneMode.Additive));
         }

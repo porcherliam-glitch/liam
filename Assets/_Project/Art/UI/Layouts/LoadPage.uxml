@@ -1,0 +1,9 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- Load page, used by the main menu and the pause menu. Rows are SaveSlotRow.uxml instances (SaveSlotListView). -->
+    <ui:VisualElement class="af-page af-load">
+        <ui:Label name="load-title" class="af-text af-page__title" />
+        <ui:VisualElement name="load-list" class="af-slot-list af-menu-list" />
+        <ui:Label name="load-empty" class="af-text af-page__empty" />
+        <ui:Label name="load-status" class="af-text af-page__status" />
+    </ui:VisualElement>
+</ui:UXML>

@@ -12,7 +12,8 @@
         "Aetherfall.Inventory",
         "Aetherfall.Combat",
         "Aetherfall.AI",
-        "Aetherfall.Player"
+        "Aetherfall.Player",
+        "Unity.InputSystem"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

@@ -1,0 +1,16 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- Loading screen (GDD 05 1.1). Title, tip and progress are set by LoadingScreenView. -->
+    <ui:VisualElement name="loading" class="af-root af-loading">
+        <ui:VisualElement class="af-loading__glow" picking-mode="Ignore" />
+        <ui:VisualElement class="af-loading__content" picking-mode="Ignore">
+            <ui:Label name="loading-title" class="af-text af-loading__title" picking-mode="Ignore" />
+            <ui:Label name="loading-tip" class="af-text af-loading__tip" picking-mode="Ignore" />
+            <ui:VisualElement class="af-loading__bar-row" picking-mode="Ignore">
+                <ui:VisualElement class="af-progress" picking-mode="Ignore">
+                    <ui:VisualElement name="loading-progress-fill" class="af-progress__fill" picking-mode="Ignore" />
+                </ui:VisualElement>
+                <ui:Label name="loading-percent" class="af-text af-loading__percent" picking-mode="Ignore" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

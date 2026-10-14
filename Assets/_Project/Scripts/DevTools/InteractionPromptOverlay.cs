@@ -16,6 +16,8 @@ namespace Aetherfall.DevTools
     /// pickup notifications, GDD 05).
     /// </summary>
     /// <remarks>
+    /// <para>Hidden until F3 is pressed (<see cref="DevOverlaySwitch"/>, architecture 14.3): the player-facing interface is the UI
+    /// Toolkit UI (Aetherfall.UI.Screens); this overlay is a developer tool.</para>
     /// GameObject: "InteractionPrompt" in the test ground (the menu adds it and sets the interactor). Active only in the editor
     /// and in development builds. Event subscriptions follow OnEnable/OnDisable once the services are resolved.
     /// </remarks>
@@ -142,8 +144,18 @@ namespace Aetherfall.DevTools
             _nextMessage = (_nextMessage + 1) % MessageCount;
         }
 
+        private void Update()
+        {
+            DevOverlaySwitch.PollToggleKey();
+        }
+
         private void OnGUI()
         {
+            if (!DevOverlaySwitch.IsVisible)
+            {
+                return;
+            }
+
             EnsureStyles();
             float scale = uiScale * Mathf.Max(1f, Screen.height / ReferenceHeight);
             Matrix4x4 previous = GUI.matrix;

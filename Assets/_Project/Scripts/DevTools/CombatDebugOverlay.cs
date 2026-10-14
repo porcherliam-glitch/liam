@@ -16,6 +16,8 @@ namespace Aetherfall.DevTools
     /// "Schadenszahlen an/aus".
     /// </summary>
     /// <remarks>
+    /// <para>Hidden until F3 is pressed (<see cref="DevOverlaySwitch"/>, architecture 14.3): the player-facing interface is the UI
+    /// Toolkit UI (Aetherfall.UI.Screens); this overlay is a developer tool.</para>
     /// <para>GameObject: "CombatOverlay" in the test ground (the test ground menu sets the references). Active only in the
     /// editor and in development builds. The player brain is read through <see cref="ICombatDebugSource"/>, so DevTools does
     /// not need the Player assembly. Texts are rebuilt at most ten times per second; the hit list follows
@@ -145,6 +147,7 @@ namespace Aetherfall.DevTools
 
         private void Update()
         {
+            DevOverlaySwitch.PollToggleKey();
             float now = Time.unscaledTime;
             if (now < _nextRefresh)
             {
@@ -226,6 +229,11 @@ namespace Aetherfall.DevTools
 
         private void OnGUI()
         {
+            if (!DevOverlaySwitch.IsVisible)
+            {
+                return;
+            }
+
             float scale = uiScale * Mathf.Max(1f, Screen.height / ReferenceHeight);
             Matrix4x4 previousMatrix = GUI.matrix;
             GUI.matrix = Matrix4x4.Scale(new Vector3(scale, scale, 1f));

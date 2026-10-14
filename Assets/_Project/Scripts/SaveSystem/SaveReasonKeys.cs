@@ -21,6 +21,9 @@ namespace Aetherfall.SaveSystem
         /// <summary>The player is falling, jumping or diving (lock set by the Player, architecture 9.8, GDD 05 5.2).</summary>
         public const string Falling = "save.blocked.falling";
 
+        /// <summary>The player is dead (lock set by the Player until respawn or load; nobody may save a dead character).</summary>
+        public const string Dead = "save.blocked.dead";
+
         /// <summary>A saveable threw while taking the snapshot.</summary>
         public const string CaptureFailed = "save.error.capture";
 
@@ -108,6 +111,7 @@ namespace Aetherfall.SaveSystem
                 case Busy: return "Es wird gerade gespeichert oder geladen";
                 case Combat: return "Speichern im Kampf nicht möglich";
                 case Falling: return "Speichern beim Fallen oder Springen nicht möglich";
+                case Dead: return "Speichern nach dem Tod nicht möglich";
                 case CaptureFailed: return "Speichern fehlgeschlagen: Spielzustand konnte nicht erfasst werden";
                 case SerializeFailed: return "Speichern fehlgeschlagen: Daten konnten nicht umgewandelt werden";
                 case WriteFailed: return "Speichern fehlgeschlagen: Datei konnte nicht geschrieben werden. Dein vorheriger Stand ist unverändert";

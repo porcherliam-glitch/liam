@@ -10,6 +10,8 @@ namespace Aetherfall.DevTools
     /// <see cref="GameStateChanged"/> events, and offers mouse buttons to trigger transitions.
     /// </summary>
     /// <remarks>
+    /// <para>Hidden until F3 is pressed (<see cref="DevOverlaySwitch"/>, architecture 14.3): the player-facing interface is the UI
+    /// Toolkit UI (Aetherfall.UI.Screens); this overlay is a developer tool.</para>
     /// <para>GameObject: any GameObject in <c>Boot.unity</c> (the setup tool adds it there). Active only in the editor and in
     /// development builds (<c>DEVELOPMENT_BUILD</c>, <c>AETHERFALL_DEV</c>); in release builds it disables itself in Awake.</para>
     /// <para>Mouse only, no keyboard input (the input system is not part of this step). Dimmed buttons are transitions the
@@ -195,8 +197,18 @@ namespace Aetherfall.DevTools
             _stackText = text;
         }
 
+        private void Update()
+        {
+            DevOverlaySwitch.PollToggleKey();
+        }
+
         private void OnGUI()
         {
+            if (!DevOverlaySwitch.IsVisible)
+            {
+                return;
+            }
+
             float scale = uiScale * Mathf.Max(1f, Screen.height / ReferenceHeight);
             Matrix4x4 previousMatrix = GUI.matrix;
             Color previousColor = GUI.color;

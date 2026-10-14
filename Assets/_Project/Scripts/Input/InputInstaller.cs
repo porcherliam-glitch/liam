@@ -17,8 +17,8 @@ namespace Aetherfall.Input
     [CreateAssetMenu(menuName = "Aetherfall/Boot/Installer: Input", fileName = "InputInstaller", order = 103)]
     public sealed class InputInstaller : ServiceInstaller
     {
-        [Tooltip("Start/Esc pausiert das Spiel und setzt es fort, solange es noch kein Pausemenü gibt. " +
-                 "Ausschalten, sobald der Pausebildschirm (UI-Schritt) die Taste selbst behandelt.")]
+        [Tooltip("Start/Esc pausiert das Spiel und setzt es fort, solange es kein Pausemenü gibt. " +
+                 "Die Oberfläche (UIInstaller) schaltet das zur Laufzeit selbst ab, sobald ihr Pausemenü bereit ist.")]
         [SerializeField] private bool routePauseButton = true;
 
         [Tooltip("Mauszeiger im Spiel sperren und ausblenden, in Menüs freigeben (aus = Zeiger bleibt, wie er ist).")]

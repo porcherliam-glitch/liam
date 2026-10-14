@@ -17,7 +17,7 @@ namespace Aetherfall.Input
     /// <see cref="InputDeviceChanged"/> is published only when the kind or glyph family changes.</para>
     /// <para><b>Pause button:</b> while no pause menu exists, the service routes Start/Esc to the game state
     /// (<see cref="PauseRouting"/>): Pause of the Gameplay/Dialog/Riding map pushes Paused, CloseHub or Cancel of the UI map
-    /// pops it. Switched off in the InputInstaller once the pause screen handles it.</para>
+    /// pops it. The UI switches it off at run time (<see cref="SetPauseButtonRouting"/>) as soon as its pause menu exists.</para>
     /// <para>TODO (Options step): load binding overrides from settings.json before the first enable (boot step 6),
     /// sensitivity/invert/dead-zone options, rumble service.</para>
     /// </remarks>
@@ -27,7 +27,7 @@ namespace Aetherfall.Input
         private readonly IGameStateService _gameState;
         private readonly GameInputActions _actions;
         private readonly ICursorController _cursor;
-        private readonly bool _routePauseButton;
+        private bool _routePauseButton;
         private readonly GameplayInput _gameplay;
         private readonly UiInput _ui;
         private readonly ActiveDeviceTracker _deviceTracker = new ActiveDeviceTracker();
@@ -88,6 +88,21 @@ namespace Aetherfall.Input
 
         /// <inheritdoc />
         public PlayerControlMode ControlMode => _controlMode;
+
+        /// <inheritdoc />
+        public bool RoutesPauseButton => _routePauseButton;
+
+        /// <inheritdoc />
+        public void SetPauseButtonRouting(bool enabled)
+        {
+            if (_routePauseButton == enabled)
+            {
+                return;
+            }
+
+            _routePauseButton = enabled;
+            Log.Info(LogCategory.Input, "Pause button routing of the input service " + (enabled ? "on" : "off (the UI pause menu handles Start/Esc)") + ".");
+        }
 
         /// <inheritdoc />
         public void PostInitialize()

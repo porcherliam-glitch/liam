@@ -24,7 +24,8 @@ namespace Aetherfall.EditorTools.World
     /// spawn point, <see cref="DevPlayStarter"/>, <see cref="QuickSaveInput"/> and the <see cref="PlayerStatusDebugOverlay"/>; the
     /// combat part (player combat, lock-on camera, camera shake, arena with dummy and wolves, combat overlay) comes from
     /// <see cref="TestGroundCombatBuilder"/>, the items part (loot in the world, chests, interaction, equipment, inventory
-    /// overlay) from <see cref="TestGroundItemBuilder"/>.
+    /// overlay) from <see cref="TestGroundItemBuilder"/>; the <see cref="Aetherfall.UI.Screens.PlayerHudLink"/> (HUD bridge) from
+    /// <see cref="TestGroundUiBuilder"/>.
     /// </summary>
     /// <remarks>Camera values: GDD 03 2.1 "Erkundung" (4.0 m, pivot 1.6 m, 0.3 m shoulder, FOV 55°) and 2.2 (collision).</remarks>
     public static class TestGroundSceneBuilder
@@ -116,6 +117,8 @@ namespace Aetherfall.EditorTools.World
             {
                 report.Warning("Item-Daten oder Kampf unvollständig (siehe Meldungen oben) – das Testgelände wird ohne Truhen, Beute und Inventar erstellt.");
             }
+
+            TestGroundUiBuilder.AddPlayerHudLink(player, mainCamera, report);
 
             EditorSceneManager.MarkSceneDirty(scene);
             if (!EditorSceneManager.SaveScene(scene, TestGroundPaths.ScenePath))

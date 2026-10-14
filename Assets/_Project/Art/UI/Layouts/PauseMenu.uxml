@@ -1,0 +1,63 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- Pause menu (GDD 05 1.3, tab "System"): tabs System / Laden / Optionen with LB/RB (Q/E). -->
+    <ui:VisualElement name="pause" class="af-root af-screen af-overlay af-pause">
+        <ui:VisualElement class="af-panel af-pause__panel">
+            <ui:VisualElement class="af-pause__header">
+                <ui:Label name="pause-title" class="af-text af-pause__title" />
+                <ui:VisualElement class="af-tabs">
+                    <ui:Label name="pause-tabs-glyph-tabprev" class="af-text af-glyph" picking-mode="Ignore" />
+                    <ui:Button name="pause-tab-system" class="af-text af-tab" focusable="false" />
+                    <ui:Button name="pause-tab-load" class="af-text af-tab" focusable="false" />
+                    <ui:Button name="pause-tab-options" class="af-text af-tab" focusable="false" />
+                    <ui:Label name="pause-tabs-glyph-tabnext" class="af-text af-glyph" picking-mode="Ignore" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement class="af-pause__body">
+                <ui:VisualElement name="pause-system-page" class="af-pause__page af-pause__system">
+                    <ui:VisualElement name="pause-buttons" class="af-menu-list">
+                        <ui:Button name="pause-resume" class="af-text af-button" focusable="false" />
+                        <ui:Button name="pause-quicksave" class="af-text af-button" focusable="false" />
+                        <ui:Button name="pause-load" class="af-text af-button" focusable="false" />
+                        <ui:Button name="pause-options" class="af-text af-button" focusable="false" />
+                        <ui:Button name="pause-main-menu" class="af-text af-button" focusable="false">
+                            <ui:Label name="hold-hint" class="af-text af-button__badge" picking-mode="Ignore" />
+                            <ui:VisualElement class="af-button__hold" picking-mode="Ignore">
+                                <ui:VisualElement class="af-button__hold-fill" picking-mode="Ignore" />
+                            </ui:VisualElement>
+                        </ui:Button>
+                        <ui:Button name="pause-quit" class="af-text af-button" focusable="false">
+                            <ui:Label name="hold-hint" class="af-text af-button__badge" picking-mode="Ignore" />
+                            <ui:VisualElement class="af-button__hold" picking-mode="Ignore">
+                                <ui:VisualElement class="af-button__hold-fill" picking-mode="Ignore" />
+                            </ui:VisualElement>
+                        </ui:Button>
+                    </ui:VisualElement>
+                    <ui:VisualElement class="af-pause__info">
+                        <ui:Label name="pause-status" class="af-text af-pause__status" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+                <ui:VisualElement name="pause-load-page" class="af-pause__page" />
+                <ui:VisualElement name="pause-options-page" class="af-pause__page" />
+            </ui:VisualElement>
+            <ui:VisualElement class="af-footer af-footer--panel" picking-mode="Ignore">
+                <ui:VisualElement class="af-hint" picking-mode="Ignore">
+                    <ui:Label name="pause-hint-glyph-confirm" class="af-text af-glyph af-glyph--face" picking-mode="Ignore" />
+                    <ui:Label name="pause-hint-select" class="af-text af-hint__text" picking-mode="Ignore" />
+                </ui:VisualElement>
+                <ui:VisualElement class="af-hint" picking-mode="Ignore">
+                    <ui:Label name="pause-hint-glyph-back" class="af-text af-glyph af-glyph--face" picking-mode="Ignore" />
+                    <ui:Label name="pause-hint-back" class="af-text af-hint__text" picking-mode="Ignore" />
+                </ui:VisualElement>
+                <ui:VisualElement class="af-hint" picking-mode="Ignore">
+                    <ui:Label name="pause-hint-glyph-tabprev" class="af-text af-glyph" picking-mode="Ignore" />
+                    <ui:Label name="pause-hint-glyph-tabnext" class="af-text af-glyph" picking-mode="Ignore" />
+                    <ui:Label name="pause-hint-tabs" class="af-text af-hint__text" picking-mode="Ignore" />
+                </ui:VisualElement>
+                <ui:VisualElement class="af-hint" picking-mode="Ignore">
+                    <ui:Label name="pause-hint-glyph-confirm" class="af-text af-glyph af-glyph--face" picking-mode="Ignore" />
+                    <ui:Label name="pause-hint-hold" class="af-text af-hint__text" picking-mode="Ignore" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

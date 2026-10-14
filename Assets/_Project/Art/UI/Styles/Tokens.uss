@@ -1,0 +1,98 @@
+/*
+ * Colour tokens and sizes (GDD 05). Every UI colour is a named token; colour-blind and contrast modes later replace only
+ * these values (GDD 05 1.1, 4.3). Values marked GDD are exact; the others are proposals for this first UI.
+ * The rarity, focus and comparison values are checked against Aetherfall.UI.Framework.UiColorTokens by a test.
+ */
+:root {
+    /* GDD 05 1.10 - rarity (identical everywhere) */
+    --rarity-common: #A6A6A6;
+    --rarity-uncommon: #4CC35A;
+    --rarity-rare: #3D8BFF;
+    --rarity-epic: #A855F7;
+    --rarity-legendary: #FF8C1A;
+    --rarity-mythic: #E53935;
+    --rarity-set: #F2D23C;
+
+    /* GDD 05 1.1 / 1.4 - focus frame and comparison */
+    --ui-focus: #FFE8A3;
+    --ui-better: #5FD068;
+    --ui-worse: #FF6B5E;
+
+    /* GDD 05 1.6 - panels #101418 with 80 % opacity */
+    --ui-panel: rgba(16, 20, 24, 0.8);
+    --ui-panel-strong: rgba(16, 20, 24, 0.94);
+    --ui-panel-border: rgba(232, 210, 160, 0.16);
+    --ui-backdrop: rgba(5, 7, 10, 0.72);
+
+    /* GDD 05 1.11 - damage types */
+    --damage-physical: #FFFFFF;
+    --damage-fire: #FF5A1F;
+    --damage-ice: #9FD8FF;
+    --damage-lightning: #FFE14D;
+    --damage-poison: #8BD13A;
+    --damage-shadow: #7B61D9;
+    --damage-aether: #2FE6D6;
+
+    /* GDD 05 3.4 - Aether and the Void (turquoise is reserved for Aether) */
+    --aether: #2FE6D6;
+    --aether-core: #E6FFFC;
+    --aether-edge: #0B6E73;
+    --void: #140A1F;
+    --void-edge: #C8B8FF;
+
+    /* GDD 05 3.2 - telegraphs */
+    --telegraph-parry: #FFE8A3;
+    --telegraph-unblockable: #FF3B30;
+
+    /* GDD 05 1.9 - quest categories */
+    --quest-main: #F2C14E;
+    --quest-faction: #C98A4B;
+    --quest-region: #D9DEE7;
+    --quest-side: #FFFFFF;
+    --quest-companion: #F29CB8;
+    --quest-bounty: #E5534B;
+    --quest-treasure: #E3C08D;
+    --quest-crafting: #D08A5A;
+    --quest-repeatable: #5AA9FF;
+    --quest-legendary: #FF8C1A;
+
+    /* GDD 05 1.1 - attributes */
+    --attr-strength: #E07A5F;
+    --attr-dexterity: #81C784;
+    --attr-intelligence: #64B5F6;
+    --attr-wisdom: #B39DDB;
+    --attr-constitution: #FFB74D;
+    --attr-charisma: #F48FB1;
+
+    /* Text (proposal) - contrast >= 4.5:1 on the panel colour */
+    --text-primary: #EDE6D6;
+    --text-secondary: #B3AC9E;
+    --text-muted: #7A746A;
+    --text-title: #E8D2A0;
+    --text-shadow-color: rgba(0, 0, 0, 0.85);
+    --accent-gold: #C9A24D;
+    --accent-blood: #B33A3A;
+
+    /* Buttons (proposal) */
+    --button-bg: rgba(16, 20, 24, 0.8);
+    --button-bg-focus: rgba(255, 232, 163, 0.14);
+    --button-border: rgba(232, 210, 160, 0.14);
+
+    /* HUD resources (proposal) */
+    --hud-health: #C23B3B;
+    --hud-health-low: #E5534B;
+    --hud-stamina: #8DBB4A;
+    --hud-mana: #4A86E8;
+    --hud-poise: #E2B34A;
+    --hud-enemy: #B8302F;
+    --hud-trail: #F2D7A6;
+    --hud-bar-bg: rgba(8, 10, 13, 0.72);
+    --hud-bar-border: rgba(0, 0, 0, 0.9);
+
+    /* GDD 05 1.6 - font sizes at 100 % and 1080p */
+    --font-body: 24px;
+    --font-small: 20px;
+    --font-heading: 36px;
+    --font-title: 48px;
+    --font-hud-number: 22px;
+}

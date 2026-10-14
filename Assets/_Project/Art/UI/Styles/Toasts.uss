@@ -1,0 +1,136 @@
+/* Messages (GDD 05 1.7) and the save indicator (GDD 05 1.2, Aether turquoise per 3.4). */
+
+.af-toasts {
+    font-size: var(--font-body);
+}
+
+.af-toasts__p0 {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 176px;
+    align-items: center;
+}
+
+.af-toasts__p1 {
+    position: absolute;
+    right: 48px;
+    top: 200px;
+    width: 460px;
+    align-items: flex-end;
+}
+
+.af-toasts__p2 {
+    position: absolute;
+    right: 48px;
+    top: 420px;
+    width: 420px;
+    align-items: flex-end;
+}
+
+.af-toast {
+    margin: 0 0 8px 0;
+    padding: 10px 18px;
+    background-color: var(--ui-panel);
+    border-left-width: 4px;
+    border-color: rgba(232, 210, 160, 0.45);
+    border-radius: 3px;
+}
+
+.af-toast__text {
+    font-size: 22px;
+    white-space: normal;
+}
+
+.af-toast--p0 {
+    padding: 16px 56px;
+    border-left-width: 0;
+    border-top-width: 2px;
+    border-bottom-width: 2px;
+    border-color: var(--accent-gold);
+    background-color: var(--ui-panel-strong);
+}
+
+.af-toast--p0 .af-toast__text {
+    font-size: 34px;
+    color: var(--text-title);
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    letter-spacing: 1px;
+}
+
+.af-toast--p1 .af-toast__text {
+    font-size: 22px;
+}
+
+.af-toast--levelup {
+    border-color: var(--quest-main);
+}
+
+.af-toast--warning {
+    border-color: var(--telegraph-unblockable);
+}
+
+.af-toast--currency {
+    border-color: var(--quest-main);
+}
+
+.af-toast--xp {
+    border-color: var(--text-secondary);
+}
+
+.af-toast--rarity-common {
+    border-color: var(--rarity-common);
+}
+
+.af-toast--rarity-uncommon {
+    border-color: var(--rarity-uncommon);
+}
+
+.af-toast--rarity-rare {
+    border-color: var(--rarity-rare);
+}
+
+.af-toast--rarity-epic {
+    border-color: var(--rarity-epic);
+}
+
+.af-toast--rarity-legendary {
+    border-color: var(--rarity-legendary);
+}
+
+.af-toast--rarity-mythic {
+    border-color: var(--rarity-mythic);
+}
+
+.af-toast--rarity-set {
+    border-color: var(--rarity-set);
+}
+
+.af-toast--saved {
+    border-color: var(--aether);
+}
+
+.af-save-indicator {
+    position: absolute;
+    right: 40px;
+    bottom: 32px;
+    flex-direction: row;
+    align-items: center;
+}
+
+.af-save-indicator__icon {
+    width: 20px;
+    height: 20px;
+    margin: 0 14px 0 0;
+    rotate: 45deg;
+    border-width: 3px;
+    border-color: var(--aether);
+    background-color: rgba(47, 230, 214, 0.25);
+}
+
+.af-save-indicator__text {
+    font-size: var(--font-small);
+    color: var(--aether-core);
+    text-shadow: 0px 2px 3px var(--text-shadow-color);
+}

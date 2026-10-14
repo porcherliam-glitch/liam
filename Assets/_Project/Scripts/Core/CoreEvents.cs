@@ -36,17 +36,17 @@ namespace Aetherfall.Core
         }
     }
 
-    /// <summary>A scene started loading (sent by the SceneLoader, Phase 1 step 1.4).</summary>
+    /// <summary>A scene started loading (sent by <see cref="SceneLoader"/>, architecture 4.5).</summary>
     public readonly struct SceneLoadStarted : IGameEvent
     {
-        /// <summary>Addressables key of the scene.</summary>
+        /// <summary>Scene key (scene path or <c>#n</c> build index until the Addressables step, see <see cref="SceneKeys"/>).</summary>
         public readonly string SceneKey;
 
         /// <summary>True if the loading screen is shown for this load.</summary>
         public readonly bool ShowLoadingScreen;
 
         /// <summary>Creates the event.</summary>
-        /// <param name="sceneKey">Addressables key of the scene.</param>
+        /// <param name="sceneKey">Scene key.</param>
         /// <param name="showLoadingScreen">True if the loading screen is shown.</param>
         public SceneLoadStarted(string sceneKey, bool showLoadingScreen)
         {
@@ -61,17 +61,17 @@ namespace Aetherfall.Core
         }
     }
 
-    /// <summary>A scene finished loading (sent by the SceneLoader, Phase 1 step 1.4).</summary>
+    /// <summary>A scene finished loading and is active (sent by <see cref="SceneLoader"/>, architecture 4.5).</summary>
     public readonly struct SceneLoadCompleted : IGameEvent
     {
-        /// <summary>Addressables key of the scene.</summary>
+        /// <summary>Scene key (scene path or <c>#n</c> build index until the Addressables step, see <see cref="SceneKeys"/>).</summary>
         public readonly string SceneKey;
 
         /// <summary>Real time the load took, in seconds.</summary>
         public readonly float DurationSeconds;
 
         /// <summary>Creates the event.</summary>
-        /// <param name="sceneKey">Addressables key of the scene.</param>
+        /// <param name="sceneKey">Scene key.</param>
         /// <param name="durationSeconds">Real time the load took, in seconds.</param>
         public SceneLoadCompleted(string sceneKey, float durationSeconds)
         {
