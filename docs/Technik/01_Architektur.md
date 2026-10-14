@@ -63,7 +63,7 @@ Aus §6.1 übernommen, ergänzt um technische Regeln, die aus der [Recherche](./
 
 | Punkt | Festlegung | Begründung |
 |---|---|---|
-| Start | **Unity 6.3 LTS (6000.3.x, neuester Patch beim Setup)** | Einzige produktionsreife LTS mit Support bis 12/2027. 6.0 LTS endet 10/2026, 6.6 wird nur bis zum Erscheinen von 6.7 gepflegt (Recherche §1). |
+| Start | **Geändert am 2026-10-14 auf Wunsch des Auftraggebers: Unity 6.6 (6000.6.x, installiert 6000.6.5f1).** Ursprünglich geplant war Unity 6.3 LTS (6000.3.x, neuester Patch beim Setup). Wo unten „6.3“ steht, gilt jetzt 6.6. | Einzige produktionsreife LTS mit Support bis 12/2027. 6.0 LTS endet 10/2026, 6.6 wird nur bis zum Erscheinen von 6.7 gepflegt (Recherche §1). |
 | Geplanter Wechsel | **Unity 6.7 LTS**, sobald ≥ 2 Patch-Releases erschienen sind, spätestens **vor Phase 3** (Quest-/Dialog-Editor) | Bringt Graph Toolkit als Editor-Modul, reiferes UI Toolkit, Addressables 4. Upgrade ist früh billig, weil noch wenig Inhalt existiert. |
 | Danach | Unity 7 / 6.8 (CoreCLR, kein Mono) erst nach eigener Bewertung, frühestens Phase 5 | Mono entfällt, statische Felder werden nicht mehr per Domain Reload zurückgesetzt (Recherche §1, Sicherheit „mittel“). |
 | Pinning | Exakte Editor-Version in `ProjectSettings/ProjectVersion.txt`. Alle Rechner und die CI nutzen denselben Patch. | Unterschiedliche Patches erzeugen Diffs in Assets und Serialisierung. |
@@ -2479,7 +2479,7 @@ Caches: `Library/` und LFS-Objekte (sonst LFS-Traffic pro Lauf). Budget-Limit st
 
 | # | Entscheidung | Gewählt | Alternativen | Begründung | Revidierbar? |
 |---|---|---|---|---|---|
-| A01 | Engine | Unity 6.3 LTS, Wechsel auf 6.7 LTS vor Phase 3 | 6.0 LTS, 6.6, auf Unity 7 warten | 6.0 endet 10/2026, 6.6 kurzlebig; 6.7 bringt Graph Toolkit, UI Toolkit, Addressables 4 | ja, mit Upgrade-Fenster |
+| A01 | Engine | Unity 6.3 LTS, Wechsel auf 6.7 LTS vor Phase 3 (**geändert 2026-10-14: Start mit Unity 6.6, Auftraggeber**) | 6.0 LTS, 6.6, auf Unity 7 warten | 6.0 endet 10/2026, 6.6 kurzlebig; 6.7 bringt Graph Toolkit, UI Toolkit, Addressables 4 | ja, mit Upgrade-Fenster |
 | A02 | Render-Pfad | URP Forward+, Render Graph, GRD, SRP Batcher | Forward, Deferred | GRD und GPU Occlusion setzen Forward+ und Render Graph voraus | teuer ab Phase 2 (Shader-Regeln, kein MPB) |
 | A03 | Backend | IL2CPP für Releases, Mono für Dev | nur Mono | Performance, Pflicht für Notarisierung/Release-Qualität | ja |
 | A04 | Pakete | exakt gepinnt, Updates nur mit Engine-Wechsel | Versionsbereiche | stille Daten-/API-Änderungen vermeiden | ja |

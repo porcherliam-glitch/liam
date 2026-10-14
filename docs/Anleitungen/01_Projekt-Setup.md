@@ -11,6 +11,8 @@ Diese Anleitung bringt dich vom Mac ohne Unity bis zu einem fertig eingerichtete
 | **Speicherplatz** | rund 30 GB frei (Unity allein braucht mehrere GB) |
 | **Terminal** | ein einziger Befehl (Schritt 4.1). Mit dem Finder-Weg (4.2) brauchst du gar keinen. |
 
+> **Neu (2026-10-14):** Das Projekt läuft jetzt mit **Unity 6.6** auf einem **Windows-PC**. Wo unten „6.3 LTS“ oder „6000.3“ steht, nimm 6.6 bzw. 6000.6. Die Mac-Schritte (Finder, Terminal, `rsync`) gelten unter Windows sinngemäß; Claude auf dem PC übernimmt das Kopieren.
+
 ---
 
 ## Inhalt

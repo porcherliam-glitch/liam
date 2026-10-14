@@ -5,7 +5,7 @@ Stand: 2026-10-14. Den laufenden Stand führt [docs/Status.md](docs/Status.md), 
 
 ## Projekt in drei Sätzen
 
-- 3D-Open-World-Action-RPG in **Unity 6.3 LTS (URP, C# 9, .NET Standard 2.1)** für macOS (Apple Silicon) und Windows.
+- 3D-Open-World-Action-RPG in **Unity 6.6 (6000.6.x, URP, C# 9, .NET Standard 2.1)** für macOS (Apple Silicon) und Windows.
 - Die verbindliche Spezifikation des Auftraggebers ist [docs/00_Master-Prompt.md](docs/00_Master-Prompt.md). Ihre Abschnitte heißen §1–§33; besonders wichtig sind §31 (Roadmap) und §32 (Arbeitsregeln).
 - Der Auftraggeber arbeitet **allein**, ist **Einsteiger**, will **0 € ausgeben** und möchte, dass Claude möglichst alles selbst macht.
 
@@ -100,9 +100,11 @@ Tests liegen unter `Assets/_Project/Tests/` (EditMode, getrennt nach Bereich). S
 
 ## Auf dem PC mit Unity: erste Aufgaben, in dieser Reihenfolge
 
-**Unity-Version auf dem PC (2026-10-14):** Installiert war zuerst **Unity 6.0 (6000.0.84f1)**. Geplant ist **6.3 LTS (6000.3.x)**, weil die Unterstützung für 6.0 ausläuft; der Auftraggeber soll 6.3 LTS im Unity Hub dazu installieren.
-- Mit `Unity Hub > Installs` prüfen, welche Version da ist, und das Projekt mit der neuesten 6000.3.x öffnen.
-- Gibt es nur 6.0, geht es zur Not auch damit. Das Projekt-Setup warnt dann (`ProjectChecksStep`). Kompilierfehler wegen fehlender 6.1–6.3-APIs beheben, ohne die 6.3-Planung zu ändern.
+**Unity-Version (Entscheidung des Auftraggebers, 2026-10-14):** **Unity 6.6 (6000.6.5f1)**, installiert unter `C:\Program Files\Unity\Hub\Editor\6000.6.5f1\Editor\Unity.exe`. Damit ersetzt 6.6 die frühere Planung „6.3 LTS“ (Architektur 1.1, Status Entscheidungs-Log).
+- Wo in älteren Dokumenten „6.3 LTS“ oder „6000.3“ steht, gilt jetzt 6.6 bzw. 6000.6.
+- 6.6 ist kein LTS. Wenn 6.7 LTS erscheint, wie geplant umsteigen (Architektur 1.1).
+- Unity 6.0 (6000.0.84f1) ist auch installiert, wird aber nicht verwendet.
+- Der Harness prüft gegen Unity-2021-Referenzen mit Unity-6-Ergänzungen. Was in 6.4–6.6 als veraltet (`[Obsolete]`) oder entfernt markiert ist, sieht er nicht. Solche Warnungen und Fehler in Unity beheben.
 
 1. **Projektordner prüfen.** Der Auftraggeber bekommt das Projekt als ZIP aus der Cloud-Sitzung. Die ZIP enthält den Ordner `.git`, ist also ein vollständiges Git-Repository mit Remote `https://github.com/porcherliam-glitch/liam` und Branch `claude/new-session-2ye8ds`.
    - `git status` und `git pull origin claude/new-session-2ye8ds` ausführen.
@@ -113,7 +115,7 @@ Tests liegen unter `Assets/_Project/Tests/` (EditMode, getrennt nach Bereich). S
    - Danach kopiert Claude die drei Ordner ins Repo, zum Beispiel mit `robocopy <Vorlage>\Assets Assets /E`, `robocopy <Vorlage>\Packages Packages /E` und `robocopy <Vorlage>\ProjectSettings ProjectSettings /E`. Nichts löschen, `Assets/_Project` bleibt unverändert.
    - Dann das Repo im Unity Hub hinzufügen („Add project from disk“), öffnen und Menü **Aetherfall > Projekt-Setup …** ausführen (installiert Pakete, setzt Einstellungen, räumt Vorlagen-Inhalte auf).
    - `Packages/` und `ProjectSettings/` danach committen.
-3. Kompilierfehler beheben, bis die Konsole leer ist. Häufige Ursachen: API-Unterschiede zwischen Unity 2021 (Harness) und Unity 6.3, Paketversionen (Input System, Cinemachine 3, Newtonsoft).
+3. Kompilierfehler beheben, bis die Konsole leer ist. Häufige Ursachen: API-Unterschiede zwischen Unity 2021 (Harness) und Unity 6.6, Paketversionen (Input System, Cinemachine 3, Newtonsoft).
 4. EditMode-Tests im Batchmode laufen lassen (Befehl unten) und rot gewordene Tests reparieren.
 5. Generatoren im Batchmode ausführen (Testgelände, Eichental), Szenen öffnen, Play Mode starten, Screenshots machen und prüfen.
 6. **Projekt-Setup** bekommt noch einen Batchmode-Einstiegspunkt (`RunBatch`), wie die anderen Menüs unten. `EditorUtility.DisplayDialog` darf im Batchmode nicht blockieren (`Application.isBatchMode` prüfen).
@@ -121,10 +123,10 @@ Tests liegen unter `Assets/_Project/Tests/` (EditMode, getrennt nach Bereich). S
 
 ## Auf dem PC mit Unity: so testen
 
-Unity im Batchmode (Pfad zur installierten 6000.3.x-Version anpassen; Windows-Beispiel):
+Unity im Batchmode (Windows, installierte Version 6000.6.5f1):
 
 ```
-"C:\Program Files\Unity\Hub\Editor\6000.3.x\Editor\Unity.exe" -batchmode -nographics -projectPath . -runTests -testPlatform EditMode -testResults Logs\editmode-results.xml -logFile Logs\editmode.log
+"C:\Program Files\Unity\Hub\Editor\6000.6.5f1\Editor\Unity.exe" -batchmode -nographics -projectPath . -runTests -testPlatform EditMode -testResults Logs\editmode-results.xml -logFile Logs\editmode.log
 ```
 
 Batchmode-Einstiegspunkte (jeweils mit `-batchmode -nographics -projectPath . -quit -logFile Logs\<name>.log`):

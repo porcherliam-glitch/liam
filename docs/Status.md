@@ -88,3 +88,4 @@ Hier stehen nur Entscheidungen des Auftraggebers. Bis zu einem Eintrag gilt die 
 |---|---|---|
 | 2026-10-13 | OK für Phase 0, Schritt 4 (Projekt-Setup) und Phase 1. Offene Fragen gelten bis zur Antwort mit der Empfehlung (Unity 6.3 LTS, Code und Kommentare auf Englisch). | Chat ("OK, fang an") |
 | 2026-10-13 | Frage 1 (Kapazität): Solo, Budget 50 € (verfügbar in zwei Tagen). Erstes Ziel wird der „Mini-Slice“ (Stufe A0), siehe Kurskorrektur. | Chat |
+| 2026-10-14 | Engine-Version: **Unity 6.6 (6000.6.5f1)** statt 6.3 LTS, Entscheidung des Auftraggebers (auf seinem Windows-PC installiert). 6.6 ist kein LTS; beim Erscheinen von 6.7 LTS wie geplant umsteigen (Architektur 1.1). Ältere Erwähnungen von „6.3 LTS“ gelten sinngemäß für 6.6. | Chat (Screenshot Unity Hub) |
