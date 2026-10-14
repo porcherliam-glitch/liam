@@ -327,7 +327,7 @@ namespace Aetherfall.EditorTools.World
                 root.transform.SetPositionAndRotation(new Vector3((float)x, H(x, z), (float)z), Quaternion.Euler(0f, (float)npc.Yaw, 0f));
 
                 // Inside a building on purpose (e.g. trapped in the burning bakery): no collider in the walls, sign above the roof.
-                VillagerFigures.Build(root.transform, npc.NpcId, _materials, !npc.InsideBuilding);
+                VillagerFigures.Build(root.transform, npc.NpcId, _materials, !npc.InsideBuilding, _report);
                 float signHeight = VillagerFigures.Height(npc.NpcId) + 0.4f;
                 if (npc.InsideBuilding)
                 {

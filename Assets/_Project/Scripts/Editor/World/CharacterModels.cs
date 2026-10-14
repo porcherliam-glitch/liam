@@ -28,6 +28,9 @@ namespace Aetherfall.EditorTools.World
         /// <summary>Aether wolf (dark fur, glowing eyes and crystals; materials "…_Leuchten" glow in Unity).</summary>
         public const string AetherWolf = Folder + "/AetherWolf.fbx";
 
+        /// <summary>Base villager with optional pieces ("Acc_<Name>@<Joint>") and colour-slot materials ("Dorf_<Slot>").</summary>
+        public const string Villager = Folder + "/Dorfbewohner.fbx";
+
         /// <summary>Loads a model (the FBX root object), or null with a warning.</summary>
         /// <param name="path">Asset path.</param>
         /// <param name="report">Protocol.</param>
@@ -50,7 +53,7 @@ namespace Aetherfall.EditorTools.World
         {
             AssetDatabase.ImportAsset(Folder, ImportAssetOptions.ImportRecursive | ImportAssetOptions.ForceUpdate);
             bool ok = true;
-            foreach (string path in new[] { Warrior, Sword, WoodenShield, Wolf, AetherWolf })
+            foreach (string path in new[] { Warrior, Sword, WoodenShield, Wolf, AetherWolf, Villager })
             {
                 var model = AssetDatabase.LoadAssetAtPath<GameObject>(path);
                 if (model == null)
@@ -134,6 +137,18 @@ namespace Aetherfall.EditorTools.World
                 Transform joint = Find(copy.transform, HumanoidChain[i, 1]);
                 if (part != null && joint != null)
                 {
+                    part.SetParent(joint, true);
+                }
+            }
+
+            // Optional pieces name their joint after "@" (e.g. "Acc_Bart@Head"); they keep the name before it.
+            foreach (Transform part in copy.GetComponentsInChildren<Transform>(true))
+            {
+                int at = part.name.IndexOf('@');
+                Transform joint = at > 0 ? Find(copy.transform, part.name.Substring(at + 1)) : null;
+                if (joint != null)
+                {
+                    part.name = part.name.Substring(0, at);
                     part.SetParent(joint, true);
                 }
             }

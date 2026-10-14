@@ -11,6 +11,7 @@ Stand: 2026-10-14.
 | `Holzschild.fbx` | Runder Holzschild mit Eisenrand, Griff im Ursprung |
 | `Wolf.fbx` | Grauwolf (Gelenke `Torso`, `Head`, `Tail`, `FrontUpper/FrontLower`, `HindUpper/HindLower` je `.L/.R`), bewegt von `QuadrupedPuppet` |
 | `AetherWolf.fbx` | Aether-Wolf: dunkles Fell, leuchtende Augen, Kristalle auf dem Rücken (Materialien mit „_Leuchten“ bekommen in Unity das Kristall-Material) |
+| `Dorfbewohner.fbx` | Grundfigur aller NPCs mit Zubehör `Acc_<Name>@<Gelenk>` (Haare, Zopf, Bart, Haarkranz, Strohhut, Mütze, Kapuze, Schürze, Latz, Tuch, Rock, Robe, Mantel, Wappenrock, Rüstung) und Farb-Plätzen `Dorf_<Platz>` (Haut, Haare, Oberteil, Ärmel, Unterteil, Schuhe, Gürtel, Schürze, Akzent, Metall). `VillagerFigures` behält je Person das passende Zubehör und färbt die Plätze. |
 
 ## Aufbau der Figuren
 

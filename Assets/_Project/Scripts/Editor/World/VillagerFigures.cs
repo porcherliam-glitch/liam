@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Aetherfall.Combat;
 using UnityEngine;
 using D = Aetherfall.EditorTools.Narrative.MiniSliceDialogueLibrary;
 using Q = Aetherfall.EditorTools.Narrative.MiniSliceQuestLibrary;
@@ -6,15 +7,20 @@ using Q = Aetherfall.EditorTools.Narrative.MiniSliceQuestLibrary;
 namespace Aetherfall.EditorTools.World
 {
     /// <summary>
-    /// Simple people of the Eichental built from primitives (legs or dress, torso, arms, head, hair, eyes) with one look per
-    /// NPC: clothing colours after role and GDD 01 4.1.3 (smith with leather apron, baker with white apron, farmer with straw
-    /// hat, captain in armour with a silver tabard, the grey figure in a hooded cloak, children smaller). A stand-in until the
-    /// Blender models (Mini-Slice step 7); the pivot stays on the ground, the front is +Z.
+    /// The people of the Eichental: one base villager from Blender (<see cref="CharacterModels.Villager"/>) with one look per NPC
+    /// after role and GDD 01 4.1.3. The look keeps the optional pieces the person wears (smith with leather apron and beard,
+    /// baker with white apron, farmer with straw hat, miller with cap, captain in armour with a silver tabard, scholar in a
+    /// robe, the grey figure in a hooded cloak) and colours the material slots of the model; children are smaller, Lina floats
+    /// in the light of the rift. <see cref="HumanoidPuppet"/> lets them breathe. Pivot on the ground, front +Z.
     /// </summary>
     public static class VillagerFigures
     {
         /// <summary>Height of an adult figure in metres (scale 1).</summary>
         public const float AdultHeight = 1.75f;
+
+        private const float FloatHeight = 0.45f;
+
+        private const string Dark = "2A221C";
 
         private static readonly Dictionary<string, Look> Looks = new Dictionary<string, Look>
         {
@@ -22,7 +28,7 @@ namespace Aetherfall.EditorTools.World
             [D.Tobold] = new Look(Garment.Trousers, "8A7A64", "4A3A2A", "3A2A1E", "D9A07E") { Scale = 1.06f, Apron = "5A3A22", Beard = true },
             [D.Wenna] = new Look(Garment.Dress, "B07A3A", "B07A3A", "7A3A1E", "E8BFA0") { Apron = "E8E2D2" },
             [D.Lina] = new Look(Garment.Dress, "7FA3C4", "7FA3C4", "C9A45A", "EBC6AA") { Scale = 0.8f, Floating = true },
-            [D.GreyFigure] = new Look(Garment.Cloak, "6B6B6E", "6B6B6E", "6B6B6E", "2A2A2E") { Scale = 1.08f, Hood = true },
+            [D.GreyFigure] = new Look(Garment.Cloak, "6B6B6E", "6B6B6E", null, "2A2A2E") { Scale = 1.08f, Hood = true },
             [Q.Hollmann] = new Look(Garment.Trousers, "7A8A5A", "5A4A32", "6A4A2A", "D9A07E") { StrawHat = true, Beard = true },
             [D.Pim] = new Look(Garment.Trousers, "9A6A4A", "4A4A5A", "6A4A2A", "EBA090") { Scale = 0.62f },
             [D.Ulf] = new Look(Garment.Trousers, "D8D0C0", "3A3A3A", null, "E0A888") { Scale = 1.02f, Apron = "8A7A5A", Beard = true, Stout = true },
@@ -48,120 +54,27 @@ namespace Aetherfall.EditorTools.World
             return AdultHeight * look.Scale + (look.Floating ? FloatHeight : 0f);
         }
 
-        private const float FloatHeight = 0.45f;
-
         /// <summary>Builds the figure of an NPC under <paramref name="root"/> (unknown NPCs get a plain villager).</summary>
         /// <param name="root">NPC root (pivot on the ground).</param>
         /// <param name="npcId">NPC id.</param>
         /// <param name="materials">Materials of the Eichental.</param>
         /// <param name="withCollider">False for NPCs inside a building (no collider in the walls).</param>
-        public static void Build(Transform root, string npcId, EichentalMaterials materials, bool withCollider)
+        /// <param name="report">Protocol.</param>
+        public static void Build(Transform root, string npcId, EichentalMaterials materials, bool withCollider, TestGroundReport report)
         {
             Look look = For(npcId);
-            var figure = new GameObject("Figur").transform;
-            figure.SetParent(root, false);
+            Transform figure = CharacterModels.Instantiate(CharacterModels.Villager, root, "Figur", root.gameObject.layer, report);
+            if (figure == null)
+            {
+                return;
+            }
+
             figure.localPosition = new Vector3(0f, look.Floating ? FloatHeight : 0f, 0f);
-            figure.localScale = Vector3.one * look.Scale;
-
-            Material skin = Cloth(materials, look.Skin);
-            Material top = look.Floating ? materials.Glow("aether", 0.6f) : Cloth(materials, look.Top);
-            Material bottom = look.Floating ? top : Cloth(materials, look.Bottom);
-            Material dark = Cloth(materials, "2A221C");
-            float width = look.Stout ? 1.18f : 1f;
-
-            // Legs, dress, robe or cloak.
-            if (look.Garment == Garment.Trousers)
-            {
-                for (int side = -1; side <= 1; side += 2)
-                {
-                    Part(figure, "Bein", PrimitiveType.Cube, new Vector3(0.1f * side, 0.47f, 0f), new Vector3(0.15f, 0.78f, 0.17f), bottom);
-                    Part(figure, "Schuh", PrimitiveType.Cube, new Vector3(0.1f * side, 0.04f, 0.03f), new Vector3(0.15f, 0.08f, 0.25f), dark);
-                }
-            }
-            else
-            {
-                bool toGround = look.Garment != Garment.Dress;
-                float hem = toGround ? 0.02f : 0.1f;
-                float diameter = look.Garment == Garment.Cloak ? 0.6f : look.Garment == Garment.Robe ? 0.5f : 0.46f;
-                float height = 0.98f - hem;
-                Part(figure, look.Garment == Garment.Cloak ? "Mantel" : look.Garment == Garment.Robe ? "Robe" : "Rock", PrimitiveType.Cylinder,
-                    new Vector3(0f, hem + height * 0.5f, 0f), new Vector3(diameter * width, height * 0.5f, diameter * 0.82f), bottom);
-                if (!toGround)
-                {
-                    for (int side = -1; side <= 1; side += 2)
-                    {
-                        Part(figure, "Schuh", PrimitiveType.Cube, new Vector3(0.09f * side, 0.04f, 0.04f), new Vector3(0.13f, 0.08f, 0.22f), dark);
-                    }
-                }
-            }
-
-            // Torso, belt, arms with hands.
-            Material torso = look.Armour != null ? materials.Fixed("npc_metal_" + look.Top, Hex(look.Top), 0.55f, 0.7f) : top;
-            Part(figure, "Oberkörper", PrimitiveType.Cube, new Vector3(0f, 1.17f, 0f), new Vector3(0.44f * width, 0.58f, 0.26f * width), torso);
-            Part(figure, "Gürtel", PrimitiveType.Cube, new Vector3(0f, 0.9f, 0f), new Vector3(0.46f * width, 0.06f, 0.28f * width), dark);
-            for (int side = -1; side <= 1; side += 2)
-            {
-                float x = (0.22f * width + 0.07f) * side;
-                Part(figure, "Arm", PrimitiveType.Cube, new Vector3(x, 1.15f, 0f), new Vector3(0.12f, 0.56f, 0.14f), torso);
-                Part(figure, "Hand", PrimitiveType.Cube, new Vector3(x, 0.83f, 0f), new Vector3(0.1f, 0.11f, 0.1f), skin);
-            }
-
-            // Head, eyes, hair and what is worn on it.
-            Part(figure, "Kopf", PrimitiveType.Sphere, new Vector3(0f, 1.62f, 0f), new Vector3(0.26f, 0.27f, 0.26f), skin);
-            if (!look.Hood)
-            {
-                for (int side = -1; side <= 1; side += 2)
-                {
-                    Part(figure, "Auge", PrimitiveType.Cube, new Vector3(0.05f * side, 1.64f, 0.122f), new Vector3(0.04f, 0.035f, 0.02f), dark);
-                }
-            }
-
-            if (look.Hair != null && !look.Hood)
-            {
-                Part(figure, "Haare", PrimitiveType.Sphere, new Vector3(0f, 1.68f, -0.02f), new Vector3(0.28f, 0.2f, 0.28f), Cloth(materials, look.Hair));
-            }
-
-            if (look.Beard)
-            {
-                Part(figure, "Bart", PrimitiveType.Cube, new Vector3(0f, 1.54f, 0.1f), new Vector3(0.18f, 0.1f, 0.07f), Cloth(materials, look.Hair ?? "6A4A2A"));
-            }
-
-            if (look.Hood)
-            {
-                Part(figure, "Kapuze", PrimitiveType.Sphere, new Vector3(0f, 1.65f, -0.05f), new Vector3(0.34f, 0.36f, 0.34f), bottom);
-            }
-
-            if (look.StrawHat)
-            {
-                Material straw = Cloth(materials, "C8B068");
-                Part(figure, "Hutkrempe", PrimitiveType.Cylinder, new Vector3(0f, 1.75f, 0f), new Vector3(0.46f, 0.012f, 0.46f), straw);
-                Part(figure, "Hut", PrimitiveType.Cylinder, new Vector3(0f, 1.8f, 0f), new Vector3(0.26f, 0.05f, 0.26f), straw);
-            }
-
-            if (look.Cap != null)
-            {
-                Part(figure, "Mütze", PrimitiveType.Sphere, new Vector3(0f, 1.73f, -0.01f), new Vector3(0.28f, 0.13f, 0.28f), Cloth(materials, look.Cap));
-            }
-
-            // Apron, shawl, tabard and shoulder plates.
-            if (look.Apron != null)
-            {
-                Part(figure, "Schürze", PrimitiveType.Cube, new Vector3(0f, 0.92f, 0.15f * width), new Vector3(0.38f * width, 0.66f, 0.02f), Cloth(materials, look.Apron));
-            }
-
-            if (look.Shawl != null)
-            {
-                Part(figure, "Tuch", PrimitiveType.Cube, new Vector3(0f, 1.38f, 0f), new Vector3(0.48f, 0.14f, 0.3f), Cloth(materials, look.Shawl));
-            }
-
-            if (look.Armour != null)
-            {
-                Part(figure, "Wappenrock", PrimitiveType.Cube, new Vector3(0f, 1.0f, 0.14f), new Vector3(0.3f, 0.74f, 0.02f), Cloth(materials, look.Armour));
-                for (int side = -1; side <= 1; side += 2)
-                {
-                    Part(figure, "Schulterplatte", PrimitiveType.Sphere, new Vector3(0.27f * side, 1.43f, 0f), new Vector3(0.2f, 0.14f, 0.22f), torso);
-                }
-            }
+            figure.localScale = new Vector3(look.Scale * (look.Stout ? 1.12f : 1f), look.Scale, look.Scale * (look.Stout ? 1.1f : 1f));
+            KeepPieces(figure, look);
+            Colour(figure, look, materials);
+            HumanoidPuppet puppet = figure.gameObject.AddComponent<HumanoidPuppet>();
+            puppet.BindByName(figure);
 
             if (withCollider)
             {
@@ -171,6 +84,82 @@ namespace Aetherfall.EditorTools.World
                 capsule.height = AdultHeight * look.Scale;
                 capsule.radius = 0.3f * Mathf.Max(0.7f, look.Scale);
                 capsule.center = new Vector3(0f, figure.localPosition.y + capsule.height * 0.5f, 0f);
+            }
+        }
+
+        private static void KeepPieces(Transform figure, Look look)
+        {
+            bool hair = look.Hair != null && !look.Hood;
+            var wanted = new HashSet<string>
+            {
+                hair ? "Acc_Haare" : string.Empty,
+                hair && look.Garment == Garment.Dress ? "Acc_Zopf" : string.Empty,
+                look.Hair == null && !look.Hood ? "Acc_Haarkranz" : string.Empty,
+                look.Beard ? "Acc_Bart" : string.Empty,
+                look.StrawHat ? "Acc_Strohhut" : string.Empty,
+                look.Cap != null ? "Acc_Muetze" : string.Empty,
+                look.Hood ? "Acc_Kapuze" : string.Empty,
+                look.Apron != null ? "Acc_Schuerze" : string.Empty,
+                look.Apron != null ? "Acc_Latz" : string.Empty,
+                look.Shawl != null ? "Acc_Tuch" : string.Empty,
+                look.Garment == Garment.Dress ? "Acc_Rock" : string.Empty,
+                look.Garment == Garment.Robe ? "Acc_Robe" : string.Empty,
+                look.Garment == Garment.Cloak ? "Acc_Mantel" : string.Empty,
+                look.Armour != null ? "Acc_Wappenrock" : string.Empty,
+                look.Armour != null ? "Acc_Ruestung" : string.Empty
+            };
+
+            foreach (Transform part in figure.GetComponentsInChildren<Transform>(true))
+            {
+                if (part != null && part.name.StartsWith("Acc_", System.StringComparison.Ordinal) && !wanted.Contains(part.name))
+                {
+                    Object.DestroyImmediate(part.gameObject);
+                }
+            }
+        }
+
+        private static void Colour(Transform figure, Look look, EichentalMaterials materials)
+        {
+            Material glow = look.Floating ? materials.Glow("aether", 0.6f) : null;
+            string accent = look.Shawl ?? look.Cap ?? look.Armour ?? (look.StrawHat ? "C8B068" : look.Bottom);
+            foreach (Renderer part in figure.GetComponentsInChildren<Renderer>(true))
+            {
+                Material[] slots = part.sharedMaterials;
+                for (int i = 0; i < slots.Length; i++)
+                {
+                    string slot = slots[i] != null ? slots[i].name : string.Empty;
+                    switch (slot)
+                    {
+                        case "Dorf_Haut":
+                            slots[i] = Cloth(materials, look.Skin);
+                            break;
+                        case "Dorf_Haare":
+                            slots[i] = Cloth(materials, look.Hair ?? "6A4A2A");
+                            break;
+                        case "Dorf_Oberteil":
+                        case "Dorf_Aermel":
+                            slots[i] = glow != null ? glow : Cloth(materials, look.Top);
+                            break;
+                        case "Dorf_Unterteil":
+                            slots[i] = glow != null ? glow : Cloth(materials, look.Bottom);
+                            break;
+                        case "Dorf_Schuhe":
+                        case "Dorf_Guertel":
+                            slots[i] = Cloth(materials, Dark);
+                            break;
+                        case "Dorf_Schuerze":
+                            slots[i] = Cloth(materials, look.Apron ?? look.Top);
+                            break;
+                        case "Dorf_Akzent":
+                            slots[i] = Cloth(materials, accent);
+                            break;
+                        case "Dorf_Metall":
+                            slots[i] = materials.Fixed("npc_metal_" + look.Top, Hex(look.Top), 0.55f, 0.7f);
+                            break;
+                    }
+                }
+
+                part.sharedMaterials = slots;
             }
         }
 
@@ -187,17 +176,6 @@ namespace Aetherfall.EditorTools.World
         private static Color Hex(string hex)
         {
             return ColorUtility.TryParseHtmlString("#" + hex, out Color color) ? color : Color.grey;
-        }
-
-        private static void Part(Transform parent, string name, PrimitiveType type, Vector3 position, Vector3 scale, Material material)
-        {
-            GameObject part = GameObject.CreatePrimitive(type);
-            part.name = name;
-            part.transform.SetParent(parent, false);
-            part.transform.localPosition = position;
-            part.transform.localScale = scale;
-            Object.DestroyImmediate(part.GetComponent<Collider>());
-            part.GetComponent<MeshRenderer>().sharedMaterial = material;
         }
 
         private sealed class Look

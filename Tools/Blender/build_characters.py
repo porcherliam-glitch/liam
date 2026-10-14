@@ -407,8 +407,95 @@ def aetherwolf():
     build_wolf("AetherWolf", fur="3E4250", belly="6A6E7A", dark="23252E", eye="7FF4FF", eye_rough=0.2, crystals=crystals)
 
 
+def dorfbewohner():
+    """Base villager for all NPCs: one body plus optional pieces ("Acc_<Name>@<Joint>"), materials named by colour slot.
+
+    Unity (VillagerFigures) keeps the pieces a person wears and colours the slots per NPC: Haut, Haare, Oberteil, Aermel,
+    Unterteil, Schuhe, Guertel, Schuerze, Akzent (shawl, cap, hood, tabard, straw hat), Metall (armour), Augen, Schatten.
+    """
+    slot = lambda name, rough=0.85, metal=0.0: material("Dorf_" + name, "C8C8C8", rough, metal)
+    skin, hair, top, sleeve = slot("Haut", 0.7), slot("Haare"), slot("Oberteil"), slot("Aermel")
+    bottom, shoes, belt, apron = slot("Unterteil"), slot("Schuhe", 0.6), slot("Guertel", 0.5), slot("Schuerze")
+    accent, metal = slot("Akzent"), slot("Metall", 0.4, 0.8)
+    eyes = material("Dorf_Augen", "1E1A18", 0.4)
+    shadow = material("Dorf_Schatten", "151517", 0.9)
+    root = empty("Dorfbewohner")
+    parts = {}
+
+    pelvis = PartBuilder("Pelvis")
+    pelvis.box((0.33, 0.2, 0.16), (0, 0, 0), bottom)
+    pelvis.box((0.35, 0.22, 0.05), (0, 0, 0.065), belt)
+    parts["Pelvis"] = pelvis.build(root, (0, 0, 0.95))
+
+    torso = PartBuilder("Torso")
+    torso.box((0.34, 0.21, 0.48), (0, 0, 0.24), top, top_scale=(1.15, 1.08))
+    torso.box((0.18, 0.18, 0.05), (0, 0.01, 0.49), top)
+    parts["Torso"] = torso.build(parts["Pelvis"], (0, 0, 0.06))
+
+    head = PartBuilder("Head")
+    head.cylinder(0.052, 0.08, (0, 0, 0.03), skin, segments=8)
+    head.sphere(0.112, (0, 0, 0.17), skin, scale=(0.95, 1.0, 1.12), segments=10, rings=7)
+    head.box((0.038, 0.05, 0.055), (0, -0.112, 0.165), skin, top_scale=(0.6, 0.6))
+    for side in (-1, 1):
+        head.box((0.03, 0.012, 0.022), (side * 0.04, -0.103, 0.2), eyes)
+        head.box((0.028, 0.03, 0.05), (side * 0.108, 0.0, 0.17), skin)
+    parts["Head"] = head.build(parts["Torso"], (0, 0, 0.5))
+
+    for side, tag in ((-1, "R"), (1, "L")):
+        upper = PartBuilder("UpperArm." + tag)
+        upper.box((0.12, 0.13, 0.11), (0, 0, -0.02), top)
+        upper.box((0.1, 0.11, 0.3), (0, 0, -0.16), sleeve, top_scale=(1.05, 1.05))
+        parts["UpperArm." + tag] = upper.build(parts["Torso"], (side * 0.235, 0, 0.42))
+        fore = PartBuilder("Forearm." + tag)
+        fore.box((0.09, 0.1, 0.22), (0, 0, -0.11), sleeve)
+        fore.box((0.08, 0.09, 0.1), (0, -0.005, -0.28), skin)
+        parts["Forearm." + tag] = fore.build(parts["UpperArm." + tag], (0, 0, -0.31))
+        thigh = PartBuilder("Thigh." + tag)
+        thigh.box((0.14, 0.16, 0.42), (0, 0, -0.21), bottom, top_scale=(1.08, 1.08))
+        parts["Thigh." + tag] = thigh.build(parts["Pelvis"], (side * 0.095, 0, -0.08))
+        shin = PartBuilder("Shin." + tag)
+        shin.box((0.12, 0.14, 0.3), (0, 0, -0.15), bottom)
+        shin.box((0.13, 0.15, 0.1), (0, 0, -0.35), shoes)
+        shin.box((0.125, 0.24, 0.07), (0, -0.045, -0.415), shoes)
+        parts["Shin." + tag] = shin.build(parts["Thigh." + tag], (0, 0, -0.42))
+
+    def acc(name, joint, *pieces):
+        piece = PartBuilder("Acc_" + name + "@" + joint)
+        for add in pieces:
+            add(piece)
+        piece.build(parts[joint], (0, 0, 0))
+
+    acc("Haare", "Head",
+        lambda p: p.sphere(0.122, (0, 0.02, 0.205), hair, scale=(1.0, 1.02, 0.85), segments=10, rings=6, keep_upper=True),
+        lambda p: p.box((0.21, 0.06, 0.1), (0, 0.09, 0.15), hair))
+    acc("Zopf", "Head", lambda p: p.box((0.07, 0.06, 0.3), (0, 0.12, 0.02), hair, top_scale=(1.3, 1.2)))
+    acc("Bart", "Head", lambda p: p.box((0.17, 0.07, 0.1), (0, -0.095, 0.085), hair, top_scale=(1.1, 1.0)))
+    acc("Haarkranz", "Head", lambda p: p.box((0.21, 0.05, 0.06), (0, 0.085, 0.14), hair))
+    acc("Strohhut", "Head",
+        lambda p: p.cylinder(0.23, 0.02, (0, 0, 0.27), accent, segments=12),
+        lambda p: p.cylinder(0.13, 0.1, (0, 0, 0.31), accent, segments=10, radius_top=0.11))
+    acc("Muetze", "Head", lambda p: p.sphere(0.128, (0, 0.01, 0.235), accent, scale=(1.0, 1.0, 0.6), segments=10, rings=5, keep_upper=True))
+    acc("Kapuze", "Head",
+        lambda p: p.sphere(0.16, (0, 0.03, 0.18), accent, scale=(1.0, 1.05, 1.1), segments=10, rings=7),
+        lambda p: p.box((0.2, 0.04, 0.2), (0, -0.12, 0.17), shadow))
+    acc("Schuerze", "Pelvis", lambda p: p.box((0.34, 0.02, 0.62), (0, -0.125, -0.12), apron, top_scale=(0.9, 1.0)))
+    acc("Latz", "Torso", lambda p: p.box((0.26, 0.02, 0.26), (0, -0.115, 0.2), apron))
+    acc("Tuch", "Torso", lambda p: p.box((0.44, 0.27, 0.12), (0, 0, 0.42), accent, top_scale=(0.75, 0.85)))
+    acc("Rock", "Pelvis", lambda p: p.cylinder(0.25, 0.86, (0, 0, -0.37), bottom, segments=10, radius_top=0.19))
+    acc("Robe", "Pelvis", lambda p: p.cylinder(0.28, 0.95, (0, 0, -0.42), bottom, segments=10, radius_top=0.2))
+    acc("Mantel", "Torso", lambda p: p.cylinder(0.33, 1.42, (0, 0.02, -0.25), accent, segments=10, radius_top=0.24))
+    acc("Wappenrock", "Torso",
+        lambda p: p.box((0.3, 0.02, 0.5), (0, -0.118, 0.2), accent),
+        lambda p: p.box((0.3, 0.02, 0.5), (0, 0.118, 0.2), accent))
+    acc("Ruestung", "Torso",
+        lambda p: p.box((0.37, 0.23, 0.42), (0, 0, 0.27), metal, top_scale=(1.12, 1.08)),
+        lambda p: p.sphere(0.1, (-0.24, 0, 0.42), metal, scale=(1.1, 1.1, 0.75), segments=8, rings=5),
+        lambda p: p.sphere(0.1, (0.24, 0, 0.42), metal, scale=(1.1, 1.1, 0.75), segments=8, rings=5))
+
+
 MODELS = {
     "krieger": ("Krieger.fbx", krieger),
+    "dorfbewohner": ("Dorfbewohner.fbx", dorfbewohner),
     "wolf": ("Wolf.fbx", wolf),
     "aetherwolf": ("AetherWolf.fbx", aetherwolf),
     "schwert": ("Schwert.fbx", schwert),
