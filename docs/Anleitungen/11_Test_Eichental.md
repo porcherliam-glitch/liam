@@ -45,7 +45,7 @@ Voraussetzung: [Anleitung 01](./01_Projekt-Setup.md) bis [Anleitung 09](./09_Tes
 | **Neues Spiel** | „Neues Spiel“ im Hauptmenü startet jetzt im **Eichental**. Die Szenenliste ist **Boot → Eichental → Testgelände**. Das Testgelände bleibt erreichbar (siehe [Abschnitt 5](#5-spielen-zwei-wege)). |
 | **Platzhalter-Bausteine** | `NpcMarker` (Kapsel mit NPC-ID aus GDD 02, wird später durch echte NPCs ersetzt), `QuestObjectMarker` (Objekt-ID für Quests), `SpawnGroupMarker` (Gegnergruppe mit ID und Quest). |
 | **Vorschau** (`Tools/Preview/eichental_preview.py`) | Baut das Eichental aus derselben Datei in **Blender** nach und rendert Übersicht, Dorfansicht, beschriftete Karte und einen 15-Sekunden-Rundflug. Unten auf jedem Bild steht „Vorschau – Blender-Nachbau aus den Layout-Daten (kein Unity-Screenshot)“. |
-| **Tests** | Neue Test-Gruppe `Aetherfall.Tests.EditMode.World` (rund 170 Testfälle). Sie lesen die **echte** Layout-Datei und prüfen u. a., dass sie fehlerfrei ist, dass alle Orts-, NPC- und Gegner-IDs aus GDD 02 vorkommen und dass Unity und die Blender-Vorschau dieselben Höhen, Bäume, Gegnerpositionen und Kristalle berechnen. |
+| **Tests** | Neue Test-Gruppe `Aetherfall.Tests.EditMode.World` (166 Testfälle). Sie lesen die **echte** Layout-Datei und prüfen u. a., dass sie fehlerfrei ist, dass alle Orts-, NPC- und Gegner-IDs aus GDD 02 vorkommen und dass Unity und die Blender-Vorschau dieselben Höhen, Bäume, Gegnerpositionen und Kristalle berechnen. |
 
 ---
 
@@ -97,7 +97,7 @@ Es kommen **keine neuen Pakete** dazu.
 
 1. Menü **Window > General > Test Runner**.
 2. Reiter **EditMode** wählen, oben **Run All** klicken.
-   **Du siehst danach:** grüne Haken. Neu ist der Eintrag **Aetherfall.Tests.EditMode.World** mit rund 170 Tests.
+   **Du siehst danach:** grüne Haken. Neu ist der Eintrag **Aetherfall.Tests.EditMode.World** mit 166 Tests.
 3. Ist etwas rot: auf den roten Eintrag klicken, unten steht die Meldung. Bitte als Text oder Foto an Claude schicken.
 
 Die wichtigsten neuen Tests:
@@ -299,8 +299,8 @@ Blender-Vorschau aus derselben Layout-Datei (Linux/macOS, vom Repo-Ordner; Ausga
 ```bash
 blender -b -P Tools/Preview/eichental_preview.py -- --job alle_bilder --samples 96 --out AUSGABE
 python3 -I Tools/Preview/eichental_nachbearbeiten.py --dir AUSGABE
-blender -b -P Tools/Preview/eichental_preview.py -- --job rundflug --samples 2 --fps 15 --fast --out AUSGABE
-python3 -I Tools/Preview/eichental_nachbearbeiten.py --dir AUSGABE --video --render-fps 15
+blender -b -P Tools/Preview/eichental_preview.py -- --job rundflug --samples 2 --fps 12 --fast --out AUSGABE
+python3 -I Tools/Preview/eichental_nachbearbeiten.py --dir AUSGABE --video --render-fps 12
 # nach jeder Änderung der Layout-Datei:
 python3 -I Tools/Preview/eichental_referenz.py
 ```

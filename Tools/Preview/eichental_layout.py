@@ -1,7 +1,7 @@
 """Pure-Python evaluation of the Eichental layout (Assets/_Project/Data/Regions/Eichental/eichental_layout.json).
 
 This is the Python twin of the C# classes in Assets/_Project/Scripts/World/Layout/ (LayoutHeightField, LayoutGroundMap,
-VegetationScatter, LayoutPlacement, Pcg32Random). Both read the same JSON and use the same formulas, so the Blender preview
+VegetationScatter, LayoutPlacement, BlobGeometry, RockGeometry, BridgeGeometry, Pcg32Random). Both read the same JSON and use the same formulas, so the Blender preview
 shows what the Unity generator builds. No third-party modules: Blender's bundled Python has no numpy.
 
 Coordinates: x = east, z = north (metres), origin = centre of the layout. Yaw in degrees, clockwise seen from above,
@@ -469,3 +469,120 @@ def rift_crystals(rift):
         yaw = rng.next_float() * 360.0
         out.append((rift["center"][0] + d * math.sin(a), rift["center"][1] + d * math.cos(a), h, tilt_x, tilt_z, yaw))
     return out
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+# Meshes in Unity axes (BlobGeometry.cs, RockGeometry.cs, BridgeGeometry.cs): x right, y up, z forward
+# ----------------------------------------------------------------------------------------------------------------------
+
+def _normalized(p):
+    length = math.sqrt(p[0] * p[0] + p[1] * p[1] + p[2] * p[2])
+    return (p[0] / length, p[1] / length, p[2] / length)
+
+
+def icosphere(subdivisions):
+    """Unit icosphere with the same vertex order as BlobGeometry.Icosphere: (points, flat list of triangle indices)."""
+    t = (1.0 + math.sqrt(5.0)) * 0.5
+    points = [_normalized(p) for p in [(-1, t, 0), (1, t, 0), (-1, -t, 0), (1, -t, 0), (0, -1, t), (0, 1, t), (0, -1, -t), (0, 1, -t),
+                                       (t, 0, -1), (t, 0, 1), (-t, 0, -1), (-t, 0, 1)]]
+    faces = [0, 11, 5, 0, 5, 1, 0, 1, 7, 0, 7, 10, 0, 10, 11, 1, 5, 9, 5, 11, 4, 11, 10, 2, 10, 7, 6, 7, 1, 8,
+             3, 9, 4, 3, 4, 2, 3, 2, 6, 3, 6, 8, 3, 8, 9, 4, 9, 5, 2, 4, 11, 6, 2, 10, 8, 6, 7, 9, 8, 1]
+    for _ in range(max(0, min(3, subdivisions))):
+        cache = {}
+
+        def midpoint(a, b):
+            key = (a, b) if a < b else (b, a)
+            if key not in cache:
+                pa, pb = points[a], points[b]
+                points.append(_normalized(((pa[0] + pb[0]) * 0.5, (pa[1] + pb[1]) * 0.5, (pa[2] + pb[2]) * 0.5)))
+                cache[key] = len(points) - 1
+            return cache[key]
+
+        nxt = []
+        for i in range(0, len(faces), 3):
+            a, b, c = faces[i], faces[i + 1], faces[i + 2]
+            ab, bc, ca = midpoint(a, b), midpoint(b, c), midpoint(c, a)
+            nxt += [a, ab, ca, b, bc, ab, c, ca, bc, ab, bc, ca]
+        faces = nxt
+    return points, faces
+
+
+def blob(center, radii, subdivisions, seed, roughness, min_y=-math.inf, max_abs_x=math.inf):
+    """Lumpy ellipsoid like BlobGeometry.Build: (vertices, triangles) in Unity axes, triangles with Unity winding."""
+    points, faces = icosphere(subdivisions)
+    rng = Pcg32(seed)
+    verts = []
+    for n in points:
+        bump = 1.0 + (rng.next_float() - 0.5) * roughness
+        x = center[0] + n[0] * radii[0] * bump
+        y = center[1] + n[1] * radii[1] * bump
+        z = center[2] + n[2] * radii[2] * bump
+        x = max(-max_abs_x, min(max_abs_x, x))
+        y = max(min_y, y)
+        verts.append((x, y, z))
+    tris = []
+    for i in range(0, len(faces), 3):
+        a, b, c = faces[i], faces[i + 1], faces[i + 2]
+        pa, pb, pc = points[a], points[b], points[c]
+        out = (pa[0] + pb[0] + pc[0], pa[1] + pb[1] + pc[1], pa[2] + pb[2] + pc[2])
+        u = (pb[0] - pa[0], pb[1] - pa[1], pb[2] - pa[2])
+        v = (pc[0] - pa[0], pc[1] - pa[1], pc[2] - pa[2])
+        cross = (u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0])
+        if cross[0] * out[0] + cross[1] * out[1] + cross[2] * out[2] < 0.0:
+            b, c = c, b
+        tris.append((a, b, c))
+    return verts, tris
+
+
+ROCK_RENDER_SUBDIVISIONS = 2
+ROCK_COLLIDER_SUBDIVISIONS = 1
+ROCK_SIDE_CLAMP = 0.45
+ROCK_SINK = 0.15
+
+
+def rock_landmark(variant, subdivisions=ROCK_RENDER_SUBDIVISIONS):
+    """Landmark rock (RockGeometry.Landmark): flat underside at y = 0 (the pivot), sides cut at x = +-0.45."""
+    return blob((0.0, 0.5, 0.0), (0.5, 0.5, 0.5), subdivisions, 900 + variant * 7, 0.35, 0.0, ROCK_SIDE_CLAMP)
+
+
+def rock_base_height(ground, size_y, lift):
+    """Pivot height of a landmark rock (RockGeometry.LandmarkBaseHeight)."""
+    return ground - ROCK_SINK * size_y + lift
+
+
+def rock_boulder(seed):
+    """Scattered boulder (RockGeometry.Boulder): reaches below its pivot, no clamping."""
+    return blob((0.0, 0.35, 0.0), (1.2, 0.8, 1.0), 1, seed, 0.5)
+
+
+BRIDGE_DECK = 0.6
+ARCH_RADIUS_SHARE = 0.6
+ARCH_RING = 0.5
+ARCH_SEGMENTS = 12
+
+
+def stone_arch(width, length):
+    """Arch ring under the deck of a stone bridge (BridgeGeometry.StoneArch): list of quads (4 corners each, Unity axes).
+
+    Top of the ring = underside of the deck (y = -0.6), the opening below stays free for the water."""
+    outer = ARCH_RADIUS_SHARE * length
+    inner = outer - ARCH_RING
+    cy = -BRIDGE_DECK - outer
+    half = math.asin(min(1.0, length * 0.5 / outer))
+    hx = width * 0.5
+
+    def ring(r, a, x):
+        return (x, cy + r * math.cos(a), r * math.sin(a))
+
+    quads = []
+    for i in range(ARCH_SEGMENTS):
+        a0 = -half + 2.0 * half * i / ARCH_SEGMENTS
+        a1 = -half + 2.0 * half * (i + 1) / ARCH_SEGMENTS
+        quads.append([ring(outer, a0, -hx), ring(outer, a0, hx), ring(outer, a1, hx), ring(outer, a1, -hx)])
+        quads.append([ring(inner, a0, -hx), ring(inner, a1, -hx), ring(inner, a1, hx), ring(inner, a0, hx)])
+        quads.append([ring(outer, a0, -hx), ring(inner, a0, -hx), ring(inner, a1, -hx), ring(outer, a1, -hx)])
+        quads.append([ring(outer, a0, hx), ring(outer, a1, hx), ring(inner, a1, hx), ring(inner, a0, hx)])
+    for end in (-1, 1):
+        a = end * half
+        quads.append([ring(outer, a, -hx), ring(outer, a, hx), ring(inner, a, hx), ring(inner, a, -hx)])
+    return quads

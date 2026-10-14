@@ -12,9 +12,10 @@ Coordinates: the layout uses Unity numbers (x east, y up, z north). Blender uses
 
 Usage (Blender 4.x, from the repo root):
     blender -b -P Tools/Preview/eichental_preview.py -- --job alle_bilder --out OUTPUT_DIR [--samples 96] [--test]
-    blender -b -P Tools/Preview/eichental_preview.py -- --job rundflug --out OUTPUT_DIR [--samples 8] [--fps 30]
+    blender -b -P Tools/Preview/eichental_preview.py -- --job rundflug --out OUTPUT_DIR --samples 2 --fps 12 --fast
 Jobs: uebersicht, dorf, karte (stills), alle_bilder (all three), rundflug (PNG frames for the flight video).
-Then: python3 -I Tools/Preview/eichental_nachbearbeiten.py --dir OUTPUT_DIR [--video]
+Then: python3 -I Tools/Preview/eichental_nachbearbeiten.py --dir OUTPUT_DIR [--video --render-fps 12]
+The flight renders 180 frames in about 8 minutes on 4 CPU cores; ffmpeg interpolates them to 30 fps.
 """
 import argparse
 import hashlib
@@ -206,6 +207,22 @@ class Builder:
 
 def ground_y(builder, x, z):
     return builder.h.height(x, z)
+
+
+def unity_mesh(name, verts, faces, smooth=False):
+    """Mesh from Unity-axis data of eichental_layout.py (x right, y up, z forward) -> Blender (x, z, y), normals outwards."""
+    me = bpy.data.meshes.new(name)
+    # Swapping y and z mirrors the mesh, so the corner order is reversed to keep the faces pointing outwards.
+    me.from_pydata([(v[0], v[2], v[1]) for v in verts], [], [tuple(reversed(f)) for f in faces])
+    me.validate()
+    bm = bmesh.new()
+    bm.from_mesh(me)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    bm.to_mesh(me)
+    bm.free()
+    for poly in me.polygons:
+        poly.use_smooth = smooth
+    return me
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -784,8 +801,14 @@ def plant_mesh(b, kind, variant):
         crown((0, 0, 0.7), (1.5, 1.4, 1.05), 2, 0, rough=0.45)
         materials = [b.mat("bush", roughness=0.9)]
     elif kind == "rock":
-        crown((0, 0, 0.35), (1.2, 1.0, 0.8), 1, 0, rough=0.5)
-        materials = [b.mat("rock", roughness=0.9)]
+        # Same vertices as RockGeometry.Boulder in Unity (reaches below the pivot, half buried on slopes).
+        verts, tris = L.rock_boulder(seed)
+        bm.free()
+        bpy.data.meshes.remove(me)
+        me = unity_mesh(key, verts, tris)
+        me.materials.append(b.mat("rock", roughness=0.9))
+        b.meshes[key] = me
+        return me
     bm.to_mesh(me)
     bm.free()
     for p in me.polygons:
@@ -810,18 +833,12 @@ def build_vegetation(b, cache):
 
 
 def rock_mesh(b, variant):
+    """Landmark rock: the same vertices as RockGeometry.Landmark in Unity (flat underside at the pivot, cut sides)."""
     key = "rock_big_%d" % variant
     if key in b.meshes:
         return b.meshes[key]
-    bm = bmesh.new()
-    blob(bm, (0, 0, 0.5), (0.5, 0.5, 0.5), 2, 900 + variant * 7, 0.35)
-    # Flatten some sides for a cliff-like look.
-    for v in bm.verts:
-        v.co.x = max(-0.45, min(0.45, v.co.x))
-        v.co.z = max(0.0, v.co.z)
-    me = bpy.data.meshes.new(key)
-    bm.to_mesh(me)
-    bm.free()
+    verts, tris = L.rock_landmark(variant)
+    me = unity_mesh(key, verts, tris)
     me.materials.append(b.mat("rock", roughness=0.9))
     b.meshes[key] = me
     return me
@@ -831,7 +848,7 @@ def build_rocks(b):
     for rk in b.layout.get("rocks", []):
         x, z = rk["position"]
         sx, sy, sz = rk["size"]
-        y = ground_y(b, x, z) - sy * 0.15 + rk.get("lift", 0.0)
+        y = L.rock_base_height(ground_y(b, x, z), sy, rk.get("lift", 0.0))
         b.obj(rk["id"], rock_mesh(b, rk.get("variant", 0)), "Rocks", location=bv(x, z, y), rotation_z=-math.radians(rk.get("yaw", 0)),
               scale=(sx, sz, sy))
 
@@ -847,17 +864,20 @@ def build_bridges(b):
         root = b.empty(br["id"], "Bridges", x, z, y, br["yaw"])
         if br["kind"] == "stone":
             st = b.mat("stone")
-            b.box("Fahrbahn", "Bridges", (br["width"], br["length"], 0.6), (0, 0, -0.3), st, parent=root)
+            # Deck top at the pivot (y = 0) like the Unity generator; the arch ring lies under the deck (BridgeGeometry.StoneArch).
+            b.box("Fahrbahn", "Bridges", (br["width"], br["length"], L.BRIDGE_DECK), (0, 0, -L.BRIDGE_DECK), st, parent=root)
             for sx in (-1, 1):
-                b.box("Brüstung", "Bridges", (0.4, br["length"], 0.7), (sx * (br["width"] / 2 + 0.2), 0, 0.3), st, parent=root)
-            arch = b.cyl("Bogen", "Bridges", br["length"] * 0.35, br["width"], (0, 0, -0.3), st, parent=root, rot=(0, math.radians(90), 0),
-                         segments=16)
-            arch.location = (-br["width"] / 2, 0, -1.2)
+                b.box("Brüstung", "Bridges", (0.4, br["length"], 0.7), (sx * (br["width"] / 2 + 0.2), 0, 0.0), st, parent=root)
+            quads = L.stone_arch(br["width"], br["length"])
+            verts = [p for q in quads for p in q]
+            arch = b.obj("Bogen", unity_mesh("arch_" + br["id"], verts, [(4 * i, 4 * i + 1, 4 * i + 2, 4 * i + 3) for i in range(len(quads))]),
+                         "Bridges", parent=root)
+            b.assign(arch, st)
         else:
             wd = b.mat("wood")
-            b.box("Planken", "Bridges", (br["width"], br["length"], 0.25), (0, 0, 0.0), wd, parent=root)
+            b.box("Planken", "Bridges", (br["width"], br["length"], 0.25), (0, 0, -0.25), wd, parent=root)
             for sx in (-1, 1):
-                b.box("Geländer", "Bridges", (0.12, br["length"], 0.12), (sx * br["width"] / 2, 0, 1.0), wd, parent=root)
+                b.box("Geländer", "Bridges", (0.12, br["length"], 0.12), (sx * br["width"] / 2, 0, 0.94), wd, parent=root)
                 for sy in (-1, 0, 1):
                     b.box("Pfosten", "Bridges", (0.15, 0.15, 1.1), (sx * br["width"] / 2, sy * br["length"] * 0.45, 0), wd, parent=root)
 

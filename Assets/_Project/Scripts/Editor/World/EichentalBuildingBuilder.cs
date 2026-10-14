@@ -105,7 +105,8 @@ namespace Aetherfall.EditorTools.World
             filter.sharedMesh = _meshes.Add("Gebaeude_" + b.Id, mesh);
             var renderer = root.AddComponent<MeshRenderer>();
             renderer.sharedMaterials = Materials(b);
-            GameObjectUtility.SetStaticEditorFlags(root, StaticEditorFlags.BatchingStatic | StaticEditorFlags.OccluderStatic | StaticEditorFlags.OccludeeStatic);
+            // Occlusion only, no static batching (it would take the buildings away from the GPU Resident Drawer, architecture 1.2).
+            GameObjectUtility.SetStaticEditorFlags(root, StaticEditorFlags.OccluderStatic | StaticEditorFlags.OccludeeStatic);
             return root;
         }
 

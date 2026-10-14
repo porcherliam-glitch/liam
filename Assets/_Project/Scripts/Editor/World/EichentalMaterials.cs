@@ -77,7 +77,12 @@ namespace Aetherfall.EditorTools.World
             Material material = AssetDatabase.LoadAssetAtPath<Material>(path);
             if (material == null)
             {
-                Shader shader = Shader.Find(TestGroundAssets.LitShaderName) ?? Shader.Find("Standard");
+                Shader shader = Shader.Find(TestGroundAssets.LitShaderName);
+                if (shader == null)
+                {
+                    shader = Shader.Find("Standard");
+                }
+
                 material = new Material(shader) { name = name };
                 AssetDatabase.CreateAsset(material, path);
                 _report.Info("Material angelegt: " + path);

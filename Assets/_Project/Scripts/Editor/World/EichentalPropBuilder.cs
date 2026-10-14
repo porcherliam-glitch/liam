@@ -1,6 +1,5 @@
 using Aetherfall.Quests;
 using Aetherfall.World;
-using UnityEditor;
 using UnityEngine;
 
 namespace Aetherfall.EditorTools.World
@@ -75,7 +74,8 @@ namespace Aetherfall.EditorTools.World
             Mesh mesh = Shape(prop.Kind, out materials);
             go.AddComponent<MeshFilter>().sharedMesh = mesh;
             go.AddComponent<MeshRenderer>().sharedMaterials = materials;
-            GameObjectUtility.SetStaticEditorFlags(go, StaticEditorFlags.BatchingStatic);
+
+            // No static batching: the GPU Resident Drawer (architecture 1.2) draws the props instanced.
 
             switch (prop.Kind)
             {

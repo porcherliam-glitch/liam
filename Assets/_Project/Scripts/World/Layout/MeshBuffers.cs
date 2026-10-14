@@ -115,6 +115,37 @@ namespace Aetherfall.World
             triangles.Add(start + 2);
         }
 
+        /// <summary>Adds a vertex that several triangles may share (smooth shading, e.g. <see cref="BlobGeometry"/>).</summary>
+        /// <param name="position">Position.</param>
+        /// <param name="u">Texture coordinate u.</param>
+        /// <param name="v">Texture coordinate v.</param>
+        /// <returns>Index of the vertex.</returns>
+        public int AddSharedVertex(GeometryVector position, double u, double v)
+        {
+            _positions.Add(position);
+            _uvs.Add(u);
+            _uvs.Add(v);
+            return _positions.Count - 1;
+        }
+
+        /// <summary>Adds a triangle from three vertex indices, in the given order (front along Cross(b − a, c − a)).</summary>
+        /// <param name="submesh">Submesh.</param>
+        /// <param name="a">Index of corner a.</param>
+        /// <param name="b">Index of corner b.</param>
+        /// <param name="c">Index of corner c.</param>
+        public void AddIndexedTriangle(int submesh, int a, int b, int c)
+        {
+            if (a < 0 || b < 0 || c < 0 || a >= _positions.Count || b >= _positions.Count || c >= _positions.Count)
+            {
+                throw new ArgumentOutOfRangeException(nameof(a), "Vertex index outside the buffer.");
+            }
+
+            List<int> triangles = _submeshes[submesh];
+            triangles.Add(a);
+            triangles.Add(b);
+            triangles.Add(c);
+        }
+
         /// <summary>
         /// Signed volume of the closed surface (sum of a · (b × c) / 6 over all triangles). Positive when all triangles face
         /// outwards.

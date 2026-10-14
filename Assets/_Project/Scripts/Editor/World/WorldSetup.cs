@@ -7,7 +7,7 @@ using UnityEngine.UIElements;
 namespace Aetherfall.EditorTools.World
 {
     /// <summary>
-    /// Everything a generated world scene needs before its scene is built, shared by "Aetherfall > Testgelände erstellen"
+    /// Everything a generated world scene needs before its scene is built, shared by "Aetherfall > Testgelaende erstellen"
     /// (<see cref="TestGroundMenu"/>) and "Aetherfall > Eichental erstellen" (<see cref="EichentalMenu"/>): folders, the user
     /// layers (architecture 2.8), materials of player and enemies, player movement settings, combat, item and quest data, all
     /// installers in the BootConfig and the user interface in the boot scene. Idempotent: existing assets are reused.

@@ -9,7 +9,7 @@
   with ffmpeg minterpolate).
 
 Usage:
-    python3 -I Tools/Preview/eichental_nachbearbeiten.py --dir OUTPUT_DIR [--video] [--render-fps 15]
+    python3 -I Tools/Preview/eichental_nachbearbeiten.py --dir OUTPUT_DIR [--video] [--render-fps 12]
 """
 import argparse
 import json
@@ -27,7 +27,7 @@ LAYOUT = os.path.join(REPO, "Assets", "_Project", "Data", "Regions", "Eichental"
 
 FONT_DIRS = ["/usr/share/fonts/truetype/dejavu", "/usr/share/fonts/dejavu", "/Library/Fonts", "C:/Windows/Fonts"]
 BAR_STILL = "Vorschau – Blender-Nachbau aus den Layout-Daten (kein Unity-Screenshot)"
-BAR_VIDEO = "Vorschau – Blender-Nachbau aus den Layout-Daten (keine Unity-Aufnahme)"
+BAR_VIDEO = BAR_STILL
 
 # Label position of each location on the 1600 px map: offset of the label box from the zone centre (pixels).
 MAP_LABEL_OFFSETS = {
@@ -340,7 +340,7 @@ def main():
     parser = argparse.ArgumentParser(description="Eichental-Vorschau nachbearbeiten.")
     parser.add_argument("--dir", required=True, help="Ausgabeordner der Renderings")
     parser.add_argument("--video", action="store_true", help="auch das Video bauen")
-    parser.add_argument("--render-fps", type=int, default=15, help="Bildrate, mit der die Einzelbilder gerendert wurden")
+    parser.add_argument("--render-fps", type=int, default=12, help="Bildrate, mit der die Einzelbilder gerendert wurden")
     args = parser.parse_args()
     make_overview(args.dir)
     make_still(args.dir, "eichental_dorf")

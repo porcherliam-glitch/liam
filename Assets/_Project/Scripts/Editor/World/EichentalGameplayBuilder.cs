@@ -427,7 +427,7 @@ namespace Aetherfall.EditorTools.World
                 renderer.sharedMaterial = material;
             }
 
-            GameObjectUtility.SetStaticEditorFlags(part, StaticEditorFlags.BatchingStatic);
+            // Never static: quest objects move later (beam lifted, pup picked up).
         }
     }
 }

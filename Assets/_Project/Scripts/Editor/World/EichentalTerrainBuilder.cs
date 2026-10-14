@@ -70,8 +70,7 @@ namespace Aetherfall.EditorTools.World
                 terrain.materialTemplate = material;
             }
 
-            GameObjectUtility.SetStaticEditorFlags(terrainObject, StaticEditorFlags.BatchingStatic | StaticEditorFlags.OccluderStatic |
-                                                                   StaticEditorFlags.OccludeeStatic);
+            GameObjectUtility.SetStaticEditorFlags(terrainObject, StaticEditorFlags.OccluderStatic | StaticEditorFlags.OccludeeStatic);
             report.Info("Terrain " + t.Size + " × " + t.Size + " m, Höhen bis " + t.MaxHeight + " m, Heightmap " + t.HeightmapResolution +
                         "², 4 Bodenschichten (Gras, Erde, Fels, Asche) mit " + t.AlphamapResolution + "² Splatmap.");
             return terrain;

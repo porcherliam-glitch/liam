@@ -114,13 +114,13 @@ Das Dorf Eichental (Mini-Slice, [Anleitung 11](../../docs/Anleitungen/11_Test_Ei
 ```bash
 blender -b -P Tools/Preview/eichental_preview.py -- --job alle_bilder --samples 96 --out AUSGABE
 python3 -I Tools/Preview/eichental_nachbearbeiten.py --dir AUSGABE
-blender -b -P Tools/Preview/eichental_preview.py -- --job rundflug --samples 2 --fps 15 --fast --out AUSGABE
-python3 -I Tools/Preview/eichental_nachbearbeiten.py --dir AUSGABE --video --render-fps 15
+blender -b -P Tools/Preview/eichental_preview.py -- --job rundflug --samples 2 --fps 12 --fast --out AUSGABE
+python3 -I Tools/Preview/eichental_nachbearbeiten.py --dir AUSGABE --video --render-fps 12
 python3 -I Tools/Preview/eichental_referenz.py
 ```
 
 Ergebnis: `eichental_uebersicht.png`, `eichental_dorf.png`, `eichental_karte.png` (1920 × 1080 bzw. 2300 × 1600) und `eichental_rundflug.mp4` (15 s, 1280 × 720). Weitere Schalter: `--test` (halbe Größe), `--first-frame`/`--last-frame` (Teil des Videos), `--overwrite`. Höhen, Bodenarten und Pflanzen werden beim ersten Lauf berechnet und als `eichental_cache_*.pickle` im Ausgabeordner zwischengespeichert (neu, sobald sich die Layout-Datei ändert).
 
-Rechenzeit auf 4 CPU-Kernen ohne Grafikkarte (gemessen am 2026-10-14): drei Einzelbilder mit Cycles und 96 Samples zusammen 11–12 Minuten; Rundflug RUNDFLUGZEIT. Für den Rundflug ist Cycles im Modus `--fast` vereinfacht: Umgebungslicht als Eigenleuchten statt indirektem Licht, 2 Samples, 15 Bilder pro Sekunde, die Zwischenbilder für 30 fps rechnet ffmpeg (`minterpolate`). EEVEE läuft in dieser Umgebung nicht.
+Rechenzeit auf 4 CPU-Kernen ohne Grafikkarte (gemessen am 2026-10-14): drei Einzelbilder mit Cycles und 96 Samples zusammen 11–12 Minuten; Rundflug knapp 8 Minuten (180 Bilder, je etwa 2,6 s) plus etwa 4 Minuten für das Zusammensetzen. Für den Rundflug ist Cycles im Modus `--fast` vereinfacht: Umgebungslicht als Eigenleuchten statt indirektem Licht, 2 Samples, 12 Bilder pro Sekunde, die Zwischenbilder für 30 fps rechnet ffmpeg (`minterpolate`). EEVEE läuft in dieser Umgebung nicht.
 
 **Grenzen:** wie oben (Nachbau, kein Unity-Rendering). Rauch ist in der Vorschau eine Volumen-Wolke (im Video weggelassen), in Unity ein Partikelsystem. Gezeigt werden nur Gegner, die von Anfang an da sind; die Quest-Gruppen sind in Unity ausgeschaltet. Glut-Lichter, Riss-Licht und Lagerfeuer sind in Blender und Unity unterschiedlich hell.

@@ -25,6 +25,12 @@ HEIGHT_POINTS = [(0.0, 0.0), (40.0, -30.0), (120.0, 44.0), (-152.0, 56.0), (-82.
                  (-128.0, -144.2), (250.0, 250.0), (-230.0, 10.0), (37.5, -117.25), (-112.4, 163.7), (180.0, -180.0)]
 
 
+# Sample vertices of the rock meshes (icosphere levels 0, 1 and 2 are all represented).
+ROCK_SAMPLE_VERTICES = [0, 5, 11, 12, 30, 41, 42, 100, 161]
+BOULDER_SEEDS = [504, 517]  # 500 + 13 * variant + len("rock"), variants 0 and 1
+BOULDER_SAMPLE_VERTICES = [0, 7, 11, 25, 41]
+
+
 def r(value):
     return repr(float(value))
 
@@ -82,6 +88,27 @@ def main():
               "        public static readonly object[] Crystals =", "        {"]
     for c in crystals:
         lines.append("            new object[] { %s }," % ", ".join(r(v) for v in c))
+    lines += ["        };", ""]
+    lines += ["        /// <summary>Landmark rocks (RockGeometry.Landmark, render subdivisions): variant, vertices, triangles, sum x, sum y, sum z.</summary>",
+              "        public static readonly object[] LandmarkRocks =", "        {"]
+    for variant in range(3):
+        verts, tris = L.rock_landmark(variant)
+        sums = [sum(v[i] for v in verts) for i in range(3)]
+        lines.append("            new object[] { %d, %d, %d, %s }," % (variant, len(verts), len(tris), ", ".join(r(x) for x in sums)))
+    lines += ["        };", "",
+              "        /// <summary>Sample vertices of the landmark rocks: variant, vertex index, x, y, z.</summary>",
+              "        public static readonly object[] LandmarkRockVertices =", "        {"]
+    for variant in range(3):
+        verts, _ = L.rock_landmark(variant)
+        for index in ROCK_SAMPLE_VERTICES:
+            lines.append("            new object[] { %d, %d, %s }," % (variant, index, ", ".join(r(x) for x in verts[index])))
+    lines += ["        };", "",
+              "        /// <summary>Scattered boulders (RockGeometry.Boulder): seed, vertex index, x, y, z.</summary>",
+              "        public static readonly object[] BoulderVertices =", "        {"]
+    for seed in BOULDER_SEEDS:
+        verts, _ = L.rock_boulder(seed)
+        for index in BOULDER_SAMPLE_VERTICES:
+            lines.append("            new object[] { %dUL, %d, %s }," % (seed, index, ", ".join(r(x) for x in verts[index])))
     lines += ["        };", ""]
     river_lines = []
     for index, river in enumerate(hf.rivers):

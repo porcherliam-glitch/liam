@@ -79,7 +79,7 @@ namespace Aetherfall.EditorTools.World
                     trunk.center = new Vector3(0f, 2f, 0f);
                 }
 
-                GameObjectUtility.SetStaticEditorFlags(go, StaticEditorFlags.BatchingStatic);
+                // No static batching: the GPU Resident Drawer (architecture 1.2) draws these instanced.
                 counts[p.Kind] = counts.TryGetValue(p.Kind, out int n) ? n + 1 : 1;
             }
 
@@ -92,7 +92,11 @@ namespace Aetherfall.EditorTools.World
             _report.Info("Vegetation: " + plants.Count + " Objekte (" + string.Join(", ", summary) + "), Platzierung wie in der Blender-Vorschau.");
         }
 
-        /// <summary>Landmark rocks (Rabenfels, Wolfskopf).</summary>
+        /// <summary>
+        /// Landmark rocks (Rabenfels, Wolfskopf): <see cref="RockGeometry.Landmark"/> with its flat underside at the pivot, which
+        /// sits <see cref="RockGeometry.LandmarkSink"/> × height under the terrain at the centre (plus the lift of the layout).
+        /// The convex collider uses the coarser blob (80 triangles, PhysX allows 255).
+        /// </summary>
         /// <param name="parent">Parent.</param>
         public void BuildRocks(Transform parent)
         {
@@ -102,18 +106,20 @@ namespace Aetherfall.EditorTools.World
                 go.transform.SetParent(parent, false);
                 float x = (float)rock.Position.X;
                 float z = (float)rock.Position.Z;
-                go.transform.position = new Vector3(x, H(x, z) - (float)rock.SizeY * 0.15f + (float)rock.Lift, z);
+                go.transform.position = new Vector3(x, (float)RockGeometry.LandmarkBaseHeight(_heights.Height(x, z), rock.SizeY, rock.Lift), z);
                 go.transform.rotation = Quaternion.Euler(0f, (float)rock.Yaw, 0f);
                 go.transform.localScale = new Vector3((float)rock.SizeX, (float)rock.SizeY, (float)rock.SizeZ);
                 go.layer = _environmentLayer;
-                Mesh mesh = RockMesh(rock.Variant);
-                go.AddComponent<MeshFilter>().sharedMesh = mesh;
+                go.AddComponent<MeshFilter>().sharedMesh = RockMesh(rock.Variant, RockGeometry.LandmarkRenderSubdivisions);
                 go.AddComponent<MeshRenderer>().sharedMaterial = _materials.Get("rock", 0.15f);
                 MeshCollider collider = go.AddComponent<MeshCollider>();
-                collider.sharedMesh = mesh;
+                collider.sharedMesh = RockMesh(rock.Variant, RockGeometry.LandmarkColliderSubdivisions);
                 collider.convex = true;
-                GameObjectUtility.SetStaticEditorFlags(go, StaticEditorFlags.BatchingStatic | StaticEditorFlags.OccluderStatic);
+                GameObjectUtility.SetStaticEditorFlags(go, StaticEditorFlags.OccluderStatic | StaticEditorFlags.OccludeeStatic);
             }
+
+            _report.Info("Felsen: " + _layout.Rocks.Count + " (Unterseite am Drehpunkt, " + RockGeometry.LandmarkSink.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture) +
+                         " × Höhe im Boden; Collider mit " + BlobGeometry.TriangleCount(RockGeometry.LandmarkColliderSubdivisions) + " Dreiecken).");
         }
 
         /// <summary>Fields with crop rows (ripe wheat, burned, stubble); no colliders, the player walks through.</summary>
@@ -166,7 +172,6 @@ namespace Aetherfall.EditorTools.World
                 go.transform.SetParent(parent, false);
                 go.AddComponent<MeshFilter>().sharedMesh = _meshes.Add("Feld_" + field.Id, mesh);
                 go.AddComponent<MeshRenderer>().sharedMaterial = material;
-                GameObjectUtility.SetStaticEditorFlags(go, StaticEditorFlags.BatchingStatic);
             }
         }
 
@@ -228,7 +233,6 @@ namespace Aetherfall.EditorTools.World
 
                 go.AddComponent<MeshFilter>().sharedMesh = _meshes.Add("Zaun_" + fence.Id, mesh);
                 go.AddComponent<MeshRenderer>().sharedMaterial = _materials.Get("wood", 0.25f);
-                GameObjectUtility.SetStaticEditorFlags(go, StaticEditorFlags.BatchingStatic);
             }
         }
 
@@ -276,7 +280,10 @@ namespace Aetherfall.EditorTools.World
             }
         }
 
-        /// <summary>Bridges (stone arch or wood), deck at the higher bank, with colliders.</summary>
+        /// <summary>
+        /// Bridges, deck at the higher bank, with colliders. Stone: deck slab, parapets and an arch ring under the deck
+        /// (<see cref="BridgeGeometry.StoneArch"/>, top = underside of the deck). Wood: planks, rails and posts.
+        /// </summary>
         /// <param name="parent">Parent.</param>
         public void BuildBridges(Transform parent)
         {
@@ -296,9 +303,9 @@ namespace Aetherfall.EditorTools.World
                 var mesh = new EichentalMeshBuilder(1);
                 if (bridge.Kind == BridgeKind.Stone)
                 {
-                    mesh.AddBox(0, new Vector3(0f, -0.3f, 0f), new Vector3(width, 0.6f, length), Quaternion.identity);
-                    mesh.AddCylinder(0, new Vector3(-width * 0.5f, -1.2f, 0f), length * 0.35f, length * 0.35f, width, 16,
-                        Quaternion.FromToRotation(Vector3.up, Vector3.right));
+                    float deckThickness = (float)BridgeGeometry.DeckThickness;
+                    mesh.AddBox(0, new Vector3(0f, -deckThickness * 0.5f, 0f), new Vector3(width, deckThickness, length), Quaternion.identity);
+                    mesh.AddBuffers(BridgeGeometry.StoneArch(width, length), Vector3.zero, new[] { 0 });
                     for (int side = -1; side <= 1; side += 2)
                     {
                         mesh.AddBox(0, new Vector3(side * (width * 0.5f + 0.2f), 0.35f, 0f), new Vector3(0.4f, 0.7f, length), Quaternion.identity);
@@ -323,7 +330,6 @@ namespace Aetherfall.EditorTools.World
                 AddBox(go, new Vector3(0f, -0.3f, 0f), new Vector3(width, 0.6f, length));
                 go.AddComponent<MeshFilter>().sharedMesh = _meshes.Add("Bruecke_" + bridge.Id, mesh);
                 go.AddComponent<MeshRenderer>().sharedMaterial = bridge.Kind == BridgeKind.Stone ? _materials.Get("stone", 0.15f) : _materials.Get("wood", 0.25f);
-                GameObjectUtility.SetStaticEditorFlags(go, StaticEditorFlags.BatchingStatic);
             }
         }
 
@@ -470,8 +476,9 @@ namespace Aetherfall.EditorTools.World
 
                     default:
                     {
+                        // Reaches below the pivot (no flat bottom), so the boulder stays half buried on slopes.
                         var rock = new EichentalMeshBuilder(1);
-                        rock.AddBlob(0, new Vector3(0f, 0.35f, 0f), new Vector3(1.2f, 0.8f, 1.0f), 1, seed, 0.5f, true);
+                        rock.AddBuffers(RockGeometry.Boulder(seed), Vector3.zero, new[] { 0 });
                         return rock.ToMesh("Pflanze_Rock");
                     }
                 }
@@ -517,12 +524,12 @@ namespace Aetherfall.EditorTools.World
             }
         }
 
-        private Mesh RockMesh(int variant)
+        private Mesh RockMesh(int variant, int subdivisions)
         {
-            return _meshes.Get("Fels_" + variant, () =>
+            return _meshes.Get("Fels_" + variant + (subdivisions == RockGeometry.LandmarkRenderSubdivisions ? string.Empty : "_Collider"), () =>
             {
                 var rock = new EichentalMeshBuilder(1);
-                rock.AddBlob(0, new Vector3(0f, 0.5f, 0f), new Vector3(0.5f, 0.5f, 0.5f), 2, (ulong)(900 + variant * 7), 0.35f, true);
+                rock.AddBuffers(RockGeometry.Landmark(variant, subdivisions), Vector3.zero, new[] { 0 });
                 return rock.ToMesh("Fels");
             });
         }

@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using Aetherfall.Utilities;
 using Aetherfall.World;
 using UnityEngine;
 using UnityEngine.Rendering;
@@ -7,7 +6,7 @@ using UnityEngine.Rendering;
 namespace Aetherfall.EditorTools.World
 {
     /// <summary>
-    /// Collects boxes, cylinders, lumpy spheres and pure <see cref="MeshBuffers"/> (roofs) into one mesh with several submeshes
+    /// Collects boxes, cylinders, lumpy spheres and pure <see cref="MeshBuffers"/> (roofs, rocks, bridge arch) into one mesh with several submeshes
     /// (one material each). Every face is wound clockwise seen from outside (Unity front faces); the outward direction is
     /// checked per face, so the order of the corners in the callers does not matter.
     /// </summary>
@@ -145,8 +144,8 @@ namespace Aetherfall.EditorTools.World
         }
 
         /// <summary>
-        /// Adds a lumpy ellipsoid: an icosphere whose vertices are pushed in or out by a deterministic random amount
-        /// (<see cref="Pcg32Random"/>), so tree crowns, bushes and rocks are not perfectly round. Shared vertices = smooth.
+        /// Adds a lumpy ellipsoid (<see cref="BlobGeometry"/>: icosphere with deterministic bumps), so tree crowns and bushes are
+        /// not perfectly round. Shared vertices = smooth. Rocks use <see cref="RockGeometry"/> and <see cref="AddBuffers"/>.
         /// </summary>
         /// <param name="submesh">Submesh.</param>
         /// <param name="center">Centre.</param>
@@ -154,47 +153,11 @@ namespace Aetherfall.EditorTools.World
         /// <param name="subdivisions">0–3.</param>
         /// <param name="seed">Seed of the bumps.</param>
         /// <param name="roughness">Bump strength (share of the radius).</param>
-        /// <param name="flatBottom">Clamp vertices below the centre to it (rocks resting on the ground).</param>
-        public void AddBlob(int submesh, Vector3 center, Vector3 radii, int subdivisions, ulong seed, float roughness, bool flatBottom = false)
+        public void AddBlob(int submesh, Vector3 center, Vector3 radii, int subdivisions, ulong seed, float roughness)
         {
-            List<Vector3> points;
-            List<int> faces;
-            Icosphere(subdivisions, out points, out faces);
-            var random = new Pcg32Random(seed);
-            int start = _vertices.Count;
-            for (int i = 0; i < points.Count; i++)
-            {
-                Vector3 n = points[i];
-                float bump = 1f + (random.NextFloat() - 0.5f) * roughness;
-                var p = new Vector3(n.x * radii.x * bump, n.y * radii.y * bump, n.z * radii.z * bump);
-                if (flatBottom && p.y < -radii.y * 0.2f)
-                {
-                    p.y = -radii.y * 0.2f;
-                }
-
-                _vertices.Add(center + p);
-                _uvs.Add(new Vector2(n.x * 0.5f + 0.5f, n.y * 0.5f + 0.5f));
-            }
-
-            List<int> t = _triangles[submesh];
-            for (int i = 0; i < faces.Count; i += 3)
-            {
-                int a = faces[i];
-                int b = faces[i + 1];
-                int c = faces[i + 2];
-                Vector3 pa = points[a];
-                Vector3 outward = pa + points[b] + points[c];
-                if (Vector3.Dot(Vector3.Cross(points[b] - pa, points[c] - pa), outward) < 0f)
-                {
-                    int swap = b;
-                    b = c;
-                    c = swap;
-                }
-
-                t.Add(start + a);
-                t.Add(start + b);
-                t.Add(start + c);
-            }
+            MeshBuffers blob = BlobGeometry.Build(new GeometryVector(center.x, center.y, center.z), new GeometryVector(radii.x, radii.y, radii.z),
+                subdivisions, seed, roughness);
+            AddBuffers(blob, Vector3.zero, new[] { submesh });
         }
 
         /// <summary>Adds pure mesh buffers (e.g. a roof from <see cref="RoofGeometry"/>), moved by <paramref name="offset"/>.</summary>
@@ -252,58 +215,6 @@ namespace Aetherfall.EditorTools.World
             float ay = Mathf.Abs(outward.y);
             float az = Mathf.Abs(outward.z);
             _uvs.Add(ay >= ax && ay >= az ? new Vector2(p.x, p.z) : (ax >= az ? new Vector2(p.z, p.y) : new Vector2(p.x, p.y)));
-        }
-
-        private static void Icosphere(int subdivisions, out List<Vector3> points, out List<int> faces)
-        {
-            float t = (1f + Mathf.Sqrt(5f)) * 0.5f;
-            points = new List<Vector3>
-            {
-                new Vector3(-1, t, 0), new Vector3(1, t, 0), new Vector3(-1, -t, 0), new Vector3(1, -t, 0),
-                new Vector3(0, -1, t), new Vector3(0, 1, t), new Vector3(0, -1, -t), new Vector3(0, 1, -t),
-                new Vector3(t, 0, -1), new Vector3(t, 0, 1), new Vector3(-t, 0, -1), new Vector3(-t, 0, 1)
-            };
-            for (int i = 0; i < points.Count; i++)
-            {
-                points[i] = points[i].normalized;
-            }
-
-            faces = new List<int>
-            {
-                0, 11, 5, 0, 5, 1, 0, 1, 7, 0, 7, 10, 0, 10, 11, 1, 5, 9, 5, 11, 4, 11, 10, 2, 10, 7, 6, 7, 1, 8,
-                3, 9, 4, 3, 4, 2, 3, 2, 6, 3, 6, 8, 3, 8, 9, 4, 9, 5, 2, 4, 11, 6, 2, 10, 8, 6, 7, 9, 8, 1
-            };
-            for (int s = 0; s < Mathf.Clamp(subdivisions, 0, 3); s++)
-            {
-                var cache = new Dictionary<long, int>();
-                var next = new List<int>(faces.Count * 4);
-                for (int i = 0; i < faces.Count; i += 3)
-                {
-                    int a = faces[i];
-                    int b = faces[i + 1];
-                    int c = faces[i + 2];
-                    int ab = Midpoint(points, cache, a, b);
-                    int bc = Midpoint(points, cache, b, c);
-                    int ca = Midpoint(points, cache, c, a);
-                    next.AddRange(new[] { a, ab, ca, b, bc, ab, c, ca, bc, ab, bc, ca });
-                }
-
-                faces = next;
-            }
-        }
-
-        private static int Midpoint(List<Vector3> points, Dictionary<long, int> cache, int a, int b)
-        {
-            long key = a < b ? ((long)a << 32) | (uint)b : ((long)b << 32) | (uint)a;
-            if (cache.TryGetValue(key, out int index))
-            {
-                return index;
-            }
-
-            points.Add(((points[a] + points[b]) * 0.5f).normalized);
-            index = points.Count - 1;
-            cache.Add(key, index);
-            return index;
         }
     }
 }
