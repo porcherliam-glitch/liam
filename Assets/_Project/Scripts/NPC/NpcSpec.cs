@@ -16,8 +16,9 @@ namespace Aetherfall.NPC
         /// <param name="greed">Greed for bribes (1 = normal).</param>
         /// <param name="unbribable">True for NPCs with the tag "unbestechlich".</param>
         /// <param name="startRelationship">Relationship at the start of a new game (-100 .. +100).</param>
+        /// <param name="groupId">Group (<c>group.…</c>) or empty; a hostile group makes the NPC hostile too.</param>
         public NpcSpec(string id, string name, string role, bool nameKnownFromStart, string defaultDialogueId, int level, float greed, bool unbribable,
-            int startRelationship)
+            int startRelationship, string groupId = "")
         {
             Id = id ?? string.Empty;
             Name = name ?? string.Empty;
@@ -28,6 +29,7 @@ namespace Aetherfall.NPC
             Greed = greed <= 0f ? 1f : greed;
             Unbribable = unbribable;
             StartRelationship = RelationshipRules.Clamp(startRelationship);
+            GroupId = groupId ?? string.Empty;
         }
 
         /// <summary>NPC id.</summary>
@@ -56,6 +58,9 @@ namespace Aetherfall.NPC
 
         /// <summary>Relationship at the start.</summary>
         public int StartRelationship { get; }
+
+        /// <summary>Group (<c>group.…</c>, e.g. <c>group.banditen_muehlbach</c>) or empty.</summary>
+        public string GroupId { get; }
 
         /// <inheritdoc />
         public override string ToString()

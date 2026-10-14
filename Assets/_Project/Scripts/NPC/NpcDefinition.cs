@@ -36,6 +36,10 @@ namespace Aetherfall.NPC
         [Tooltip("Unbestechlich: Bestechungs-Optionen erscheinen nicht.")]
         [SerializeField] private bool unbribable;
 
+        [Tooltip("Gruppe, z. B. group.banditen_muehlbach. Wird die Gruppe feindlich (NPC/Kampf beginnen), ist es auch dieser NPC – " +
+                 "dann kann man ihn nicht mehr ansprechen.")]
+        [SerializeField] private string groupId = string.Empty;
+
         [Header("Beziehung")]
         [Tooltip("Beziehung zum Spieler bei Spielbeginn (−100 bis +100; Neutral −9 bis +9).")]
         [Range(RelationshipRules.Min, RelationshipRules.Max)] [SerializeField] private int startRelationship;
@@ -56,7 +60,7 @@ namespace Aetherfall.NPC
         /// <summary>Creates the read-only spec.</summary>
         public NpcSpec CreateSpec()
         {
-            return new NpcSpec(Id, displayName, roleName, nameKnownFromStart, defaultDialogueId, level, greed, unbribable, startRelationship);
+            return new NpcSpec(Id, displayName, roleName, nameKnownFromStart, defaultDialogueId, level, greed, unbribable, startRelationship, groupId);
         }
     }
 }

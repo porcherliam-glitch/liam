@@ -109,7 +109,12 @@ namespace Aetherfall.NPC
         /// <inheritdoc />
         public bool IsHostile(string id)
         {
-            return id != null && _hostile.Contains(id);
+            if (id == null)
+            {
+                return false;
+            }
+
+            return _hostile.Contains(id) || (Catalog.TryGet(id, out NpcSpec spec) && spec.GroupId.Length > 0 && _hostile.Contains(spec.GroupId));
         }
 
         /// <inheritdoc />

@@ -39,16 +39,16 @@ Voraussetzung: [Anleitung 01](./01_Projekt-Setup.md) bis [Anleitung 08](./08_Tes
 
 | Baustein | Was er tut |
 |---|---|
-| **Dialogsystem** (`Aetherfall.Dialogue`, neu, Assembly Nr. 17) | `DialogueDefinition` (Asset) mit einer Liste von **8 Knotentypen** (GDD 02, 12.2): **NPC-Zeile** (Text, Sprecher, Varianten mit Bedingung, Stimmung, Kamera-Hinweis, Aktionen), **Spieler-Auswahl** (bis 6 Antworten, im Hub bis 9; je Antwort Sichtbar-wenn, Wählbar-wenn mit Grund, „nur einmal“, „unumkehrbar“, Aktionen), **Bedingungsweiche**, **Aktion**, **Probe**, **Zufall** (Gewichte; gleicher NPC am gleichen Spieltag = gleiches Ergebnis), **Sprung** (in einen anderen Dialog, wahlweise mit Rückkehr) und **Ende** (Ausgangs-ID, danach Spiel, Handel oder Kampf). Der **DialogueRunner** spielt das ab; der **DialogueService** schaltet dabei den Spielzustand auf „Dialog“, sperrt das Speichern und merkt sich gewählte Antworten, Proben-Ergebnisse, freigeschaltete Themen und bekannte Namen (Speicher-Abschnitt `dialogue`). |
-| **Fertigkeitsproben** | Wert = Attribut + 2 × Rang + Situationsbonus (höchstens ±6), Schwellen 10/12/14/16/18/24/30 (GDD 02, 12.3). Überzeugen und Lügen nutzen Charisma, Einschüchtern den höheren Wert aus Charisma und Stärke. Stufenvorteil +2 je 3 Stufen über dem NPC (höchstens +6). Standard: **feste Proben** – reicht der Wert nicht, ist die Antwort grau und zeigt „[Überzeugen 12 · dein Wert 9]“. Wahlweise **Würfelmodus** (W20, Anzeige „[Überzeugen · 45 %]“). Ergebnisse werden gemerkt: ein zweites Gespräch würfelt nicht neu. |
+| **Dialogsystem** (`Aetherfall.Dialogue`, neu, Assembly Nr. 17) | `DialogueDefinition` (Asset) mit einer Liste von **8 Knotentypen** (GDD 02, 12.2): **NPC-Zeile** (Text, Sprecher, Varianten mit Bedingung, Stimmung, Kamera-Hinweis, Aktionen, Clip-ID für spätere Sprachausgabe – automatisch, bei Bedarf überschreibbar), **Spieler-Auswahl** (bis 6 Antworten, im Hub bis 9; je Antwort Sichtbar-wenn, Wählbar-wenn mit Grund, „nur einmal“, „unumkehrbar“, Aktionen), **Bedingungsweiche**, **Aktion**, **Probe**, **Zufall** (Gewichte; gleicher NPC am gleichen Spieltag = gleiches Ergebnis), **Sprung** (in einen anderen Dialog, wahlweise mit Rückkehr) und **Ende** (Ausgangs-ID, danach Spiel, Handel oder Kampf). Der **DialogueRunner** spielt das ab; der **DialogueService** schaltet dabei den Spielzustand auf „Dialog“, sperrt das Speichern und merkt sich gewählte Antworten, Proben-Ergebnisse, freigeschaltete Themen und bekannte Namen (Speicher-Abschnitt `dialogue`). |
+| **Fertigkeitsproben** | Wert = Attribut + 2 × Rang + Situationsbonus (höchstens ±6), Schwellen 10/12/14/16/18/24/30 (GDD 02, 12.3). Überzeugen und Lügen nutzen Charisma, Einschüchtern den höheren Wert aus Charisma und Stärke. Stufenvorteil +2 je 3 Stufen über dem NPC (höchstens +6). Beim **Überzeugen** zählt automatisch die **Beziehung** zum NPC: Freundlich +2, Vertraut +4, Abneigung −2, Feind −4. Standard: **feste Proben** – reicht der Wert nicht, ist die Antwort grau und zeigt „[Überzeugen 12 · dein Wert 9]“. Wahlweise **Würfelmodus** (W20, Anzeige „[Überzeugen · 45 %]“). Ergebnisse werden gemerkt: ein zweites Gespräch würfelt nicht neu. |
 | **Markierungen** | Werden aus dem Inhalt abgeleitet, nicht von Hand gesetzt: Ziel ist eine Probe → „[Überzeugen 12]“; Ziel ist ein Ende → „[Ende]“ (bzw. „[Handel]“, „[Angriff]“); „Bestechen“ dahinter → „[80 Gold]“ (Preis mit Gier des NPC und Charisma-Rabatt bis 30 %); „unumkehrbar“ → „[Töten]“ mit Gedrückthalten; Weg endet in einem Quest-Ausgang → ◆. Schon gewählte Antworten erscheinen mit 60 % Deckkraft, „nur einmal“-Antworten danach grau. |
-| **NPC-System** (`Aetherfall.NPC`, neu, Assembly Nr. 22) | `NpcDefinition` (Asset): Anzeigename, Rolle, Name von Anfang an bekannt, Standard-Dialog, Stufe, Gier, unbestechlich, Start-Beziehung. `NpcService`: Beziehung −100 … +100 mit den 5 Stufen aus GDD 01, 7.5 (Feind, Abneigung, Neutral, Freundlich, Vertraut), Tod, Feindseligkeit (auch für Gruppen wie `group.banditen_muehlbach`), Speicher-Abschnitt `npcs`. **`NpcInteractable`** (Komponente): Interaktion „Sprechen: Harrik“ startet den Dialog. **`NpcLookAt`** (Komponente): der NPC dreht sich zur Spielfigur, im Gespräch zum Gesprächspartner, schaut im Leerlauf ab und zu zur Seite. |
+| **NPC-System** (`Aetherfall.NPC`, neu, Assembly Nr. 22) | `NpcDefinition` (Asset): Anzeigename, Rolle, Name von Anfang an bekannt, Standard-Dialog, Stufe, Gier, unbestechlich, Gruppe (z. B. `group.banditen_muehlbach`; wird die Gruppe feindlich, ist es auch der NPC), Start-Beziehung. `NpcService`: Beziehung −100 … +100 mit den 5 Stufen aus GDD 01, 7.5 (Feind, Abneigung, Neutral, Freundlich, Vertraut), Tod, Feindseligkeit (auch für Gruppen wie `group.banditen_muehlbach`), Speicher-Abschnitt `npcs`. **`NpcInteractable`** (Komponente): Interaktion „Sprechen: Harrik“ startet den Dialog. **`NpcLookAt`** (Komponente): der NPC dreht sich zur Spielfigur, im Gespräch zum Gesprächspartner, schaut im Leerlauf ab und zu zur Seite. |
 | **Bedingungen und Aktionen** (im bekannten Auswahlmenü) | Bedingungen **Dialog > Thema bekannt**, **Dialog > Option gewählt**, **Dialog > Probe bestanden**, **NPC > Beziehung mindestens**, **NPC > Lebt**. Aktionen **Dialog > Thema freischalten**, **Dialog > Name bekannt**, **Dialog > Bestechen**, **Dialog > Dialog starten**, **NPC > Beziehung ändern**, **NPC > Kampf beginnen**, **NPC > Töten (lautlos)**. |
 | **Dialog-Bildschirm** (`UI.Screens`, neuer Ordner `Dialogue`, `Dialogue.uxml`, `Dialogue.uss`) | Untertitel unten (Sprecher, höchstens 2 Zeilen à 45 Zeichen je Seite, ▼ zum Weiterblättern), Schreibmaschinen-Effekt (langsam/normal/schnell/sofort), **1. Drücken zeigt die ganze Seite, 2. Drücken geht weiter**, automatisches Weiter mit Lesefaktor, Antwortliste mit Fokusrahmen, graue Antworten werden beim Blättern übersprungen, „[Töten]“ 1 s gedrückt halten, B/Kreis wählt „[Ende]“, Tasten 1–9 wählen direkt. Die letzte Zeile bleibt über den Antworten sichtbar. |
 | **Ereignisse** (`Aetherfall.Events`, neue Dateien) | `DialogueStarted`, `SkillCheckResolved`, `TopicUnlocked`, `RelationshipChanged`, `NPCDied` (dazu `DialogueMode`, `SkillCheckType`). Die vorhandenen `NPCTalkedTo`, `ChoiceMade` und `DialogOutcome` sendet jetzt der Dialog. |
 | **Dialog-Prüfung** | Menü **Aetherfall > Dialoge prüfen** und Batchmode-Einstieg (Abschnitt 6). Regeln aus GDD 02, 10.2 und 12.2: V01 doppelt, V02 ID-Schema, V04 kaputter Verweis, V05 unerreichbar, V06 Sackgasse, V07 Zyklus ohne Ausgang, V09 Weiche ohne Standard, V10 Text fehlt, W04 Text zu lang (Zeile 180, Antwort 60 Zeichen), D01–D06 dialogspezifisch (zu viele Antworten, kein Ende, fehlender Ausgang, leere Aktion, Knoten-Namensregel, Probe ohne Misserfolg). |
-| **Vorschau** (`Tools/Preview/ui/vorschau_dialog.cjs`, `szenen_dialog.js`) | Baut den Dialog-Bildschirm aus denselben UXML-, USS- und Textdateien als HTML nach und macht Bilder (Abschnitt 7). |
-| **Tests** | **169 neue automatische Testfälle** (145 Dialog/NPC, 24 Bildschirm; insgesamt jetzt 1618): alle Knotentypen, Ereignisse, einmalige Antworten, Proben, Bestechung, Speichern und Laden, Prüfung, Bildschirm-Logik – und **der Mühlbach-Dialog in allen Ausgängen**. |
+| **Vorschau** (`Tools/Preview/ui/vorschau_dialog.cjs`, `szenen_dialog.js`) | Baut den Dialog-Bildschirm aus denselben UXML-, USS- und Textdateien als HTML nach und macht 4 Bilder (Abschnitt 7). |
+| **Tests** | **183 neue automatische Testfälle** (159 Dialog/NPC, 24 Bildschirm; insgesamt jetzt 1633): alle Knotentypen, Ereignisse, einmalige Antworten, Proben, Bestechung, Speichern und Laden, Prüfung, Bildschirm-Logik – und **der Mühlbach-Dialog in allen Ausgängen**. |
 
 **Die Ausgänge des Mühlbach-Dialogs** (GDD 02, 12.10), wie die Tests sie durchspielen:
 
@@ -91,7 +91,7 @@ Das ist der wichtigste Test in diesem Schritt.
    **Du siehst danach:** u. a. `Persuade_ThenGuarantee_EndsWithAbzug`, `Bribe_PaysTheGold_AndEndsWithAbzug`, `KnifeOption_IsAKillWithHold_AndEndsWithAttentat`, `TopicGrimmbart_UnlocksTheDeal_AndEndsWithAbmachung`, `DiceMode_FailedPersuasion_LeadsToN120_AndGreysTheOption` – alle grün. Diese Tests führen das Gespräch mit Harrik so, wie es ein Spieler tun würde (Antwort wählen, weiterklicken), und prüfen Texte, Markierungen, Flags und Ereignisse.
 4. Daneben gibt es **DialogueRunnerTests** (alle Knotentypen, Abbrechen, Sprünge), **SkillCheckRulesTests** (Formeln), **DialogueSaveTests** (Speichern/Laden), **DialogueValidatorTests** (Prüfung), **NpcTests** und **SubtitleAndMarkingTests**.
 
-**Zwei Tests in der Gruppe „…EditMode.UI“ sind bis zum Einbau rot:** `Theme_ImportsTheDefaultThemeFirst_AndOnlyExistingSheets` („sheet not imported by the theme: Dialogue.uss“) und `StaticLabels_HaveATextEntry` („Dialogue.uxml: no text for 'dialogue-speaker'“). Das ist **erwartet**: Diese Tests verlangen Einträge in bestehenden Dateien (Theme, Texttabelle), die dieser Schritt absichtlich nicht ändert. Abschnitt 12.2 beschreibt den Einbau; danach sind sie grün (vorab in einer Kopie des Projekts geprüft).
+**Ein Test in der Gruppe „…EditMode.UI“ ist bis zum Einbau rot:** `Theme_ImportsTheDefaultThemeFirst_AndOnlyExistingSheets` mit der Meldung „sheet not imported by the theme: Dialogue.uss“. Das ist **erwartet**: Der Test verlangt, dass das Theme (eine bestehende Datei) jede Stildatei einbindet, und dieser Schritt ändert bestehende Dateien absichtlich nicht. Der Einbau (Abschnitt 12.2) ergänzt eine Zeile im Theme; danach ist der Test grün (vorab in einer Kopie des Projekts geprüft).
 
 Ist ein **anderer** Test rot: anklicken, unten erscheint die Meldung. Bitte den Text abschreiben bzw. einen Screenshot an Claude schicken.
 
@@ -107,10 +107,10 @@ Für Claude auf deinem PC (ohne Klicks, Windows-Beispiel, Pfad anpassen):
 
 1. Im **Project**-Fenster den Ordner `Assets/_Project/Data` öffnen. Rechtsklick > **Create > Folder**, Name `NPCs`.
 2. Rechtsklick in den neuen Ordner > **Create > Aetherfall > NPCs > NPC**. Name: `Npc_Ulf`.
-   **Du siehst danach:** im **Inspector** die Felder **Id**, **Status**, **Display Name**, **Role Name**, **Name Known From Start**, **Default Dialogue Id**, **Level**, **Greed**, **Unbribable**, **Start Relationship**, **Notes**. Fährst du mit der Maus über ein Feld, erscheint ein deutscher Hinweis.
+   **Du siehst danach:** im **Inspector** die Felder **Id**, **Status**, **Display Name**, **Role Name**, **Name Known From Start**, **Default Dialogue Id**, **Level**, **Greed**, **Unbribable**, **Group Id**, **Start Relationship**, **Notes**. Fährst du mit der Maus über ein Feld, erscheint ein deutscher Hinweis.
 3. Eintragen: **Id** `npc.test.wirt_ulf`, **Display Name** „Ulf“, **Role Name** „Wirt“, Haken bei **Name Known From Start**, **Default Dialogue Id** `dlg.test.ulf_gruss`, **Level** 3.
 4. Noch einen NPC mit unbekanntem Namen: **Create > Aetherfall > NPCs > NPC**, Name `Npc_Fremder`. **Id** `npc.test.fremder`, **Display Name** „Ansgar“, **Role Name** „Wanderer“, **kein** Haken bei **Name Known From Start**, **Start Relationship** auf −20 schieben.
-   Im Spiel heißt er in Untertiteln und beim Ansprechen „Wanderer“, bis ein Dialog die Aktion **Dialog > Name bekannt** ausführt.
+   Im Spiel heißt er in Untertiteln und beim Ansprechen „Wanderer“, bis ein Dialog die Aktion **Dialog > Name bekannt** ausführt. Die Beziehung −20 bedeutet „Abneigung“: Überzeugen-Proben bei ihm bekommen −2 (bei „Freundlich“ ab +10 wären es +2).
 
 ---
 
@@ -122,7 +122,7 @@ Der Dialog: Ulf grüßt, der Spieler kann einmal nach den Geschäften fragen ode
    **Du siehst danach:** im Inspector die Abschnitte **Allgemein** (Title, Mode, Speaker Id, Start Node Id, Cancelable), **Quest**, **Knoten** und **Produktion**.
 2. **Id** `dlg.test.ulf_gruss`, **Title** „Ulf grüßt“, **Speaker Id** `npc.test.wirt_ulf`.
 3. Knoten fügst du über das **Drei-Punkte-Menü** oben rechts im Inspector hinzu (das Symbol **⋮** neben dem Fragezeichen): **Knoten hinzufügen > NPC-Zeile**.
-   **Du siehst danach:** In der Liste **Nodes** steht ein Eintrag mit **Id** `n010`. Aufklappen: **Text**, **Next Node Id**, **Exit Id**, **Follow Up**, **Speaker Id**, **Variants**, **Emotion**, **Camera**, **Actions**.
+   **Du siehst danach:** In der Liste **Nodes** steht ein Eintrag mit **Id** `n010`. Aufklappen: **Id**, **Next Node Id**, **Exit Id**, **Follow Up**, **Speaker Id**, **Text**, **Variants**, **Emotion**, **Camera**, **Actions** und **Voice Clip Id** (leer lassen – die Kennung für eine spätere Sprachaufnahme entsteht automatisch).
    Bitte **nicht** das **+** unter **Nodes** benutzen – das kann erst der nächste Schritt richtig (siehe Abschnitt 10).
 4. In `n010`: **Text** „Na, Rissgeborener? Was gibt's?“, **Next Node Id** `n020`.
 5. **⋮ > Knoten hinzufügen > Spieler-Auswahl** (bekommt `n020`). Aufklappen, bei **Options** zweimal auf **+**:
@@ -158,13 +158,14 @@ Exit-Code 0 = keine Fehler, 1 = Fehler (Meldungen in der Logdatei, beginnen mit 
 
 ## 7. So sieht der Dialog-Bildschirm aus (Vorschau)
 
-Weil der Bildschirm noch nicht im Spiel geöffnet wird, gibt es Vorschaubilder. Sie werden – wie bei Anleitung 07 – aus **denselben Dateien** gebaut, die Unity benutzt (`Dialogue.uxml`, `Dialogue.uss`, Theme, Texttabellen, Tastensymbole). Unten im Bild steht „Vorschau – HTML-Nachbau der Unity-Oberfläche (kein Unity-Screenshot)“.
+Weil der Bildschirm noch nicht im Spiel geöffnet wird, gibt es Vorschaubilder. Sie werden – wie bei Anleitung 07 – aus **denselben Dateien** gebaut, die Unity benutzt (`Dialogue.uxml`, `Dialogue.uss`, Theme, Texttabellen `UiTexts` und `DialogueScreenTexts`, Tastensymbole). Unten im Bild steht „Vorschau – HTML-Nachbau der Unity-Oberfläche (kein Unity-Screenshot)“.
 
 | Bild | Inhalt |
 |---|---|
 | `dialog.png` | Auswahl am Mühlbach mit Tastatur-Symbolen: oben Harriks letzte Zeile (gedimmt), darunter 8 Antworten. „Ihr seid alle aus Eichental?“ grau (schon gefragt), „[Überzeugen 12]“ mit Fokusrahmen, „[Einschüchtern 14 · dein Wert 12]“ grau, „[Lügen 12]“, „[77 Gold]“ (Charisma 12 senkt den Preis von 80), „[Angriff]“ rot, „[Ende]“. Unten „E Auswählen“ und „RMT Gespräch beenden“ (rechte Maustaste). |
 | `dialog_zeile.png` | Eine Zeile: Sprecher „Banditenanführer“ (Name noch unbekannt), 2 Untertitelzeilen, ▼ rechts unten, Hinweis „E Weiter“. |
 | `dialog_gamepad.png` | Dieselbe Auswahl mit Messer an der Kehle und **PlayStation**-Symbolen: „[Töten] Du drückst die Klinge tiefer.“ wird gerade gehalten (roter Rahmen, Balken zu 60 %), unten „× Halten = bestätigen“ und rechts „Automatisch weiter“. |
+| `dialog_markierungen.png` | Alle Markierungen aus GDD 02, 12.4 an einem Beispiel-Hub (Hollmann, **Xbox**-Symbole): „!“ neue Quest, „◆“ Quest-Fortschritt, „★“ Quest-Abschluss (mit Fokus), „[Tributbuch]“ grau (Voraussetzung fehlt), „[Handel]“, eine schon gewählte Antwort mit 60 % Deckkraft (bleibt wählbar) und „[Ende]“. Bei voller Gesundheit blendet das HUD den Lebensbalken aus. |
 
 Neu erzeugen (für Claude; braucht Node.js und Playwright wie in `Tools/Preview/ui/README.md`):
 
@@ -183,7 +184,7 @@ Das Skript nutzt die Funktionen von `vorschau_ui.cjs` mit. Die Antworten und Mar
 | # | Prüfung | Erwartung |
 |---|---|---|
 | 1 | Console nach dem Kompilieren | keine roten Fehler |
-| 2 | Test Runner, EditMode, **Run All** | alles grün außer den zwei erwarteten UI-Tests (Abschnitt 3); Gruppen „…Dialogue“ und „…DialogueScreen“ vorhanden |
+| 2 | Test Runner, EditMode, **Run All** | alles grün außer dem einen erwarteten UI-Test (Abschnitt 3); Gruppen „…Dialogue“ und „…DialogueScreen“ vorhanden |
 | 3 | **Create > Aetherfall > NPCs > NPC** | NPC-Asset mit deutschen Hinweisen |
 | 4 | **Create > Aetherfall > Dialoge > Dialog** | Dialog-Asset mit Abschnitten Allgemein, Quest, Knoten, Produktion |
 | 5 | **⋮ > Knoten hinzufügen** | 8 Einträge (NPC-Zeile, Spieler-Auswahl, Bedingungsweiche, Aktion, Probe, Zufall, Sprung, Ende); neue Knoten heißen n010, n020, … |
@@ -197,7 +198,7 @@ Das Skript nutzt die Funktionen von `vorschau_ui.cjs` mit. Die Antworten und Mar
 
 ## 9. Was du zurückmelden sollst
 
-- Ergebnis von **Run All** im Test Runner (Anzahl grün/rot; bei Rot den Text – die zwei erwarteten UI-Tests musst du nicht melden).
+- Ergebnis von **Run All** im Test Runner (Anzahl grün/rot; bei Rot den Text – den erwarteten UI-Test aus Abschnitt 3 musst du nicht melden).
 - Ob das **⋮**-Menü **Knoten hinzufügen** erscheint und die Knoten n010, n020 … heißen.
 - Was das Fenster **Dialoge prüfen** in Abschnitt 6 anzeigt (Screenshot genügt).
 - Wie dir die Vorschaubilder gefallen (Größe der Schrift, Farben der Markierungen, Platz für 8 Antworten).
@@ -216,7 +217,7 @@ Das Skript nutzt die Funktionen von `vorschau_ui.cjs` mit. Die Antworten und Mar
 | **Dialoge prüfen** meldet **V02** „passt nicht zum Schema dlg.<region>.<npc>_<thema>“ | Nur kleine Buchstaben, Ziffern, `_` und `.`; vorne `dlg.` |
 | **Dialoge prüfen** meldet **D05** (blauer Hinweis) | Knoten-ID folgt nicht n010, n020 … – erlaubt, aber unübersichtlich |
 | **Dialoge prüfen** meldet **V07** obwohl es ein Ende gibt | Von diesem Knoten führt kein Weg zu einem Ende (z. B. Auswahl, deren Antworten nur zurückführen). Eine Antwort mit Ziel **Ende** ergänzen. |
-| Zwei rote Tests in „…EditMode.UI“ | Erwartet bis zum Einbau (Abschnitt 3). |
+| Ein roter Test in „…EditMode.UI“ (`Theme_Imports…`, „Dialogue.uss“) | Erwartet bis zum Einbau (Abschnitt 3). |
 | Im Testgelände passiert nichts mit NPCs | Richtig so: der Einbau ins Spiel folgt im nächsten Schritt. |
 
 ---
@@ -228,20 +229,31 @@ Die Daten-Assets (NPC, Dialog) legst du selbst an (Abschnitte 4 und 5). Zwei Kom
 | Ordner | Inhalt | Kommt an … |
 |---|---|---|
 | `Assets/_Project/Scripts/Dialogue/` | Knoten (`LineNode`, `ChoiceNode`, `DialogueOption`, `BranchNode`, `ActionNode`, `CheckNode`, `RandomNode`, `JumpNode`, `EndNode`), `DialogueDefinition`, `DialogueRunner`, `DialogueService`, `DialogueSaveable`, `DialogueInstaller`, Proben (`SkillCheckRules`, `SkillCheckEvaluator`), Markierungen (`DialogueOptionAnalyzer`, `DialogueOptionFormatter`, `DialogueBadgeRules`), Untertitel (`SubtitlePager`, `SubtitleTiming`), Bedingungen und Aktionen, `DialogueValidator`, Menü **Dialoge prüfen** (`DialogueValidationMenu`, nur im Editor) | kein GameObject; `DialogueInstaller` als Asset in die BootConfig (Abschnitt 12.1) |
-| `Assets/_Project/Scripts/NPC/` | `NpcDefinition`, `NpcService`, `NpcSaveable`, `NpcInstaller`, Beziehungsregeln, Bedingungen und Aktionen, `NpcLookModel`, **`NpcInteractable`**, **`NpcLookAt`** | `NpcInteractable` und `NpcLookAt` an das NPC-GameObject (Abschnitt 12.5); `NpcInstaller` in die BootConfig |
-| `Assets/_Project/Scripts/UI/Screens/Dialogue/` | `DialogueScreen` (Ansicht), `DialogueScreenPresenter` (Logik), `DialogueScreenDirector`, `DialogueTypewriter`, `DialogueScreenPreferences`, Schnittstellen `IDialogueScreenSource`, `IDialogueScreenInput`, `DialogueScreenTexts` | kein GameObject; wird vom `UIRoot` gebaut (Abschnitt 12.2) |
+| `Assets/_Project/Scripts/NPC/` | `NpcDefinition`, `NpcService`, `NpcSaveable`, `NpcInstaller`, Beziehungsregeln, Bedingungen und Aktionen, `NpcLookModel`, **`NpcInteractable`**, **`NpcLookAt`** | `NpcInteractable` und `NpcLookAt` an das NPC-GameObject (Abschnitt 12.6); `NpcInstaller` in die BootConfig |
+| `Assets/_Project/Scripts/UI/Screens/Dialogue/` | `DialogueScreen` (Ansicht), `DialogueScreenPresenter` (Logik), `DialogueScreenDirector`, `DialogueTypewriter`, `DialogueScreenPreferences`, Schnittstellen `IDialogueScreenSource`, `IDialogueScreenInput`, `DialogueScreenTexts` (Texte, die der Bildschirm selbst setzt) | kein GameObject; wird vom `UIRoot` gebaut (Abschnitt 12.2) |
 | `Assets/_Project/Art/UI/Layouts/Dialogue.uxml`, `Art/UI/Styles/Dialogue.uss` | Aufbau und Aussehen des Bildschirms | Feld **Dialogue Layout** am `UIRoot` (nach dem Einbau) |
 | `Assets/_Project/Scripts/Events/` | `DialogueFlowEvents.cs`, `NpcEvents.cs`, `DialogueMode.cs`, `SkillCheckType.cs` | – |
 | `Assets/_Project/Tests/EditModeDialogue/` | Tests, Testdialoge, **`MuehlbachDialogueFixture`** (der GDD-Dialog als Code) | Test Runner |
 | `Assets/_Project/Tests/EditModeDialogue/Screen/` | Tests des Bildschirms (ohne Unity-Oberfläche) | Test Runner |
 | `Tools/Preview/ui/vorschau_dialog.cjs`, `szenen_dialog.js` | Vorschaubilder des Bildschirms | – |
-| `Assets/_Project/Data/NPCs/`, `Data/Dialogues/` (von dir angelegt) | NPC- und Dialog-Assets | in den Inhaltskatalog (Abschnitt 12.6) |
+| `Assets/_Project/Data/NPCs/`, `Data/Dialogues/` (von dir angelegt) | NPC- und Dialog-Assets | in den Inhaltskatalog (Abschnitt 12.5) |
 
 ---
 
 ## 12. Integration (für den nächsten Schritt)
 
-Dieser Abschnitt ist die Arbeitsliste für Claude beim Einbau ins Spiel. Du musst hier nichts tun. Alle Änderungen unten wurden in einer **Kopie** des Projekts (Stand dieses Schritts) angewendet und mit dem Harness geprüft: **1618 Tests grün, 887 ohne Pakete grün, keine Lint-Meldung**, Editor-Assemblies kompilieren. Auf dem Zwischenstand `8f09ff2` des Haupt-Branches („WIP: Quest-Einbindung …“) kompilieren Dialog und NPC ebenfalls fehlerfrei; der Zwischenstand selbst hatte zu diesem Zeitpunkt eigene, davon unabhängige Fehler in `UI.Screens`.
+Dieser Abschnitt ist die Arbeitsliste für Claude beim Einbau ins Spiel. Du musst hier nichts tun.
+
+**Geprüft (2026-10-14):** Alle Änderungen 12.1–12.6 wurden in einer **Kopie** des Projekts (Stand dieses Schritts) angewendet und mit dem Harness geprüft: **1633 Tests grün (inkl. des neuen Durchspiel-Tests über den Bildschirm; 1 übersprungen, braucht Unity), 887 ohne Pakete grün, Exit-Code 0, keine Lint-Meldung**, alle drei Editor-Assemblies kompilieren. Außerdem wurde dieser Schritt **ohne** Einbau auf den Haupt-Branch-Stand `041e06a` („WIP: Quest-Einbindung, Erfahrung und Level …“) gelegt: Er lässt sich konfliktfrei anwenden (nur neue Dateien), alles kompiliert, und es fehlt nur die Theme-Zeile aus 12.2 (sonst 1838 Tests grün). Die Stellen in `UIRoot`, `TestGroundMenu` und den asmdefs haben sich auf dem Haupt-Branch verschoben: die Anweisungen unten nennen deshalb immer die Nachbarzeile, nicht die Zeilennummer.
+
+| Schritt | Was | Pflicht? |
+|---|---|---|
+| 12.1 | Installer in die BootConfig (und in den Testgelände-Generator) | ja, sonst gibt es keinen Dialog-Dienst |
+| 12.2 | Theme-Zeile, asmdef-Verweise, Adapter Dienst → Bildschirm, Eingabe aus der Map „Dialog“, `UIRoot`, Durchspiel-Test | ja, sonst öffnet sich kein Bildschirm (und ein UI-Test bleibt rot) |
+| 12.3 | Direktwahl 1–9 und „Automatisch weiter“ in der Map „Dialog“ | empfohlen |
+| 12.4 | Typauswahl für Knoten im Inspector, `DialogueAssetWriter` | empfohlen (ohne: Knoten nur über ⋮ anlegen) |
+| 12.5, 12.6 | Harrik, Mühlbach-Dialog und Flags als Assets, NPC im Testgelände | für den Test im Spiel |
+| 12.7 | Quest-Ziel „Überzeuge“, KI-Feindseligkeit, Debug-Overlay, Status | später |
 
 ### 12.1 BootConfig (Reihenfolge der Installer, Architektur 4.1)
 
@@ -502,24 +514,75 @@ namespace Aetherfall.UI.Screens.Dialogue
 
    - in `Update()` nach `_director.Update(dt);`: `if (_dialogueDirector != null) { _dialogueDirector.Update(); }`
    - in `OnGlyphsChanged()`: `if (_dialogueScreen != null) { _dialogueScreen.RefreshGlyphs(); }`
-   - Der Generator der Oberfläche (`TestGroundUiBuilder` bzw. **Aetherfall > Oberflaeche einrichten**) muss das neue Feld **Dialogue Layout** mit `Assets/_Project/Art/UI/Layouts/Dialogue.uxml` füllen.
+   - Der Generator der Oberfläche (`TestGroundUiBuilder` bzw. **Aetherfall > Oberflaeche einrichten**) füllt das neue Feld **Dialogue Layout**: in der Tabelle `Layouts` (Feldname → UXML-Datei) einen Eintrag `new KeyValuePair<string, string>("dialogueLayout", "Dialogue.uxml")` anhängen.
    - **`UiStateDirector`** braucht keine Änderung: Im Zustand „Dialog“ schließt er Haupt-, Pause- und Todesbildschirm (Standardzweig); der Dialog-Bildschirm wird vom `DialogueScreenDirector` geöffnet, solange ein Gespräch läuft. Das Pausemenü legt sich darüber; die Dialog-Eingabe ist dann aus (`IsActive` = Dialog-Map aktiv), ein laufendes Halten bricht ab. Der `UIManager` tickt alle offenen Bildschirme, also auch den Dialog-Bildschirm, obwohl die UI-Map im Dialog aus ist.
-5. **Theme und Texte** (die zwei roten UI-Tests aus Abschnitt 3):
-   - `Art/UI/Theme/AetherfallTheme.tss`: nach der Loading-Zeile `@import url("../Styles/Dialogue.uss");` und in `Dialogue.uxml` die Zeile `<Style src="../Styles/Dialogue.uss" />` löschen (sonst doppelt geladen; die Vorschau erkennt beides).
-   - `UiTexts.cs` hinter `new UiTextEntry("hint-hold", …)`:
+5. **Theme** (der rote UI-Test aus Abschnitt 3): in `Art/UI/Theme/AetherfallTheme.tss` als letzte Zeile `@import url("../Styles/Dialogue.uss");` (nach Tokens/Base, deren Farben und Halte-Balken `Dialogue.uss` nutzt). Sonst ist nichts nötig: `Dialogue.uxml` braucht **keine** Einträge in `UiTexts` oder in `UiAssetTests` – Elemente, deren Text der Code setzt, haben dort keinen Namen (der Bildschirm findet sie über ihre Klasse), benannte Elemente bekommen ihren Text aus `UiTexts` (`dialogue-hint-hold` → `hint-hold`), die übrigen festen Texte stehen in `DialogueScreenTexts`.
+6. **Neuer Test `Assets/_Project/Tests/EditModeDialogue/Screen/DialogueServiceScreenSourceTests.cs`** (der Bildschirm am echten Dienst, Mühlbach-Dialog bis „vertagt“); dazu in `Aetherfall.Tests.EditMode.DialogueScreen.asmdef` bei `references` `"Aetherfall.Dialogue"` (vor `Aetherfall.UI.Framework`) und `"Aetherfall.Tests.EditMode.Dialogue"` (vor `Aetherfall.Tests.Shared`):
 
 ```csharp
-            new UiTextEntry("dialogue-hint-continue", "Weiter"),
-            new UiTextEntry("dialogue-hint-select", "Auswählen"),
-            new UiTextEntry("dialogue-hint-end", "Gespräch beenden"),
-            new UiTextEntry("dialogue-hint-hold", "Halten = bestätigen"),
-            new UiTextEntry("dialogue-continue", "▼"),
-            new UiTextEntry("dialogue-auto-on", "Automatisch weiter"),
-            new UiTextEntry("dialogue-glyph-back-keyboard", "RMT"),
-```
+using Aetherfall.Tests.EditMode.Dialogue;
+using Aetherfall.UI.Screens.Dialogue;
+using NUnit.Framework;
 
-     `DialogueScreenTexts` kann bleiben (gleiche Texte, gewinnt bei Abweichung) oder auf `UiTexts.Get` umgestellt und gelöscht werden.
-   - `Tests/EditModeUI/UiAssetTests.cs`, Test `StaticLabels_HaveATextEntry`: in `dynamicNames` `"dialogue-speaker", "dialogue-text", "dialogue-hint-action"` ergänzen und in der Bedingung `name.StartsWith("dialogue-option-", StringComparison.Ordinal) ||` (Antwortzeilen füllt der Code).
+namespace Aetherfall.Tests.EditMode.DialogueScreen
+{
+    /// <summary>
+    /// The dialogue screen on the real dialogue service: the Muehlbach dialogue (GDD 02, 12.10) through
+    /// <see cref="DialogueServiceScreenSource"/> and <see cref="DialogueScreenPresenter"/> with confirm and back as a player
+    /// would press them.
+    /// </summary>
+    [TestFixture]
+    public sealed class DialogueServiceScreenSourceTests
+    {
+        [Test]
+        public void Muehlbach_ThroughTheScreen_EndsWithVertagt_AndShowsTheMarkings()
+        {
+            using (DialogueTestEnvironment env = TestDialogues.Environment())
+            {
+                env.Stats.Charisma = 12;
+                env.Wallet.Gold = 100;
+                var source = new DialogueServiceScreenSource(env.Dialogues);
+                var presenter = new DialogueScreenPresenter(source, new DialogueScreenPreferences());
+                Assert.That(env.Start(MuehlbachDialogueFixture.DialogueId, MuehlbachDialogueFixture.Harrik), Is.True);
+                var frame = new DialogueInputFrame();
+                presenter.Tick(0.016f, frame, true);
+                Assert.That(presenter.Mode, Is.EqualTo(DialogueScreenMode.Line));
+                Assert.That(presenter.SpeakerName, Is.EqualTo("Banditenanführer"));
+                Assert.That(presenter.PageCount, Is.EqualTo(2));
+
+                frame.SubmitPressed = true;
+                for (int i = 0; i < 6 && presenter.Mode == DialogueScreenMode.Line; i++)
+                {
+                    presenter.Tick(0.016f, frame, true);
+                }
+
+                Assert.That(presenter.Mode, Is.EqualTo(DialogueScreenMode.Choice), "n025");
+                frame.Clear();
+                frame.SubmitPressed = true;
+                presenter.Tick(0.016f, frame, true);
+                Assert.That(env.View.NodeId, Is.EqualTo("n030"));
+                for (int i = 0; i < 6 && presenter.Mode == DialogueScreenMode.Line; i++)
+                {
+                    presenter.Tick(0.016f, frame, true);
+                }
+
+                Assert.That(env.View.NodeId, Is.EqualTo("n040"));
+                Assert.That(presenter.GetOption(1).TagText, Is.EqualTo("[Überzeugen 12]"));
+                Assert.That(presenter.GetOption(1).Tag, Is.EqualTo(DialogueScreenTag.Check));
+                Assert.That(presenter.GetOption(1).AttributeKey, Is.EqualTo("charisma"));
+                Assert.That(presenter.GetOption(4).TagText, Is.EqualTo("[77 Gold]"));
+                Assert.That(presenter.GetOption(presenter.OptionCount - 1).Tag, Is.EqualTo(DialogueScreenTag.End));
+                frame.Clear();
+                frame.BackPressed = true;
+                presenter.Tick(0.016f, frame, true);
+                Assert.That(env.Dialogues.IsRunning, Is.False);
+                Assert.That(env.Outcomes.Last.ExitId, Is.EqualTo("vertagt"));
+                Assert.That(presenter.Mode, Is.EqualTo(DialogueScreenMode.None));
+            }
+        }
+    }
+}
+```
 
 ### 12.3 Eingabe: Direktwahl und automatisches Weiter (GDD 03 1.5)
 
@@ -550,21 +613,22 @@ Ohne diese Aktionen funktioniert alles andere; `DialogMapScreenInput` findet sie
 
 - `Scripts/Editor/Narrative/ManagedReferenceTypeDrawer.cs`: zusätzliches Attribut `[CustomPropertyDrawer(typeof(Aetherfall.Dialogue.DialogueNode), true)]`; `Aetherfall.EditorTools.Narrative.asmdef` bekommt `"Aetherfall.Dialogue"` und `"Aetherfall.NPC"`. Dann hat die Liste **Nodes** dieselbe Typauswahl wie Quest-Ziele (Menü **Knoten > …**, die Knoten tragen schon `[TypeMenu]`), und das **+** erzeugt keine leeren Einträge mehr.
 - Das Menü **Dialoge prüfen** liegt mit `#if UNITY_EDITOR` in der Laufzeit-Assembly `Aetherfall.Dialogue` (damit dieser Schritt keine bestehende Editor-Assembly ändern musste). Es kann unverändert bleiben oder nach `Editor/Narrative` umziehen (Namespace und Batchmode-Pfad in Abschnitt 6 dann anpassen).
-- **Neue Datei `Assets/_Project/Scripts/Editor/Narrative/DialogueAssetWriter.cs`** (schreibt in Code gebaute Dialoge und NPCs als Assets; geprüft):
+- **Neue Datei `Assets/_Project/Scripts/Editor/Narrative/DialogueAssetWriter.cs`** (schreibt in Code gebaute Dialoge, NPCs und Flags als Assets; `Aetherfall.EditorTools.Narrative.asmdef` referenziert `Aetherfall.WorldState` schon):
 
 ```csharp
 using System;
 using System.IO;
 using Aetherfall.Dialogue;
 using Aetherfall.NPC;
+using Aetherfall.WorldState;
 using UnityEditor;
 using UnityEngine;
 
 namespace Aetherfall.EditorTools.Narrative
 {
     /// <summary>
-    /// Writes dialogues and NPCs built in code (like <c>MuehlbachDialogueFixture</c>) as assets: a <see cref="DialogueDefinition"/>
-    /// with the same nodes, or a <see cref="NpcDefinition"/>. Existing assets at the path are overwritten in place (the GUID and
+    /// Writes dialogues, NPCs and flags built in code (like <see cref="MuehlbachDialogueLibrary"/>) as assets: a
+    /// <see cref="DialogueDefinition"/> with the same nodes, a <see cref="NpcDefinition"/> or a <see cref="FlagDefinition"/>. Existing assets at the path are overwritten in place (the GUID and
     /// every reference to the asset stay). Used by the test ground generator; pure editor code.
     /// </summary>
     public static class DialogueAssetWriter
@@ -631,6 +695,39 @@ namespace Aetherfall.EditorTools.Narrative
             serialized.FindProperty("greed").floatValue = spec.Greed;
             serialized.FindProperty("unbribable").boolValue = spec.Unbribable;
             serialized.FindProperty("startRelationship").intValue = spec.StartRelationship;
+            serialized.FindProperty("groupId").stringValue = spec.GroupId;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(asset);
+            return asset;
+        }
+
+        /// <summary>Writes a flag asset (world state, architecture 8).</summary>
+        /// <param name="spec">Flag data.</param>
+        /// <param name="assetPath">Path below Assets/, ending in .asset.</param>
+        /// <returns>The asset.</returns>
+        public static FlagDefinition WriteFlag(FlagSpec spec, string assetPath)
+        {
+            if (spec == null)
+            {
+                throw new ArgumentNullException(nameof(spec));
+            }
+
+            FlagDefinition asset = LoadOrCreate<FlagDefinition>(assetPath);
+            var serialized = new SerializedObject(asset);
+            serialized.FindProperty("id").stringValue = spec.Id;
+            serialized.FindProperty("kind").enumValueIndex = (int)spec.Kind;
+            serialized.FindProperty("defaultValue").intValue = spec.DefaultValue;
+            serialized.FindProperty("min").intValue = spec.Min;
+            serialized.FindProperty("max").intValue = spec.Max;
+            serialized.FindProperty("carryToNewGamePlus").boolValue = spec.CarryToNewGamePlus;
+            serialized.FindProperty("description").stringValue = spec.Description;
+            SerializedProperty values = serialized.FindProperty("enumValues");
+            values.arraySize = spec.EnumValues != null ? spec.EnumValues.Count : 0;
+            for (int i = 0; i < values.arraySize; i++)
+            {
+                values.GetArrayElementAtIndex(i).stringValue = spec.EnumValues[i];
+            }
+
             serialized.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(asset);
             return asset;
@@ -659,38 +756,212 @@ namespace Aetherfall.EditorTools.Narrative
 }
 ```
 
-### 12.5 NPC im Testgelände
+### 12.5 Mühlbach-Dialog, Harrik und Flags als Assets (Generator)
 
-Im Szenen-Generator (`TestGroundSceneBuilder`, nach dem Muster der Truhen) einen NPC aufstellen:
+Der GDD-Dialog steht als Code in `Tests/EditModeDialogue/MuehlbachDialogueFixture.cs` (alle 28 Knoten, Flags, Harrik). Editor-Code darf Testcode nicht referenzieren, deshalb gibt es für den Generator eine Kopie mit echten Bedingungen statt der Test-Platzhalter:
+
+1. **Neue Datei `Assets/_Project/Scripts/Editor/Narrative/MuehlbachDialogueLibrary.cs`:** Inhalt der Vorlage, dabei
+   - Namespace `Aetherfall.EditorTools.Narrative`, Klasse `MuehlbachDialogueLibrary`, zusätzlich `using Aetherfall.Quests;`, Kommentar-Kopf anpassen, den `<remarks>`-Block über die Platzhalter weglassen;
+   - die zwei Konstanten `SwitchGrimmbartActive`/`SwitchGrimmbartDone` ersetzen durch `QuestGrimmbart = "quest.bounty.eichental.grimmbart"`, `FlagBanditsInLindenhain = "flag.eichental.banditen_in_lindenhain"` und `FlagBanditsFled = "flag.eichental.banditen_geflohen"`; in `Flags()` die beiden neuen Flags als `FlagSpec.Bool(…)` anhängen;
+   - diese vier Stellen ersetzen:
+
+| in der Vorlage | in der Bibliothek | Warum |
+|---|---|---|
+| `new SwitchOn(SwitchGrimmbartActive)` (n040 f) | `new QuestStatusIs(QuestGrimmbart, QuestStatus.Active)` | echte Quest-Bedingung |
+| `new Not(new SwitchOn(SwitchGrimmbartDone))` (n510 a) | `new Not(new QuestStatusIs(QuestGrimmbart, QuestStatus.Completed))` | ebenso |
+| `new RecordEffect("NPC+(" + Group + ", loc.eichental.lindenhain)")` (n130) | `new SetFlag(FlagBanditsInLindenhain, 1)` | Platzhalter, bis es eine Aktion „NPC verlegen“ gibt (GDD 02, 12.10 „NPC+“) |
+| `new RecordEffect("Übrige Banditen fliehen beim Fund der Leiche")` (n910) | `new SetFlag(FlagBanditsFled, 1)` | Platzhalter für die Welt-Reaktion |
+
+   In der geprüften Kopie wurde die Datei genau so aus der Vorlage erzeugt (kein `RecordEffect`/`SwitchOn` mehr darin). Später kann die Test-Vorlage auf die Bibliothek umgestellt werden (Test-asmdef referenziert dann `Aetherfall.EditorTools.Narrative`), damit es nur eine Quelle gibt.
+2. **Neue Datei `Assets/_Project/Scripts/Editor/World/TestGroundNpcBuilder.cs`** (schreibt die Assets, trägt sie in den Inhaltskatalog ein und stellt Harrik auf):
+
+```csharp
+using System.Collections.Generic;
+using Aetherfall.Data;
+using Aetherfall.Dialogue;
+using Aetherfall.EditorTools.Narrative;
+using Aetherfall.NPC;
+using Aetherfall.WorldState;
+using UnityEditor;
+using UnityEngine;
+
+namespace Aetherfall.EditorTools.World
+{
+    /// <summary>
+    /// Test ground part "Dialoge" (guide 10, section 12.5): writes Harrik, the Muehlbach dialogue (GDD 02, 12.10) and its flags
+    /// as assets, enters them in the content catalog and places Harrik as a talking NPC west of the spawn (capsule, trigger on
+    /// the Interactable layer, <see cref="NpcInteractable"/>, <see cref="NpcLookAt"/> towards the player).
+    /// </summary>
+    /// <remarks>
+    /// Assets are overwritten in place on every run (GUIDs and references stay). Without the DialogueInstaller and NpcInstaller
+    /// in the BootConfig the NPC shows no prompt (it waits for the dialogue service).
+    /// </remarks>
+    public static class TestGroundNpcBuilder
+    {
+        /// <summary>Folder of the NPC assets.</summary>
+        public const string NpcFolder = "Assets/_Project/Data/NPCs";
+
+        /// <summary>Folder of the dialogue assets of the region.</summary>
+        public const string DialogueFolder = "Assets/_Project/Data/Dialogues/Eichental";
+
+        /// <summary>Folder of the flags of the dialogue.</summary>
+        public const string FlagFolder = "Assets/_Project/Data/Flags/Eichental";
+
+        /// <summary>Harrik as NPC asset.</summary>
+        public const string HarrikPath = NpcFolder + "/Npc_Harrik.asset";
+
+        /// <summary>The Muehlbach dialogue as asset.</summary>
+        public const string HarrikDialoguePath = DialogueFolder + "/Dlg_Harrik_Verhandlung.asset";
+
+        /// <summary>Position of Harrik: west of the spawn, between spawn and ramps, away from chests and pillars.</summary>
+        public static readonly Vector3 HarrikPosition = new Vector3(-5f, 0f, 5f);
+
+        private const float Height = 2f;
+        private const float Radius = 0.4f;
+
+        /// <summary>Writes NPC, dialogue and flags and enters them in the content catalog.</summary>
+        /// <param name="catalog">Content catalog of the test ground (from the item assets).</param>
+        /// <param name="report">Protocol.</param>
+        /// <returns>Harrik, or null if the catalog is missing.</returns>
+        public static NpcDefinition CreateAssets(ContentCatalog catalog, TestGroundReport report)
+        {
+            if (catalog == null)
+            {
+                report.Warning("NPC Harrik: kein Inhaltskatalog – NPC und Dialog werden nicht angelegt.");
+                return null;
+            }
+
+            var definitions = new List<GameDefinition>();
+            DialogueSpec dialogue = MuehlbachDialogueLibrary.Build();
+            definitions.Add(DialogueAssetWriter.WriteDialogue(dialogue, HarrikDialoguePath));
+            NpcDefinition harrik = DialogueAssetWriter.WriteNpc(MuehlbachDialogueLibrary.HarrikNpc(), HarrikPath);
+            definitions.Add(harrik);
+            IReadOnlyList<FlagSpec> flags = MuehlbachDialogueLibrary.Flags().All;
+            for (int i = 0; i < flags.Count; i++)
+            {
+                definitions.Add(DialogueAssetWriter.WriteFlag(flags[i], FlagFolder + "/Flag_" + AssetName(flags[i].Id) + ".asset"));
+            }
+
+            int added = AddToCatalog(catalog, definitions);
+            AssetDatabase.SaveAssets();
+            report.Info("NPC Harrik: Dialog " + dialogue.Id + " (" + dialogue.Nodes.Count + " Knoten), " + flags.Count + " Flags, " + added +
+                        " neue Einträge im Inhaltskatalog.");
+            return harrik;
+        }
+
+        /// <summary>Places Harrik in the open scene.</summary>
+        /// <param name="player">Player object (look target).</param>
+        /// <param name="interactableLayer">Interactable layer or -1.</param>
+        /// <param name="environmentLayer">Environment layer of the body.</param>
+        /// <param name="material">Material of the body (placeholder).</param>
+        /// <param name="report">Protocol.</param>
+        /// <returns>The NPC object, or null if the NPC asset is missing (run <see cref="CreateAssets"/> first).</returns>
+        public static GameObject Build(GameObject player, int interactableLayer, int environmentLayer, Material material, TestGroundReport report)
+        {
+            var harrik = AssetDatabase.LoadAssetAtPath<NpcDefinition>(HarrikPath);
+            if (harrik == null)
+            {
+                report.Warning("NPC Harrik: " + HarrikPath + " fehlt – kein NPC im Testgelände.");
+                return null;
+            }
+
+            var root = new GameObject("NPC_Harrik");
+            root.transform.position = HarrikPosition;
+            Vector3 toSpawn = Vector3.zero - HarrikPosition;
+            root.transform.rotation = Quaternion.LookRotation(new Vector3(toSpawn.x, 0f, toSpawn.z).normalized, Vector3.up);
+
+            GameObject body = GameObject.CreatePrimitive(PrimitiveType.Capsule);
+            body.name = "Koerper";
+            body.transform.SetParent(root.transform, false);
+            body.transform.localPosition = new Vector3(0f, Height * 0.5f, 0f);
+            body.transform.localScale = new Vector3(Radius * 2f, Height * 0.5f, Radius * 2f);
+            body.layer = environmentLayer;
+            if (material != null && body.TryGetComponent(out MeshRenderer renderer))
+            {
+                renderer.sharedMaterial = material;
+            }
+
+            var chest = new GameObject("Brust");
+            chest.transform.SetParent(root.transform, false);
+            chest.transform.localPosition = new Vector3(0f, 1.5f, 0f);
+
+            var trigger = new GameObject("Interaktion");
+            trigger.transform.SetParent(root.transform, false);
+            trigger.layer = interactableLayer >= 0 ? interactableLayer : 0;
+            CapsuleCollider capsule = trigger.AddComponent<CapsuleCollider>();
+            capsule.isTrigger = true;
+            capsule.center = new Vector3(0f, Height * 0.5f, 0f);
+            capsule.height = Height;
+            capsule.radius = Radius + 0.3f;
+
+            NpcLookAt look = root.AddComponent<NpcLookAt>();
+            TestGroundFields.SetReference(look, "lookTarget", player != null ? player.transform : null, report);
+            NpcInteractable interactable = root.AddComponent<NpcInteractable>();
+            TestGroundFields.SetReference(interactable, "npc", harrik, report);
+            TestGroundFields.SetReference(interactable, "interactionPoint", chest.transform, report);
+            TestGroundFields.SetReference(interactable, "lookAt", look, report);
+            report.Info("NPC Harrik bei " + HarrikPosition + ": E / A = Sprechen (Dialog " + harrik.DefaultDialogueId + ").");
+            return root;
+        }
+
+        private static int AddToCatalog(ContentCatalog catalog, List<GameDefinition> definitions)
+        {
+            var serialized = new SerializedObject(catalog);
+            SerializedProperty list = serialized.FindProperty("definitions");
+            var present = new HashSet<Object>();
+            for (int i = 0; i < list.arraySize; i++)
+            {
+                present.Add(list.GetArrayElementAtIndex(i).objectReferenceValue);
+            }
+
+            int added = 0;
+            for (int i = 0; i < definitions.Count; i++)
+            {
+                if (definitions[i] == null || !present.Add(definitions[i]))
+                {
+                    continue;
+                }
+
+                list.arraySize++;
+                list.GetArrayElementAtIndex(list.arraySize - 1).objectReferenceValue = definitions[i];
+                added++;
+            }
+
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(catalog);
+            return added;
+        }
+
+        private static string AssetName(string flagId)
+        {
+            // flag.eichental.harrik_status -> harrik_status; quest-local flags keep their last part (messer_an_kehle).
+            int dot = flagId.LastIndexOf('.');
+            return dot >= 0 && dot < flagId.Length - 1 ? flagId.Substring(dot + 1) : flagId;
+        }
+    }
+}
+```
+
+3. **Einbinden:**
+   - `Aetherfall.EditorTools.World.asmdef`: bei `references` zusätzlich `"Aetherfall.WorldState"` und `"Aetherfall.EditorTools.Narrative"` (neben `"Aetherfall.Dialogue"`, `"Aetherfall.NPC"` aus 12.1).
+   - `TestGroundMenu`: direkt nach `TestGroundAssets.EnsureDialogueInstallersInBootConfig(report);` die Zeile `TestGroundNpcBuilder.CreateAssets(items.Catalog, report);` (der Katalog der Item-Assets ist der Inhaltskatalog des Testgeländes).
+   - `TestGroundSceneBuilder.Build`: nach `TestGroundItemBuilder.CreateOverlays(player, statusOverlay, report);` die Zeile `TestGroundNpcBuilder.Build(player, interactableLayer, envLayer, materials.Player, report);`.
+4. **Prüfen** (nach **Aetherfall > Testgelände erstellen**): **Aetherfall > Dialoge prüfen** muss „1 Dialog(e) geprüft: 0 Fehler, 2 Warnung(en)“ melden – **W04** für zwei lange Antworten (n040 c mit 63 und n510 a mit 65 Zeichen; das GDD gibt sie so vor). `DialogueValidatorTests.Muehlbach_HasNoErrors_AndWarnsAboutTwoLongOptions` prüft dasselbe.
+
+### 12.6 NPC im Testgelände: was der Generator aufstellt
 
 | Teil | Einstellung |
 |---|---|
-| GameObject | `NPC_Harrik`, Kapsel (Höhe 2 m, Pivot am Boden), etwa 6 m vor dem Spawnpunkt, Blick zur Spielfigur; Material wie die Platzhalter |
-| Collider | `CapsuleCollider` auf **Layer 10 „Interactable“** (wie die Truhen; die Interaktion sucht auf diesem Layer) |
-| `NpcInteractable` | **Npc** = `Data/NPCs/Npc_Harrik.asset` (aus 12.6), **Dialogue Override** leer (nimmt den Standard-Dialog), **Priority** 20 (vor Truhen 10 und Beute 0), **Interaction Point** = Kind-Objekt in Brusthöhe (1,5 m), **Look At** = die `NpcLookAt` am selben Objekt |
-| `NpcLookAt` | **Body** leer (dreht das GameObject), **Look Target** = Transform der Spielfigur, **Look Radius** 4, **Turn Speed** 180, **Glance Angle** 25 |
+| GameObject | `NPC_Harrik` bei (−5, 0, 5): westlich vom Spawn, zwischen Spawn und Rampen, weg von Truhen und Säulen; blickt zum Spawn |
+| Körper | Kapsel 2 m hoch (Pivot am Boden), Layer Environment, Material der Spielfigur (Platzhalter, später Blender-Modell) |
+| Interaktion | Kind-Objekt `Interaktion` mit `CapsuleCollider` (Trigger, Radius 0,7 m) auf dem Layer **Interactable** – dort sucht der `PlayerInteractor` (wie bei den Truhen) |
+| `NpcInteractable` | **Npc** = `Data/NPCs/Npc_Harrik.asset`, **Dialogue Override** leer (Standard-Dialog des NPC), **Priority** 20 (vor Truhen 10 und Beute 0), **Interaction Point** = Kind-Objekt `Brust` (1,5 m), **Look At** = die `NpcLookAt` am selben Objekt |
+| `NpcLookAt` | **Body** leer (dreht das GameObject), **Look Target** = Spielfigur, Standardwerte: Radius 4 m, 180 °/s, Umschauen bis 25 ° |
 
-- Der Hinweis zeigt dann „E Sprechen: Banditenanführer“, nach dem Gespräch (Name bekannt) „Sprechen: Harrik“. Im Kampf, bei feindlichen oder toten NPCs gibt es keinen Hinweis.
-- Damit `kampf` im Testgelände sichtbar wird: Die KI muss auf `INpcService.HostilityChanged` hören (Gruppe `group.banditen_muehlbach` wird feindlich) – das gibt es noch nicht; bis dahin endet der Dialog mit `DialogueEndInfo.FollowUp = Combat` und sonst passiert nichts.
+- Der Hinweis zeigt dann „E Sprechen: Banditenanführer“, nach n030 (Name bekannt) „Sprechen: Harrik“. Im Kampf, bei feindlichen oder toten NPCs gibt es keinen Hinweis.
+- Damit `kampf` im Testgelände sichtbar wird: Die KI muss auf `INpcService.HostilityChanged` hören (Gruppe `group.banditen_muehlbach` wird feindlich) – das gibt es noch nicht; bis dahin endet der Dialog mit `DialogueEndInfo.FollowUp = Combat`. Harrik gehört zur Gruppe (Feld **Group Id**) und ist danach feindlich: kein Hinweis „Sprechen“ mehr.
 - Für ein Gespräch mit Messer an der Kehle braucht es das Flag `quest.side.eichental.banditen_am_muehlbach.lokal.messer_an_kehle` (im Spiel setzt es die Quest beim Anschleichen; zum Testen per Debug-Konsole bzw. `IWorldStateDebug.TrySetFromText`).
-
-### 12.6 Generator für den Mühlbach-Dialog (aus der Code-Vorlage)
-
-Der GDD-Dialog steht als Code in `Tests/EditModeDialogue/MuehlbachDialogueFixture.cs` (alle 28 Knoten, Flags, Harrik). Ein Generator macht daraus Assets:
-
-1. **Bibliothek anlegen:** `Assets/_Project/Scripts/Editor/Narrative/MuehlbachDialogueLibrary.cs` mit den Methoden `Build()`, `HarrikNpc()` und `Flags()` – Inhalt 1:1 aus der Vorlage kopieren (Editor-Code darf Testcode nicht referenzieren). Dabei die zwei **Test-Platzhalter** ersetzen:
-
-| in der Vorlage | im Generator | Warum |
-|---|---|---|
-| `new SwitchOn(SwitchGrimmbartActive)` | `new QuestStatusIs("quest.bounty.eichental.grimmbart", QuestStatus.Active)` | echte Quest-Bedingung |
-| `new Not(new SwitchOn(SwitchGrimmbartDone))` | `new Not(new QuestStatusIs("quest.bounty.eichental.grimmbart", QuestStatus.Completed))` | ebenso |
-| `new RecordEffect("NPC+(group…, loc.eichental.lindenhain)")` (n130) | `new SetFlag("flag.eichental.banditen_in_lindenhain", 1)` bis es eine Aktion „NPC verlegen“ gibt | Platzhalter für NPC-Bewegung (GDD 02, 12.10 „NPC+“) |
-| `new RecordEffect("Übrige Banditen fliehen …")` (n910) | `new SetFlag("flag.eichental.banditen_geflohen", 1)` | Platzhalter für die Welt-Reaktion |
-
-2. **Schreiben:** im Testgelände-Generator `DialogueAssetWriter.WriteDialogue(MuehlbachDialogueLibrary.Build(), "Assets/_Project/Data/Dialogues/Eichental/Dlg_Harrik_Verhandlung.asset")` und `DialogueAssetWriter.WriteNpc(MuehlbachDialogueLibrary.HarrikNpc(), "Assets/_Project/Data/NPCs/Npc_Harrik.asset")`; die Flags aus `Flags()` als `FlagDefinition`-Assets (wie bei den Quest-Flags), die zwei Ersatz-Flags dazu.
-3. **Inhaltskatalog:** Dialog, NPC und Flags in `Assets/_Project/Data/ContentCatalog.asset` eintragen; `DialogueInstaller` und `NpcInstaller` lesen über die `ContentDatabase` (`DialogueCatalog.FromDatabase`, `NpcCatalog.FromDatabase`).
-4. **Prüfen:** **Aetherfall > Dialoge prüfen** muss „0 Fehler, 2 Warnung(en)“ melden: **W04** für zwei lange Antworten (n040 c mit 63 und n510 a mit 65 Zeichen; das GDD gibt sie so vor). `DialogueValidatorTests.Muehlbach_HasNoErrors_AndWarnsAboutTwoLongOptions` prüft dasselbe.
-5. Optional die Test-Vorlage danach auf die Bibliothek umstellen (Test-asmdef referenziert dann `Aetherfall.EditorTools.Narrative`), damit es nur eine Quelle gibt; `RecordEffect`/`SwitchOn` bleiben nur für die Tests.
+- Testanleitung für den Auftraggeber nach dem Einbau (kurz): Testgelände erstellen, Play, zu Harrik laufen, **E** (Gamepad **A**) → Dialog-Bildschirm; mit Pfeiltasten/Steuerkreuz wählen, **E**/**A** bestätigen, **rechte Maustaste**/**B** = „[Ende]“; danach Speichern ist wieder möglich, Laden mitten im Gespräch beendet es.
 
 ### 12.7 Quests, KI und Sonstiges
 
@@ -716,7 +987,8 @@ Der GDD-Dialog steht als Code in `Tests/EditModeDialogue/MuehlbachDialogueFixtur
 | Markierungen | Kennzeichnung je Option (12.4) | aus Ziel-Knoten und Aktionen abgeleitet; Raute ◆ nur ohne andere Markierung | Das Beispiel 12.10 zeigt „[80 Gold] Nehmt das Gold …“ ohne Raute. |
 | Rang der Dialog-Fertigkeit | Fertigkeitsbaum | vorerst 0 (`PlayerStatsCheckSource`) | Fertigkeiten gibt es noch nicht. Stufe kommt aus dem Wert `Level` der Spieler-Werte. |
 | Speichern im Dialog | „laufende Dialoge werden nicht gespeichert“ (GDD 05 5.2) | Speichersperre `dialogue` während eines Gesprächs, auch unter dem Pausemenü; Laden beendet ein Gespräch ohne Ereignisse | Gemerkt werden nur gewählte Antworten, Proben-Ergebnisse, Themen und bekannte Namen. |
-| Dialog-Texte des Bildschirms | zentrale Texttabelle `UiTexts` | vorerst `DialogueScreenTexts` (gleiche Form) | `UiTexts.cs` ist eine bestehende Datei; Umzug in 12.2. |
+| Dialog-Texte des Bildschirms | zentrale Texttabelle `UiTexts` | benannte Elemente aus `UiTexts` (z. B. „Halten = bestätigen“), Texte, die der Bildschirm selbst setzt („Weiter“, „Gespräch beenden“, ▼, „Automatisch weiter“), aus `DialogueScreenTexts` (gleiche Form) | `UiTexts.cs` ist eine bestehende Datei; der Lokalisierungs-Schritt legt beide in dieselbe String Table. |
+| Beziehung bei Proben | Überzeugen: Freundlich +2, Vertraut +4, Abneigung −2, Feind −4 (GDD 02, 12.3) | automatisch bei jeder Überzeugen-Probe, zählt zum Situationsbonus (zusammen höchstens ±6) | Die Stufengrenzen stehen in `SkillCheckRules` und `RelationshipRules` (Dialog darf NPC nicht referenzieren); ein Test prüft, dass beide für alle Werte −100 … +100 gleich sind. |
 | Tastatur-Symbol für „Zurück“ | Glyphe Back = Esc | „RMT“ (rechte Maustaste) | Esc öffnet im Dialog das Pausemenü (GDD 03 1.5); DialogBack liegt auf der rechten Maustaste. |
 | Kontext über den Antworten | – | die letzte Zeile ohne Seitenumbrüche, gedimmt | Die 45-Zeichen-Umbrüche sind für Untertitel gedacht; über den Antworten passt mehr in eine Zeile (siehe `dialog.png`). |
 
@@ -727,8 +999,9 @@ Der GDD-Dialog steht als Code in `Tests/EditModeDialogue/MuehlbachDialogueFixtur
 | Dialogkamera (Kamera-Hinweise der Zeilen: nah, weit, über die Schulter …), Uhr anhalten im Voll-Modus | CameraSystem, GameTime | Daten sind in jeder Zeile (`Camera`, `Mode`), die Kamera-Seite fehlt (GDD 02, 12.6). |
 | Barks (kurze Zurufe im Vorbeigehen) | NPC/Welt | Modus `Bark` wird nicht als Gespräch gestartet; Abspielen als Sprechblase folgt. |
 | NPC-Erinnerungen (`mem.*`), Stimmung | NPC | GDD 02, 12.5; Beziehung ist fertig. |
-| Tagesabläufe (Schedules) | NPC (Architektur 11.10) | für den Mini-Slice nicht nötig |
+| Tagesabläufe (Schedules) | NPC (Architektur 11.11) | für den Mini-Slice nicht nötig |
+| Spieltag für Zufallsknoten und Würfel | GameTime | `IDialogueCalendar` stellt noch niemand bereit (es gibt erst die Spielzeit, keinen Spieltag); bis dahin ist der Tag 0, d. h. ein Zufallsknoten wählt je NPC immer dasselbe. Sobald GameTime einen Spieltag hat: kleinen Adapter `IDialogueCalendar` registrieren (z. B. im NPC-Installer, NPC darf GameTime referenzieren). |
 | Dialog-Protokoll (DialogLog, Y/Tab), Details (R3/Shift) | UI | GDD 03 1.5 |
-| Sprachausgabe | Audio | Clip-IDs werden schon gebildet (`VO_<sprecher>_<dialog>.<knoten>`), die Anzeigedauer nimmt Cliplänge + 0,5 s, sobald es Clips gibt. |
+| Sprachausgabe | Audio | Clip-IDs werden schon gebildet (`VO_<sprecher>_<dialog>.<knoten>`, Varianten mit `.v1` … – jede Variante ist eine eigene Aufnahme); das Feld **Voice Clip Id** einer NPC-Zeile überschreibt sie bei Bedarf. Die Anzeigedauer nimmt Cliplänge + 0,5 s, sobald es Clips gibt. |
 | Lokalisierung | Lokalisierungs-Schritt | Jede Zeile und Antwort hat schon ihren Schlüssel (`<dialog>.<knoten>[.<antwort>]`, Varianten `.v1` …). |
-| Grafischer Dialog-Editor (Knotenansicht) | Architektur 11.11 Stufe 2 | Knoten haben schon ein verstecktes Feld für ihre Position im Editor. |
+| Grafischer Dialog-Editor (Knotenansicht) | Architektur 11.9 Stufe 2 | Knoten haben schon ein verstecktes Feld für ihre Position im Editor. |

@@ -311,6 +311,7 @@ namespace Aetherfall.Tests.EditMode.Dialogue
             AssertExit("kampf");
             Assert.That(ended.FollowUp, Is.EqualTo(DialogueFollowUp.Combat));
             Assert.That(_env.Npcs.IsHostile(MuehlbachDialogueFixture.Group), Is.True);
+            Assert.That(_env.Npcs.IsHostile(Harrik), Is.True, "Harrik belongs to the group: he cannot be talked to any more");
         }
 
         [Test]

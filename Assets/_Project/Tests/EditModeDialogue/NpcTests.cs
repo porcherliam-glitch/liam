@@ -107,6 +107,20 @@ namespace Aetherfall.Tests.EditMode.Dialogue
         }
 
         [Test]
+        public void HostileGroup_MakesItsMembersHostile_ButNotOthers()
+        {
+            Assert.That(_env.Npcs.IsHostile(MuehlbachDialogueFixture.Harrik), Is.False);
+
+            _env.Npcs.SetHostile(MuehlbachDialogueFixture.Group, true, "test");
+
+            Assert.That(_env.Npcs.IsHostile(MuehlbachDialogueFixture.Harrik), Is.True, "member of group.banditen_muehlbach");
+            Assert.That(_env.Npcs.IsHostile(TestDialogues.Ulf), Is.False, "no group");
+            Assert.That(_env.Npcs.IsHostile(null), Is.False);
+            _env.Npcs.SetHostile(MuehlbachDialogueFixture.Group, false, "test");
+            Assert.That(_env.Npcs.IsHostile(MuehlbachDialogueFixture.Harrik), Is.False);
+        }
+
+        [Test]
         public void Conditions_UseThePartner_WhenNoNpcIsSet()
         {
             var ctx = new ConditionContext(_env.Services, SubjectIds.Player, TestDialogues.Ulf, "test");

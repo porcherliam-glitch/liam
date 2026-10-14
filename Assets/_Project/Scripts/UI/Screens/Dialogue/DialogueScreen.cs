@@ -129,10 +129,13 @@ namespace Aetherfall.UI.Screens.Dialogue
             UiElementUtility.SetText(_autoLabel, DialogueScreenTexts.Get(DialogueScreenTexts.AutoOn));
             UiElementUtility.SetText(_endHint, DialogueScreenTexts.Get(DialogueScreenTexts.HintEnd));
 
-            List<VisualElement> rows = _optionsBox != null ? _optionsBox.Query<VisualElement>(className: OptionClass).ToList() : new List<VisualElement>();
+            List<VisualElement> rows = _optionsBox != null
+                ? _optionsBox.Query<VisualElement>(className: OptionClass).ToList()
+                : new List<VisualElement>();
             if (rows.Count < DialogueScreenPresenter.MaxOptions)
             {
-                Log.Error(LogCategory.UI, "Dialogue.uxml has " + rows.Count + " answer rows, the screen needs " + DialogueScreenPresenter.MaxOptions + ".");
+                Log.Error(LogCategory.UI, "Dialogue.uxml has " + rows.Count + " answer rows, the screen needs " + DialogueScreenPresenter.MaxOptions +
+                                          ".");
             }
 
             for (int i = 0; i < DialogueScreenPresenter.MaxOptions; i++)

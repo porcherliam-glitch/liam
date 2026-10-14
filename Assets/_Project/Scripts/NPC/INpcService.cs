@@ -36,7 +36,7 @@ namespace Aetherfall.NPC
         /// <returns>True if the NPC was alive.</returns>
         bool MarkDead(string npcId, string killerId);
 
-        /// <summary>True if the NPC or group is hostile.</summary>
+        /// <summary>True if the NPC or group is hostile; an NPC is also hostile while its group (<see cref="NpcSpec.GroupId"/>) is.</summary>
         /// <param name="id">NPC id or group id (<c>group.…</c>).</param>
         bool IsHostile(string id);
 

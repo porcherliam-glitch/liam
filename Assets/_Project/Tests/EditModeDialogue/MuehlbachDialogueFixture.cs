@@ -76,7 +76,7 @@ namespace Aetherfall.Tests.EditMode.Dialogue
         /// <summary>Harrik as NPC data: role "Banditenanfuehrer" until he says his name in n030.</summary>
         public static NpcSpec HarrikNpc()
         {
-            return new NpcSpec(Harrik, "Harrik", "Banditenanführer", false, DialogueId, HarrikLevel, 1f, false, 0);
+            return new NpcSpec(Harrik, "Harrik", "Banditenanführer", false, DialogueId, HarrikLevel, 1f, false, 0, Group);
         }
 
         /// <summary>The flags of the dialogue.</summary>

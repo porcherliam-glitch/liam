@@ -42,8 +42,8 @@ namespace Aetherfall.Dialogue
         [Tooltip("Aktionen, wenn die Zeile erscheint (z. B. Dialog/Name bekannt, Dialog/Thema freischalten, Welt/Flag setzen).")]
         [SerializeReference] private List<GameAction> actions = new List<GameAction>();
 
-        [Tooltip("Sprachausgabe-Clip-ID (optional). Leer = automatisch VO_<Sprecher>_<Dialog>.<Knoten> (GDD 02, 12.8). Nur ausfüllen, " +
-                 "wenn mehrere Zeilen denselben Clip nutzen sollen.")]
+        [Tooltip("Sprachausgabe-Clip-ID (optional). Leer = automatisch VO_<Sprecher>_<Dialog>.<Knoten>, Varianten mit .v1 … " +
+                 "(GDD 02, 12.8). Nur ausfüllen, wenn mehrere Zeilen denselben Clip nutzen sollen.")]
         [SerializeField] private string voiceClipId = string.Empty;
 
         /// <summary>Creates an empty line (inspector).</summary>
