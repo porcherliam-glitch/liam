@@ -23,6 +23,13 @@ namespace Aetherfall.Dialogue
     /// without player input per step; more ends the conversation with an error (cycle protection).</para>
     /// <para><b>Re-entrancy:</b> commands while a step runs (e.g. an action cancels the conversation) are deferred: a cancel
     /// is carried out when the step reaches the next node; continue and choose are ignored.</para>
+    /// <para><b>Jumps with return:</b> an end in the jumped-to dialogue returns to the return node, but only with the
+    /// follow-up "Gameplay"; an end with trade or combat ends the whole conversation with that follow-up (GDD 02, 12.2
+    /// "Haendler-Unterdialog"). While a return is pending, answers to such a returning end show no "[Ende]" (B / Circle still
+    /// chooses them as "Zurueck").</para>
+    /// <para><b>No selectable answer:</b> if every visible answer of a choice is greyed (checks too hard, too little gold,
+    /// one-time answers used up), B / Circle cancels the conversation even if it is not cancelable, so it cannot get stuck
+    /// (the validator warns with D07).</para>
     /// </remarks>
     public sealed class DialogueRunner
     {
@@ -59,6 +66,9 @@ namespace Aetherfall.Dialogue
 
         /// <summary>True while a conversation runs.</summary>
         public bool IsRunning => _running;
+
+        /// <summary>True while a step runs (actions, automatic nodes); commands in this time are deferred or ignored.</summary>
+        public bool IsStepping => _advancing;
 
         /// <summary>The started dialogue (null if none).</summary>
         public DialogueSpec Dialogue => _root;
@@ -420,7 +430,7 @@ namespace Aetherfall.Dialogue
 
         private string FinishOrReturnInStep(string exitId, DialogueFollowUp followUp)
         {
-            if (_returns.Count == 0)
+            if (!ReturnsHere(followUp))
             {
                 End(exitId, followUp, false);
                 return null;
@@ -434,7 +444,7 @@ namespace Aetherfall.Dialogue
 
         private void FinishOrReturn(string exitId, DialogueFollowUp followUp)
         {
-            if (_returns.Count == 0)
+            if (!ReturnsHere(followUp))
             {
                 End(exitId, followUp, false);
                 return;
@@ -444,6 +454,15 @@ namespace Aetherfall.Dialogue
             _returns.RemoveAt(_returns.Count - 1);
             _spec = frame.Spec;
             Advance(frame.NodeId, null);
+        }
+
+        /// <summary>
+        /// True if an end with this follow-up returns to a pending jump; trade and combat end the whole conversation (a return
+        /// would swallow them).
+        /// </summary>
+        private bool ReturnsHere(DialogueFollowUp followUp)
+        {
+            return _returns.Count > 0 && followUp == DialogueFollowUp.Gameplay;
         }
 
         private void RunActions(IReadOnlyList<GameAction> actions)
@@ -474,7 +493,7 @@ namespace Aetherfall.Dialogue
             string clip = line.VoiceClipOverride.Length > 0 ? line.VoiceClipOverride : DialogueIds.VoiceClipId(speakerId, key);
             var view = new DialogueLineView(line.Id, speakerId, _context.SpeakerName(speakerId), text, key, clip, line.Emotion, line.Camera,
                 SubtitlePager.Paginate(text),
-                SubtitleTiming.DisplaySeconds(text.Length), line.EndsAfter && _returns.Count == 0);
+                SubtitleTiming.DisplaySeconds(text.Length), line.EndsAfter && !ReturnsHere(line.FollowUp));
             _view.ShowLine(_spec.Id, view, _root.Cancelable);
             Changed?.Invoke();
         }
@@ -483,17 +502,28 @@ namespace Aetherfall.Dialogue
         {
             _optionScratch.Clear();
             _optionIndices.Clear();
+            bool returnPending = _returns.Count > 0;
+            bool anySelectable = false;
             for (int i = 0; i < choice.Options.Count; i++)
             {
-                DialogueOptionView option = DialogueOptionAnalyzer.Analyze(_context, _spec, choice, choice.Options[i], _npcId);
+                DialogueOptionView option = DialogueOptionAnalyzer.Analyze(_context, _spec, choice, choice.Options[i], _npcId, returnPending);
                 if (option != null)
                 {
                     _optionScratch.Add(option);
                     _optionIndices.Add(i);
+                    anySelectable |= option.IsEnabled;
                 }
             }
 
-            _view.ShowChoice(_spec.Id, choice.Id, _optionScratch, _root.Cancelable);
+            bool canCancel = _root.Cancelable;
+            if (!anySelectable && _optionScratch.Count > 0)
+            {
+                // Every visible answer is greyed: without this neither confirm nor B / Circle would do anything (stuck).
+                Log.Warning(LogCategory.Dialogue, "Dialogue '" + _spec.Id + "', " + choice.Id + ": no selectable option - B / Circle cancels the conversation (D07).");
+                canCancel = true;
+            }
+
+            _view.ShowChoice(_spec.Id, choice.Id, _optionScratch, canCancel);
             Changed?.Invoke();
         }
 

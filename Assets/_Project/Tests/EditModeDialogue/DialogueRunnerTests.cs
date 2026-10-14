@@ -442,6 +442,112 @@ namespace Aetherfall.Tests.EditMode.Dialogue
         }
 
         [Test]
+        public void ChoiceWithoutSelectableAnswer_CanBeCancelled_InsteadOfGettingStuck()
+        {
+            // Only checks, Charisma 8: in the deterministic mode both answers are greyed, and the dialogue is not cancelable.
+            DialogueSpec spec = new DialogueSpecBuilder("dlg.test.ulf_proben")
+                .Speaker(TestDialogues.Ulf)
+                .Nodes(
+                    new ChoiceNode("n010")
+                        .Add(new DialogueOption("a", "Glaub mir.", "n020"))
+                        .Add(new DialogueOption("b", "Ich lüge nie.", "n030")),
+                    new CheckNode("n020", SkillCheckType.Persuade, CheckDifficulty.Easy, "n990", "n990"),
+                    new CheckNode("n030", SkillCheckType.Lie, CheckDifficulty.EasyPlus, "n990", "n990"),
+                    new EndNode("n990", "ende"))
+                .Build();
+            using (var env = new DialogueTestEnvironment(null, TestDialogues.Npcs(), TestDialogues.Flags(), spec))
+            {
+                env.Stats.Charisma = 8;
+                env.Start(spec.Id, TestDialogues.Ulf);
+
+                Assert.That(env.View.State, Is.EqualTo(DialogueViewState.Choice));
+                Assert.That(env.Option("a").IsEnabled, Is.False);
+                Assert.That(env.Option("b").IsEnabled, Is.False);
+                Assert.That(env.View.BackOptionIndex, Is.EqualTo(-1));
+                Assert.That(env.View.CanCancel, Is.True, "otherwise no button does anything");
+                Assert.That(env.LogCapture.Sink.Contains(LogLevel.Warning, "no selectable option"), Is.True, env.LogCapture.Sink.Dump());
+
+                Assert.That(env.Dialogues.Back(), Is.True);
+
+                Assert.That(env.Dialogues.IsRunning, Is.False);
+                Assert.That(env.Outcomes.Last.ExitId, Is.Empty);
+                Assert.That(env.Dialogues.Runner.LastEnd.Cancelled, Is.True);
+                Assert.That(env.GameState.Current, Is.EqualTo(GameState.Playing));
+                Assert.That(env.Saves.Blockers, Is.Empty);
+
+                env.Stats.Charisma = 12;
+                env.Start(spec.Id, TestDialogues.Ulf);
+                Assert.That(env.Option("a").IsEnabled, Is.True);
+                Assert.That(env.View.CanCancel, Is.False, "with a selectable answer the dialogue stays not cancelable");
+            }
+        }
+
+        [Test]
+        public void JumpWithReturn_IntoATraderSubDialogue_EndsWithTradeOrCombat_AndReturnsOtherwise()
+        {
+            DialogueSpec hub = new DialogueSpecBuilder("dlg.test.ulf_markt")
+                .Speaker(TestDialogues.Ulf)
+                .Nodes(
+                    new ChoiceNode("n010", true)
+                        .Add(new DialogueOption("a", "Was hast du zu verkaufen?", "n020"))
+                        .Add(new DialogueOption("b", "Danke.", "n990")),
+                    new JumpNode("n020", "dlg.test.ulf_haendler", string.Empty).ReturnTo("n010"),
+                    new EndNode("n990", "danke"))
+                .Build();
+            DialogueSpec trader = new DialogueSpecBuilder("dlg.test.ulf_haendler")
+                .Speaker(TestDialogues.Ulf)
+                .Nodes(
+                    new ChoiceNode("n010")
+                        .Add(new DialogueOption("a", "Zeig mir deine Waren.", "n020"))
+                        .Add(new DialogueOption("b", "Deine Klingen sind Schrott.", "n030"))
+                        .Add(new DialogueOption("c", "Vielleicht später.", "n990")),
+                    new EndNode("n020", "handel", DialogueFollowUp.Trade),
+                    new LineNode("n030", "Raus hier!").EndWith("rauferei", DialogueFollowUp.Combat),
+                    new EndNode("n990", "zurueck"))
+                .Build();
+            using (var env = new DialogueTestEnvironment(null, TestDialogues.Npcs(), TestDialogues.Flags(), hub, trader))
+            {
+                env.Start(hub.Id, TestDialogues.Ulf);
+                env.Choose("a");
+
+                Assert.That(env.View.CurrentDialogueId, Is.EqualTo(trader.Id));
+                Assert.That(env.Option("a").TagText, Is.EqualTo("[Handel]"));
+                Assert.That(env.Option("b").TagText, Is.EqualTo("[Angriff]"));
+                Assert.That(env.Option("c").TagText, Is.Empty, "the end returns to the hub: no \"[Ende]\"");
+                Assert.That(env.Option("c").IsEndOption, Is.False);
+                Assert.That(env.Option("c").IsBackOption, Is.True);
+                Assert.That(env.View.BackOptionIndex, Is.EqualTo(env.IndexOf("c")), "B / Circle goes back to the hub");
+
+                Assert.That(env.Dialogues.Back(), Is.True);
+                Assert.That(env.Dialogues.IsRunning, Is.True);
+                Assert.That(env.View.CurrentDialogueId, Is.EqualTo(hub.Id));
+                Assert.That(env.View.NodeId, Is.EqualTo("n010"));
+                Assert.That(env.Option("b").TagText, Is.EqualTo("[Ende]"), "in the hub no return is pending");
+                Assert.That(env.Outcomes.Count, Is.EqualTo(0));
+
+                env.Choose("a");
+                env.Choose("a");
+
+                Assert.That(env.Dialogues.IsRunning, Is.False, "the trade screen follows; returning would swallow it");
+                Assert.That(env.Dialogues.Runner.LastEnd.FollowUp, Is.EqualTo(DialogueFollowUp.Trade));
+                Assert.That(env.Dialogues.Runner.LastEnd.ExitId, Is.EqualTo("handel"));
+                Assert.That(env.Outcomes.Last.DialogueId, Is.EqualTo(hub.Id));
+                Assert.That(env.Outcomes.Last.ExitId, Is.EqualTo("handel"));
+                Assert.That(env.GameState.Current, Is.EqualTo(GameState.Playing));
+
+                env.Start(hub.Id, TestDialogues.Ulf);
+                env.Choose("a");
+                env.Choose("b");
+
+                Assert.That(env.View.Line.EndsConversation, Is.True);
+                env.Continue();
+                Assert.That(env.Dialogues.IsRunning, Is.False);
+                Assert.That(env.Dialogues.Runner.LastEnd.FollowUp, Is.EqualTo(DialogueFollowUp.Combat));
+                Assert.That(env.Outcomes.Last.ExitId, Is.EqualTo("rauferei"));
+            }
+        }
+
+        [Test]
         public void Changed_IsRaisedForEveryStep_AndTheRevisionGrows()
         {
             int changes = 0;

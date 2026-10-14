@@ -12,10 +12,16 @@ namespace Aetherfall.UI.Screens.Dialogue
         /// <summary>Vertical navigation value (-1 down .. 1 up).</summary>
         public float NavigateY;
 
-        /// <summary>Confirm was pressed this frame (A / Cross / E / Space / Enter / left mouse button).</summary>
+        /// <summary>Confirm was pressed this frame with a key or button (A / Cross / E / Space / Enter): confirms the focused answer.</summary>
         public bool SubmitPressed;
 
-        /// <summary>Confirm is held (hold to confirm for "[Toeten]").</summary>
+        /// <summary>
+        /// Confirm was pressed this frame with the left mouse button (also part of DialogSubmit): chooses the answer under the
+        /// pointer, never the focused one (a click on a greyed answer or beside the answers chooses nothing).
+        /// </summary>
+        public bool PointerSubmitPressed;
+
+        /// <summary>Confirm is held, with any of its buttons (hold to confirm for "[Toeten]").</summary>
         public bool SubmitHeld;
 
         /// <summary>Back was pressed this frame (B / Circle / right mouse button).</summary>
@@ -33,6 +39,7 @@ namespace Aetherfall.UI.Screens.Dialogue
             NavigateX = 0f;
             NavigateY = 0f;
             SubmitPressed = false;
+            PointerSubmitPressed = false;
             SubmitHeld = false;
             BackPressed = false;
             DirectNumber = 0;

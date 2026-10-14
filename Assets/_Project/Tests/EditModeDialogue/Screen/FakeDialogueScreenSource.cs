@@ -133,6 +133,13 @@ namespace Aetherfall.Tests.EditMode.DialogueScreen
             return new DialogueScreenOption(text, "[Töten]", DialogueScreenTag.Kill, string.Empty, true, false, true, string.Empty);
         }
 
+        /// <summary>A "[Angriff]" answer (selectable, no hold).</summary>
+        /// <param name="text">Text.</param>
+        public static DialogueScreenOption Combat(string text)
+        {
+            return new DialogueScreenOption(text, "[Angriff]", DialogueScreenTag.Combat, string.Empty, true, false, false, string.Empty);
+        }
+
         /// <summary>The "[Ende]" answer.</summary>
         /// <param name="text">Text.</param>
         public static DialogueScreenOption End(string text)

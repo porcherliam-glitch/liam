@@ -47,6 +47,12 @@ namespace Aetherfall.Dialogue
         AlreadyChosen = 1 << 10,
 
         /// <summary>A one-time option that was used (greyed, not selectable).</summary>
-        Spent = 1 << 11
+        Spent = 1 << 11,
+
+        /// <summary>
+        /// Leads to an end that returns to the dialogue that jumped here (jump with return, follow-up "Gameplay"): no tag, the
+        /// conversation goes on; B / Circle / Esc chooses it like "[Ende]" (GDD 02, 12.2: the last option is "Ende" or "Zurueck").
+        /// </summary>
+        Return = 1 << 12
     }
 }

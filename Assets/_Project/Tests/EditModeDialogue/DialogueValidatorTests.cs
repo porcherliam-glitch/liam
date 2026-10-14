@@ -275,6 +275,35 @@ namespace Aetherfall.Tests.EditMode.Dialogue
         }
 
         [Test]
+        public void ChoiceWithoutAnAlwaysSelectableAnswer_IsAWarning()
+        {
+            var choice = new ChoiceNode("n010")
+                .Add(new DialogueOption("a", "Glaub mir.", "n020"))
+                .Add(new DialogueOption("b", "Nimm das Gold.", "n030"))
+                .Add(new DialogueOption("c", "Hier, für dich.", "n990").Do(new Bribe(10)))
+                .Add(new DialogueOption("d", "Einmal fragen.", "n990").OnlyOnce())
+                .Add(new DialogueOption("e", "Nur für Freunde.", "n990").SelectableWhen(new FlagIs(TestDialogues.FlagFriend, 1), "Freund"))
+                .Add(new DialogueOption("f", "Geheimnis.", "n990").VisibleWhen(new FlagIs(TestDialogues.FlagFriend, 1)));
+            DialogueNode[] rest =
+            {
+                new CheckNode("n020", SkillCheckType.Persuade, CheckDifficulty.Easy, "n990", "n990"),
+                new ActionNode("n030", new Bribe(20)).EndWith("bezahlt"),
+                new EndNode("n990", "ende")
+            };
+
+            ValidationReport report = Validate(Concat(choice, rest));
+
+            Assert.That(report.CountOf(DialogueValidator.NoSafeOptionCode), Is.EqualTo(1), report.ToText());
+            Assert.That(report.ErrorCount, Is.EqualTo(0), report.ToText());
+            Assert.That(report.ToText(), Does.Contain("Warnung D07 [dlg.test.ulf_pruefung / n010]"));
+
+            choice.Add(new DialogueOption("g", "Ich komme wieder.", "n990"));
+            ValidationReport fixedReport = Validate(Concat(choice, rest));
+
+            Assert.That(fixedReport.Contains(DialogueValidator.NoSafeOptionCode), Is.False, fixedReport.ToText());
+        }
+
+        [Test]
         public void SwitchWithoutDefault_IsAnError()
         {
             ValidationReport report = Validate(
@@ -323,6 +352,13 @@ namespace Aetherfall.Tests.EditMode.Dialogue
         private static ValidationReport Validate(params DialogueNode[] nodes)
         {
             return Validator().Validate(Spec(nodes));
+        }
+
+        private static DialogueNode[] Concat(DialogueNode first, DialogueNode[] rest)
+        {
+            var nodes = new List<DialogueNode> { first };
+            nodes.AddRange(rest);
+            return nodes.ToArray();
         }
 
         private static DialogueCatalog Catalog()

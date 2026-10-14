@@ -162,13 +162,143 @@ namespace Aetherfall.Tests.EditMode.DialogueScreen
                 FakeDialogueScreenSource.Answer("Drei"));
             Tick(Frame);
 
-            _presenter.PointerEnter(2);
+            _presenter.PointerOver(2);
             Assert.That(_presenter.Focus.Current, Is.EqualTo(2));
-            _presenter.PointerEnter(1);
+            _presenter.PointerOver(1);
             Assert.That(_presenter.Focus.Current, Is.EqualTo(2), "the tag of a greyed answer shows its reason");
+            Assert.That(_presenter.PointerIndex, Is.EqualTo(1), "the row under the pointer is remembered, also a greyed one");
 
             Assert.That(_presenter.ChooseDirect(1), Is.False);
             Assert.That(_source.Chosen, Is.Empty);
+        }
+
+        [Test]
+        public void ClickOnAGreyedAnswer_ChoosesNothing_EvenIfAnotherAnswerWasFocusedBefore()
+        {
+            // n040 with values 10 and no gold: the mouse passes "[Angriff]" on its way up to the greyed "[Luegen 12 · dein Wert 10]".
+            _source.ShowChoice(4, false, FakeDialogueScreenSource.Answer("Wer schickt dich?"), FakeDialogueScreenSource.Greyed("Lindenhain …"),
+                FakeDialogueScreenSource.Greyed("Brenner zahlt euch …"), FakeDialogueScreenSource.Combat("Dann regeln wir das mit Stahl."),
+                FakeDialogueScreenSource.End("Ich komme wieder."));
+            Tick(Frame);
+            _presenter.PointerOver(3);
+            Assert.That(_presenter.Focus.Current, Is.EqualTo(3));
+            _presenter.PointerLeave(3);
+            _presenter.PointerOver(2);
+
+            Tick(Frame, Click());
+
+            Assert.That(_source.Chosen, Is.Empty, "the click on the greyed answer must not confirm \"[Angriff]\"");
+            Assert.That(_presenter.Focus.Current, Is.EqualTo(3), "the keyboard focus stays where it was");
+            Assert.That(_presenter.Mode, Is.EqualTo(DialogueScreenMode.Choice));
+        }
+
+        [Test]
+        public void ClickBesideTheAnswers_ChoosesNothing()
+        {
+            _source.ShowChoice(-1, false, FakeDialogueScreenSource.Answer("Eins"), FakeDialogueScreenSource.Answer("Zwei"));
+            Tick(Frame);
+            _presenter.PointerOver(1);
+            _presenter.PointerLeave(1);
+
+            Tick(Frame, Click());
+
+            Assert.That(_source.Chosen, Is.Empty);
+            Assert.That(_presenter.PointerIndex, Is.EqualTo(-1));
+        }
+
+        [Test]
+        public void Click_ChoosesTheAnswerUnderThePointer_NotTheFocusedOne()
+        {
+            _source.ShowChoice(-1, false, FakeDialogueScreenSource.Answer("Eins"), FakeDialogueScreenSource.Answer("Zwei"),
+                FakeDialogueScreenSource.Answer("Drei"));
+            Tick(Frame);
+            Tick(Frame);
+            _presenter.PointerOver(2);
+            Tick(Frame, Up());
+            Assert.That(_presenter.Focus.Current, Is.EqualTo(1), "the keyboard moved the focus away from the pointer");
+
+            Tick(Frame, Click());
+
+            Assert.That(_source.Chosen, Is.EqualTo(new[] { 2 }));
+        }
+
+        [Test]
+        public void PointerLeave_OfAnotherRow_KeepsTheRowUnderThePointer()
+        {
+            _source.ShowChoice(-1, false, FakeDialogueScreenSource.Answer("Eins"), FakeDialogueScreenSource.Answer("Zwei"));
+            Tick(Frame);
+            _presenter.PointerOver(1);
+            _presenter.PointerLeave(0);
+
+            Tick(Frame, Click());
+
+            Assert.That(_source.Chosen, Is.EqualTo(new[] { 1 }), "enter of the new row may arrive before leave of the old one");
+        }
+
+        [Test]
+        public void Click_InALine_Continues()
+        {
+            _preferences.SetTextSpeed(DialogueTextSpeed.Instant);
+            _source.ShowLine("Ulf", 2f, false, "Hallo.");
+            Tick(Frame);
+
+            Tick(Frame, Click());
+
+            Assert.That(_source.Continues, Is.EqualTo(1), "in a line a click anywhere continues");
+        }
+
+        [Test]
+        public void ClickOnAKill_StartsTheHold_AndLeavingTheRowCancelsIt()
+        {
+            _source.ShowChoice(-1, false, FakeDialogueScreenSource.Kill("Du drückst die Klinge tiefer."), FakeDialogueScreenSource.Answer("Zwei"));
+            Tick(Frame);
+            _presenter.PointerOver(0);
+
+            Tick(Frame, Click(true));
+            Assert.That(_presenter.HoldIndex, Is.EqualTo(0));
+            Assert.That(_source.Chosen, Is.Empty, "a click alone never confirms \"[Toeten]\"");
+            _presenter.PointerLeave(0);
+            Assert.That(_presenter.HoldIndex, Is.EqualTo(-1), "the mouse left the row");
+            Tick(1f, Held());
+            Assert.That(_source.Chosen, Is.Empty);
+
+            _presenter.PointerOver(0);
+            Tick(Frame, Click(true));
+            Tick(0.5f, Held());
+            Tick(0.5f, Held());
+
+            Assert.That(_source.Chosen, Is.EqualTo(new[] { 0 }));
+        }
+
+        [Test]
+        public void ClickOnAKill_DoesNothing_WhenTheFocusIsOnAnotherRow()
+        {
+            _source.ShowChoice(-1, false, FakeDialogueScreenSource.Kill("Klinge"), FakeDialogueScreenSource.Answer("Zwei"));
+            Tick(Frame);
+            Tick(Frame);
+            _presenter.PointerOver(0);
+            Tick(Frame, Down());
+            Assert.That(_presenter.Focus.Current, Is.EqualTo(1));
+
+            Tick(Frame, Click(true));
+            Tick(1.1f, Held());
+
+            Assert.That(_presenter.HoldIndex, Is.EqualTo(-1));
+            Assert.That(_source.Chosen, Is.Empty);
+        }
+
+        [Test]
+        public void KeyboardHold_IsNotCancelledByThePointerLeavingARow()
+        {
+            _source.ShowChoice(-1, false, FakeDialogueScreenSource.Kill("Klinge"));
+            Tick(Frame);
+            _presenter.PointerOver(0);
+            Tick(Frame, Submit(true));
+            _presenter.PointerLeave(0);
+
+            Tick(1f, Held());
+
+            Assert.That(_source.Chosen, Is.EqualTo(new[] { 0 }));
         }
 
         [Test]
@@ -310,6 +440,11 @@ namespace Aetherfall.Tests.EditMode.DialogueScreen
             return new DialogueInputFrame { SubmitPressed = true, SubmitHeld = held };
         }
 
+        private static DialogueInputFrame Click(bool held = false)
+        {
+            return new DialogueInputFrame { PointerSubmitPressed = true, SubmitHeld = held };
+        }
+
         private static DialogueInputFrame Held()
         {
             return new DialogueInputFrame { SubmitHeld = true };
@@ -318,6 +453,11 @@ namespace Aetherfall.Tests.EditMode.DialogueScreen
         private static DialogueInputFrame Down()
         {
             return new DialogueInputFrame { NavigateY = -1f };
+        }
+
+        private static DialogueInputFrame Up()
+        {
+            return new DialogueInputFrame { NavigateY = 1f };
         }
     }
 }

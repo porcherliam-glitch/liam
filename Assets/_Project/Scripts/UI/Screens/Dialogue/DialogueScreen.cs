@@ -12,8 +12,9 @@ namespace Aetherfall.UI.Screens.Dialogue
     /// symbols, tags ("[Ueberzeugen 12]" in the attribute colour, "[Angriff]" and "[Toeten]" in red, "[80 Gold]", "[Ende]"), greyed
     /// answers, answers chosen before at 60 % opacity, hold progress for irreversible answers, and button hints that follow the
     /// device. Fully usable with a controller: the input comes from the action map "Dialog" (<see cref="IDialogueScreenInput"/>),
-    /// the logic is in <see cref="DialogueScreenPresenter"/>; the mouse only moves the focus (the left button is part of
-    /// DialogSubmit, so a click confirms through the same path).
+    /// the logic is in <see cref="DialogueScreenPresenter"/>. The rows report the pointer (enter and leave, also on greyed
+    /// answers); the left mouse button is part of DialogSubmit and arrives as <see cref="DialogueInputFrame.PointerSubmitPressed"/>,
+    /// so a click chooses the answer under the pointer and never the focused one.
     /// </summary>
     /// <remarks>
     /// Built by the UI root from <c>Dialogue.uxml</c> (styles: <c>Dialogue.uss</c> through the theme) and registered with the UI manager;
@@ -147,9 +148,13 @@ namespace Aetherfall.UI.Screens.Dialogue
                 _texts[i] = row != null ? row.Q<Label>(className: OptionTextClass) : null;
                 _fills[i] = row != null ? row.Q<VisualElement>(className: "af-button__hold-fill") : null;
                 int index = i;
-                // The left mouse button is part of DialogSubmit: a click confirms through the input path, so the click itself
-                // and the button hold do nothing here (otherwise an answer would be chosen twice).
-                UiElementUtility.BindItem(row, () => _presenter.PointerEnter(index), held => { }, () => { });
+                // The left mouse button is part of DialogSubmit: a click is handled through the input path (answer under the
+                // pointer), so the click itself and the button hold do nothing here (otherwise an answer would be chosen twice).
+                UiElementUtility.BindItem(row, () => _presenter.PointerOver(index), held => { }, () => { });
+                if (row != null)
+                {
+                    row.RegisterCallback<PointerLeaveEvent>(evt => _presenter.PointerLeave(index));
+                }
             }
 
             UiElementUtility.CollectGlyphLabels(root, _glyphLabels);
@@ -219,6 +224,8 @@ namespace Aetherfall.UI.Screens.Dialogue
         /// <inheritdoc />
         protected override void OnClose()
         {
+            // A closed screen has no row under the pointer (the next conversation starts without a remembered row).
+            _presenter.PointerOver(-1);
             UiElementUtility.HideAnimated(_root);
         }
 

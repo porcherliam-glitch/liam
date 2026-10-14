@@ -78,8 +78,14 @@ namespace Aetherfall.Dialogue
         /// <summary>True if the option was chosen before (60 % opacity).</summary>
         public bool IsAlreadyChosen => (Marks & DialogueOptionMarks.AlreadyChosen) != 0;
 
-        /// <summary>True if this option ends the conversation (chosen by B / Circle / Esc).</summary>
+        /// <summary>True if this option ends the conversation ("[Ende]").</summary>
         public bool IsEndOption => Tag == DialogueOptionTag.End;
+
+        /// <summary>
+        /// True if B / Circle / Esc chooses this option: "[Ende]", or an untagged answer that returns from a jumped-to dialogue
+        /// ("Zurueck", <see cref="DialogueOptionMarks.Return"/>).
+        /// </summary>
+        public bool IsBackOption => IsEndOption || (Tag == DialogueOptionTag.None && (Marks & DialogueOptionMarks.Return) != 0);
 
         /// <summary>Attribute colour key of a check (<c>charisma</c>, <c>strength</c>); empty without check.</summary>
         public string AttributeKey => (Marks & DialogueOptionMarks.Check) != 0 ? SkillCheckRules.AttributeColorKey(Check.Attribute) : string.Empty;

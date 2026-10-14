@@ -42,14 +42,14 @@ namespace Aetherfall.Dialogue
         /// <summary>True if B / Esc may cancel the conversation here (no end option, dialogue cancelable).</summary>
         public bool CanCancel { get; private set; }
 
-        /// <summary>Index of the option chosen by B / Circle / Esc ("[Ende]", the last one); -1 if none.</summary>
+        /// <summary>Index of the option chosen by B / Circle / Esc (the last selectable "[Ende]" or "Zurueck" answer); -1 if none.</summary>
         public int BackOptionIndex
         {
             get
             {
                 for (int i = _options.Count - 1; i >= 0; i--)
                 {
-                    if (_options[i].IsEndOption && _options[i].IsEnabled)
+                    if (_options[i].IsBackOption && _options[i].IsEnabled)
                     {
                         return i;
                     }

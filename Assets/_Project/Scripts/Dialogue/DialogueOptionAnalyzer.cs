@@ -8,7 +8,9 @@ namespace Aetherfall.Dialogue
     /// options, and the markings derived from the option and the nodes it leads to:
     /// <list type="bullet">
     /// <item>target is a check → "[Ueberzeugen 12]" with the preview of the check (deterministic: grey below the threshold)</item>
-    /// <item>target is an end node → "[Ende]" (or "[Handel]" / "[Angriff]" by the follow-up)</item>
+    /// <item>target is an end node → "[Ende]" (or "[Handel]" / "[Angriff]" by the follow-up); while a jump with return is
+    /// pending, an end with the follow-up "Gameplay" returns instead of ending: no "[Ende]" and no diamond, only the
+    /// <see cref="DialogueOptionMarks.Return"/> mark (B / Circle chooses it as "Zurueck")</item>
     /// <item>the option's actions and the actions of the lines and action nodes on the straight path behind it (no choice,
     /// check, switch, random or jump in between) → "[80 Gold]", "[Angriff]", "!", star, diamond (<see cref="DialogueBadgeRules"/>)</item>
     /// <item>the straight path ends in a quest exit of the dialogue → diamond</item>
@@ -24,7 +26,9 @@ namespace Aetherfall.Dialogue
         /// <param name="choice">Choice node.</param>
         /// <param name="option">Option.</param>
         /// <param name="npcId">Conversation partner.</param>
-        public static DialogueOptionView Analyze(DialogueRunContext context, DialogueSpec spec, ChoiceNode choice, DialogueOption option, string npcId)
+        /// <param name="returnPending">True while a jump with return is pending (an end with "Gameplay" returns instead of ending).</param>
+        public static DialogueOptionView Analyze(DialogueRunContext context, DialogueSpec spec, ChoiceNode choice, DialogueOption option, string npcId,
+            bool returnPending = false)
         {
             if (option == null)
             {
@@ -86,15 +90,23 @@ namespace Aetherfall.Dialogue
                 }
                 else if (target is EndNode end)
                 {
-                    marks |= DialogueOptionMarks.End | FollowUpMarks(end.FollowUp);
-                    if (spec.IsQuestExit(end.ExitId))
+                    if (returnPending && end.FollowUp == DialogueFollowUp.Gameplay)
                     {
-                        marks |= DialogueOptionMarks.QuestProgress;
+                        // Returns to the dialogue that jumped here: the conversation goes on, so neither "[Ende]" nor a quest exit.
+                        marks |= DialogueOptionMarks.Return;
+                    }
+                    else
+                    {
+                        marks |= DialogueOptionMarks.End | FollowUpMarks(end.FollowUp);
+                        if (spec.IsQuestExit(end.ExitId))
+                        {
+                            marks |= DialogueOptionMarks.QuestProgress;
+                        }
                     }
                 }
                 else
                 {
-                    marks |= FollowStraightPath(context, spec, target, actions);
+                    marks |= FollowStraightPath(context, spec, target, actions, returnPending);
                 }
             }
 
@@ -122,7 +134,7 @@ namespace Aetherfall.Dialogue
         }
 
         private static DialogueOptionMarks FollowStraightPath(DialogueRunContext context, DialogueSpec spec, DialogueNode start,
-            List<IReadOnlyList<GameAction>> actions)
+            List<IReadOnlyList<GameAction>> actions, bool returnPending)
         {
             DialogueNode node = start;
             for (int step = 0; step < context.Rules.MaxPathLength && node != null; step++)
@@ -140,7 +152,7 @@ namespace Aetherfall.Dialogue
 
                     if (flow.EndsAfter)
                     {
-                        return ExitMarks(spec, flow.ExitId, flow.FollowUp);
+                        return ExitMarks(spec, flow.ExitId, flow.FollowUp, returnPending);
                     }
 
                     spec.TryGetNode(flow.NextNodeId, out node);
@@ -149,7 +161,7 @@ namespace Aetherfall.Dialogue
 
                 if (node is EndNode end)
                 {
-                    return ExitMarks(spec, end.ExitId, end.FollowUp);
+                    return ExitMarks(spec, end.ExitId, end.FollowUp, returnPending);
                 }
 
                 break;
@@ -158,8 +170,14 @@ namespace Aetherfall.Dialogue
             return DialogueOptionMarks.None;
         }
 
-        private static DialogueOptionMarks ExitMarks(DialogueSpec spec, string exitId, DialogueFollowUp followUp)
+        private static DialogueOptionMarks ExitMarks(DialogueSpec spec, string exitId, DialogueFollowUp followUp, bool returnPending)
         {
+            if (returnPending && followUp == DialogueFollowUp.Gameplay)
+            {
+                // The end returns to the jumping dialogue: its exit is no outcome, so no diamond.
+                return DialogueOptionMarks.None;
+            }
+
             DialogueOptionMarks marks = FollowUpMarks(followUp);
             if (spec.IsQuestExit(exitId))
             {

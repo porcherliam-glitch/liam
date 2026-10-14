@@ -12,8 +12,13 @@ namespace Aetherfall.UI.Screens.Dialogue
     /// directly, X / F switches the automatic continue. During a choice the last line stays visible as context.
     /// </summary>
     /// <remarks>
-    /// The view (<see cref="DialogueScreen"/>) renders <see cref="Version"/> changes. The source is polled every frame
-    /// (<see cref="IDialogueScreenSource.Revision"/>), so the presenter never shows an outdated choice after a command.
+    /// <para><b>Mouse:</b> the focus follows the pointer onto selectable answers; the row under the pointer is remembered
+    /// separately (<see cref="PointerOver"/>, <see cref="PointerLeave"/>), also over greyed answers. A left click
+    /// (<see cref="DialogueInputFrame.PointerSubmitPressed"/>) only chooses the answer under the pointer: a click on a greyed
+    /// answer or beside the answers chooses nothing, never the answer focused before. "[Toeten]" starts its hold only on
+    /// the focused row under the pointer, and leaving that row cancels a hold started by the mouse.</para>
+    /// <para>The view (<see cref="DialogueScreen"/>) renders <see cref="Version"/> changes. The source is polled every frame
+    /// (<see cref="IDialogueScreenSource.Revision"/>), so the presenter never shows an outdated choice after a command.</para>
     /// </remarks>
     public sealed class DialogueScreenPresenter
     {
@@ -31,6 +36,8 @@ namespace Aetherfall.UI.Screens.Dialogue
         private readonly DialogueScreenOption[] _options = new DialogueScreenOption[MaxOptions];
         private readonly List<string> _pages = new List<string>();
         private int _optionCount;
+        private int _pointerIndex = -1;
+        private bool _holdByPointer;
         private int _revision = int.MinValue;
         private int _page;
         private float _autoTimer;
@@ -85,6 +92,9 @@ namespace Aetherfall.UI.Screens.Dialogue
 
         /// <summary>Progress of the hold to confirm (0-1).</summary>
         public float HoldProgress => _hold.Progress;
+
+        /// <summary>Answer row under the mouse pointer (-1 if none), also a greyed one.</summary>
+        public int PointerIndex => _pointerIndex;
 
         /// <summary>True if B / Circle does something now (end answer or cancel).</summary>
         public bool CanGoBack => Mode == DialogueScreenMode.Choice ? _source.BackOptionIndex >= 0 || _source.CanCancel : Mode == DialogueScreenMode.Line && _source.CanCancel;
@@ -147,19 +157,40 @@ namespace Aetherfall.UI.Screens.Dialogue
             }
         }
 
-        /// <summary>The mouse entered an answer: it gets the focus (greyed answers stay unfocused; their tag shows the reason).</summary>
-        /// <param name="index">Answer index.</param>
-        public void PointerEnter(int index)
+        /// <summary>
+        /// The mouse pointer entered an answer row: it is remembered as the row under the pointer, and a selectable answer
+        /// gets the focus (greyed answers stay unfocused; their tag shows the reason). Leaving the row of a hold started by the
+        /// mouse cancels it.
+        /// </summary>
+        /// <param name="index">Row index (answer index); -1 = over no answer.</param>
+        public void PointerOver(int index)
         {
-            if (Mode != DialogueScreenMode.Choice || index < 0 || index >= _optionCount || _focus.Current == index)
+            _pointerIndex = index >= 0 && index < MaxOptions ? index : -1;
+            if (_hold.IsHolding && _holdByPointer && _hold.Target != _pointerIndex)
+            {
+                _hold.Cancel();
+                Version++;
+            }
+
+            if (Mode != DialogueScreenMode.Choice || _pointerIndex < 0 || _pointerIndex >= _optionCount || _focus.Current == _pointerIndex)
             {
                 return;
             }
 
-            if (_focus.SetCurrent(index))
+            if (_focus.SetCurrent(_pointerIndex))
             {
                 _hold.Cancel();
                 Version++;
+            }
+        }
+
+        /// <summary>The mouse pointer left an answer row (ignored if the pointer is already over another row).</summary>
+        /// <param name="index">Row index.</param>
+        public void PointerLeave(int index)
+        {
+            if (index == _pointerIndex)
+            {
+                PointerOver(-1);
             }
         }
 
@@ -198,7 +229,8 @@ namespace Aetherfall.UI.Screens.Dialogue
                 Version++;
             }
 
-            if (inputActive && input.SubmitPressed)
+            // In a line any confirm continues, also a click anywhere.
+            if (inputActive && (input.SubmitPressed || input.PointerSubmitPressed))
             {
                 AdvanceLine();
                 return;
@@ -283,6 +315,12 @@ namespace Aetherfall.UI.Screens.Dialogue
                 return;
             }
 
+            if (input.PointerSubmitPressed)
+            {
+                PointerSubmit();
+                return;
+            }
+
             if (input.SubmitPressed && _focus.HasFocus && _focus.Current < _optionCount)
             {
                 int index = _focus.Current;
@@ -295,6 +333,7 @@ namespace Aetherfall.UI.Screens.Dialogue
                 if (option.RequiresHold)
                 {
                     _hold.Begin(index);
+                    _holdByPointer = false;
                     Version++;
                     return;
                 }
@@ -308,6 +347,32 @@ namespace Aetherfall.UI.Screens.Dialogue
                 _source.Back();
                 Sync();
             }
+        }
+
+        /// <summary>A left click: chooses the answer under the pointer only (never the focused one).</summary>
+        private void PointerSubmit()
+        {
+            int index = _pointerIndex;
+            if (index < 0 || index >= _optionCount || !_options[index].IsEnabled)
+            {
+                // Beside the answers or on a greyed answer: nothing; a click never confirms another (focused) answer.
+                return;
+            }
+
+            if (_options[index].RequiresHold)
+            {
+                // "[Toeten]" is only confirmed by holding, and only on the focused row under the pointer.
+                if (_focus.Current == index)
+                {
+                    _hold.Begin(index);
+                    _holdByPointer = true;
+                    Version++;
+                }
+
+                return;
+            }
+
+            Choose(index);
         }
 
         private void Choose(int index)

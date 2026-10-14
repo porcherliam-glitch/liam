@@ -28,6 +28,8 @@ namespace Aetherfall.Dialogue
     /// <item><term>D04</term><description>action node without actions (warning)</description></item>
     /// <item><term>D05</term><description>node id not in the form <c>n010</c> (hint)</description></item>
     /// <item><term>D06</term><description>check without failure exit (hint: a failed check returns to the last choice)</description></item>
+    /// <item><term>D07</term><description>choice without an answer that is always selectable (no visible-if, no selectable-if,
+    /// not one-time, target no check, no gold): in the game all answers may be greyed (warning)</description></item>
     /// </list>
     /// </remarks>
     public sealed class DialogueValidator
@@ -77,7 +79,11 @@ namespace Aetherfall.Dialogue
         /// <summary>Check without failure exit.</summary>
         public const string CheckWithoutFailureCode = "D06";
 
+        /// <summary>Choice without an always selectable answer.</summary>
+        public const string NoSafeOptionCode = "D07";
+
         private readonly IDialogueValidationLookup _lookup;
+        private readonly DialogueBadgeRules _badges = new DialogueBadgeRules();
 
         /// <summary>Creates the validator.</summary>
         /// <param name="lookup">Known content (null = references to other dialogues and NPCs are not checked).</param>
@@ -216,12 +222,74 @@ namespace Aetherfall.Dialogue
                 report.Info(CheckWithoutFailureCode, "Probe ohne Misserfolgs-Ausgang: Bei Misserfolg geht es zurück zur letzten Auswahl.");
             }
 
+            if (node is ChoiceNode choice && choice.Options.Count > 0 && !HasSafeOption(spec, choice))
+            {
+                report.Warning(NoSafeOptionCode, "Keine Antwort ist immer wählbar (jede hat eine Bedingung, ist einmalig, führt zu einer Probe oder " +
+                                                 "kostet Gold). Sind im Spiel alle grau, bleibt nur Abbrechen mit B/Kreis. Eine Antwort ohne " +
+                                                 "Bedingung ergänzen, z. B. „Ich komme wieder.“ mit Ziel Ende.");
+            }
+
             // A missing target dialogue is reported with the other references (ResolveReferences); here only its node.
             if (node is JumpNode jump && jump.IsExternal && jump.TargetNodeId.Length > 0 && _lookup != null &&
                 _lookup.TryGetDialogue(jump.TargetDialogueId, out DialogueSpec target) && !target.HasNode(jump.TargetNodeId))
             {
                 report.Error(BrokenReferenceCode, "Ziel-Knoten '" + jump.TargetNodeId + "' existiert in '" + jump.TargetDialogueId + "' nicht.");
             }
+        }
+
+        /// <summary>
+        /// True if the choice has an answer that is selectable in every game state: visible and selectable without condition,
+        /// not one-time, its target is no check, and neither it nor the straight path behind it costs gold.
+        /// </summary>
+        private bool HasSafeOption(DialogueSpec spec, ChoiceNode choice)
+        {
+            for (int i = 0; i < choice.Options.Count; i++)
+            {
+                DialogueOption option = choice.Options[i];
+                if (option == null || option.VisibleIf != null || option.SelectableIf != null || option.Once)
+                {
+                    continue;
+                }
+
+                spec.TryGetNode(option.TargetNodeId, out DialogueNode target);
+                if (target is CheckNode || CostsGold(option.Actions))
+                {
+                    continue;
+                }
+
+                if (!PathCostsGold(spec, target))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>Follows lines and action nodes behind an answer (like the markings do) and looks for a bribe.</summary>
+        private bool PathCostsGold(DialogueSpec spec, DialogueNode node)
+        {
+            for (int step = 0; step < DialogueRules.DefaultMaxPathLength && node is FlowNode flow; step++)
+            {
+                if ((flow is LineNode line && CostsGold(line.Actions)) || (flow is ActionNode action && CostsGold(action.Actions)))
+                {
+                    return true;
+                }
+
+                if (flow.EndsAfter)
+                {
+                    return false;
+                }
+
+                spec.TryGetNode(flow.NextNodeId, out node);
+            }
+
+            return false;
+        }
+
+        private bool CostsGold(IReadOnlyList<GameAction> actions)
+        {
+            return (_badges.MarksOf(actions) & DialogueOptionMarks.Bribe) != 0;
         }
 
         private static void CheckQuestExits(DialogueSpec spec, ValidationReport report)

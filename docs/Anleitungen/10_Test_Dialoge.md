@@ -39,16 +39,16 @@ Voraussetzung: [Anleitung 01](./01_Projekt-Setup.md) bis [Anleitung 08](./08_Tes
 
 | Baustein | Was er tut |
 |---|---|
-| **Dialogsystem** (`Aetherfall.Dialogue`, neu, Assembly Nr. 17) | `DialogueDefinition` (Asset) mit einer Liste von **8 Knotentypen** (GDD 02, 12.2): **NPC-Zeile** (Text, Sprecher, Varianten mit Bedingung, Stimmung, Kamera-Hinweis, Aktionen, Clip-ID für spätere Sprachausgabe – automatisch, bei Bedarf überschreibbar), **Spieler-Auswahl** (bis 6 Antworten, im Hub bis 9; je Antwort Sichtbar-wenn, Wählbar-wenn mit Grund, „nur einmal“, „unumkehrbar“, Aktionen), **Bedingungsweiche**, **Aktion**, **Probe**, **Zufall** (Gewichte; gleicher NPC am gleichen Spieltag = gleiches Ergebnis), **Sprung** (in einen anderen Dialog, wahlweise mit Rückkehr) und **Ende** (Ausgangs-ID, danach Spiel, Handel oder Kampf). Der **DialogueRunner** spielt das ab; der **DialogueService** schaltet dabei den Spielzustand auf „Dialog“, sperrt das Speichern und merkt sich gewählte Antworten, Proben-Ergebnisse, freigeschaltete Themen und bekannte Namen (Speicher-Abschnitt `dialogue`). |
+| **Dialogsystem** (`Aetherfall.Dialogue`, neu, Assembly Nr. 17) | `DialogueDefinition` (Asset) mit einer Liste von **8 Knotentypen** (GDD 02, 12.2): **NPC-Zeile** (Text, Sprecher, Varianten mit Bedingung, Stimmung, Kamera-Hinweis, Aktionen, Clip-ID für spätere Sprachausgabe – automatisch, bei Bedarf überschreibbar), **Spieler-Auswahl** (bis 6 Antworten, im Hub bis 9; je Antwort Sichtbar-wenn, Wählbar-wenn mit Grund, „nur einmal“, „unumkehrbar“, Aktionen), **Bedingungsweiche**, **Aktion**, **Probe**, **Zufall** (Gewichte; gleicher NPC am gleichen Spieltag = gleiches Ergebnis), **Sprung** (in einen anderen Dialog, wahlweise mit Rückkehr) und **Ende** (Ausgangs-ID, danach Spiel, Handel oder Kampf). Der **DialogueRunner** spielt das ab; der **DialogueService** schaltet dabei den Spielzustand auf „Dialog“, sperrt das Speichern und merkt sich gewählte Antworten, Proben-Ergebnisse, freigeschaltete Themen und bekannte Namen (Speicher-Abschnitt `dialogue`). Stirbt die Spielfigur oder beginnt ein Kampf, endet ein laufendes Gespräch von selbst (ohne Ausgang). |
 | **Fertigkeitsproben** | Wert = Attribut + 2 × Rang + Situationsbonus (höchstens ±6), Schwellen 10/12/14/16/18/24/30 (GDD 02, 12.3). Überzeugen und Lügen nutzen Charisma, Einschüchtern den höheren Wert aus Charisma und Stärke. Stufenvorteil +2 je 3 Stufen über dem NPC (höchstens +6). Beim **Überzeugen** zählt automatisch die **Beziehung** zum NPC: Freundlich +2, Vertraut +4, Abneigung −2, Feind −4. Standard: **feste Proben** – reicht der Wert nicht, ist die Antwort grau und zeigt „[Überzeugen 12 · dein Wert 9]“. Wahlweise **Würfelmodus** (W20, Anzeige „[Überzeugen · 45 %]“). Ergebnisse werden gemerkt: ein zweites Gespräch würfelt nicht neu. |
 | **Markierungen** | Werden aus dem Inhalt abgeleitet, nicht von Hand gesetzt: Ziel ist eine Probe → „[Überzeugen 12]“; Ziel ist ein Ende → „[Ende]“ (bzw. „[Handel]“, „[Angriff]“); „Bestechen“ dahinter → „[80 Gold]“ (Preis mit Gier des NPC und Charisma-Rabatt bis 30 %); „unumkehrbar“ → „[Töten]“ mit Gedrückthalten; Weg endet in einem Quest-Ausgang → ◆. Schon gewählte Antworten erscheinen mit 60 % Deckkraft, „nur einmal“-Antworten danach grau. |
 | **NPC-System** (`Aetherfall.NPC`, neu, Assembly Nr. 22) | `NpcDefinition` (Asset): Anzeigename, Rolle, Name von Anfang an bekannt, Standard-Dialog, Stufe, Gier, unbestechlich, Gruppe (z. B. `group.banditen_muehlbach`; wird die Gruppe feindlich, ist es auch der NPC), Start-Beziehung. `NpcService`: Beziehung −100 … +100 mit den 5 Stufen aus GDD 01, 7.5 (Feind, Abneigung, Neutral, Freundlich, Vertraut), Tod, Feindseligkeit (auch für Gruppen wie `group.banditen_muehlbach`), Speicher-Abschnitt `npcs`. **`NpcInteractable`** (Komponente): Interaktion „Sprechen: Harrik“ startet den Dialog. **`NpcLookAt`** (Komponente): der NPC dreht sich zur Spielfigur, im Gespräch zum Gesprächspartner, schaut im Leerlauf ab und zu zur Seite. |
 | **Bedingungen und Aktionen** (im bekannten Auswahlmenü) | Bedingungen **Dialog > Thema bekannt**, **Dialog > Option gewählt**, **Dialog > Probe bestanden**, **NPC > Beziehung mindestens**, **NPC > Lebt**. Aktionen **Dialog > Thema freischalten**, **Dialog > Name bekannt**, **Dialog > Bestechen**, **Dialog > Dialog starten**, **NPC > Beziehung ändern**, **NPC > Kampf beginnen**, **NPC > Töten (lautlos)**. |
-| **Dialog-Bildschirm** (`UI.Screens`, neuer Ordner `Dialogue`, `Dialogue.uxml`, `Dialogue.uss`) | Untertitel unten (Sprecher, höchstens 2 Zeilen à 45 Zeichen je Seite, ▼ zum Weiterblättern), Schreibmaschinen-Effekt (langsam/normal/schnell/sofort), **1. Drücken zeigt die ganze Seite, 2. Drücken geht weiter**, automatisches Weiter mit Lesefaktor, Antwortliste mit Fokusrahmen, graue Antworten werden beim Blättern übersprungen, „[Töten]“ 1 s gedrückt halten, B/Kreis wählt „[Ende]“, Tasten 1–9 wählen direkt. Die letzte Zeile bleibt über den Antworten sichtbar. |
+| **Dialog-Bildschirm** (`UI.Screens`, neuer Ordner `Dialogue`, `Dialogue.uxml`, `Dialogue.uss`) | Untertitel unten (Sprecher, höchstens 2 Zeilen à 45 Zeichen je Seite, ▼ zum Weiterblättern), Schreibmaschinen-Effekt (langsam/normal/schnell/sofort), **1. Drücken zeigt die ganze Seite, 2. Drücken geht weiter**, automatisches Weiter mit Lesefaktor, Antwortliste mit Fokusrahmen, graue Antworten werden beim Blättern übersprungen, „[Töten]“ 1 s gedrückt halten, B/Kreis wählt „[Ende]“, Tasten 1–9 wählen direkt. **Maus:** Ein Klick wählt die Antwort unter dem Zeiger; ein Klick auf eine graue Antwort oder daneben tut nichts. Die letzte Zeile bleibt über den Antworten sichtbar. |
 | **Ereignisse** (`Aetherfall.Events`, neue Dateien) | `DialogueStarted`, `SkillCheckResolved`, `TopicUnlocked`, `RelationshipChanged`, `NPCDied` (dazu `DialogueMode`, `SkillCheckType`). Die vorhandenen `NPCTalkedTo`, `ChoiceMade` und `DialogOutcome` sendet jetzt der Dialog. |
-| **Dialog-Prüfung** | Menü **Aetherfall > Dialoge prüfen** und Batchmode-Einstieg (Abschnitt 6). Regeln aus GDD 02, 10.2 und 12.2: V01 doppelt, V02 ID-Schema, V04 kaputter Verweis, V05 unerreichbar, V06 Sackgasse, V07 Zyklus ohne Ausgang, V09 Weiche ohne Standard, V10 Text fehlt, W04 Text zu lang (Zeile 180, Antwort 60 Zeichen), D01–D06 dialogspezifisch (zu viele Antworten, kein Ende, fehlender Ausgang, leere Aktion, Knoten-Namensregel, Probe ohne Misserfolg). |
+| **Dialog-Prüfung** | Menü **Aetherfall > Dialoge prüfen** und Batchmode-Einstieg (Abschnitt 6). Regeln aus GDD 02, 10.2 und 12.2: V01 doppelt, V02 ID-Schema, V04 kaputter Verweis, V05 unerreichbar, V06 Sackgasse, V07 Zyklus ohne Ausgang, V09 Weiche ohne Standard, V10 Text fehlt, W04 Text zu lang (Zeile 180, Antwort 60 Zeichen), D01–D07 dialogspezifisch (zu viele Antworten, kein Ende, fehlender Ausgang, leere Aktion, Knoten-Namensregel, Probe ohne Misserfolg, Auswahl ohne immer wählbare Antwort). |
 | **Vorschau** (`Tools/Preview/ui/vorschau_dialog.cjs`, `szenen_dialog.js`) | Baut den Dialog-Bildschirm aus denselben UXML-, USS- und Textdateien als HTML nach und macht 4 Bilder (Abschnitt 7). |
-| **Tests** | **183 neue automatische Testfälle** (159 Dialog/NPC, 24 Bildschirm; insgesamt jetzt 1633): alle Knotentypen, Ereignisse, einmalige Antworten, Proben, Bestechung, Speichern und Laden, Prüfung, Bildschirm-Logik – und **der Mühlbach-Dialog in allen Ausgängen**. |
+| **Tests** | **201 neue automatische Testfälle** (169 Dialog/NPC, 32 Bildschirm; insgesamt jetzt 1651): alle Knotentypen, Ereignisse, einmalige Antworten, Proben, Bestechung, Speichern und Laden, Prüfung, Unterbrechungen (Tod, Kampf, Zwischensequenz), Bildschirm-Logik mit Gamepad und Maus – und **der Mühlbach-Dialog in allen Ausgängen**. |
 
 **Die Ausgänge des Mühlbach-Dialogs** (GDD 02, 12.10), wie die Tests sie durchspielen:
 
@@ -89,7 +89,7 @@ Das ist der wichtigste Test in diesem Schritt.
    **Du siehst danach:** nach einer Weile grüne Haken. Neu sind die Gruppen **Aetherfall.Tests.EditMode.Dialogue** und **Aetherfall.Tests.EditMode.DialogueScreen**.
 3. **Aetherfall.Tests.EditMode.Dialogue** aufklappen, darin **MuehlbachDialogueTests**.
    **Du siehst danach:** u. a. `Persuade_ThenGuarantee_EndsWithAbzug`, `Bribe_PaysTheGold_AndEndsWithAbzug`, `KnifeOption_IsAKillWithHold_AndEndsWithAttentat`, `TopicGrimmbart_UnlocksTheDeal_AndEndsWithAbmachung`, `DiceMode_FailedPersuasion_LeadsToN120_AndGreysTheOption` – alle grün. Diese Tests führen das Gespräch mit Harrik so, wie es ein Spieler tun würde (Antwort wählen, weiterklicken), und prüfen Texte, Markierungen, Flags und Ereignisse.
-4. Daneben gibt es **DialogueRunnerTests** (alle Knotentypen, Abbrechen, Sprünge), **SkillCheckRulesTests** (Formeln), **DialogueSaveTests** (Speichern/Laden), **DialogueValidatorTests** (Prüfung), **NpcTests** und **SubtitleAndMarkingTests**.
+4. Daneben gibt es **DialogueRunnerTests** (alle Knotentypen, Abbrechen, Sprünge), **DialogueInterruptionTests** (Tod, Kampfbeginn, Zwischensequenz, Laden beenden ein Gespräch sauber), **SkillCheckRulesTests** (Formeln), **DialogueSaveTests** (Speichern/Laden), **DialogueValidatorTests** (Prüfung), **NpcTests** und **SubtitleAndMarkingTests**.
 
 **Ein Test in der Gruppe „…EditMode.UI“ ist bis zum Einbau rot:** `Theme_ImportsTheDefaultThemeFirst_AndOnlyExistingSheets` mit der Meldung „sheet not imported by the theme: Dialogue.uss“. Das ist **erwartet**: Der Test verlangt, dass das Theme (eine bestehende Datei) jede Stildatei einbindet, und dieser Schritt ändert bestehende Dateien absichtlich nicht. Der Einbau (Abschnitt 12.2) ergänzt eine Zeile im Theme; danach ist der Test grün (vorab in einer Kopie des Projekts geprüft).
 
@@ -192,7 +192,7 @@ Das Skript nutzt die Funktionen von `vorschau_ui.cjs` mit. Die Antworten und Mar
 | 7 | **Visible If** einer Antwort | Menü **Bedingung wählen** mit **Dialog > Thema bekannt**, **NPC > Beziehung mindestens** … |
 | 8 | **Aetherfall > Dialoge prüfen** | Fenster mit Zusammenfassung; eingebaute Fehler werden gemeldet (Abschnitt 6) |
 | 9 | Vorschaubilder (von Claude erzeugt) | Untertitel und Antworten lesbar, nichts ragt aus dem Bild |
-| 10 | **Gamepad** | Im Spiel erst nach dem Einbau; die Bedienlogik ist durch die Tests „DialogueScreenPresenterTests“ abgesichert |
+| 10 | **Gamepad** und **Maus** | Im Spiel erst nach dem Einbau; die Bedienlogik ist durch die Tests „DialogueScreenPresenterTests“ abgesichert (u. a. „Klick auf eine graue Antwort wählt nichts“) |
 
 ---
 
@@ -216,6 +216,7 @@ Das Skript nutzt die Funktionen von `vorschau_ui.cjs` mit. Die Antworten und Mar
 | Bei **Nodes** wurde **+** gedrückt: der neue Eintrag ist leer, oder zwei Knoten ändern sich gleichzeitig | Unity legt bei **+** in dieser Liste einen leeren Eintrag oder einen Verweis auf den vorigen Knoten an, solange die Typauswahl für Knoten fehlt (Abschnitt 12.4). Den neuen Eintrag mit Rechtsklick > **Delete Array Element** löschen und Knoten über **⋮ > Knoten hinzufügen** anlegen. **Dialoge prüfen** meldet leere Einträge als „Knoten fehlt oder hat einen unbekannten Typ“ und doppelte als **V01**. |
 | **Dialoge prüfen** meldet **V02** „passt nicht zum Schema dlg.<region>.<npc>_<thema>“ | Nur kleine Buchstaben, Ziffern, `_` und `.`; vorne `dlg.` |
 | **Dialoge prüfen** meldet **D05** (blauer Hinweis) | Knoten-ID folgt nicht n010, n020 … – erlaubt, aber unübersichtlich |
+| **Dialoge prüfen** meldet **D07** (gelbe Warnung) „Keine Antwort ist immer wählbar“ | Jede Antwort der Auswahl hat eine Bedingung, ist „nur einmal“, führt zu einer Probe oder kostet Gold. Im Spiel können dann alle grau sein; der Spieler kann das Gespräch nur noch mit B/Kreis (rechte Maustaste) abbrechen. Eine Antwort ohne Bedingung ergänzen, z. B. „Ich komme wieder.“ mit Ziel **Ende**. |
 | **Dialoge prüfen** meldet **V07** obwohl es ein Ende gibt | Von diesem Knoten führt kein Weg zu einem Ende (z. B. Auswahl, deren Antworten nur zurückführen). Eine Antwort mit Ziel **Ende** ergänzen. |
 | Ein roter Test in „…EditMode.UI“ (`Theme_Imports…`, „Dialogue.uss“) | Erwartet bis zum Einbau (Abschnitt 3). |
 | Im Testgelände passiert nichts mit NPCs | Richtig so: der Einbau ins Spiel folgt im nächsten Schritt. |
@@ -244,7 +245,7 @@ Die Daten-Assets (NPC, Dialog) legst du selbst an (Abschnitte 4 und 5). Zwei Kom
 
 Dieser Abschnitt ist die Arbeitsliste für Claude beim Einbau ins Spiel. Du musst hier nichts tun.
 
-**Geprüft (2026-10-14):** Alle Änderungen 12.1–12.6 wurden in einer **Kopie** des Projekts (Stand dieses Schritts) angewendet und mit dem Harness geprüft: **1633 Tests grün (inkl. des neuen Durchspiel-Tests über den Bildschirm; 1 übersprungen, braucht Unity), 887 ohne Pakete grün, Exit-Code 0, keine Lint-Meldung**, alle drei Editor-Assemblies kompilieren. Außerdem wurde dieser Schritt **ohne** Einbau auf den Haupt-Branch-Stand `81d3a5d` („Quests im Spiel, Erfahrung und Level“) gelegt: Er lässt sich konfliktfrei anwenden (nur neue Dateien), alles kompiliert, und es fehlt nur die Theme-Zeile aus 12.2 (sonst 1839 Tests grün, ohne Pakete 907). **Mit** allen Schritten 12.1–12.6 auf diesem Stand: Exit-Code 0, 1841 Tests grün, ohne Pakete 908. Die Stellen in `UIRoot`, `TestGroundMenu`, `TestGroundUiBuilder` und den asmdefs liegen auf dem Haupt-Branch an anderen Zeilen: die Anweisungen unten nennen deshalb immer die Nachbarzeile, nicht die Zeilennummer.
+**Geprüft (2026-10-14, nach den Review-Befunden erneut):** Alle Änderungen 12.1–12.6 wurden in einer **Kopie** des Projekts (Stand dieses Schritts) angewendet – der Code kommt dabei direkt aus den Blöcken dieser Anleitung – und mit dem Harness geprüft: **1651 Tests grün (inkl. des neuen Durchspiel-Tests über den Bildschirm; 1 übersprungen, braucht Unity), 887 ohne Pakete grün, Exit-Code 0, keine Lint-Meldung**, alle drei Editor-Assemblies kompilieren, und `DialogMapScreenInput` (mit der Maus-Erkennung) kompiliert gegen die Signaturen des Input Systems. Außerdem wurde dieser Schritt **ohne** Einbau auf den Haupt-Branch-Stand `81d3a5d` („Quests im Spiel, Erfahrung und Level“) gelegt: Er lässt sich konfliktfrei anwenden (nur neue Dateien), alles kompiliert, und es fehlt nur die Theme-Zeile aus 12.2 (sonst 1857 Tests grün, ohne Pakete 907). **Mit** allen Schritten 12.1–12.6 auf diesem Stand: Exit-Code 0, 1859 Tests grün, ohne Pakete 908. Die Stellen in `UIRoot`, `TestGroundMenu`, `TestGroundUiBuilder` und den asmdefs liegen auf dem Haupt-Branch an anderen Zeilen: die Anweisungen unten nennen deshalb immer die Nachbarzeile, nicht die Zeilennummer.
 
 | Schritt | Was | Pflicht? |
 |---|---|---|
@@ -416,6 +417,10 @@ namespace Aetherfall.UI.Screens.Dialogue
     /// GameInputBindings, DialogDirect1-9 (keys 1-9) and DialogAuto (X / F). Active only while the input service
     /// has the Dialog map on (game state Dialogue; off under the pause menu).
     /// </summary>
+    /// <remarks>
+    /// A press of DialogSubmit by the mouse is reported as <see cref="DialogueInputFrame.PointerSubmitPressed"/>: it chooses the
+    /// answer under the pointer, never the focused one (a click on a greyed answer must not confirm another answer).
+    /// </remarks>
     public sealed class DialogMapScreenInput : IDialogueScreenInput
     {
         /// <summary>Name prefix of the direct choice actions ("DialogDirect1" ... "DialogDirect9").</summary>
@@ -457,7 +462,18 @@ namespace Aetherfall.UI.Screens.Dialogue
             Vector2 navigate = _navigate.ReadValue<Vector2>();
             frame.NavigateX = navigate.x;
             frame.NavigateY = navigate.y;
-            frame.SubmitPressed = _submit.WasPressedThisFrame();
+            if (_submit.WasPressedThisFrame())
+            {
+                if (IsMouse(_submit.activeControl))
+                {
+                    frame.PointerSubmitPressed = true;
+                }
+                else
+                {
+                    frame.SubmitPressed = true;
+                }
+            }
+
             frame.SubmitHeld = _submit.IsPressed();
             frame.BackPressed = _back.WasPressedThisFrame();
             for (int i = 0; i < _direct.Length; i++)
@@ -470,6 +486,18 @@ namespace Aetherfall.UI.Screens.Dialogue
             }
 
             frame.AutoTogglePressed = _auto != null && _auto.WasPressedThisFrame();
+        }
+
+        private static bool IsMouse(InputControl control)
+        {
+            if (control != null)
+            {
+                return control.device is Mouse;
+            }
+
+            // Pressed and released within one frame: the action has no active control any more.
+            Mouse mouse = Mouse.current;
+            return mouse != null && mouse.leftButton.wasPressedThisFrame;
         }
     }
 }
@@ -515,7 +543,7 @@ namespace Aetherfall.UI.Screens.Dialogue
    - in `Update()` nach `_director.Update(dt);`: `if (_dialogueDirector != null) { _dialogueDirector.Update(); }`
    - in `OnGlyphsChanged()`: `if (_dialogueScreen != null) { _dialogueScreen.RefreshGlyphs(); }`
    - Der Generator der Oberfläche (`TestGroundUiBuilder` bzw. **Aetherfall > Oberflaeche einrichten**) füllt das neue Feld **Dialogue Layout**: in der Tabelle `Layouts` (Feldname → UXML-Datei) einen Eintrag `new KeyValuePair<string, string>("dialogueLayout", "Dialogue.uxml")` anhängen.
-   - **`UiStateDirector`** braucht keine Änderung: Im Zustand „Dialog“ schließt er Haupt-, Pause- und Todesbildschirm (Standardzweig); der Dialog-Bildschirm wird vom `DialogueScreenDirector` geöffnet, solange ein Gespräch läuft. Das Pausemenü legt sich darüber; die Dialog-Eingabe ist dann aus (`IsActive` = Dialog-Map aktiv), ein laufendes Halten bricht ab. Der `UIManager` tickt alle offenen Bildschirme, also auch den Dialog-Bildschirm, obwohl die UI-Map im Dialog aus ist.
+   - **`UiStateDirector`** braucht keine Änderung: Im Zustand „Dialog“ schließt er Haupt-, Pause- und Todesbildschirm (Standardzweig); der Dialog-Bildschirm wird vom `DialogueScreenDirector` geöffnet, solange ein Gespräch läuft. Das Pausemenü legt sich darüber; die Dialog-Eingabe ist dann aus (`IsActive` = Dialog-Map aktiv), ein laufendes Halten bricht ab. Der `UIManager` tickt alle offenen Bildschirme, also auch den Dialog-Bildschirm, obwohl die UI-Map im Dialog aus ist. **Tod im Gespräch:** Der `DialogueService` hört selbst auf `PlayerDied` und beendet das Gespräch sofort; der Todesbildschirm (Pause) erscheint danach über „Spielen“. Liegt schon ein Pause-Zustand über dem Dialog, nimmt der Dienst „Dialog“ vom Stapel, sobald die Pause endet („Am Spawnpunkt wiederbeleben“). Dasselbe gilt für Kampfbeginn (`CombatStateChanged`).
 5. **Theme** (der rote UI-Test aus Abschnitt 3): in `Art/UI/Theme/AetherfallTheme.tss` als letzte Zeile `@import url("../Styles/Dialogue.uss");` (nach Tokens/Base, deren Farben und Halte-Balken `Dialogue.uss` nutzt). Sonst ist nichts nötig: `Dialogue.uxml` braucht **keine** Einträge in `UiTexts` oder in `UiAssetTests` – Elemente, deren Text der Code setzt, haben dort keinen Namen (der Bildschirm findet sie über ihre Klasse), benannte Elemente bekommen ihren Text aus `UiTexts` (`dialogue-hint-hold` → `hint-hold`), die übrigen festen Texte stehen in `DialogueScreenTexts`.
 6. **Neuer Test `Assets/_Project/Tests/EditModeDialogue/Screen/DialogueServiceScreenSourceTests.cs`** (der Bildschirm am echten Dienst, Mühlbach-Dialog bis „vertagt“); dazu in `Aetherfall.Tests.EditMode.DialogueScreen.asmdef` bei `references` `"Aetherfall.Dialogue"` (vor `Aetherfall.UI.Framework`) und `"Aetherfall.Tests.EditMode.Dialogue"` (vor `Aetherfall.Tests.Shared`):
 
@@ -961,13 +989,13 @@ namespace Aetherfall.EditorTools.World
 - Der Hinweis zeigt dann „E Sprechen: Banditenanführer“, nach n030 (Name bekannt) „Sprechen: Harrik“. Im Kampf, bei feindlichen oder toten NPCs gibt es keinen Hinweis.
 - Damit `kampf` im Testgelände sichtbar wird: Die KI muss auf `INpcService.HostilityChanged` hören (Gruppe `group.banditen_muehlbach` wird feindlich) – das gibt es noch nicht; bis dahin endet der Dialog mit `DialogueEndInfo.FollowUp = Combat`. Harrik gehört zur Gruppe (Feld **Group Id**) und ist danach feindlich: kein Hinweis „Sprechen“ mehr.
 - Für ein Gespräch mit Messer an der Kehle braucht es das Flag `quest.side.eichental.banditen_am_muehlbach.lokal.messer_an_kehle` (im Spiel setzt es die Quest beim Anschleichen; zum Testen per Debug-Konsole bzw. `IWorldStateDebug.TrySetFromText`).
-- Testanleitung für den Auftraggeber nach dem Einbau (kurz): Testgelände erstellen, Play, zu Harrik laufen, **E** (Gamepad **A**) → Dialog-Bildschirm; mit Pfeiltasten/Steuerkreuz wählen, **E**/**A** bestätigen, **rechte Maustaste**/**B** = „[Ende]“; danach Speichern ist wieder möglich, Laden mitten im Gespräch beendet es.
+- Testanleitung für den Auftraggeber nach dem Einbau (kurz): Testgelände erstellen, Play, zu Harrik laufen, **E** (Gamepad **A**) → Dialog-Bildschirm; mit Pfeiltasten/Steuerkreuz wählen, **E**/**A** bestätigen, **rechte Maustaste**/**B** = „[Ende]“; mit der Maus eine Antwort anklicken (Klick auf eine graue Antwort: nichts passiert); danach Speichern ist wieder möglich, Laden mitten im Gespräch beendet es.
 
 ### 12.7 Quests, KI und Sonstiges
 
 - **Quest „Banditen am Mühlbach“:** Stage `s30_verhandlung` wartet auf `DialogOutcome` mit `DialogueId = dlg.eichental.harrik_verhandlung` und einer der Ausgangs-IDs `abzug`, `vertrieben`, `muehlenwache`, `abmachung`, `kampf`, `attentat`. Dafür fehlt im Quest-System noch der Zieltyp **Überzeuge** (GDD 02, 5.3; hört auf `DialogOutcome`) – nach dem Muster von „Rede mit NPC“ (`NPCTalkedTo` sendet der Dialog schon).
 - **Wähle-Ziele:** `ChoiceMade` hat als `ChoiceId` `<dialog>.<knoten>` und als `OptionId` die Antwort-ID. Soll eine Antwort eine Quest-Entscheidung melden, an der Antwort **Choice Id**/**Choice Option Id** setzen (z. B. `quest….wahl_harrik`, `verschont`).
-- **KI:** `INpcService.HostilityChanged(id, feindlich)` abonnieren (Gegnergruppen tragen eine Gruppen-ID) und nach `GameLoaded` `IsHostile` abfragen (Laden sendet keine Ereignisse).
+- **KI:** `INpcService.HostilityChanged(id, feindlich)` abonnieren (Gegnergruppen tragen eine Gruppen-ID) und nach `GameLoaded` `IsHostile` abfragen (Laden sendet keine Ereignisse). Achtung: Kampfbeginn (`CombatStateChanged`) beendet ein laufendes Gespräch ohne Ausgang. Die Aktion **NPC > Kampf beginnen** deshalb wie in `n900` direkt vor ein Ende setzen (Aktion-Knoten mit Ausgang `kampf` und Folge „Kampf“), nicht in eine Zeile, die danach noch angezeigt wird – sonst bricht der Angriff der KI diese Zeile ab, und der Ausgang geht verloren.
 - **Debug-Overlay „Dialog“** (DevTools): `IDialogueService.View`, `DialogueService.Memory` (`DialogueDto` über `Capture()`), `INpcService.GetRelationship`; Konsolenbefehle später (`start_dialogue`, `set_relationship`).
 - **Optionen-Menü:** Textgeschwindigkeit, automatisches Weiter und Lesefaktor liegen in `DialogueScreenPreferences` (wie `UiPreferences` nur für die laufende Sitzung), Einträge im Optionen-Menü fehlen noch.
 - **Badge `RemoveCurrency`:** Auf dem Haupt-Branch gibt es die Aktion **Inventar > Währung entfernen**. Sie wird über den Namen schon als Bestechung erkannt, zeigt aber nur „[Gold]“ ohne Betrag (nur **Dialog > Bestechen** kennt seinen Preis). Bei Bedarf in `DialogueOptionAnalyzer.BribePrice` den Betrag von `RemoveCurrency` mitzählen (`Aetherfall.Dialogue` referenziert `Aetherfall.Inventory` schon).
@@ -991,6 +1019,11 @@ namespace Aetherfall.EditorTools.World
 | Beziehung bei Proben | Überzeugen: Freundlich +2, Vertraut +4, Abneigung −2, Feind −4 (GDD 02, 12.3) | automatisch bei jeder Überzeugen-Probe, zählt zum Situationsbonus (zusammen höchstens ±6) | Die Stufengrenzen stehen in `SkillCheckRules` und `RelationshipRules` (Dialog darf NPC nicht referenzieren); ein Test prüft, dass beide für alle Werte −100 … +100 gleich sind. |
 | Tastatur-Symbol für „Zurück“ | Glyphe Back = Esc | „RMT“ (rechte Maustaste) | Esc öffnet im Dialog das Pausemenü (GDD 03 1.5); DialogBack liegt auf der rechten Maustaste. |
 | Kontext über den Antworten | – | die letzte Zeile ohne Seitenumbrüche, gedimmt | Die 45-Zeichen-Umbrüche sind für Untertitel gedacht; über den Antworten passt mehr in eine Zeile (siehe `dialog.png`). |
+| Maus im Dialog | DialogSubmit enthält die linke Maustaste (GDD 03 1.5) | Ein Klick wählt nur die Antwort **unter dem Zeiger**; Klick auf eine graue Antwort oder daneben: nichts; „[Töten]“ mit der Maus gedrückt halten (Verlassen der Zeile bricht ab). In einer Zeile geht ein Klick überall weiter. | Sonst bestätigte ein Klick auf eine graue Antwort die zuletzt überfahrene, z. B. „[Angriff]“ – ein Quest-Zweig ohne Absicht. |
+| Gespräch bei Tod und Kampfbeginn | – (Architektur 4.4 kennt nur Dialog → Pause) | Tod der Spielfigur und Kampfbeginn beenden ein laufendes Gespräch wie Abbrechen (`DialogOutcome` ohne Ausgang) | Die KI läuft im Dialog weiter, im Dialog-Bildschirm kann sich der Spieler nicht wehren; nach dem Wiederbeleben lief das Gespräch sonst weiter. |
+| Dialog → Zwischensequenz | „Aktion im Dialog“, ersetzt den Dialog (4.4) | Das Gespräch endet. Ein Ausgang, den derselbe Schritt noch erreicht, zählt; bleibt der Schritt an einer Zeile oder Auswahl stehen, endet es ohne Ausgang. | Sonst hinge das Gespräch ohne Zustand fest (Bildschirm offen, Speichersperre aktiv, keine Eingabe). |
+| Auswahl ohne wählbare Antwort | – | Sind alle sichtbaren Antworten grau, bricht B/Kreis das Gespräch ab, auch wenn es sonst nicht abbrechbar ist; die Prüfung warnt mit **D07** | Sonst ginge nichts mehr (nur Pause und Laden). |
+| Sprung mit Rückkehr | Beispiel „Händler-Unterdialog“ (GDD 02, 12.2) | Ein Ende mit Folge **Handel** oder **Kampf** beendet das ganze Gespräch mit dieser Folge; ein Ende mit Folge **Spiel** kehrt zurück. Antworten auf so ein Rückkehr-Ende zeigen kein „[Ende]“ (und keine Raute), B/Kreis wählt sie trotzdem („Zurück“). | Sonst gingen Handel und Kampf verloren, und „[Ende]“ verspräche ein Ende, das nur zurückspringt. |
 
 **Noch nicht umgesetzt (TODO):**
 
@@ -1005,3 +1038,5 @@ namespace Aetherfall.EditorTools.World
 | Sprachausgabe | Audio | Clip-IDs werden schon gebildet (`VO_<sprecher>_<dialog>.<knoten>`, Varianten mit `.v1` … – jede Variante ist eine eigene Aufnahme); das Feld **Voice Clip Id** einer NPC-Zeile überschreibt sie bei Bedarf. Die Anzeigedauer nimmt Cliplänge + 0,5 s, sobald es Clips gibt. |
 | Lokalisierung | Lokalisierungs-Schritt | Jede Zeile und Antwort hat schon ihren Schlüssel (`<dialog>.<knoten>[.<antwort>]`, Varianten `.v1` …). |
 | Grafischer Dialog-Editor (Knotenansicht) | Architektur 11.9 Stufe 2 | Knoten haben schon ein verstecktes Feld für ihre Position im Editor. |
+| Hinweis „Zurück“ statt „Gespräch beenden“ | Dialog-Bildschirm | Wählt B/Kreis eine Rückkehr-Antwort (Sprung mit Rückkehr), steht unten noch „Gespräch beenden“. Dafür müsste die Bildschirm-Quelle melden, ob B zurückkehrt; kleiner Textfehler, kein Fehlverhalten. |
+| Quest-Ausgänge in einem Unterdialog mit Rückkehr | Dialog | Ein Ende mit Folge „Spiel“ kehrt dort zurück und meldet keinen Ausgang (`DialogOutcome` nennt ohnehin den gestarteten Dialog). Quest-Ausgänge deshalb in den Hub-Dialog legen oder den Sprung ohne Rückkehr anlegen. |
