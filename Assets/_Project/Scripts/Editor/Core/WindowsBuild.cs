@@ -115,6 +115,7 @@ namespace Aetherfall.EditorTools.Core
                    "  Linke Maus     leichter Angriff  Rechte Maus  schwerer Angriff\r\n" +
                    "  Q (halten)     blocken         Strg           ausweichen\r\n" +
                    "  T              Gegner anvisieren  5           Heiltrank\r\n" +
+                   "  4              Aether-Stoß (ab dem Riss im Prolog; 15 Mana, 8 s warten)\r\n" +
                    "  Tab            Inventar        J              Questlog\r\n" +
                    "  F5 / F9        schnell speichern / laden\r\n" +
                    "  Esc            Pause und Menü\r\n" +

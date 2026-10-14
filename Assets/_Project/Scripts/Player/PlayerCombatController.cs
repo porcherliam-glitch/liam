@@ -37,6 +37,8 @@ namespace Aetherfall.Player
     [DisallowMultipleComponent]
     public sealed class PlayerCombatController : MonoBehaviour, ICombatantController, IHitWindowReceiver, ICombatDebugSource
     {
+        private const float CastTurnRate = 1080f;
+
         [Tooltip("Bewegung der Figur. Leer = PlayerMotor am selben GameObject.")]
         [SerializeField] private PlayerMotor motor = null;
 
@@ -89,9 +91,21 @@ namespace Aetherfall.Player
         private bool _warnedWeaponArt;
         private bool _heavyHeld;
         private bool _blockHeld;
+        private bool _casting;
+        private float _castYaw;
 
         /// <summary>The combat state machine (read-only use: weapon pose, overlays); null if the setup is invalid.</summary>
         public CombatStateMachine StateMachine => _machine;
+
+        /// <summary>True if an ability may start now: no attack, dodge, block or stagger, on the ground, alive.</summary>
+        public bool IsFreeForAbility => isActiveAndEnabled && _machine != null && _machine.State == CombatStateId.Idle && !motor.IsAirborne &&
+                                        combatant.IsAlive && !_blockHeld;
+
+        /// <summary>Lock-on target, or null.</summary>
+        public Combatant LockedTarget => lockOn != null ? lockOn.Target : null;
+
+        /// <summary>Facing of the character in degrees.</summary>
+        public float FacingYaw => motor.Model != null ? motor.Model.Yaw : transform.eulerAngles.y;
 
         /// <summary>Weapon damage W in use (GDD 03 8.2 step 1); 0 before the setup.</summary>
         public float WeaponDamage => _weapon != null ? _weapon.BaseDamage : 0f;
@@ -224,6 +238,25 @@ namespace Aetherfall.Player
             _weapon.Block = hasShield ? shieldBlock : _weaponBlock;
         }
 
+        /// <summary>
+        /// An ability cast (<see cref="PlayerAbilityCaster"/>): while it runs the character stands, turns towards
+        /// <paramref name="yaw"/> and new attack, block and dodge presses are ignored.
+        /// </summary>
+        /// <param name="casting">True during the cast.</param>
+        /// <param name="yaw">Direction of the cast in degrees.</param>
+        public void SetCastPose(bool casting, float yaw)
+        {
+            _casting = casting;
+            _castYaw = yaw;
+        }
+
+        /// <summary>The nearest enemy within <paramref name="range"/> metres (aim of abilities without lock-on), or null.</summary>
+        /// <param name="range">Range in metres.</param>
+        public Combatant FindNearestEnemy(float range)
+        {
+            return _service != null ? CombatantQueries.FindNearestHostile(_service.Combatants, combatant, range) : null;
+        }
+
         /// <summary>Sets the dodge roll profile (armor class light/medium/heavy, overloaded = dodge step only, GDD 03 3.2).</summary>
         /// <param name="profile">Roll profile.</param>
         public void SetRollProfile(in DodgeProfile profile)
@@ -269,6 +302,7 @@ namespace Aetherfall.Player
             _finisherActive = false;
             _heavyHeld = false;
             _blockHeld = false;
+            _casting = false;
             if (lockOn != null)
             {
                 lockOn.Release();
@@ -406,7 +440,7 @@ namespace Aetherfall.Player
             float local = combatant.Tick(deltaTime);
             bool playing = _gameState != null && _gameState.Current == GameState.Playing;
             CombatInput input;
-            if (playing)
+            if (playing && !_casting)
             {
                 input = ReadInput();
                 _heavyHeld = input.HeavyHeld;
@@ -414,7 +448,8 @@ namespace Aetherfall.Player
             }
             else
             {
-                // Pause, menu, dialogue: no new presses, but what was held stays held (no release of a charge, guard stays up).
+                // Pause, menu, dialogue, ability cast: no new presses, but what was held stays held (no release of a charge,
+                // guard stays up).
                 input = new CombatInput { HeavyHeld = _heavyHeld, BlockHeld = _blockHeld };
             }
 
@@ -508,6 +543,20 @@ namespace Aetherfall.Player
 
         private PlayerMovementOverride BuildLimits()
         {
+            if (_casting)
+            {
+                // GDD 03 6.5: the cast roots the character; it turns quickly towards the aim.
+                return new PlayerMovementOverride
+                {
+                    LockLocomotion = true,
+                    HasFacing = true,
+                    FacingYaw = _castYaw,
+                    FacingTurnRate = CastTurnRate,
+                    BlockJump = true,
+                    BlockSprint = true
+                };
+            }
+
             Combatant target = lockOn != null ? lockOn.Target : null;
             float targetYaw = 0f;
             if (target != null)

@@ -68,6 +68,10 @@ namespace Aetherfall.UI.Screens
         private readonly VisualElement _prompt;
         private readonly Label _promptText;
         private readonly VisualElement _abilities;
+        private readonly VisualElement[] _abilitySlots = new VisualElement[4];
+        private readonly VisualElement[] _abilityCooldowns = new VisualElement[4];
+        private readonly Label[] _abilityTimes = new Label[4];
+        private readonly int[] _shownSeconds = { -1, -1, -1, -1 };
         private readonly VisualElement _quickSlots;
         private readonly VisualElement[] _quickSlotElements = new VisualElement[4];
         private readonly Label[] _quickNames = new Label[4];
@@ -127,6 +131,10 @@ namespace Aetherfall.UI.Screens
             _quickSlots = root.Q<VisualElement>("hud-quickslots");
             for (int i = 0; i < 4; i++)
             {
+                string ability = "hud-ability-" + (i + 1).ToString(CultureInfo.InvariantCulture);
+                _abilitySlots[i] = root.Q<VisualElement>(ability);
+                _abilityCooldowns[i] = root.Q<VisualElement>(ability + "-cooldown");
+                _abilityTimes[i] = root.Q<Label>(ability + "-time");
                 string prefix = "hud-quick-" + (i + 1).ToString(CultureInfo.InvariantCulture);
                 _quickSlotElements[i] = root.Q<VisualElement>(prefix);
                 _quickNames[i] = root.Q<Label>(prefix + "-name");
@@ -270,8 +278,36 @@ namespace Aetherfall.UI.Screens
             UpdateTarget(hasTarget && !_targetHidden, target, deltaTime);
             UpdatePrompt(source.InteractionPrompt);
             UpdateCompass(source.CameraYaw);
+            UpdateAbilities(source);
             UpdateQuickSlots();
             TickProgressViews(deltaTime, _rules.ShowQuests, _rules.ShowXp);
+        }
+
+        private void UpdateAbilities(IPlayerHudSource source)
+        {
+            for (int i = 0; i < _abilitySlots.Length; i++)
+            {
+                bool learned = source.TryGetAbility(i, out HudAbilityInfo ability);
+                VisualElement slot = _abilitySlots[i];
+                if (slot != null)
+                {
+                    slot.EnableInClassList("is-learned", learned);
+                    slot.EnableInClassList("is-unaffordable", learned && !ability.Affordable);
+                }
+
+                if (_abilityCooldowns[i] != null)
+                {
+                    _abilityCooldowns[i].style.height = Length.Percent(learned ? ability.Cooldown01 * 100f : 0f);
+                }
+
+                // Whole seconds left, shown while the cooldown runs (the text only changes once per second).
+                int seconds = learned && ability.CooldownSeconds > 0f ? (int)Math.Ceiling(ability.CooldownSeconds) : 0;
+                if (seconds != _shownSeconds[i])
+                {
+                    _shownSeconds[i] = seconds;
+                    UiElementUtility.SetText(_abilityTimes[i], seconds > 0 ? seconds.ToString(CultureInfo.InvariantCulture) : string.Empty);
+                }
+            }
         }
 
         private void TickProgressViews(float deltaTime, bool showQuests, bool showXp)

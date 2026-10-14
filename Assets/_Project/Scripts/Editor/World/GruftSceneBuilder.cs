@@ -190,7 +190,7 @@ namespace Aetherfall.EditorTools.World
             string[] folders =
             {
                 GruftPaths.SceneFolder, GruftPaths.MaterialFolder, GruftPaths.QuestItemFolder, TestGroundPaths.MaterialFolder, TestGroundPaths.PlayerSettingsFolder,
-                SetupPaths.BootSettingsFolder, TestGroundPaths.AttackFolder, TestGroundPaths.WeaponFolder, TestGroundPaths.EnemyFolder,
+                SetupPaths.BootSettingsFolder, TestGroundPaths.AttackFolder, TestGroundPaths.WeaponFolder, TestGroundPaths.AbilityFolder, TestGroundPaths.EnemyFolder,
                 TestGroundPaths.CombatSettingsFolder, TestGroundPaths.ItemFolder, TestGroundPaths.LootTableFolder, TestGroundPaths.ItemSettingsFolder
             };
             for (int i = 0; i < folders.Length; i++)

@@ -186,7 +186,7 @@ namespace Aetherfall.Tests.EditMode.UI
                 "trade-title", "trade-gold", "trade-empty", "trade-detail-title", "trade-detail-meta", "trade-detail-price", "trade-detail-note", "trade-message",
                 "trade-hint-confirm", "trade-hint-secondary",
                 "dice-title", "dice-scores", "dice-turn", "dice-die-0", "dice-die-1", "dice-die-2", "dice-die-3", "dice-die-4", "dice-action-0",
-                "dice-action-1", "dice-event"
+                "dice-action-1", "dice-event", "hud-ability-1-time", "hud-ability-2-time", "hud-ability-3-time", "hud-ability-4-time"
             };
             foreach (string file in Directory.GetFiles(ProjectFiles.Get(LayoutsFolder), "*.uxml"))
             {

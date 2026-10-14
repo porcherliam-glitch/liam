@@ -68,7 +68,8 @@ namespace Aetherfall.EditorTools.World
             TestGroundFields.SetReference(statusOverlay, "playerHealth", player.GetComponent<DamageableComponent>(), report);
             TestGroundFields.SetReference(statusOverlay, "playerStats", player.GetComponent<CharacterStatsComponent>(), report);
 
-            TestGroundCombatBuilder.SetUpPlayer(player, mainCamera, testMaterials, combat, ctx.HurtboxLayer, ctx.EnvironmentLayer, report);
+            TestGroundCombatBuilder.SetUpPlayer(player, mainCamera, testMaterials, combat, ctx.HurtboxLayer, ctx.EnvironmentLayer, report,
+                abilityUnlockFlag: Narrative.MiniSliceQuestLibrary.FlagAetherPower);
             TestGroundCombatBuilder.SetUpCameras(player, pivot, exploreCamera, exploreOrbital, collisionMask, report);
             TestGroundFields.SetReference(look, "lockOn", player.GetComponent<PlayerLockOn>(), report);
             PlayerRespawn respawn = player.GetComponent<PlayerRespawn>();

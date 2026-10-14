@@ -66,7 +66,11 @@ namespace Aetherfall.EditorTools.World
             Steps.Enqueue(ExpectDialogue(D.Dialogue(D.GreyFigure)));
             Steps.Enqueue(() => Wait(1.0));
             Steps.Enqueue(() => Capture("q03_riss", null));
+            Steps.Enqueue(AetherPushAt("spawn.eichental.rissbrut_prolog"));
+            Steps.Enqueue(() => WaitObjective(Q.Prologue, "s60", "o2"));
             Steps.Enqueue(KillGroup("spawn.eichental.rissbrut_prolog"));
+            // The push started a fight: nobody talks in combat (ends 5 s after the last hit).
+            Steps.Enqueue(WaitOutOfCombat);
             Steps.Enqueue(() => WaitStage(Q.Prologue, "s70"));
             Steps.Enqueue(GoToArea("loc.eichental.lindenhain"));
             Steps.Enqueue(TalkTo(Q.Hedda));
@@ -601,6 +605,95 @@ namespace Aetherfall.EditorTools.World
         }
 
         private const string SubjectIdsPlayer = "player";
+
+        /// <summary>
+        /// Uses the Aether-Stoß (key 4) on the first living enemy of a group the way a player does: 3 m in front of it, then the
+        /// same call as the key press; checks that the cast hits and takes a picture of the effect.
+        /// </summary>
+        private static Func<bool> AetherPushAt(string spawnId)
+        {
+            int phase = 0;
+            return () =>
+            {
+                PlayerMotor player = FindPlayer();
+                PlayerAbilityCaster caster = player != null ? player.GetComponent<PlayerAbilityCaster>() : null;
+                if (caster == null || caster.Runner == null)
+                {
+                    return Fail(true, "Die Spielfigur hat keinen Aether-Stoß (PlayerAbilityCaster fehlt).");
+                }
+
+                switch (phase)
+                {
+                    case 0:
+                        SpawnGroupMarker marker = Object.FindObjectsByType<SpawnGroupMarker>(FindObjectsInactive.Exclude).FirstOrDefault(m => m.SpawnId == spawnId);
+                        EnemyController enemy = marker != null && marker.Group != null && marker.Group.activeInHierarchy
+                            ? marker.Group.GetComponentsInChildren<EnemyController>().FirstOrDefault(e => e.GetComponent<Aetherfall.Combat.Combatant>().IsAlive)
+                            : null;
+                        if (enemy == null || Elapsed < 0.4)
+                        {
+                            return Fail(Elapsed > 10.0, "Kein lebender Gegner in " + spawnId + " für den Aether-Stoß.");
+                        }
+
+                        Vector3 front = enemy.transform.forward;
+                        front.y = 0f;
+                        PlaceOnGround(enemy.transform.position + front.normalized * 3f, -front);
+                        Note("Aether-Stoß gelernt: " + caster.IsUnlocked + ", Mana " + caster.Mana.ToString("0") + ".");
+                        phase = 1;
+                        _stepStart = UnityEditor.EditorApplication.timeSinceStartup;
+                        return false;
+                    case 1:
+                        if (Elapsed < 0.3)
+                        {
+                            return false;
+                        }
+
+                        if (!caster.TryCast())
+                        {
+                            return Fail(Elapsed > 3.0, "Aether-Stoß startet nicht: " + caster.LastRefusal + " (Mana " + caster.Mana.ToString("0") + ").");
+                        }
+
+                        phase = 2;
+                        _stepStart = UnityEditor.EditorApplication.timeSinceStartup;
+                        return false;
+                    case 2:
+                        if (caster.Runner.Phase == Aetherfall.Combat.AbilityPhase.Windup)
+                        {
+                            return Fail(Elapsed > 2.0, "Aether-Stoß bleibt im Ausholen hängen.");
+                        }
+
+                        Note("Aether-Stoß: " + caster.LastHitCount + " Treffer, Mana danach " + caster.Mana.ToString("0") + ", Abklingzeit " +
+                             caster.Runner.CooldownRemaining.ToString("0.0") + " s.");
+                        if (caster.LastHitCount == 0)
+                        {
+                            return Fail(true, "Der Aether-Stoß hat nichts getroffen.");
+                        }
+
+                        phase = 3;
+                        _stepStart = UnityEditor.EditorApplication.timeSinceStartup;
+                        return false;
+                    default:
+                        // A moment later the sparks and the wave are on their way.
+                        return Elapsed >= 0.12 && Capture("q03b_aether_stoss", null);
+                }
+            };
+        }
+
+        private static bool WaitOutOfCombat()
+        {
+            bool inCombat = Services.Locator.Get<Aetherfall.Combat.ICombatService>().InCombat;
+            return !inCombat || Fail(Elapsed > 12.0, "Der Kampf endet nicht (noch 12 s nach dem letzten Schritt im Kampf).");
+        }
+
+        private static bool WaitObjective(string questId, string stageId, string objectiveId)
+        {
+            bool done = Services.Locator.Get<IQuestService>().IsObjectiveDone(questId, stageId, objectiveId);
+            if (done)
+            {
+                Note("Ziel erfüllt: " + questId + " " + stageId + "/" + objectiveId + ".");
+            }
+
+            return done || Fail(Elapsed > 5.0, "Ziel " + questId + " " + stageId + "/" + objectiveId + " ist nicht erfüllt.");
+        }
 
         /// <summary>Uses any interactable (relief, seal stone, portal …) by its object id.</summary>
         private static Func<bool> UseById(string objectId)

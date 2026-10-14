@@ -22,6 +22,8 @@ namespace Aetherfall.UI.Screens
     [DisallowMultipleComponent]
     public sealed class PlayerHudLink : MonoBehaviour, IPlayerHudSource
     {
+        private const int AbilitySlot = 3;
+
         [Tooltip("Lebenspunkte der Figur. Leer = DamageableComponent am selben GameObject.")]
         [SerializeField] private DamageableComponent health = null;
 
@@ -39,6 +41,9 @@ namespace Aetherfall.UI.Screens
 
         [Tooltip("Kamera-Transform für den Kompass (Main Camera).")]
         [SerializeField] private Transform cameraTransform = null;
+
+        [Tooltip("Fähigkeit auf Platz 4 (Aether-Stoß). Leer = PlayerAbilityCaster am selben GameObject.")]
+        [SerializeField] private PlayerAbilityCaster abilities = null;
 
         private IPlayerHudRegistry _registry;
         private Combatant _target;
@@ -85,6 +90,21 @@ namespace Aetherfall.UI.Screens
         }
 
         /// <inheritdoc />
+        public bool TryGetAbility(int slot, out HudAbilityInfo ability)
+        {
+            // The first bar holds only the Aether-Stoß on slot 4 so far (GDD 03 1411).
+            if (slot != AbilitySlot || abilities == null || !abilities.isActiveAndEnabled || abilities.Runner == null || !abilities.IsUnlocked)
+            {
+                ability = default;
+                return false;
+            }
+
+            AbilityRunner runner = abilities.Runner;
+            ability = new HudAbilityInfo(runner.Spec.DisplayName, runner.Cooldown01, runner.CooldownRemaining, abilities.Mana >= runner.Spec.ManaCost);
+            return true;
+        }
+
+        /// <inheritdoc />
         public void SetAutoRespawn(bool enabled)
         {
             if (respawn != null)
@@ -127,6 +147,11 @@ namespace Aetherfall.UI.Screens
             if (respawn == null)
             {
                 TryGetComponent(out respawn);
+            }
+
+            if (abilities == null)
+            {
+                TryGetComponent(out abilities);
             }
         }
 

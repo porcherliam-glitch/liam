@@ -60,18 +60,26 @@
             <ui:VisualElement name="hud-abilities" class="af-abilities" picking-mode="Ignore">
                 <ui:VisualElement name="hud-ability-1" class="af-slot af-slot--ability" picking-mode="Ignore">
                     <ui:VisualElement class="af-slot__icon" picking-mode="Ignore" />
+                    <ui:VisualElement name="hud-ability-1-cooldown" class="af-slot__cooldown" picking-mode="Ignore" />
+                    <ui:Label name="hud-ability-1-time" class="af-text af-slot__time" picking-mode="Ignore" />
                     <ui:Label name="hud-ability-1-glyph-ability1" class="af-text af-glyph" picking-mode="Ignore" />
                 </ui:VisualElement>
                 <ui:VisualElement name="hud-ability-2" class="af-slot af-slot--ability" picking-mode="Ignore">
                     <ui:VisualElement class="af-slot__icon" picking-mode="Ignore" />
+                    <ui:VisualElement name="hud-ability-2-cooldown" class="af-slot__cooldown" picking-mode="Ignore" />
+                    <ui:Label name="hud-ability-2-time" class="af-text af-slot__time" picking-mode="Ignore" />
                     <ui:Label name="hud-ability-2-glyph-ability2" class="af-text af-glyph" picking-mode="Ignore" />
                 </ui:VisualElement>
                 <ui:VisualElement name="hud-ability-3" class="af-slot af-slot--ability" picking-mode="Ignore">
                     <ui:VisualElement class="af-slot__icon" picking-mode="Ignore" />
+                    <ui:VisualElement name="hud-ability-3-cooldown" class="af-slot__cooldown" picking-mode="Ignore" />
+                    <ui:Label name="hud-ability-3-time" class="af-text af-slot__time" picking-mode="Ignore" />
                     <ui:Label name="hud-ability-3-glyph-ability3" class="af-text af-glyph" picking-mode="Ignore" />
                 </ui:VisualElement>
                 <ui:VisualElement name="hud-ability-4" class="af-slot af-slot--ability" picking-mode="Ignore">
                     <ui:VisualElement class="af-slot__icon" picking-mode="Ignore" />
+                    <ui:VisualElement name="hud-ability-4-cooldown" class="af-slot__cooldown" picking-mode="Ignore" />
+                    <ui:Label name="hud-ability-4-time" class="af-text af-slot__time" picking-mode="Ignore" />
                     <ui:Label name="hud-ability-4-glyph-ability4" class="af-text af-glyph" picking-mode="Ignore" />
                 </ui:VisualElement>
             </ui:VisualElement>

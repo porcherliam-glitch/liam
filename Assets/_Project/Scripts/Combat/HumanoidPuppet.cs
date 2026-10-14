@@ -67,6 +67,8 @@ namespace Aetherfall.Combat
         private float _phase;
         private float _flinch;
         private float _death;
+        private float _push;
+        private float _pushSeconds;
         private bool _started;
 
         /// <summary>Smoothed horizontal speed in m/s (for tests and debug output).</summary>
@@ -94,6 +96,17 @@ namespace Aetherfall.Combat
         public void SetFallOnDeath(bool fall)
         {
             fallOnDeath = fall;
+        }
+
+        /// <summary>
+        /// Plays the push of a force ability (Aether-Stoß): the body leans back while gathering, then thrusts forward with the
+        /// head down and slowly straightens again.
+        /// </summary>
+        /// <param name="seconds">Duration of the whole gesture.</param>
+        public void Push(float seconds)
+        {
+            _pushSeconds = Mathf.Max(0.1f, seconds);
+            _push = 1f;
         }
 
         /// <summary>Sets the hand targets (null = the arm swings).</summary>
@@ -176,6 +189,7 @@ namespace Aetherfall.Combat
             _verticalSpeed = Mathf.Lerp(_verticalSpeed, Mathf.Clamp(delta.y / dt, -20f, 20f), follow);
             _phase = Mathf.Repeat(_phase + _speed / strideLength * Mathf.PI * 2f * dt, Mathf.PI * 2f);
             _flinch = Mathf.MoveTowards(_flinch, 0f, dt * 4f);
+            _push = Mathf.MoveTowards(_push, 0f, dt / Mathf.Max(0.1f, _pushSeconds));
             bool dead = combatant != null && !combatant.IsAlive;
             _death = Mathf.MoveTowards(_death, dead ? 1f : 0f, dt * (dead ? 1.8f : 4f));
 
@@ -215,9 +229,10 @@ namespace Aetherfall.Combat
             }
 
             float breathe = Mathf.Sin(time * 1.6f) * 1.2f * (1f - walk);
+            float push = PushLean();
             Set(0, 0f, sin * 6f * walk, 0f);
-            Set(1, 12f * amount + breathe - 14f * _flinch, -sin * 8f * walk, 0f);
-            Set(2, -6f * amount + 10f * _flinch, 0f, 0f);
+            Set(1, 12f * amount + breathe - 14f * _flinch + push, -sin * 8f * walk, 0f);
+            Set(2, -6f * amount + 10f * _flinch + push * 0.4f, 0f, 0f);
 
             // Arms: swing opposite to the legs, or reach for their targets.
             if (!Reach(upperArmRight, forearmRight, rightHandTarget, 1f))
@@ -237,6 +252,28 @@ namespace Aetherfall.Combat
             {
                 transform.localRotation = Quaternion.Euler(-82f * Smooth(_death), 0f, 0f);
             }
+        }
+
+        private float PushLean()
+        {
+            if (_push <= 0f)
+            {
+                return 0f;
+            }
+
+            // Progress 0 → 1: lean back 12° in the first fifth, thrust to 28° forward, then ease back upright.
+            float t = 1f - _push;
+            if (t < 0.2f)
+            {
+                return -12f * Smooth(t / 0.2f);
+            }
+
+            if (t < 0.35f)
+            {
+                return Mathf.Lerp(-12f, 28f, Smooth((t - 0.2f) / 0.15f));
+            }
+
+            return 28f * (1f - Smooth((t - 0.35f) / 0.65f));
         }
 
         private bool Reach(Transform upper, Transform fore, Transform target, float side)

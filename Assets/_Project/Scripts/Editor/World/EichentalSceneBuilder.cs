@@ -100,7 +100,7 @@ namespace Aetherfall.EditorTools.World
             PlayerStatusDebugOverlay statusOverlay = TestGroundSceneBuilder.CreateStatusOverlay(player, report);
 
             Combatant playerCombatant = TestGroundCombatBuilder.SetUpPlayer(player, mainCamera, testMaterials, combat, layers.Hurtbox, env, report,
-                playerLevel);
+                playerLevel, Narrative.MiniSliceQuestLibrary.FlagAetherPower);
             TestGroundFields.SetInt(player.GetComponent<PlayerLockOn>(), "sightBlockers", solidMask, report);
             TestGroundCombatBuilder.SetUpCameras(player, pivot, exploreCamera, exploreOrbital, solidMask, report);
             TestGroundFields.SetReference(look, "lockOn", player.GetComponent<PlayerLockOn>(), report);

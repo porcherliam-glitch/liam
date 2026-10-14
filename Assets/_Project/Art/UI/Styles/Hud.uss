@@ -283,6 +283,41 @@
     border-color: rgba(232, 210, 160, 0.22);
 }
 
+/* Learned ability (Aether-Stoß): a glowing Aether diamond; dimmed without mana; dark curtain while the cooldown runs. */
+.af-slot--ability.is-learned .af-slot__icon {
+    border-color: rgba(140, 225, 255, 0.95);
+    background-color: rgba(70, 170, 230, 0.45);
+}
+
+.af-slot--ability.is-learned.is-unaffordable .af-slot__icon {
+    border-color: rgba(140, 160, 190, 0.5);
+    background-color: rgba(60, 72, 92, 0.4);
+}
+
+.af-slot__cooldown {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 0;
+    border-radius: 4px;
+    background-color: rgba(4, 6, 9, 0.78);
+}
+
+.af-slot__time {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    margin: 0;
+    padding: 0;
+    font-size: 24px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    color: var(--text-title);
+}
+
 .af-slot .af-glyph {
     position: absolute;
     bottom: -15px;

@@ -32,6 +32,7 @@ Tipp: Im Game-Fenster oben in der Leiste **Play Maximized** wählen, dann ist da
 | Blocken (kurz vor dem Treffer: Parieren) | **Q** (halten) |
 | Ausweichen | **Strg links** |
 | Gegner anvisieren / wechseln | **T** oder mittlere Maustaste / Mausrad |
+| Aether-Stoß (ab dem Riss im Prolog): stößt alle Gegner vor dir 3 m zurück, 15 Mana, danach 8 s warten | **4** |
 | Heiltrank (3 Stück zu Beginn) | **5** |
 | Inventar und Charakter | **Tab** |
 | Questlog | **J** |
@@ -39,11 +40,13 @@ Tipp: Im Game-Fenster oben in der Leiste **Play Maximized** wählen, dann ist da
 | Pause, Menü, Spiel speichern | **Esc** |
 | Im Gespräch: Antwort wählen | **1–9** oder Maus, weiter mit **E** oder **Leertaste** |
 
-Mit Gamepad geht es auch (Xbox-Belegung: A springen und benutzen, X/Y angreifen, B ausweichen, LB blocken).
+Mit Gamepad geht es auch (Xbox-Belegung: A springen und benutzen, X/Y angreifen, B ausweichen, LB blocken, RB + A Aether-Stoß).
+
+Unten rechts im HUD leuchtet Feld 4 blau, sobald du den Aether-Stoß kannst. Nach dem Einsatz läuft dort die Wartezeit in Sekunden ab; grau heißt: zu wenig Mana.
 
 ## 3. Was dich erwartet
 
-1. **Asche über Eichental** (startet sofort): Hedda am Brunnen, das brennende Dorf, Tobold und Wenna retten, Kreaturen aus dem Riss, der Spur folgen, die Rissbrut, zum Schluss Hedda in Lindenhain.
+1. **Asche über Eichental** (startet sofort): Hedda am Brunnen, das brennende Dorf, Tobold und Wenna retten, Kreaturen aus dem Riss, der Spur folgen. Am Riss bekommst du die Aether-Kraft: Triff die Rissbrut mit dem Aether-Stoß (**4**). Zum Schluss Hedda in Lindenhain.
 2. **Die Wölfe vom Nordhang**: Hollmann am Hof im Nordwesten. Am Ende eine Entscheidung im Wolfsbau.
 3. **Die vergessene Gruft**: Corvin im Gasthaus in Lindenhain. Tor-Rätsel mit Grabplatten (die Wandreliefs verraten die Reihenfolge), Hallen mit Skeletten, Spiegel-Rätsel, der Wachende Ritter. Am Ende: Siegelstein nehmen oder liegen lassen.
 
@@ -62,7 +65,7 @@ Oben rechts steht immer dein aktuelles Ziel. Die Gruft ist auf Stufe 4 eingestel
 ## 4. Bekannte Lücken
 
 - Du selbst bist jetzt ein Krieger aus Blender (Arme, Beine und Schwert bewegen sich per Code, noch ohne fertige Animationen). Dorfbewohner, Wölfe, Skelette, der Wachende Ritter sowie Fenster, Türen, Schornsteine und Brücken sind ebenfalls aus Blender.
-- Keine Musik, keine Zwischensequenzen, kein Bogen, keine Aether-Fähigkeit.
+- Keine Musik, keine Zwischensequenzen, kein Bogen. Der Aether-Stoß erhöht noch keine Verderbnis (die gibt es noch nicht).
 - Die Gruft ist dunkel. Das ist Absicht, kann aber nachgebessert werden.
 
 ## 5. Rückmeldung an Claude

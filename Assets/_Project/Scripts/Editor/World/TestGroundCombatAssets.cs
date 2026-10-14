@@ -41,6 +41,7 @@ namespace Aetherfall.EditorTools.World
             Shield = EnsureShield(report);
             Weapon = EnsureWeapon(combo, heavy, sprint, jump, counter, finisher, report);
             Settings = EnsureAsset<CombatSettings>(TestGroundPaths.CombatSettingsPath, report, null);
+            AetherPush = EnsureAetherPush(report);
             Wolf = EnsureEnemy("Grauwolf", false, bite, snap, pounce, report);
             AetherWolf = EnsureEnemy("AetherWolf", true, bite, snap, pounce, report);
         }
@@ -54,6 +55,9 @@ namespace Aetherfall.EditorTools.World
         /// <summary>Combat rules.</summary>
         public CombatSettings Settings { get; }
 
+        /// <summary>The first ability, Aether-Stoß (ability.aether.aether_stoss, GDD 03 6.5).</summary>
+        public AbilityDefinition AetherPush { get; }
+
         /// <summary>Grey wolf (enemy.wolf.grauwolf, normal, level 8).</summary>
         public EnemyTypeDefinition Wolf { get; }
 
@@ -61,7 +65,32 @@ namespace Aetherfall.EditorTools.World
         public EnemyTypeDefinition AetherWolf { get; }
 
         /// <summary>True if every asset exists.</summary>
-        public bool IsComplete => Weapon != null && Shield != null && Settings != null && Wolf != null && AetherWolf != null;
+        public bool IsComplete => Weapon != null && Shield != null && Settings != null && AetherPush != null && Wolf != null && AetherWolf != null;
+
+        private static AbilityDefinition EnsureAetherPush(TestGroundReport report)
+        {
+            // GDD 03 6.5: cone 6 m / 90°, 120 % of max(weapon damage, spell power), half blunt and half Aether, knockback 3 m,
+            // poise 30, 15 mana, cooldown 8 s, +2 corruption.
+            string path = TestGroundPaths.AbilityFolder + "/Aether_Stoss.asset";
+            return EnsureAsset<AbilityDefinition>(path, report, asset =>
+            {
+                var so = new SerializedObject(asset);
+                Set(so, "abilityId", "ability.aether.aether_stoss", report);
+                Set(so, "displayName", "Aether-Stoß", report);
+                Set(so, "manaCost", 15f, report);
+                Set(so, "cooldownSeconds", 8f, report);
+                Set(so, "windupSeconds", 0.25f, report);
+                Set(so, "recoverySeconds", 0.35f, report);
+                Set(so, "range", 6f, report);
+                Set(so, "coneAngle", 90f, report);
+                Set(so, "damageMultiplier", 1.2f, report);
+                Set(so, "aetherShare", 0.5f, report);
+                Set(so, "poiseDamage", 30f, report);
+                Set(so, "knockbackDistance", 3f, report);
+                Set(so, "corruption", 2f, report);
+                so.ApplyModifiedPropertiesWithoutUndo();
+            });
+        }
 
         private static AttackSpec SwordLight(string id, float lunge)
         {

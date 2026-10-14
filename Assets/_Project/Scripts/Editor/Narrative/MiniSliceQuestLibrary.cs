@@ -75,8 +75,11 @@ namespace Aetherfall.EditorTools.Narrative
         /// <summary>Wenna was saved in s25 (also read by the Mühlbach dialogue).</summary>
         public const string FlagWennaSaved = "flag.eichental.wenna_gerettet";
 
-        /// <summary>The player received the Aether power at the rift.</summary>
+        /// <summary>The player received the Aether power at the rift (it teaches the Aether-Stoß, key 4).</summary>
         public const string FlagAetherPower = "flag.main.aether_kraft_erhalten";
+
+        /// <summary>The first ability (GDD 03 6.5).</summary>
+        public const string AetherPush = "ability.aether.aether_stoss";
 
         /// <summary>Outcome of quest 2: 1 fight, 2 destroyed, 3 taken.</summary>
         public const string FlagWolvesOutcome = "flag.eichental.woelfe_ausgang";
@@ -187,6 +190,9 @@ namespace Aetherfall.EditorTools.Narrative
                     .Text("Etwas Großes kriecht aus dem Riss. Nutze die neue Kraft.")
                     .OnStart(new SpawnEncounter("spawn.eichental.rissbrut_prolog"))
                     .Objective(new KillSpecificObjective("o1", "boss.eichental.rissbrut_prolog").WithJournalText("Die Rissbrut besiegen"))
+                    // GDD 02 11.1 s60 o2 (tutorial): key 4 – the power from the rift (learned at s50 with FlagAetherPower).
+                    .Optional(new UseAbilityObjective("o2", AetherPush, "boss.eichental.rissbrut_prolog")
+                        .WithJournalText("Triff die Rissbrut mit dem Aether-Stoß (Taste 4)"))
                     .Next("s70"))
                 .Stage(new StageBuilder("s70")
                     .Text("Der Riss ist still, die Gestalt verschwunden. Die Überlebenden warten in Lindenhain.",
@@ -201,7 +207,7 @@ namespace Aetherfall.EditorTools.Narrative
                 .LedgerEntry("ledger.c3", "Eine graue Gestalt hat am Riss auf dich gewartet.")
                 .Rewards(new GiveXp(500), new GiveItem("item.potion.heiltrank_schwach", 3))
                 .Production(ContentStatus.Draft, QuestScopeTier.A, 0, "claude", 40,
-                    "Mini-Slice: ohne Zwischensequenzen, Musik und Aether-Stoß; Risslinge und Rissbrut sind Aether-Wölfe (Platzhalter).")
+                    "Mini-Slice: ohne Zwischensequenzen und Musik; Risslinge und Rissbrut sind Aether-Wölfe (Platzhalter).")
                 .Build();
         }
 

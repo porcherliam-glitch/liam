@@ -49,6 +49,13 @@ namespace Aetherfall.Tests.EditMode.UIScreens
         }
 
         /// <inheritdoc />
+        public bool TryGetAbility(int slot, out HudAbilityInfo ability)
+        {
+            ability = default;
+            return false;
+        }
+
+        /// <inheritdoc />
         public void Respawn()
         {
             Respawns++;

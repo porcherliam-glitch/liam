@@ -35,6 +35,9 @@ namespace Aetherfall.EditorTools.World
         /// <summary>Folder of combo, weapon and shield assets.</summary>
         public const string WeaponFolder = SetupPaths.ProjectFolder + "/Data/Combat/Weapons";
 
+        /// <summary>Folder of the ability assets (Aether-Stoß).</summary>
+        public const string AbilityFolder = SetupPaths.ProjectFolder + "/Data/Combat/Abilities";
+
         /// <summary>Folder of the enemy type assets (architecture 3.1: Data/Enemies).</summary>
         public const string EnemyFolder = SetupPaths.ProjectFolder + "/Data/Enemies";
 

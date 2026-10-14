@@ -11,7 +11,8 @@
         "Aetherfall.Items",
         "Aetherfall.Inventory",
         "Aetherfall.Progression",
-        "Aetherfall.Combat"
+        "Aetherfall.Combat",
+        "Aetherfall.WorldState"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

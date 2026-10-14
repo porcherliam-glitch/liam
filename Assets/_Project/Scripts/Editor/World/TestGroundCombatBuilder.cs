@@ -41,9 +41,11 @@ namespace Aetherfall.EditorTools.World
         /// <param name="environmentLayer">Environment layer.</param>
         /// <param name="report">Protocol.</param>
         /// <param name="level">Level of the player stats (test ground: 10; the Eichental passes the start level of the ProgressionInstaller).</param>
+        /// <param name="abilityUnlockFlag">World flag that teaches the Aether-Stoß (mini slice: the Aether power); empty = from the start.</param>
         /// <returns>The player's combatant.</returns>
         public static Combatant SetUpPlayer(GameObject player, Camera mainCamera, TestGroundMaterials materials, TestGroundCombatAssets assets,
-            int hurtboxLayer, int environmentLayer, TestGroundReport report, int level = Aetherfall.EditorTools.Narrative.TestGroundLevels.PlayerStartLevel)
+            int hurtboxLayer, int environmentLayer, TestGroundReport report, int level = Aetherfall.EditorTools.Narrative.TestGroundLevels.PlayerStartLevel,
+            string abilityUnlockFlag = "")
         {
             CharacterStatsComponent stats = player.GetComponent<CharacterStatsComponent>();
             DamageableComponent damageable = player.GetComponent<DamageableComponent>();
@@ -133,9 +135,10 @@ namespace Aetherfall.EditorTools.World
                 ? shieldModel.GetComponentInChildren<Renderer>().gameObject
                 : CreateVisual(shieldHand, "Shield", PrimitiveType.Cube, new Vector3(0f, 0f, 0.1f), new Vector3(0.55f, 0.7f, 0.08f), materials.Shield,
                     player.layer);
+            HumanoidPuppet puppet = null;
             if (model != null)
             {
-                HumanoidPuppet puppet = model.gameObject.AddComponent<HumanoidPuppet>();
+                puppet = model.gameObject.AddComponent<HumanoidPuppet>();
                 puppet.BindByName(model);
                 puppet.SetHandTargets(grip, shieldHand);
                 TestGroundFields.SetReference(puppet, "combatant", combatant, report);
@@ -157,6 +160,18 @@ namespace Aetherfall.EditorTools.World
             TestGroundFields.SetReference(respawn, "combatant", combatant, report);
             TestGroundFields.SetReference(respawn, "combat", combat, report);
             TestGroundFields.SetReference(respawn, "stats", stats, report);
+
+            // GDD 03 6.5: the Aether-Stoß on key 4 (learned with the flag, or from the start without one).
+            PlayerAbilityCaster caster = player.AddComponent<PlayerAbilityCaster>();
+            TestGroundFields.SetReference(caster, "ability", assets.AetherPush, report);
+            TestGroundFields.SetString(caster, "unlockFlag", abilityUnlockFlag ?? string.Empty, report);
+            TestGroundFields.SetReference(caster, "combatant", combatant, report);
+            TestGroundFields.SetReference(caster, "stats", stats, report);
+            TestGroundFields.SetReference(caster, "combat", combat, report);
+            TestGroundFields.SetReference(caster, "puppet", puppet, report);
+            AetherPushEffect.Build(player.transform, caster, report);
+            report.Info("Aether-Stoß (Taste 4): " + (string.IsNullOrEmpty(abilityUnlockFlag) ? "von Anfang an" : "ab Flag " + abilityUnlockFlag) +
+                        ", Kegel 6 m / 90°, 15 Mana, 8 s Abklingzeit.");
             report.Info("Spieler-Kampf: Combatant, Trefferzonen (Körper, Kopf), Hitbox, Lock-On, Kampfsteuerung, " +
                         (model != null ? "Krieger-Modell mit Schwert und Holzschild (Blender, HumanoidPuppet), " : "Schwert und Schild (Quader), ") +
                         "Wiederbeleben nach 3 s. Werte: Krieger Stufe 10 aus GDD 03, 8.3 (Stärke 20, Geschick 10, Konstitution 18; Rüstung und " +

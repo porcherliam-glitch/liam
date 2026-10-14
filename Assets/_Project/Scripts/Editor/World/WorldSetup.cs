@@ -66,6 +66,7 @@ namespace Aetherfall.EditorTools.World
                 !TestGroundAssets.EnsureFolder(SetupPaths.BootSettingsFolder, report) ||
                 !TestGroundAssets.EnsureFolder(TestGroundPaths.AttackFolder, report) ||
                 !TestGroundAssets.EnsureFolder(TestGroundPaths.WeaponFolder, report) ||
+                !TestGroundAssets.EnsureFolder(TestGroundPaths.AbilityFolder, report) ||
                 !TestGroundAssets.EnsureFolder(TestGroundPaths.EnemyFolder, report) ||
                 !TestGroundAssets.EnsureFolder(TestGroundPaths.CombatSettingsFolder, report) ||
                 !TestGroundAssets.EnsureFolder(TestGroundPaths.ItemFolder, report) ||

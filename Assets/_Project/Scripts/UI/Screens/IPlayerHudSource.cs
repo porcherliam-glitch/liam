@@ -34,6 +34,12 @@ namespace Aetherfall.UI.Screens
         /// <returns>False if no living target is locked on.</returns>
         bool TryGetTarget(out HudTargetInfo target);
 
+        /// <summary>Returns the learned ability on a slot of the first bar.</summary>
+        /// <param name="slot">Slot 0–3 (keys 1–4).</param>
+        /// <param name="ability">Ability info.</param>
+        /// <returns>False if the slot is empty or the ability is not learned yet.</returns>
+        bool TryGetAbility(int slot, out HudAbilityInfo ability);
+
         /// <summary>Respawns the player at the spawn point (death screen).</summary>
         void Respawn();
 
