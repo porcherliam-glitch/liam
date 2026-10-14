@@ -51,6 +51,13 @@ namespace Aetherfall.Conditions
         /// <inheritdoc />
         public override void CollectTriggers(ITriggerCollector triggers)
         {
+            if (conditions.Count == 0)
+            {
+                // An empty AND always holds: constant, never polled.
+                triggers.Constant();
+                return;
+            }
+
             for (int i = 0; i < conditions.Count; i++)
             {
                 triggers.CollectChild(conditions[i]);

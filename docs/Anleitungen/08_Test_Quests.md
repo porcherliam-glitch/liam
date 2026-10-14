@@ -40,8 +40,8 @@ Voraussetzung: [Anleitung 01](./01_Projekt-Setup.md) bis [Anleitung 06](./06_Tes
 | **Weltzustand** (`Aetherfall.WorldState`, neu) | Flags als Ja/Nein (Bool), Zähler, Aufzählung (Enum, z. B. 1 = getötet, 2 = vertrieben) und Story-Zahl mit Min/Max. **Flag-Definitionen** als Assets schützen vor Tippfehlern: Unbekannte IDs werden trotzdem gespeichert, aber im Log gemeldet. Jede echte Änderung sendet `FlagChanged`. Speichert nur geänderte Werte samt Spielzeit der Änderung (für „Flag seit mindestens 15 Stunden“). Debug-Abfragen für die spätere Konsole (`list_flags`, `get_flag`, `set_flag`), Änderungsverlauf (letzte 200) und „alles zurücksetzen, was Quest X geschrieben hat“. Bedingungen **Welt/Flag** und **Welt/Flag seit mindestens n Stunden**, Aktionen **Welt/Flag setzen** und **Welt/Flag erhöhen**. |
 | **Quest-System** (`Aetherfall.Quests`, neu) | `QuestDefinition` (Asset) mit allen Feldern aus GDD 02, 4.1 (Titel, Kategorie, Questgeber mit Ersatz, Startauslöser, Startbedingungen, Start-Stage, Belohnungen, Folgequests, wiederholbar, Scheitern, Kette, Ledger, Begleiter-Reaktionen, Produktionsdaten). Stages mit allen Feldern aus 4.2 (Questlog-Text, Erkundungshinweis, Ziele, Modus alle/eines/mindestens n, optionale Ziele mit Bonus-Aktionen, Aktionen beim Start/Abschluss, Verzweigungen mit Standard-Ausgang, Fehlschlag-Regeln, Endstage Erfolg/Misserfolg, Ledger-Eintrag, Speichersperre, Marker). **14 Zieltypen** (Liste unten). `QuestService`: Start mit Startbedingungen, Fortschritt über Ereignisse, Stage-Wechsel, Abschluss mit Belohnungen, Scheitern, Abklingzeit bei Wiederholung, Folgequests, höchstens 3 verfolgte Quests mit Fokus-Quest, Ledger, Entscheidungen, Debug-Funktionen (Ziel erfüllen, zu Stage springen, Quest zurücksetzen). Questgeber-Verfügbarkeit (`QuestAvailabilityChanged` für die „!“-Symbole). Speichern im Abschnitt `quests`. |
 | **Ereignisse** (`Aetherfall.Events`, neue Dateien) | `FlagChanged`, `QuestStarted`, `QuestStageChanged`, `QuestCompleted`, `QuestFailed`, `ObjectiveProgressed`, `QuestAvailabilityChanged`, dazu die Ziel-Ereignisse `NPCTalkedTo`, `DialogOutcome`, `ChoiceMade`, `ItemDelivered`, `AreaEntered`, `ClueInspected`, `TrailNodeReached`, `EnemyDefeated`, `BossDefeated`, `AbilityUsedAt`, `TimeOfDayChanged` (Namen und Inhalt laut Architektur 4.3). |
-| **Editor** (`Aetherfall.EditorTools.Narrative`, neu) | **Typauswahl** für Bedingungen, Aktionen und Ziele: ein Knopf mit Suchmenü und deutschen Menüpfaden, Kopfzeile mit Kurzbeschreibung, Rechtsklick **Kopieren / Einfügen / Leeren**. Menü **Aetherfall > Quests prüfen** mit Ergebnisfenster. |
-| **Tests** | 188 neue automatische Testfälle (insgesamt jetzt 1234, davon 721 auch ohne Pakete) für Weltzustand, Bedingungen, alle Zieltypen, Quest-Ablauf, Verzweigung, Scheitern, Speichern und Laden mitten in einer Quest, Quest-Prüfung, Typauswahl – und **„Die Wölfe vom Nordhang“ komplett** (alle drei Wege, Speichern mitten auf der Spur, Folgequest). |
+| **Editor** (`Aetherfall.EditorTools.Narrative`, neu) | **Typauswahl** für Bedingungen, Aktionen und Ziele: ein Knopf mit Suchmenü und deutschen Menüpfaden, Kopfzeile mit Kurzbeschreibung, Rechtsklick **Kopieren / Einfügen / Leeren**. Das Menü zeigt nur Typen, die es auch im fertigen Spiel gibt (keine Test-Platzhalter). Fehlt die Klasse eines gespeicherten Eintrags, steht dort rot **Fehlender Typ: …**. Menü **Aetherfall > Quests prüfen** mit Ergebnisfenster; es prüft zusätzlich die gespeicherten Daten jedes Quest-Assets (fehlende Klassen **V14**, doppelt benutzte Einträge **R01**). |
+| **Tests** | 201 neue automatische Testfälle (insgesamt jetzt 1247, davon 722 auch ohne Pakete) für Weltzustand, Bedingungen, alle Zieltypen, Quest-Ablauf, Verzweigung, Scheitern, Speichern und Laden mitten in einer Quest (auch mit verschwundener Stage), Quest-Prüfung, Typauswahl, fehlende Klassen in Assets – und **„Die Wölfe vom Nordhang“ komplett** (alle drei Wege, Speichern mitten auf der Spur, Folgequest). Der Test `MissingTypeAssetTests` braucht Unity (im Harness übersprungen). |
 
 **Die 14 Zieltypen** (Menü **Ziele/…**, Kürzel aus GDD 02, 5.1):
 
@@ -129,7 +129,7 @@ Hier probierst du die **Typauswahl** aus. Die Quest ist absichtlich klein (zwei 
 6. In dieser Stage bei **Objectives** auf **+** klicken, dann auf **(keine – Typ wählen)** > **Ziele > Rede mit NPC**. Aufklappen, **Id** `o1`, **Npc Id** `npc.eichental.bauer_hollmann`.
 7. In derselben Stage bei **On Complete** auf **+** > **(keine – Typ wählen)** > **Welt > Flag setzen**. **Flag Id** `flag.eichental.woelfe_ausgang`, **Value** `2`.
 8. **Default Next Stage Id**: `s20`.
-9. Zweite Stage mit **+** anlegen. Unity kopiert dabei die erste – das ist normal. Ziele und Aktionen der Kopie sind **eigene** Kopien (die Typauswahl trennt sie automatisch vom Original). Ändere **Id** auf `s20`, **Journal Text** auf „Fertig.“, **Default Next Stage Id** leeren und **End Type** auf **Success** stellen.
+9. Zweite Stage mit **+** anlegen. Unity kopiert dabei die erste – das ist normal. Ziele und Aktionen der Kopie sind **eigene** Kopien (die Typauswahl trennt sie automatisch vom Original, auch wenn du mehrmals **+** drückst). Ändere **Id** auf `s20`, **Journal Text** auf „Fertig.“, **Default Next Stage Id** leeren und **End Type** auf **Success** stellen.
 10. **Rewards** lässt du absichtlich leer – die Prüfung in Abschnitt 6 soll das melden.
 11. Rechtsklick auf die Kopfzeile einer Bedingung oder Aktion (dort, wo der Typ steht).
     **Du siehst danach:** ein kleines Menü **Kopieren**, **Einfügen**, **Leeren**.
@@ -140,7 +140,7 @@ Hier probierst du die **Typauswahl** aus. Die Quest ist absichtlich klein (zwei 
 ## 6. Quests prüfen
 
 1. Menü **Aetherfall > Quests prüfen**.
-   **Du siehst danach:** ein Fenster **Quests prüfen** mit der Zusammenfassung „1 Quest(s) geprüft: 0 Fehler, 3 Warnung(en).“ und einer Liste. Jede Zeile hat ein Symbol (rot = Fehler, gelb = Warnung, blau = Hinweis), den Regel-Code und eine deutsche Meldung: **W01** „Keine Belohnung“, zweimal **V16** („wird gelesen, aber … nie geschrieben“ bzw. „wird geschrieben, aber … nie gelesen“ – Dialoge, die solche Flags setzen, gibt es noch nicht). In der Console stehen dieselben Meldungen.
+   **Du siehst danach:** ein Fenster **Quests prüfen** mit der Zusammenfassung „1 Quest(s) geprüft: 0 Fehler, 3 Warnung(en).“ und einer Liste. Jede Zeile hat ein Symbol (rot = Fehler, gelb = Warnung, blau = Hinweis), den Regel-Code und eine deutsche Meldung: **W01** „Keine Belohnung“, zweimal **V16** („wird gelesen, aber … nie geschrieben“ bzw. „wird geschrieben, aber … nie gelesen“ – Dialoge, die solche Flags setzen, gibt es noch nicht). In der Console stehen dieselben Meldungen. Steht zusätzlich **R01** („… sind dasselbe Objekt“) dort: Stage `s20` und ihre Ziele einmal aufklappen und **Erneut prüfen** (siehe Abschnitt 9).
 2. Mit **Zeigen** springt Unity zum Quest-Asset.
 3. Absichtlich einen Fehler einbauen: in Stage `s10` bei **Default Next Stage Id** `s99` eintragen. Oben im Fenster **Erneut prüfen** klicken.
    **Du siehst danach:** rote Einträge **V04** „Standard-Ausgang zeigt auf unbekannte Stage 's99'.“, **V05** „'s20' ist von der Start-Stage 's10' aus nicht erreichbar.“ und **V08** „Keine erreichbare Erfolgs-Endstage …“.
@@ -165,8 +165,9 @@ Die Test-Quest und die Flags darfst du danach löschen oder behalten. Sie störe
 | 7 | Aktionen (**On Start**, **On Complete**, **Rewards**) | Menü **Aktion wählen** mit Logik/Quest/Welt |
 | 8 | Kopfzeile zeigt Kurztext | z. B. „Rede mit NPC – o1: Rede(npc.eichental.bauer_hollmann)“ |
 | 9 | Rechtsklick auf Kopfzeile | **Kopieren**, **Einfügen**, **Leeren** funktionieren |
-| 10 | Neuer Listeneintrag mit **+** | eigener Eintrag, ändert den vorherigen nicht mit |
+| 10 | Neuer Listeneintrag mit **+** | eigener Eintrag, ändert den vorherigen nicht mit (auch nach drei- oder viermal **+**) |
 | 11 | **Aetherfall > Quests prüfen** | Fenster mit Zusammenfassung; eingebaute Fehler werden gemeldet |
+| 11a | Typ-Menüs | kein Ordner **Test** und keine Einträge unter **Sonstige** |
 | 12 | **Gamepad** | Für die Editor-Fenster nicht nötig (Spieler-Oberflächen kommen mit Questlog/HUD) |
 
 ---
@@ -190,6 +191,10 @@ Die Test-Quest und die Flags darfst du danach löschen oder behalten. Sie störe
 | Bei **Start Condition** erscheint kein Knopf, sondern nur ein grauer Text | Screenshot an Claude (dann greift die Typauswahl in deiner Unity-Version nicht; Rückfall laut Architektur 7.4 wäre ein fertiges kostenloses Paket). |
 | Nach **+** in einer Liste ändern sich zwei Einträge gleichzeitig | Den neuen Eintrag mit Rechtsklick > **Leeren** leeren und den Typ neu wählen. Bitte an Claude melden. |
 | „Keine FlagDefinitions gefunden – Flag-IDs nicht geprüft“ | Normal, solange es keine Flag-Assets gibt (Abschnitt 4). |
+| Ein Feld zeigt rot **Fehlender Typ: …**, **Quests prüfen** meldet **V14** „Fehlender Typ: Klasse …“ | Eine Klasse wurde umbenannt oder gelöscht. Die Daten stehen noch im Asset. **Nicht** überschreiben oder leeren (Unity fragt vorher nach) – Screenshot an Claude, Claude stellt die Klasse mit `[MovedFrom]` wieder her. |
+| **Quests prüfen** meldet **R01** „… sind dasselbe Objekt“ | Zwei Stellen teilen sich einen Eintrag. Quest im Inspector öffnen und die genannte Stelle aufklappen – die Typauswahl trennt sie dann. Danach **Erneut prüfen**. |
+| Im Typ-Menü steht ein Ordner **Test** oder **Sonstige** | Nicht benutzen (Test-Platzhalter gibt es im fertigen Spiel nicht) und an Claude melden. |
+| „… konnten nicht geprüft werden (Unity-Funktion nicht gefunden)“ | Deine Unity-Version kennt eine Prüffunktion nicht. Screenshot an Claude. |
 | Im Spiel passiert nichts mit Quests | Richtig so: der Einbau ins Spiel folgt im nächsten Schritt. |
 | Test Runner zeigt keine Gruppe „…Quests“ | **Edit > Preferences > General > Auto Refresh** prüfen oder **Assets > Refresh**. Fehlt Newtonsoft (siehe oben), werden diese Tests absichtlich nicht gebaut. |
 
@@ -205,7 +210,7 @@ Alle Skripte sind reine Dateien im Projekt; du musst nichts an GameObjects häng
 | `Assets/_Project/Scripts/WorldState/` | `WorldStateService`, `FlagDefinition`, `FlagIs`, `FlagAge`, `SetFlag`, `AddToFlag`, `WorldStateSaveable`, `WorldStateInstaller` | kein GameObject; `WorldStateInstaller` in die BootConfig |
 | `Assets/_Project/Scripts/Quests/` | `QuestDefinition`, `StageDefinition`, 14 Zieltypen, Quest-Bedingungen und -Aktionen, `QuestService`, `QuestSaveable`, `QuestValidator`, `QuestInstaller` | kein GameObject; `QuestInstaller` in die BootConfig |
 | `Assets/_Project/Scripts/Events/` | `QuestEvents.cs`, `WorldStateEvents.cs`, `DialogueEvents.cs`, `ExplorationEvents.cs`, `EncounterEvents.cs`, `TimeEvents.cs`, `ItemDelivered.cs`, `DayPhase.cs` | – |
-| `Assets/_Project/Scripts/Editor/Narrative/` | Typauswahl (`ManagedReferenceTypeDrawer`, `TypeMenuCatalog`, `TypeMenuDropdown`), Menü **Quests prüfen** und Ergebnisfenster | nur im Editor |
+| `Assets/_Project/Scripts/Editor/Narrative/` | Typauswahl (`ManagedReferenceTypeDrawer`, `TypeMenuCatalog`, `TypeMenuDropdown`, `ManagedReferenceIndex`), Menü **Quests prüfen** und Ergebnisfenster, Prüfung der gespeicherten Einträge (`ManagedReferenceApi`, `ManagedReferenceChecks`) | nur im Editor |
 | `Assets/_Project/Tests/EditModeConditions/` | Tests der Bedingungen (laufen auch ohne Pakete) | Test Runner |
 | `Assets/_Project/Tests/EditModeQuests/` | Tests für Weltzustand, Quests, Prüfung, Typauswahl, „Die Wölfe vom Nordhang“ | Test Runner |
 | `Assets/_Project/Data/WorldState/` (von dir angelegt) | Flag-Assets | in den Inhaltskatalog (Abschnitt 11) |
@@ -226,13 +231,15 @@ Dieser Abschnitt ist die Arbeitsliste für Claude beim Einbau ins Spiel. Du muss
 | `QuestInstaller.asset` | Create > Aetherfall > Boot > Installer: Quests | WorldStateInstaller, InventoryInstaller | zusätzlich `IConditionWatcher`, `IWorldState`, `IInventoryService` |
 
 - Am einfachsten im Testgelände-Generator: in `TestGroundAssets` eine Methode `EnsureNarrativeInstallersInBootConfig` nach dem Muster von `EnsureItemInstallersInBootConfig` (`EnsureInstallerInBootConfig<ConditionsInstaller>(…, typeof(EventBusInstaller), typeof(GameTimeInstaller))`, dann `WorldStateInstaller` hinter `ConditionsInstaller`, `SaveInstaller`, `GameTimeInstaller`, `ContentInstaller`, dann `QuestInstaller` hinter `WorldStateInstaller`, `InventoryInstaller`), dazu die Pfade in `TestGroundPaths` und eine Zeile im Fenstertext von `TestGroundMenu`.
-- Der `ConditionWatcher` und der `QuestService` sind `ITickable`/`IDisposable`, der `QuestService` zusätzlich `IPostInitializable` (startet die Verfügbarkeit) und `ISessionService` – der Bootstrapper erkennt das automatisch.
+- Der `ConditionWatcher` und der `QuestService` sind `ITickable`/`IDisposable`, der `QuestService` zusätzlich `IPostInitializable` (startet die Verfügbarkeit) – das erkennt der Bootstrapper automatisch.
+- Der `QuestService` ist außerdem `ISessionService`, aber **diese Schnittstelle ruft im Projekt noch niemand auf** (`BeginSession`/`EndSession`). Der Integrationsschritt muss beim Wechsel ins Hauptmenü `EndSession()` aller `ISessionService`-Dienste aufrufen (gibt Ziel-Bindungen und Watches frei). Beim Laden eines Spielstands räumt `QuestSaveable` selbst auf.
 - Die Saveables registrieren sich selbst beim `ISaveManager`: `worldstate` (Reihenfolge 20) und `quests` (100, mit `OnAfterLoad`).
 
 **11.2 Inhalte:**
 
 - Alle `FlagDefinition`- und `QuestDefinition`-Assets müssen im **Inhaltskatalog** (`Assets/_Project/Data/ContentCatalog.asset`) stehen, sonst kennt die `ContentDatabase` sie nicht (`QuestCatalog.FromDatabase`, `FlagRegistry.FromDatabase`).
 - Für den Mini-Slice die drei Quests „Asche über Eichental“, „Die Wölfe vom Nordhang“ und „Die vergessene Gruft“ als Assets anlegen (Vorlage für die Wölfe: `Tests/EditModeQuests/NordhangQuestFixture.cs`, Stage für Stage gleich) und die Flags aus GDD 02, 11 als `FlagDefinition`s. Ein Editor-Skript kann das aus dem Fixture-Aufbau erzeugen.
+- **Vorher** die echten Typen bauen, die das Fixture nur als Test-Platzhalter hat (`GiveItem`, `GiveCurrency`, `HasItem`, `TimeOfDayBetween` … statt `GiveTestItem`, `GiveTestGold`, `TestHourBetween`, siehe Abschnitt 12). Die Platzhalter stehen absichtlich nicht im Typ-Menü: Sie liegen in einer Test-Assembly, die es im fertigen Spiel nicht gibt – das Feld wäre dort leer (V14).
 - Danach **Aetherfall > Quests prüfen**: 0 Fehler. Erwartete Warnung bei den Wölfen: **W12** (4 Flags wirken über die Quest hinaus – so steht es im GDD; Konsequenz-Budget ist 3).
 
 **11.3 Ereignis-Sender, die noch fehlen** (die Ziele warten schon darauf):
@@ -252,7 +259,7 @@ Schon vorhanden: `EnemyKilled` (KI), `Interacted` (Interaktion), `InventoryChang
 
 **11.4 Anzeige und Debug:**
 
-- HUD-Tracker (bis zu 3 verfolgte Quests, Fokus-Quest) und Questlog (Tabs laut GDD 02, 7.1) lesen `IQuestService` (`Instances`, `TrackedQuestIds`, `FocusQuestId`, `GetLedger`, lokales Ereignis `Changed`) und reagieren auf `ObjectiveProgressed`, `QuestStarted`, `QuestCompleted`, `QuestFailed` (Meldungen laut GDD 02, 7.5). Questgeber-Symbole hören auf `QuestAvailabilityChanged`. Alles muss mit dem Gamepad bedienbar sein.
+- HUD-Tracker (bis zu 3 verfolgte Quests, Fokus-Quest) und Questlog (Tabs laut GDD 02, 7.1) lesen `IQuestService` (`Instances`, `TrackedQuestIds`, `FocusQuestId`, `GetLedger`, lokales Ereignis `Changed`) und reagieren auf `ObjectiveProgressed`, `QuestStarted`, `QuestCompleted`, `QuestFailed` (Meldungen laut GDD 02, 7.5). Questgeber-Symbole („!“) fragen den Stand mit `IQuestService.GetAvailableQuestIds(giverId, liste)` ab – beim Aktivieren (`OnEnable`, auch in später nachgeladenen Zellen) und nach `GameLoaded` – und nutzen `QuestAvailabilityChanged` **nur für Änderungen**: Nach dem Laden meldet der Dienst nur Unterschiede, für Quests, die schon vorher verfügbar waren, kommt kein Ereignis. Alles muss mit dem Gamepad bedienbar sein.
 - Debug-Overlay „Quests“ (DevTools) mit den Funktionen aus GDD 02, 10.3: `TryStartForced`, `TrySetStage`, `TryCompleteObjective`, `TrySetObjectiveProgress`, `TryComplete`, `TryFail`, `ResetQuest`; Weltzustand über `IWorldStateDebug` (`Query`, `TrySetFromText`, `GetRecentChanges`).
 - Konsolenbefehle (später, Architektur 14.2): `start_quest`, `set_stage`, `complete_objective`, `complete_quest`, `fail_quest`, `reset_quest`, `set_flag`, `get_flag`, `list_flags`.
 - `docs/Status.md` um diesen Schritt ergänzen (in diesem Arbeitsschritt bewusst nicht geändert, damit das Zusammenführen einfach bleibt).
@@ -263,7 +270,7 @@ Schon vorhanden: `EnemyKilled` (KI), `Interacted` (Interaktion), `InventoryChang
 Unity.exe -batchmode -nographics -projectPath . -executeMethod Aetherfall.EditorTools.Narrative.QuestValidationMenu.RunBatch -logFile Logs\quests.log
 ```
 
-Exit-Code 0 = keine Fehler, 1 = Fehler (Meldungen in der Logdatei).
+Exit-Code 0 = keine Fehler, 1 = Fehler (Meldungen in der Logdatei, auch **V14** für fehlende Klassen). Zusätzlich prüft der Test `MissingTypeAssetTests` im Test Runner alle Assets unter `Assets/_Project` auf fehlende `[SerializeReference]`-Klassen (Architektur 7.6 Nr. 6; im Harness ohne Unity wird er übersprungen).
 
 ---
 
@@ -279,6 +286,14 @@ Exit-Code 0 = keine Fehler, 1 = Fehler (Meldungen in der Logdatei).
 | Zeitbedingungen ohne Spieluhr | `OnGameHour` | solange keine Spieluhr `TimeOfDayChanged` sendet, prüft der Watcher stündliche Bedingungen jede Sekunde | sonst würde `FlagAge` nie wahr |
 | Weltzustand im Save | Liste `[id, wert, changedAtPlaytime]` (8.3) | Liste von Objekten `{ id, value, changedAt }` | Das Speichersystem erlaubt nur typisierte DTO-Klassen; Inhalt identisch. |
 | `ObjectiveProgressed.ObjectiveId` | Ziel-ID | `s20.o1` (Stage + Ziel) | eindeutig, weil Ziel-IDs nur je Stage eindeutig sind |
+| Prüfung auf fehlende `[SerializeReference]`-Klassen | `SerializationUtility.HasManagedReferencesWithMissingTypes` (6.4) | dieselbe Unity-Funktion, aber über Reflection aufgerufen (`ManagedReferenceApi`), ebenso `SerializedProperty.managedReferenceId` | Das Prüfprogramm ohne Unity (Harness) kennt nur die Editor-Schnittstelle von Unity 2021.1, in der beides fehlt. Findet Unity die Funktion nicht, meldet **Quests prüfen** das als Warnung statt still zu bestehen. Sobald der Harness die Funktionen kennt, durch direkte Aufrufe ersetzen. |
+| Doppelt benutzte Einträge (R01) | – (keine Regel in GDD 02, 10.2) | **Warnung** | Im Spiel harmlos, weil Bedingungen, Aktionen und Ziele keinen Laufzeitzustand tragen (Architektur 7.6 Nr. 4); gefährlich ist nur das Bearbeiten. Die Typauswahl trennt solche Einträge beim Aufklappen selbst. |
+
+**Verhalten, das man kennen sollte:**
+
+- **Leere Logik:** Ein leeres **UND** ist immer erfüllt, ein leeres **ODER** und ein leeres **Mindestens n von m** nie. Sie gelten als unveränderlich und werden nicht jede Sekunde geprüft.
+- **Bonus optionaler Ziele:** Die Bonus-Aktionen laufen **einmal pro Questlauf**. Kommt der Spieler über eine Fehlschlag-Regel, einen Sprung oder eine Schleife erneut in dieselbe Stage, zählt das Ziel wieder, der Bonus kommt aber nicht noch einmal. Ein neuer Lauf einer wiederholbaren Quest zahlt ihn erneut.
+- **Speicherstand mit verschwundener Stage:** Gibt es die aktive Stage eines Spielstands nicht mehr (vor „Fertig“ umbenannt oder gelöscht), läuft die Quest nach dem Laden weiter: an der Stage, die auf die letzte noch vorhandene besuchte Stage folgt (Verzweigungen werden dabei neu ausgewertet), sonst an dieser Stage selbst, sonst an der Start-Stage – mit frischen Zielen, ohne Ereignisse und ohne Start-Aktionen. Das Log nennt beide Stage-IDs. Ab „Fertig“ sind Stage-IDs eingefroren; Umbenennungen laufen dann über die `IdMigrationTable` (Architektur 6.5), deshalb gibt es keine eigene Alias-Liste je Stage.
 
 **Noch nicht umgesetzt (TODO, wartet auf andere Bausteine):**
 

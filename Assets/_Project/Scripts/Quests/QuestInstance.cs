@@ -16,6 +16,7 @@ namespace Aetherfall.Quests
         private readonly List<string> _ledger = new List<string>();
         private readonly Dictionary<string, string> _choices = new Dictionary<string, string>(StringComparer.Ordinal);
         private readonly HashSet<string> _completedObjectives = new HashSet<string>(StringComparer.Ordinal);
+        private readonly HashSet<string> _bonusGiven = new HashSet<string>(StringComparer.Ordinal);
 
         /// <summary>Creates an instance (status unknown until started or loaded).</summary>
         /// <param name="questId">Quest id.</param>
@@ -47,6 +48,13 @@ namespace Aetherfall.Quests
 
         /// <summary>Fulfilled objectives of all stages as stage-qualified ids (<c>s40.o4</c>).</summary>
         public IReadOnlyCollection<string> CompletedObjectives => _completedObjectives;
+
+        /// <summary>
+        /// Objectives with completion actions (bonus) that already ran in this run, as stage-qualified ids (<c>s30.o2</c>). Kept
+        /// per run, not per objective state: entering a stage again (fail rule back to an earlier stage, jump, cycle) creates
+        /// fresh objective states, but the bonus is not paid twice. A new run of a repeatable quest starts empty.
+        /// </summary>
+        public IReadOnlyCollection<string> BonusGivenObjectives => _bonusGiven;
 
         /// <summary>Active playtime in seconds when the quest was started.</summary>
         public double StartedAtPlaytime { get; internal set; }
@@ -118,6 +126,7 @@ namespace Aetherfall.Quests
             _ledger.Clear();
             _choices.Clear();
             _completedObjectives.Clear();
+            _bonusGiven.Clear();
             StartedAtPlaytime = playtime;
             FinishedAtPlaytime = 0.0;
             EndStageId = string.Empty;
@@ -170,6 +179,13 @@ namespace Aetherfall.Quests
             }
         }
 
+        /// <summary>Marks the bonus of an objective as paid; false if it was paid before in this run.</summary>
+        /// <param name="stageObjectiveKey">Stage-qualified objective id (<c>s30.o2</c>).</param>
+        internal bool TryMarkBonus(string stageObjectiveKey)
+        {
+            return _bonusGiven.Add(stageObjectiveKey ?? string.Empty);
+        }
+
         internal void SetChoice(string stageObjectiveKey, string optionId)
         {
             _choices[stageObjectiveKey] = optionId ?? string.Empty;
@@ -187,7 +203,7 @@ namespace Aetherfall.Quests
         }
 
         internal void LoadState(QuestStatus status, string stageId, IList<ObjectiveState> objectives, IList<string> visited, IList<string> ledger,
-                                IDictionary<string, string> choices, IList<string> completedObjectives)
+                                IDictionary<string, string> choices, IList<string> completedObjectives, IList<string> bonusGiven)
         {
             Status = status;
             StageId = stageId ?? string.Empty;
@@ -197,6 +213,7 @@ namespace Aetherfall.Quests
             _ledger.Clear();
             _choices.Clear();
             _completedObjectives.Clear();
+            _bonusGiven.Clear();
             if (objectives != null)
             {
                 _objectives.AddRange(objectives);
@@ -225,6 +242,17 @@ namespace Aetherfall.Quests
                 for (int i = 0; i < completedObjectives.Count; i++)
                 {
                     _completedObjectives.Add(completedObjectives[i]);
+                }
+            }
+
+            if (bonusGiven != null)
+            {
+                for (int i = 0; i < bonusGiven.Count; i++)
+                {
+                    if (!string.IsNullOrEmpty(bonusGiven[i]))
+                    {
+                        _bonusGiven.Add(bonusGiven[i]);
+                    }
                 }
             }
         }

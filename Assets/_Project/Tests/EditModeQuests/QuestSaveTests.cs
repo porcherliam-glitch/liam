@@ -1,4 +1,5 @@
 using Aetherfall.Conditions;
+using Aetherfall.Core;
 using Aetherfall.Events;
 using Aetherfall.Quests;
 using Aetherfall.SaveSystem;
@@ -14,7 +15,8 @@ namespace Aetherfall.Tests.EditMode.Quests
     /// active stage (progress, timer, distinct ids, bonus given), visited stages, fulfilled objectives of earlier stages,
     /// decisions, ledger, tracking and focus survive a JSON round trip; loading sends no quest events and runs no actions;
     /// after <c>OnAfterLoad</c> objectives, fail rules and availability work again; "Sammle" reconciles with the inventory;
-    /// unknown quests are kept; changed objectives are matched by id.
+    /// unknown quests are kept; changed objectives are matched by id; a running quest whose saved stage no longer exists
+    /// continues at a stage that exists (never stuck without objectives).
     /// </summary>
     [TestFixture]
     public sealed class QuestSaveTests
@@ -67,7 +69,7 @@ namespace Aetherfall.Tests.EditMode.Quests
                 Assert.That(instance.Objectives[1].Extra, Is.EqualTo("clue.test.a"), "inspected clues");
                 Assert.That(instance.Objectives[2].TimerRemaining, Is.EqualTo(100f), "timer of the optional run");
                 Assert.That(instance.Objectives[3].Done, Is.True, "optional condition objective");
-                Assert.That(instance.Objectives[3].BonusGiven, Is.True);
+                Assert.That(instance.BonusGivenObjectives, Is.EquivalentTo(new[] { "s20.o4" }), "bonus of the optional objective already paid");
                 Assert.That(instance.LedgerEntries, Is.EqualTo(new[] { "ledger.c1" }));
                 Assert.That(target.Quests.TryGetChoice(QuestId, "s10.o1", out string option) && option == "b", Is.True);
                 Assert.That(target.Quests.IsObjectiveDone(QuestId, "s10", "o1"), Is.True, "objective of an earlier stage");
@@ -191,6 +193,95 @@ namespace Aetherfall.Tests.EditMode.Quests
                 Assert.That(instance.Objectives[0].Progress, Is.EqualTo(0), "o1 not in the save: starts at 0");
                 Assert.That(instance.Objectives[1].Extra, Is.EqualTo("clue.test.b"));
                 Assert.That(instance.Objectives[2].TimerRemaining, Is.EqualTo(120f), "new timer objective starts full");
+            }
+        }
+
+        [Test]
+        public void LostStage_ContinuesAfterTheLastExistingVisitedStage_WithBoundObjectives()
+        {
+            using (var env = new QuestTestEnvironment(Flags(), CreateQuest()))
+            {
+                var dto = new QuestsDto { FocusQuestId = QuestId };
+                var entry = new QuestInstanceDto { QuestId = QuestId, Status = QuestStatusIds.Active, StageId = "s99", Tracked = true };
+                entry.VisitedStages.Add("s10");
+                entry.VisitedStages.Add("s99");
+                entry.CompletedObjectives.Add("s10.o1");
+                entry.Choices["s10.o1"] = "a";
+                entry.Objectives.Add(new ObjectiveStateDto { Id = "o1", Progress = 1 });
+                dto.Instances.Add(entry);
+
+                env.QuestSaveable.Load(dto, QuestTestEnvironment.LoadedGame);
+                env.QuestSaveable.OnAfterLoad(QuestTestEnvironment.LoadedGame);
+                env.Settle();
+
+                Assert.That(env.QuestSaveable.OrphanCount, Is.EqualTo(0));
+                Assert.That(env.Quests.TryGetInstance(QuestId, out QuestInstance instance), Is.True);
+                Assert.That(instance.Status, Is.EqualTo(QuestStatus.Active));
+                Assert.That(instance.StageId, Is.EqualTo("s20"), "s10 is the last visited stage that still exists, its exit is s20");
+                Assert.That(instance.VisitedStages, Is.EqualTo(new[] { "s10", "s99", "s20" }));
+                Assert.That(instance.Objectives.Count, Is.EqualTo(4), "the objectives of s20");
+                Assert.That(instance.Objectives[0].Progress, Is.EqualTo(0), "states saved for the lost stage are not applied");
+                Assert.That(instance.Objectives[2].TimerRemaining, Is.EqualTo(120f), "fresh timer");
+                Assert.That(env.Quests.IsTracked(QuestId), Is.True);
+                Assert.That(env.LogCapture.Sink.Contains(LogLevel.Warning, "no longer exists"), Is.True, env.LogCapture.Sink.Dump());
+
+                KillWolf(env);
+                KillWolf(env);
+                Assert.That(instance.Objectives[0].Done, Is.True, "the objectives of the fallback stage are bound");
+                env.Publish(new ClueInspected("clue.test.a"));
+                env.Publish(new ClueInspected("clue.test.b"));
+                Assert.That(env.StageOf(QuestId), Is.EqualTo("s30"), "the quest goes on to its end");
+            }
+        }
+
+        [Test]
+        public void LostStage_BranchOfTheLastStage_SeesTheLoadedDecision()
+        {
+            QuestSpec quest = new QuestSpecBuilder("quest.side.test.weg")
+                .StartTrigger(QuestStartTriggerKind.Automatic)
+                .Stage(new StageBuilder("s10")
+                    .Objective(new ChooseObjective("o1", new ChoiceOption("a", "A"), new ChoiceOption("b", "B")))
+                    .Branch(new QuestChoiceIs(string.Empty, "s10", "o1", "b"), "s20_b")
+                    .Next("s20_a"))
+                .Stage(new StageBuilder("s20_a").Objective(new TalkToObjective("o1", "npc.eichental.alwine")).EndSuccess())
+                .Stage(new StageBuilder("s20_b").Objective(new TalkToObjective("o1", "npc.eichental.bauer_hollmann")).EndSuccess())
+                .Build();
+            using (var env = new QuestTestEnvironment(Flags(), quest))
+            {
+                var dto = new QuestsDto();
+                var entry = new QuestInstanceDto { QuestId = "quest.side.test.weg", Status = QuestStatusIds.Active, StageId = "s20_zweiter_weg" };
+                entry.VisitedStages.Add("s10");
+                entry.VisitedStages.Add("s20_zweiter_weg");
+                entry.CompletedObjectives.Add("s10.o1");
+                entry.Choices["s10.o1"] = "b";
+                dto.Instances.Add(entry);
+
+                env.QuestSaveable.Load(dto, QuestTestEnvironment.LoadedGame);
+                env.QuestSaveable.OnAfterLoad(QuestTestEnvironment.LoadedGame);
+
+                Assert.That(env.StageOf("quest.side.test.weg"), Is.EqualTo("s20_b"), "the branch is evaluated after the quest state is loaded");
+            }
+        }
+
+        [Test]
+        public void LostStage_WithoutAnyExistingVisitedStage_RestartsAtTheStartStage()
+        {
+            using (var env = new QuestTestEnvironment(Flags(), CreateQuest()))
+            {
+                var dto = new QuestsDto();
+                var entry = new QuestInstanceDto { QuestId = QuestId, Status = QuestStatusIds.Active, StageId = "s99" };
+                entry.VisitedStages.Add("s05_alt");
+                entry.VisitedStages.Add("s99");
+                dto.Instances.Add(entry);
+
+                env.QuestSaveable.Load(dto, QuestTestEnvironment.LoadedGame);
+                env.QuestSaveable.OnAfterLoad(QuestTestEnvironment.LoadedGame);
+                env.Settle();
+
+                Assert.That(env.StageOf(QuestId), Is.EqualTo("s10"));
+                Assert.That(env.StatusOf(QuestId), Is.EqualTo(QuestStatus.Active));
+                env.Publish(new ChoiceMade(QuestId + ".s10.o1", "b"));
+                Assert.That(env.StageOf(QuestId), Is.EqualTo("s20"), "the objective of the start stage is bound");
             }
         }
 

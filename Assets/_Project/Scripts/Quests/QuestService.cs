@@ -132,6 +132,32 @@ namespace Aetherfall.Quests
         }
 
         /// <inheritdoc />
+        public int GetAvailableQuestIds(string giverId, List<string> results)
+        {
+            if (results == null)
+            {
+                throw new ArgumentNullException(nameof(results));
+            }
+
+            results.Clear();
+            foreach (string questId in _availability.AvailableQuestIds)
+            {
+                if (!Catalog.TryGet(questId, out QuestSpec spec) || spec.Has(QuestTraits.Hidden))
+                {
+                    continue;
+                }
+
+                if (string.IsNullOrEmpty(giverId) || spec.GiverId == giverId)
+                {
+                    results.Add(questId);
+                }
+            }
+
+            results.Sort(string.CompareOrdinal);
+            return results.Count;
+        }
+
+        /// <inheritdoc />
         public bool TryGetInstance(string questId, out QuestInstance instance)
         {
             if (questId == null)
@@ -608,7 +634,9 @@ namespace Aetherfall.Quests
         /// <summary>
         /// Load step 3 (<see cref="IPostLoad.OnAfterLoad"/>): binds the objectives of active stages again (objectives reconcile
         /// with other systems, e.g. collect counts the inventory), watches fail rules and start conditions again and marks every
-        /// watched condition for re-evaluation (architecture 9.2 "ConditionWatcher einmal komplett").
+        /// watched condition for re-evaluation (architecture 9.2 "ConditionWatcher einmal komplett"). An active quest whose saved
+        /// stage no longer exists continues at the stage of <see cref="ResolveLostStage"/> with fresh objective states (no
+        /// events, no stage actions).
         /// </summary>
         public void CompleteLoad()
         {
@@ -623,7 +651,7 @@ namespace Aetherfall.Quests
                         continue;
                     }
 
-                    if (!Catalog.TryGet(instance.QuestId, out QuestSpec spec) || !spec.TryGetStage(instance.StageId, out StageDefinition stage))
+                    if (!Catalog.TryGet(instance.QuestId, out QuestSpec spec) || !TryGetLoadedStage(instance, spec, out StageDefinition stage))
                     {
                         Log.Error(LogCategory.Quests, "Quest '" + instance.QuestId + "': stage '" + instance.StageId + "' of the save no longer exists; the quest stays at it.");
                         continue;
@@ -642,6 +670,53 @@ namespace Aetherfall.Quests
             {
                 EndWork();
             }
+        }
+
+        /// <summary>
+        /// Load fallback (<see cref="CompleteLoad"/>): the stage a running quest continues at when its saved stage no longer
+        /// exists in the data. Takes the last visited stage that still exists and continues at the stage that follows it
+        /// (branches and default exit, evaluated now) - after a renamed stage that is the stage under its new id. Without such
+        /// an exit it is that visited stage itself, without any visited stage the start stage. Empty only for a quest
+        /// without stages. Runs no actions.
+        /// </summary>
+        /// <param name="spec">Quest data.</param>
+        /// <param name="visitedStages">Visited stages of the save, in order.</param>
+        internal string ResolveLostStage(QuestSpec spec, IReadOnlyList<string> visitedStages)
+        {
+            if (visitedStages != null)
+            {
+                for (int i = visitedStages.Count - 1; i >= 0; i--)
+                {
+                    if (!spec.TryGetStage(visitedStages[i], out StageDefinition last))
+                    {
+                        continue;
+                    }
+
+                    string next = last.IsEndStage ? string.Empty : ResolveNext(spec, last);
+                    return next.Length > 0 && spec.TryGetStage(next, out _) ? next : last.Id;
+                }
+            }
+
+            return ResolveStartStage(spec);
+        }
+
+        private bool TryGetLoadedStage(QuestInstance instance, QuestSpec spec, out StageDefinition stage)
+        {
+            if (spec.TryGetStage(instance.StageId, out stage))
+            {
+                return true;
+            }
+
+            string fallback = ResolveLostStage(spec, instance.VisitedStages);
+            if (fallback.Length == 0 || !spec.TryGetStage(fallback, out stage))
+            {
+                return false;
+            }
+
+            Log.Warning(LogCategory.Quests, "Quest '" + instance.QuestId + "': stage '" + instance.StageId + "' of the save no longer exists; the quest continues at '" +
+                                            fallback + "' with fresh objectives.");
+            instance.EnterStage(stage);
+            return true;
         }
 
         internal void Deliver<TEvent>(ObjectiveBinding binding, IObjectiveListener<TEvent> listener, in TEvent evt) where TEvent : struct, IGameEvent
@@ -1085,10 +1160,11 @@ namespace Aetherfall.Quests
 
             Revision++;
             _bus.Publish(new ObjectiveProgressed(instance.QuestId, key, state.Progress, state.Required));
-            if (state.Done && !state.BonusGiven)
+            IReadOnlyList<GameAction> bonus = binding.Objective.OnCompletedActions;
+            if (state.Done && bonus.Count > 0 && instance.TryMarkBonus(key))
             {
-                state.BonusGiven = true;
-                ActionRunner.Run(binding.Objective.OnCompletedActions, ActionContextFor(instance.QuestId));
+                // Once per run (not per objective state): entering the stage again creates fresh states.
+                ActionRunner.Run(bonus, ActionContextFor(instance.QuestId));
             }
 
             EnqueueCheck(instance);

@@ -23,8 +23,5 @@ namespace Aetherfall.Quests
 
         /// <summary>Free text state (inspected clues, chosen option …).</summary>
         public string Extra = string.Empty;
-
-        /// <summary>True once the completion actions ran.</summary>
-        public bool BonusGiven;
     }
 }

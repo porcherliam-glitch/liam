@@ -70,6 +70,9 @@ namespace Aetherfall.Conditions
         /// <inheritdoc />
         public int PendingCount => _dirty.Count;
 
+        /// <summary>Number of watches polled once per second (no triggers, or an entry of a logic type without triggers).</summary>
+        public int PolledWatchCount => _polledWatches.Count;
+
         /// <summary>Number of event types the watcher subscribed to (each exactly once).</summary>
         public int SubscribedEventTypeCount => _channels.Count + (_flagSubscribed ? 1 : 0) + (_hourSubscribed ? 1 : 0);
 

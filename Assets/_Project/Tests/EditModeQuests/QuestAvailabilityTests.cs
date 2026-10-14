@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Aetherfall.Events;
 using Aetherfall.Quests;
 using Aetherfall.Tests.Shared;
@@ -9,7 +10,8 @@ namespace Aetherfall.Tests.EditMode.Quests
     /// <summary>
     /// Availability of quests with a giver (architecture 7.5 and 11.7, GDD 02 7.6): the start conditions are watched,
     /// <c>QuestAvailabilityChanged</c> tells the giver symbols, hidden quests are never announced, started quests are no longer
-    /// offered, and after loading only the differences are announced (a symbol of the old game is withdrawn).
+    /// offered, and after loading only the differences are announced (a symbol of the old game is withdrawn), so symbols read
+    /// the current state with <c>GetAvailableQuestIds</c>.
     /// </summary>
     [TestFixture]
     public sealed class QuestAvailabilityTests
@@ -95,6 +97,27 @@ namespace Aetherfall.Tests.EditMode.Quests
 
             Assert.That(_env.StatusOf(Offered), Is.EqualTo(QuestStatus.Available));
             Assert.That(_events.Count, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void GetAvailableQuestIds_GivesTheStateWithoutEvents_PerGiver_WithoutHiddenQuests()
+        {
+            var ids = new List<string> { "alt" };
+            Assert.That(_env.Quests.GetAvailableQuestIds(Giver, ids), Is.EqualTo(0));
+            Assert.That(ids, Is.Empty, "the list is cleared");
+
+            _env.World.SetBool(Flag, true, "test");
+            _env.Settle();
+            _env.SaveAndLoadInto(_env);
+            _events.Clear();
+
+            Assert.That(_env.Quests.GetAvailableQuestIds(Giver, ids), Is.EqualTo(1), "a symbol enabled after the load finds the quest");
+            Assert.That(ids, Is.EqualTo(new[] { Offered }), "hidden quests are not offered");
+            Assert.That(_env.Quests.GetAvailableQuestIds("npc.eichental.niemand", ids), Is.EqualTo(0));
+            Assert.That(_env.Quests.GetAvailableQuestIds(string.Empty, ids), Is.EqualTo(1), "empty giver = all givers");
+
+            _env.Quests.TryStart(Offered, Giver);
+            Assert.That(_env.Quests.GetAvailableQuestIds(Giver, ids), Is.EqualTo(0));
         }
 
         private static QuestTestEnvironment Create()

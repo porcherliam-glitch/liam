@@ -28,6 +28,9 @@ namespace Aetherfall.Quests
         /// <summary>Fulfilled objectives of all stages (<c>s40.o4</c>).</summary>
         public List<string> CompletedObjectives = new List<string>();
 
+        /// <summary>Objectives whose completion actions (bonus) already ran in this run (<c>s30.o2</c>).</summary>
+        public List<string> BonusGiven = new List<string>();
+
         /// <summary>Ledger entries in order (<c>ledger.c1</c>).</summary>
         public List<string> Ledger = new List<string>();
 

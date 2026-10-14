@@ -14,10 +14,14 @@ namespace Aetherfall.EditorTools.Narrative
     /// with "Kopieren", "Einfuegen" and "Leeren". Works for single fields and every element of a list.
     /// </summary>
     /// <remarks>
-    /// Unity copies the reference of the last element when "+" is pressed on a list of managed references, and a duplicated
-    /// list element of a plain class (e.g. a stage) keeps pointing to the objectives and actions of the original. The drawer
-    /// compares every reference with the one at the same place in the previous list element and gives a shared one its own
-    /// copy (same type and values), so editing the copy never changes the original.
+    /// <para>Unity can copy the reference of the last element when "+" is pressed on a list of managed references, and a
+    /// duplicated list element of a plain class (e.g. a stage) keeps pointing to the objectives and actions of the original.
+    /// The drawer compares the managed reference id of every field with all earlier fields of the object
+    /// (<see cref="ManagedReferenceIndex"/>) and gives every later field that shares an object its own copy (same type and
+    /// values), so editing the copy never changes the original - also when three or more fields share it.</para>
+    /// <para>A field whose class no longer exists (renamed without <c>[MovedFrom]</c>, deleted) shows "Fehlender Typ: Klasse"
+    /// in red instead of "(keine - Typ waehlen)"; replacing or clearing it asks first, because the stored data would be lost
+    /// (GDD 02 rule V14).</para>
     /// Deviation from architecture 7.4: the drawer lives in <c>Aetherfall.EditorTools.Narrative</c> (assembly no. 35, the
     /// step that needs it) instead of <c>EditorTools.Core</c>, and is drawn with IMGUI (also shown inside UI Toolkit
     /// inspectors).
@@ -28,7 +32,11 @@ namespace Aetherfall.EditorTools.Narrative
     public sealed class ManagedReferenceTypeDrawer : PropertyDrawer
     {
         private const string NoneText = "(keine – Typ wählen)";
+        private const string MissingText = "Fehlender Typ: ";
         private const float ButtonMinWidth = 120f;
+
+        private static readonly Color MissingColor = new Color(1f, 0.45f, 0.4f);
+        private static readonly List<MissingManagedType> MissingScratch = new List<MissingManagedType>();
 
         /// <inheritdoc />
         public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
@@ -84,18 +92,24 @@ namespace Aetherfall.EditorTools.Narrative
                 EditorGUI.LabelField(labelRect, label);
             }
 
-            string description = currentType != null ? Describe(property, currentType) : string.Empty;
-            var buttonContent = new GUIContent(currentType != null ? TypeMenuCatalog.DisplayName(currentType) + (description.Length > 0 ? " – " + description : string.Empty) : NoneText,
-                                               currentType != null ? TypeMenuCatalog.MenuPath(currentType) + "\n" + description : "Typ aus dem Menü wählen");
+            string missingType = currentType == null ? MissingTypeName(property) : string.Empty;
+            GUIContent buttonContent = ButtonContent(property, currentType, missingType);
             int indent = EditorGUI.indentLevel;
             EditorGUI.indentLevel = 0;
-            if (EditorGUI.DropdownButton(buttonRect, buttonContent, FocusType.Keyboard))
+            Color color = GUI.color;
+            if (missingType.Length > 0)
             {
-                ShowTypeMenu(buttonRect, property, baseType);
+                GUI.color = MissingColor;
             }
 
+            if (EditorGUI.DropdownButton(buttonRect, buttonContent, FocusType.Keyboard))
+            {
+                ShowTypeMenu(buttonRect, property, baseType, missingType);
+            }
+
+            GUI.color = color;
             EditorGUI.indentLevel = indent;
-            HandleContextMenu(header, property, baseType);
+            HandleContextMenu(header, property, baseType, missingType);
 
             if (currentType != null && property.isExpanded)
             {
@@ -103,6 +117,64 @@ namespace Aetherfall.EditorTools.Narrative
             }
 
             EditorGUI.EndProperty();
+        }
+
+        private static GUIContent ButtonContent(SerializedProperty property, Type currentType, string missingType)
+        {
+            if (currentType != null)
+            {
+                string description = Describe(property, currentType);
+                return new GUIContent(TypeMenuCatalog.DisplayName(currentType) + (description.Length > 0 ? " – " + description : string.Empty),
+                                      TypeMenuCatalog.MenuPath(currentType) + "\n" + description);
+            }
+
+            if (missingType.Length > 0)
+            {
+                return new GUIContent(MissingText + missingType,
+                                      "Die Klasse " + missingType + " gibt es nicht mehr (umbenannt ohne [MovedFrom] oder gelöscht). Ihre Daten stehen noch im " +
+                                      "Asset, im Spiel gilt das Feld aber als leer. Nicht überschreiben – an Claude melden.");
+            }
+
+            return new GUIContent(NoneText, "Typ aus dem Menü wählen");
+        }
+
+        /// <summary>
+        /// Class name of a stored object whose class is missing, or empty. Unity either still reports the stored type name
+        /// (which no longer resolves) or only the id, which is then looked up in the missing classes of the asset.
+        /// </summary>
+        private static string MissingTypeName(SerializedProperty property)
+        {
+            string stored = property.managedReferenceFullTypename;
+            if (!string.IsNullOrEmpty(stored))
+            {
+                int space = stored.IndexOf(' ');
+                return space >= 0 ? stored.Substring(space + 1) : stored;
+            }
+
+            if (!ManagedReferenceApi.TryGetReferenceId(property, out long id) || !ManagedReferenceChecks.IsReferenceId(id) ||
+                !ManagedReferenceApi.TryGetMissingTypes(property.serializedObject.targetObject, MissingScratch))
+            {
+                return string.Empty;
+            }
+
+            for (int i = 0; i < MissingScratch.Count; i++)
+            {
+                if (MissingScratch[i].ReferenceId == id)
+                {
+                    return MissingScratch[i].FullName;
+                }
+            }
+
+            return string.Empty;
+        }
+
+        private static bool ConfirmReplacingMissingType(string missingType)
+        {
+            return missingType.Length == 0 ||
+                   EditorUtility.DisplayDialog("Fehlenden Typ ersetzen?",
+                                               "Dieses Feld enthält Daten der Klasse „" + missingType + "“, die es nicht mehr gibt. Beim Ersetzen oder Leeren " +
+                                               "gehen diese Daten endgültig verloren.\n\nBesser: Claude die Klasse wiederherstellen lassen (mit [MovedFrom]).",
+                                               "Trotzdem ersetzen", "Abbrechen");
         }
 
         private static void DrawChildren(Rect position, Rect header, SerializedProperty property)
@@ -158,17 +230,23 @@ namespace Aetherfall.EditorTools.Narrative
             }
         }
 
-        private static void ShowTypeMenu(Rect buttonRect, SerializedProperty property, Type baseType)
+        private static void ShowTypeMenu(Rect buttonRect, SerializedProperty property, Type baseType, string missingType)
         {
             IReadOnlyList<TypeMenuEntry> entries = TypeMenuCatalog.GetEntries(baseType);
             SerializedObject target = property.serializedObject;
             string path = property.propertyPath;
             string title = baseType == typeof(Condition) ? "Bedingung wählen" : baseType == typeof(GameAction) ? "Aktion wählen" : "Ziel wählen";
-            var dropdown = new TypeMenuDropdown(title, entries, type => Assign(target, path, type != null ? CreateInstance(type) : null));
+            var dropdown = new TypeMenuDropdown(title, entries, type =>
+            {
+                if (ConfirmReplacingMissingType(missingType))
+                {
+                    Assign(target, path, type != null ? CreateInstance(type) : null);
+                }
+            });
             dropdown.Show(buttonRect);
         }
 
-        private static void HandleContextMenu(Rect header, SerializedProperty property, Type baseType)
+        private static void HandleContextMenu(Rect header, SerializedProperty property, Type baseType, string missingType)
         {
             Event current = Event.current;
             if (current.type != EventType.ContextClick || !header.Contains(current.mousePosition))
@@ -191,15 +269,26 @@ namespace Aetherfall.EditorTools.Narrative
 
             if (ManagedReferenceClipboard.CanPaste(baseType))
             {
-                menu.AddItem(new GUIContent("Einfügen (" + TypeMenuCatalog.DisplayName(ManagedReferenceClipboard.CopiedType) + ")"), false,
-                             () => Assign(target, path, ManagedReferenceClipboard.CreateCopy()));
+                menu.AddItem(new GUIContent("Einfügen (" + TypeMenuCatalog.DisplayName(ManagedReferenceClipboard.CopiedType) + ")"), false, () =>
+                {
+                    if (ConfirmReplacingMissingType(missingType))
+                    {
+                        Assign(target, path, ManagedReferenceClipboard.CreateCopy());
+                    }
+                });
             }
             else
             {
                 menu.AddDisabledItem(new GUIContent("Einfügen"));
             }
 
-            menu.AddItem(new GUIContent("Leeren"), false, () => Assign(target, path, null));
+            menu.AddItem(new GUIContent("Leeren"), false, () =>
+            {
+                if (ConfirmReplacingMissingType(missingType))
+                {
+                    Assign(target, path, null);
+                }
+            });
             menu.ShowAsContext();
             current.Use();
         }
@@ -238,49 +327,28 @@ namespace Aetherfall.EditorTools.Narrative
 
         private static void SeparateSharedReference(SerializedProperty property)
         {
-            string path = property.propertyPath;
-            object current = null;
-            int searchEnd = path.Length;
-            while (searchEnd > 0)
+            SerializedObject serializedObject = property.serializedObject;
+            if (serializedObject.isEditingMultipleObjects || !ManagedReferenceApi.TryGetReferenceId(property, out long id) || !ManagedReferenceChecks.IsReferenceId(id))
             {
-                int close = path.LastIndexOf(']', searchEnd - 1);
-                int open = close > 0 ? path.LastIndexOf('[', close) : -1;
-                if (open < 0)
-                {
-                    return;
-                }
-
-                searchEnd = open;
-                if (!int.TryParse(path.Substring(open + 1, close - open - 1), out int index) || index == 0)
-                {
-                    continue;
-                }
-
-                string siblingPath = path.Substring(0, open + 1) + (index - 1) + path.Substring(close);
-                SerializedProperty sibling = property.serializedObject.FindProperty(siblingPath);
-                if (sibling == null || sibling.propertyType != SerializedPropertyType.ManagedReference)
-                {
-                    continue;
-                }
-
-                if (current == null)
-                {
-                    current = ReadValue(property);
-                    if (current == null)
-                    {
-                        return;
-                    }
-                }
-
-                if (!ReferenceEquals(current, ReadValue(sibling)))
-                {
-                    continue;
-                }
-
-                property.managedReferenceValue = CopyOf(current);
-                property.serializedObject.ApplyModifiedProperties();
                 return;
             }
+
+            string path = property.propertyPath;
+            if (ManagedReferenceIndex.FirstPathOf(serializedObject, id, path) == path)
+            {
+                return;
+            }
+
+            // A later field that shares the object of an earlier one: give it its own copy. An object of a missing class
+            // cannot be copied; "Quests pruefen" reports it (V14, R01).
+            object current = ReadValue(property);
+            if (current == null)
+            {
+                return;
+            }
+
+            property.managedReferenceValue = CopyOf(current);
+            serializedObject.ApplyModifiedProperties();
         }
 
         private static object CopyOf(object value)

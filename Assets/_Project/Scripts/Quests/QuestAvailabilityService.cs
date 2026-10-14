@@ -15,8 +15,9 @@ namespace Aetherfall.Quests
     /// <see cref="Clear"/> (end of session, start of a load) forgets the state without events, because loading must not send
     /// gameplay events (architecture 9.1); it remembers which quests were announced as available. The next
     /// <see cref="Rebuild"/> (after the load) then announces only the differences: quests that are no longer available get
-    /// <c>Available = false</c>, newly available ones <c>true</c>. Views should rebuild their symbols on <c>GameLoaded</c> as
-    /// well. Quests without giver are not watched (cost: about 400 quests with giver, architecture 7.5).
+    /// <c>Available = false</c>, newly available ones <c>true</c>. Views therefore read the current state with
+    /// <see cref="IQuestService.GetAvailableQuestIds"/> when they become active and on <c>GameLoaded</c>, and use the event only
+    /// for changes. Quests without giver are not watched (cost: about 400 quests with giver, architecture 7.5).
     /// </remarks>
     public sealed class QuestAvailabilityService : IDisposable
     {

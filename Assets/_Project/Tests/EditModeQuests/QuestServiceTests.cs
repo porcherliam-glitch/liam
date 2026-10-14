@@ -328,6 +328,43 @@ namespace Aetherfall.Tests.EditMode.Quests
         }
 
         [Test]
+        public void Bonus_IsPaidOncePerRun_EvenIfTheStageIsEnteredAgain()
+        {
+            Use(new QuestSpecBuilder("quest.side.test.a")
+                .StartTrigger(QuestStartTriggerKind.Automatic)
+                .Stage(new StageBuilder("s20").Objective(new TalkToObjective("o1", Npc)).Next("s30"))
+                .Stage(new StageBuilder("s30")
+                    .Objective(new TalkToObjective("o1", "npc.eichental.alwine"))
+                    .Optional(Kill("o2", 1), new RecordAction("Bonus Pelz"))
+                    .FailWhen(new FlagIs(Flag, 1), "s20", "entdeckt")
+                    .Next("s40"))
+                .Stage(Final("s40"))
+                .Build());
+            _env.Quests.TryStart("quest.side.test.a", "test");
+            _env.Publish(new NPCTalkedTo(Npc, string.Empty));
+            KillWolves(1);
+            Assert.That(_env.Actions.CountContaining("Bonus Pelz"), Is.EqualTo(1));
+
+            // Discovered: back to s20 (GDD 02 5.1 "Schleiche ... Ruecksetzen"), then s30 again with fresh objective states.
+            _env.World.SetBool(Flag, true, "test");
+            _env.Settle();
+            Assert.That(_env.StageOf("quest.side.test.a"), Is.EqualTo("s20"));
+            _env.World.SetBool(Flag, false, "test");
+            _env.Settle();
+            _env.Publish(new NPCTalkedTo(Npc, string.Empty));
+            Assert.That(_env.StageOf("quest.side.test.a"), Is.EqualTo("s30"));
+            KillWolves(1);
+            Assert.That(_env.Quests.IsObjectiveDone("quest.side.test.a", "s30", "o2"), Is.True, "the objective itself counts again");
+
+            _env.Quests.TrySetStage("quest.side.test.a", "s30", "debug");
+            KillWolves(1);
+
+            Assert.That(_env.Actions.CountContaining("Bonus Pelz"), Is.EqualTo(1), "the bonus runs only once per run");
+            Assert.That(_env.Quests.TryGetInstance("quest.side.test.a", out QuestInstance instance), Is.True);
+            Assert.That(instance.BonusGivenObjectives, Is.EquivalentTo(new[] { "s30.o2" }));
+        }
+
+        [Test]
         public void Actions_StartQuest_SetQuestStage_CompleteQuest_FailQuest()
         {
             Use(Simple("quest.side.test.a").Build(), Simple("quest.side.test.b").Build(), Simple("quest.side.test.c").Build(),

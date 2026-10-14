@@ -37,9 +37,6 @@ namespace Aetherfall.Quests
         /// <summary>Free text state of the objective (inspected clue ids, chosen option …).</summary>
         public string Extra { get; internal set; } = string.Empty;
 
-        /// <summary>True once the completion actions (bonus) ran; they run only once even if the objective regresses.</summary>
-        public bool BonusGiven { get; internal set; }
-
         /// <inheritdoc />
         public override string ToString()
         {

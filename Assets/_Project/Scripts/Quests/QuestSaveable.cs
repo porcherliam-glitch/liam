@@ -13,6 +13,9 @@ namespace Aetherfall.Quests
     /// <remarks>
     /// Saved quests whose definition no longer exists are kept unchanged and written again (no data loss while content is
     /// missing). If the objectives of a stage changed since the save, they are matched by id: new objectives start at 0.
+    /// If the active stage of a running quest no longer exists (renamed or removed before "Fertig"; afterwards stage ids are
+    /// frozen, GDD 02 2.3), the state is loaded as saved and <see cref="QuestService.CompleteLoad"/> moves the quest to another
+    /// stage with fresh objective states instead of leaving it stuck without objectives.
     /// </remarks>
     public sealed class QuestSaveable : Saveable<QuestsDto>, IPostLoad
     {
@@ -120,8 +123,7 @@ namespace Aetherfall.Quests
                     Done = state.Done,
                     Failed = state.Failed,
                     TimerRemaining = state.TimerRemaining,
-                    Extra = state.Extra,
-                    BonusGiven = state.BonusGiven
+                    Extra = state.Extra
                 });
             }
 
@@ -133,6 +135,8 @@ namespace Aetherfall.Quests
             }
 
             dto.CompletedObjectives.Sort(string.CompareOrdinal);
+            dto.BonusGiven.AddRange(instance.BonusGivenObjectives);
+            dto.BonusGiven.Sort(string.CompareOrdinal);
             foreach (KeyValuePair<string, string> pair in instance.Choices)
             {
                 dto.Choices[pair.Key] = pair.Value;
@@ -145,7 +149,7 @@ namespace Aetherfall.Quests
         {
             var instance = new QuestInstance(dto.QuestId);
             List<ObjectiveState> objectives = BuildObjectiveStates(dto, spec, status);
-            instance.LoadState(status, dto.StageId, objectives, dto.VisitedStages, dto.Ledger, dto.Choices, dto.CompletedObjectives);
+            instance.LoadState(status, dto.StageId, objectives, dto.VisitedStages, dto.Ledger, dto.Choices, dto.CompletedObjectives, dto.BonusGiven);
             instance.StartedAtPlaytime = dto.StartedAt;
             instance.FinishedAtPlaytime = dto.FinishedAt;
             instance.EndStageId = dto.EndStageId ?? string.Empty;
@@ -205,7 +209,6 @@ namespace Aetherfall.Quests
             state.Failed = dto.Failed && !dto.Done;
             state.TimerRemaining = Math.Max(0f, dto.TimerRemaining);
             state.Extra = dto.Extra ?? string.Empty;
-            state.BonusGiven = dto.BonusGiven;
         }
 
         private static ObjectiveStateDto Find(List<ObjectiveStateDto> saved, string id)

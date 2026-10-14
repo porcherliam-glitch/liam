@@ -9,8 +9,10 @@ namespace Aetherfall.EditorTools.Narrative
 {
     /// <summary>
     /// Menu "Aetherfall > Quests pruefen" (German menu text): validates every <see cref="QuestDefinition"/> of the project with
-    /// the rules of GDD 02 10.2 (<see cref="QuestValidator"/>), writes a summary and every finding to the Console and opens the
-    /// result window. <see cref="RunBatch"/> is the batch mode entry point for Claude and CI:
+    /// the rules of GDD 02 10.2 (<see cref="QuestValidator"/>) plus the stored <c>[SerializeReference]</c> data of each asset
+    /// (<see cref="ManagedReferenceChecks"/>: V14 missing classes - on the quest data they are just empty fields, which means
+    /// "always" in optional conditions -, R01 objects stored at several places), writes a summary and every finding to the
+    /// Console and opens the result window. <see cref="RunBatch"/> is the batch mode entry point for Claude and CI:
     /// <c>Unity -batchmode -nographics -projectPath . -executeMethod Aetherfall.EditorTools.Narrative.QuestValidationMenu.RunBatch -logFile Logs/quests.log</c>
     /// (exit code 1 if there is an error).
     /// </summary>
@@ -67,9 +69,45 @@ namespace Aetherfall.EditorTools.Narrative
             }
 
             ValidationReport report = new QuestValidator(lookup).Validate(specs);
+            CheckStoredReferences(assets, specs, report);
             var result = new QuestValidationResult(report, paths, specs.Count, flagCheckSkipped);
             result.Specs.AddRange(specs);
             return result;
+        }
+
+        private static void CheckStoredReferences(List<KeyValuePair<string, QuestDefinition>> assets, List<QuestSpec> specs, ValidationReport report)
+        {
+            bool canCheckTypes = ManagedReferenceApi.CanReadMissingTypes;
+            bool canCheckShared = ManagedReferenceApi.CanReadReferenceIds;
+            if (!canCheckTypes)
+            {
+                ManagedReferenceChecks.ReportUnavailable(report, ManagedReferenceChecks.MissingTypeCode, "Fehlende [SerializeReference]-Typen");
+            }
+
+            if (!canCheckShared)
+            {
+                ManagedReferenceChecks.ReportUnavailable(report, ManagedReferenceChecks.SharedReferenceCode, "Geteilte Referenzen");
+            }
+
+            var missing = new List<MissingManagedType>();
+            for (int i = 0; i < assets.Count; i++)
+            {
+                QuestDefinition asset = assets[i].Value;
+                string location = specs[i].Id;
+                if (canCheckTypes && ManagedReferenceApi.TryGetMissingTypes(asset, missing))
+                {
+                    ManagedReferenceChecks.ReportMissingTypes(report, location, missing);
+                }
+
+                if (canCheckShared)
+                {
+                    using (var serializedObject = new SerializedObject(asset))
+                    {
+                        List<SharedManagedReference> shared = ManagedReferenceChecks.FindShared(ManagedReferenceApi.CollectReferenceIds(serializedObject));
+                        ManagedReferenceChecks.ReportSharedReferences(report, location, shared);
+                    }
+                }
+            }
         }
 
         private static void LogResult(QuestValidationResult result)

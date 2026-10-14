@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using Aetherfall.Conditions;
 using UnityEditor;
+using UnityEditor.Compilation;
 
 namespace Aetherfall.EditorTools.Narrative
 {
@@ -11,6 +12,8 @@ namespace Aetherfall.EditorTools.Narrative
     /// by <see cref="TypeCache"/> that Unity can serialize as managed reference (not abstract, not generic, not a
     /// <c>UnityEngine.Object</c>, <c>[Serializable]</c>, parameterless constructor), with the German menu path of their
     /// <see cref="TypeMenuAttribute"/> ("Sonstige/&lt;Klassenname&gt;" without it), sorted by sub menu, order and name.
+    /// Types from assemblies that are not part of the player (test assemblies, editor tools) are not offered: the editor loads
+    /// them, but in a build the field would be empty (missing class, V14).
     /// </summary>
     public static class TypeMenuCatalog
     {
@@ -18,6 +21,7 @@ namespace Aetherfall.EditorTools.Narrative
         public const string FallbackFolder = "Sonstige";
 
         private static readonly Dictionary<Type, List<TypeMenuEntry>> Cache = new Dictionary<Type, List<TypeMenuEntry>>();
+        private static HashSet<string> _editorOnlyAssemblies;
 
         /// <summary>All selectable types derived from the base type (cached until the next script reload).</summary>
         /// <param name="baseType">Field type, e.g. <c>Condition</c>.</param>
@@ -41,7 +45,7 @@ namespace Aetherfall.EditorTools.Narrative
                     candidates.Add(type);
                 }
 
-                entries = BuildEntries(candidates);
+                entries = BuildEntries(candidates, EditorOnlyAssemblies());
                 Cache.Add(baseType, entries);
             }
 
@@ -52,11 +56,26 @@ namespace Aetherfall.EditorTools.Narrative
         /// <param name="candidates">Types.</param>
         public static List<TypeMenuEntry> BuildEntries(IEnumerable<Type> candidates)
         {
+            return BuildEntries(candidates, null);
+        }
+
+        /// <summary>
+        /// Filters and sorts candidate types into menu entries, without types from the excluded assemblies (pure logic).
+        /// </summary>
+        /// <param name="candidates">Types.</param>
+        /// <param name="excludedAssemblies">Names of assemblies whose types are not offered (<see cref="EditorOnlyAssemblyNames"/>), or null.</param>
+        public static List<TypeMenuEntry> BuildEntries(IEnumerable<Type> candidates, ICollection<string> excludedAssemblies)
+        {
             var entries = new List<TypeMenuEntry>();
             var seen = new HashSet<Type>();
             foreach (Type type in candidates)
             {
                 if (type == null || !seen.Add(type) || !IsSelectable(type))
+                {
+                    continue;
+                }
+
+                if (excludedAssemblies != null && excludedAssemblies.Contains(type.Assembly.GetName().Name))
                 {
                     continue;
                 }
@@ -85,6 +104,40 @@ namespace Aetherfall.EditorTools.Narrative
             }
 
             return type.GetConstructor(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, null, Type.EmptyTypes, null) != null;
+        }
+
+        /// <summary>
+        /// Names of the assemblies Unity compiles only for the editor (test assemblies, editor tools): compiled for the editor
+        /// but not part of the player without test assemblies. Precompiled libraries are in neither list and stay allowed.
+        /// </summary>
+        /// <param name="editorAssemblies">Names of all assemblies compiled for the editor.</param>
+        /// <param name="playerAssemblies">Names of the assemblies compiled for the player (without test assemblies).</param>
+        public static HashSet<string> EditorOnlyAssemblyNames(IEnumerable<string> editorAssemblies, IEnumerable<string> playerAssemblies)
+        {
+            var result = new HashSet<string>(StringComparer.Ordinal);
+            if (editorAssemblies != null)
+            {
+                foreach (string name in editorAssemblies)
+                {
+                    if (!string.IsNullOrEmpty(name))
+                    {
+                        result.Add(name);
+                    }
+                }
+            }
+
+            if (playerAssemblies != null)
+            {
+                foreach (string name in playerAssemblies)
+                {
+                    if (name != null)
+                    {
+                        result.Remove(name);
+                    }
+                }
+            }
+
+            return result;
         }
 
         /// <summary>German menu path of a type.</summary>
@@ -136,6 +189,31 @@ namespace Aetherfall.EditorTools.Narrative
         private static void ClearCacheOnReload()
         {
             Cache.Clear();
+            _editorOnlyAssemblies = null;
+        }
+
+        private static HashSet<string> EditorOnlyAssemblies()
+        {
+            if (_editorOnlyAssemblies == null)
+            {
+                _editorOnlyAssemblies = EditorOnlyAssemblyNames(Names(CompilationPipeline.GetAssemblies(AssembliesType.Editor)),
+                                                                Names(CompilationPipeline.GetAssemblies(AssembliesType.PlayerWithoutTestAssemblies)));
+            }
+
+            return _editorOnlyAssemblies;
+        }
+
+        private static IEnumerable<string> Names(UnityEditor.Compilation.Assembly[] assemblies)
+        {
+            if (assemblies == null)
+            {
+                yield break;
+            }
+
+            for (int i = 0; i < assemblies.Length; i++)
+            {
+                yield return assemblies[i].name;
+            }
         }
 
         private static int Compare(TypeMenuEntry a, TypeMenuEntry b)

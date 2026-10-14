@@ -290,6 +290,16 @@ namespace Aetherfall.Tests.EditMode.Quests
         }
 
         [Test]
+        public void EmptyAnd_AsStartCondition_IsNotReportedAsPolled()
+        {
+            QuestSpec quest = Clean("quest.side.test.a").StartCondition(new AllOf()).Build();
+
+            ValidationReport report = Validate(quest);
+
+            Assert.That(report.Contains("C01"), Is.False, "an empty AND is constant, not polled: " + report.ToText());
+        }
+
+        [Test]
         public void Locations_NameQuestStageAndObjective()
         {
             QuestSpec quest = Clean("quest.side.test.a", false)

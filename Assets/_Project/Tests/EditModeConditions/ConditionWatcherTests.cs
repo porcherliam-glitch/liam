@@ -187,6 +187,29 @@ namespace Aetherfall.Tests.EditMode.Conditions
             Assert.That(_watcher.IsMet(always), Is.True);
             Assert.That(_watcher.IsMet(none), Is.True, "no condition holds");
             Assert.That(_watcher.SubscribedEventTypeCount, Is.EqualTo(0));
+            Assert.That(_watcher.PolledWatchCount, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void EmptyLogicTypes_AreConstant_NeitherPolledNorSubscribed()
+        {
+            int and = _watcher.Watch(new AllOf(), _ctx, _changes.Add);
+            int or = _watcher.Watch(new AnyOf(), _ctx, _changes.Add);
+            int atLeast = _watcher.Watch(new AtLeastNOf(1), _ctx, _changes.Add);
+
+            Assert.That(_watcher.PolledWatchCount, Is.EqualTo(0), "the result of an empty list never changes (architecture 7.5)");
+            Assert.That(_watcher.SubscribedEventTypeCount, Is.EqualTo(0));
+            Assert.That(_watcher.IsMet(and), Is.True, "empty AND holds");
+            Assert.That(_watcher.IsMet(or), Is.False, "empty OR never holds");
+            Assert.That(_watcher.IsMet(atLeast), Is.False);
+            foreach (Condition empty in new Condition[] { new AllOf(), new AnyOf(), new AtLeastNOf(2) })
+            {
+                TriggerSet set = TriggerSet.Of(empty);
+                Assert.That(set.IsConstant, Is.True, empty.GetType().Name);
+                Assert.That(set.IsPolled, Is.False, empty.GetType().Name);
+            }
+
+            Assert.That(TriggerSet.Of(new Not(new AllOf())).IsPolled, Is.False, "an empty AND inside NOT is constant as well");
         }
 
         [Test]

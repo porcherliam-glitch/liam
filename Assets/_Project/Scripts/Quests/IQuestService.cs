@@ -41,6 +41,16 @@ namespace Aetherfall.Quests
         /// <param name="questId">Quest id.</param>
         QuestStatus GetStatus(string questId);
 
+        /// <summary>
+        /// The quests a giver offers now (available and not hidden), sorted by id - the pull side of the giver symbols ("!").
+        /// Symbols read it when they become active (<c>OnEnable</c>, a streamed-in cell) and after <c>GameLoaded</c>, and follow
+        /// <c>QuestAvailabilityChanged</c> only for changes: after a load only differences are announced.
+        /// </summary>
+        /// <param name="giverId">NPC or object id of the giver; empty = all givers.</param>
+        /// <param name="results">Cleared and filled with quest ids (no allocation if the list is reused).</param>
+        /// <returns>Number of quests.</returns>
+        int GetAvailableQuestIds(string giverId, List<string> results);
+
         /// <summary>Finds the state of a quest that was started at least once.</summary>
         /// <param name="questId">Quest id.</param>
         /// <param name="instance">Instance or null.</param>
