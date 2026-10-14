@@ -1,0 +1,498 @@
+/*
+ * Journal (GDD 05 1.3 hub tabs "Questlog" and "Charakter"; GDD 02 7): quest list with categories, quest details with
+ * objectives and decisions, character page with level, experience and attributes. Shares header, tabs, buttons and
+ * footer with the pause menu (Menus.uss, Base.uss). The objective rows and category colours are also used by the quest
+ * tracker of the HUD (Hud.uss).
+ */
+
+/* ---------- Panel ---------- */
+
+.af-journal {
+    justify-content: center;
+}
+
+.af-journal__panel {
+    width: 1500px;
+    height: 800px;
+}
+
+.af-journal__body {
+    flex-grow: 1;
+    flex-shrink: 1;
+    padding: 22px 40px 18px 40px;
+    overflow: hidden;
+}
+
+.af-journal__page {
+    flex-grow: 1;
+    flex-shrink: 1;
+}
+
+/* ---------- Category tabs (LT/RT, Z/C) ---------- */
+
+.af-subtabs {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+    margin: 0 0 18px 0;
+}
+
+.af-subtabs .af-glyph {
+    margin: 0 10px;
+}
+
+.af-subtab {
+    flex-shrink: 0;
+    height: 40px;
+    margin: 0 4px;
+    padding: 0 16px;
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 1px;
+    border-color: rgba(0, 0, 0, 0);
+    border-radius: 20px;
+    font-size: 20px;
+    color: var(--text-secondary);
+    -unity-text-align: middle-center;
+}
+
+.af-subtab.is-empty {
+    color: var(--text-muted);
+}
+
+.af-subtab.is-selected {
+    color: var(--text-title);
+    border-color: var(--accent-gold);
+    background-color: rgba(201, 162, 77, 0.14);
+}
+
+/* ---------- Quest log: list left, details right ---------- */
+
+.af-questlog {
+    flex-grow: 1;
+    flex-shrink: 1;
+    flex-direction: row;
+    overflow: hidden;
+}
+
+.af-questlog__list-column {
+    width: 540px;
+    flex-shrink: 0;
+}
+
+/* Room for the 104 % focus scale of the rows. */
+.af-questlog__list {
+    padding: 4px 12px;
+}
+
+.af-questlog__more {
+    height: 26px;
+    margin: 0 0 0 14px;
+    font-size: 18px;
+    color: var(--text-muted);
+}
+
+.af-questlog__more.is-off {
+    opacity: 0;
+}
+
+.af-questlog__details {
+    flex-grow: 1;
+    flex-basis: 0;
+    flex-shrink: 1;
+    margin: 0 0 0 36px;
+    padding: 4px 0 0 36px;
+    border-left-width: 1px;
+    border-color: var(--ui-panel-border);
+    overflow: hidden;
+}
+
+.af-questlog__title {
+    font-size: 34px;
+    color: var(--text-title);
+    -unity-font-style: bold;
+    white-space: normal;
+}
+
+.af-questlog__meta {
+    margin: 4px 0 14px 0;
+    font-size: 19px;
+    color: var(--text-secondary);
+}
+
+.af-questlog__description {
+    font-size: 21px;
+    color: var(--text-primary);
+    white-space: normal;
+}
+
+/* Small caps-like section headings ("AKTUELLER STAND", "ENTSCHEIDUNGEN"). */
+.af-questlog__section {
+    margin: 18px 0 6px 0;
+    font-size: 17px;
+    color: var(--text-muted);
+    letter-spacing: 1px;
+    -unity-font-style: bold;
+}
+
+.af-questlog__stage {
+    font-size: 21px;
+    color: var(--text-primary);
+    white-space: normal;
+}
+
+.af-questlog__objectives {
+    margin: 10px 0 0 0;
+}
+
+.af-questlog__history {
+    margin: 0;
+}
+
+.af-journal-line {
+    margin: 0 0 4px 0;
+    font-size: 19px;
+    color: var(--text-secondary);
+    white-space: normal;
+}
+
+.af-journal-line.is-decision {
+    color: var(--text-title);
+}
+
+.af-journal-line.is-consequence {
+    color: var(--ui-focus);
+    -unity-font-style: italic;
+}
+
+/* ---------- Quest rows ---------- */
+
+.af-quest-row {
+    height: 72px;
+    margin: 0 0 10px 0;
+    padding: 0 18px 0 0;
+    justify-content: space-between;
+}
+
+.af-quest-row__stripe {
+    width: 6px;
+    height: 100%;
+    margin: 0 16px 0 0;
+    background-color: var(--quest-side);
+    border-top-left-radius: 3px;
+    border-bottom-left-radius: 3px;
+}
+
+.af-quest-row__main {
+    flex-grow: 1;
+    flex-shrink: 1;
+    flex-basis: 0;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.af-quest-row__title {
+    font-size: 23px;
+    color: var(--text-primary);
+}
+
+.af-quest-row__info {
+    margin: 2px 0 0 0;
+    font-size: 17px;
+    color: var(--text-secondary);
+}
+
+.af-quest-row__badge {
+    flex-shrink: 0;
+    margin: 0 0 0 12px;
+    font-size: 17px;
+    color: var(--text-muted);
+    -unity-text-align: middle-right;
+}
+
+.af-quest-row.is-focused .af-quest-row__info {
+    color: var(--text-title);
+}
+
+.af-quest-row.is-tracked .af-quest-row__badge {
+    color: var(--text-secondary);
+}
+
+.af-quest-row.is-focus-quest .af-quest-row__badge {
+    color: var(--ui-focus);
+}
+
+.af-quest-row.is-failed .af-quest-row__badge {
+    color: var(--ui-worse);
+}
+
+.af-quest-row.is-finished .af-quest-row__title {
+    color: var(--text-secondary);
+}
+
+/* Category colours (GDD 05 1.9); the HUD tracker uses the same modifiers on its marker. */
+.af-cat--main {
+    background-color: var(--quest-main);
+}
+
+.af-cat--faction {
+    background-color: var(--quest-faction);
+}
+
+.af-cat--region {
+    background-color: var(--quest-region);
+}
+
+.af-cat--side {
+    background-color: var(--quest-side);
+}
+
+.af-cat--companion {
+    background-color: var(--quest-companion);
+}
+
+.af-cat--bounty {
+    background-color: var(--quest-bounty);
+}
+
+.af-cat--treasure {
+    background-color: var(--quest-treasure);
+}
+
+.af-cat--crafting {
+    background-color: var(--quest-crafting);
+}
+
+.af-cat--repeatable {
+    background-color: var(--quest-repeatable);
+}
+
+.af-cat--legendary {
+    background-color: var(--quest-legendary);
+}
+
+/* ---------- Objectives (quest details and HUD tracker) ---------- */
+
+.af-objective {
+    flex-direction: row;
+    align-items: center;
+    margin: 0 0 6px 0;
+    padding: 3px 6px;
+    border-radius: 3px;
+    background-color: rgba(95, 208, 104, 0);
+    transition-property: background-color;
+    transition-duration: 0.3s;
+}
+
+/* Check box with a check mark drawn by two borders (no font glyph needed). */
+.af-objective__box {
+    flex-shrink: 0;
+    width: 22px;
+    height: 22px;
+    margin: 0 12px 0 0;
+    border-width: 2px;
+    border-color: rgba(237, 230, 214, 0.75);
+    border-radius: 3px;
+    align-items: center;
+    justify-content: center;
+}
+
+.af-objective__tick {
+    width: 7px;
+    height: 13px;
+    margin: -4px 0 0 0;
+    border-right-width: 3px;
+    border-bottom-width: 3px;
+    border-color: var(--ui-better);
+    rotate: 45deg;
+    scale: 0 0;
+    transition-property: scale;
+    transition-duration: 0.25s;
+    transition-timing-function: ease-out-back;
+}
+
+.af-objective__text {
+    flex-grow: 1;
+    flex-shrink: 1;
+    font-size: 21px;
+    color: var(--text-primary);
+    white-space: normal;
+}
+
+.af-objective__count {
+    flex-shrink: 0;
+    margin: 0 0 0 12px;
+    font-size: 20px;
+    color: var(--text-title);
+    -unity-text-align: middle-right;
+}
+
+.af-objective.is-done .af-objective__tick {
+    scale: 1 1;
+}
+
+.af-objective.is-done .af-objective__box {
+    border-color: var(--ui-better);
+}
+
+.af-objective.is-done .af-objective__text,
+.af-objective.is-done .af-objective__count {
+    color: var(--text-muted);
+}
+
+/* GDD 05 1.2: optional objectives in italics. */
+.af-objective.is-optional .af-objective__text {
+    -unity-font-style: italic;
+}
+
+.af-objective.is-failed .af-objective__box {
+    border-color: var(--ui-worse);
+}
+
+.af-objective.is-failed .af-objective__text {
+    color: var(--ui-worse);
+}
+
+/* Flash when an objective was just ticked off (0.6 s, then the class is removed and the colour fades). */
+.af-objective.is-just-done {
+    background-color: rgba(95, 208, 104, 0.22);
+}
+
+/* ---------- Character page ---------- */
+
+.af-character {
+    flex-direction: row;
+}
+
+.af-character__left {
+    width: 640px;
+    flex-shrink: 0;
+}
+
+.af-character__right {
+    flex-grow: 1;
+    flex-basis: 0;
+    margin: 0 0 0 48px;
+    padding: 0 0 0 48px;
+    border-left-width: 1px;
+    border-color: var(--ui-panel-border);
+}
+
+.af-character__level {
+    font-size: var(--font-heading);
+    color: var(--text-title);
+    -unity-font-style: bold;
+}
+
+.af-bar--xp-large {
+    width: 100%;
+    height: 14px;
+    margin: 8px 0 6px 0;
+}
+
+.af-bar__fill--xp {
+    background-color: var(--accent-gold);
+}
+
+.af-character__xp {
+    font-size: 19px;
+    color: var(--text-secondary);
+}
+
+.af-character__points {
+    margin: 6px 0 0 0;
+    font-size: 20px;
+    color: var(--text-primary);
+}
+
+.af-character__points.has-points {
+    color: var(--ui-focus);
+}
+
+.af-character__attributes {
+    padding: 0 12px;
+}
+
+.af-attribute {
+    height: 54px;
+    margin: 0 0 6px 0;
+    padding: 0 22px 0 0;
+}
+
+.af-attribute__color {
+    width: 6px;
+    height: 100%;
+    margin: 0 16px 0 0;
+}
+
+.af-attribute__name {
+    flex-grow: 1;
+    font-size: 23px;
+}
+
+.af-attribute__bonus {
+    margin: 0 18px 0 0;
+    font-size: 19px;
+    color: var(--ui-better);
+    -unity-text-align: middle-right;
+}
+
+.af-attribute__value {
+    min-width: 48px;
+    font-size: 24px;
+    color: var(--text-title);
+    -unity-font-style: bold;
+    -unity-text-align: middle-right;
+}
+
+.af-attr--strength {
+    background-color: var(--attr-strength);
+}
+
+.af-attr--dexterity {
+    background-color: var(--attr-dexterity);
+}
+
+.af-attr--intelligence {
+    background-color: var(--attr-intelligence);
+}
+
+.af-attr--wisdom {
+    background-color: var(--attr-wisdom);
+}
+
+.af-attr--constitution {
+    background-color: var(--attr-constitution);
+}
+
+.af-attr--charisma {
+    background-color: var(--attr-charisma);
+}
+
+.af-character__derived {
+    margin: 4px 0 0 0;
+}
+
+.af-value-row {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    height: 40px;
+    border-bottom-width: 1px;
+    border-color: rgba(232, 210, 160, 0.08);
+}
+
+.af-value-row__label {
+    font-size: 21px;
+    color: var(--text-secondary);
+}
+
+.af-value-row__number {
+    font-size: 21px;
+    color: var(--text-primary);
+    -unity-text-align: middle-right;
+}
+
+.af-character .af-page__note {
+    margin: 10px 0 0 0;
+    font-size: 18px;
+}

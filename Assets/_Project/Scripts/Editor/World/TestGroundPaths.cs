@@ -115,5 +115,35 @@ namespace Aetherfall.EditorTools.World
 
         /// <summary>Area level of the test ground (item level of chest content, GDD 04 4.1).</summary>
         public const int AreaLevel = 10;
+
+        /// <summary>Installer asset of the condition watcher (BootConfig, architecture 4.1 step 11).</summary>
+        public const string ConditionsInstallerPath = SetupPaths.BootSettingsFolder + "/ConditionsInstaller.asset";
+
+        /// <summary>Installer asset of the world state (BootConfig, architecture 4.1 step 11).</summary>
+        public const string WorldStateInstallerPath = SetupPaths.BootSettingsFolder + "/WorldStateInstaller.asset";
+
+        /// <summary>Installer asset of the progression (BootConfig, architecture 4.1 step 12).</summary>
+        public const string ProgressionInstallerPath = SetupPaths.BootSettingsFolder + "/ProgressionInstaller.asset";
+
+        /// <summary>Installer asset of the quest system (BootConfig, architecture 4.1 step 13).</summary>
+        public const string QuestInstallerPath = SetupPaths.BootSettingsFolder + "/QuestInstaller.asset";
+
+        /// <summary>Folder of the test quests (architecture 3.1: Data/Quests).</summary>
+        public const string QuestFolder = SetupPaths.ProjectFolder + "/Data/Quests/Test";
+
+        /// <summary>Folder of the flag definitions of the test quests (architecture 3.1: Data/WorldState).</summary>
+        public const string FlagFolder = SetupPaths.ProjectFolder + "/Data/WorldState/Test";
+
+        /// <summary>Layer of location, region and music zones (architecture 2.8: layer 14, collides with Player and NPC only).</summary>
+        public const int TriggerVolumeLayerIndex = 14;
+
+        /// <summary>Name of the trigger volume layer.</summary>
+        public const string TriggerVolumeLayerName = "TriggerVolume";
+
+        /// <summary>Position of the notice board of the test quests (north-west of the spawn, the front facing it).</summary>
+        public static readonly UnityEngine.Vector3 NoticeBoardPosition = new UnityEngine.Vector3(-4f, 0f, 4f);
+
+        /// <summary>Seconds after which a dead arena wolf comes back (the wolf hunt needs three kills after accepting it).</summary>
+        public const float ArenaRespawnSeconds = 45f;
     }
 }

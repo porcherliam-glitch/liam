@@ -1,3 +1,4 @@
+using System;
 using Aetherfall.Core;
 using Aetherfall.Events;
 using Aetherfall.SaveSystem;
@@ -8,8 +9,9 @@ namespace Aetherfall.UI.Screens
 {
     /// <summary>
     /// Pause menu (GDD 05 1.3, tab "System"; GDD 05 5.4: quick save is the second entry): tabs System / Laden / Optionen,
-    /// switched with LB/RB (Q/E) or by mouse. System: Fortsetzen, Schnellspeichern, Laden, Optionen, Hauptmenue (hold),
-    /// Spiel beenden (hold). Loading a save in the game also needs holding (the progress since then is lost).
+    /// switched with LB/RB (Q/E) or by mouse. System: Fortsetzen, Schnellspeichern, Questlog &amp; Charakter, Laden, Optionen,
+    /// Hauptmenue (hold), Spiel beenden (hold). Loading a save in the game also needs holding (the progress since then is
+    /// lost). "Questlog &amp; Charakter" is the gamepad way into the journal (the keyboard also has J).
     /// </summary>
     /// <remarks>
     /// The screen follows the game state: it opens when <c>Paused</c> is pushed and closes when it is popped (see
@@ -28,14 +30,16 @@ namespace Aetherfall.UI.Screens
 
         private const int ResumeItem = 0;
         private const int QuickSaveItem = 1;
-        private const int LoadItem = 2;
-        private const int OptionsItem = 3;
-        private const int MainMenuItem = 4;
-        private const int QuitItem = 5;
+        private const int JournalItem = 2;
+        private const int LoadItem = 3;
+        private const int OptionsItem = 4;
+        private const int MainMenuItem = 5;
+        private const int QuitItem = 6;
 
         private readonly IGameFlow _flow;
         private readonly IGameStateService _gameState;
         private readonly ISaveManager _saves;
+        private readonly Func<bool> _openJournal;
         private readonly MenuItemList _systemList;
         private readonly MenuItemList _loadList;
         private readonly MenuItemList _optionsList;
@@ -58,15 +62,21 @@ namespace Aetherfall.UI.Screens
         /// <param name="gameState">Game state (resume = Pop(Paused)).</param>
         /// <param name="saves">Save manager (is saving allowed?).</param>
         /// <param name="preferences">UI options.</param>
+        /// <param name="openJournal">
+        /// Opens the journal (<see cref="UiStateDirector.OpenJournal"/>), false if not possible; null disables the item.
+        /// </param>
         public PauseMenuScreen(VisualElement root, VisualTreeAsset loadPageAsset, VisualTreeAsset slotRowAsset, VisualTreeAsset optionsPageAsset,
-            IGlyphService glyphs, IGameFlow flow, IGameStateService gameState, ISaveManager saves, UiPreferences preferences) : base(Id, root, glyphs)
+            IGlyphService glyphs, IGameFlow flow, IGameStateService gameState, ISaveManager saves, UiPreferences preferences, Func<bool> openJournal = null)
+            : base(Id, root, glyphs)
         {
             _flow = flow;
             _gameState = gameState;
             _saves = saves;
+            _openJournal = openJournal;
             _systemList = CreateList("system");
             _systemList.Add(root.Q<VisualElement>("pause-resume"));
             _systemList.Add(root.Q<VisualElement>("pause-quicksave"));
+            _systemList.Add(root.Q<VisualElement>("pause-journal"));
             _systemList.Add(root.Q<VisualElement>("pause-load"));
             _systemList.Add(root.Q<VisualElement>("pause-options"));
             _systemList.Add(root.Q<VisualElement>("pause-main-menu"), true);
@@ -140,6 +150,13 @@ namespace Aetherfall.UI.Screens
                 case ResumeItem:
                     Resume();
                     break;
+                case JournalItem:
+                    if (_openJournal != null)
+                    {
+                        _openJournal();
+                    }
+
+                    break;
                 case QuickSaveItem:
                     QuickSave();
                     break;
@@ -192,6 +209,8 @@ namespace Aetherfall.UI.Screens
             SelectTab(SystemTab, false);
             RefreshSaveState();
             RefreshLastSave();
+            // Only when the pause menu lies directly over the game (not over a dialogue): the journal needs Playing → Menu.
+            _systemList.SetEnabled(JournalItem, _openJournal != null && _gameState.ModalCount == 1 && _gameState.BaseState == GameState.Playing);
             base.OnOpen(args);
         }
 

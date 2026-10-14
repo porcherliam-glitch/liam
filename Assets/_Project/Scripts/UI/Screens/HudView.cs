@@ -12,7 +12,8 @@ namespace Aetherfall.UI.Screens
     /// <summary>
     /// The HUD (Hud.uxml, GDD 05 1.2): health, stamina and mana bars with delayed loss bar, target bar at the top while locked
     /// on (name, health, poise), compass placeholder, 4 ability slots (placeholders with glyphs), 4 quick slots (items from
-    /// the equipment), interaction prompt with glyph. Visibility follows <see cref="HudVisibilityRules"/> (option
+    /// the equipment), interaction prompt with glyph, and - when attached - the tracked quests (<see cref="QuestTrackerView"/>)
+    /// and the experience bar (<see cref="XpBarView"/>). Visibility follows <see cref="HudVisibilityRules"/> (option
     /// "HUD-Anzeige").
     /// </summary>
     /// <remarks>
@@ -72,6 +73,8 @@ namespace Aetherfall.UI.Screens
         private readonly Label[] _quickNames = new Label[4];
         private readonly Label[] _quickCounts = new Label[4];
         private IPlayerHudSource _source;
+        private QuestTrackerView _questTracker;
+        private XpBarView _xpBar;
         private bool _inCombat;
         private int _targetVersion = -1;
         private float _blinkTimer;
@@ -138,6 +141,25 @@ namespace Aetherfall.UI.Screens
         /// <summary>Visibility rules (mode, peek).</summary>
         public HudVisibilityRules Rules => _rules;
 
+        /// <summary>The quest tracker, or null if none is attached.</summary>
+        public QuestTrackerView QuestTracker => _questTracker;
+
+        /// <summary>
+        /// Lower edge of the visible quest tracker in panel coordinates (0 while hidden); the P1 messages move below it.
+        /// </summary>
+        public float QuestTrackerBottom => _questTracker != null ? _questTracker.BottomEdge : 0f;
+
+        /// <summary>Attaches the quest tracker and the experience bar (each may be null: the element stays hidden).</summary>
+        /// <param name="questTracker">Tracker of the element <c>hud-quests</c>.</param>
+        /// <param name="xpBar">Bar of the element <c>hud-xp</c>.</param>
+        public void AttachProgressViews(QuestTrackerView questTracker, XpBarView xpBar)
+        {
+            _questTracker = questTracker;
+            _xpBar = xpBar;
+            UiElementUtility.SetDisplayed(_root.Q<VisualElement>("hud-quests"), false);
+            UiElementUtility.SetDisplayed(_root.Q<VisualElement>("hud-xp"), false);
+        }
+
         /// <summary>Reports the combat state (CombatStateChanged).</summary>
         /// <param name="inCombat">True while in combat.</param>
         public void SetInCombat(bool inCombat)
@@ -159,6 +181,11 @@ namespace Aetherfall.UI.Screens
             _targetVersion = -1;
             _inventoryRevision = -1;
             _shownHeading = float.NaN;
+            if (_questTracker != null)
+            {
+                _questTracker.Reset();
+            }
+
             IPlayerHudSource source = _players.Current;
             _health.Snap(Normalized(source != null ? source.Health : null, 1f));
             _stamina.Snap(Normalized(source != null ? source.Stamina : null, 1f));
@@ -188,6 +215,7 @@ namespace Aetherfall.UI.Screens
                 UiElementUtility.SetDisplayed(_targetPanel, false);
                 UiElementUtility.SetDisplayed(_prompt, false);
                 UpdateCompass(0f);
+                TickProgressViews(deltaTime, false, false);
                 return;
             }
 
@@ -235,6 +263,20 @@ namespace Aetherfall.UI.Screens
             UpdatePrompt(source.InteractionPrompt);
             UpdateCompass(source.CameraYaw);
             UpdateQuickSlots();
+            TickProgressViews(deltaTime, _rules.ShowQuests, _rules.ShowXp);
+        }
+
+        private void TickProgressViews(float deltaTime, bool showQuests, bool showXp)
+        {
+            if (_questTracker != null)
+            {
+                _questTracker.Tick(deltaTime, showQuests);
+            }
+
+            if (_xpBar != null)
+            {
+                _xpBar.Tick(showXp);
+            }
         }
 
         private void SetPlayerElementsVisible(bool visible)

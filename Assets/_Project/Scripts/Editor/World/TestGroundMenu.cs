@@ -15,11 +15,14 @@ namespace Aetherfall.EditorTools.World
     /// (attacks, weapon, shield, enemy types, combat settings), the item data (items, affixes, loot tables, starting
     /// equipment, content catalog; <see cref="TestGroundItemAssets"/>), the user layers
     /// Player/Enemy/Hurtbox/Interactable/Environment/Pickup and the Input, Save, GameTime, Content, Inventory, Combat and AI
-    /// installers in the BootConfig, and the user interface (<see cref="TestGroundUiBuilder"/>: SceneLoader and UI installers,
-    /// panel settings, UI object in the boot scene, scene list Boot + test ground). Idempotent: existing assets are reused, an
-    /// existing scene is rebuilt only after asking.
+    /// installers in the BootConfig, the quest part (Conditions, WorldState, Progression and Quest installers, the two test
+    /// quests with their flags, checked by the quest validator, notice board and training ground zone;
+    /// <see cref="TestGroundQuestAssets"/>, <see cref="TestGroundQuestBuilder"/>) and the user interface
+    /// (<see cref="TestGroundUiBuilder"/>: SceneLoader and UI installers, panel settings, UI object in the boot scene, scene list
+    /// Boot + test ground). Idempotent: existing assets are reused, an existing scene is rebuilt only after asking.
+    /// <see cref="RunBatch"/> does the same without dialogs (batch mode, CLAUDE.md "Batchmode-Einstiegspunkte").
     /// Guides: docs/Anleitungen/03_Test_Spielfigur.md, 04_Test_Werte_Speichern.md, 05_Test_Kampf.md, 06_Test_Items_Loot.md,
-    /// 07_Test_Oberflaeche.md.
+    /// 07_Test_Oberflaeche.md, 09_Test_Quests_im_Spiel.md.
     /// </summary>
     public static class TestGroundMenu
     {
@@ -52,7 +55,10 @@ namespace Aetherfall.EditorTools.World
                 "• Items, Affixe, Loot-Tabellen und Startausrüstung (" + TestGroundPaths.ItemFolder + ", " + TestGroundPaths.LootTableFolder +
                 "), " + TestGroundPaths.ContentCatalogPath + ", ContentInstaller und InventoryInstaller in der BootConfig\n" +
                 "• 3 Truhen (Holz, Eisen, versteckt) und Beute-Anzeige\n" +
-                "• Layer 6 „Player“, 7 „Enemy“, 9 „Hurtbox“, 10 „Interactable“, 11 „Environment“ und 16 „Pickup“, falls frei\n" +
+                "• Quests: Conditions-, WorldState-, Progression- und QuestInstaller in der BootConfig, 2 Test-Quests mit Flags (" +
+                TestGroundPaths.QuestFolder + ", " + TestGroundPaths.FlagFolder + "), Anschlagtafel und Übungsplatz, Wölfe kehren nach " +
+                TestGroundPaths.ArenaRespawnSeconds + " s zurück\n" +
+                "• Layer 6 „Player“, 7 „Enemy“, 9 „Hurtbox“, 10 „Interactable“, 11 „Environment“, 14 „TriggerVolume“ und 16 „Pickup“, falls frei\n" +
                 "• Oberfläche: SceneLoaderInstaller und UIInstaller in der BootConfig, " + TestGroundUiBuilder.PanelSettingsPath +
                 ", Objekt „UI“ in der Boot-Szene (Hauptmenü, HUD, Pausemenü, Todesbildschirm, Ladebildschirm, Menükamera), Szenenliste Boot + Testgelände\n\n" +
                 (sceneExists
@@ -86,7 +92,8 @@ namespace Aetherfall.EditorTools.World
                           "(Assets/_Project/Scenes/Boot/Boot.unity öffnen, dann Play).\n\n" +
                           "Steuerung und Prüfliste: docs/Anleitungen/03_Test_Spielfigur.md, Ausdauer, Schaden und Speichern: " +
                           "docs/Anleitungen/04_Test_Werte_Speichern.md, Kampf: docs/Anleitungen/05_Test_Kampf.md, Items und Beute: " +
-                          "docs/Anleitungen/06_Test_Items_Loot.md, Oberfläche: docs/Anleitungen/07_Test_Oberflaeche.md.";
+                          "docs/Anleitungen/06_Test_Items_Loot.md, Oberfläche: docs/Anleitungen/07_Test_Oberflaeche.md, Quests: " +
+                          "docs/Anleitungen/09_Test_Quests_im_Spiel.md.";
             }
 
             if (report.Warnings.Count > 0)
@@ -95,6 +102,33 @@ namespace Aetherfall.EditorTools.World
             }
 
             EditorUtility.DisplayDialog(DialogTitle, message, "OK");
+        }
+
+        /// <summary>
+        /// Batch mode entry point without dialogs (for Claude and CI): builds or rebuilds everything, writes the protocol into
+        /// the log and exits Unity with 0 (scene created) or 1 (error):
+        /// <c>Unity -batchmode -nographics -projectPath . -executeMethod Aetherfall.EditorTools.World.TestGroundMenu.RunBatch -logFile Logs/testgelaende.log</c>.
+        /// An existing test ground scene is rebuilt without asking.
+        /// </summary>
+        public static void RunBatch()
+        {
+            int exitCode = 1;
+            try
+            {
+                var report = new TestGroundReport();
+                GameObject player = Build(report);
+                report.LogToConsole();
+                exitCode = player != null ? 0 : 1;
+            }
+            catch (System.Exception exception)
+            {
+                Debug.LogException(exception);
+            }
+
+            if (Application.isBatchMode)
+            {
+                EditorApplication.Exit(exitCode);
+            }
         }
 
         private static GameObject Build(TestGroundReport report)
@@ -137,6 +171,13 @@ namespace Aetherfall.EditorTools.World
                 ProjectLayers.RestrictLayer(pickupLayer, new[] { environmentLayer, LayerMask.NameToLayer("Terrain"), playerLayer }, report);
             }
 
+            int triggerVolumeLayer = ProjectLayers.Ensure(TestGroundPaths.TriggerVolumeLayerIndex, TestGroundPaths.TriggerVolumeLayerName, report);
+            if (triggerVolumeLayer >= 0)
+            {
+                // Architecture 2.8: TriggerVolume collides with Player and NPC only (NPC follows with the NPC step).
+                ProjectLayers.RestrictLayer(triggerVolumeLayer, new[] { playerLayer }, report);
+            }
+
             var materials = new TestGroundMaterials(report);
             PlayerMovementSettings settings = TestGroundAssets.EnsureMovementSettings(report);
             TestGroundAssets.EnsureInputInstallerInBootConfig(report);
@@ -146,8 +187,14 @@ namespace Aetherfall.EditorTools.World
             var items = new TestGroundItemAssets(report);
             items.AssignWolfLoot(combat.Wolf, combat.AetherWolf);
             TestGroundAssets.EnsureItemInstallersInBootConfig(items.Catalog, items.StartingEquipment, report);
+            TestGroundAssets.EnsureNarrativeInstallersInBootConfig(report);
+            var quests = new TestGroundQuestAssets(items.Catalog, report);
             TestGroundUiBuilder.EnsureInstallers(report);
             AssetDatabase.SaveAssets();
+            if (quests.Count > 0 && !quests.Validate())
+            {
+                report.Warning("Die Quest-Prüfung meldet Fehler (siehe Meldungen oben). Details: „Aetherfall > Quests prüfen“.");
+            }
 
             if (settings == null)
             {
@@ -165,7 +212,7 @@ namespace Aetherfall.EditorTools.World
             }
 
             GameObject player = TestGroundSceneBuilder.Build(settings, materials, playerLayer, environmentLayer, combat, enemyLayer, hurtboxLayer, items,
-                interactableLayer, pickupLayer, report);
+                interactableLayer, pickupLayer, triggerVolumeLayer, report);
             TestGroundUiBuilder.EnsureSceneList(report);
             AssetDatabase.SaveAssets();
             return player;

@@ -12,6 +12,7 @@
         "Aetherfall.Items",
         "Aetherfall.Combat",
         "Aetherfall.AI",
+        "Aetherfall.World",
         "Aetherfall.EditorTools.Core",
         "Aetherfall.Tests.Shared"
     ],

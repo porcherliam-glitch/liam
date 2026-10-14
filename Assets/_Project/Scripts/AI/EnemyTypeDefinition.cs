@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Aetherfall.Combat;
+using Aetherfall.Data;
 using Aetherfall.Events;
 using UnityEngine;
 
@@ -18,7 +19,7 @@ namespace Aetherfall.AI
     /// modifier packages, prefab reference, loot table.
     /// </remarks>
     [CreateAssetMenu(menuName = "Aetherfall/Gegner/Gegnertyp", fileName = "EnemyType", order = 20)]
-    public sealed class EnemyTypeDefinition : ScriptableObject
+    public sealed class EnemyTypeDefinition : ScriptableObject, IContentIdProvider
     {
         [Header("Identität (GDD 01, 11)")]
         [Tooltip("Typ-ID, z. B. enemy.wolf.grauwolf.")]
@@ -146,6 +147,9 @@ namespace Aetherfall.AI
 
         /// <summary>Type id.</summary>
         public string EnemyTypeId => enemyTypeId;
+
+        /// <summary>The type id as content id (quest validation knows <c>enemy.…</c> ids from these assets).</summary>
+        public string ContentId => enemyTypeId ?? string.Empty;
 
         /// <summary>Variant id.</summary>
         public string VariantId => variantId;

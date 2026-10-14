@@ -1,0 +1,7 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- One derived value on the character page: label left, value right. -->
+    <ui:VisualElement class="af-value-row" picking-mode="Ignore">
+        <ui:Label name="value-label" class="af-text af-value-row__label" picking-mode="Ignore" />
+        <ui:Label name="value-number" class="af-text af-value-row__number" picking-mode="Ignore" />
+    </ui:VisualElement>
+</ui:UXML>

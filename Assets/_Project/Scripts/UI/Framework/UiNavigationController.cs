@@ -4,8 +4,8 @@ namespace Aetherfall.UI.Framework
 {
     /// <summary>
     /// The own focus and navigation layer of architecture 4.9 / 12 (pure logic): applies one frame of UI input to the top
-    /// screen. Order per frame: Back/Close, tabs, focus movement (with auto-repeat) or value change, confirm (directly or by
-    /// holding for hold items). A = confirm and B = back without exception (§24.3, GDD 05 1.4).
+    /// screen. Order per frame: Back/Close, tabs, sub categories, secondary action, focus movement (with auto-repeat) or value
+    /// change, confirm (directly or by holding for hold items). A = confirm and B = back without exception (§24.3, GDD 05 1.4).
     /// </summary>
     /// <remarks>
     /// Unity's own UI Toolkit navigation is not used: menu items are not focusable for UI Toolkit, so its navigation events
@@ -96,6 +96,21 @@ namespace Aetherfall.UI.Framework
                 CancelHold();
                 screen.Tab(frame.TabDelta > 0 ? 1 : -1);
                 return UiNavResult.TabChanged;
+            }
+
+            if (frame.SubTabDelta != 0)
+            {
+                CancelHold();
+                screen.SubTab(frame.SubTabDelta > 0 ? 1 : -1);
+                return UiNavResult.SubTabChanged;
+            }
+
+            if (frame.SecondaryPressed)
+            {
+                CancelHold();
+                FocusGroup focused = screen.Focus;
+                screen.Secondary(focused != null ? focused.Current : -1);
+                return UiNavResult.Secondary;
             }
 
             FocusGroup focus = screen.Focus;

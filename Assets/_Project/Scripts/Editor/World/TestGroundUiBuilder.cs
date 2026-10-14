@@ -9,6 +9,8 @@ using Aetherfall.GameTime;
 using Aetherfall.Input;
 using Aetherfall.Inventory;
 using Aetherfall.Player;
+using Aetherfall.Progression;
+using Aetherfall.Quests;
 using Aetherfall.SaveSystem;
 using Aetherfall.Stats;
 using Aetherfall.UI.Framework;
@@ -129,7 +131,8 @@ namespace Aetherfall.EditorTools.World
 
         /// <summary>
         /// Puts the SceneLoaderInstaller behind the GameState installer and the UIInstaller behind every installer whose
-        /// services it needs (Input, Save, GameTime, SceneLoader, Content, Inventory, Combat, AI), and fills its gameplay scene.
+        /// services it needs (Input, Save, GameTime, SceneLoader, Content, Inventory, Combat, AI, Progression, Quests), and fills
+        /// its gameplay scene.
         /// </summary>
         /// <param name="report">Protocol.</param>
         public static void EnsureInstallers(TestGroundReport report)
@@ -143,7 +146,7 @@ namespace Aetherfall.EditorTools.World
 
             if (!TestGroundAssets.EnsureInstallerInBootConfig<UIInstaller>(UIInstallerPath, report, typeof(EventBusInstaller), typeof(GameStateInstaller),
                     typeof(InputInstaller), typeof(SaveInstaller), typeof(GameTimeInstaller), typeof(SceneLoaderInstaller), typeof(InventoryInstaller),
-                    typeof(CombatInstaller), typeof(AIInstaller)))
+                    typeof(CombatInstaller), typeof(AIInstaller), typeof(ProgressionInstaller), typeof(QuestInstaller)))
             {
                 return;
             }

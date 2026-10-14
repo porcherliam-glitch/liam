@@ -25,6 +25,12 @@ namespace Aetherfall.UI.Framework
         BackHandled = 6,
 
         /// <summary>The screen asked to be closed.</summary>
-        CloseRequested = 7
+        CloseRequested = 7,
+
+        /// <summary>The sub category changed (LT/RT, Z/C).</summary>
+        SubTabChanged = 8,
+
+        /// <summary>The secondary action ran on the focused item (X, F).</summary>
+        Secondary = 9
     }
 }

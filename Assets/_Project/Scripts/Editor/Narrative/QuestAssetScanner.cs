@@ -3,12 +3,14 @@ using Aetherfall.Data;
 using Aetherfall.Quests;
 using Aetherfall.WorldState;
 using UnityEditor;
+using UnityEngine;
 
 namespace Aetherfall.EditorTools.Narrative
 {
     /// <summary>
     /// Finds the quest data of the project for the validator: every <see cref="QuestDefinition"/> asset, the ids of all
-    /// <see cref="GameDefinition"/> assets (for "id does not exist", V04) and the <see cref="FlagDefinition"/>s (V04, V17).
+    /// <see cref="GameDefinition"/> assets and of assets with an <see cref="IContentIdProvider"/> such as the enemy types (for
+    /// "id does not exist", V04) and the <see cref="FlagDefinition"/>s (V04, V17).
     /// </summary>
     public static class QuestAssetScanner
     {
@@ -49,7 +51,19 @@ namespace Aetherfall.EditorTools.Narrative
                     continue;
                 }
 
-                var definition = AssetDatabase.LoadAssetAtPath<GameDefinition>(path);
+                var asset = AssetDatabase.LoadAssetAtPath<ScriptableObject>(path);
+                if (asset is IContentIdProvider provider)
+                {
+                    // Content that is not a GameDefinition yet (enemy types of the AI): its id exists for the validator.
+                    if (!string.IsNullOrEmpty(provider.ContentId))
+                    {
+                        ids.Add(provider.ContentId);
+                    }
+
+                    continue;
+                }
+
+                var definition = asset as GameDefinition;
                 if (definition == null || definition.Id.Length == 0)
                 {
                     continue;

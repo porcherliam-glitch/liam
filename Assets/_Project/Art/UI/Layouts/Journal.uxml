@@ -1,0 +1,90 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- Journal (GDD 05 1.3 hub tabs "Questlog" and "Charakter", LB/RB; quest categories with LT/RT, GDD 02 7.1). -->
+    <ui:VisualElement name="journal" class="af-root af-screen af-overlay af-journal">
+        <ui:VisualElement class="af-panel af-journal__panel">
+            <ui:VisualElement class="af-pause__header">
+                <ui:Label name="journal-title" class="af-text af-pause__title" />
+                <ui:VisualElement class="af-tabs">
+                    <ui:Label name="journal-tabs-glyph-tabprev" class="af-text af-glyph" picking-mode="Ignore" />
+                    <ui:Button name="journal-tab-quests" class="af-text af-tab" focusable="false" />
+                    <ui:Button name="journal-tab-character" class="af-text af-tab" focusable="false" />
+                    <ui:Label name="journal-tabs-glyph-tabnext" class="af-text af-glyph" picking-mode="Ignore" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement class="af-journal__body">
+                <ui:VisualElement name="journal-quests-page" class="af-journal__page">
+                    <ui:VisualElement class="af-subtabs">
+                        <ui:Label name="questlog-subtabs-glyph-subtabprev" class="af-text af-glyph" picking-mode="Ignore" />
+                        <ui:Button name="questlog-cat-main" class="af-text af-subtab" focusable="false" />
+                        <ui:Button name="questlog-cat-faction" class="af-text af-subtab" focusable="false" />
+                        <ui:Button name="questlog-cat-region" class="af-text af-subtab" focusable="false" />
+                        <ui:Button name="questlog-cat-side" class="af-text af-subtab" focusable="false" />
+                        <ui:Button name="questlog-cat-companion" class="af-text af-subtab" focusable="false" />
+                        <ui:Button name="questlog-cat-contracts" class="af-text af-subtab" focusable="false" />
+                        <ui:Button name="questlog-cat-done" class="af-text af-subtab" focusable="false" />
+                        <ui:Label name="questlog-subtabs-glyph-subtabnext" class="af-text af-glyph" picking-mode="Ignore" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="af-questlog">
+                        <ui:VisualElement class="af-questlog__list-column">
+                            <ui:Label name="questlog-more-up" class="af-text af-questlog__more" picking-mode="Ignore" />
+                            <ui:VisualElement name="questlog-list" class="af-questlog__list" />
+                            <ui:Label name="questlog-more-down" class="af-text af-questlog__more" picking-mode="Ignore" />
+                            <ui:Label name="questlog-empty" class="af-text af-page__empty" />
+                        </ui:VisualElement>
+                        <ui:VisualElement name="questlog-details" class="af-questlog__details">
+                            <ui:Label name="questlog-detail-title" class="af-text af-questlog__title" />
+                            <ui:Label name="questlog-detail-meta" class="af-text af-questlog__meta" />
+                            <ui:Label name="questlog-detail-description" class="af-text af-questlog__description" />
+                            <ui:Label name="questlog-detail-stage-title" class="af-text af-questlog__section" />
+                            <ui:Label name="questlog-detail-stage" class="af-text af-questlog__stage" />
+                            <ui:VisualElement name="questlog-detail-objectives" class="af-questlog__objectives" />
+                            <ui:Label name="questlog-detail-history-title" class="af-text af-questlog__section" />
+                            <ui:VisualElement name="questlog-detail-history" class="af-questlog__history" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+                <ui:VisualElement name="journal-character-page" class="af-journal__page af-character">
+                    <ui:VisualElement class="af-character__left">
+                        <ui:Label name="character-level" class="af-text af-character__level" />
+                        <ui:VisualElement name="character-xp" class="af-bar af-bar--xp-large">
+                            <ui:VisualElement name="character-xp-fill" class="af-bar__fill af-bar__fill--xp" />
+                        </ui:VisualElement>
+                        <ui:Label name="character-xp-text" class="af-text af-character__xp" />
+                        <ui:Label name="character-points" class="af-text af-character__points" />
+                        <ui:Label name="character-attributes-title" class="af-text af-questlog__section" />
+                        <ui:VisualElement name="character-attributes" class="af-character__attributes" />
+                        <ui:Label name="character-hint" class="af-text af-page__note" />
+                    </ui:VisualElement>
+                    <ui:VisualElement class="af-character__right">
+                        <ui:Label name="character-derived-title" class="af-text af-questlog__section" />
+                        <ui:VisualElement name="character-derived" class="af-character__derived" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement class="af-footer af-footer--panel" picking-mode="Ignore">
+                <ui:VisualElement class="af-hint" picking-mode="Ignore">
+                    <ui:Label name="journal-hint-glyph-confirm" class="af-text af-glyph af-glyph--face" picking-mode="Ignore" />
+                    <ui:Label name="journal-hint-confirm" class="af-text af-hint__text" picking-mode="Ignore" />
+                </ui:VisualElement>
+                <ui:VisualElement name="journal-hint-secondary-group" class="af-hint" picking-mode="Ignore">
+                    <ui:Label name="journal-hint-glyph-secondary" class="af-text af-glyph af-glyph--face" picking-mode="Ignore" />
+                    <ui:Label name="journal-hint-secondary" class="af-text af-hint__text" picking-mode="Ignore" />
+                </ui:VisualElement>
+                <ui:VisualElement class="af-hint" picking-mode="Ignore">
+                    <ui:Label name="journal-hint-glyph-back" class="af-text af-glyph af-glyph--face" picking-mode="Ignore" />
+                    <ui:Label name="journal-hint-back" class="af-text af-hint__text" picking-mode="Ignore" />
+                </ui:VisualElement>
+                <ui:VisualElement class="af-hint" picking-mode="Ignore">
+                    <ui:Label name="journal-hint-glyph-tabprev" class="af-text af-glyph" picking-mode="Ignore" />
+                    <ui:Label name="journal-hint-glyph-tabnext" class="af-text af-glyph" picking-mode="Ignore" />
+                    <ui:Label name="journal-hint-tabs" class="af-text af-hint__text" picking-mode="Ignore" />
+                </ui:VisualElement>
+                <ui:VisualElement name="journal-hint-subtabs-group" class="af-hint" picking-mode="Ignore">
+                    <ui:Label name="journal-hint-glyph-subtabprev" class="af-text af-glyph" picking-mode="Ignore" />
+                    <ui:Label name="journal-hint-glyph-subtabnext" class="af-text af-glyph" picking-mode="Ignore" />
+                    <ui:Label name="journal-hint-subtabs" class="af-text af-hint__text" picking-mode="Ignore" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

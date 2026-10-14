@@ -91,6 +91,9 @@ namespace Aetherfall.Input
                 case UiButton.TabPrev: return UI.TabPrev;
                 case UiButton.TabNext: return UI.TabNext;
                 case UiButton.CloseHub: return UI.CloseHub;
+                case UiButton.SubTabPrev: return UI.SubTabPrev;
+                case UiButton.SubTabNext: return UI.SubTabNext;
+                case UiButton.Secondary: return UI.Secondary;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(button), button, "Unknown UI button.");
             }
@@ -214,6 +217,12 @@ namespace Aetherfall.Input
             public const string CloseHub = "CloseHub";
             /// <summary>Skip the cutscene (hold).</summary>
             public const string SkipCutscene = "SkipCutscene";
+            /// <summary>Sub category back (LT, Z).</summary>
+            public const string SubTabPrev = "SubTabPrev";
+            /// <summary>Sub category forward (RT, C).</summary>
+            public const string SubTabNext = "SubTabNext";
+            /// <summary>Secondary action (X, F).</summary>
+            public const string Secondary = "Secondary";
         }
 
         /// <summary>Dialog map, GDD 03 1.5.</summary>

@@ -19,6 +19,9 @@ namespace Aetherfall.Stats
         /// <summary>Prefix of buff sources (potions, food, shrines).</summary>
         public const string BuffPrefix = "buff:";
 
+        /// <summary>Prefix of progression sources (distributed attribute points, later paragon points).</summary>
+        public const string ProgressionPrefix = "progression:";
+
         /// <summary>Source id of an equipped item instance.</summary>
         /// <param name="instanceId">Item instance id.</param>
         public static string Item(string instanceId)
@@ -38,6 +41,13 @@ namespace Aetherfall.Stats
         public static string Skill(string nodeId)
         {
             return SkillPrefix + nodeId;
+        }
+
+        /// <summary>Source id of a progression part, e.g. <c>progression:attributes</c> for the distributed attribute points.</summary>
+        /// <param name="part">Part name.</param>
+        public static string Progression(string part)
+        {
+            return ProgressionPrefix + part;
         }
 
         /// <summary>Source id of a buff.</summary>

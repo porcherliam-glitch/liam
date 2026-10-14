@@ -1,0 +1,10 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- One tracked quest of the HUD (GDD 05 1.2 "Verfolgte Quests"): marker of the focus quest, title, objectives. -->
+    <ui:VisualElement class="af-tracked" picking-mode="Ignore">
+        <ui:VisualElement class="af-tracked__header" picking-mode="Ignore">
+            <ui:VisualElement name="tracked-marker" class="af-tracked__marker" picking-mode="Ignore" />
+            <ui:Label name="tracked-title" class="af-text af-tracked__title" picking-mode="Ignore" />
+        </ui:VisualElement>
+        <ui:VisualElement name="tracked-objectives" class="af-tracked__objectives" picking-mode="Ignore" />
+    </ui:VisualElement>
+</ui:UXML>

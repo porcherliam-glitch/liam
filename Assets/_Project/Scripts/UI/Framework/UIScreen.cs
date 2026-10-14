@@ -72,6 +72,16 @@ namespace Aetherfall.UI.Framework
         }
 
         /// <inheritdoc />
+        public virtual void SubTab(int delta)
+        {
+        }
+
+        /// <inheritdoc />
+        public virtual void Secondary(int index)
+        {
+        }
+
+        /// <inheritdoc />
         public virtual void FocusChanged(int previous, int current)
         {
         }

@@ -24,7 +24,8 @@ namespace Aetherfall.EditorTools.World
     /// spawn point, <see cref="DevPlayStarter"/>, <see cref="QuickSaveInput"/> and the <see cref="PlayerStatusDebugOverlay"/>; the
     /// combat part (player combat, lock-on camera, camera shake, arena with dummy and wolves, combat overlay) comes from
     /// <see cref="TestGroundCombatBuilder"/>, the items part (loot in the world, chests, interaction, equipment, inventory
-    /// overlay) from <see cref="TestGroundItemBuilder"/>; the <see cref="Aetherfall.UI.Screens.PlayerHudLink"/> (HUD bridge) from
+    /// overlay) from <see cref="TestGroundItemBuilder"/>; the quest part (notice board, training ground zone, progression link)
+    /// from <see cref="TestGroundQuestBuilder"/>; the <see cref="Aetherfall.UI.Screens.PlayerHudLink"/> (HUD bridge) from
     /// <see cref="TestGroundUiBuilder"/>.
     /// </summary>
     /// <remarks>Camera values: GDD 03 2.1 "Erkundung" (4.0 m, pivot 1.6 m, 0.3 m shoulder, FOV 55°) and 2.2 (collision).</remarks>
@@ -62,11 +63,12 @@ namespace Aetherfall.EditorTools.World
         /// <param name="items">Item assets (null or incomplete = no items part).</param>
         /// <param name="interactableLayer">Interactable layer index or -1.</param>
         /// <param name="pickupLayer">Pickup layer index or -1.</param>
+        /// <param name="triggerVolumeLayer">TriggerVolume layer index or -1 (location zones of the quests).</param>
         /// <param name="report">Protocol.</param>
         /// <returns>The player object, or null if the scene could not be saved.</returns>
         public static GameObject Build(PlayerMovementSettings settings, TestGroundMaterials materials, int playerLayer, int environmentLayer,
             TestGroundCombatAssets combat, int enemyLayer, int hurtboxLayer, TestGroundItemAssets items, int interactableLayer, int pickupLayer,
-            TestGroundReport report)
+            int triggerVolumeLayer, TestGroundReport report)
         {
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.DefaultGameObjects, NewSceneMode.Single);
             int envLayer = environmentLayer >= 0 ? environmentLayer : 0;
@@ -101,6 +103,12 @@ namespace Aetherfall.EditorTools.World
                 SetReference(look, "lockOn", player.GetComponent<PlayerLockOn>(), report);
                 SetReference(player.GetComponent<PlayerRespawn>(), "spawnPoint", spawnPoint, report);
                 EnemySpawner spawner = TestGroundCombatBuilder.BuildArena(materials, combat, enemyLayer, hurtboxLayer, envLayer, labelFont, report);
+                if (spawner != null)
+                {
+                    // The wolf hunt needs three kills after it was accepted: dead wolves come back after a while.
+                    TestGroundFields.SetFloat(spawner, "respawnSeconds", TestGroundPaths.ArenaRespawnSeconds, report);
+                }
+
                 TestGroundCombatBuilder.CreateOverlays(playerCombatant, spawner, mainCamera, labelFont, report);
             }
             else
@@ -112,6 +120,7 @@ namespace Aetherfall.EditorTools.World
             {
                 TestGroundItemBuilder.Build(player, items, interactableLayer, pickupLayer, envLayer, labelFont, report);
                 TestGroundItemBuilder.CreateOverlays(player, statusOverlay, report);
+                TestGroundQuestBuilder.Build(player, materials, interactableLayer, triggerVolumeLayer, playerLayer, envLayer, labelFont, report);
             }
             else
             {

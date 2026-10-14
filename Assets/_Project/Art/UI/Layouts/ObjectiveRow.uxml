@@ -1,0 +1,10 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- One quest objective: check box (ticked when done, pulses once when it gets done), text, counter "1/3". -->
+    <ui:VisualElement class="af-objective" picking-mode="Ignore">
+        <ui:VisualElement name="objective-box" class="af-objective__box" picking-mode="Ignore">
+            <ui:VisualElement class="af-objective__tick" picking-mode="Ignore" />
+        </ui:VisualElement>
+        <ui:Label name="objective-text" class="af-text af-objective__text" picking-mode="Ignore" />
+        <ui:Label name="objective-count" class="af-text af-objective__count" picking-mode="Ignore" />
+    </ui:VisualElement>
+</ui:UXML>

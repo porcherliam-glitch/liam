@@ -8,9 +8,10 @@ namespace Aetherfall.UI.Screens
 {
     /// <summary>
     /// Keeps the screens in step with the game state (architecture 4.4): main menu in <c>MainMenu</c>, HUD in the game, pause
-    /// menu while <c>Paused</c>, death screen after <c>PlayerDied</c>; pushes <c>Paused</c> when the pause button (Start /
-    /// Esc) is pressed where table 4.4 allows it (Playing, Dialogue; also while riding). Messages are buffered in menus
-    /// (GDD 05 1.7).
+    /// menu while <c>Paused</c>, death screen after <c>PlayerDied</c>, journal (quest log and character page) while it holds
+    /// <c>Menu</c>; pushes <c>Paused</c> when the pause button (Start / Esc) is pressed where table 4.4 allows it (Playing,
+    /// Dialogue; also while riding) and <c>Menu</c> for the journal (key J in the game, or the pause menu item). Messages are
+    /// buffered in menus (GDD 05 1.7).
     /// </summary>
     /// <remarks>
     /// <para>The game state is the single source of truth: screens open and close because the state changed, and the menu
@@ -20,11 +21,16 @@ namespace Aetherfall.UI.Screens
     /// there: Paused → Loading (load the last save) and Pop → Playing (respawn). The death screen is not in table 4.4; this is
     /// documented in the guide 07. If the player dies in a state without Paused (cutscene, loading), the death screen waits
     /// and is tried again every frame; in a dialogue it stacks over the dialogue (Dialogue → Paused).</para>
+    /// <para><b>Journal:</b> <see cref="OpenJournal"/> pushes <c>Menu</c> (from the pause menu it first pops <c>Paused</c>, so
+    /// the stack stays Playing → Menu); only a <c>Menu</c> pushed for the journal opens it, so other menus (the inventory
+    /// overlay) keep the state for themselves. Closing pops <c>Menu</c> (<see cref="CloseJournal"/>); any other state closes
+    /// the journal.</para>
     /// </remarks>
     public sealed class UiStateDirector
     {
         private const string PauseReason = "Pause menu";
         private const string DeathReason = "Death screen";
+        private const string JournalReason = "Journal";
 
         private readonly IUIManager _ui;
         private readonly IGameStateService _gameState;
@@ -37,6 +43,9 @@ namespace Aetherfall.UI.Screens
         private readonly float _deathDelay;
         private bool _deathPending;
         private float _deathTimer;
+        private UIScreen _journal;
+        private bool _journalRequested;
+        private JournalPage _journalPage;
 
         /// <summary>Creates the director.</summary>
         /// <param name="ui">UI manager.</param>
@@ -68,6 +77,9 @@ namespace Aetherfall.UI.Screens
         /// <summary>True between the player's death and respawn or load.</summary>
         public bool DeathPending => _deathPending;
 
+        /// <summary>True if a journal screen is attached.</summary>
+        public bool HasJournal => _journal != null;
+
         /// <summary>True if the HUD peek action (hold Select / M) fired this frame.</summary>
         public bool PeekRequested => _gameplay != null && _gameplay.IsActive && _gameplay.WasPressedThisFrame(GameplayButton.HudPeek);
 
@@ -81,8 +93,10 @@ namespace Aetherfall.UI.Screens
             {
                 case GameState.MainMenu:
                     _deathPending = false;
+                    _journalRequested = false;
                     Close(_pauseMenu);
                     Close(_deathScreen);
+                    CloseIfOpen(_journal);
                     _ui.Notifications.Clear();
                     if (!_mainMenu.IsOpen)
                     {
@@ -92,6 +106,7 @@ namespace Aetherfall.UI.Screens
                     break;
                 case GameState.Paused:
                     Close(_mainMenu);
+                    CloseIfOpen(_journal);
                     if (_deathPending && _deathTimer <= 0f)
                     {
                         Close(_pauseMenu);
@@ -107,12 +122,97 @@ namespace Aetherfall.UI.Screens
                     }
 
                     break;
+                case GameState.Menu:
+                    Close(_mainMenu);
+                    Close(_pauseMenu);
+                    Close(_deathScreen);
+                    if (_journalRequested && _journal != null)
+                    {
+                        // Only a Menu pushed for the journal opens it; other menus (inventory overlay) keep the state.
+                        _journalRequested = false;
+                        if (!_journal.IsOpen)
+                        {
+                            _ui.Open(_journal, _journalPage);
+                        }
+                    }
+
+                    break;
                 default:
                     Close(_mainMenu);
                     Close(_pauseMenu);
                     Close(_deathScreen);
+                    CloseIfOpen(_journal);
                     break;
             }
+        }
+
+        /// <summary>Connects the journal screen (<see cref="JournalScreen"/>); null disconnects it.</summary>
+        /// <param name="journal">Journal screen.</param>
+        public void AttachJournal(UIScreen journal)
+        {
+            CloseIfOpen(_journal);
+            _journal = journal;
+            _journalRequested = false;
+        }
+
+        /// <summary>
+        /// Opens the journal on a page: pushes <c>Menu</c> over <c>Playing</c>. From the pause menu (Paused over Playing) it pops
+        /// <c>Paused</c> first. Refused while a death screen is pending, while a load or scene flow runs, and in other states
+        /// (dialogue, cutscene, building, main menu).
+        /// </summary>
+        /// <param name="page">Page to show.</param>
+        /// <returns>True if the journal opens.</returns>
+        public bool OpenJournal(JournalPage page)
+        {
+            if (_journal == null || _deathPending || _flow.IsFlowRunning)
+            {
+                return false;
+            }
+
+            GameState current = _gameState.Current;
+            if (current == GameState.Menu && _journal.IsOpen)
+            {
+                return false;
+            }
+
+            if (current == GameState.Paused)
+            {
+                if (_gameState.ModalCount != 1 || _gameState.BaseState != GameState.Playing || !_gameState.Pop(GameState.Paused))
+                {
+                    return false;
+                }
+            }
+
+            if (!GameStateTransitions.CanPush(_gameState.Current, GameState.Menu))
+            {
+                return false;
+            }
+
+            _journalRequested = true;
+            _journalPage = page;
+            if (!_gameState.Push(GameState.Menu, JournalReason))
+            {
+                _journalRequested = false;
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>Closes the journal (B / Esc / J on it): pops <c>Menu</c>, back to the game.</summary>
+        public void CloseJournal()
+        {
+            if (_journal == null || !_journal.IsOpen)
+            {
+                return;
+            }
+
+            if (_gameState.Current == GameState.Menu)
+            {
+                _gameState.Pop(GameState.Menu);
+            }
+
+            CloseIfOpen(_journal);
         }
 
         /// <summary>Per frame: pause button and the death screen (delay, then until it is open).</summary>
@@ -138,6 +238,14 @@ namespace Aetherfall.UI.Screens
                     ShowDeathScreen();
                 }
 
+                return;
+            }
+
+            // Key J (GDD 03 1.5, hub tab "Questlog"): only from the game itself.
+            if (_journal != null && _gameplay != null && _gameplay.IsActive && _gameState.Current == GameState.Playing &&
+                _gameplay.WasPressedThisFrame(GameplayButton.QuestLog))
+            {
+                OpenJournal(JournalPage.Quests);
                 return;
             }
 
@@ -186,6 +294,7 @@ namespace Aetherfall.UI.Screens
         public void ShowFailure(string message)
         {
             UIScreen open = _mainMenu.IsOpen ? _mainMenu : _deathScreen.IsOpen ? _deathScreen : _pauseMenu.IsOpen ? _pauseMenu : null;
+            // The journal has no status line: its failures appear as a message.
             if (open is IErrorDisplay display)
             {
                 display.ShowError(message);
@@ -223,6 +332,14 @@ namespace Aetherfall.UI.Screens
         private void Close(UIScreen screen)
         {
             if (screen.IsOpen)
+            {
+                _ui.Close(screen);
+            }
+        }
+
+        private void CloseIfOpen(UIScreen screen)
+        {
+            if (screen != null && screen.IsOpen)
             {
                 _ui.Close(screen);
             }

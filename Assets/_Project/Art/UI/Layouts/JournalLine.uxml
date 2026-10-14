@@ -1,0 +1,4 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- One line of text in the quest details: an earlier stage or a decision of the ledger (GDD 02 6.4). -->
+    <ui:Label name="journal-line" class="af-text af-journal-line" picking-mode="Ignore" />
+</ui:UXML>

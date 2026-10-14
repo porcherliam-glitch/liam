@@ -17,5 +17,8 @@ namespace Aetherfall.Core
 
         /// <summary>Use a lever, switch or similar mechanism (world objects step).</summary>
         public const string Use = "use";
+
+        /// <summary>Read a notice, sign, letter or book (notice boards that offer quests, GDD 02 4.1 "Aushang lesen").</summary>
+        public const string Read = "read";
     }
 }

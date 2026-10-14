@@ -6,8 +6,9 @@ namespace Aetherfall.UI.Screens
 {
     /// <summary>
     /// <see cref="IUiCommandSource"/> on top of the UI action map of the input service (Navigate, Submit, Cancel,
-    /// TabPrev/TabNext, CloseHub): A / Cross / Enter / Space = confirm, B / Circle / Esc / right mouse button = back,
-    /// LB/RB / L1/R1 / Q/E = tabs, Start / Options / Esc / Tab = close.
+    /// TabPrev/TabNext, SubTabPrev/SubTabNext, Secondary, CloseHub): A / Cross / Enter / Space = confirm, B / Circle / Esc /
+    /// right mouse button = back, LB/RB / L1/R1 / Q/E = tabs, LT/RT / L2/R2 / Z/C = sub categories, X / Square / F = secondary
+    /// action, Start / Options / Esc / Tab / J = close.
     /// </summary>
     public sealed class InputUiCommandSource : IUiCommandSource
     {
@@ -45,6 +46,19 @@ namespace Aetherfall.UI.Screens
             }
 
             frame.TabDelta = tab;
+            int subTab = 0;
+            if (_ui.WasPressedThisFrame(UiButton.SubTabPrev))
+            {
+                subTab--;
+            }
+
+            if (_ui.WasPressedThisFrame(UiButton.SubTabNext))
+            {
+                subTab++;
+            }
+
+            frame.SubTabDelta = subTab;
+            frame.SecondaryPressed = _ui.WasPressedThisFrame(UiButton.Secondary);
         }
     }
 }

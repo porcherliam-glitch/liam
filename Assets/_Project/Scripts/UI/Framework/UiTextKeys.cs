@@ -125,5 +125,116 @@ namespace Aetherfall.UI.Framework
 
         /// <summary>Hint while a hold item is focused.</summary>
         public const string HoldHint = "hold-hint";
+
+        /// <summary>Tab name "Questlog" (journal title).</summary>
+        public const string JournalQuests = "journal-tab-quests";
+
+        /// <summary>Tab name "Charakter" (journal title).</summary>
+        public const string JournalCharacter = "journal-tab-character";
+
+        /// <summary>Footer hint "Verfolgen an/aus".</summary>
+        public const string HintTrack = "hint-track";
+
+        /// <summary>Footer hint "Als Fokus".</summary>
+        public const string HintFocus = "hint-focus";
+
+        /// <summary>Footer hint "Punkt verteilen".</summary>
+        public const string HintSpend = "hint-spend";
+
+        /// <summary>Footer hint "Zuruecknehmen".</summary>
+        public const string HintRefund = "hint-refund";
+
+        /// <summary>Prefix of the quest category names (<c>quest-category-main</c> …).</summary>
+        public const string QuestCategoryPrefix = "quest-category-";
+
+        /// <summary>"{0} · Stufe {1}" second line of a quest row.</summary>
+        public const string QuestRowInfo = "fmt-quest-row-info";
+
+        /// <summary>"{0} · empfohlen ab Stufe {1}" meta line of the quest details.</summary>
+        public const string QuestMeta = "fmt-quest-meta";
+
+        /// <summary>Badge "Verfolgt".</summary>
+        public const string QuestBadgeTracked = "quest-badge-tracked";
+
+        /// <summary>Badge "Fokus".</summary>
+        public const string QuestBadgeFocus = "quest-badge-focus";
+
+        /// <summary>Badge "Abgeschlossen".</summary>
+        public const string QuestBadgeDone = "quest-badge-done";
+
+        /// <summary>Badge "Gescheitert".</summary>
+        public const string QuestBadgeFailed = "quest-badge-failed";
+
+        /// <summary>Section "Aktueller Stand".</summary>
+        public const string QuestSectionCurrent = "quest-section-current";
+
+        /// <summary>Section "Ausgang".</summary>
+        public const string QuestSectionOutcome = "quest-section-outcome";
+
+        /// <summary>Section "Gescheitert".</summary>
+        public const string QuestSectionFailed = "quest-section-failed";
+
+        /// <summary>Section "Bisher" (earlier stages).</summary>
+        public const string QuestSectionHistory = "quest-section-history";
+
+        /// <summary>Section "Entscheidungen" (ledger).</summary>
+        public const string QuestSectionDecisions = "quest-section-decisions";
+
+        /// <summary>"Waehle links eine Quest aus."</summary>
+        public const string QuestNoneSelected = "quest-none-selected";
+
+        /// <summary>"{0}/{1}" objective counter.</summary>
+        public const string ObjectiveCount = "fmt-objective-count";
+
+        /// <summary>"Neue Hauptquest: {0}" (P0).</summary>
+        public const string NoteQuestMain = "fmt-note-quest-main";
+
+        /// <summary>"Neue Quest: {0}" (P1).</summary>
+        public const string NoteQuestNew = "fmt-note-quest-new";
+
+        /// <summary>"{0} ({1}/{2})" objective progress (P1).</summary>
+        public const string NoteQuestProgress = "fmt-note-quest-progress";
+
+        /// <summary>"Erledigt: {0}" objective without counter done (P1).</summary>
+        public const string NoteQuestObjectiveDone = "fmt-note-quest-objective-done";
+
+        /// <summary>"{0}: {1}" new stage with its first objective (P1).</summary>
+        public const string NoteQuestStage = "fmt-note-quest-stage";
+
+        /// <summary>"Bonus: {0}" optional objective done (P1).</summary>
+        public const string NoteQuestBonus = "fmt-note-quest-bonus";
+
+        /// <summary>"Quest abgeschlossen: {0}" (P0).</summary>
+        public const string NoteQuestCompleted = "fmt-note-quest-completed";
+
+        /// <summary>"Quest gescheitert: {0}" (P0).</summary>
+        public const string NoteQuestFailed = "fmt-note-quest-failed";
+
+        /// <summary>"Im Questlog verfolgen: {0}" (P1, tracking limit reached).</summary>
+        public const string NoteQuestUntracked = "fmt-note-quest-untracked";
+
+        /// <summary>Hint after a level-up: distribute the new points.</summary>
+        public const string NoteLevelUpPoints = "note-levelup-points";
+
+        /// <summary>"Stufe {0}" on the character page.</summary>
+        public const string CharacterLevel = "fmt-character-level";
+
+        /// <summary>"{0} / {1} EP".</summary>
+        public const string CharacterXp = "fmt-character-xp";
+
+        /// <summary>Max level reached.</summary>
+        public const string CharacterXpMax = "character-xp-max";
+
+        /// <summary>"Freie Attributpunkte: {0} · Freie Skillpunkte: {1}".</summary>
+        public const string CharacterPoints = "fmt-character-points";
+
+        /// <summary>"+{0}" points distributed while the page is open.</summary>
+        public const string AttributeBonus = "fmt-attribute-bonus";
+
+        /// <summary>"{0} kg".</summary>
+        public const string ValueKg = "fmt-value-kg";
+
+        /// <summary>"Stufe {0}" next to the XP bar of the HUD.</summary>
+        public const string HudLevel = "fmt-hud-level";
     }
 }

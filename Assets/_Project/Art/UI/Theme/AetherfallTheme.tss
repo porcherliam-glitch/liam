@@ -11,3 +11,4 @@
 @import url("../Styles/Hud.uss");
 @import url("../Styles/Toasts.uss");
 @import url("../Styles/Loading.uss");
+@import url("../Styles/Journal.uss");

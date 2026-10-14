@@ -372,6 +372,26 @@ namespace Aetherfall.Quests
         }
 
         /// <inheritdoc />
+        public bool IsObjectiveVisible(string questId, string objectiveId)
+        {
+            if (!TryGetInstance(questId, out QuestInstance instance) || !instance.IsActive || !Catalog.TryGet(questId, out QuestSpec spec) ||
+                !spec.TryGetStage(instance.StageId, out StageDefinition stage))
+            {
+                return false;
+            }
+
+            int index = stage.IndexOfObjective(objectiveId);
+            QuestObjective objective = index >= 0 ? stage.Objectives[index] : null;
+            if (objective == null)
+            {
+                return false;
+            }
+
+            Condition visible = objective.VisibleCondition;
+            return visible == null || ConditionEvaluator.IsMet(visible, CreateContext(questId, stage.Id).ToConditionContext());
+        }
+
+        /// <inheritdoc />
         public bool TryGetChoice(string questId, string stageObjectiveKey, out string optionId)
         {
             optionId = string.Empty;

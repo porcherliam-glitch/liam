@@ -1,0 +1,9 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- One attribute on the character page: colour mark, name, value, points distributed while the page is open. -->
+    <ui:Button class="af-text af-button af-attribute" focusable="false">
+        <ui:VisualElement name="attribute-color" class="af-attribute__color" picking-mode="Ignore" />
+        <ui:Label name="attribute-name" class="af-text af-attribute__name" picking-mode="Ignore" />
+        <ui:Label name="attribute-bonus" class="af-text af-attribute__bonus" picking-mode="Ignore" />
+        <ui:Label name="attribute-value" class="af-text af-attribute__value" picking-mode="Ignore" />
+    </ui:Button>
+</ui:UXML>

@@ -30,6 +30,14 @@ namespace Aetherfall.UI.Framework
         /// <param name="delta">-1 or +1.</param>
         void Tab(int delta);
 
+        /// <summary>Sub category change with LT/RT (Z/C).</summary>
+        /// <param name="delta">-1 or +1.</param>
+        void SubTab(int delta);
+
+        /// <summary>Secondary action (X / F) on the focused item, e.g. "Fokus-Quest".</summary>
+        /// <param name="index">Focused item index (-1 = none).</param>
+        void Secondary(int index);
+
         /// <summary>The focus moved (update the focus frame).</summary>
         /// <param name="previous">Previous index (-1 = none).</param>
         /// <param name="current">New index (-1 = none).</param>

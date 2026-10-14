@@ -332,3 +332,97 @@
     background-color: rgba(8, 10, 13, 0.55);
     border-radius: 4px;
 }
+
+/* ---------- Top right: tracked quests (GDD 05 1.2, at most 3; shown 8 s after progress) ---------- */
+
+.af-quests {
+    position: absolute;
+    right: 48px;
+    top: 40px;
+    width: 420px;
+}
+
+.af-tracked {
+    margin: 0 0 12px 0;
+    padding: 10px 14px 8px 14px;
+    background-color: rgba(8, 10, 13, 0.55);
+    border-radius: 4px;
+}
+
+.af-tracked__header {
+    flex-direction: row;
+    align-items: center;
+    margin: 0 0 6px 0;
+}
+
+/* Category colour; the focus quest gets a diamond frame (like the main quest symbol, GDD 05 1.9). */
+.af-tracked__marker {
+    width: 12px;
+    height: 12px;
+    margin: 0 12px 0 2px;
+    rotate: 45deg;
+    border-width: 0;
+    border-color: var(--ui-focus);
+}
+
+.af-tracked.is-focus .af-tracked__marker {
+    border-width: 2px;
+}
+
+.af-tracked__title {
+    flex-grow: 1;
+    flex-shrink: 1;
+    font-size: 23px;
+    color: var(--text-title);
+    -unity-font-style: bold;
+    white-space: normal;
+}
+
+.af-tracked__objectives .af-objective {
+    margin: 0 0 2px 0;
+    padding: 2px 4px;
+}
+
+.af-tracked__objectives .af-objective__box {
+    width: 18px;
+    height: 18px;
+    margin: 0 10px 0 0;
+}
+
+.af-tracked__objectives .af-objective__tick {
+    width: 6px;
+    height: 11px;
+    margin: -3px 0 0 0;
+}
+
+.af-tracked__objectives .af-objective__text {
+    font-size: 19px;
+}
+
+.af-tracked__objectives .af-objective__count {
+    font-size: 19px;
+}
+
+/* ---------- Bottom centre: experience bar (GDD 05 1.2, thin; shown 4 s after experience) ---------- */
+
+.af-xp {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 20px;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+}
+
+.af-xp__level {
+    margin: 0 12px 0 0;
+    font-size: 18px;
+    color: var(--text-title);
+}
+
+.af-bar--xp {
+    width: 560px;
+    height: 8px;
+    border-width: 1px;
+}

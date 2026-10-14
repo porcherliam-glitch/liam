@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using Aetherfall.AI;
 using Aetherfall.Combat;
+using Aetherfall.Conditions;
 using Aetherfall.Core;
 using Aetherfall.Data;
 using Aetherfall.EditorTools.Core;
@@ -9,7 +10,10 @@ using Aetherfall.GameTime;
 using Aetherfall.Input;
 using Aetherfall.Inventory;
 using Aetherfall.Player;
+using Aetherfall.Progression;
+using Aetherfall.Quests;
 using Aetherfall.SaveSystem;
+using Aetherfall.WorldState;
 using UnityEditor;
 using UnityEngine;
 using Object = UnityEngine.Object;
@@ -18,8 +22,8 @@ namespace Aetherfall.EditorTools.World
 {
     /// <summary>
     /// Assets of the test ground: folders, coloured URP/Lit materials, the player movement settings and the installers
-    /// of Input, Save, GameTime, Content, Inventory, Combat and AI in the BootConfig. Existing assets are reused and never
-    /// overwritten.
+    /// of Input, Save, GameTime, Content, Inventory, Combat, AI, Conditions, WorldState, Progression and Quests in the
+    /// BootConfig. Existing assets are reused and never overwritten.
     /// </summary>
     public static class TestGroundAssets
     {
@@ -226,6 +230,28 @@ namespace Aetherfall.EditorTools.World
             }
 
             return content && inventory;
+        }
+
+        /// <summary>
+        /// Loads or creates the installers of conditions, world state, progression and quests and puts them into the BootConfig
+        /// in the order of architecture 4.1 and guide 08, 11.1: ConditionsInstaller behind the EventBus and GameTime installers,
+        /// WorldStateInstaller behind Conditions, Save, GameTime and Content, ProgressionInstaller behind EventBus, Save and
+        /// Inventory, QuestInstaller behind WorldState, Inventory and Progression (quest rewards give items and experience).
+        /// Idempotent like <see cref="EnsureInstallerInBootConfig{T}"/>.
+        /// </summary>
+        /// <param name="report">Protocol.</param>
+        /// <returns>True if all four installers are in the BootConfig afterwards.</returns>
+        public static bool EnsureNarrativeInstallersInBootConfig(TestGroundReport report)
+        {
+            bool conditions = EnsureInstallerInBootConfig<ConditionsInstaller>(TestGroundPaths.ConditionsInstallerPath, report,
+                typeof(EventBusInstaller), typeof(GameTimeInstaller));
+            bool worldState = conditions && EnsureInstallerInBootConfig<WorldStateInstaller>(TestGroundPaths.WorldStateInstallerPath, report,
+                typeof(ConditionsInstaller), typeof(SaveInstaller), typeof(GameTimeInstaller), typeof(ContentInstaller));
+            bool progression = EnsureInstallerInBootConfig<ProgressionInstaller>(TestGroundPaths.ProgressionInstallerPath, report,
+                typeof(EventBusInstaller), typeof(SaveInstaller), typeof(InventoryInstaller));
+            bool quests = worldState && progression && EnsureInstallerInBootConfig<QuestInstaller>(TestGroundPaths.QuestInstallerPath, report,
+                typeof(WorldStateInstaller), typeof(InventoryInstaller), typeof(ProgressionInstaller));
+            return conditions && worldState && progression && quests;
         }
 
         /// <summary>

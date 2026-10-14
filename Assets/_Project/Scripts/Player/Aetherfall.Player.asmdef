@@ -10,6 +10,7 @@
         "Aetherfall.Stats",
         "Aetherfall.Items",
         "Aetherfall.Inventory",
+        "Aetherfall.Progression",
         "Aetherfall.Combat"
     ],
     "includePlatforms": [],

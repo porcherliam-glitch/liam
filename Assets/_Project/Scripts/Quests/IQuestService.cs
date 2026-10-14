@@ -113,6 +113,14 @@ namespace Aetherfall.Quests
         /// <param name="objectiveId">Local objective id.</param>
         bool IsObjectiveDone(string questId, string stageId, string objectiveId);
 
+        /// <summary>
+        /// True if an objective of the active stage is shown to the player: it exists and its visibility condition holds
+        /// (hidden objectives such as an optional bonus that appears later are not shown in the journal and the HUD).
+        /// </summary>
+        /// <param name="questId">Quest id.</param>
+        /// <param name="objectiveId">Local objective id.</param>
+        bool IsObjectiveVisible(string questId, string objectiveId);
+
         /// <summary>Reads a decision of a choose objective.</summary>
         /// <param name="questId">Quest id.</param>
         /// <param name="stageObjectiveKey">Stage-qualified objective id (<c>s35_gnade.o1</c>).</param>

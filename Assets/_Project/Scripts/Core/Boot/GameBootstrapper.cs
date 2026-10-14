@@ -41,6 +41,7 @@ namespace Aetherfall.Core
 
         private ServiceLocator _locator;
         private TickRunner _activeTickRunner;
+        private SessionLifecycle _sessions;
         private CancellationTokenSource _initCancellation;
         private BootPhase _phase = BootPhase.NotStarted;
         private bool _ownsServices;
@@ -244,8 +245,14 @@ namespace Aetherfall.Core
             _phase = BootPhase.PostInitializing;
             int postInitializedCount = 0;
             var tickables = new List<ITickable>();
+            var sessionServices = new List<ISessionService>();
             for (int i = 0; i < services.Length; i++)
             {
+                if (services[i] is ISessionService sessionService)
+                {
+                    sessionServices.Add(sessionService);
+                }
+
                 if (services[i] is IPostInitializable postInitializable)
                 {
                     _currentStep = "post-initializing " + services[i].GetType().Name;
@@ -260,6 +267,12 @@ namespace Aetherfall.Core
             }
 
             EnsureTickRunner().SetTickables(tickables);
+            // Session start (Loading -> Playing) and end (back to the main menu) for services with run-time caches (quests).
+            if (_locator.TryGet(out IEventBus sessionBus))
+            {
+                _sessions = new SessionLifecycle(sessionBus, sessionServices);
+            }
+
             Log.Info(LogCategory.Boot, "Step 6/7: PostInitialize called on " + postInitializedCount + " service(s); " + tickables.Count + " tickable(s) registered.");
 
             // Step 7: enter the main menu. The main menu is a UI screen of the boot scene (UI.Screens); a separate MainMenu
@@ -325,6 +338,12 @@ namespace Aetherfall.Core
             if (_activeTickRunner != null)
             {
                 _activeTickRunner.ClearTickables();
+            }
+
+            if (_sessions != null)
+            {
+                _sessions.Dispose();
+                _sessions = null;
             }
 
             if (_locator != null)

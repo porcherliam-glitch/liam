@@ -1,0 +1,11 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- One quest in the quest log list: title, category and level, badge "Fokus" / "Verfolgt" / outcome. -->
+    <ui:Button class="af-text af-button af-quest-row" focusable="false">
+        <ui:VisualElement name="quest-row-stripe" class="af-quest-row__stripe" picking-mode="Ignore" />
+        <ui:VisualElement class="af-quest-row__main" picking-mode="Ignore">
+            <ui:Label name="quest-row-title" class="af-text af-quest-row__title" picking-mode="Ignore" />
+            <ui:Label name="quest-row-info" class="af-text af-quest-row__info" picking-mode="Ignore" />
+        </ui:VisualElement>
+        <ui:Label name="quest-row-badge" class="af-text af-quest-row__badge" picking-mode="Ignore" />
+    </ui:Button>
+</ui:UXML>

@@ -17,6 +17,7 @@
                     <ui:VisualElement name="pause-buttons" class="af-menu-list">
                         <ui:Button name="pause-resume" class="af-text af-button" focusable="false" />
                         <ui:Button name="pause-quicksave" class="af-text af-button" focusable="false" />
+                        <ui:Button name="pause-journal" class="af-text af-button" focusable="false" />
                         <ui:Button name="pause-load" class="af-text af-button" focusable="false" />
                         <ui:Button name="pause-options" class="af-text af-button" focusable="false" />
                         <ui:Button name="pause-main-menu" class="af-text af-button" focusable="false">

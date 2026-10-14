@@ -6,6 +6,7 @@
         "Aetherfall.Core",
         "Aetherfall.Events",
         "Aetherfall.Data",
+        "Aetherfall.Conditions",
         "Aetherfall.SaveSystem",
         "Aetherfall.Stats",
         "Aetherfall.Items"

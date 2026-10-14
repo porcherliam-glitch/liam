@@ -2,7 +2,8 @@ namespace Aetherfall.UI.Framework
 {
     /// <summary>
     /// The UI input of one frame, filled by an <see cref="IUiCommandSource"/> (UI action map: Navigate, Submit, Cancel,
-    /// TabPrev/TabNext, CloseHub) and the pointer callbacks of the screens. Plain values, no Input System types.
+    /// TabPrev/TabNext, SubTabPrev/SubTabNext, Secondary, CloseHub) and the pointer callbacks of the screens. Plain values, no
+    /// Input System types.
     /// </summary>
     public struct UiInputFrame
     {
@@ -27,6 +28,12 @@ namespace Aetherfall.UI.Framework
         /// <summary>Tab change this frame: -1 (LB / L1 / Q), +1 (RB / R1 / E) or 0.</summary>
         public int TabDelta;
 
+        /// <summary>Sub category change this frame: -1 (LT / L2 / Z), +1 (RT / R2 / C) or 0.</summary>
+        public int SubTabDelta;
+
+        /// <summary>The secondary action was pressed this frame (X / Square / F).</summary>
+        public bool SecondaryPressed;
+
         /// <summary>Index of the item of the top screen the mouse button is held on (-1 if none).</summary>
         public int PointerHoldIndex;
 
@@ -40,6 +47,8 @@ namespace Aetherfall.UI.Framework
             CancelPressed = false;
             CloseHubPressed = false;
             TabDelta = 0;
+            SubTabDelta = 0;
+            SecondaryPressed = false;
             PointerHoldIndex = -1;
         }
     }

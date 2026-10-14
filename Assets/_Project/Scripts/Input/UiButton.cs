@@ -19,7 +19,16 @@ namespace Aetherfall.Input
         /// <summary>Main tab forward (RB, E).</summary>
         TabNext = 3,
 
-        /// <summary>Close the hub (Menu, Esc, or the direct key of the tab: Tab for the inventory).</summary>
-        CloseHub = 4
+        /// <summary>Close the hub (Menu, Esc, or the direct key of the tab: Tab for the inventory, J for the quest log).</summary>
+        CloseHub = 4,
+
+        /// <summary>Sub category back (LT, Z; GDD 05 1.4).</summary>
+        SubTabPrev = 5,
+
+        /// <summary>Sub category forward (RT, C; GDD 05 1.4).</summary>
+        SubTabNext = 6,
+
+        /// <summary>Secondary action (X, F; GDD 05 1.4: equip, mark, focus a quest).</summary>
+        Secondary = 7
     }
 }

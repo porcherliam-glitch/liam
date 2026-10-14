@@ -6,6 +6,9 @@
         "Aetherfall.Data",
         "Aetherfall.Conditions",
         "Aetherfall.WorldState",
+        "Aetherfall.Items",
+        "Aetherfall.Inventory",
+        "Aetherfall.Progression",
         "Aetherfall.Quests",
         "Aetherfall.EditorTools.Core"
     ],

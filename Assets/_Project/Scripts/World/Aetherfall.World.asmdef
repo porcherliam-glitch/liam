@@ -1,0 +1,17 @@
+{
+    "name": "Aetherfall.World",
+    "rootNamespace": "Aetherfall.World",
+    "references": [
+        "Aetherfall.Core",
+        "Aetherfall.Events"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

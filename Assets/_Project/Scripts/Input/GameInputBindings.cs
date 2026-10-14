@@ -151,16 +151,22 @@ namespace Aetherfall.Input
             InputAction click = map.AddAction(Names.UI.Click, InputActionType.PassThrough, expectedControlLayout: "Button");
             click.AddBinding("<Mouse>/leftButton", groups: Kbm);
 
-            // GDD 03 1.5: CloseHub = Menu or Esc, and the direct key of the open tab (Tab for the inventory; M, J, K follow with
-            // their screens).
+            // GDD 03 1.5: CloseHub = Menu or Esc, and the direct key of the open tab (Tab for the inventory, J for the quest log;
+            // M and K follow with their screens).
             InputAction closeHub = Button(map, Names.UI.CloseHub, "<Gamepad>/start", "<Keyboard>/escape");
             closeHub.AddBinding("<Keyboard>/tab", groups: Kbm);
+            closeHub.AddBinding("<Keyboard>/j", groups: Kbm);
+
+            // GDD 05 1.4/1.5: LT/RT = sub categories (Z/C by position: Unity binds keys by their US position, so QWERTZ uses Y/C),
+            // X = secondary action (F).
+            Button(map, Names.UI.SubTabPrev, "<Gamepad>/leftTrigger", "<Keyboard>/z");
+            Button(map, Names.UI.SubTabNext, "<Gamepad>/rightTrigger", "<Keyboard>/c");
+            Button(map, Names.UI.Secondary, "<Gamepad>/buttonWest", "<Keyboard>/f");
 
             InputAction skip = Button(map, Names.UI.SkipCutscene, null, null);
             skip.AddBinding("<Gamepad>/buttonSouth", "hold(duration=1)", groups: Pad);
             skip.AddBinding("<Keyboard>/space", "hold(duration=1)", groups: Kbm);
-            // TODO (UI step): Secondary (X / F), SortFilter (Y / R), SubTabPrev/Next (LT/RT, Z/C), Details (R3 / Shift),
-            // ScrollRotate (RS / mouse wheel) – GDD 03 1.5.
+            // TODO (inventory screen): SortFilter (Y / R), Details (R3 / Shift), ScrollRotate (RS / mouse wheel) – GDD 03 1.5.
         }
 
         private static void AddDialog(InputActionMap map)

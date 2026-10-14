@@ -5,6 +5,7 @@
         "Aetherfall.Utilities",
         "Aetherfall.Core",
         "Aetherfall.Events",
+        "Aetherfall.Data",
         "Aetherfall.Stats",
         "Aetherfall.Combat"
     ],

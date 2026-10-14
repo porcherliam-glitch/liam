@@ -32,6 +32,7 @@ namespace Aetherfall.UI.Screens
         private readonly VisualElement _saveIndicator;
         private readonly VisualElement _saveIcon;
         private int _revision = -1;
+        private float _progressTop = float.NaN;
         private float _saveVisibleFor;
         private float _saveAngle;
 
@@ -60,6 +61,40 @@ namespace Aetherfall.UI.Screens
             _saveIndicator = root.Q<VisualElement>("save-indicator");
             _saveIcon = root.Q<VisualElement>("save-indicator-icon");
             UiElementUtility.SetDisplayed(_saveIndicator, false);
+        }
+
+        /// <summary>Default top of the P1 column (Toasts.uss) in panel coordinates.</summary>
+        public const float DefaultProgressTop = 200f;
+
+        /// <summary>Distance of the P2 loot stack below the top of the P1 column (Toasts.uss: 420 − 200).</summary>
+        public const float LootBelowProgress = 220f;
+
+        /// <summary>Gap between the quest tracker and the P1 column.</summary>
+        public const float GapBelowTracker = 16f;
+
+        /// <summary>
+        /// Moves the P1 column below the quest tracker of the HUD (GDD 05 1.7: P1 "rechts unter der Questanzeige") and the P2
+        /// stack with it; never above their USS positions.
+        /// </summary>
+        /// <param name="trackerBottom">Lower edge of the tracker in panel coordinates, 0 if hidden.</param>
+        public void SetProgressTop(float trackerBottom)
+        {
+            float top = float.IsNaN(trackerBottom) || trackerBottom <= 0f ? DefaultProgressTop : Math.Max(DefaultProgressTop, trackerBottom + GapBelowTracker);
+            if (!float.IsNaN(_progressTop) && Math.Abs(_progressTop - top) < 1f)
+            {
+                return;
+            }
+
+            _progressTop = top;
+            if (_containers[1] != null)
+            {
+                _containers[1].style.top = top;
+            }
+
+            if (_containers[2] != null)
+            {
+                _containers[2].style.top = top + LootBelowProgress;
+            }
         }
 
         /// <summary>Updates messages and the save indicator.</summary>
