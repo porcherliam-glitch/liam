@@ -13,6 +13,8 @@ Conventions (checked by the Unity importer, ModelImportSettings.cs):
   ".R" is the model's right side (+X in Unity).
 - Materials carry only a base colour (Unity's URP importer turns them into Lit materials). Names: "<Model>_<Part>".
 
+Output: figures to Assets/_Project/Art/Models/Characters/, the building kit to Assets/_Project/Art/Models/Buildings/.
+
 Usage (from the repository folder):
     blender -b --factory-startup -P Tools/Blender/build_characters.py -- [--only krieger,schwert,holzschild] [--out DIR]
 """
@@ -26,7 +28,7 @@ import bpy
 from mathutils import Matrix, Vector
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
-DEFAULT_OUT = os.path.join(ROOT, "Assets", "_Project", "Art", "Models", "Characters")
+DEFAULT_OUT = os.path.join(ROOT, "Assets", "_Project", "Art", "Models")
 
 # Parts are modelled looking along -Y (Blender front view) and turned by 180° when they are built: the FBX export maps
 # Blender +Y to Unity +Z, so in Unity the model looks along +Z and its right side lies at +X.
@@ -628,16 +630,105 @@ def turmschild():
     shield.build(root, (0, 0, 0))
 
 
+def hausteile():
+    """Building kit of the village (one FBX, every piece its own object with the origin at its attachment point; the face
+    looks along -Y = away from the wall). Unity places the pieces on the generated houses and bridges (EichentalHouseKit) and
+    swaps the slots "Haus_<Platz>" for the village materials: Holz, Rahmen, Glas, Laden, Tuer, Eisen, Stein, Verkohlt, Russ."""
+    slot = lambda name, rough=0.85, metal=0.0: material("Haus_" + name, "B0B0B0", rough, metal)
+    wood, frame, glass, shutter = slot("Holz"), slot("Rahmen"), slot("Glas", 0.3), slot("Laden")
+    door, iron, stone, charred, soot = slot("Tuer"), slot("Eisen", 0.45, 0.8), slot("Stein", 0.9), slot("Verkohlt"), slot("Russ", 0.95)
+    root = empty("Hausteile")
+
+    def piece(name, *adds):
+        p = PartBuilder(name)
+        for add in adds:
+            add(p)
+        p.build(root, (0, 0, 0))
+
+    def window_frame(p, mat):
+        p.box((0.98, 0.1, 0.08), (0, -0.03, 0.44), mat)
+        p.box((0.98, 0.1, 0.08), (0, -0.03, -0.44), mat)
+        p.box((0.08, 0.1, 0.8), (0.45, -0.03, 0), mat)
+        p.box((0.08, 0.1, 0.8), (-0.45, -0.03, 0), mat)
+
+    piece("Fenster",
+          lambda p: window_frame(p, frame),
+          lambda p: p.box((0.84, 0.01, 0.74), (0, -0.006, 0), glass),
+          lambda p: p.box((0.05, 0.06, 0.74), (0, -0.01, 0), frame),
+          lambda p: p.box((0.84, 0.06, 0.05), (0, -0.01, 0.05), frame),
+          lambda p: p.box((1.08, 0.16, 0.05), (0, -0.07, -0.5), wood),
+          lambda p: p.box((0.42, 0.03, 0.8), (0.7, -0.06, 0), shutter),
+          lambda p: p.box((0.42, 0.03, 0.8), (-0.7, -0.06, 0), shutter),
+          lambda p: p.box((0.44, 0.035, 0.05), (0.7, -0.07, 0.22), frame),
+          lambda p: p.box((0.44, 0.035, 0.05), (0.7, -0.07, -0.22), frame),
+          lambda p: p.box((0.44, 0.035, 0.05), (-0.7, -0.07, 0.22), frame),
+          lambda p: p.box((0.44, 0.035, 0.05), (-0.7, -0.07, -0.22), frame))
+    piece("Fenster_Verbrannt",
+          lambda p: window_frame(p, charred),
+          lambda p: p.box((0.84, 0.01, 0.74), (0, -0.006, 0), soot),
+          lambda p: p.box((1.1, 0.02, 0.5), (0, -0.005, 0.6), soot, top_scale=(0.6, 1.0)),
+          lambda p: p.box((0.4, 0.03, 0.7), (0.62, -0.12, -0.12), charred, rotate=Matrix.Rotation(math.radians(28), 3, 'Y')))
+
+    piece("Tuer",
+          lambda p: p.box((0.12, 0.14, 2.3), (0.6, -0.04, 1.15), frame),
+          lambda p: p.box((0.12, 0.14, 2.3), (-0.6, -0.04, 1.15), frame),
+          lambda p: p.box((1.32, 0.16, 0.14), (0, -0.04, 2.27), frame),
+          lambda p: p.box((1.08, 0.06, 2.18), (0, -0.01, 1.09), door),
+          lambda p: [p.box((0.025, 0.065, 2.12), (x, -0.012, 1.09), frame) for x in (-0.27, 0.0, 0.27)],
+          lambda p: p.box((0.8, 0.07, 0.06), (-0.1, -0.03, 1.75), iron),
+          lambda p: p.box((0.8, 0.07, 0.06), (-0.1, -0.03, 0.45), iron),
+          lambda p: p.sphere(0.05, (0.4, -0.07, 1.05), iron, segments=6, rings=4),
+          lambda p: p.box((1.4, 0.45, 0.12), (0, -0.22, 0.03), stone))
+    piece("Tuer_Verbrannt",
+          lambda p: p.box((0.12, 0.14, 2.3), (0.6, -0.04, 1.15), charred),
+          lambda p: p.box((0.12, 0.14, 2.3), (-0.6, -0.04, 1.15), charred),
+          lambda p: p.box((1.32, 0.16, 0.14), (0, -0.04, 2.27), charred),
+          lambda p: p.box((1.08, 0.01, 2.18), (0, -0.006, 1.09), soot),
+          lambda p: p.box((0.5, 0.06, 1.3), (-0.26, -0.02, 0.65), charred, top_scale=(0.6, 1.0)),
+          lambda p: p.box((1.4, 0.45, 0.12), (0, -0.22, 0.03), stone))
+
+    piece("Schornstein",
+          lambda p: p.box((0.7, 0.7, 2.0), (0, 0, 1.0), stone),
+          lambda p: p.box((0.86, 0.86, 0.12), (0, 0, 2.02), stone),
+          lambda p: p.box((0.46, 0.46, 0.06), (0, 0, 2.1), soot),
+          lambda p: [p.box((0.16, 0.08, 0.1), (x, -0.36, z), stone) for x, z in ((0.15, 0.6), (-0.2, 1.1), (0.1, 1.5))])
+    piece("Fass",
+          lambda p: p.cylinder(0.3, 0.86, (0, 0, 0.43), wood, segments=10),
+          lambda p: p.cylinder(0.315, 0.05, (0, 0, 0.18), iron, segments=10),
+          lambda p: p.cylinder(0.315, 0.05, (0, 0, 0.68), iron, segments=10),
+          lambda p: p.cylinder(0.26, 0.02, (0, 0, 0.865), frame, segments=10))
+    piece("Kiste",
+          lambda p: p.box((0.7, 0.7, 0.66), (0, 0, 0.33), wood),
+          lambda p: [p.box((0.74, 0.06, 0.06), (0, y, z), frame) for y in (-0.34, 0.34) for z in (0.03, 0.63)],
+          lambda p: [p.box((0.06, 0.74, 0.06), (x, 0, z), frame) for x in (-0.34, 0.34) for z in (0.03, 0.63)])
+    piece("Holzstapel",
+          lambda p: [p.cylinder(0.1, 1.4, (-0.22 + 0.21 * i + 0.1 * (r % 2), 0, 0.1 + 0.18 * r), wood, segments=7, axis='X')
+                     for r in range(3) for i in range(3 - r)])
+
+    piece("Bruecke_Brett", lambda p: p.box((1.0, 0.25, 0.06), (0, 0, -0.03), wood))
+    piece("Bruecke_Pfosten",
+          lambda p: p.box((0.16, 0.16, 1.15), (0, 0, 0.575), frame),
+          lambda p: p.box((0.2, 0.2, 0.06), (0, 0, 1.17), frame, top_scale=(0.6, 0.6)))
+    piece("Bruecke_Gelaender",
+          lambda p: p.box((0.1, 1.0, 0.1), (0, 0, 1.0), wood),
+          lambda p: p.box((0.07, 1.0, 0.07), (0, 0, 0.55), wood))
+    piece("Bruecke_Bruestung",
+          lambda p: p.box((0.4, 1.0, 0.6), (0, 0, 0.3), stone),
+          lambda p: p.box((0.5, 1.0, 0.12), (0, 0, 0.66), stone, top_scale=(0.9, 1.0)),
+          lambda p: p.box((0.41, 0.02, 0.6), (0, 0.49, 0.3), soot))
+
+
 MODELS = {
-    "krieger": ("Krieger.fbx", krieger),
-    "dorfbewohner": ("Dorfbewohner.fbx", dorfbewohner),
-    "skelett": ("Skelett.fbx", skelett),
-    "ritter": ("Ritter.fbx", ritter),
-    "turmschild": ("Turmschild.fbx", turmschild),
-    "wolf": ("Wolf.fbx", wolf),
-    "aetherwolf": ("AetherWolf.fbx", aetherwolf),
-    "schwert": ("Schwert.fbx", schwert),
-    "holzschild": ("Holzschild.fbx", holzschild),
+    "krieger": ("Characters/Krieger.fbx", krieger),
+    "dorfbewohner": ("Characters/Dorfbewohner.fbx", dorfbewohner),
+    "skelett": ("Characters/Skelett.fbx", skelett),
+    "ritter": ("Characters/Ritter.fbx", ritter),
+    "turmschild": ("Characters/Turmschild.fbx", turmschild),
+    "wolf": ("Characters/Wolf.fbx", wolf),
+    "aetherwolf": ("Characters/AetherWolf.fbx", aetherwolf),
+    "schwert": ("Characters/Schwert.fbx", schwert),
+    "holzschild": ("Characters/Holzschild.fbx", holzschild),
+    "hausteile": ("Buildings/Hausteile.fbx", hausteile),
 }
 
 
@@ -668,7 +759,7 @@ def render_preview(path, height):
     print("Vorschau:", path)
 
 
-PREVIEW_HEIGHT = {"schwert": 1.0, "holzschild": 1.0, "wolf": 1.1, "aetherwolf": 1.1, "turmschild": 1.5}
+PREVIEW_HEIGHT = {"schwert": 1.0, "holzschild": 1.0, "wolf": 1.1, "aetherwolf": 1.1, "turmschild": 1.5, "hausteile": 2.5}
 
 
 def main():

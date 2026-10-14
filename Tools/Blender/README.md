@@ -2,7 +2,7 @@
 
 Stand: 2026-10-14.
 
-`build_characters.py` baut die Figuren von Aetherfall in Blender aus Code und schreibt je Figur eine FBX-Datei nach `Assets/_Project/Art/Models/Characters/`. Alles ist eigene Arbeit (keine fremden Modelle oder Texturen), siehe `Assets/ThirdParty/THIRDPARTY.md`.
+`build_characters.py` baut die Figuren von Aetherfall in Blender aus Code und schreibt je Figur eine FBX-Datei nach `Assets/_Project/Art/Models/Characters/`, den Bausatz für Häuser und Brücken nach `Assets/_Project/Art/Models/Buildings/`. Alles ist eigene Arbeit (keine fremden Modelle oder Texturen), siehe `Assets/ThirdParty/THIRDPARTY.md`.
 
 | Datei | Inhalt |
 |---|---|
@@ -15,6 +15,7 @@ Stand: 2026-10-14.
 | `Skelett.fbx` | Skelett-Krieger der Gruft: Knochen, rostiger Brustpanzer, zerrissener Lendenschurz, leuchtende Augenhöhlen (Material-Plätze `Gruft_<Platz>` werden in Unity zu den Gruft-Materialien) |
 | `Ritter.fbx` | Der Wachende Ritter: Plattenpanzer, Topfhelm mit leuchtendem Sehschlitz, Wappenrock, Umhang (in Unity 1,22-fach) |
 | `Turmschild.fbx` | Turmschild der Elite-Skelette und des Ritters (Platz `Gruft_Schild`: Holz bzw. Ritterpanzer) |
+| `Buildings/Hausteile.fbx` | Bausatz für das Dorf: Fenster mit Rahmen und offenen Läden, Plankentür mit Beschlägen und Trittstein, beide auch verkohlt, Schornstein, Fass, Kiste, Holzstapel, Brückenbrett, -pfosten, -geländer, Steinbrüstung. `EichentalHouseKit` setzt die Teile auf die erzeugten Häuser und Brücken und färbt die Plätze `Haus_<Platz>` mit den Dorf-Materialien. |
 
 ## Aufbau der Figuren
 

@@ -4,14 +4,17 @@ namespace Aetherfall.EditorTools.World
 {
     /// <summary>
     /// Import settings of the character models from <c>Tools/Blender/build_characters.py</c> (folder
-    /// <see cref="CharacterModels.Folder"/>): metres, Blender axes baked into the vertices (no −90° root rotation), no rig, no
+    /// <see cref="CharacterModels.Folder"/>, building kit <see cref="EichentalHouseKit.Folder"/>): metres, Blender axes baked into the
+    /// vertices (no −90° root rotation), no rig, no
     /// animation, no cameras or lights; materials from the FBX colours (URP turns them into Lit materials).
     /// </summary>
     public sealed class CharacterModelImport : AssetPostprocessor
     {
         private void OnPreprocessModel()
         {
-            if (!assetPath.StartsWith(CharacterModels.Folder + "/", System.StringComparison.Ordinal) || !(assetImporter is ModelImporter importer))
+            bool ours = assetPath.StartsWith(CharacterModels.Folder + "/", System.StringComparison.Ordinal) ||
+                        assetPath.StartsWith(EichentalHouseKit.Folder + "/", System.StringComparison.Ordinal);
+            if (!ours || !(assetImporter is ModelImporter importer))
             {
                 return;
             }

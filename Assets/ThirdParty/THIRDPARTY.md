@@ -27,7 +27,7 @@ Zurzeit gibt es **keine** fremden Modelle, Texturen, Sounds oder Code-Bibliothek
 
 | Inhalt | Wie entstanden | Ort |
 |---|---|---|
-| Figuren: Krieger (Spielfigur), Schwert, Holzschild | Blender 5.2 per Skript `Tools/Blender/build_characters.py` (Claude, 2026-10-14), keine fremden Vorlagen | `Assets/_Project/Art/Models/Characters/` |
-| Dorfbewohner (Figuren aus Grundformen) | Unity-Generator `VillagerFigures.cs` | in den Szenen |
+| Figuren: Krieger (Spielfigur), Schwert, Holzschild, Dorfbewohner, Grauwolf, Aether-Wolf, Skelett-Krieger, Wachender Ritter, Turmschild | Blender 5.2 per Skript `Tools/Blender/build_characters.py` (Claude, 2026-10-14), keine fremden Vorlagen | `Assets/_Project/Art/Models/Characters/` |
+| Bausatz für Häuser und Brücken (Fenster, Türen, Schornstein, Fass, Kiste, Holzstapel, Brückenteile) | Blender 5.2, dasselbe Skript | `Assets/_Project/Art/Models/Buildings/` |
 | Dorf Eichental, Gruft, Testgelände (Häuser, Gelände, Bäume, Requisiten) | Unity-Generatoren aus den Layout-Dateien | `Assets/_Project/Art/Models/Generated/`, Szenen |
 | Shader „Aetherfall/WorldText“ | eigener Code (nach dem Muster des eingebauten „GUI/Text Shader“) | `Assets/_Project/Art/Shaders/` |

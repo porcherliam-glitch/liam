@@ -66,7 +66,9 @@ namespace Aetherfall.EditorTools.World
             // Settlements.
             var village = new GameObject("Siedlungen");
             var smoke = new EichentalSmoke(report);
-            var buildings = new EichentalBuildingBuilder(materials, meshes, heights, smoke, env);
+            EichentalHouseKit kit = EichentalHouseKit.Load(materials, report);
+            nature.Kit = kit;
+            var buildings = new EichentalBuildingBuilder(materials, meshes, heights, smoke, env) { Kit = kit };
             Transform buildingGroup = Group(village.transform, "Gebäude");
             Transform fireGroup = EichentalBuildingBuilder.CreateFireGroup(village.transform, report);
             for (int i = 0; i < layout.Buildings.Count; i++)

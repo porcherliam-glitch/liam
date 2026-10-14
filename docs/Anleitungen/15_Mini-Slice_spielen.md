@@ -53,7 +53,7 @@ Oben rechts steht immer dein aktuelles Ziel. Die Gruft ist auf Stufe 4 eingestel
 
 ## 4. Bekannte Lücken
 
-- Du selbst bist jetzt ein Krieger aus Blender (Arme, Beine und Schwert bewegen sich per Code, noch ohne fertige Animationen). Dorfbewohner, Wölfe, Skelette und der Wachende Ritter sind ebenfalls Blender-Modelle. Häuser kommen noch.
+- Du selbst bist jetzt ein Krieger aus Blender (Arme, Beine und Schwert bewegen sich per Code, noch ohne fertige Animationen). Dorfbewohner, Wölfe, Skelette, der Wachende Ritter sowie Fenster, Türen, Schornsteine und Brücken sind ebenfalls aus Blender.
 - Keine Musik, keine Zwischensequenzen, kein Bogen, keine Aether-Fähigkeit.
 - Die Gruft ist dunkel. Das ist Absicht, kann aber nachgebessert werden.
 

@@ -43,6 +43,9 @@ namespace Aetherfall.EditorTools.World
         private readonly EichentalSmoke _smoke;
         private readonly int _environmentLayer;
 
+        /// <summary>Building kit from Blender (windows, doors, chimneys, props); null = boxes as before.</summary>
+        public EichentalHouseKit Kit { get; set; }
+
         /// <summary>Creates the builder.</summary>
         /// <param name="materials">Materials.</param>
         /// <param name="meshes">Mesh library.</param>
@@ -179,17 +182,35 @@ namespace Aetherfall.EditorTools.World
 
             bool barn = b.Kind == BuildingKind.Barn;
             float doorHeight = barn ? h * 0.75f : Mathf.Min(2.4f, h * 0.6f);
-            mesh.AddBox(burned ? Dark : DoorPart, new Vector3(0f, doorHeight * 0.5f, d * 0.5f + 0.03f), new Vector3(barn ? 3f : 1.2f, doorHeight, 0.12f),
-                Quaternion.identity);
+            float doorWidth = barn ? 3f : 1.2f;
+            if (Kit == null || Kit.Place(burned ? "Tuer_Verbrannt" : "Tuer", root.transform, new Vector3(0f, 0f, d * 0.5f), 0f,
+                    new Vector3(doorWidth / 1.2f, doorHeight / 2.3f, 1f)) == null)
+            {
+                mesh.AddBox(burned ? Dark : DoorPart, new Vector3(0f, doorHeight * 0.5f, d * 0.5f + 0.03f), new Vector3(doorWidth, doorHeight, 0.12f),
+                    Quaternion.identity);
+            }
+
             int floors = h >= 5.5f && b.Kind != BuildingKind.Chapel && !barn && b.Kind != BuildingKind.Mill ? 2 : 1;
             for (int f = 0; f < floors; f++)
             {
                 float y = floors == 1 ? h * 0.55f : h * (0.3f + 0.42f * f);
                 for (int sx = -1; sx <= 1; sx += 2)
                 {
-                    mesh.AddBox(Dark, new Vector3(sx * (w * 0.5f + 0.03f), y, d * 0.18f), new Vector3(0.12f, 0.8f, 0.9f), Quaternion.identity);
-                    mesh.AddBox(Dark, new Vector3(sx * (w * 0.5f + 0.03f), y, -d * 0.22f), new Vector3(0.12f, 0.8f, 0.9f), Quaternion.identity);
+                    foreach (float z in new[] { d * 0.18f, -d * 0.22f })
+                    {
+                        // Kit window on the side wall, facing outwards; without the kit a dark box.
+                        if (Kit == null || Kit.Place(burned ? "Fenster_Verbrannt" : "Fenster", root.transform, new Vector3(sx * w * 0.5f, y, z), sx * 90f,
+                                Vector3.one) == null)
+                        {
+                            mesh.AddBox(Dark, new Vector3(sx * (w * 0.5f + 0.03f), y, z), new Vector3(0.12f, 0.8f, 0.9f), Quaternion.identity);
+                        }
+                    }
                 }
+            }
+
+            if (Kit != null && !burned)
+            {
+                PlaceHomeDetails(root.transform, b, w, d, h);
             }
 
             if (b.Roof == RoofKind.None)
@@ -220,6 +241,34 @@ namespace Aetherfall.EditorTools.World
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Kit details of intact buildings: a chimney on the gable roof of houses and taverns, a barrel and a crate beside the door
+        /// and a woodpile at the left wall (no colliders, they only dress the house).
+        /// </summary>
+        private void PlaceHomeDetails(Transform root, LayoutBuilding b, float w, float d, float h)
+        {
+            bool home = b.Kind == BuildingKind.House || b.Kind == BuildingKind.Tavern;
+            if (home && b.Roof == RoofKind.Gable)
+            {
+                float rise = (float)RoofGeometry.Rise(RoofKind.Gable, w, b.RoofPitch);
+                Kit.Place("Schornstein", root, new Vector3(w * 0.25f, h + rise * 0.5f - 0.6f, -d * 0.25f), 0f, Vector3.one);
+            }
+
+            if (home || b.Kind == BuildingKind.Smithy || b.Kind == BuildingKind.Mill || b.Kind == BuildingKind.Barn)
+            {
+                Kit.Place("Fass", root, OnGround(root, new Vector3(w * 0.5f - 0.5f, 0f, d * 0.5f + 0.7f)), 15f, Vector3.one);
+                Kit.Place("Kiste", root, OnGround(root, new Vector3(w * 0.5f - 1.3f, 0f, d * 0.5f + 0.6f)), -8f, Vector3.one);
+                Kit.Place("Holzstapel", root, OnGround(root, new Vector3(-w * 0.5f - 0.45f, 0f, 0f)), 90f, Vector3.one);
+            }
+        }
+
+        private Vector3 OnGround(Transform root, Vector3 local)
+        {
+            Vector3 world = root.TransformPoint(local);
+            local.y = (float)_heights.Height(world.x, world.z) - root.position.y;
+            return local;
         }
 
         private void BuildCollapsed(EichentalMeshBuilder mesh, GameObject root, float w, float d, float h, int seed)

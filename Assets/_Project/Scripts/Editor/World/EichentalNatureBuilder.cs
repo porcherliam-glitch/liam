@@ -21,6 +21,9 @@ namespace Aetherfall.EditorTools.World
         private readonly int _waterLayer;
         private readonly TestGroundReport _report;
 
+        /// <summary>Building kit from Blender (bridge planks, posts, rails, parapets); null = boxes as before.</summary>
+        public EichentalHouseKit Kit { get; set; }
+
         /// <summary>Creates the builder.</summary>
         /// <param name="layout">Layout.</param>
         /// <param name="heights">Terrain heights.</param>
@@ -306,11 +309,30 @@ namespace Aetherfall.EditorTools.World
                     float deckThickness = (float)BridgeGeometry.DeckThickness;
                     mesh.AddBox(0, new Vector3(0f, -deckThickness * 0.5f, 0f), new Vector3(width, deckThickness, length), Quaternion.identity);
                     mesh.AddBuffers(BridgeGeometry.StoneArch(width, length), Vector3.zero, new[] { 0 });
+                    int blocks = Mathf.Max(1, Mathf.RoundToInt(length));
                     for (int side = -1; side <= 1; side += 2)
                     {
-                        mesh.AddBox(0, new Vector3(side * (width * 0.5f + 0.2f), 0.35f, 0f), new Vector3(0.4f, 0.7f, length), Quaternion.identity);
-                        AddBox(go, new Vector3(side * (width * 0.5f + 0.2f), 0.35f, 0f), new Vector3(0.4f, 0.7f, length));
+                        float x = side * (width * 0.5f + 0.2f);
+                        if (Kit != null)
+                        {
+                            // Parapet from kit blocks (1 m each, stretched to fill the length exactly).
+                            for (int i = 0; i < blocks; i++)
+                            {
+                                Kit.Place("Bruecke_Bruestung", go.transform, new Vector3(x, 0f, -length * 0.5f + length * (i + 0.5f) / blocks), 0f,
+                                    new Vector3(1f, 1f, length / blocks));
+                            }
+                        }
+                        else
+                        {
+                            mesh.AddBox(0, new Vector3(x, 0.35f, 0f), new Vector3(0.4f, 0.7f, length), Quaternion.identity);
+                        }
+
+                        AddBox(go, new Vector3(x, 0.35f, 0f), new Vector3(0.4f, 0.7f, length));
                     }
+                }
+                else if (Kit != null)
+                {
+                    BuildWoodenBridge(go.transform, mesh, width, length, StableSeed(bridge.Id));
                 }
                 else
                 {
@@ -322,7 +344,13 @@ namespace Aetherfall.EditorTools.World
                         {
                             mesh.AddBox(0, new Vector3(side * width * 0.5f, 0.55f, p * length * 0.45f), new Vector3(0.15f, 1.1f, 0.15f), Quaternion.identity);
                         }
+                    }
+                }
 
+                if (bridge.Kind != BridgeKind.Stone)
+                {
+                    for (int side = -1; side <= 1; side += 2)
+                    {
                         AddBox(go, new Vector3(side * width * 0.5f, 0.55f, 0f), new Vector3(0.15f, 1.1f, length));
                     }
                 }
@@ -331,6 +359,56 @@ namespace Aetherfall.EditorTools.World
                 go.AddComponent<MeshFilter>().sharedMesh = _meshes.Add("Bruecke_" + bridge.Id, mesh);
                 go.AddComponent<MeshRenderer>().sharedMaterial = bridge.Kind == BridgeKind.Stone ? _materials.Get("stone", 0.15f) : _materials.Get("wood", 0.25f);
             }
+        }
+
+        /// <summary>
+        /// Wooden bridge from the kit: two stringers in the bridge mesh, single planks across (slightly turned and uneven, the same
+        /// for every run), posts about every 2 m on both sides and rails between them.
+        /// </summary>
+        private void BuildWoodenBridge(Transform bridge, EichentalMeshBuilder mesh, float width, float length, int seed)
+        {
+            for (int side = -1; side <= 1; side += 2)
+            {
+                mesh.AddBox(0, new Vector3(side * width * 0.32f, -0.2f, 0f), new Vector3(0.22f, 0.26f, length), Quaternion.identity);
+            }
+
+            var random = new Aetherfall.Utilities.Pcg32Random((ulong)(uint)seed);
+            int planks = Mathf.Max(1, Mathf.RoundToInt(length / 0.27f));
+            float step = length / planks;
+            for (int i = 0; i < planks; i++)
+            {
+                float z = -length * 0.5f + step * (i + 0.5f);
+                float turn = (random.NextFloat() - 0.5f) * 3f;
+                Kit.Place("Bruecke_Brett", bridge, new Vector3(0f, (random.NextFloat() - 0.5f) * 0.02f, z), turn,
+                    new Vector3(width + (random.NextFloat() - 0.5f) * 0.2f, 1f, step / 0.25f * 0.92f));
+            }
+
+            int spans = Mathf.Max(1, Mathf.RoundToInt(length / 2f));
+            float span = length / spans;
+            for (int side = -1; side <= 1; side += 2)
+            {
+                float x = side * width * 0.5f;
+                for (int p = 0; p <= spans; p++)
+                {
+                    float z = -length * 0.5f + span * p;
+                    Kit.Place("Bruecke_Pfosten", bridge, new Vector3(x, -0.05f, z), 0f, Vector3.one);
+                    if (p < spans)
+                    {
+                        Kit.Place("Bruecke_Gelaender", bridge, new Vector3(x, 0f, z + span * 0.5f), 0f, new Vector3(1f, 1f, span));
+                    }
+                }
+            }
+        }
+
+        private static int StableSeed(string id)
+        {
+            int seed = 17;
+            foreach (char c in id)
+            {
+                seed = unchecked(seed * 31 + c);
+            }
+
+            return seed;
         }
 
         /// <summary>The rift: glowing tear (core almost white, turquoise rim), crystal shards, fracture lines and a turquoise light.</summary>
