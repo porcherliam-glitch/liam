@@ -1,7 +1,7 @@
 # CLAUDE.md – Chroniken von Aetherfall
 
 Übergabe für jede Claude-Sitzung in diesem Repo, vor allem für die Sitzung **auf dem PC des Auftraggebers** mit Unity und Blender.
-Stand: 2026-10-13. Den laufenden Stand führt [docs/Status.md](docs/Status.md), diese Datei beschreibt Regeln und Arbeitsweise.
+Stand: 2026-10-14. Den laufenden Stand führt [docs/Status.md](docs/Status.md), diese Datei beschreibt Regeln und Arbeitsweise.
 
 ## Projekt in drei Sätzen
 
@@ -66,12 +66,41 @@ Der Rest ist Platzhalter: einfache Formen, später Blender-Modelle oder kostenlo
 | `Stats`, `Combat` | Attribute, Modifikatoren, Ressourcen, `DamageCalculator`, `CombatStateMachine`, Hitbox/Hurtbox, Haltung |
 | `AI` | Wolf und Aether-Wolf, Wahrnehmung, Angriffs-Token, Leash |
 | `SaveSystem` | `ISaveable`, `SaveManager`, JSON, Backups, Migration, F5/F9 |
-| `Items`, `Inventory` | Items, Affixe, Loot, Inventar, Ausrüstung, Truhen (zuletzt gebaut) |
-| `DevTools` | IMGUI-Debug-Overlays (Platzhalter bis zur echten UI) |
-| `Editor/Core` | Menü **Aetherfall > Projekt-Setup …** (Pakete, Einstellungen, Ordner, Boot-Szene) |
-| `Editor/World` | Menü **Aetherfall > Testgelände erstellen** (Szene mit Arena) |
+| `Items`, `Inventory` | Items, Affixe, Loot, Inventar, Ausrüstung, Truhen |
+| `Conditions`, `WorldState` | Bedingungen und Aktionen mit `[SerializeReference]`, Weltzustand (Flags, Zähler) |
+| `Quests` | Quest-System (Stufen, 14 Zieltypen, Belohnungen, Ledger), Prüfregeln V01–V18 |
+| `Progression` | EP-Kurve, Stufen, Attribut- und Skillpunkte |
+| `Dialogue`, `NPC` | Dialog-Graph (8 Knotentypen, Skill-Checks), NPCs mit Interaktion |
+| `GameTime` | Spielzeit |
+| `UI.Framework`, `UI.Screens` | UI Toolkit: Screen-/Fokus-Stapel, Glyphen, HUD, Haupt-/Pause-/Todesmenü, Questlog, Charakter, Dialog |
+| `World` | Layout-Leser, Eichental-Daten, `AreaTrigger`, NPC-Marker |
+| `DevTools` | IMGUI-Debug-Overlays |
+| `EditorTools.Core` | Menü **Aetherfall > Projekt-Setup …** (Pakete, Einstellungen, Ordner, Boot-Szene) |
+| `EditorTools.World` | **Testgelände erstellen**, **Eichental erstellen**, **Oberfläche einrichten**, **Neues Spiel startet in …**, **Szene öffnen …** |
+| `EditorTools.Narrative` | **Quests prüfen** (Dialoge prüfen liegt in `Dialogue`) |
 
-**Wichtig:** Bis 2026-10-13 ist **nichts davon jemals in Unity gelaufen**. Geprüft wurde nur mit dem Harness (Kompilieren gegen Unity-2021-Referenzen + Stubs, rund 800 Tests grün). Die erste Aufgabe auf einem Rechner mit Unity ist deshalb, es wirklich in Unity zu öffnen, Fehler zu beheben und die Testanleitungen 02–06 durchzugehen.
+Tests liegen unter `Assets/_Project/Tests/` (EditMode, getrennt nach Bereich). Stand 2026-10-14: **2066 Tests grün im Harness**.
+
+**In Arbeit (Cloud-Sitzung, Stand 2026-10-14):**
+- **Dorf Eichental:** Nachbesserung nach Prüfung läuft, Zwischenstand ist als `WIP`-Commit gepusht.
+- **Die vergessene Gruft** (Rätsel, Gruftwächter, Anleitung 12): wird in einer eigenen Arbeitskopie gebaut und danach in den Arbeits-Branch zusammengeführt.
+
+**Wichtig:** Bis 2026-10-14 ist **nichts davon jemals in Unity gelaufen**. Geprüft wurde nur mit dem Harness (Kompilieren gegen Unity-2021-Referenzen + Stubs) und mit Vorschaubildern aus Blender bzw. HTML (keine Unity-Screenshots). Die erste Aufgabe auf einem Rechner mit Unity ist deshalb, es wirklich in Unity zu öffnen und Fehler zu beheben.
+
+## Cloud-Sitzung und PC-Sitzung: wer arbeitet wann
+
+- **Immer nur eine Sitzung schreibt.** Sobald die PC-Sitzung läuft, sagt der Auftraggeber in der Cloud-Sitzung „stopp“. Die Cloud-Sitzung pusht dann nichts mehr.
+- **Vor jeder Arbeit:** `git pull origin claude/new-session-2ye8ds`. **Vor jedem Push:** noch einmal pullen.
+- Kein `--force`, kein Rebase auf gepushter Historie. Bei Konflikten zusammenführen (Merge-Commit).
+
+## Auf dem PC mit Unity: erste Aufgaben, in dieser Reihenfolge
+
+1. `git pull`, dann Projekt in Unity 6.3 LTS öffnen (beim ersten Mal über den Unity Hub, „Add project from disk“). Fehlende `ProjectSettings/` und `Packages/` legt Unity selbst an; danach Menü **Aetherfall > Projekt-Setup …** ausführen (installiert Pakete, setzt Einstellungen).
+2. Kompilierfehler beheben, bis die Konsole leer ist. Häufige Ursachen: API-Unterschiede zwischen Unity 2021 (Harness) und Unity 6.3, Paketversionen (Input System, Cinemachine 3, Newtonsoft).
+3. EditMode-Tests im Batchmode laufen lassen (Befehl unten) und rot gewordene Tests reparieren.
+4. Generatoren im Batchmode ausführen (Testgelände, Eichental), Szenen öffnen, Play Mode starten, Screenshots machen und prüfen.
+5. **Projekt-Setup** bekommt noch einen Batchmode-Einstiegspunkt (`RunBatch`), wie die anderen Menüs unten. `EditorUtility.DisplayDialog` darf im Batchmode nicht blockieren (`Application.isBatchMode` prüfen).
+6. Danach die Testanleitungen 02–12 selbst durchgehen und Ergebnisse in `docs/Status.md` eintragen.
 
 ## Auf dem PC mit Unity: so testen
 
@@ -81,10 +110,19 @@ Unity im Batchmode (Pfad zur installierten 6000.3.x-Version anpassen; Windows-Be
 "C:\Program Files\Unity\Hub\Editor\6000.3.x\Editor\Unity.exe" -batchmode -nographics -projectPath . -runTests -testPlatform EditMode -testResults Logs\editmode-results.xml -logFile Logs\editmode.log
 ```
 
+Batchmode-Einstiegspunkte (jeweils mit `-batchmode -nographics -projectPath . -quit -logFile Logs\<name>.log`):
+
+| Zweck | `-executeMethod` |
+|---|---|
+| Testgelände erzeugen | `Aetherfall.EditorTools.World.TestGroundMenu.RunBatch` |
+| Eichental erzeugen | `Aetherfall.EditorTools.World.EichentalMenu.RunBatch` |
+| Quests prüfen | `Aetherfall.EditorTools.Narrative.QuestValidationMenu.RunBatch` |
+| Dialoge prüfen | `Aetherfall.Dialogue.DialogueValidationMenu.RunBatch` |
+
 - Kompilierfehler stehen in der Logdatei (nach `error CS` suchen).
 - Ein Projekt, das gerade im Editor offen ist, kann nicht zusätzlich im Batchmode geöffnet werden.
-- **Offene Aufgabe:** Setup-Werkzeug und Testgelände-Generator brauchen statische Batchmode-Einstiegspunkte (`-executeMethod`), damit Claude sie ohne Klicks ausführen kann. Dabei darf `EditorUtility.DisplayDialog` im Batchmode nicht blockieren.
 - **Play-Mode-Prüfung:** Ein PlayMode-Test oder ein Editor-Skript kann Szenen laden und Screenshots per `ScreenCapture`/`RenderTexture` speichern. Diese Bilder kann Claude ansehen, um Aufbau, Kamera und Darstellung zu prüfen.
+- Der Harness (`Tools/Harness/run_checks.sh`) läuft nur unter Linux. Auf Windows reicht der Unity-Batchmode.
 
 ## Blender (Modelle statt Platzhalter)
 
@@ -92,14 +130,14 @@ Unity im Batchmode (Pfad zur installierten 6000.3.x-Version anpassen; Windows-Be
 - Quelldateien (`.blend`) gehören nach `ArtSource/` (Git LFS), **nie** nach `Assets/` (Architektur 2.9).
 - Konventionen: 1 Einheit = 1 m, Y-up beim Export, LOD-Suffixe `_LOD0…`, Pivot am Boden. Details in [GDD 05, Art Direction](docs/GDD/05_UI_Audio_Grafik_Barrierefreiheit.md).
 - Animationen: Mixamo (kostenlos) oder eigene einfache Rigs. Jede Quelle kommt ins Lizenzregister.
+- Die Vorschau-Skripte unter `Tools/Preview/` lesen dieselbe Layout-Datei wie der Unity-Generator. Sie sind Vorlagen für echte Modelle.
 
 ## Nächste Bausteine bis zum Mini-Slice
 
-1. Erster echter Unity-Lauf, Fehler beheben, Batchmode-Einstiegspunkte (siehe oben)
-2. Bildschirmanzeige und Menüs: HUD-Balken, Interaktions-Hinweis, Meldungen, Haupt-/Pause-/Inventar-Menü, mit UI Toolkit (Architektur 12)
-3. Conditions & Actions, Weltzustand, Quest-System (Datenmodell + Listen-Editor)
-4. Dialoge und NPCs
-5. Erfahrung und Level
-6. Dorf Eichental (Blockout, später Blender-Modelle)
-7. Die vergessene Gruft mit Rätsel und Gruftwächter
-8. Die 3 Quests als Daten, Neues Spiel/Laden aus dem Hauptmenü, Tod/Wiedereinstieg
+1. Erster echter Unity-Lauf, Fehler beheben, Projekt-Setup im Batchmode (siehe oben)
+2. Dorf Eichental und Die vergessene Gruft fertigstellen (Cloud-Sitzung, siehe „In Arbeit“) und in Unity prüfen
+3. Dialoge ins Spiel einbinden (Anleitung 10, Abschnitt „Integration“), echte NPCs statt Marker im Eichental
+4. Gruft-Eingang im Eichental ↔ Gruft-Szene verbinden (Anleitung 12)
+5. Die 3 Quests als Daten nach GDD 02, Abschnitt 11 („Asche über Eichental“, „Die Wölfe vom Nordhang“, „Die vergessene Gruft“)
+6. Startstufe wieder auf 1 setzen, Neues Spiel/Laden aus dem Hauptmenü, Tod/Wiedereinstieg
+7. Platzhalter durch Blender-Modelle ersetzen (Häuser, Gruft, Wolf), Animationen
