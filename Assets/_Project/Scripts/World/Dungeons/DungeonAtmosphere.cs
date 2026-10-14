@@ -7,7 +7,7 @@ namespace Aetherfall.World.Dungeons
     public sealed class DungeonAtmosphere
     {
         /// <summary>Ambient light colour (dark).</summary>
-        public string AmbientColor { get; set; } = "#141720";
+        public string AmbientColor { get; set; } = "#262B38";
 
         /// <summary>Fog colour.</summary>
         public string FogColor { get; set; } = "#07080C";

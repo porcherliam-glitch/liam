@@ -178,7 +178,13 @@ namespace Aetherfall.EditorTools.World
             Transform plate = GruftParts.Empty(root.transform, "Platte", new Vector3(0f, 0.38f, 0f));
             GruftParts.Part(plate, "Platte Stein", PrimitiveType.Cube, Vector3.zero, new Vector3(1.15f, 0.08f, 2.1f), m.Relief, ctx.EnvironmentLayer, false);
             BuildReliefMotif(plate, o.Relief, m, ctx.EnvironmentLayer);
-            GruftParts.Text(root.transform, "Name", ReliefName(o.Relief), new Vector3(0f, 0.9f, -1.3f), 0.025f, TextColor, ctx.Font);
+            GameObject name = GruftParts.Text(root.transform, "Name", ReliefName(o.Relief), new Vector3(0f, 0.9f, -1.3f), 0.025f, TextColor, ctx.Font);
+            if (name != null)
+            {
+                // The name stands at the foot end (-Z) and is read from there; Text() turns labels towards +Z (mirrored in Unity).
+                name.transform.localRotation = Quaternion.identity;
+            }
+
             GruftParts.Trigger(root.transform, "Interaktion", new Vector3(0f, 0.5f, 0f), new Vector3(1.6f, 1.0f, 2.6f), ctx.InteractLayerOrDefault, false);
             PuzzleSwitch slab = root.AddComponent<PuzzleSwitch>();
             TestGroundFields.SetString(slab, "objectId", o.Id, ctx.Report);

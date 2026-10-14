@@ -23,7 +23,7 @@
     "Boss-Arena: Der Kampfbereich beginnt 3,6 m hinter dem Fallgitter (z 62,4 → 66), das Gitter fällt in ca. 0,6 s. So ist der Spieler sicher in der Arena, wenn es zufällt (Validator-Regel arena.gate_gap: mindestens 3 m)."
   ],
   "atmosphere": {
-    "ambientColor": "#141720",
+    "ambientColor": "#262B38",
     "fogColor": "#07080C",
     "fogDensity": 0.04,
     "stoneColor": "#5C5852",

@@ -229,6 +229,13 @@ namespace Aetherfall.EditorTools.World
             }
 
             Scene scene = EditorSceneManager.OpenScene(SetupPaths.BootScenePath, OpenSceneMode.Single);
+
+            // Opening a scene in single mode unloads unused assets; the panel settings loaded or created moments ago may be one of them.
+            if (panel == null)
+            {
+                panel = AssetDatabase.LoadAssetAtPath<PanelSettings>(PanelSettingsPath);
+            }
+
             UIRoot root = FindInScene<UIRoot>(scene);
             if (root == null)
             {

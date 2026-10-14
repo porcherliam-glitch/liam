@@ -254,7 +254,7 @@ MonoBehaviour:
   m_Script: {fileID: 19102, guid: 0000000000000000e000000000000000, type: 0}
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.dll::UnityEngine.UIElements.UIDocument
-  m_PanelSettings: {fileID: 0}
+  m_PanelSettings: {fileID: 11400000, guid: 22d2fb1f7cb86d8418890ae95680d7d8, type: 2}
   m_ParentUI: {fileID: 0}
   sourceAsset: {fileID: 9197481963319205126, guid: 917f94c3f1415bf4094e9cac0e8b5c0d, type: 3}
   m_SortingOrder: 0
@@ -309,7 +309,7 @@ MonoBehaviour:
   m_Script: {fileID: 19102, guid: 0000000000000000e000000000000000, type: 0}
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.dll::UnityEngine.UIElements.UIDocument
-  m_PanelSettings: {fileID: 0}
+  m_PanelSettings: {fileID: 11400000, guid: 22d2fb1f7cb86d8418890ae95680d7d8, type: 2}
   m_ParentUI: {fileID: 0}
   sourceAsset: {fileID: 9197481963319205126, guid: 3367b08256cd9a54ba20a116b1a5af57, type: 3}
   m_SortingOrder: 40
@@ -447,7 +447,7 @@ MonoBehaviour:
   m_Script: {fileID: 19102, guid: 0000000000000000e000000000000000, type: 0}
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.dll::UnityEngine.UIElements.UIDocument
-  m_PanelSettings: {fileID: 0}
+  m_PanelSettings: {fileID: 11400000, guid: 22d2fb1f7cb86d8418890ae95680d7d8, type: 2}
   m_ParentUI: {fileID: 0}
   sourceAsset: {fileID: 9197481963319205126, guid: ec7b41c3c8eeb5647912fb7db9146c2c, type: 3}
   m_SortingOrder: 30
@@ -502,7 +502,7 @@ MonoBehaviour:
   m_Script: {fileID: 19102, guid: 0000000000000000e000000000000000, type: 0}
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.dll::UnityEngine.UIElements.UIDocument
-  m_PanelSettings: {fileID: 0}
+  m_PanelSettings: {fileID: 11400000, guid: 22d2fb1f7cb86d8418890ae95680d7d8, type: 2}
   m_ParentUI: {fileID: 0}
   sourceAsset: {fileID: 0}
   m_SortingOrder: 10
@@ -557,7 +557,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 78becb7940a5d494799861b35d9bc6b1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Aetherfall.UI.Screens::Aetherfall.UI.Screens.UIRoot
-  panelSettings: {fileID: 0}
+  panelSettings: {fileID: 11400000, guid: 22d2fb1f7cb86d8418890ae95680d7d8, type: 2}
   hudDocument: {fileID: 672962791}
   screensDocument: {fileID: 1947951794}
   toastsDocument: {fileID: 1750137146}
