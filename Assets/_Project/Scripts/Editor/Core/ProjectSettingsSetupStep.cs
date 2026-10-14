@@ -80,11 +80,45 @@ namespace Aetherfall.EditorTools.Core
                 }
             }
 
+            ApplyDefaultRenderPipeline(log);
             ApplyIdentity(log);
 
             // Writes ProjectSettings/*.asset now, so the values are on disk for the first commit.
             AssetDatabase.SaveAssets();
             log.Info("b) Einstellungen gespeichert (ProjectSettings/).");
+        }
+
+        /// <summary>
+        /// Newer "Universal 3D" templates (Unity 6.4+) only assign URP per quality level and leave the default render
+        /// pipeline empty. Uses the pipeline asset of the "PC" quality level (else the first one found) as default.
+        /// </summary>
+        private static void ApplyDefaultRenderPipeline(SetupLog log)
+        {
+            if (GraphicsSettings.defaultRenderPipeline != null)
+            {
+                return;
+            }
+
+            RenderPipelineAsset chosen = null;
+            string[] levels = QualitySettings.names;
+            for (int i = 0; i < levels.Length; i++)
+            {
+                RenderPipelineAsset asset = QualitySettings.GetRenderPipelineAssetAt(i);
+                if (asset != null && (chosen == null || levels[i] == "PC"))
+                {
+                    chosen = asset;
+                }
+            }
+
+            if (chosen == null)
+            {
+                log.Warning("b) Keine URP-Pipeline in den Quality-Stufen gefunden. Default Render Pipeline bitte von Hand setzen " +
+                            "(Menü: Edit > Project Settings > Graphics).");
+                return;
+            }
+
+            GraphicsSettings.defaultRenderPipeline = chosen;
+            log.Info("b) Default Render Pipeline = " + chosen.name + " (aus den Quality-Stufen).");
         }
 
         /// <inheritdoc />
@@ -429,7 +463,7 @@ namespace Aetherfall.EditorTools.Core
                              "Bisher: " + currentCompany + " / " + currentProduct + "\n" +
                              "Neu: " + company + " / " + product + "\n\n" +
                              "Die Namen bestimmen den Speicherpfad der Spielstände:\n" + ProductIdentity.DescribeSavePaths(company, product);
-            if (!EditorUtility.DisplayDialog("Firmen- und Produktname", message, firstTime ? "Übernehmen" : "Trotzdem ändern", "Abbrechen"))
+            if (!SetupDialogs.Confirm("Firmen- und Produktname", message, firstTime ? "Übernehmen" : "Trotzdem ändern", "Abbrechen"))
             {
                 log.Info("b) Firmen- und Produktname nicht geändert (abgebrochen).");
                 return;

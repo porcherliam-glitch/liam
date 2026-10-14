@@ -9,6 +9,7 @@ namespace Aetherfall.EditorTools.World
         /// <param name="report">Protocol.</param>
         public TestGroundMaterials(TestGroundReport report)
         {
+            GeneratorAssetPins.Hold(this);
             Ground = TestGroundAssets.EnsureMaterial("TestGround", new Color(0.45f, 0.47f, 0.45f), report);
             Lines = TestGroundAssets.EnsureMaterial("TestLines", new Color(0.25f, 0.27f, 0.27f), report);
             Ramp = TestGroundAssets.EnsureMaterial("TestRamp", new Color(0.92f, 0.55f, 0.18f), report);

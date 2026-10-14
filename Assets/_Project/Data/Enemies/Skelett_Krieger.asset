@@ -1,0 +1,71 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c75fd1bc2f517e64c82760eaf3306495, type: 3}
+  m_Name: Skelett_Krieger
+  m_EditorClassIdentifier: Aetherfall.AI::Aetherfall.AI.EnemyTypeDefinition
+  enemyTypeId: enemy.untot.skelett_krieger
+  variantId: normal
+  displayName: Skelett-Krieger
+  level: 6
+  lootTableId: loot.enemy.untot.skelett
+  baseHealth: 80
+  healthVariantFactor: 1
+  baseDamage: 22
+  damageVariantFactor: 1
+  damageType: 0
+  baseArmor: 25
+  basePoise: 70
+  poiseVariantFactor: 1
+  attackPoise: 15
+  resistances:
+  - damageType: 2
+    value: -0.25
+    immune: 0
+  - damageType: 1
+    value: 0.3
+    immune: 0
+  aetherDamageShare: 0
+  hasCrystalCore: 0
+  crystalCoreBreakFraction: 0.25
+  tokenCost: 1
+  parryPoiseLoss: 0.35
+  parryOpenSeconds: 1.2
+  attacks:
+  - attack: {fileID: 11400000, guid: 5d16f44ddc4879d4c88d7fdcdc230444, type: 2}
+    minRange: 0
+    maxRange: 2.4
+    maxAngle: 30
+    cooldown: 1.8
+    weight: 3
+  - attack: {fileID: 11400000, guid: 6dd58dedad68beb4ca0b8102234c789c, type: 2}
+    minRange: 0.5
+    maxRange: 2.8
+    maxAngle: 20
+    cooldown: 2.4
+    weight: 1
+  walkSpeed: 1.4
+  runSpeed: 4.2
+  circleSpeed: 1.8
+  turnRate: 240
+  sightHalfAngle: 50
+  sightRange: 22
+  peripheralHalfAngle: 80
+  peripheralRange: 10
+  nearRadius: 2.5
+  perceptionFactor: 1
+  hearingFactor: 1
+  leashDistance: 40
+  unreachableSeconds: 8
+  fleeHealthFraction: 0
+  fleeSeconds: 3
+  ringMin: 4
+  ringMax: 7

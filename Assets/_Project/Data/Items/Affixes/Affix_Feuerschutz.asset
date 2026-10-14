@@ -1,0 +1,32 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 68be454c685475f4187fc60caa7616a2, type: 3}
+  m_Name: Affix_Feuerschutz
+  m_EditorClassIdentifier: Aetherfall.Items::Aetherfall.Items.AffixDefinition
+  id: affix.feuerschutz
+  status: 1
+  displayName: des Feuerschutzes
+  effectText: +{0} % Feuer-Resistenz
+  kind: 1
+  familyId: resistenz
+  familyLimit: 2
+  stat: 53
+  modifierKind: 0
+  valueScale: 0.01
+  tierOneMin: 3
+  tierOneMax: 5
+  tierSixMin: 15
+  tierSixMax: 20
+  decimals: 0
+  weight: 100
+  allowedSlots: 4088
+  excludedAffixIds: []

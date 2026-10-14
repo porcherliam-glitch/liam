@@ -90,7 +90,11 @@ Tests liegen unter `Assets/_Project/Tests/` (EditMode, getrennt nach Bereich). S
   - Sie wurde parallel gebaut, ohne bestehende Dateien zu ändern. Deshalb fehlt noch die **Integration nach Anleitung 12, Abschnitt 11**: Portal im Dorf, Laden und Szenenwechsel über die Welt-ID, Lebenspunkte über den Portalwechsel mitnehmen, echter Bossbalken im HUD.
 - **Dialog-Integration** ist ebenfalls noch offen. Die genaue Arbeitsanweisung steht in [Anleitung 10, Abschnitt 12](docs/Anleitungen/10_Test_Dialoge.md); sie wurde gegen einen älteren Stand geprüft. Mit den Eichental-Änderungen an `TestGroundMenu`, `TestGroundUiBuilder` und der World-Editor-asmdef abgleichen.
 
-**Wichtig:** Bis 2026-10-14 ist **nichts davon jemals in Unity gelaufen**. Geprüft wurde nur mit dem Harness (Kompilieren gegen Unity-2021-Referenzen + Stubs) und mit Vorschaubildern aus Blender bzw. HTML (keine Unity-Screenshots). Die erste Aufgabe auf einem Rechner mit Unity ist deshalb, es wirklich in Unity zu öffnen und Fehler zu beheben.
+**Erster Unity-Lauf (PC-Sitzung, 2026-10-14):** Projekt liegt auf dem PC unter `C:\Users\limap\Desktop\Aetherfall`, geöffnet mit **Unity 6000.6.5f1** (installiert sind 6000.0.84f1, 6000.6.3f1, 6000.6.5f1; kein 6.3). Setup im Batchmode fehlerfrei, kompiliert, **2159/2161 EditMode-Tests grün in Unity** (2 inconclusive: Allokationsmessung), Generatoren Testgelände/Eichental/Gruft laufen durch. Der Play Mode wurde noch **nicht** angesehen. Lehren aus dem Lauf:
+- Ein Szenenwechsel im Single-Modus (`NewScene`/`OpenScene`) entlädt Assets, die nur in lokalen Variablen stehen → in Generatoren über `GeneratorAssetPins.Hold` festhalten oder nach dem Wechsel neu laden.
+- `Awaitable.NextFrameAsync` wartet in Unity wirklich einen Frame (im Harness sofort). Logik, die in Tests synchron laufen soll, bekommt ein `FrameWait` (Tests: `ImmediateFrames.Wait`).
+- `[DisallowMultipleComponent]` wird nur in Unity durchgesetzt; `AddComponent` liefert dann null.
+- Die 6.6-Vorlage `urp-blank` setzt keine Default Render Pipeline; Schritt b) setzt sie jetzt.
 
 ## Cloud-Sitzung und PC-Sitzung: wer arbeitet wann
 
@@ -116,7 +120,8 @@ Tests liegen unter `Assets/_Project/Tests/` (EditMode, getrennt nach Bereich). S
 3. Kompilierfehler beheben, bis die Konsole leer ist. Häufige Ursachen: API-Unterschiede zwischen Unity 2021 (Harness) und Unity 6.3, Paketversionen (Input System, Cinemachine 3, Newtonsoft).
 4. EditMode-Tests im Batchmode laufen lassen (Befehl unten) und rot gewordene Tests reparieren.
 5. Generatoren im Batchmode ausführen (Testgelände, Eichental), Szenen öffnen, Play Mode starten, Screenshots machen und prüfen.
-6. **Projekt-Setup** bekommt noch einen Batchmode-Einstiegspunkt (`RunBatch`), wie die anderen Menüs unten. `EditorUtility.DisplayDialog` darf im Batchmode nicht blockieren (`Application.isBatchMode` prüfen).
+6. ~~**Projekt-Setup** bekommt noch einen Batchmode-Einstiegspunkt~~ Erledigt: `ProjectSetupBatch.RunBatch`, Rückfragen über `SetupDialogs.Confirm`.
+   Schritte 1–4 und 6 sind am 2026-10-14 erledigt; von 5 fehlt noch Play Mode mit Screenshots.
 7. Danach die Testanleitungen 02–12 selbst durchgehen und Ergebnisse in `docs/Status.md` eintragen.
 
 ## Auf dem PC mit Unity: so testen
@@ -134,6 +139,7 @@ Batchmode-Einstiegspunkte (jeweils mit `-batchmode -nographics -projectPath . -q
 | Testgelände erzeugen | `Aetherfall.EditorTools.World.TestGroundMenu.RunBatch` |
 | Eichental erzeugen | `Aetherfall.EditorTools.World.EichentalMenu.RunBatch` |
 | Gruft erzeugen | `Aetherfall.EditorTools.World.GruftMenu.RunBatch` |
+| Projekt-Setup (ohne `-quit`, beendet sich selbst; nach Paketänderungen ein zweites Mal ausführen) | `Aetherfall.EditorTools.Core.ProjectSetupBatch.RunBatch` |
 | Quests prüfen | `Aetherfall.EditorTools.Narrative.QuestValidationMenu.RunBatch` |
 | Dialoge prüfen | `Aetherfall.Dialogue.DialogueValidationMenu.RunBatch` |
 

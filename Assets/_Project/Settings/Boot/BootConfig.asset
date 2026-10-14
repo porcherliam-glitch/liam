@@ -1,0 +1,36 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fc69f36ed15e00e4fac474ddd333a135, type: 3}
+  m_Name: BootConfig
+  m_EditorClassIdentifier: Aetherfall.Core::Aetherfall.Core.BootConfig
+  installers:
+  - {fileID: 11400000, guid: 89f0f63872062da4ba6330dd6ec20042, type: 2}
+  - {fileID: 11400000, guid: d8ccc545bcf5f8a4286251b3168b40f6, type: 2}
+  - {fileID: 11400000, guid: d136b600949b9624d895e2fa64cd886f, type: 2}
+  - {fileID: 11400000, guid: ab123fbc6a431f9489704d2684ec676c, type: 2}
+  - {fileID: 11400000, guid: a7090e08a36c7d04c8cb06da97b35476, type: 2}
+  - {fileID: 11400000, guid: 0495c964c95616640ab59fceecfc1f5c, type: 2}
+  - {fileID: 11400000, guid: 8c129cf02e336be4ba73e070fb13c0e2, type: 2}
+  - {fileID: 11400000, guid: 44e7c1965fff81a4da1c2eabaf650de8, type: 2}
+  - {fileID: 11400000, guid: 4827bfb09f24ab54cb74b2dc499890aa, type: 2}
+  - {fileID: 11400000, guid: 041b3e55ec00fa241a4c6bf4011e38ae, type: 2}
+  - {fileID: 11400000, guid: 72fecdc843a058a4e9e7d38073014b1f, type: 2}
+  - {fileID: 11400000, guid: 2ceadb0ad7812df4590afe092eff31d1, type: 2}
+  - {fileID: 11400000, guid: dd4122cc923eb654ba1d677e9b8838ef, type: 2}
+  - {fileID: 11400000, guid: c59fb2bc85fb33848b952eb4eaac12a0, type: 2}
+  - {fileID: 11400000, guid: 29f5b700e02ec434e8221fa70ddf1ffa, type: 2}
+  - {fileID: 11400000, guid: 7c6c891fd2cb0964bb39e905d469abe6, type: 2}
+  - {fileID: 11400000, guid: a527ad764f216014f9bc3475ba571a65, type: 2}
+  - {fileID: 11400000, guid: 1d591387e9a18244592dbe8c2d31a6b1, type: 2}
+  - {fileID: 11400000, guid: 05dff514e1ef3244097a5de1f28fac9a, type: 2}
+  - {fileID: 11400000, guid: f134aa1750a6844468324f93470da17b, type: 2}
+  initializationTimeoutSeconds: 20

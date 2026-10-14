@@ -11,7 +11,7 @@ namespace Aetherfall.Core
     /// <see cref="SceneLoadStarted"/> / <see cref="SceneLoadCompleted"/>.
     /// </summary>
     /// <remarks>
-    /// <para>Pure logic apart from <see cref="Awaitable.NextFrameAsync"/>: every operation polls the backend once per frame.
+    /// <para>Pure logic apart from the frame wait (<see cref="FrameWait"/>): every operation polls the backend once per frame.
     /// Created by <see cref="SceneLoaderInstaller"/> in boot step 8b.</para>
     /// <para><b>Loading screen:</b> resolved lazily through the provider passed to the constructor (the UI registers it later,
     /// boot step 15, architecture 4.5). Without one, scenes load without a loading screen.</para>
@@ -23,6 +23,7 @@ namespace Aetherfall.Core
         private readonly IEventBus _eventBus;
         private readonly ISceneBackend _backend;
         private readonly Func<ILoadingScreen> _loadingScreenProvider;
+        private readonly FrameWait _nextFrame;
         private readonly Dictionary<string, PendingActivation> _pending = new Dictionary<string, PendingActivation>(StringComparer.Ordinal);
         private bool _busy;
         private float _progress = 1f;
@@ -35,11 +36,13 @@ namespace Aetherfall.Core
         /// <param name="eventBus">Bus for the scene load events.</param>
         /// <param name="backend">Scene operations.</param>
         /// <param name="loadingScreenProvider">Returns the loading screen or null; called at the start of every world space change.</param>
-        public SceneLoader(IEventBus eventBus, ISceneBackend backend, Func<ILoadingScreen> loadingScreenProvider)
+        /// <param name="nextFrame">Waits one frame between polls; null = <see cref="FrameWaits.NextFrame"/>.</param>
+        public SceneLoader(IEventBus eventBus, ISceneBackend backend, Func<ILoadingScreen> loadingScreenProvider, FrameWait nextFrame = null)
         {
             _eventBus = eventBus ?? throw new ArgumentNullException(nameof(eventBus));
             _backend = backend ?? throw new ArgumentNullException(nameof(backend));
             _loadingScreenProvider = loadingScreenProvider;
+            _nextFrame = nextFrame ?? FrameWaits.NextFrame;
         }
 
         /// <inheritdoc />
@@ -87,7 +90,7 @@ namespace Aetherfall.Core
                 pending.Operation.AllowActivation = true;
                 while (!pending.Operation.IsDone)
                 {
-                    await Awaitable.NextFrameAsync(ct);
+                    await _nextFrame(ct);
                 }
 
                 PublishCompleted(handle.Key, pending.StartTime);
@@ -217,7 +220,7 @@ namespace Aetherfall.Core
                 }
 
                 ReportProgress(SceneKeys.NormalizeProgress(operation.Progress));
-                await Awaitable.NextFrameAsync(ct);
+                await _nextFrame(ct);
             }
 
             ReportProgress(1f);
@@ -239,7 +242,7 @@ namespace Aetherfall.Core
             while (!operation.IsDone)
             {
                 ReportProgress(operation.Progress);
-                await Awaitable.NextFrameAsync(ct);
+                await _nextFrame(ct);
             }
 
             ReportProgress(1f);

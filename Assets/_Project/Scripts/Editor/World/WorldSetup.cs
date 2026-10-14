@@ -17,6 +17,7 @@ namespace Aetherfall.EditorTools.World
         private WorldSetup(WorldLayers layers, PlayerMovementSettings settings, TestGroundMaterials materials, TestGroundCombatAssets combat,
             TestGroundItemAssets items, int playerLevel)
         {
+            GeneratorAssetPins.Hold(this);
             Layers = layers;
             Settings = settings;
             Materials = materials;

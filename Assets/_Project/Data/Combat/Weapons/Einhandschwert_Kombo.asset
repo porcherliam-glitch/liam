@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9de56cfc63b79464dba5dd5553dd633e, type: 3}
+  m_Name: Einhandschwert_Kombo
+  m_EditorClassIdentifier: Aetherfall.Combat::Aetherfall.Combat.ComboDefinition
+  comboId: combo.einhandschwert.leicht
+  steps:
+  - {fileID: 11400000, guid: e77ded91be3dc1842bf5da45aeeaf76c, type: 2}
+  - {fileID: 11400000, guid: 5ddc162bd4c0d694b9c1255ba6ff4975, type: 2}
+  - {fileID: 11400000, guid: d11dd12dc5d6ec440a88111a8b4e68fd, type: 2}
+  - {fileID: 11400000, guid: 158cab7f4a58e60409fc972c28f662da, type: 2}

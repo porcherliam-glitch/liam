@@ -1,0 +1,39 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 723ddc38fb428bc499f79f79ad10f2c0, type: 3}
+  m_Name: Wolf_Sprungangriff
+  m_EditorClassIdentifier: Aetherfall.Combat::Aetherfall.Combat.AttackDefinition
+  attackId: attack.wolf.sprungangriff
+  kind: 7
+  windupSeconds: 0.65
+  activeSeconds: 0.3
+  recoverySeconds: 0.95
+  comboWindowStartSeconds: 0.95
+  cancelOnlyInRecovery: 0
+  damageMultiplier: 1.4
+  poiseMultiplier: 2
+  staminaCost: 0
+  staminaDamage: 40
+  overrideDamageType: 0
+  damageType: 0
+  unblockable: 0
+  unparryable: 0
+  shape: 0
+  offset: {x: 0, y: 0.7, z: 1.1}
+  size: {x: 1, y: 1, z: 1.5}
+  radius: 0.8
+  lungeDistance: 4
+  knockbackDistance: 1
+  maxTurnDegrees: 45
+  hitStopSeconds: 0
+  shakeAmplitude: 0
+  shakeDuration: 0

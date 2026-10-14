@@ -1,0 +1,41 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3516f856bf4a1b1469cfd2517e440e50, type: 3}
+  m_Name: Stoffkappe
+  m_EditorClassIdentifier: Aetherfall.Items::Aetherfall.Items.ItemDefinition
+  id: item.armor.stoffkappe
+  status: 1
+  displayName: Stoffkappe
+  description: 
+  category: 2
+  equipKind: 1
+  weaponType: 0
+  armorClass: 1
+  weight: 0.5
+  stackSize: 1
+  value: 28
+  baseRarity: 0
+  fixedItemLevel: 0
+  baseStat: 2
+  implicitStat: 30
+  implicitKind: 1
+  implicitScale: 0.01
+  implicitAtLevel1: 1
+  implicitAtLevel80: 4
+  implicitText: +{0} % Zauberkraft
+  questItem: 0
+  randomDrop: 1
+  dropWeight: 100
+  blockAngle: 0
+  blockPhysical: 0
+  blockElemental: 0
+  blockStability: 0

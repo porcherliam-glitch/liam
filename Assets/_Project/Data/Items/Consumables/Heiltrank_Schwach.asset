@@ -1,0 +1,41 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3516f856bf4a1b1469cfd2517e440e50, type: 3}
+  m_Name: Heiltrank_Schwach
+  m_EditorClassIdentifier: Aetherfall.Items::Aetherfall.Items.ItemDefinition
+  id: item.potion.heiltrank_schwach
+  status: 1
+  displayName: Kleiner Heiltrank
+  description: 
+  category: 4
+  equipKind: 13
+  weaponType: 0
+  armorClass: 0
+  weight: 0.3
+  stackSize: 20
+  value: 30
+  baseRarity: 0
+  fixedItemLevel: 0
+  baseStat: 0
+  implicitStat: 0
+  implicitKind: 0
+  implicitScale: 1
+  implicitAtLevel1: 0
+  implicitAtLevel80: 0
+  implicitText: 
+  questItem: 0
+  randomDrop: 0
+  dropWeight: 100
+  blockAngle: 0
+  blockPhysical: 0
+  blockElemental: 0
+  blockStability: 0

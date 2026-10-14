@@ -105,7 +105,8 @@ namespace Aetherfall.EditorTools.World
             Transform shieldHand = CreateChild(player.transform, "ShieldHand", new Vector3(-0.45f, 1.1f, 0.12f));
             GameObject shield = CreateVisual(shieldHand, "Shield", PrimitiveType.Cube, new Vector3(0f, 0f, 0.1f), new Vector3(0.55f, 0.7f, 0.08f),
                 materials.Shield, player.layer);
-            HitFlash shieldFlash = player.AddComponent<HitFlash>();
+            // HitFlash is [DisallowMultipleComponent] and the player root already has the body flash.
+            HitFlash shieldFlash = shield.AddComponent<HitFlash>();
             if (shield.TryGetComponent(out Renderer shieldRenderer))
             {
                 TestGroundFields.SetReferences(shieldFlash, "renderers", new Object[] { shieldRenderer }, report);

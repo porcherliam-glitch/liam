@@ -261,7 +261,7 @@ namespace Aetherfall.EditorTools.Core
             var toRemove = new List<string>(plan.PackagesToRemove);
             if (toRemove.Count > 0)
             {
-                bool confirmed = EditorUtility.DisplayDialog(
+                bool confirmed = SetupDialogs.Confirm(
                     "Pakete entfernen?",
                     "Diese Template-Pakete werden aus dem Projekt entfernt:\n\n" + string.Join("\n", toRemove) +
                     "\n\nSie werden in Aetherfall nicht verwendet (Architektur 1.4). Eigene Inhalte, die sie nutzen, funktionieren danach nicht mehr. " +

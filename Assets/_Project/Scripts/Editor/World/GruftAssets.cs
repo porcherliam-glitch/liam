@@ -31,6 +31,7 @@ namespace Aetherfall.EditorTools.World
         /// <param name="report">Protocol.</param>
         public GruftAssets(TestGroundReport report)
         {
+            GeneratorAssetPins.Hold(this);
             _report = report;
             AttackDefinition blow = EnsureAttack("Skelett_Hieb", SkeletonBlow());
             AttackDefinition thrust = EnsureAttack("Skelett_Stoss", SkeletonThrust());

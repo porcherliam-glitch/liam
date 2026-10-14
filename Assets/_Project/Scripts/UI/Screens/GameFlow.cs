@@ -39,6 +39,7 @@ namespace Aetherfall.UI.Screens
         private readonly string _gameplaySceneKey;
         private readonly string _gameplaySceneTitle;
         private readonly CancellationToken _cancellation;
+        private readonly FrameWait _nextFrame;
         private bool _busy;
 
         /// <summary>Creates the flow.</summary>
@@ -51,8 +52,9 @@ namespace Aetherfall.UI.Screens
         /// <param name="gameplaySceneKey">Scene key of the gameplay scene (for now the test ground).</param>
         /// <param name="gameplaySceneTitle">Title on the loading screen.</param>
         /// <param name="cancellation">Ends running flows (application quits).</param>
+        /// <param name="nextFrame">Waits one frame; null = <see cref="FrameWaits.NextFrame"/>.</param>
         public GameFlow(IGameStateService gameState, ISceneLoader scenes, ISaveManager saves, IUIManager ui, ILoadingScreen loadingScreen,
-            IPlayerHudRegistry players, string gameplaySceneKey, string gameplaySceneTitle, CancellationToken cancellation)
+            IPlayerHudRegistry players, string gameplaySceneKey, string gameplaySceneTitle, CancellationToken cancellation, FrameWait nextFrame = null)
         {
             _gameState = gameState ?? throw new ArgumentNullException(nameof(gameState));
             _scenes = scenes ?? throw new ArgumentNullException(nameof(scenes));
@@ -63,6 +65,7 @@ namespace Aetherfall.UI.Screens
             _gameplaySceneKey = gameplaySceneKey ?? string.Empty;
             _gameplaySceneTitle = gameplaySceneTitle ?? string.Empty;
             _cancellation = cancellation;
+            _nextFrame = nextFrame ?? FrameWaits.NextFrame;
         }
 
         /// <inheritdoc />
@@ -219,7 +222,7 @@ namespace Aetherfall.UI.Screens
             }
 
             // One frame, so the objects of the new scene run Start (they register their saveables there).
-            await Awaitable.NextFrameAsync(ct);
+            await _nextFrame(ct);
             LoadResult result = await _saves.NewGameAsync(new NewGameSettings(null), ct);
             if (!result.Success)
             {
@@ -247,7 +250,7 @@ namespace Aetherfall.UI.Screens
                 return;
             }
 
-            await Awaitable.NextFrameAsync(ct);
+            await _nextFrame(ct);
             _loadingScreen.SetProgress(1f);
             LoadResult result = await _saves.LoadAsync(slotId, ct);
             if (!result.Success && _gameState.Current == GameState.Loading)

@@ -1,0 +1,39 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 723ddc38fb428bc499f79f79ad10f2c0, type: 3}
+  m_Name: Ritter_Schildstoss
+  m_EditorClassIdentifier: Aetherfall.Combat::Aetherfall.Combat.AttackDefinition
+  attackId: attack.ritter.schildstoss
+  kind: 7
+  windupSeconds: 0.8
+  activeSeconds: 0.15
+  recoverySeconds: 0.7
+  comboWindowStartSeconds: 0.95000005
+  cancelOnlyInRecovery: 0
+  damageMultiplier: 0.8
+  poiseMultiplier: 2
+  staminaCost: 0
+  staminaDamage: 45
+  overrideDamageType: 1
+  damageType: 2
+  unblockable: 0
+  unparryable: 0
+  shape: 0
+  offset: {x: 0, y: 1.2, z: 1.2}
+  size: {x: 1.6, y: 1.6, z: 1.4}
+  radius: 0.8
+  lungeDistance: 1
+  knockbackDistance: 1.5
+  maxTurnDegrees: 45
+  hitStopSeconds: 0
+  shakeAmplitude: 0.3
+  shakeDuration: 0.2

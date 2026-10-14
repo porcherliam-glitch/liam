@@ -43,7 +43,7 @@ namespace Aetherfall.Tests.EditMode.UIScreens
             _loading = new LoadingScreenProxy(_ui);
             _scenes.LoadingScreen = _loading;
             _players = new PlayerHudRegistry();
-            _flow = new GameFlow(_state, _scenes, _saves, _ui, _loading, _players, Scene, "Testgelände", CancellationToken.None);
+            _flow = new GameFlow(_state, _scenes, _saves, _ui, _loading, _players, Scene, "Testgelände", CancellationToken.None, ImmediateFrames.Wait);
             _failures = new List<string>();
             _flow.Failed += _failures.Add;
         }

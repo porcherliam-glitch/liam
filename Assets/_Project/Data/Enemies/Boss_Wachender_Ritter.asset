@@ -1,0 +1,65 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2b04f2e4d7abd7441b9f404574a8ca56, type: 3}
+  m_Name: Boss_Wachender_Ritter
+  m_EditorClassIdentifier: Aetherfall.AI::Aetherfall.AI.Bosses.BossDefinition
+  bossId: boss.eichental.wachender_ritter
+  displayName: Der Wachende Ritter
+  title: "Letzter W\xE4chter der Eichenritter"
+  baseType: {fileID: 11400000, guid: fa091dc55b2049849b9111bd5ad2576d, type: 2}
+  musicId: mus.boss_gruft
+  phaseThresholds:
+  - 1
+  - 0.5
+  addsPerPhase: 0000000002000000i
+  transitionSeconds: 2.5
+  awakenSeconds: 1.5
+  guardAngle: 170
+  guardReduction: 1
+  parryOpenSeconds: 1.5
+  recoverSeconds: 0.8
+  beamFromPhase: 2
+  beamStunSeconds: 5
+  beamCooldownSeconds: 8
+  attacks:
+  - attack: {fileID: 11400000, guid: 4329494f33dfcf9499161636d8c4f50f, type: 2}
+    minRange: 0
+    maxRange: 2.4
+    maxAngle: 25
+    cooldown: 2.5
+    weight: 3
+    minPhase: 1
+    dropsGuard: 0
+  - attack: {fileID: 11400000, guid: cda71fd2064e1ab43aab1867bde5c4f8, type: 2}
+    minRange: 0
+    maxRange: 2.8
+    maxAngle: 25
+    cooldown: 2
+    weight: 2
+    minPhase: 1
+    dropsGuard: 0
+  - attack: {fileID: 11400000, guid: b9406270948a2cf41b996171a0286503, type: 2}
+    minRange: 4
+    maxRange: 9
+    maxAngle: 15
+    cooldown: 7
+    weight: 2
+    minPhase: 2
+    dropsGuard: 1
+  - attack: {fileID: 11400000, guid: 2e14499ed60d09547bb365fef0d4390b, type: 2}
+    minRange: 0
+    maxRange: 2.6
+    maxAngle: 180
+    cooldown: 6
+    weight: 1.5
+    minPhase: 2
+    dropsGuard: 1

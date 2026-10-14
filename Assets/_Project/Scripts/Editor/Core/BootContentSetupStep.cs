@@ -261,7 +261,7 @@ namespace Aetherfall.EditorTools.Core
                     return;
                 }
 
-                bool replace = EditorUtility.DisplayDialog(
+                bool replace = SetupDialogs.Confirm(
                     "Installer-Liste ersetzen?",
                     "Die Installer-Liste von BootConfig.asset ist nicht gültig:\n\n" + problem +
                     "\n\nAktuell: " + DescribeInstallers(bootConfig.Installers) +
@@ -353,7 +353,7 @@ namespace Aetherfall.EditorTools.Core
                     return true;
                 }
 
-                if (!EditorUtility.DisplayDialog(
+                if (!SetupDialogs.Confirm(
                         "Boot-Szene ergänzen?",
                         "Die vorhandene Boot-Szene " + SetupPaths.BootScenePath + " ist unvollständig.\n\n" +
                         "Fehlende Objekte und Komponenten (GameBootstrapper, TickRunner, DevTools-Overlay) und leere Felder werden ergänzt. " +
@@ -372,6 +372,8 @@ namespace Aetherfall.EditorTools.Core
                 return false;
             }
 
+            // Write the boot assets first: the scene switch below may unload them and drop unsaved changes.
+            AssetDatabase.SaveAssets();
             Scene scene = sceneExists
                 ? EditorSceneManager.OpenScene(SetupPaths.BootScenePath, OpenSceneMode.Single)
                 : EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
@@ -379,6 +381,12 @@ namespace Aetherfall.EditorTools.Core
             {
                 log.Error("e) Boot-Szene konnte nicht " + (sceneExists ? "geöffnet" : "erzeugt") + " werden.");
                 return false;
+            }
+
+            // Opening a scene in single mode unloads unused assets; a BootConfig created moments ago may be one of them.
+            if (bootConfig == null)
+            {
+                bootConfig = AssetDatabase.LoadAssetAtPath<BootConfig>(SetupPaths.BootConfigAssetPath);
             }
 
             PopulateBootScene(scene, bootConfig, log);
@@ -496,11 +504,12 @@ namespace Aetherfall.EditorTools.Core
                 return;
             }
 
-            // Boot first (enabled), all other entries keep their order behind it; nothing is removed.
+            // Boot first (enabled), all other entries keep their order behind it. Only entries whose scene file no longer
+            // exists are dropped (e.g. the template's SampleScene after step d).
             var scenes = new List<EditorBuildSettingsScene>(current.Length + 1) { new EditorBuildSettingsScene(SetupPaths.BootScenePath, true) };
             for (int i = 0; i < current.Length; i++)
             {
-                if (current[i].path != SetupPaths.BootScenePath)
+                if (current[i].path != SetupPaths.BootScenePath && System.IO.File.Exists(current[i].path))
                 {
                     scenes.Add(current[i]);
                 }

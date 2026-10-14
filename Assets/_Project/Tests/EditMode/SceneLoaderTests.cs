@@ -33,7 +33,7 @@ namespace Aetherfall.Tests.EditMode
             _backend.AddScene(Test);
             _backend.AddScene(Other);
             _screen = new FakeLoadingScreen();
-            _loader = new SceneLoader(_bus, _backend, () => _screen);
+            _loader = new SceneLoader(_bus, _backend, () => _screen, ImmediateFrames.Wait);
             _started = new EventRecorder<SceneLoadStarted>(_bus);
             _completed = new EventRecorder<SceneLoadCompleted>(_bus);
         }
@@ -177,7 +177,7 @@ namespace Aetherfall.Tests.EditMode
         [Test]
         public void ChangeWorldSpace_WithoutLoadingScreen_StillLoads()
         {
-            var loader = new SceneLoader(_bus, _backend, () => null);
+            var loader = new SceneLoader(_bus, _backend, () => null, ImmediateFrames.Wait);
 
             SceneHandle handle = Run(loader.ChangeWorldSpaceAsync(new WorldSpaceRequest(Test, "x", true), CancellationToken.None));
 

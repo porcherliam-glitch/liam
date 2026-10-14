@@ -23,6 +23,7 @@ namespace Aetherfall.EditorTools.World
         /// <param name="report">Protocol.</param>
         public TestGroundCombatAssets(TestGroundReport report)
         {
+            GeneratorAssetPins.Hold(this);
             AttackDefinition light1 = EnsureAttack("Einhandschwert_Leicht1", SwordLight("attack.einhandschwert.leicht_1", 0.4f), report);
             AttackDefinition light2 = EnsureAttack("Einhandschwert_Leicht2", SwordLight("attack.einhandschwert.leicht_2", 0.4f), report);
             AttackDefinition light3 = EnsureAttack("Einhandschwert_Leicht3", SwordLight("attack.einhandschwert.leicht_3", 0.5f), report);

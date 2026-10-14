@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9eeee2139787c02469ffd1f259de1cff, type: 3}
+  m_Name: Einhandschwert
+  m_EditorClassIdentifier: Aetherfall.Combat::Aetherfall.Combat.WeaponDefinition
+  weaponId: item.weapon.einhandschwert_eisen
+  baseDamage: 50
+  damageType: 0
+  weaponPoise: 10
+  strengthWeight: 0.6
+  dexterityWeight: 0.4
+  lightCombo: {fileID: 11400000, guid: e85f162ec4e202445b45cdfb9c58346c, type: 2}
+  heavyAttack: {fileID: 11400000, guid: 74706c1735a03b943882e0bf34fed7a7, type: 2}
+  sprintAttack: {fileID: 11400000, guid: c2b3e89ae9c3ca7439437f39ff4b9890, type: 2}
+  jumpAttack: {fileID: 11400000, guid: bc5102fe82f34914cab31db2368bc06c, type: 2}
+  counterAttack: {fileID: 11400000, guid: ad433cacb7f2ed1418ecceeefc7daa2e, type: 2}
+  finisher: {fileID: 11400000, guid: ba1c059aa56a6ef4997cf95b904a6d43, type: 2}
+  blockAngle: 120
+  blockPhysicalReduction: 0.6
+  blockElementalReduction: 0
+  blockStability: 0.1

@@ -53,6 +53,7 @@ namespace Aetherfall.EditorTools.World
         /// <param name="report">Protocol.</param>
         public TestGroundItemAssets(TestGroundReport report)
         {
+            GeneratorAssetPins.Hold(this);
             _report = report;
             string[] folders =
             {

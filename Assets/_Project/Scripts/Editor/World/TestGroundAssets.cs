@@ -112,7 +112,7 @@ namespace Aetherfall.EditorTools.World
             if (settings != null)
             {
                 report.Info("Vorhanden (unverändert): " + TestGroundPaths.MovementSettingsPath);
-                return settings;
+                return GeneratorAssetPins.Hold(settings);
             }
 
             if (File.Exists(FullPath(TestGroundPaths.MovementSettingsPath)))
@@ -124,7 +124,7 @@ namespace Aetherfall.EditorTools.World
             settings = ScriptableObject.CreateInstance<PlayerMovementSettings>();
             AssetDatabase.CreateAsset(settings, TestGroundPaths.MovementSettingsPath);
             report.Info("Angelegt: " + TestGroundPaths.MovementSettingsPath + " (Werte aus GDD 03, Abschnitt 3.1)");
-            return settings;
+            return GeneratorAssetPins.Hold(settings);
         }
 
         /// <summary>

@@ -47,7 +47,7 @@ namespace Aetherfall.EditorTools.Core
                 return;
             }
 
-            if (!EditorUtility.DisplayDialog("Template aufräumen?", BuildDialogText(deletions, moves, emptyFolders), "Aufräumen", "Abbrechen"))
+            if (!SetupDialogs.Confirm("Template aufräumen?", BuildDialogText(deletions, moves, emptyFolders), "Aufräumen", "Abbrechen"))
             {
                 log.Info("d) Abgebrochen – nichts verändert.");
                 return;

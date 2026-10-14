@@ -1,0 +1,243 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ed54fda899259d8408571c9b5aae9298, type: 3}
+  m_Name: Quest_side_test_bewaehrungsprobe
+  m_EditorClassIdentifier: Aetherfall.Quests::Aetherfall.Quests.QuestDefinition
+  id: quest.side.test.bewaehrungsprobe
+  status: 1
+  title: "Die Bew\xE4hrungsprobe"
+  description: "Ein zweiter Aushang: Zeig am \xDCbungsplatz, was du kannst. Ob du eine Truhe \xF6ffnest oder die Trainingspuppe triffst, entscheidest du."
+  category: 3
+  traits: 0
+  twistType: 
+  recommendedLevel: 10
+  regionId: 
+  giverId: obj.test.anschlagtafel
+  fallbackGiverIds: []
+  turnInNpcId: 
+  startTriggerKind: 4
+  startTriggerId: obj.test.anschlagtafel
+  startCondition:
+    rid: 8292696248369283081
+  startStageId: 
+  startBranches: []
+  stages:
+  - id: s10
+    journalText: "Geh zum \xDCbungsplatz bei der Trainingspuppe."
+    explorationHint: "Die Trainingspuppe steht s\xFCdwestlich des Startpunkts, links hinter der Mauer."
+    objectives:
+    - rid: 8292696248369283082
+    completionMode: 0
+    requiredCount: 1
+    actionOnly: 0
+    onStart: []
+    onComplete: []
+    branches: []
+    defaultNextStageId: s20
+    failRules: []
+    endType: 0
+    ledgerEntryId: 
+    saveLock: 0
+    markerIds: []
+    searchRadius: 50
+  - id: s20
+    journalText: "Entscheide dich: \xD6ffne eine der Truhen beim Startpunkt oder triff die Trainingspuppe dreimal."
+    explorationHint: 
+    objectives:
+    - rid: 8292696248369283083
+    - rid: 8292696248369283084
+    completionMode: 1
+    requiredCount: 1
+    actionOnly: 0
+    onStart: []
+    onComplete: []
+    branches:
+    - condition:
+        rid: 8292696248369283085
+      targetStageId: s30_truhe
+      label: "Truhe ge\xF6ffnet"
+    defaultNextStageId: s30_puppe
+    failRules: []
+    endType: 0
+    ledgerEntryId: 
+    saveLock: 0
+    markerIds: []
+    searchRadius: 50
+  - id: s30_truhe
+    journalText: "Du hast eine Truhe ge\xF6ffnet \u2013 Neugier zahlt sich aus."
+    explorationHint: 
+    objectives: []
+    completionMode: 0
+    requiredCount: 1
+    actionOnly: 1
+    onStart:
+    - rid: 8292696248369283086
+    - rid: 8292696248369283087
+    onComplete: []
+    branches: []
+    defaultNextStageId: 
+    failRules: []
+    endType: 1
+    ledgerEntryId: ledger.c1
+    saveLock: 0
+    markerIds: []
+    searchRadius: 50
+  - id: s30_puppe
+    journalText: "Die Trainingspuppe hat drei Treffer eingesteckt \u2013 deine Technik sitzt."
+    explorationHint: 
+    objectives: []
+    completionMode: 0
+    requiredCount: 1
+    actionOnly: 1
+    onStart:
+    - rid: 8292696248369283088
+    - rid: 8292696248369283089
+    onComplete: []
+    branches: []
+    defaultNextStageId: 
+    failRules: []
+    endType: 1
+    ledgerEntryId: ledger.c2
+    saveLock: 0
+    markerIds: []
+    searchRadius: 50
+  rewards:
+  - rid: 8292696248369283090
+  - rid: 8292696248369283091
+  followUps: []
+  repeatMode: 0
+  cooldownHours: 0
+  canFail: 0
+  failRules: []
+  deadlineHours: 0
+  chainId: 
+  chainPosition: 0
+  ledger:
+  - id: ledger.c1
+    text: "Du hast dich f\xFCr die Truhe entschieden und 25 Gold extra bekommen."
+    isConsequence: 0
+    visibleCondition:
+      rid: 8292696248369283092
+  - id: ledger.c2
+    text: "Du hast an der Trainingspuppe ge\xFCbt und 60 Erfahrung extra bekommen."
+    isConsequence: 0
+    visibleCondition:
+      rid: 8292696248369283093
+  companionReactions: []
+  pacingMinute: 0
+  scopeTier: 0
+  author: claude
+  wordBudget: 120
+  notes: "Test-Quest des Testgel\xE4ndes mit Verzweigung (Anleitung 09)."
+  references:
+    version: 2
+    RefIds:
+    - rid: -2
+      type: {class: , ns: , asm: }
+    - rid: 8292696248369283081
+      type: {class: FlagIs, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
+      data:
+        flagId: flag.test.wolfsjagd_erledigt
+        comparison: 0
+        value: 1
+    - rid: 8292696248369283082
+      type: {class: GoToObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
+      data:
+        id: o1
+        optional: 0
+        journalText: "Zum \xDCbungsplatz gehen"
+        visibleCondition:
+          rid: -2
+        markerIds: []
+        onCompleted: []
+        locationId: loc.test.uebungsplatz
+        radius: 6
+    - rid: 8292696248369283083
+      type: {class: InteractObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
+      data:
+        id: o1
+        optional: 0
+        journalText: "Eine Truhe \xF6ffnen"
+        visibleCondition:
+          rid: -2
+        markerIds: []
+        onCompleted: []
+        objectIds:
+        - obj.test.truhe_*
+        count: 1
+        verb: open
+    - rid: 8292696248369283084
+      type: {class: HitTargetObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
+      data:
+        id: o2
+        optional: 0
+        journalText: Trainingspuppe treffen
+        visibleCondition:
+          rid: -2
+        markerIds: []
+        onCompleted: []
+        targetIds:
+        - trainingspuppe
+        count: 3
+        attackerId: player
+    - rid: 8292696248369283085
+      type: {class: QuestObjectiveDone, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
+      data:
+        questId: 
+        stageId: 
+        objectiveId: o1
+    - rid: 8292696248369283086
+      type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
+      data:
+        flagId: flag.test.bewaehrung_weg
+        value: 1
+    - rid: 8292696248369283087
+      type: {class: GiveCurrency, ns: Aetherfall.Inventory, asm: Aetherfall.Inventory}
+      data:
+        currencyId: currency.gold
+        amount: 25
+    - rid: 8292696248369283088
+      type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
+      data:
+        flagId: flag.test.bewaehrung_weg
+        value: 2
+    - rid: 8292696248369283089
+      type: {class: GiveXp, ns: Aetherfall.Progression, asm: Aetherfall.Progression}
+      data:
+        mode: 0
+        amount: 60
+        levelShare: 0.5
+        referenceLevel: 0
+    - rid: 8292696248369283090
+      type: {class: GiveXp, ns: Aetherfall.Progression, asm: Aetherfall.Progression}
+      data:
+        mode: 1
+        amount: 0
+        levelShare: 0.5
+        referenceLevel: 10
+    - rid: 8292696248369283091
+      type: {class: GiveCurrency, ns: Aetherfall.Inventory, asm: Aetherfall.Inventory}
+      data:
+        currencyId: currency.gold
+        amount: 20
+    - rid: 8292696248369283092
+      type: {class: FlagIs, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
+      data:
+        flagId: flag.test.bewaehrung_weg
+        comparison: 0
+        value: 1
+    - rid: 8292696248369283093
+      type: {class: FlagIs, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
+      data:
+        flagId: flag.test.bewaehrung_weg
+        comparison: 0
+        value: 2
