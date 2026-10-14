@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Post-processing of the Eichental preview renders (needs Pillow; the video also needs ffmpeg with libx264).
 
-- Stills get the bar "Vorschau – Blender-Nachbau aus den Layout-Daten (kein Unity-Screenshot)"; the overview gets small
-  name tags of the main places (screen positions from eichental_uebersicht_daten.json, written by eichental_preview.py).
+- Stills (and the close-ups of the job "nah", if rendered) get the bar "Vorschau – Blender-Nachbau aus den Layout-Daten (kein
+  Unity-Screenshot)"; the overview gets small name tags of the main places (screen positions from eichental_uebersicht_daten.json,
+  written by eichental_preview.py).
 - The map gets the location zones (AreaTrigger) with names, NPC markers, enemy groups, chests, quest objects, trails, the player
   start, the playable bounds, a legend, a scale bar and a north arrow (positions from eichental_karte_daten.json). A check warns
   when a name sign covers another sign or a zone it does not belong to.
@@ -49,6 +50,9 @@ MAP_LABEL_OFFSETS = {
 }
 
 TRAIL_COLOR = (186, 120, 255)
+
+# Close-ups of eichental_preview.py (job "nah", list CLOSEUPS there).
+CLOSEUP_NAMES = ["eichental_nah_gruft", "eichental_nah_wolfsbau", "eichental_nah_steinbruecke", "eichental_nah_steinbruecke_oben"]
 
 # Quest short names for the map labels.
 QUEST_SHORT = {
@@ -429,6 +433,10 @@ def main():
     make_overview(args.dir)
     make_still(args.dir, "eichental_dorf")
     make_map(args.dir)
+    # Close-ups (job "nah") only if they were rendered.
+    for name in CLOSEUP_NAMES:
+        if os.path.exists(os.path.join(args.dir, name + "_roh.png")):
+            make_still(args.dir, name)
     if args.video:
         return make_video(args.dir, args.render_fps)
     return 0

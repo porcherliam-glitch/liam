@@ -12,8 +12,10 @@ Coordinates: the layout uses Unity numbers (x east, y up, z north). Blender uses
 
 Usage (Blender 4.x, from the repo root):
     blender -b -P Tools/Preview/eichental_preview.py -- --job alle_bilder --out OUTPUT_DIR [--samples 96] [--test]
+    blender -b -P Tools/Preview/eichental_preview.py -- --job nah --out OUTPUT_DIR [--samples 96]
     blender -b -P Tools/Preview/eichental_preview.py -- --job rundflug --out OUTPUT_DIR --samples 2 --fps 12 --fast
-Jobs: uebersicht, dorf, karte (stills), alle_bilder (all three), rundflug (PNG frames for the flight video).
+Jobs: uebersicht, dorf, karte (stills), alle_bilder (all three), nah (four close-ups: rocks at the crypt entrance and the wolf
+den, stone bridge), rundflug (PNG frames for the flight video).
 Then: python3 -I Tools/Preview/eichental_nachbearbeiten.py --dir OUTPUT_DIR [--video --render-fps 12]
 The flight renders 180 frames in about 8 minutes on 4 CPU cores; ffmpeg interpolates them to 30 fps.
 """
@@ -1472,6 +1474,26 @@ def job_dorf(b, args):
     render_still(b, os.path.join(args.out, "eichental_dorf_roh.png"))
 
 
+# Close-ups of places the overview and the map do not show well: the rocks around the crypt entrance and the wolf den (do they
+# sit on the ground?) and the stone bridge from the side and from above (is the roadway free?). Each entry: file name, camera
+# (x, z, height above ground) and target (x, z, height above ground).
+CLOSEUPS = [
+    ("eichental_nah_gruft", (2.0, 126.0, 5.0), (3.0, 162.0, 8.0)),
+    ("eichental_nah_wolfsbau", (-104.0, 168.0, 4.0), (-82.0, 193.0, 5.0)),
+    ("eichental_nah_steinbruecke", (-163.0, 49.0, 1.2), (-152.0, 56.0, -0.8)),
+    ("eichental_nah_steinbruecke_oben", (-160.0, 44.0, 7.0), (-152.0, 56.0, 0.0)),
+]
+
+
+def job_nah(b, args):
+    setup_world(b, fog=False)
+    setup_compositor(b, fog=False)
+    setup_render(b.scene, (1280, 720) if not args.test else (640, 360), max(16, args.samples // 2))
+    for name, (cx, cz, ch), (tx, tz, th) in CLOSEUPS:
+        camera(b, name, bv(cx, cz, h_at(b, cx, cz) + ch), bv(tx, tz, h_at(b, tx, tz) + th), lens=28.0)
+        render_still(b, os.path.join(args.out, name + "_roh.png"))
+
+
 def job_karte(b, args):
     setup_world(b, fog=False)
     setup_compositor(b, fog=False)
@@ -1588,7 +1610,7 @@ def job_rundflug(b, args):
 def main():
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     parser = argparse.ArgumentParser()
-    parser.add_argument("--job", required=True, choices=["uebersicht", "dorf", "karte", "alle_bilder", "rundflug"])
+    parser.add_argument("--job", required=True, choices=["uebersicht", "dorf", "karte", "alle_bilder", "nah", "rundflug"])
     parser.add_argument("--out", required=True)
     parser.add_argument("--samples", type=int, default=96)
     parser.add_argument("--fps", type=int, default=30)

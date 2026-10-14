@@ -108,18 +108,19 @@ Das Dorf Eichental (Mini-Slice, [Anleitung 11](../../docs/Anleitungen/11_Test_Ei
 |---|---|
 | `eichental_layout.py` | Python-Zwilling der C#-Logik in `Assets/_Project/Scripts/World/Layout/`: Höhen (`LayoutHeightField`), Bodenarten (`LayoutGroundMap`), Pflanzen-Verteilung (`VegetationScatter`, gleicher PCG32-Zufall), Gegnerpositionen und Riss-Kristalle (`LayoutPlacement`), Felsen und Findlinge (`BlobGeometry`, `RockGeometry`: dieselben Eckpunkte wie in Unity) und der Bogen der Steinbrücke (`BridgeGeometry`). |
 | `eichental_referenz.py` | Schreibt Vergleichswerte des Python-Zwillings nach `Assets/_Project/Tests/EditModeWorld/EichentalPreviewReference.cs`. Die EditMode-Tests prüfen damit, dass C# und Python gleich rechnen. **Nach jeder Änderung der Layout-Datei ausführen.** |
-| `eichental_preview.py` | Baut das Eichental in Blender nach (Gelände mit Bodenfarben, Bäche, Häuser mit Dächern, verbrannte und eingestürzte Häuser mit Glut und Rauch, Pflanzen, Felsen, Requisiten, Riss, Wölfe, Truhen, NPC-Platzhalter, Spielfigur) und rendert. Jobs: `uebersicht`, `dorf`, `karte`, `alle_bilder`, `rundflug`. |
+| `eichental_preview.py` | Baut das Eichental in Blender nach (Gelände mit Bodenfarben, Bäche, Häuser mit Dächern, verbrannte und eingestürzte Häuser mit Glut und Rauch, Pflanzen, Felsen, Requisiten, Riss, Wölfe, Truhen, NPC-Platzhalter, Spielfigur) und rendert. Jobs: `uebersicht`, `dorf`, `karte`, `alle_bilder`, `nah` (Nahaufnahmen: Felsen am Gruft-Eingang und am Wolfsbau, Steinbrücke von der Seite und von oben), `rundflug`. |
 | `eichental_nachbearbeiten.py` | Hinweis-Balken, Ortsnamen in der Übersicht, Beschriftung, Spuren, Legende, Maßstab und Nordpfeil der Karte; prüft, dass kein Ortsschild ein anderes Schild oder eine fremde Zone verdeckt („WARNUNG Karte: …“); setzt das Video zusammen (Zwischenbilder auf 30 fps, leichtes Entrauschen, H.264). |
 
 ```bash
 blender -b -P Tools/Preview/eichental_preview.py -- --job alle_bilder --samples 96 --out AUSGABE
+blender -b -P Tools/Preview/eichental_preview.py -- --job nah --samples 96 --out AUSGABE
 python3 -I Tools/Preview/eichental_nachbearbeiten.py --dir AUSGABE
 blender -b -P Tools/Preview/eichental_preview.py -- --job rundflug --samples 2 --fps 12 --fast --out AUSGABE
 python3 -I Tools/Preview/eichental_nachbearbeiten.py --dir AUSGABE --video --render-fps 12
 python3 -I Tools/Preview/eichental_referenz.py
 ```
 
-Ergebnis: `eichental_uebersicht.png`, `eichental_dorf.png`, `eichental_karte.png` (1920 × 1080 bzw. 2300 × 1600) und `eichental_rundflug.mp4` (15 s, 1280 × 720). Weitere Schalter: `--test` (halbe Größe), `--first-frame`/`--last-frame` (Teil des Videos), `--overwrite`. Höhen, Bodenarten und Pflanzen werden beim ersten Lauf berechnet und als `eichental_cache_*.pickle` im Ausgabeordner zwischengespeichert (neu, sobald sich die Layout-Datei ändert).
+Ergebnis: `eichental_uebersicht.png`, `eichental_dorf.png`, `eichental_karte.png` (1920 × 1080 bzw. 2300 × 1600), vier Nahaufnahmen `eichental_nah_*.png` (1280 × 720) und `eichental_rundflug.mp4` (15 s, 1280 × 720). Die Nahaufnahmen gibt es seit der Prüfung vom 2026-10-14: Übersicht und Karte hatten schwebende Felsen und den Brückenbogen auf der Fahrbahn nicht gezeigt. Weitere Schalter: `--test` (halbe Größe), `--first-frame`/`--last-frame` (Teil des Videos), `--overwrite`. Höhen, Bodenarten und Pflanzen werden beim ersten Lauf berechnet und als `eichental_cache_*.pickle` im Ausgabeordner zwischengespeichert (neu, sobald sich die Layout-Datei ändert).
 
 Rechenzeit auf 4 CPU-Kernen ohne Grafikkarte (gemessen am 2026-10-14): drei Einzelbilder mit Cycles und 96 Samples zusammen 11–12 Minuten; Rundflug knapp 8 Minuten (180 Bilder, je etwa 2,6 s) plus etwa 4 Minuten für das Zusammensetzen. Für den Rundflug ist Cycles im Modus `--fast` vereinfacht: Umgebungslicht als Eigenleuchten statt indirektem Licht, 2 Samples, 12 Bilder pro Sekunde, die Zwischenbilder für 30 fps rechnet ffmpeg (`minterpolate`). EEVEE läuft in dieser Umgebung nicht.
 

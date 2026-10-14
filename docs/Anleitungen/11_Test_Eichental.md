@@ -158,7 +158,7 @@ Der Startpunkt liegt bei **x 80, z −40** (Koordinaten in Metern; x = Osten, z 
 | **Rabenfels** und **Gruft-Eingang** | 230 m nach Norden | Senke mit dem steinernen Eingang der Gruft (noch verschlossen, Schild „Eingang folgt später“), Aufstieg zur Spitze mit Steinmann, Aussicht über das ganze Tal, versteckte Truhe |
 | **Talrand** | überall außen | Hügel und dichter Wald; an den Enden der Reichsstraße liegen umgestürzte Bäume bzw. eine Wagenburg. Weiter als etwa 15 m hinter den begehbaren Bereich kommst du nicht (unsichtbare Wand). |
 
-In der Vorschau-Karte `eichental_karte.png` (von Claude mitgeschickt) sind alle Orte, Zonen, Gegner, Truhen, NPC-Platzhalter und die beiden Spuren (lila gestrichelt) eingezeichnet.
+In der Vorschau-Karte `eichental_karte.png` (von Claude mitgeschickt) sind alle Orte, Zonen, Gegner, Truhen, NPC-Platzhalter und die beiden Spuren (lila gestrichelt) eingezeichnet. Die Nahaufnahmen `eichental_nah_gruft.png`, `eichental_nah_wolfsbau.png` und `eichental_nah_steinbruecke*.png` zeigen, wie die Felsen am Gruft-Eingang und am Wolfsbau auf dem Boden sitzen und dass die Steinbrücke oben frei ist. So sollte es in Unity auch aussehen.
 
 **NPC-Platzhalter:** An den Stellen, an denen später Figuren stehen, stehen **orange Kapseln mit Namensschild** (z. B. „Hedda Eichholz (Prolog, Stufe s20)“, „Ulf Krugmann“). Sie können noch nicht sprechen. Figuren, die im Prolog den Platz wechseln, stehen vorerst **an allen Stellen**; das Schild sagt, in welcher Phase und Quest-Stufe (GDD 02, 11.1) sie dort hingehören: Hedda auf dem Dorfplatz (s20) und am Dorfrand (s25), Tobold unter dem Balken (s25) und gerettet am Dorfrand (s30), Wenna im brennenden Haus (s25) und gerettet am Dorfrand (s30), alle drei nach dem Prolog in Lindenhain. **Wenna im Haus** ist absichtlich im Gebäude: Ihre Kapsel steckt in der Bäckerei, ihr Schild schwebt über dem Dach.
 
@@ -192,8 +192,8 @@ Bitte abhaken, was stimmt. Was nicht stimmt, bitte mit kurzer Beschreibung (oder
 - [ ] Die Bäche haben dunkles Wasser, das ungefähr in Höhe der Ufer liegt (nicht schwebend, nicht tief unter dem Boden).
 - [ ] Verbrannte Häuser sind dunkel und haben Löcher im Dach, eingestürzte zeigen nur Mauerreste und Balken; heile Häuser (Lindenhain, Hof, Mühle) haben ganze Dächer.
 - [ ] Glut leuchtet rot an einigen Ruinen, darüber steigt Rauch auf. In der Hierarchy liegen Glut, Glutlicht und Rauch aller Häuser unter **Siedlungen > Brand (Prolog)**.
-- [ ] Die Felsen am Rabenfels und am Wolfskopf stehen **auf dem Boden** (keine Lücke darunter), Gruft-Eingang und Wolfsbau sind von Fels eingerahmt. Auch die kleinen Findlinge am Nordhang sitzen halb im Boden.
-- [ ] Auf der **Steinbrücke** steht nichts im Weg: Der Steinbogen liegt unter der Fahrbahn.
+- [ ] Die Felsen am Rabenfels und am Wolfskopf stehen **auf dem Boden** (keine Lücke darunter), Gruft-Eingang und Wolfsbau sind von Fels eingerahmt (vergleiche mit `eichental_nah_gruft.png` und `eichental_nah_wolfsbau.png`). Auch die kleinen Findlinge am Nordhang sitzen halb im Boden.
+- [ ] Auf der **Steinbrücke** steht nichts im Weg: Der Steinbogen liegt unter der Fahrbahn (vergleiche mit `eichental_nah_steinbruecke_oben.png`).
 - [ ] Gelb leuchtende **Spurzeichen** am Boden: vom Dorfrand zum Riss und von der Hollmann-Weide zum Wolfsbau.
 - [ ] Der Riss leuchtet türkis und färbt die Umgebung leicht ein.
 - [ ] Dächer sind von außen und von innen zu sehen (keine „unsichtbaren“ Dachflächen von außen).
@@ -311,6 +311,7 @@ Blender-Vorschau aus derselben Layout-Datei (Linux/macOS, vom Repo-Ordner; Ausga
 
 ```bash
 blender -b -P Tools/Preview/eichental_preview.py -- --job alle_bilder --samples 96 --out AUSGABE
+blender -b -P Tools/Preview/eichental_preview.py -- --job nah --samples 96 --out AUSGABE
 python3 -I Tools/Preview/eichental_nachbearbeiten.py --dir AUSGABE
 blender -b -P Tools/Preview/eichental_preview.py -- --job rundflug --samples 2 --fps 12 --fast --out AUSGABE
 python3 -I Tools/Preview/eichental_nachbearbeiten.py --dir AUSGABE --video --render-fps 12
