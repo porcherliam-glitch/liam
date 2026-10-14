@@ -72,6 +72,8 @@ Laufende Liste „Erledigt / In Arbeit / Als Nächstes“ nach §32.14. Ab dem A
 
 ## Als Nächstes
 
+**Arbeitsvorrat:** Die vollständige Liste aller Aufgaben bis zum fertigen Spiel steht in [Aufgabenliste.md](./Aufgabenliste.md) und wird von oben nach unten abgearbeitet (erledigte Punkte mit Datum und Commit).
+
 Stand 2026-10-14. Ab jetzt arbeitet Claude auf dem Windows-PC des Auftraggebers mit Unity 6.6 und Blender (siehe [CLAUDE.md](../CLAUDE.md)). Die frühere Liste (Fragen beantworten, Projekt-Setup, Phase 1) ist erledigt: Der Code dafür steht oben unter „In Arbeit“ und wartet nur noch auf den Test in Unity.
 
 **1. Mini-Slice fertigstellen (Stufe A0, 30–60 Minuten spielbar)**
