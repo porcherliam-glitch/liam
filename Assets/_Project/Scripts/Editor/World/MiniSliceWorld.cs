@@ -61,10 +61,7 @@ namespace Aetherfall.EditorTools.World
                     return new ObjectSetup(QuestObjectAction.Inspect, "Pfotenabdrücke untersuchen", false, InStage(Q.Wolves, "s10", "s20"));
                 case "clue.eichental.weide_aetherspeichel":
                     return new ObjectSetup(QuestObjectAction.Inspect, "Leuchtenden Speichel untersuchen", false, InStage(Q.Wolves, "s10", "s20"));
-                case "obj.eichental.strohziel_1":
-                case "obj.eichental.strohziel_2":
-                case "obj.eichental.strohziel_3":
-                    return new ObjectSetup(QuestObjectAction.Use, "Strohziel prüfen", false, InStage(Q.Wolves, "s10", "s20"));
+                // The straw targets are shot with Hollmann's bow (ArrowTarget, GDD 02 11.2 s10 o2), not used.
                 case "obj.eichental.leiche_postreiter":
                     return new ObjectSetup(QuestObjectAction.Use, "Den Toten untersuchen", false, InStage(Q.Wolves, "s20", "s30"));
                 case SplinterId:

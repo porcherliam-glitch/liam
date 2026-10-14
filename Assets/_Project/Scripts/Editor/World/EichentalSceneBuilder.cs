@@ -106,7 +106,7 @@ namespace Aetherfall.EditorTools.World
             Combatant playerCombatant = TestGroundCombatBuilder.SetUpPlayer(player, mainCamera, testMaterials, combat, layers.Hurtbox, env, report,
                 playerLevel, Narrative.MiniSliceQuestLibrary.FlagAetherPower);
             TestGroundFields.SetInt(player.GetComponent<PlayerLockOn>(), "sightBlockers", solidMask, report);
-            TestGroundFields.SetInt(player.GetComponent<ProjectileLauncher>(), "solidLayers", solidMask, report);
+            TestGroundCombatBuilder.SetProjectileSolids(player, solidMask, layers.Hurtbox, report);
             PlayerClassBuilder.AddTo(player, report);
             TestGroundCombatBuilder.SetUpCameras(player, pivot, exploreCamera, exploreOrbital, solidMask, report);
             TestGroundFields.SetReference(look, "lockOn", player.GetComponent<PlayerLockOn>(), report);
@@ -130,7 +130,7 @@ namespace Aetherfall.EditorTools.World
             // GDD 01 10.6: Ser Maren waits at the guard post of Lindenhain, next to Hauptmann Dorn.
             CompanionBuilder.BuildMaren(Group(game.transform, "Begleiter"), new Vector3(MarenPostX, (float)heights.Height(MarenPostX, MarenPostZ), MarenPostZ),
                 MarenPostYaw, true, player, materials, layers.Enemy, layers.Hurtbox, layers.Interactable, solidMask, labelFont, report);
-            gameplay.BuildQuestObjects(Group(game.transform, "Quest-Objekte"), env, layers.Interactable, layers.TriggerVolume, layers.Player);
+            gameplay.BuildQuestObjects(Group(game.transform, "Quest-Objekte"), env, layers.Interactable, layers.TriggerVolume, layers.Player, layers.Hurtbox);
             gameplay.BuildTrails(Group(game.transform, "Spuren"), layers.TriggerVolume, layers.Player);
             EichentalDungeonLinks.Build(layout, heights, spawnPoint.transform, layers.Interactable, Group(game.transform, "Durchgänge"), report);
             TestGroundUiBuilder.AddPlayerHudLink(player, mainCamera, report);

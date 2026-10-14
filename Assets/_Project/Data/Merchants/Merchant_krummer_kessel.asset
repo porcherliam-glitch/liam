@@ -25,6 +25,8 @@ MonoBehaviour:
     count: 10
   - itemId: item.potion.manatrank_schwach
     count: 8
+  - itemId: item.ammo.pfeil_holz
+    count: 40
   - itemId: item.armor.stoffrobe
     count: 1
   - itemId: item.armor.lederkappe

@@ -76,6 +76,11 @@ namespace Aetherfall.UI.Screens
         private readonly VisualElement[] _quickSlotElements = new VisualElement[4];
         private readonly Label[] _quickNames = new Label[4];
         private readonly Label[] _quickCounts = new Label[4];
+        private readonly VisualElement _crosshair;
+        private readonly VisualElement _crosshairDraw;
+        private readonly Label _arrows;
+        private int _shownArrows = -1;
+        private int _shownDrawSize = -1;
         private IPlayerHudSource _source;
         private QuestTrackerView _questTracker;
         private XpBarView _xpBar;
@@ -141,9 +146,14 @@ namespace Aetherfall.UI.Screens
                 _quickCounts[i] = root.Q<Label>(prefix + "-count");
             }
 
+            _crosshair = root.Q<VisualElement>("hud-crosshair");
+            _crosshairDraw = root.Q<VisualElement>("hud-crosshair-draw");
+            _arrows = root.Q<Label>("hud-arrows");
             UiElementUtility.SetDisplayed(_exhausted, false);
             UiElementUtility.SetDisplayed(_targetPanel, false);
             UiElementUtility.SetDisplayed(_prompt, false);
+            UiElementUtility.SetDisplayed(_crosshair, false);
+            UiElementUtility.SetDisplayed(_arrows, false);
             RefreshGlyphs();
         }
 
@@ -230,6 +240,8 @@ namespace Aetherfall.UI.Screens
                 SetPlayerElementsVisible(false);
                 UiElementUtility.SetDisplayed(_targetPanel, false);
                 UiElementUtility.SetDisplayed(_prompt, false);
+                UiElementUtility.SetDisplayed(_crosshair, false);
+                UiElementUtility.SetDisplayed(_arrows, false);
                 UpdateCompass(0f);
                 TickProgressViews(deltaTime, false, false);
                 return;
@@ -279,8 +291,45 @@ namespace Aetherfall.UI.Screens
             UpdatePrompt(source.InteractionPrompt);
             UpdateCompass(source.CameraYaw);
             UpdateAbilities(source);
+            UpdateRanged(source);
             UpdateQuickSlots();
             TickProgressViews(deltaTime, _rules.ShowQuests, _rules.ShowXp);
+        }
+
+        private void UpdateRanged(IPlayerHudSource source)
+        {
+            bool stance = source.TryGetRanged(out HudRangedInfo ranged);
+            UiElementUtility.SetDisplayed(_crosshair, stance && ranged.Aiming);
+            UiElementUtility.SetDisplayed(_arrows, stance);
+            if (!stance)
+            {
+                return;
+            }
+
+            if (ranged.Arrows != _shownArrows)
+            {
+                _shownArrows = ranged.Arrows;
+                UiElementUtility.SetText(_arrows, UiTexts.Format("fmt-hud-arrows", ranged.Arrows));
+                _arrows.EnableInClassList("is-empty", ranged.Arrows == 0);
+            }
+
+            if (_crosshairDraw == null || !ranged.Aiming)
+            {
+                return;
+            }
+
+            // The frame closes in from 44 px to 16 px while the string is drawn (whole pixels: the style changes rarely).
+            int size = (int)Math.Round(44f - 28f * ranged.Draw01);
+            if (size != _shownDrawSize)
+            {
+                _shownDrawSize = size;
+                float offset = (44f - size) * 0.5f;
+                _crosshairDraw.style.left = offset;
+                _crosshairDraw.style.top = offset;
+                _crosshairDraw.style.width = size;
+                _crosshairDraw.style.height = size;
+                _crosshair.EnableInClassList("is-full", ranged.Draw01 >= 1f);
+            }
         }
 
         private void UpdateAbilities(IPlayerHudSource source)

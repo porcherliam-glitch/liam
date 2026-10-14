@@ -1,4 +1,5 @@
 using Aetherfall.Combat;
+using Aetherfall.Items;
 using UnityEngine;
 
 namespace Aetherfall.Player
@@ -29,6 +30,9 @@ namespace Aetherfall.Player
         [Tooltip("Renderer des Schilds: leuchtet golden, solange das Parierfenster offen ist.")]
         [SerializeField] private HitFlash shieldFlash = null;
 
+        [Tooltip("Bogen (Fernkampf-Haltung: Bogenarm vorn, Sehnenhand an der Wange). Leer = PlayerBow am selben GameObject.")]
+        [SerializeField] private PlayerBow bow = null;
+
         [Tooltip("Wie schnell die Pose der Ziel-Pose folgt (größer = härter).")]
         [Range(5f, 60f)] [SerializeField] private float followSharpness = 25f;
 
@@ -43,6 +47,11 @@ namespace Aetherfall.Player
             if (combat == null)
             {
                 TryGetComponent(out combat);
+            }
+
+            if (bow == null)
+            {
+                TryGetComponent(out bow);
             }
 
             if (weaponPivot != null)
@@ -72,9 +81,14 @@ namespace Aetherfall.Player
 
             switch (machine.State)
             {
+                case CombatStateId.Idle when bow != null && bow.InStance:
+                    PoseBow(ref weaponEuler, ref weaponOffset, ref shieldEuler, ref shieldOffset);
+                    sharpness = 30f;
+                    break;
                 case CombatStateId.Attacking:
                 case CombatStateId.Finisher:
-                    PoseAttack(machine, ref weaponEuler, ref weaponOffset, ref sharpness);
+                    // The third mace blow comes from above (GDD 03 5.3), the sword's fourth step is a thrust.
+                    PoseAttack(machine, combat.WeaponType == WeaponType.Mace, ref weaponEuler, ref weaponOffset, ref sharpness);
                     break;
                 case CombatStateId.Charging:
                     float tremble = machine.ChargeLevel * 2.5f * Mathf.Sin(Time.time * 60f);
@@ -118,7 +132,27 @@ namespace Aetherfall.Player
             }
         }
 
-        private static void PoseAttack(CombatStateMachine machine, ref Vector3 euler, ref Vector3 offset, ref float sharpness)
+        private void PoseBow(ref Vector3 weaponEuler, ref Vector3 weaponOffset, ref Vector3 shieldEuler, ref Vector3 shieldOffset)
+        {
+            // Bow hand (the shield pivot) in front of the chest, the string hand (the sword pivot in the shoulder) at the
+            // string; drawing pulls it back to the cheek. Both follow the pitch of the aim.
+            if (!bow.IsAiming && !bow.IsDrawing)
+            {
+                shieldEuler = new Vector3(20f, 0f, -30f);
+                shieldOffset = new Vector3(0.1f, -0.05f, 0.23f);
+                weaponEuler = new Vector3(60f, -20f, 0f);
+                return;
+            }
+
+            float pitch = Mathf.Clamp(bow.AimPitch, -45f, 45f);
+            float draw = bow.Draw01;
+            shieldEuler = new Vector3(pitch, 0f, -10f);
+            shieldOffset = new Vector3(0.3f, 0.3f, 0.43f);
+            weaponEuler = new Vector3(pitch, -25f - 10f * draw, 0f);
+            weaponOffset = new Vector3(0f, 0.1f * draw, -0.45f * draw);
+        }
+
+        private static void PoseAttack(CombatStateMachine machine, bool overheadFinisher, ref Vector3 euler, ref Vector3 offset, ref float sharpness)
         {
             AttackSpec attack = machine.CurrentAttack;
             if (attack == null)
@@ -134,6 +168,10 @@ namespace Aetherfall.Player
             Vector3 thrust = Vector3.zero;
             switch (attack.Kind)
             {
+                case AttackKind.ComboFinisher when overheadFinisher:
+                    from = new Vector3(-120f, 0f, 0f);
+                    to = new Vector3(60f, 0f, 0f);
+                    break;
                 case AttackKind.Light:
                     // Alternate sides per combo step: right to left, left to right, diagonal.
                     int step = machine.ComboStep;

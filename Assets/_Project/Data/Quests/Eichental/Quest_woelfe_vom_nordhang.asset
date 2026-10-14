@@ -27,20 +27,22 @@ MonoBehaviour:
   startTriggerKind: 1
   startTriggerId: dlg.eichental.hollmann
   startCondition:
-    rid: 8292696249821823133
+    rid: 8292696254713430258
   startStageId: 
   startBranches: []
   stages:
   - id: s10
-    journalText: Auf der oberen Weide liegen gerissene Schafe. Sieh dir die Spuren genau an.
-    explorationHint: "Die obere Weide liegt n\xF6rdlich vom Hollmann-Hof."
+    journalText: Auf der oberen Weide liegen gerissene Schafe. Hollmann hat dir seinen alten Jagdbogen geliehen.
+    explorationHint: "Die obere Weide liegt n\xF6rdlich vom Hollmann-Hof. Bogen: F, zielen mit der rechten, spannen mit der linken Maustaste."
     objectives:
-    - rid: 8292696249821823134
-    - rid: 8292696249821823135
+    - rid: 8292696254713430259
+    - rid: 8292696254713430260
     completionMode: 0
     requiredCount: 1
     actionOnly: 0
-    onStart: []
+    onStart:
+    - rid: 8292696254713430263
+    - rid: 8292696254713430264
     onComplete: []
     branches: []
     defaultNextStageId: s20
@@ -54,13 +56,13 @@ MonoBehaviour:
     journalText: "Die Abdr\xFCcke sind zu gro\xDF f\xFCr W\xF6lfe, und der Speichel leuchtet. Die Spur f\xFChrt zum Nordhang."
     explorationHint: 
     objectives:
-    - rid: 8292696249821823137
-    - rid: 8292696249821823138
+    - rid: 8292696254713430265
+    - rid: 8292696254713430266
     completionMode: 0
     requiredCount: 1
     actionOnly: 0
     onStart:
-    - rid: 8292696249821823140
+    - rid: 8292696254713430268
     onComplete: []
     branches: []
     defaultNextStageId: s30
@@ -74,8 +76,8 @@ MonoBehaviour:
     journalText: "Am Nordhang leben W\xF6lfe, die von innen leuchten. Ihr Bau liegt unter dem Wolfskopf-Felsen."
     explorationHint: 
     objectives:
-    - rid: 8292696249821823141
-    - rid: 8292696249821823142
+    - rid: 8292696254713430269
+    - rid: 8292696254713430270
     completionMode: 0
     requiredCount: 1
     actionOnly: 0
@@ -93,23 +95,23 @@ MonoBehaviour:
     journalText: "Im Bau steckt ein Aether-Splitter im Fels. Der Leitwolf Glutfang ist mit ihm verwachsen. T\xF6te ihn, zerst\xF6re den Splitter oder brich ihn heraus."
     explorationHint: 
     objectives:
-    - rid: 8292696249821823143
-    - rid: 8292696249821823144
-    - rid: 8292696249821823145
-    - rid: 8292696249821823146
+    - rid: 8292696254713430271
+    - rid: 8292696254713430272
+    - rid: 8292696254713430273
+    - rid: 8292696254713430274
     completionMode: 1
     requiredCount: 1
     actionOnly: 0
     onStart:
-    - rid: 8292696249821823148
+    - rid: 8292696254713430276
     onComplete: []
     branches:
     - condition:
-        rid: 8292696249821823149
+        rid: 8292696254713430277
       targetStageId: s50_kampf
       label: "Glutfang get\xF6tet"
     - condition:
-        rid: 8292696249821823150
+        rid: 8292696254713430278
       targetStageId: s45_geborgen
       label: Splitter geborgen
     defaultNextStageId: s50_zerstoert
@@ -123,14 +125,14 @@ MonoBehaviour:
     journalText: "Du hast den Splitter. Das Rudel ist au\xDFer sich vor Wut."
     explorationHint: 
     objectives:
-    - rid: 8292696249821823151
-    - rid: 8292696249821823152
+    - rid: 8292696254713430279
+    - rid: 8292696254713430280
     completionMode: 0
     requiredCount: 1
     actionOnly: 0
     onStart:
-    - rid: 8292696249821823153
-    - rid: 8292696249821823154
+    - rid: 8292696254713430281
+    - rid: 8292696254713430282
     onComplete: []
     branches: []
     defaultNextStageId: s50_geborgen
@@ -144,15 +146,15 @@ MonoBehaviour:
     journalText: "Glutfang ist tot. Die \xFCbrigen W\xF6lfe fliehen in die Berge."
     explorationHint: Hollmann wartet auf seinem Hof.
     objectives:
-    - rid: 8292696249821823155
+    - rid: 8292696254713430283
     completionMode: 0
     requiredCount: 1
     actionOnly: 0
     onStart: []
     onComplete:
-    - rid: 8292696249821823156
-    - rid: 8292696249821823157
-    - rid: 8292696249821823158
+    - rid: 8292696254713430284
+    - rid: 8292696254713430285
+    - rid: 8292696254713430286
     branches: []
     defaultNextStageId: 
     failRules: []
@@ -165,16 +167,16 @@ MonoBehaviour:
     journalText: "Der Splitter ist zerbrochen. Das Leuchten erlischt. Die W\xF6lfe sind wieder nur W\xF6lfe und laufen davon."
     explorationHint: Hollmann wartet auf seinem Hof.
     objectives:
-    - rid: 8292696249821823159
+    - rid: 8292696254713430287
     completionMode: 0
     requiredCount: 1
     actionOnly: 0
     onStart: []
     onComplete:
-    - rid: 8292696249821823160
-    - rid: 8292696249821823161
-    - rid: 8292696249821823162
-    - rid: 8292696249821823163
+    - rid: 8292696254713430288
+    - rid: 8292696254713430289
+    - rid: 8292696254713430290
+    - rid: 8292696254713430291
     branches: []
     defaultNextStageId: 
     failRules: []
@@ -187,16 +189,16 @@ MonoBehaviour:
     journalText: "Der Splitter ist in deiner Tasche. Am Nordhang heulen die W\xF6lfe lauter als zuvor."
     explorationHint: Hollmann wartet auf seinem Hof.
     objectives:
-    - rid: 8292696249821823164
+    - rid: 8292696254713430292
     completionMode: 0
     requiredCount: 1
     actionOnly: 0
     onStart: []
     onComplete:
-    - rid: 8292696249821823165
-    - rid: 8292696249821823166
-    - rid: 8292696249821823167
-    - rid: 8292696249821823168
+    - rid: 8292696254713430293
+    - rid: 8292696254713430294
+    - rid: 8292696254713430295
+    - rid: 8292696254713430296
     branches: []
     defaultNextStageId: 
     failRules: []
@@ -206,7 +208,7 @@ MonoBehaviour:
     markerIds: []
     searchRadius: 50
   rewards:
-  - rid: 8292696249821823169
+  - rid: 8292696254713430297
   followUps: []
   repeatMode: 0
   cooldownHours: 0
@@ -236,18 +238,18 @@ MonoBehaviour:
   scopeTier: 0
   author: claude
   wordBudget: 20
-  notes: "Mini-Slice: ohne Bogen (Strohziele werden gepr\xFCft statt beschossen) und ohne Aether-Sto\xDF (Splitter zerschlagen)."
+  notes: "Mini-Slice: Strohziele mit Hollmanns Jagdbogen (30 Pfeile, +10 f\xFCr die Strohziele); ohne Aether-Sto\xDF (Splitter zerschlagen)."
   references:
     version: 2
     RefIds:
     - rid: -2
       type: {class: , ns: , asm: }
-    - rid: 8292696249821823133
+    - rid: 8292696254713430258
       type: {class: QuestStatusIs, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         questId: quest.main.asche_ueber_eichental
         status: 3
-    - rid: 8292696249821823134
+    - rid: 8292696254713430259
       type: {class: InspectCluesObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         id: o1
@@ -262,29 +264,45 @@ MonoBehaviour:
         - clue.eichental.weide_pfoten
         - clue.eichental.weide_aetherspeichel
         count: 3
-    - rid: 8292696249821823135
+    - rid: 8292696254713430260
       type: {class: InteractObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         id: o2
         optional: 1
-        journalText: "Pr\xFCfe die Strohziele hinter der Scheune"
+        journalText: Triff die Strohziele hinter der Scheune
         visibleCondition:
           rid: -2
         markerIds: []
         onCompleted:
-        - rid: 8292696249821823136
+        - rid: 8292696254713430261
+        - rid: 8292696254713430262
         objectIds:
         - obj.eichental.strohziel_*
         count: 3
-        verb: use
-    - rid: 8292696249821823136
+        verb: hit
+    - rid: 8292696254713430261
+      type: {class: GiveItem, ns: Aetherfall.Inventory, asm: Aetherfall.Inventory}
+      data:
+        itemId: item.ammo.pfeil_holz
+        amount: 10
+    - rid: 8292696254713430262
       type: {class: GiveXp, ns: Aetherfall.Progression, asm: Aetherfall.Progression}
       data:
         mode: 0
         amount: 30
         levelShare: 0.5
         referenceLevel: 0
-    - rid: 8292696249821823137
+    - rid: 8292696254713430263
+      type: {class: GiveItem, ns: Aetherfall.Inventory, asm: Aetherfall.Inventory}
+      data:
+        itemId: item.weapon.hollmanns_jagdbogen
+        amount: 1
+    - rid: 8292696254713430264
+      type: {class: GiveItem, ns: Aetherfall.Inventory, asm: Aetherfall.Inventory}
+      data:
+        itemId: item.ammo.pfeil_holz
+        amount: 30
+    - rid: 8292696254713430265
       type: {class: FollowTrailObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         id: o1
@@ -296,7 +314,7 @@ MonoBehaviour:
         onCompleted: []
         trailId: spur.eichental.wolfsspur
         nodeCount: 6
-    - rid: 8292696249821823138
+    - rid: 8292696254713430266
       type: {class: InteractObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         id: o2
@@ -306,21 +324,21 @@ MonoBehaviour:
           rid: -2
         markerIds: []
         onCompleted:
-        - rid: 8292696249821823139
+        - rid: 8292696254713430267
         objectIds:
         - obj.eichental.leiche_postreiter
         count: 1
         verb: use
-    - rid: 8292696249821823139
+    - rid: 8292696254713430267
       type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: flag.eichental.postreiter_gefunden
         value: 1
-    - rid: 8292696249821823140
+    - rid: 8292696254713430268
       type: {class: SpawnEncounter, ns: Aetherfall.World, asm: Aetherfall.World}
       data:
         spawnId: spawn.eichental.nordhang_rudel
-    - rid: 8292696249821823141
+    - rid: 8292696254713430269
       type: {class: GoToObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         id: o1
@@ -332,7 +350,7 @@ MonoBehaviour:
         onCompleted: []
         locationId: loc.eichental.wolfsbau_nordhang
         radius: 10
-    - rid: 8292696249821823142
+    - rid: 8292696254713430270
       type: {class: KillObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         id: o2
@@ -346,7 +364,7 @@ MonoBehaviour:
         variantId: aether_verderbt
         count: 3
         regionId: 
-    - rid: 8292696249821823143
+    - rid: 8292696254713430271
       type: {class: KillSpecificObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         id: o1
@@ -358,7 +376,7 @@ MonoBehaviour:
         onCompleted: []
         targetId: boss.eichental.glutfang
         allowDefeat: 0
-    - rid: 8292696249821823144
+    - rid: 8292696254713430272
       type: {class: InteractObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         id: o2
@@ -372,7 +390,7 @@ MonoBehaviour:
         - obj.eichental.aethersplitter_bau
         count: 1
         verb: use
-    - rid: 8292696249821823145
+    - rid: 8292696254713430273
       type: {class: InteractObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         id: o3
@@ -386,7 +404,7 @@ MonoBehaviour:
         - obj.eichental.aethersplitter_bau
         count: 1
         verb: pickup
-    - rid: 8292696249821823146
+    - rid: 8292696254713430274
       type: {class: InteractObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         id: o4
@@ -396,33 +414,33 @@ MonoBehaviour:
           rid: -2
         markerIds: []
         onCompleted:
-        - rid: 8292696249821823147
+        - rid: 8292696254713430275
         objectIds:
         - obj.eichental.wolfswelpe
         count: 1
         verb: pickup
-    - rid: 8292696249821823147
+    - rid: 8292696254713430275
       type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: flag.eichental.wolfswelpe_gerettet
         value: 1
-    - rid: 8292696249821823148
+    - rid: 8292696254713430276
       type: {class: SpawnEncounter, ns: Aetherfall.World, asm: Aetherfall.World}
       data:
         spawnId: spawn.eichental.glutfang
-    - rid: 8292696249821823149
+    - rid: 8292696254713430277
       type: {class: QuestObjectiveDone, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         questId: 
         stageId: 
         objectiveId: o1
-    - rid: 8292696249821823150
+    - rid: 8292696254713430278
       type: {class: QuestObjectiveDone, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         questId: 
         stageId: 
         objectiveId: o3
-    - rid: 8292696249821823151
+    - rid: 8292696254713430279
       type: {class: KillSpecificObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         id: o1
@@ -434,7 +452,7 @@ MonoBehaviour:
         onCompleted: []
         targetId: boss.eichental.glutfang
         allowDefeat: 0
-    - rid: 8292696249821823152
+    - rid: 8292696254713430280
       type: {class: KillObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         id: o2
@@ -448,16 +466,16 @@ MonoBehaviour:
         variantId: aether_verderbt
         count: 3
         regionId: 
-    - rid: 8292696249821823153
+    - rid: 8292696254713430281
       type: {class: GiveItem, ns: Aetherfall.Inventory, asm: Aetherfall.Inventory}
       data:
         itemId: item.quest.aethersplitter_nordhang
         amount: 1
-    - rid: 8292696249821823154
+    - rid: 8292696254713430282
       type: {class: SpawnEncounter, ns: Aetherfall.World, asm: Aetherfall.World}
       data:
         spawnId: spawn.eichental.bau_wut
-    - rid: 8292696249821823155
+    - rid: 8292696254713430283
       type: {class: TalkToObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         id: o1
@@ -469,22 +487,22 @@ MonoBehaviour:
         onCompleted: []
         npcId: npc.eichental.bauer_hollmann
         dialogueId: 
-    - rid: 8292696249821823156
+    - rid: 8292696254713430284
       type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: flag.eichental.woelfe_ausgang
         value: 1
-    - rid: 8292696249821823157
+    - rid: 8292696254713430285
       type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: flag.eichental.pim_fieber_bekannt
         value: 1
-    - rid: 8292696249821823158
+    - rid: 8292696254713430286
       type: {class: GiveCurrency, ns: Aetherfall.Inventory, asm: Aetherfall.Inventory}
       data:
         currencyId: currency.gold
         amount: 60
-    - rid: 8292696249821823159
+    - rid: 8292696254713430287
       type: {class: TalkToObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         id: o1
@@ -496,27 +514,27 @@ MonoBehaviour:
         onCompleted: []
         npcId: npc.eichental.bauer_hollmann
         dialogueId: 
-    - rid: 8292696249821823160
+    - rid: 8292696254713430288
       type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: flag.eichental.woelfe_ausgang
         value: 2
-    - rid: 8292696249821823161
+    - rid: 8292696254713430289
       type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: flag.eichental.pim_fieber_bekannt
         value: 1
-    - rid: 8292696249821823162
+    - rid: 8292696254713430290
       type: {class: ChangeRelationship, ns: Aetherfall.NPC, asm: Aetherfall.NPC}
       data:
         npcId: npc.eichental.bauer_hollmann
         delta: 10
-    - rid: 8292696249821823163
+    - rid: 8292696254713430291
       type: {class: GiveCurrency, ns: Aetherfall.Inventory, asm: Aetherfall.Inventory}
       data:
         currencyId: currency.gold
         amount: 60
-    - rid: 8292696249821823164
+    - rid: 8292696254713430292
       type: {class: TalkToObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         id: o1
@@ -528,27 +546,27 @@ MonoBehaviour:
         onCompleted: []
         npcId: npc.eichental.bauer_hollmann
         dialogueId: 
-    - rid: 8292696249821823165
+    - rid: 8292696254713430293
       type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: flag.eichental.woelfe_ausgang
         value: 3
-    - rid: 8292696249821823166
+    - rid: 8292696254713430294
       type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: flag.eichental.nordhang_aether_aktiv
         value: 1
-    - rid: 8292696249821823167
+    - rid: 8292696254713430295
       type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: flag.eichental.pim_fieber_bekannt
         value: 1
-    - rid: 8292696249821823168
+    - rid: 8292696254713430296
       type: {class: GiveCurrency, ns: Aetherfall.Inventory, asm: Aetherfall.Inventory}
       data:
         currencyId: currency.gold
         amount: 60
-    - rid: 8292696249821823169
+    - rid: 8292696254713430297
       type: {class: GiveXp, ns: Aetherfall.Progression, asm: Aetherfall.Progression}
       data:
         mode: 1

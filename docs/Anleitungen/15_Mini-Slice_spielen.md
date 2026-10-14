@@ -37,6 +37,9 @@ Tipp: Im Game-Fenster oben in der Leiste **Play Maximized** wählen, dann ist da
 | Blocken (kurz vor dem Treffer: Parieren) | **Q** (halten) |
 | Ausweichen | **Strg links** |
 | Gegner anvisieren / wechseln | **T** oder mittlere Maustaste / Mausrad |
+| Bogen ziehen / wegstecken (Fernkampf-Haltung) | **F** |
+| Mit Bogen: zielen (Fadenkreuz) / spannen und schießen | **rechte Maustaste** halten / **linke Maustaste** halten und loslassen |
+| Mit Bogen ohne Zielen: schneller Hüftschuss (halber Schaden) | **linke Maustaste** |
 | Aether-Stoß (ab dem Riss im Prolog): stößt alle Gegner vor dir 3 m zurück, 15 Mana, danach 8 s warten | **4** |
 | Heiltrank trinken: +35 % Leben, dauert knapp eine Sekunde, ein harter Treffer bricht ab (3 Stück zu Beginn) | **5** |
 | Manatrank trinken (Magier, 3 Stück zu Beginn): +40 % Mana | **6** |
@@ -46,21 +49,25 @@ Tipp: Im Game-Fenster oben in der Leiste **Play Maximized** wählen, dann ist da
 | Pause, Menü, Spiel speichern | **Esc** |
 | Im Gespräch: Antwort wählen | **1–9** oder Maus, weiter mit **E** oder **Leertaste** |
 
-Mit Gamepad geht es auch (Xbox-Belegung: A springen und benutzen, X/Y angreifen, B ausweichen, LB blocken, RB + A Aether-Stoß).
+Mit Gamepad geht es auch (Xbox-Belegung: A springen und benutzen, X/Y angreifen, B ausweichen, LB blocken, RB + A Aether-Stoß, mit Bogen LT zielen und RT schießen).
+
+**Bogen:** Je länger du die linke Maustaste hältst (bis knapp eine Sekunde), desto stärker und schneller fliegt der Pfeil; das Kästchen im Fadenkreuz wird dabei kleiner. Pfeile fallen auf weite Strecken etwas ab, also bei 40 m etwas höher zielen. Ein Kopftreffer macht 75 % mehr Schaden. Jeder Schuss kostet einen Pfeil (Anzeige neben dem Fadenkreuz) und etwas Ausdauer; hältst du lange voll gespannt, zittert der Arm. Mit **F** steckst du den Bogen wieder auf den Rücken und hast Schwert und Schild zurück.
+
+**Streitkolben:** Bei Tobold zu kaufen, im Inventar (**Tab**) anlegen. Drei langsamere, wuchtige Schläge statt vier Schwerthieben, der dritte von oben; dafür bricht er die Deckung schneller. Den Schild behältst du.
 
 Unten rechts im HUD leuchtet Feld 4 blau, sobald du den Aether-Stoß kannst. Nach dem Einsatz läuft dort die Wartezeit in Sekunden ab; grau heißt: zu wenig Mana.
 
 ## 3. Was dich erwartet
 
 1. **Asche über Eichental** (startet sofort): Hedda am Brunnen, das brennende Dorf, Tobold und Wenna retten, Kreaturen aus dem Riss, der Spur folgen. Am Riss bekommst du die Aether-Kraft: Triff die Rissbrut mit dem Aether-Stoß (**4**). Zum Schluss Hedda in Lindenhain.
-2. **Die Wölfe vom Nordhang**: Hollmann am Hof im Nordwesten. Am Ende eine Entscheidung im Wolfsbau.
+2. **Die Wölfe vom Nordhang**: Hollmann am Hof im Nordwesten. Er leiht dir seinen Jagdbogen und 30 Pfeile: Triff die drei Strohziele hinter der Scheune (**F**, zielen, schießen), dafür gibt es 10 Pfeile extra. Am Ende eine Entscheidung im Wolfsbau.
 3. **Die vergessene Gruft**: Corvin im Gasthaus in Lindenhain. Tor-Rätsel mit Grabplatten (die Wandreliefs verraten die Reihenfolge), Hallen mit Skeletten, Spiegel-Rätsel, der Wachende Ritter. Am Ende: Siegelstein nehmen oder liegen lassen.
 
 **Begleiterin Ser Maren Falkenried:** Wenn „Die Wölfe vom Nordhang“ erledigt ist, wartet am Wachposten von Lindenhain (neben Hauptmann Dorn) eine Ritterin der Silberwacht. Sie will dich als „Rissgeborenen“ prüfen. Ob du die Prüfung annimmst oder ablehnst, sie kommt in jedem Fall mit (nach der Ablehnung „auf Befehl“, dann mag sie dich weniger). Sie läuft hinter dir her, kämpft gegen alles, was dich oder sie angreift, und hält dir den Rücken frei. Fällt sie im Kampf, steht sie nach 12 Sekunden wieder auf. Sprich sie an, wenn sie stehen bleiben („Warte hier.“) oder wieder mitkommen soll („Komm mit.“). In die Gruft kommt sie mit.
 
 Sprich auch mit den anderen Leuten (**E**): Wirt Ulf im Gasthaus kennt Gerüchte, Tobold und Wenna (wenn du sie gerettet hast), Pim auf dem Hof, Hannes und Liese an der Mühle.
 
-**Händler in Lindenhain:** Bei **Tobold** (Schmied: Schwerter, Streitkolben, Schilde, Plattenrüstung) und bei **Ulf** (Heiltränke, Leder- und Stoffkleidung) wählst du im Gespräch „Zeig mir deine Waren.“ bzw. „Was verkaufst du?“. Im Handelsfenster wechselst du mit **Q/E** zwischen Kaufen, Verkaufen und Zurückkaufen; **Enter** handelt ein Stück, **F** alle bzw. den ganzen Stapel, **Esc** schließt. Händler haben nur begrenzt Gold und füllen ihre Waren alle drei Spieltage (etwa 2,4 Stunden Spielzeit) wieder auf. Verkauftes kannst du bis dahin zum selben Preis zurückkaufen.
+**Händler in Lindenhain:** Bei **Tobold** (Schmied: Schwerter, Streitkolben, Jagdbogen, Pfeile, Schilde, Plattenrüstung) und bei **Ulf** (Heiltränke, Manatränke, Pfeile, Leder- und Stoffkleidung) wählst du im Gespräch „Zeig mir deine Waren.“ bzw. „Was verkaufst du?“. Im Handelsfenster wechselst du mit **Q/E** zwischen Kaufen, Verkaufen und Zurückkaufen; **Enter** handelt ein Stück, **F** alle bzw. den ganzen Stapel, **Esc** schließt. Händler haben nur begrenzt Gold und füllen ihre Waren alle drei Spieltage (etwa 2,4 Stunden Spielzeit) wieder auf. Verkauftes kannst du bis dahin zum selben Preis zurückkaufen.
 
 **Würfeln mit Ulf („Krähenwurf“):** Frag Ulf „Würfeln wir eine Runde?“. Zuerst wählst du den Einsatz mit **◄ ►** (10 bis 500 Gold) und klickst „Spiel beginnen“. Dann klickst du auf „Würfeln“. Nach jedem Wurf klickst du die Würfel an, die Punkte bringen, und wählst:
 - „Beiseitelegen und weiterwürfeln“: Die übrigen Würfel rollen noch einmal. Bringt der neue Wurf keinen Punkt, sind alle Punkte dieser Runde weg.
@@ -73,7 +80,8 @@ Oben rechts steht immer dein aktuelles Ziel. Die Gruft ist auf Stufe 4 eingestel
 ## 4. Bekannte Lücken
 
 - Du selbst bist jetzt ein Krieger aus Blender (Arme, Beine und Schwert bewegen sich per Code, noch ohne fertige Animationen). Dorfbewohner, Wölfe, Skelette, der Wachende Ritter sowie Fenster, Türen, Schornsteine und Brücken sind ebenfalls aus Blender.
-- Keine Musik, keine Zwischensequenzen, kein Bogen. Der Aether-Stoß erhöht noch keine Verderbnis (die gibt es noch nicht).
+- Keine Musik, keine Zwischensequenzen. Der Aether-Stoß erhöht noch keine Verderbnis (die gibt es noch nicht).
+- Verschossene Pfeile kann man noch nicht wieder aufsammeln.
 - Die Gruft ist dunkel. Das ist Absicht, kann aber nachgebessert werden.
 
 ## 5. Rückmeldung an Claude

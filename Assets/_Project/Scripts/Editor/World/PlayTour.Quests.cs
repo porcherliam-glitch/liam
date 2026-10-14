@@ -83,9 +83,14 @@ namespace Aetherfall.EditorTools.World
             Steps.Enqueue(() => WaitStage(Q.Wolves, "s10"));
             Steps.Enqueue(UseObject("clue.eichental.weide_schaf", QuestObjectAction.Inspect));
             Steps.Enqueue(UseObject("clue.eichental.weide_pfoten", QuestObjectAction.Inspect));
-            Steps.Enqueue(UseObject("obj.eichental.strohziel_1", QuestObjectAction.Use));
-            Steps.Enqueue(UseObject("obj.eichental.strohziel_2", QuestObjectAction.Use));
-            Steps.Enqueue(UseObject("obj.eichental.strohziel_3", QuestObjectAction.Use));
+            // s10 o2: Hollmann's bow (F takes it from the bag), three straw targets shot with fully drawn arrows (+10 arrows).
+            Steps.Enqueue(ShootStrawTarget("obj.eichental.strohziel_1"));
+            Steps.Enqueue(ShootStrawTarget("obj.eichental.strohziel_2"));
+            Steps.Enqueue(() => Capture("q04b_strohziel", null));
+            Steps.Enqueue(ShootStrawTarget("obj.eichental.strohziel_3"));
+            Steps.Enqueue(() => WaitObjective(Q.Wolves, "s10", "o2"));
+            Steps.Enqueue(ReportArrowsAndLeaveStance);
+            Steps.Enqueue(WaitOutOfCombat);
             Steps.Enqueue(UseObject("clue.eichental.weide_aetherspeichel", QuestObjectAction.Inspect));
             Steps.Enqueue(() => WaitStage(Q.Wolves, "s20"));
             Steps.Enqueue(UseObject("obj.eichental.leiche_postreiter", QuestObjectAction.Use));

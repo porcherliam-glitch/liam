@@ -45,10 +45,18 @@ namespace Aetherfall.EditorTools.World
             Wolf = EnsureEnemy("Grauwolf", false, bite, snap, pounce, report);
             AetherWolf = EnsureEnemy("AetherWolf", true, bite, snap, pounce, report);
             Staff = EnsureStaff(finisher, report);
+            Mace = EnsureMace(finisher, report);
+            Arrow = EnsureAttack("Bogen_Pfeil", BowArrow(), report);
         }
+
+        /// <summary>Wooden arrow of the bow (projectile values; PlayerBow sets damage and speed from the draw, GDD 03 6.1).</summary>
+        public AttackDefinition Arrow { get; }
 
         /// <summary>Apprentice staff moveset (fire bolts, fire ball; GDD 03 5.3).</summary>
         public WeaponDefinition Staff { get; }
+
+        /// <summary>One-handed mace moveset (3 blunt blows, overhead smash; GDD 03 5.3).</summary>
+        public WeaponDefinition Mace { get; }
 
         /// <summary>One-handed sword with moveset.</summary>
         public WeaponDefinition Weapon { get; }
@@ -70,7 +78,114 @@ namespace Aetherfall.EditorTools.World
 
         /// <summary>True if every asset exists.</summary>
         public bool IsComplete => Weapon != null && Shield != null && Settings != null && AetherPush != null && Wolf != null && AetherWolf != null &&
-                                  Staff != null;
+                                  Staff != null && Mace != null && Arrow != null;
+
+        private static AttackSpec BowArrow()
+        {
+            // GDD 03 6.1: 0.5 g fall, effective range 60 m (it flies on to 75 m), stab, head × 1.75 as every ranged hit.
+            AttackSpec spec = AttackSpec.Create("attack.bogen.pfeil", 0.05f, 0.05f, 0.1f);
+            spec.Kind = AttackKind.Light;
+            spec.ComboWindowStartSeconds = 10f;
+            spec.OverrideDamageType = true;
+            spec.DamageType = DamageType.Stab;
+            spec.DamageMultiplier = 1f;
+            spec.PoiseMultiplier = 1f;
+            spec.StaminaCost = 0f;
+            spec.StaminaDamage = 12f;
+            spec.KnockbackDistance = 0.2f;
+            spec.ProjectileSpeed = BowDraw.MaxSpeed;
+            spec.ProjectileRange = 75f;
+            spec.ProjectileRadius = 0.12f;
+            spec.ProjectileGravity = 4.9f;
+            return spec;
+        }
+
+        private static WeaponDefinition EnsureMace(AttackDefinition finisher, TestGroundReport report)
+        {
+            // GDD 03 5.3 one-handed mace: combo of 3, tempo 600 ms, blunt, strength 0.6 / wisdom 0.4, stamina 14 / 28, poise 14,
+            // shield allowed. Slower and heavier than the sword: more poise damage, more knockback, a little less reach.
+            AttackDefinition blow1 = EnsureAttack("Streitkolben_Leicht1", MaceLight("attack.streitkolben.leicht_1", 0.35f, AttackKind.Light), report);
+            AttackDefinition blow2 = EnsureAttack("Streitkolben_Leicht2", MaceLight("attack.streitkolben.leicht_2", 0.35f, AttackKind.Light), report);
+            AttackDefinition blow3 = EnsureAttack("Streitkolben_Leicht3", MaceLight("attack.streitkolben.leicht_3", 0.6f, AttackKind.ComboFinisher), report);
+            AttackSpec smash = MaceLight("attack.streitkolben.schwer", 0.6f, AttackKind.Heavy);
+            smash.WindupSeconds = 0.55f;
+            smash.RecoverySeconds = 0.75f;
+            smash.ComboWindowStartSeconds = 10f;
+            smash.CancelOnlyInRecovery = true;
+            smash.DamageMultiplier = 1.6f;
+            smash.PoiseMultiplier = 1.8f;
+            smash.StaminaCost = 28f;
+            smash.StaminaDamage = 45f;
+            smash.KnockbackDistance = 1.2f;
+            AttackDefinition heavy = EnsureAttack("Streitkolben_Schwer", smash, report);
+            AttackSpec sprintSpec = MaceLight("attack.streitkolben.sprint", 1.8f, AttackKind.Sprint);
+            sprintSpec.ComboWindowStartSeconds = 10f;
+            sprintSpec.DamageMultiplier = 1.3f;
+            sprintSpec.StaminaCost = 20f;
+            AttackDefinition sprint = EnsureAttack("Streitkolben_Sprint", sprintSpec, report);
+            AttackSpec jumpSpec = MaceLight("attack.streitkolben.sprung", 0.3f, AttackKind.Jump);
+            jumpSpec.WindupSeconds = 0.2f;
+            jumpSpec.ComboWindowStartSeconds = 10f;
+            jumpSpec.DamageMultiplier = 1.3f;
+            jumpSpec.StaminaCost = 20f;
+            jumpSpec.OffsetY = 0.7f;
+            AttackDefinition jump = EnsureAttack("Streitkolben_Sprung", jumpSpec, report);
+            AttackSpec counterSpec = MaceLight("attack.streitkolben.konter", 0.8f, AttackKind.Counter);
+            counterSpec.WindupSeconds = 0.14f;
+            counterSpec.ComboWindowStartSeconds = 10f;
+            counterSpec.CancelOnlyInRecovery = true;
+            counterSpec.DamageMultiplier = 3.0f;
+            counterSpec.PoiseMultiplier = 2.0f;
+            counterSpec.StaminaCost = 0f;
+            counterSpec.MaxTurnDegrees = 90f;
+            AttackDefinition counter = EnsureAttack("Streitkolben_Konter", counterSpec, report);
+            ComboDefinition combo = EnsureAsset<ComboDefinition>(TestGroundPaths.WeaponFolder + "/Streitkolben_Kombo.asset", report, asset =>
+            {
+                var so = new SerializedObject(asset);
+                Set(so, "comboId", "combo.streitkolben.leicht", report);
+                SetReferences(so, "steps", new Object[] { blow1, blow2, blow3 }, report);
+                so.ApplyModifiedPropertiesWithoutUndo();
+            });
+            return EnsureAsset<WeaponDefinition>(TestGroundPaths.WeaponFolder + "/Streitkolben.asset", report, asset =>
+            {
+                var so = new SerializedObject(asset);
+                Set(so, "weaponId", "item.weapon.streitkolben_eisen", report);
+                Set(so, "baseDamage", 60f, report);
+                Set(so, "damageType", (int)DamageType.Blunt, report);
+                Set(so, "weaponPoise", 14f, report);
+                Set(so, "strengthWeight", 0.6f, report);
+                Set(so, "dexterityWeight", 0f, report);
+                Set(so, "wisdomWeight", 0.4f, report);
+                Set(so, "lightCombo", combo, report);
+                Set(so, "heavyAttack", heavy, report);
+                Set(so, "sprintAttack", sprint, report);
+                Set(so, "jumpAttack", jump, report);
+                Set(so, "counterAttack", counter, report);
+                Set(so, "finisher", finisher, report);
+                so.ApplyModifiedPropertiesWithoutUndo();
+            });
+        }
+
+        private static AttackSpec MaceLight(string id, float lunge, AttackKind kind)
+        {
+            // Tempo 600 ms (GDD 03 5.1: duration of a light blow up to the combo window); the third blow is an overhead blow.
+            bool last = kind == AttackKind.ComboFinisher;
+            AttackSpec spec = AttackSpec.Create(id, last ? 0.34f : 0.28f, 0.12f, last ? 0.65f : 0.55f);
+            spec.Kind = kind;
+            spec.ComboWindowStartSeconds = last ? 0.75f : 0.6f;
+            spec.DamageMultiplier = last ? 1.3f : 1f;
+            spec.PoiseMultiplier = last ? 1.6f : 1.2f;
+            spec.StaminaCost = 14f;
+            spec.StaminaDamage = last ? 32f : 24f;
+            spec.LungeDistance = lunge;
+            spec.KnockbackDistance = last ? 0.9f : 0.4f;
+            spec.OffsetY = 1.0f;
+            spec.OffsetZ = 1.05f;
+            spec.SizeX = last ? 1.3f : 1.8f;
+            spec.SizeY = last ? 1.8f : 1.3f;
+            spec.SizeZ = 1.6f;
+            return spec;
+        }
 
         private static WeaponDefinition EnsureStaff(AttackDefinition finisher, TestGroundReport report)
         {

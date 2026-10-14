@@ -39,6 +39,18 @@ namespace Aetherfall.EditorTools.World
         /// <summary>Cloth robe, the mage's start armour.</summary>
         public const string RobeId = "item.armor.stoffrobe";
 
+        /// <summary>Iron one-handed mace (Tobold sells it, GDD 03 5.3).</summary>
+        public const string MaceId = "item.weapon.streitkolben_eisen";
+
+        /// <summary>Hollmann's old hunting bow (GDD 02 11.2 s10, uncommon; stays with the player).</summary>
+        public const string HollmannBowId = "item.weapon.hollmanns_jagdbogen";
+
+        /// <summary>Plain hunting bow (merchants, loot).</summary>
+        public const string HuntingBowId = "item.weapon.jagdbogen";
+
+        /// <summary>Wooden arrow (GDD 03 6.2: stack 99, 0.05 kg).</summary>
+        public const string ArrowId = "item.ammo.pfeil_holz";
+
         /// <summary>Wolf fur.</summary>
         public const string WolfFurId = "item.material.wolfsfell";
 
@@ -158,9 +170,12 @@ namespace Aetherfall.EditorTools.World
         {
             Weapon("Einhandschwert_Eisen", SwordId, "Eisernes Einhandschwert", WeaponType.OneHandedSword, 100, 0f, 0f, 0f, 0f);
             Weapon("Axt_Eisen", "item.weapon.axt_eisen", "Eiserne Axt", WeaponType.Axe, 60, 0f, 0f, 0f, 0f);
-            Weapon("Streitkolben_Eisen", "item.weapon.streitkolben_eisen", "Eiserner Streitkolben", WeaponType.Mace, 60, 0f, 0f, 0f, 0f);
+            Weapon("Streitkolben_Eisen", MaceId, "Eiserner Streitkolben", WeaponType.Mace, 60, 0f, 0f, 0f, 0f);
             Weapon("Zweihandschwert_Eisen", "item.weapon.zweihandschwert_eisen", "Eisernes Zweihandschwert", WeaponType.TwoHandedSword, 40, 0f, 0f, 0f, 0f);
             Weapon("Lehrlingsstab", StaffId, "Lehrlingsstab (Feuer)", WeaponType.Staff, 40, 0f, 0f, 0f, 0f);
+            Weapon("Jagdbogen", HuntingBowId, "Jagdbogen", WeaponType.Bow, 50, 0f, 0f, 0f, 0f);
+            // Quest reward of "Die Wölfe vom Nordhang": never a random drop, uncommon (GDD 02 11.2).
+            Weapon("Jagdbogen_Hollmann", HollmannBowId, "Hollmanns Jagdbogen", WeaponType.Bow, 0, 0f, 0f, 0f, 0f, 0f, false, ItemRarity.Uncommon);
 
             // Block values of GDD 03 4.7: wooden 150° / 80 % / 20 % / 40 %, iron 150° / 90 % / 35 % / 55 % (6 kg).
             Weapon("Holzschild", WoodenShieldId, "Holzschild", WeaponType.Shield, 60, 150f, 0.8f, 0.2f, 0.4f);
@@ -208,6 +223,8 @@ namespace Aetherfall.EditorTools.World
             // 40 % of the maximum mana. Set on every run, also on existing assets.
             SetUse(Consumables + "/Heiltrank_Schwach", 0.35f, 0f);
             SetUse(Consumables + "/Manatrank_Schwach", 0f, 0.4f);
+            // GDD 03 6.2 wooden arrow: stack 99, 0.05 kg; value Vorschlag 1 gold (GDD 04 has no price yet).
+            Simple(Consumables, "Pfeil_Holz", ArrowId, "Holzpfeil", ItemCategory.Consumable, EquipKind.None, 99, 0.05f, 1f, ItemRarity.Common);
             Simple(Materials, "Wolfsfell", WolfFurId, "Wolfsfell", ItemCategory.Material, EquipKind.None, 99, 1f, 4f, ItemRarity.Common);
             Simple(Materials, "Wolfsfleisch", WolfMeatId, "Wolfsfleisch", ItemCategory.Material, EquipKind.None, 99, 0.5f, 2f, ItemRarity.Common);
             Simple(Materials, "Wolfspelz_Aether", AetherPeltId, "Aether-Wolfspelz", ItemCategory.Material, EquipKind.None, 99, 1f, 15f,
@@ -217,15 +234,15 @@ namespace Aetherfall.EditorTools.World
         }
 
         private void Weapon(string file, string id, string name, WeaponType type, int dropWeight, float blockAngle, float blockPhysical,
-            float blockElemental, float blockStability, float weightOverride = 0f)
+            float blockElemental, float blockStability, float weightOverride = 0f, bool randomDrop = true, ItemRarity rarity = ItemRarity.Common)
         {
             float weight = weightOverride > 0f ? weightOverride : WeaponTypeRules.Weight(type);
             Item(TestGroundPaths.ItemFolder + Weapons + "/" + file + ".asset", so =>
             {
-                Common(so, id, name, ItemCategory.Weapon, WeaponTypeRules.EquipKindOf(type), 1, weight, WeaponTypeRules.ValueCategory(type), ItemRarity.Common);
+                Common(so, id, name, ItemCategory.Weapon, WeaponTypeRules.EquipKindOf(type), 1, weight, WeaponTypeRules.ValueCategory(type), rarity);
                 TestGroundSerialized.Set(so, "weaponType", (int)type, _report);
                 TestGroundSerialized.Set(so, "baseStat", WeaponTypeRules.BaseValue(type), _report);
-                TestGroundSerialized.Set(so, "randomDrop", true, _report);
+                TestGroundSerialized.Set(so, "randomDrop", randomDrop, _report);
                 TestGroundSerialized.Set(so, "dropWeight", dropWeight, _report);
                 TestGroundSerialized.Set(so, "blockAngle", blockAngle, _report);
                 TestGroundSerialized.Set(so, "blockPhysical", blockPhysical, _report);

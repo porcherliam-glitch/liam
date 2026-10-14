@@ -18,8 +18,8 @@ namespace Aetherfall.EditorTools.Narrative
     /// trails, NPC markers) and the crypt (zones, puzzles, boss, seal stone; guide 12, 11.4). Built fresh on every call.
     /// </summary>
     /// <remarks>
-    /// <para>Deviations until the systems exist (documented in docs/Status.md): no cutscenes, music or Aether push (skill), no
-    /// bow (Hollmann's bow, arrows and straw targets are touched instead of shot), no faction reputation, no cheese item. Rift
+    /// <para>Deviations until the systems exist (documented in docs/Status.md): no cutscenes or music, no faction reputation, no
+    /// cheese item; Hollmann's bow and 30 arrows come with s10 and the straw targets are shot (verb "hit"). Rift
     /// spawns are Aether wolves (layout stand-ins), so the kill objective of s30 counts them. The splitter in the den offers
     /// "zerschlagen" (stand-in for the Aether push, outcome 2) and "herausbrechen" (outcome 3).</para>
     /// <para>The crypt quest gives no blade fragment and no seal stone itself: the reward object in the arena and the seal stone
@@ -65,6 +65,12 @@ namespace Aetherfall.EditorTools.Narrative
 
         /// <summary>Seal stone of the crypt (given by the object in the seal chamber).</summary>
         public const string SealStoneItem = "item.quest.siegelstein_gruft";
+
+        /// <summary>Hollmann lends the player his old hunting bow in quest 2 (s10); it stays with the player.</summary>
+        public const string HollmannBow = "item.weapon.hollmanns_jagdbogen";
+
+        /// <summary>Wooden arrows (GDD 03 6.2 id; GDD 02 11.2 writes the short form "item.ammo.pfeil").</summary>
+        public const string ArrowItem = "item.ammo.pfeil_holz";
 
         /// <summary>Flags written by the three quests.</summary>
         public const string FlagVillageDestroyed = "flag.eichental.dorf_zerstoert";
@@ -238,12 +244,13 @@ namespace Aetherfall.EditorTools.Narrative
                 .StartTrigger(QuestStartTriggerKind.Dialogue, "dlg.eichental.hollmann")
                 .StartCondition(new QuestStatusIs(Prologue, QuestStatus.Completed))
                 .Stage(new StageBuilder("s10")
-                    .Text("Auf der oberen Weide liegen gerissene Schafe. Sieh dir die Spuren genau an.",
-                          "Die obere Weide liegt nördlich vom Hollmann-Hof.")
+                    .Text("Auf der oberen Weide liegen gerissene Schafe. Hollmann hat dir seinen alten Jagdbogen geliehen.",
+                          "Die obere Weide liegt nördlich vom Hollmann-Hof. Bogen: F, zielen mit der rechten, spannen mit der linken Maustaste.")
+                    .OnStart(new GiveItem(HollmannBow), new GiveItem(ArrowItem, 30))
                     .Objective(new InspectCluesObjective("o1", 3, "clue.eichental.weide_schaf", "clue.eichental.weide_pfoten",
                         "clue.eichental.weide_aetherspeichel").WithJournalText("Untersuche die Weide"))
-                    .Optional(new InteractObjective("o2", 3, "obj.eichental.strohziel_*").WithVerb(InteractionVerbs.Use)
-                        .WithJournalText("Prüfe die Strohziele hinter der Scheune"), new GiveXp(30))
+                    .Optional(new InteractObjective("o2", 3, "obj.eichental.strohziel_*").WithVerb(InteractionVerbs.Hit)
+                        .WithJournalText("Triff die Strohziele hinter der Scheune"), new GiveItem(ArrowItem, 10), new GiveXp(30))
                     .Next("s20"))
                 .Stage(new StageBuilder("s20")
                     .Text("Die Abdrücke sind zu groß für Wölfe, und der Speichel leuchtet. Die Spur führt zum Nordhang.")
@@ -287,7 +294,7 @@ namespace Aetherfall.EditorTools.Narrative
                 .LedgerEntry("ledger.c3", "Du hast den Aether-Splitter aus dem Wolfsbau mitgenommen.", true)
                 .Rewards(new GiveXp(0.5f, 3))
                 .Production(ContentStatus.Draft, QuestScopeTier.A, 75, "claude", 20,
-                    "Mini-Slice: ohne Bogen (Strohziele werden geprüft statt beschossen) und ohne Aether-Stoß (Splitter zerschlagen).")
+                    "Mini-Slice: Strohziele mit Hollmanns Jagdbogen (30 Pfeile, +10 für die Strohziele); ohne Aether-Stoß (Splitter zerschlagen).")
                 .Build();
         }
 

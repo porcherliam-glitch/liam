@@ -25,6 +25,15 @@ namespace Aetherfall.EditorTools.World
         /// <summary>Apprentice staff of the mage (crystal slot "Stab_Kristall_Leuchten").</summary>
         public const string Staff = Folder + "/Zauberstab.fbx";
 
+        /// <summary>Iron one-handed mace (flanged head, leather grip).</summary>
+        public const string Mace = Folder + "/Streitkolben.fbx";
+
+        /// <summary>Hunting bow (grip at the origin, limbs along y, string 0.18 m behind).</summary>
+        public const string Bow = Folder + "/Jagdbogen.fbx";
+
+        /// <summary>Wooden arrow (tip at +z just in front of the origin).</summary>
+        public const string Arrow = Folder + "/Pfeil.fbx";
+
         /// <summary>Grey wolf.</summary>
         public const string Wolf = Folder + "/Wolf.fbx";
 

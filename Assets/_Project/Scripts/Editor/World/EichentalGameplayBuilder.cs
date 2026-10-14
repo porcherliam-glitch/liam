@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Aetherfall.AI;
 using Aetherfall.Combat;
 using Aetherfall.EditorTools.Narrative;
+using Aetherfall.Events;
 using Aetherfall.Items;
 using Aetherfall.Player;
 using Aetherfall.World;
@@ -397,7 +398,8 @@ namespace Aetherfall.EditorTools.World
         /// <param name="interactableLayer">Interactable layer or −1 (interaction triggers).</param>
         /// <param name="triggerVolumeLayer">TriggerVolume layer or −1 (timed area at the bakery door).</param>
         /// <param name="playerLayer">Player layer or −1.</param>
-        public void BuildQuestObjects(Transform parent, int environmentLayer, int interactableLayer, int triggerVolumeLayer, int playerLayer)
+        /// <param name="hurtboxLayer">Hurtbox layer or −1 (straw targets the arrows hit).</param>
+        public void BuildQuestObjects(Transform parent, int environmentLayer, int interactableLayer, int triggerVolumeLayer, int playerLayer, int hurtboxLayer)
         {
             int interactive = 0;
             foreach (LayoutQuestObject q in _layout.QuestObjects)
@@ -419,10 +421,16 @@ namespace Aetherfall.EditorTools.World
                             _materials.Fixed("door", new Color(0.25f, 0.16f, 0.1f), 0.25f), true);
                         break;
                     case QuestObjectKind.StrawTarget:
+                        // The cylinder's own capsule would be a 0.6 m ball around the flat disc (larger than the hurtbox, arrows
+                        // would stop in front of it): a flat box instead.
                         Part(root, PrimitiveType.Cylinder, new Vector3(0f, 1.2f, -0.17f), new Vector3(1.2f, 0.17f, 1.2f), Quaternion.Euler(90f, 0f, 0f),
-                            _materials.Get("thatch", 0.1f), true);
+                            _materials.Get("thatch", 0.1f), false);
+                        BoxCollider disc = root.AddComponent<BoxCollider>();
+                        disc.center = new Vector3(0f, 1.2f, -0.17f);
+                        disc.size = new Vector3(1.1f, 1.1f, 0.3f);
                         Part(root, PrimitiveType.Cube, new Vector3(0f, 0.6f, -0.1f), new Vector3(0.1f, 1.2f, 0.1f), Quaternion.identity,
                             _materials.Get("woodDark", 0.25f), false);
+                        BuildArrowTarget(root, q.Id, hurtboxLayer);
                         break;
                     case QuestObjectKind.Corpse:
                         Part(root, PrimitiveType.Cube, new Vector3(0f, 0.15f, 0f), new Vector3(0.5f, 0.3f, 1.7f), Quaternion.identity,
@@ -480,6 +488,28 @@ namespace Aetherfall.EditorTools.World
 
             _report.Info("Quest-Objekte: " + _layout.QuestObjects.Count + " mit QuestObjectMarker, davon " + interactive + " benutzbar in ihrer " +
                          "Quest-Stufe (Balken, Runen, Weide, Strohziele, Postreiter, Splitter, Welpe); die Tür der Bäckerei ist ein Zeit-Ziel.");
+        }
+
+        private void BuildArrowTarget(GameObject root, string objectId, int hurtboxLayer)
+        {
+            // GDD 02 11.2 s10 o2 "Triff die Strohziele": a neutral combatant with endless health; the hurtbox reaches a little in
+            // front of and behind the straw disc, so an arrow meets it before the disc's solid collider.
+            DamageableComponent damageable = root.AddComponent<DamageableComponent>();
+            TestGroundFields.SetFloat(damageable, "maxHealth", 9999f, _report);
+            TestGroundFields.SetBool(damageable, "regenerate", false, _report);
+            TestGroundFields.SetString(damageable, "ownerId", objectId, _report);
+            Transform targetPoint = TestGroundCombatBuilder.CreateChild(root.transform, "TargetPoint", new Vector3(0f, 1.2f, -0.17f));
+            Combatant combatant = root.AddComponent<Combatant>();
+            TestGroundFields.SetString(combatant, "combatantId", objectId, _report);
+            TestGroundFields.SetString(combatant, "typeId", "object.strohziel", _report);
+            TestGroundFields.SetInt(combatant, "team", (int)CombatTeam.Neutral, _report);
+            TestGroundFields.SetReference(combatant, "damageable", damageable, _report);
+            TestGroundFields.SetReference(combatant, "targetPoint", targetPoint, _report);
+            TestGroundFields.SetInt(combatant, "level", 1, _report);
+            TestGroundCombatBuilder.AddHurtbox(root.transform, "Hurtbox_Ziel", HitZone.Body, new Vector3(0f, 1.2f, -0.17f), new Vector3(1.3f, 1.3f, 0.6f),
+                hurtboxLayer, _report);
+            ArrowTarget target = root.AddComponent<ArrowTarget>();
+            TestGroundFields.SetString(target, "objectId", objectId, _report);
         }
 
         private void ConfigureInteraction(QuestObjectMarker marker, MiniSliceWorld.ObjectSetup setup, int interactableLayer)

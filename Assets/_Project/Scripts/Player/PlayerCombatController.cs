@@ -41,6 +41,7 @@ namespace Aetherfall.Player
         private const float CastTurnRate = 1080f;
         private const float RangedAimHalfAngle = 35f;
         private const float DrinkSpeedLimit = 2.5f;
+        private const float AimSpeedLimit = 2.2f;
         private const float UntargetedAimDistance = 15f;
         private const float UntargetedAimHeight = 0.9f;
 
@@ -105,6 +106,9 @@ namespace Aetherfall.Player
         private bool _casting;
         private bool _drinking;
         private bool _queuedLight;
+        private bool _rangedStance;
+        private bool _aiming;
+        private float _aimYaw;
         private float _castYaw;
         private WeaponType _weaponType = WeaponType.OneHandedSword;
         private Combatant _rangedTarget;
@@ -286,6 +290,20 @@ namespace Aetherfall.Player
         public void SetDrinking(bool drinking)
         {
             _drinking = drinking;
+        }
+
+        /// <summary>
+        /// Ranged stance of <see cref="PlayerBow"/> (GDD 03 1.3 K6, F): the mouse buttons aim and shoot instead of attacking and Q
+        /// does not block; dodging stays. While aiming the character faces <paramref name="aimYaw"/>, walks slowly and cannot sprint.
+        /// </summary>
+        /// <param name="stance">True while the ranged stance is active.</param>
+        /// <param name="aiming">True while aiming or drawing.</param>
+        /// <param name="aimYaw">Aim direction in degrees.</param>
+        public void SetRangedStance(bool stance, bool aiming, float aimYaw)
+        {
+            _rangedStance = stance;
+            _aiming = stance && aiming;
+            _aimYaw = aimYaw;
         }
 
         /// <summary>Presses the light attack once with the next frame, like the button (tools and the play-through use it).</summary>
@@ -621,6 +639,16 @@ namespace Aetherfall.Player
             input.BlockHeld = blockHeld;
             input.DodgePressed = _gameplay.WasPressedThisFrame(GameplayButton.Dodge);
             input.HasMoveInput = move.sqrMagnitude > 0.01f;
+            if (_rangedStance)
+            {
+                // The bow owns the mouse buttons; Q in the stance is the weapon art of the bow (later, GDD 03 5.1).
+                input.LightPressed = false;
+                input.HeavyPressed = false;
+                input.HeavyHeld = false;
+                input.BlockPressed = false;
+                input.BlockHeld = false;
+            }
+
             return input;
         }
 
@@ -671,6 +699,16 @@ namespace Aetherfall.Player
                 limits.SpeedLimit = limits.SpeedLimit > 0f ? Mathf.Min(limits.SpeedLimit, DrinkSpeedLimit) : DrinkSpeedLimit;
                 limits.BlockSprint = true;
                 limits.BlockJump = true;
+            }
+
+            if (_aiming && _machine.State == CombatStateId.Idle)
+            {
+                // GDD 03 2.1/6.1: aiming over the shoulder; the body follows the aim, walking pace.
+                limits.HasFacing = true;
+                limits.FacingYaw = _aimYaw;
+                limits.FacingTurnRate = CastTurnRate;
+                limits.SpeedLimit = limits.SpeedLimit > 0f ? Mathf.Min(limits.SpeedLimit, AimSpeedLimit) : AimSpeedLimit;
+                limits.BlockSprint = true;
             }
 
             return limits;

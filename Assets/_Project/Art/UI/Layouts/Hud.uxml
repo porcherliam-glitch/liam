@@ -33,6 +33,12 @@
             <ui:Label name="hud-prompt-glyph-interact" class="af-text af-glyph af-glyph--large af-glyph--face" picking-mode="Ignore" />
             <ui:Label name="hud-prompt-text" class="af-text af-prompt__text" picking-mode="Ignore" />
         </ui:VisualElement>
+        <ui:VisualElement name="hud-crosshair" class="af-crosshair" picking-mode="Ignore">
+            <ui:VisualElement class="af-crosshair__line af-crosshair__line--h" picking-mode="Ignore" />
+            <ui:VisualElement class="af-crosshair__line af-crosshair__line--v" picking-mode="Ignore" />
+            <ui:VisualElement name="hud-crosshair-draw" class="af-crosshair__draw" picking-mode="Ignore" />
+        </ui:VisualElement>
+        <ui:Label name="hud-arrows" class="af-text af-arrows" picking-mode="Ignore" />
         <ui:VisualElement name="hud-vitals" class="af-vitals" picking-mode="Ignore">
             <ui:VisualElement name="hud-health" class="af-bar af-bar--health" picking-mode="Ignore">
                 <ui:VisualElement name="hud-health-trail" class="af-bar__trail" picking-mode="Ignore" />

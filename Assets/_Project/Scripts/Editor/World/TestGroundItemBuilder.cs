@@ -3,6 +3,7 @@ using Aetherfall.Inventory;
 using Aetherfall.Items;
 using Aetherfall.Player;
 using Aetherfall.Stats;
+using UnityEditor;
 using UnityEngine;
 
 namespace Aetherfall.EditorTools.World
@@ -198,8 +199,9 @@ namespace Aetherfall.EditorTools.World
 
         /// <summary>
         /// Adds <see cref="PlayerEquipment"/> with the weapon models it shows and hides: the sword ("SwordHand/Schwert", the
-        /// cube placeholder without model: the whole pivot), the shield ("ShieldHand/Holzschild" or "Shield") and the staff
-        /// ("SwordHand/Zauberstab"); the grip stays, so the hand holds whichever weapon is shown.
+        /// cube placeholder without model: the whole pivot), the shield ("ShieldHand/Holzschild" or "Shield") and the models of
+        /// the other weapon types ("SwordHand/Zauberstab", "SwordHand/Streitkolben") and the bow (in the hand "ShieldHand/Jagdbogen",
+        /// on the back "Jagdbogen_Ruecken"); the grip stays, so the hand holds whichever weapon is shown.
         /// </summary>
         /// <param name="player">Player root.</param>
         /// <param name="report">Protocol.</param>
@@ -213,10 +215,34 @@ namespace Aetherfall.EditorTools.World
             Transform shieldHand = Child(player.transform, "ShieldHand");
             Transform sword = Child(swordHand, "Schwert") ?? swordHand;
             Transform shield = Child(shieldHand, "Holzschild") ?? Child(shieldHand, "Shield");
-            Transform staff = Child(swordHand, "Zauberstab");
             TestGroundFields.SetReference(equipment, "weaponVisual", sword != null ? sword.gameObject : null, report);
             TestGroundFields.SetReference(equipment, "shieldVisual", shield != null ? shield.gameObject : null, report);
-            TestGroundFields.SetReference(equipment, "staffVisual", staff != null ? staff.gameObject : null, report);
+            var typeModels = new[]
+            {
+                (WeaponType.Staff, Child(swordHand, "Zauberstab")),
+                (WeaponType.Mace, Child(swordHand, "Streitkolben"))
+            };
+            var serialized = new SerializedObject(equipment);
+            SerializedProperty visuals = serialized.FindProperty("typeVisuals");
+            visuals.arraySize = 0;
+            foreach ((WeaponType type, Transform model) in typeModels)
+            {
+                if (model == null)
+                {
+                    continue;
+                }
+
+                int index = visuals.arraySize;
+                visuals.arraySize = index + 1;
+                visuals.GetArrayElementAtIndex(index).FindPropertyRelative("type").intValue = (int)type;
+                visuals.GetArrayElementAtIndex(index).FindPropertyRelative("visual").objectReferenceValue = model.gameObject;
+            }
+
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            Transform bowInHand = Child(shieldHand, "Jagdbogen");
+            Transform bowOnBack = CharacterModels.Find(player.transform, "Jagdbogen_Ruecken");
+            TestGroundFields.SetReference(equipment, "bowVisual", bowInHand != null ? bowInHand.gameObject : null, report);
+            TestGroundFields.SetReference(equipment, "bowBackVisual", bowOnBack != null ? bowOnBack.gameObject : null, report);
             if (sword == null || shield == null)
             {
                 report.Warning("Schwert- oder Schild-Modell am Spieler fehlt – das Ein- und Ausblenden beim Ablegen funktioniert nicht.");

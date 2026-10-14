@@ -154,7 +154,8 @@ namespace Aetherfall.EditorTools.World
                 MerchantKind.Weaponsmith, 800, new[]
                 {
                     new MerchantStockEntry("item.weapon.einhandschwert_eisen", 2), new MerchantStockEntry("item.weapon.streitkolben_eisen", 1),
-                    new MerchantStockEntry("item.weapon.lehrlingsstab", 1),
+                    new MerchantStockEntry("item.weapon.lehrlingsstab", 1), new MerchantStockEntry("item.weapon.jagdbogen", 1),
+                    new MerchantStockEntry("item.ammo.pfeil_holz", 99),
                     new MerchantStockEntry("item.weapon.holzschild", 2), new MerchantStockEntry("item.weapon.eisenschild", 1),
                     new MerchantStockEntry("item.armor.eisenhelm", 1), new MerchantStockEntry("item.armor.panzerhandschuhe", 1),
                     new MerchantStockEntry("item.armor.plattenharnisch", 1), new MerchantStockEntry("item.armor.plattenbeinschienen", 1),
@@ -164,6 +165,7 @@ namespace Aetherfall.EditorTools.World
                 MerchantKind.General, 400, new[]
                 {
                     new MerchantStockEntry("item.potion.heiltrank_schwach", 10), new MerchantStockEntry("item.potion.manatrank_schwach", 8),
+                    new MerchantStockEntry("item.ammo.pfeil_holz", 40),
                     new MerchantStockEntry("item.armor.stoffrobe", 1), new MerchantStockEntry("item.armor.lederkappe", 1),
                     new MerchantStockEntry("item.armor.lederwams", 1), new MerchantStockEntry("item.armor.lederhose", 1),
                     new MerchantStockEntry("item.armor.lederhandschuhe", 1), new MerchantStockEntry("item.armor.lederstiefel", 1),

@@ -45,6 +45,9 @@ namespace Aetherfall.UI.Screens
         [Tooltip("Fähigkeit auf Platz 4 (Aether-Stoß). Leer = PlayerAbilityCaster am selben GameObject.")]
         [SerializeField] private PlayerAbilityCaster abilities = null;
 
+        [Tooltip("Bogen (Fadenkreuz und Pfeile in der Fernkampf-Haltung). Leer = PlayerBow am selben GameObject.")]
+        [SerializeField] private PlayerBow bow = null;
+
         private IPlayerHudRegistry _registry;
         private Combatant _target;
         private string _targetName = string.Empty;
@@ -105,6 +108,19 @@ namespace Aetherfall.UI.Screens
         }
 
         /// <inheritdoc />
+        public bool TryGetRanged(out HudRangedInfo ranged)
+        {
+            if (bow == null || !bow.isActiveAndEnabled || !bow.InStance)
+            {
+                ranged = default;
+                return false;
+            }
+
+            ranged = new HudRangedInfo(bow.IsAiming, bow.Draw01, bow.Arrows);
+            return true;
+        }
+
+        /// <inheritdoc />
         public void SetAutoRespawn(bool enabled)
         {
             if (respawn != null)
@@ -152,6 +168,11 @@ namespace Aetherfall.UI.Screens
             if (abilities == null)
             {
                 TryGetComponent(out abilities);
+            }
+
+            if (bow == null)
+            {
+                TryGetComponent(out bow);
             }
         }
 

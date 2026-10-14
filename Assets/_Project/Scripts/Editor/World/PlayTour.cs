@@ -89,7 +89,8 @@ namespace Aetherfall.EditorTools.World
             string projectRoot = Path.GetDirectoryName(Application.dataPath) ?? ".";
             string mode = ReadArgument("-tourMode");
             _outputFolder = Path.Combine(projectRoot, "Logs", "Tour", Path.GetFileNameWithoutExtension(scenePath) +
-                                                                      (mode == "quests" ? "_Quests" : mode == "magier" ? "_Magier" : string.Empty));
+                                                                      (mode == "quests" ? "_Quests" : mode == "magier" ? "_Magier" :
+                                                                          mode == "waffen" ? "_Waffen" : string.Empty));
             Directory.CreateDirectory(_outputFolder);
             foreach (string old in Directory.GetFiles(_outputFolder))
             {
@@ -138,6 +139,13 @@ namespace Aetherfall.EditorTools.World
             {
                 // The mage class: start values, staff, fire bolts, mana potion (PlayTour.Mage.cs).
                 BuildMagePlan();
+                return;
+            }
+
+            if (ReadArgument("-tourMode") == "waffen")
+            {
+                // Mace and bow of the warrior (PlayTour.Weapons.cs).
+                BuildWeaponsPlan();
                 return;
             }
 

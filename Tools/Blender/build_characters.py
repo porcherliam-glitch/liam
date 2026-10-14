@@ -339,6 +339,79 @@ def zauberstab():
     staff.build(root, (0, 0, 0))
 
 
+def streitkolben():
+    """Iron one-handed mace (Eiserner Streitkolben, GDD 03 5.3): grip at the origin, the flanged head along the look direction
+    (-Y), a small pommel behind the hand."""
+    iron = material("Streitkolben_Eisen", "6A6A70", 0.4, 0.85)
+    dark = material("Streitkolben_Eisen_Dunkel", "3E3E44", 0.5, 0.8)
+    leather = material("Streitkolben_Griff", "4A2E1C", 0.75)
+    root = empty("Streitkolben")
+    mace = PartBuilder("Kolben")
+    mace.sphere(0.03, (0, 0.13, 0), dark, segments=8, rings=4)
+    mace.cylinder(0.021, 0.2, (0, 0.02, 0), leather, segments=8, axis='Y')
+    for y in (0.115, -0.08):
+        mace.cylinder(0.026, 0.025, (0, y, 0), dark, segments=8, axis='Y')
+    # Haft 0.46 m, a little thicker towards the head.
+    mace.cylinder(0.016, 0.46, (0, -0.31, 0), iron, segments=8, radius_top=0.02, axis='Y')
+    # Head: a core with six flanges, a cap and a short spike.
+    mace.cylinder(0.038, 0.17, (0, -0.62, 0), dark, segments=8, axis='Y')
+    for i in range(6):
+        a = math.radians(i * 60)
+        mace.box((0.06, 0.16, 0.014), (math.cos(a) * 0.055, -0.62, -math.sin(a) * 0.055), iron,
+                 rotate=Matrix.Rotation(a, 3, 'Y'))
+    mace.cylinder(0.042, 0.025, (0, -0.53, 0), iron, segments=8, axis='Y')
+    mace.sphere(0.04, (0, -0.71, 0), iron, scale=(1.0, 0.7, 1.0), segments=8, rings=4)
+    mace.cylinder(0.018, 0.06, (0, -0.76, 0), iron, segments=6, radius_top=0.002, axis='Y')
+    mace.build(root, (0, 0, 0))
+
+
+def segment(part, a, b, width, depth, mat):
+    """A box from point a to point b (Unity axes), width along x, depth across."""
+    pa = Vector(u(*a))
+    pb = Vector(u(*b))
+    direction = pb - pa
+    turn = Vector((0.0, 1.0, 0.0)).rotation_difference(direction.normalized()).to_matrix()
+    part.box((width, direction.length, depth), tuple((pa + pb) * 0.5), mat, rotate=turn)
+
+
+def jagdbogen():
+    """Hunting bow (Hollmanns Jagdbogen, GDD 02 11.2) in Unity axes: grip at the origin, the limbs up and down (1.3 m), the
+    tips and the string 0.18 m behind the grip towards the archer (-Z)."""
+    wood = material("Bogen_Holz", "8A5A30", 0.75)
+    dark = material("Bogen_Holz_Dunkel", "5A3A20", 0.8)
+    leather = material("Bogen_Griff", "3E2A1A", 0.7)
+    string = material("Bogen_Sehne", "D8CFB8", 0.9)
+    root = empty("Jagdbogen")
+    bow = PartBuilder("Bogen")
+    bow.box(us(0.04, 0.14, 0.045), u(0, 0, 0), leather)
+    for sign in (1, -1):
+        points = [(0, 0.06 * sign, 0.0), (0, 0.28 * sign, -0.03), (0, 0.48 * sign, -0.09), (0, 0.63 * sign, -0.18)]
+        widths = (0.032, 0.026, 0.02)
+        for i in range(3):
+            segment(bow, points[i], points[i + 1], widths[i], 0.028 - 0.004 * i, wood)
+        bow.box(us(0.024, 0.04, 0.024), u(0, 0.64 * sign, -0.185), dark)
+    segment(bow, (0, 0.63, -0.18), (0, -0.63, -0.18), 0.005, 0.005, string)
+    bow.build(root, (0, 0, 0))
+
+
+def pfeil():
+    """Wooden arrow (Holzpfeil, GDD 03 6.2) in Unity axes: the tip at +Z just in front of the origin (the projectile's hit point),
+    the shaft 0.72 m back, three grey fletchings."""
+    shaft = material("Pfeil_Schaft", "B08A5A", 0.7)
+    head = material("Pfeil_Spitze", "5E5E62", 0.4, 0.8)
+    feather = material("Pfeil_Feder", "C8C4BC", 0.9)
+    root = empty("Pfeil")
+    arrow = PartBuilder("Pfeil")
+    segment(arrow, (0, 0, -0.68), (0, 0, 0.04), 0.012, 0.012, shaft)
+    segment(arrow, (0, 0, 0.03), (0, 0, 0.11), 0.026, 0.008, head)
+    segment(arrow, (0, 0, 0.03), (0, 0, 0.11), 0.008, 0.026, head)
+    for angle in (90, 210, 330):
+        a = math.radians(angle)
+        x, y = math.cos(a) * 0.016, math.sin(a) * 0.016
+        segment(arrow, (x, y, -0.66), (x, y, -0.52), 0.004 if abs(x) < 0.01 else 0.02, 0.02 if abs(x) < 0.01 else 0.004, feather)
+    arrow.build(root, (0, 0, 0))
+
+
 def holzschild():
     """Round wooden shield (Holzschild): grip at the origin, the face looks along -Y."""
     wood = material("Holzschild_Holz", "8A5A32", 0.9)
@@ -753,6 +826,9 @@ MODELS = {
     "schwert": ("Characters/Schwert.fbx", schwert),
     "holzschild": ("Characters/Holzschild.fbx", holzschild),
     "zauberstab": ("Characters/Zauberstab.fbx", zauberstab),
+    "streitkolben": ("Characters/Streitkolben.fbx", streitkolben),
+    "jagdbogen": ("Characters/Jagdbogen.fbx", jagdbogen),
+    "pfeil": ("Characters/Pfeil.fbx", pfeil),
     "hausteile": ("Buildings/Hausteile.fbx", hausteile),
 }
 
@@ -784,7 +860,7 @@ def render_preview(path, height):
     print("Vorschau:", path)
 
 
-PREVIEW_HEIGHT = {"schwert": 1.0, "holzschild": 1.0, "zauberstab": 1.6, "wolf": 1.1, "aetherwolf": 1.1, "turmschild": 1.5, "hausteile": 2.5}
+PREVIEW_HEIGHT = {"schwert": 1.0, "holzschild": 1.0, "zauberstab": 1.6, "streitkolben": 1.0, "jagdbogen": 1.4, "pfeil": 1.0, "wolf": 1.1, "aetherwolf": 1.1, "turmschild": 1.5, "hausteile": 2.5}
 
 
 def main():

@@ -40,6 +40,11 @@ namespace Aetherfall.UI.Screens
         /// <returns>False if the slot is empty or the ability is not learned yet.</returns>
         bool TryGetAbility(int slot, out HudAbilityInfo ability);
 
+        /// <summary>Returns the ranged stance (bow drawn).</summary>
+        /// <param name="ranged">Aim, draw and arrows.</param>
+        /// <returns>False outside the ranged stance.</returns>
+        bool TryGetRanged(out HudRangedInfo ranged);
+
         /// <summary>Respawns the player at the spawn point (death screen).</summary>
         void Respawn();
 

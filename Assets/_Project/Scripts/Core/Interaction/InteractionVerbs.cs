@@ -20,5 +20,8 @@ namespace Aetherfall.Core
 
         /// <summary>Read a notice, sign, letter or book (notice boards that offer quests, GDD 02 4.1 "Aushang lesen").</summary>
         public const string Read = "read";
+
+        /// <summary>Hit a target with an arrow or bolt (straw targets, GDD 02 11.2 "Triff die Strohziele").</summary>
+        public const string Hit = "hit";
     }
 }

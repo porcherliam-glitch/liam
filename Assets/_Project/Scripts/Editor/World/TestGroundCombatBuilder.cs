@@ -184,14 +184,58 @@ namespace Aetherfall.EditorTools.World
                 staffModel.gameObject.SetActive(false);
             }
 
+            // GDD 03 5.3: the one-handed mace (Tobold sells it) lies in the sword hand like the sword, shown when it is equipped.
+            Transform maceModel = model != null ? CharacterModels.Instantiate(CharacterModels.Mace, swordHand, "Streitkolben", player.layer, report) : null;
+            if (maceModel != null)
+            {
+                maceModel.localPosition = new Vector3(0f, 0f, SwordGripReach);
+                maceModel.localRotation = Quaternion.Euler(-35f, 0f, 0f);
+                maceModel.gameObject.SetActive(false);
+            }
+
+            // GDD 03 6.1: the bow of the ranged slot - in the left hand in the ranged stance (F), otherwise on the back.
+            Transform bowModel = model != null ? CharacterModels.Instantiate(CharacterModels.Bow, shieldHand, "Jagdbogen", player.layer, report) : null;
+            if (bowModel != null)
+            {
+                bowModel.gameObject.SetActive(false);
+            }
+
+            Transform torso = model != null ? CharacterModels.Find(model, "Torso") : null;
+            Transform bowBack = torso != null ? CharacterModels.Instantiate(CharacterModels.Bow, torso, "Jagdbogen_Ruecken", player.layer, report) : null;
+            if (bowBack != null)
+            {
+                bowBack.localPosition = new Vector3(0f, 0.3f, -0.17f);
+                bowBack.localRotation = Quaternion.Euler(0f, 180f, 35f);
+                bowBack.gameObject.SetActive(false);
+            }
+
+            var arrowRoot = new GameObject("Bogen_Pfeile");
+            arrowRoot.transform.SetParent(player.transform, false);
+            arrowRoot.layer = player.layer;
+            ProjectileLauncher arrowLauncher = arrowRoot.AddComponent<ProjectileLauncher>();
+            BowEffects.BuildArrow(arrowRoot.transform, arrowLauncher, shieldHand, hurtboxLayer, 1 << environmentLayer, report);
+            PlayerBow bow = player.AddComponent<PlayerBow>();
+            TestGroundFields.SetReference(bow, "combat", combat, report);
+            TestGroundFields.SetReference(bow, "combatant", combatant, report);
+            TestGroundFields.SetReference(bow, "stats", stats, report);
+            TestGroundFields.SetReference(bow, "lockOn", lockOn, report);
+            TestGroundFields.SetReference(bow, "cameraTransform", mainCamera.transform, report);
+            TestGroundFields.SetReference(bow, "launcher", arrowLauncher, report);
+            TestGroundFields.SetReference(bow, "arrow", assets.Arrow, report);
+            TestGroundFields.SetString(bow, "ammoItemId", TestGroundItemAssets.ArrowId, report);
+            TestGroundFields.SetInt(bow, "aimLayers", (1 << environmentLayer) | (hurtboxLayer >= 0 ? 1 << hurtboxLayer : 0), report);
+            TestGroundFields.SetReference(pose, "bow", bow, report);
+
             ProjectileLauncher launcher = player.AddComponent<ProjectileLauncher>();
             SpellEffects.BuildFireBolt(player.transform, launcher, muzzle, hurtboxLayer, 1 << environmentLayer, report);
             TestGroundFields.SetReference(combat, "projectiles", launcher, report);
             var combatSerialized = new SerializedObject(combat);
             SerializedProperty movesets = combatSerialized.FindProperty("movesets");
-            movesets.arraySize = 1;
+            movesets.arraySize = 2;
             movesets.GetArrayElementAtIndex(0).FindPropertyRelative("type").intValue = (int)Aetherfall.Items.WeaponType.Staff;
             movesets.GetArrayElementAtIndex(0).FindPropertyRelative("weapon").objectReferenceValue = assets.Staff;
+            movesets.GetArrayElementAtIndex(1).FindPropertyRelative("type").intValue = (int)Aetherfall.Items.WeaponType.Mace;
+            movesets.GetArrayElementAtIndex(1).FindPropertyRelative("weapon").objectReferenceValue = assets.Mace;
             combatSerialized.ApplyModifiedPropertiesWithoutUndo();
             PlayerQuickSlots quickSlots = player.AddComponent<PlayerQuickSlots>();
             TestGroundFields.SetReference(quickSlots, "combat", combat, report);
@@ -204,6 +248,28 @@ namespace Aetherfall.EditorTools.World
                         "Wiederbeleben nach 3 s. Werte: Krieger Stufe 10 aus GDD 03, 8.3 (Stärke 20, Geschick 10, Konstitution 18; Rüstung und " +
                         "Waffenschaden aus der angelegten Ausrüstung).");
             return combatant;
+        }
+
+        /// <summary>
+        /// Where the player's projectiles stop and the bow's crosshair catches (a world with terrain: environment and terrain):
+        /// the staff's launcher, the bow's launcher and the bow's aim.
+        /// </summary>
+        /// <param name="player">Player root.</param>
+        /// <param name="solidMask">Ground and walls.</param>
+        /// <param name="hurtboxLayer">Hurtbox layer or −1.</param>
+        /// <param name="report">Protocol.</param>
+        public static void SetProjectileSolids(GameObject player, int solidMask, int hurtboxLayer, TestGroundReport report)
+        {
+            TestGroundFields.SetInt(player.GetComponent<ProjectileLauncher>(), "solidLayers", solidMask, report);
+            PlayerBow bow = player.GetComponent<PlayerBow>();
+            Transform arrows = player.transform.Find("Bogen_Pfeile");
+            if (bow == null || arrows == null)
+            {
+                return;
+            }
+
+            TestGroundFields.SetInt(arrows.GetComponent<ProjectileLauncher>(), "solidLayers", solidMask, report);
+            TestGroundFields.SetInt(bow, "aimLayers", solidMask | (hurtboxLayer >= 0 ? 1 << hurtboxLayer : 0), report);
         }
 
         /// <summary>Lock-on camera CM_LockOn with target group, camera shake source and listeners.</summary>
@@ -269,6 +335,7 @@ namespace Aetherfall.EditorTools.World
             EditorUtility.SetDirty(vcam);
             EditorUtility.SetDirty(follow);
             EditorUtility.SetDirty(composer);
+            SetUpAimCamera(player, exploreOrbital, collisionMask, report);
 
             var shakeObject = new GameObject("CameraShake");
             CinemachineImpulseSource source = shakeObject.AddComponent<CinemachineImpulseSource>();
@@ -288,6 +355,56 @@ namespace Aetherfall.EditorTools.World
             TestGroundFields.SetReference(shake, "impulseSource", source, report);
             report.Info("Lock-On-Kamera CM_LockOn (Third Person Follow 4,5–7 m, Blick auf Zielgruppe Spieler + Ziel, Priorität 20) und " +
                         "Kamera-Wackeln per Cinemachine Impulse (Quelle „CameraShake“, Listener an beiden Kameras).");
+        }
+
+        private static void SetUpAimCamera(GameObject player, CinemachineOrbitalFollow exploreOrbital, int collisionMask, TestGroundReport report)
+        {
+            PlayerBow bow = player.GetComponent<PlayerBow>();
+            if (bow == null || exploreOrbital == null)
+            {
+                return;
+            }
+
+            // GDD 03 2.1 "Zielen" (Vorschlag): 1.4 m behind, 0.6 m to the right, 1.65 m high; field of view 42° (fully drawn 38°).
+            // The first pictures showed the head covering a third of the view at 1.4 m, so 1.9 m and 0.7 m to the right.
+            Transform aimPivot = CreateChild(player.transform, "AimPivot", new Vector3(0f, 1.65f, 0f));
+            var cameraObject = new GameObject("CM_Aim");
+            cameraObject.transform.position = aimPivot.position + new Vector3(0.7f, 0.1f, -1.9f);
+            CinemachineCamera vcam = cameraObject.AddComponent<CinemachineCamera>();
+            vcam.Priority = 30;
+            vcam.Target.TrackingTarget = aimPivot;
+            LensSettings lens = vcam.Lens;
+            lens.FieldOfView = 42f;
+            lens.NearClipPlane = 0.1f;
+            lens.FarClipPlane = 1000f;
+            vcam.Lens = lens;
+
+            CinemachineThirdPersonFollow follow = cameraObject.AddComponent<CinemachineThirdPersonFollow>();
+            follow.ShoulderOffset = new Vector3(0.7f, 0.1f, 0f);
+            follow.VerticalArmLength = 0f;
+            follow.CameraSide = 1f;
+            follow.CameraDistance = 1.9f;
+            follow.Damping = new Vector3(0.05f, 0.05f, 0.05f);
+            CinemachineThirdPersonFollow.ObstacleSettings obstacles = follow.AvoidObstacles;
+            obstacles.Enabled = true;
+            obstacles.CollisionFilter = collisionMask;
+            obstacles.IgnoreTag = "Player";
+            obstacles.CameraRadius = TestGroundSceneBuilder.CameraCollisionRadius;
+            obstacles.DampingIntoCollision = 0f;
+            obstacles.DampingFromCollision = 0.3f;
+            follow.AvoidObstacles = obstacles;
+            cameraObject.AddComponent<CinemachineRotateWithFollowTarget>();
+            AddImpulseListener(cameraObject);
+
+            AimCamera aim = cameraObject.AddComponent<AimCamera>();
+            TestGroundFields.SetReference(aim, "bow", bow, report);
+            TestGroundFields.SetReference(aim, "aimCamera", vcam, report);
+            TestGroundFields.SetReference(aim, "aimPivot", aimPivot, report);
+            TestGroundFields.SetReference(aim, "exploreOrbital", exploreOrbital, report);
+            vcam.enabled = false;
+            EditorUtility.SetDirty(vcam);
+            EditorUtility.SetDirty(follow);
+            report.Info("Ziel-Kamera CM_Aim (Bogen, rechte Maustaste in der F-Haltung): 1,9 m hinter der rechten Schulter, Sichtfeld 42°/38°, Priorität 30.");
         }
 
         /// <summary>Builds training dummy, wolves and the spawner of the arena.</summary>

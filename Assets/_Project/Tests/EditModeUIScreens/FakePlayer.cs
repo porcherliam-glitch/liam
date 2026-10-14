@@ -56,6 +56,13 @@ namespace Aetherfall.Tests.EditMode.UIScreens
         }
 
         /// <inheritdoc />
+        public bool TryGetRanged(out HudRangedInfo ranged)
+        {
+            ranged = default;
+            return false;
+        }
+
+        /// <inheritdoc />
         public void Respawn()
         {
             Respawns++;

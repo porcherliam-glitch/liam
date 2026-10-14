@@ -117,6 +117,8 @@ namespace Aetherfall.EditorTools.Core
                    "  Linke Maus     leichter Angriff  Rechte Maus  schwerer Angriff\r\n" +
                    "  Q (halten)     blocken         Strg           ausweichen\r\n" +
                    "  T              Gegner anvisieren\r\n" +
+                   "  F              Bogen ziehen / wegstecken. Mit Bogen: rechte Maus zielen, linke Maus halten = spannen,\r\n" +
+                   "                 loslassen = schießen; linke Maus ohne Zielen = schneller Hüftschuss\r\n" +
                    "  5 / 6          Heiltrank / Manatrank trinken (knapp 1 s, ein harter Treffer bricht ab)\r\n" +
                    "  4              Aether-Stoß (ab dem Riss im Prolog; 15 Mana, 8 s warten)\r\n" +
                    "  Tab            Inventar        J              Questlog\r\n" +
@@ -124,9 +126,11 @@ namespace Aetherfall.EditorTools.Core
                    "  Esc            Pause und Menü\r\n" +
                    "  Im Gespräch: 1–9 oder Maus wählen, E oder Leertaste weiter.\r\n\r\n" +
                    "Händler: Tobold (Schmied) und Ulf (Wirt) in Lindenhain – im Gespräch nach den Waren fragen.\r\n" +
+                   "Waffen: Tobold verkauft Streitkolben (3 wuchtige Schläge, Schild erlaubt), Jagdbögen und Pfeile.\r\n" +
+                   "Bogen: In \"Die Wölfe vom Nordhang\" leiht dir Hollmann seinen Jagdbogen und 30 Pfeile – triff die Strohziele.\r\n" +
                    "Würfeln: Ulf fragen \"Würfeln wir eine Runde?\" (Krähenwurf, die Regeln stehen im Fenster).\r\n" +
                    "Begleiterin: Nach \"Die Wölfe vom Nordhang\" wartet Ser Maren am Wachposten von Lindenhain und kommt mit.\r\n\r\n" +
-                   "Gamepad (Xbox): A springen und benutzen, X/Y angreifen, B ausweichen, LB blocken, Start Pause.\r\n\r\n" +
+                   "Gamepad (Xbox): A springen und benutzen, X/Y angreifen, B ausweichen, LB blocken, LT/RT mit Bogen zielen/schießen, Start Pause.\r\n\r\n" +
                    "Spielstände und Protokoll: %USERPROFILE%\\AppData\\LocalLow\\" + PlayerSettings.companyName + "\\" + PlayerSettings.productName + "\\\r\n" +
                    "Bei Problemen die Datei Player.log aus diesem Ordner an Claude schicken.\r\n";
         }
