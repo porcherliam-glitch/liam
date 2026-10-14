@@ -133,6 +133,7 @@ namespace Aetherfall.EditorTools.World
 
             report.Info("Szene gespeichert: " + GruftPaths.ScenePath);
             EnsureSceneList(report);
+            TestGroundUiBuilder.EnsureWorldSpace(layout.WorldSpaceId, GruftPaths.ScenePath, layout.Name.Length > 0 ? layout.Name : "Die vergessene Gruft", report);
             AssetDatabase.SaveAssets();
             return player;
         }

@@ -46,6 +46,14 @@ namespace Aetherfall.SaveSystem
         /// <param name="saveable">Saveable.</param>
         void Unregister(ISaveable saveable);
 
+        /// <summary>
+        /// Unregisters a scene saveable but keeps its current state as a carried section: the next saveable that registers
+        /// with the same key gets it (player values across a portal change, guide 12, 11.5). Loading and a new game discard
+        /// carried sections; a save in between writes them unchanged.
+        /// </summary>
+        /// <param name="saveable">Saveable to carry over (ignored if it is not registered).</param>
+        void CarryOver(ISaveable saveable);
+
         /// <summary>Registers a contributor to the save header (architecture 9.3).</summary>
         /// <param name="contributor">Contributor.</param>
         void RegisterHeaderContributor(ISaveHeaderContributor contributor);

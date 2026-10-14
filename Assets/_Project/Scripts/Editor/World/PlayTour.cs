@@ -6,7 +6,9 @@ using Aetherfall.Core;
 using Aetherfall.Dialogue;
 using Aetherfall.NPC;
 using Aetherfall.Player;
+using Aetherfall.SaveSystem;
 using Aetherfall.UI.Screens;
+using Aetherfall.World.Dungeons;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -50,6 +52,10 @@ namespace Aetherfall.EditorTools.World
         private static IGameStateService _gameState;
         private static PendingShot _pending;
         private static NpcInteractable _npc;
+        private static DungeonPortal _portal;
+        private static bool _portalUsed;
+        private static bool _quickSaveDone;
+        private static string _sceneBefore = string.Empty;
 
         /// <summary>Menu entry: runs the tour for the boot scene in the open editor.</summary>
         [MenuItem(MenuPath)]
@@ -75,6 +81,8 @@ namespace Aetherfall.EditorTools.World
             _exiting = false;
             _pending = null;
             _npc = null;
+            _portal = null;
+            _portalUsed = false;
             Messages.Clear();
             Steps.Clear();
             string projectRoot = Path.GetDirectoryName(Application.dataPath) ?? ".";
@@ -139,6 +147,136 @@ namespace Aetherfall.EditorTools.World
             Steps.Enqueue(() => Wait(1.0));
             Steps.Enqueue(() => _npc == null || Capture("09_dialog_auswahl", null));
             Steps.Enqueue(EndConversation);
+
+            // Portal round trip (skipped without a portal): half health, through the portal, quick save on the other side,
+            // back through the exit, then load the quick save from there (must change the scene again).
+            Steps.Enqueue(() => Wait(0.5));
+            Steps.Enqueue(HurtPlayer);
+            Steps.Enqueue(UsePortal);
+            Steps.Enqueue(WaitForSceneChange);
+            Steps.Enqueue(() => Wait(2.0));
+            Steps.Enqueue(() => ReportTravel("nach dem Portal"));
+            Steps.Enqueue(() => !_portalUsed || Capture("10_nach_portal", null));
+            Steps.Enqueue(QuickSave);
+            Steps.Enqueue(WaitForQuickSave);
+            Steps.Enqueue(UsePortal);
+            Steps.Enqueue(WaitForSceneChange);
+            Steps.Enqueue(() => Wait(2.0));
+            Steps.Enqueue(() => ReportTravel("zurück"));
+            Steps.Enqueue(() => !_portalUsed || Capture("11_zurueck", null));
+            Steps.Enqueue(LoadQuickSave);
+            Steps.Enqueue(WaitForSceneChange);
+            Steps.Enqueue(() => Wait(2.0));
+            Steps.Enqueue(() => ReportTravel("nach dem Schnellladen"));
+            Steps.Enqueue(() => !_portalUsed || Capture("12_schnellladen", null));
+        }
+
+        private static bool HurtPlayer()
+        {
+            PlayerMotor player = FindPlayer();
+            _portal = UnityEngine.Object.FindAnyObjectByType<DungeonPortal>();
+            _portalUsed = _portal != null && player != null;
+            if (!_portalUsed)
+            {
+                Note("Kein Portal in der Szene – Rundreise übersprungen.");
+                return true;
+            }
+
+            Aetherfall.Combat.Health health = player.GetComponent<Aetherfall.Combat.DamageableComponent>().Health;
+            health.RestoreState(health.Max * 0.5f);
+            Note("Lebenspunkte vor der Reise auf die Hälfte gesetzt: " + health.Current.ToString("0") + " / " + health.Max.ToString("0") + ".");
+            return true;
+        }
+
+        private static bool UsePortal()
+        {
+            if (!_portalUsed)
+            {
+                return true;
+            }
+
+            PlayerMotor player = FindPlayer();
+            _portal = UnityEngine.Object.FindAnyObjectByType<DungeonPortal>();
+            if (_portal == null)
+            {
+                return Fail(true, "Kein Portal in der Szene " + player.gameObject.scene.name + ".");
+            }
+
+            _sceneBefore = player.gameObject.scene.name;
+            bool started = _portal.Interact(new InteractionContext("player", player.transform.position, false));
+            Note("Portal „" + _portal.InteractionPrompt + "“ (" + _portal.ObjectId + " → " + _portal.TargetSceneKey + ") benutzt: " + started + ".");
+            return started || Fail(true, "Das Portal ließ sich nicht benutzen.");
+        }
+
+        private static bool WaitForSceneChange()
+        {
+            if (!_portalUsed)
+            {
+                return true;
+            }
+
+            PlayerMotor player = FindPlayer();
+            if (player != null && player.gameObject.scene.name != _sceneBefore && _gameState.Current == GameState.Playing)
+            {
+                Note("Neue Szene „" + player.gameObject.scene.name + "“ nach " + Elapsed.ToString("0.0") + " s.");
+                return true;
+            }
+
+            return Fail(Elapsed > PlayingTimeoutSeconds, "Szenenwechsel aus „" + _sceneBefore + "“ nicht abgeschlossen (Zustand " + _gameState.Current + ").");
+        }
+
+        private static bool ReportTravel(string when)
+        {
+            if (!_portalUsed)
+            {
+                return true;
+            }
+
+            PlayerMotor player = FindPlayer();
+            Aetherfall.Combat.Health health = player.GetComponent<Aetherfall.Combat.DamageableComponent>().Health;
+            Note("Spielfigur " + when + ": Szene " + player.gameObject.scene.name + ", Position " + player.transform.position.ToString("F1") +
+                 ", Lebenspunkte " + health.Current.ToString("0") + " / " + health.Max.ToString("0") + ".");
+            _sceneBefore = player.gameObject.scene.name;
+            return true;
+        }
+
+        private static bool QuickSave()
+        {
+            if (!_portalUsed)
+            {
+                return true;
+            }
+
+            _quickSaveDone = false;
+            Services.Locator.Get<IGameFlow>().QuickSave(result =>
+            {
+                _quickSaveDone = true;
+                Note("Schnellspeichern in " + _sceneBefore + ": " + (result.Success ? "ok, " + result.SlotId : "FEHLER " + result.ReasonKey) + ".");
+            });
+            return true;
+        }
+
+        private static bool WaitForQuickSave()
+        {
+            return !_portalUsed || _quickSaveDone || Fail(Elapsed > 30.0, "Schnellspeichern wurde nicht fertig.");
+        }
+
+        private static bool LoadQuickSave()
+        {
+            if (!_portalUsed)
+            {
+                return true;
+            }
+
+            ISaveManager saves = Services.Locator.Get<ISaveManager>();
+            if (!saves.TryGetLatestSlot(Aetherfall.Events.SaveKind.Quick, out SaveSlotInfo slot))
+            {
+                return Fail(true, "Kein Schnellspeicherstand gefunden.");
+            }
+
+            Note("Lade " + slot.SlotId + " (Welt " + slot.WorldSpaceId + ") über IGameLoader.");
+            Services.Locator.Get<IGameLoader>().LoadSlot(slot.SlotId);
+            return true;
         }
 
         private static bool ResumeGame()

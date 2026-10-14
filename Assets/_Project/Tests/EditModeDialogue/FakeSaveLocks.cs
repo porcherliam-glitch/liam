@@ -50,6 +50,12 @@ namespace Aetherfall.Tests.EditMode.Dialogue
         }
 
         /// <inheritdoc />
+        public void CarryOver(ISaveable saveable)
+        {
+            Unregister(saveable);
+        }
+
+        /// <inheritdoc />
         public void RegisterHeaderContributor(ISaveHeaderContributor contributor)
         {
         }

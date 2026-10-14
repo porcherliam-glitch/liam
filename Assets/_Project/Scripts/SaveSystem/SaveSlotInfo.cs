@@ -56,6 +56,9 @@ namespace Aetherfall.SaveSystem
         /// <summary>Save number of the character (<see cref="SaveHeader.SaveSequence"/>), -1 without readable header.</summary>
         public long Sequence => Header != null ? Header.SaveSequence : -1L;
 
+        /// <summary>World space of the save (<see cref="SaveHeaderLocation.WorldSpaceId"/>) or empty.</summary>
+        public string WorldSpaceId => Header != null && Header.Location != null ? Header.Location.WorldSpaceId ?? string.Empty : string.Empty;
+
         private static SaveKind KindFromName(string slotName)
         {
             int underscore = slotName.IndexOf('_');

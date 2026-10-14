@@ -170,6 +170,14 @@ namespace Aetherfall.SaveSystem
             return snapshot;
         }
 
+        /// <summary>Serializes the DTO of one section with the save settings (the reverse of <see cref="ToSectionData"/>).</summary>
+        /// <param name="data">DTO or null.</param>
+        /// <returns>The section JSON; a JSON <c>null</c> for null.</returns>
+        public JToken ToSectionJson(object data)
+        {
+            return data == null ? JValue.CreateNull() : JToken.FromObject(data, _serializer);
+        }
+
         /// <summary>Deserializes the JSON of one section into its DTO type.</summary>
         /// <param name="key">Save key (for the error message).</param>
         /// <param name="json">Section JSON.</param>

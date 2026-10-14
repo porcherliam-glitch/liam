@@ -172,6 +172,38 @@ namespace Aetherfall.SaveSystem
         }
 
         /// <inheritdoc />
+        public void CarryOver(ISaveable saveable)
+        {
+            if (saveable == null || !_saveables.Remove(saveable))
+            {
+                return;
+            }
+
+            JToken json;
+            try
+            {
+                object data = saveable.Save();
+                json = _mainThreadCodec.ToSectionJson(data);
+            }
+            catch (Exception exception)
+            {
+                Log.Exception(LogCategory.Save, exception, "Saveable '" + saveable.SaveKey + "' could not be carried over; its state is lost.");
+                return;
+            }
+
+            for (int i = _carriedSections.Count - 1; i >= 0; i--)
+            {
+                if (string.Equals(_carriedSections[i].Key, saveable.SaveKey, StringComparison.Ordinal))
+                {
+                    _carriedSections.RemoveAt(i);
+                }
+            }
+
+            _carriedSections.Add(new KeyValuePair<string, JToken>(saveable.SaveKey, json));
+            Log.Info(LogCategory.Save, "Section '" + saveable.SaveKey + "' carried over to the next registration.");
+        }
+
+        /// <inheritdoc />
         public void RegisterHeaderContributor(ISaveHeaderContributor contributor)
         {
             if (contributor != null && !_contributors.Contains(contributor))

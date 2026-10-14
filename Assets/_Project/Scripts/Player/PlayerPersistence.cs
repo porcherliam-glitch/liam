@@ -17,9 +17,10 @@ namespace Aetherfall.Player
     /// <para>GameObject: the player root next to <see cref="PlayerMotor"/>, <see cref="DamageableComponent"/> and
     /// <see cref="CharacterStatsComponent"/> (the test ground menu sets the references).</para>
     /// <para>Waits in <c>Start</c> until the boot has registered the services (in the editor the boot scene loads after the
-    /// test scene) and unregisters in <c>OnDestroy</c>. Registering this late is fine: if a save was loaded before, the save
-    /// manager hands over the kept sections at once. Without SaveInstaller in the BootConfig it logs a warning and the
-    /// player is not saved.</para>
+    /// test scene) and unregisters in <c>OnDestroy</c>, carrying the values over to the player of the next scene
+    /// (<see cref="ISaveManager.CarryOver"/>). Registering this late is fine: if a save was loaded before, the save
+    /// manager hands over the kept sections at once. The location also writes the world space into the save header. Without
+    /// SaveInstaller in the BootConfig it logs a warning and the player is not saved.</para>
     /// </remarks>
     [DisallowMultipleComponent]
     public sealed class PlayerPersistence : MonoBehaviour, IPlayerPlacement
@@ -111,6 +112,7 @@ namespace Aetherfall.Player
                 _resources = new PlayerResourcesSaveable(health.Health, stats != null ? stats.Stamina : null, stats != null ? stats.Mana : null);
                 saves.Register(_resources);
                 saves.Register(_location);
+                saves.RegisterHeaderContributor(_location);
                 _saves = saves;
                 _airborneLock = new AirborneSaveLock(saves);
             }
@@ -141,8 +143,12 @@ namespace Aetherfall.Player
 
             _airborneLock.Release();
             _airborneLock = null;
+            _saves.UnregisterHeaderContributor(_location);
             _saves.Unregister(_location);
-            _saves.Unregister(_resources);
+
+            // Health, stamina and mana go with the player into the next scene (portal change, guide 12, 11.5); the position does
+            // not: there the arrival anchor places the player. Loading or a new game discards the carried values.
+            _saves.CarryOver(_resources);
             _saves = null;
         }
     }

@@ -315,6 +315,55 @@ namespace Aetherfall.EditorTools.World
                         (hasEichental ? string.Empty : " (Eichental noch nicht erstellt)") + (hasTestGround ? string.Empty : " (Testgelände noch nicht erstellt)"));
         }
 
+        /// <summary>
+        /// Enters a world space in the UIInstaller (world space id → scene and loading screen title), so "Laden" opens the scene a
+        /// save was made in (guide 12, 11.5). Replaces an entry with the same id; other entries stay.
+        /// </summary>
+        /// <param name="worldSpaceId">World space id, e.g. worldspace.eichental.gruft.</param>
+        /// <param name="scenePath">Scene path.</param>
+        /// <param name="title">Loading screen title.</param>
+        /// <param name="report">Protocol.</param>
+        public static void EnsureWorldSpace(string worldSpaceId, string scenePath, string title, TestGroundReport report)
+        {
+            UIInstaller installer = AssetDatabase.LoadAssetAtPath<UIInstaller>(UIInstallerPath);
+            if (installer == null || string.IsNullOrEmpty(worldSpaceId))
+            {
+                report.Warning("UIInstaller fehlt (" + UIInstallerPath + "): Welt " + worldSpaceId + " nicht eingetragen. Bitte „" + MenuPath + "“ ausführen.");
+                return;
+            }
+
+            var serialized = new SerializedObject(installer);
+            SerializedProperty list = serialized.FindProperty("worldSpaces");
+            if (list == null)
+            {
+                report.Warning("UIInstaller hat kein Feld „worldSpaces“ (Code umbenannt?).");
+                return;
+            }
+
+            int index = list.arraySize;
+            for (int i = 0; i < list.arraySize; i++)
+            {
+                if (list.GetArrayElementAtIndex(i).FindPropertyRelative("worldSpaceId").stringValue == worldSpaceId)
+                {
+                    index = i;
+                    break;
+                }
+            }
+
+            if (index == list.arraySize)
+            {
+                list.arraySize++;
+            }
+
+            SerializedProperty entry = list.GetArrayElementAtIndex(index);
+            entry.FindPropertyRelative("worldSpaceId").stringValue = worldSpaceId;
+            entry.FindPropertyRelative("scenePath").stringValue = scenePath;
+            entry.FindPropertyRelative("title").stringValue = title;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(installer);
+            report.Info("UIInstaller: Welt " + worldSpaceId + " → " + scenePath + " („" + title + "“).");
+        }
+
         /// <summary>Adds the HUD bridge to the player of the test ground and fills its references.</summary>
         /// <param name="player">Player root.</param>
         /// <param name="mainCamera">Main camera (compass heading).</param>

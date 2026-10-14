@@ -143,6 +143,7 @@ namespace Aetherfall.EditorTools.World
             GameObject player = TestGroundSceneBuilder.Build(setup.Settings, setup.Materials, layers.Player, layers.Environment, setup.Combat, layers.Enemy,
                 layers.Hurtbox, setup.Items, layers.Interactable, layers.Pickup, layers.TriggerVolume, report);
             TestGroundUiBuilder.EnsureSceneList(report);
+            TestGroundUiBuilder.EnsureWorldSpace(TestGroundPaths.WorldSpaceId, TestGroundPaths.ScenePath, "Testgelände", report);
             AssetDatabase.SaveAssets();
             return player;
         }

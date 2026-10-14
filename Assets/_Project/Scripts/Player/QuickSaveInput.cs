@@ -26,6 +26,7 @@ namespace Aetherfall.Player
 
         private IGameplayInput _gameplay;
         private ISaveManager _saves;
+        private IGameLoader _loader;
         private QuickLoadConfirmation _confirmation;
 
         /// <summary>True while the quick load question waits for the second press.</summary>
@@ -52,6 +53,7 @@ namespace Aetherfall.Player
 
                 _gameplay = input.Gameplay;
                 _saves = saves;
+                locator.TryGet(out _loader);
             }
             catch (OperationCanceledException)
             {
@@ -112,7 +114,20 @@ namespace Aetherfall.Player
             }
         }
 
-        private async void RunQuickLoad()
+        private void RunQuickLoad()
+        {
+            // Through the game flow when it exists: a quick save from another world space (e.g. the crypt) needs a scene change
+            // first, and this object is destroyed with its scene during that change.
+            if (_loader != null && _saves.TryGetLatestSlot(Aetherfall.Events.SaveKind.Quick, out SaveSlotInfo slot))
+            {
+                _loader.LoadSlot(slot.SlotId);
+                return;
+            }
+
+            RunQuickLoadDirect();
+        }
+
+        private async void RunQuickLoadDirect()
         {
             // async void: fire-and-forget adapter of a key press; all exceptions are handled here.
             try

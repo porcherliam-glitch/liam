@@ -15,3 +15,13 @@ MonoBehaviour:
   gameplayScenePath: Assets/_Project/Scenes/World/Eichental.unity
   gameplaySceneTitle: Eichental
   holdDuration: 1
+  worldSpaces:
+  - worldSpaceId: worldspace.test.testgelaende
+    scenePath: Assets/_Project/Scenes/Test/Testgelaende.unity
+    title: "Testgel\xE4nde"
+  - worldSpaceId: worldspace.eichental.gruft
+    scenePath: Assets/_Project/Scenes/Dungeons/Gruft.unity
+    title: Die vergessene Gruft
+  - worldSpaceId: worldspace.eichental.mini_slice
+    scenePath: Assets/_Project/Scenes/World/Eichental.unity
+    title: Eichental

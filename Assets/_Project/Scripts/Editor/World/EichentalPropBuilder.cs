@@ -7,8 +7,8 @@ namespace Aetherfall.EditorTools.World
     /// <summary>
     /// Small set pieces of the Eichental from the layout (<see cref="LayoutProp"/>): well, campfire with light, cart, signpost,
     /// wayside cross, barricades that close the paths at the map edge, the notice board (<see cref="QuestBoard"/> with the
-    /// layout id, glitters while it offers something), refugee tents, hay bales, sheep, crates, barrels, the facade of the crypt
-    /// entrance (closed until the dungeon exists), the wolf den mouth and the cairn on the Rabenfels. Same shapes as the Blender
+    /// layout id, glitters while it offers something), refugee tents, hay bales, sheep, crates, barrels, the crypt
+    /// entrance (its portal comes from <see cref="EichentalDungeonLinks"/>), the wolf den mouth and the cairn on the Rabenfels. Same shapes as the Blender
     /// preview (Tools/Preview/eichental_preview.py, <c>build_prop</c>); one shared mesh per kind, simple box colliders.
     /// </summary>
     public sealed class EichentalPropBuilder
@@ -58,7 +58,7 @@ namespace Aetherfall.EditorTools.World
             }
 
             _report.Info("Requisiten: " + layout.Props.Count + " (Brunnen, Lagerfeuer, Karren, Zelte, Sperren an den Wegen aus der Karte, " +
-                         boards + " Anschlagbrett, Gruft-Eingang als geschlossene Fassade).");
+                         boards + " Anschlagbrett, Gruft-Eingang mit Portal).");
         }
 
         private GameObject Build(LayoutProp prop, Transform parent)
@@ -121,9 +121,9 @@ namespace Aetherfall.EditorTools.World
                     AddCollider(go, new Vector3(-2.3f, 1.8f, 0f), new Vector3(1f, 4.6f, 1f));
                     AddCollider(go, new Vector3(2.3f, 1.8f, 0f), new Vector3(1f, 4.6f, 1f));
                     AddCollider(go, new Vector3(0f, 4.55f, 0f), new Vector3(5.8f, 1.1f, 1.3f));
-                    // The dark doorway is closed for now: "Die vergessene Gruft" is its own scene (a later step).
+                    // The doorway stays solid: the portal trigger in front of it (EichentalDungeonLinks) changes to the crypt scene.
                     AddCollider(go, new Vector3(0f, 1.45f, -0.4f), new Vector3(3.6f, 3.9f, 0.5f));
-                    EichentalLabel.Create(go.transform, "Die vergessene Gruft\n(Eingang folgt später)", new Vector3(0f, 5.8f, 0.8f), 180f, _labelFont, 0.05f);
+                    EichentalLabel.Create(go.transform, "Die vergessene Gruft",new Vector3(0f, 5.8f, 0.8f), 180f, _labelFont, 0.05f);
                     break;
                 case PropKind.CaveMouth:
                     AddCollider(go, new Vector3(0f, 1.3f, -0.2f), new Vector3(4f, 3f, 0.4f));

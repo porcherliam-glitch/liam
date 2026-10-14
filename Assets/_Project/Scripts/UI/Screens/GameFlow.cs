@@ -14,7 +14,9 @@ namespace Aetherfall.UI.Screens
     /// <item>New game / load from the main menu: <c>SwitchBase(Loading)</c>, loading screen, world space change to the gameplay
     /// scene (<see cref="ISceneLoader.ChangeWorldSpaceAsync"/>), one frame for the scene objects, then
     /// <see cref="ISaveManager.NewGameAsync"/> / <see cref="ISaveManager.LoadAsync"/>, which switch Loading → Playing.</item>
-    /// <item>Load in the game (pause menu, death screen): the save manager switches Paused → Loading → Playing in place.</item>
+    /// <item>Load in the game (pause menu, death screen, F9 through <see cref="IGameLoader"/>): the save manager switches Paused → Loading
+    /// → Playing in place. A save from another world space (its header names it, <see cref="WorldSpaceDirectory"/>) changes the
+    /// scene first, like a load from the main menu.</item>
     /// <item>Main menu: <c>SwitchBase(MainMenu)</c> from Paused, then the gameplay scene is unloaded.</item>
     /// <item>Respawn: <c>Pop(Paused)</c> of the death screen, then the player respawns.</item>
     /// </list>
@@ -26,7 +28,7 @@ namespace Aetherfall.UI.Screens
     /// <para>Fire-and-forget methods (menu buttons) run their awaitable work in <c>async void</c> adapters with try/catch;
     /// cancellation comes from <see cref="Application.exitCancellationToken"/>.</para>
     /// </remarks>
-    public sealed class GameFlow : IGameFlow
+    public sealed class GameFlow : IGameFlow, IGameLoader
     {
         private const string Reason = "Game flow";
 
@@ -40,6 +42,7 @@ namespace Aetherfall.UI.Screens
         private readonly string _gameplaySceneTitle;
         private readonly CancellationToken _cancellation;
         private readonly FrameWait _nextFrame;
+        private readonly WorldSpaceDirectory _worldSpaces;
         private bool _busy;
 
         /// <summary>Creates the flow.</summary>
@@ -53,8 +56,12 @@ namespace Aetherfall.UI.Screens
         /// <param name="gameplaySceneTitle">Title on the loading screen.</param>
         /// <param name="cancellation">Ends running flows (application quits).</param>
         /// <param name="nextFrame">Waits one frame; null = <see cref="FrameWaits.NextFrame"/>.</param>
+        /// <param name="worldSpaces">
+        /// Scenes of the world spaces (loading opens the scene of the save, guide 12, 11.5); null = always the gameplay scene.
+        /// </param>
         public GameFlow(IGameStateService gameState, ISceneLoader scenes, ISaveManager saves, IUIManager ui, ILoadingScreen loadingScreen,
-            IPlayerHudRegistry players, string gameplaySceneKey, string gameplaySceneTitle, CancellationToken cancellation, FrameWait nextFrame = null)
+            IPlayerHudRegistry players, string gameplaySceneKey, string gameplaySceneTitle, CancellationToken cancellation, FrameWait nextFrame = null,
+            WorldSpaceDirectory worldSpaces = null)
         {
             _gameState = gameState ?? throw new ArgumentNullException(nameof(gameState));
             _scenes = scenes ?? throw new ArgumentNullException(nameof(scenes));
@@ -66,6 +73,7 @@ namespace Aetherfall.UI.Screens
             _gameplaySceneTitle = gameplaySceneTitle ?? string.Empty;
             _cancellation = cancellation;
             _nextFrame = nextFrame ?? FrameWaits.NextFrame;
+            _worldSpaces = worldSpaces ?? new WorldSpaceDirectory();
         }
 
         /// <inheritdoc />
@@ -243,10 +251,17 @@ namespace Aetherfall.UI.Screens
                 return;
             }
 
-            SceneHandle scene = await _scenes.ChangeWorldSpaceAsync(new WorldSpaceRequest(_gameplaySceneKey, _gameplaySceneTitle, true), ct);
+            ResolveScene(slotId, out string sceneKey, out string title);
+            await LoadIntoSceneAsync(slotId, sceneKey, title, ct);
+        }
+
+        private async Awaitable LoadIntoSceneAsync(string slotId, string sceneKey, string title, CancellationToken ct)
+        {
+            // Game state is Loading: open the scene of the save's world space (village, crypt …), then load the save into it.
+            SceneHandle scene = await _scenes.ChangeWorldSpaceAsync(new WorldSpaceRequest(sceneKey, title, true), ct);
             if (!scene.IsValid)
             {
-                await ReturnFromLoadingAsync(UiTexts.Format(UiTextKeys.LoadFailed, _gameplaySceneTitle), ct);
+                await ReturnFromLoadingAsync(UiTexts.Format(UiTextKeys.LoadFailed, title), ct);
                 return;
             }
 
@@ -272,7 +287,24 @@ namespace Aetherfall.UI.Screens
 
         private async Awaitable LoadInGameAsync(string slotId, CancellationToken ct)
         {
-            _loadingScreen.Show(_gameplaySceneTitle);
+            ResolveScene(slotId, out string sceneKey, out string title);
+            string current = CurrentSceneKey();
+            if (!string.Equals(sceneKey, current, StringComparison.Ordinal))
+            {
+                // The save lies in another world space (e.g. a quick save in the crypt, loaded in the village): change the scene
+                // behind the loading screen like a load from the main menu.
+                Log.Info(LogCategory.UI, "Load '" + slotId + "' changes the world space: '" + current + "' -> '" + sceneKey + "'.");
+                _ui.Notifications.Clear();
+                if (!_gameState.SwitchBase(GameState.Loading, "Load save"))
+                {
+                    return;
+                }
+
+                await LoadIntoSceneAsync(slotId, sceneKey, title, ct);
+                return;
+            }
+
+            _loadingScreen.Show(title);
             _loadingScreen.SetProgress(0.5f);
             try
             {
@@ -297,7 +329,31 @@ namespace Aetherfall.UI.Screens
             }
 
             _ui.Notifications.Clear();
-            await _scenes.UnloadAsync(new SceneHandle(_gameplaySceneKey), ct);
+            await _scenes.UnloadAsync(new SceneHandle(CurrentSceneKey()), ct);
+        }
+
+        /// <summary>The open world space scene (after a portal change e.g. the crypt), or the gameplay scene.</summary>
+        private string CurrentSceneKey()
+        {
+            string current = _scenes.CurrentWorldSpace;
+            return string.IsNullOrEmpty(current) ? _gameplaySceneKey : current;
+        }
+
+        /// <summary>Scene and loading screen title of the save's world space; unknown → the gameplay scene.</summary>
+        private void ResolveScene(string slotId, out string sceneKey, out string title)
+        {
+            IReadOnlyList<SaveSlotInfo> slots = _saves.ListSlots(null);
+            for (int i = 0; slots != null && i < slots.Count; i++)
+            {
+                if (string.Equals(slots[i].SlotId, slotId, StringComparison.Ordinal) &&
+                    _worldSpaces.TryResolve(slots[i].WorldSpaceId, out sceneKey, out title))
+                {
+                    return;
+                }
+            }
+
+            sceneKey = _gameplaySceneKey;
+            title = _gameplaySceneTitle;
         }
 
         private async Awaitable ReturnFromLoadingAsync(string message, CancellationToken ct)
@@ -319,9 +375,10 @@ namespace Aetherfall.UI.Screens
                 _gameState.SwitchBase(GameState.MainMenu, "Load failed");
             }
 
-            if (_scenes.IsLoaded(_gameplaySceneKey) && !_scenes.IsBusy)
+            string scene = CurrentSceneKey();
+            if (_scenes.IsLoaded(scene) && !_scenes.IsBusy)
             {
-                await _scenes.UnloadAsync(new SceneHandle(_gameplaySceneKey), ct);
+                await _scenes.UnloadAsync(new SceneHandle(scene), ct);
             }
 
             RaiseFailed(message);

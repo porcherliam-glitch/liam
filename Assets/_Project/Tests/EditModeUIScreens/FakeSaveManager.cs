@@ -60,9 +60,11 @@ namespace Aetherfall.Tests.EditMode.UIScreens
 
         /// <summary>Adds a slot to the list.</summary>
         /// <param name="slotName">Slot name, e.g. quick_0.</param>
-        public void AddSlot(string slotName)
+        /// <param name="worldSpaceId">World space in the header (empty = save from before the field).</param>
+        public void AddSlot(string slotName, string worldSpaceId = "")
         {
             var header = new SaveHeader { Kind = "quick", CreatedUtc = "2026-10-13T10:00:00Z", PlaytimeSeconds = 600, SaveSequence = _slots.Count + 1 };
+            header.Location.WorldSpaceId = worldSpaceId;
             _slots.Insert(0, new SaveSlotInfo(CharacterId, slotName, header, false));
         }
 
@@ -74,6 +76,12 @@ namespace Aetherfall.Tests.EditMode.UIScreens
         /// <inheritdoc />
         public void Unregister(ISaveable saveable)
         {
+        }
+
+        /// <inheritdoc />
+        public void CarryOver(ISaveable saveable)
+        {
+            Unregister(saveable);
         }
 
         /// <inheritdoc />

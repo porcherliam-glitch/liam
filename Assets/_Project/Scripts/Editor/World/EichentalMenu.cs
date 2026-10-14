@@ -231,6 +231,7 @@ namespace Aetherfall.EditorTools.World
             }
 
             SetStartScene(EichentalPaths.ScenePath, layout.SceneTitle.Length > 0 ? layout.SceneTitle : "Eichental", report);
+            TestGroundUiBuilder.EnsureWorldSpace(layout.WorldSpaceId, EichentalPaths.ScenePath, layout.SceneTitle.Length > 0 ? layout.SceneTitle : "Eichental", report);
             TestGroundUiBuilder.EnsureSceneList(report);
             AssetDatabase.SaveAssets();
             return player;

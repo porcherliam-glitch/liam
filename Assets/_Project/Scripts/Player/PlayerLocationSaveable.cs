@@ -12,8 +12,9 @@ namespace Aetherfall.Player
     /// cell + local position (512 m cells, architecture 9.7) and yaw. Loading teleports the character through
     /// <see cref="IPlayerPlacement"/>; after the load (<see cref="IPostLoad"/>) it publishes <see cref="PlayerSpawned"/>.
     /// </summary>
-    /// <remarks>A new game (data null) changes nothing: the spawn point places the player.</remarks>
-    public sealed class PlayerLocationSaveable : Saveable<PlayerLocationDto>, IPostLoad
+    /// <remarks>A new game (data null) changes nothing: the spawn point places the player. As header contributor it writes the
+    /// world space into the save header, so loading can open the right scene first (guide 12, 11.5).</remarks>
+    public sealed class PlayerLocationSaveable : Saveable<PlayerLocationDto>, IPostLoad, ISaveHeaderContributor
     {
         /// <summary>Save key (table 9.2).</summary>
         public const string Key = "player";
@@ -67,6 +68,15 @@ namespace Aetherfall.Player
                 data.LocalY,
                 (float)WorldGrid.WorldCoordinate(data.CellZ, data.LocalZ),
                 data.Yaw);
+        }
+
+        /// <inheritdoc />
+        public void Contribute(SaveHeader header)
+        {
+            if (header != null)
+            {
+                header.Location.WorldSpaceId = _placement.WorldSpaceId ?? string.Empty;
+            }
         }
 
         /// <inheritdoc />

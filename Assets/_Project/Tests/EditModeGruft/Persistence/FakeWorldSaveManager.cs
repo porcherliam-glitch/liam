@@ -52,6 +52,12 @@ namespace Aetherfall.Tests.EditMode.GruftSave
         }
 
         /// <inheritdoc />
+        public void CarryOver(ISaveable saveable)
+        {
+            Unregister(saveable);
+        }
+
+        /// <inheritdoc />
         public void RegisterHeaderContributor(ISaveHeaderContributor contributor)
         {
         }

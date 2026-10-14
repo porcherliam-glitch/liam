@@ -121,6 +121,7 @@ namespace Aetherfall.EditorTools.World
             gameplay.BuildNpcMarkers(Group(game.transform, "NPC-Platzhalter"));
             gameplay.BuildQuestObjects(Group(game.transform, "Quest-Objekte"), env);
             gameplay.BuildTrails(Group(game.transform, "Spuren"), layers.TriggerVolume, layers.Player);
+            EichentalDungeonLinks.Build(layout, heights, spawnPoint.transform, layers.Interactable, Group(game.transform, "Durchgänge"), report);
             TestGroundUiBuilder.AddPlayerHudLink(player, mainCamera, report);
 
             report.Info("Meshes: " + meshes.Count + " in " + EichentalPaths.MeshLibraryPath + ".");
