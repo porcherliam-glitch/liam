@@ -13,6 +13,9 @@ namespace Aetherfall.Dialogue
         Trade = 1,
 
         /// <summary>A fight begins (German "Kampf"); the option shows "[Angriff]".</summary>
-        Combat = 2
+        Combat = 2,
+
+        /// <summary>A minigame starts (German "Minispiel"); the exit id names it, e.g. <c>minigame.wuerfeln</c>.</summary>
+        Minigame = 3
     }
 }

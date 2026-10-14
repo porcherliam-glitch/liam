@@ -6,9 +6,12 @@ using Aetherfall.AI.Bosses;
 using Aetherfall.Core;
 using Aetherfall.Dialogue;
 using Aetherfall.Economy;
+using Aetherfall.Minigames;
 using Aetherfall.NPC;
 using Aetherfall.Player;
 using Aetherfall.Quests;
+using Aetherfall.UI.Framework;
+using Aetherfall.UI.Screens;
 using Aetherfall.World;
 using Aetherfall.World.Dungeons;
 using Aetherfall.World.Puzzles;
@@ -149,6 +152,16 @@ namespace Aetherfall.EditorTools.World
                     Steps.Enqueue(CloseMenu);
                 }
 
+                if (villager == D.Ulf)
+                {
+                    // "Würfeln wir eine Runde?" ends the talk with "Würfeln": a whole game of Krähenwurf at the lowest stake.
+                    Steps.Enqueue(() => PreferOption(D.UlfDiceOption));
+                    Steps.Enqueue(TalkTo(villager));
+                    Steps.Enqueue(PlayDice());
+                    Steps.Enqueue(() => Capture(name + "_wuerfeln", null));
+                    Steps.Enqueue(CloseMenu);
+                }
+
                 Steps.Enqueue(() => Capture(name, NpcView(villager)));
             }
         }
@@ -191,6 +204,76 @@ namespace Aetherfall.EditorTools.World
                 }
 
                 return true;
+            };
+        }
+
+        /// <summary>
+        /// Waits for the dice screen and plays one game: the lowest stake, the best dice of every roll, banking from 300 points
+        /// of the turn on; the opponent's steps are triggered directly instead of waiting for the screen's pause.
+        /// </summary>
+        private static Func<bool> PlayDice()
+        {
+            var best = new List<int>(5);
+            int moves = 0;
+            return () =>
+            {
+                var dice = Services.Locator.Get<IUIManager>().Top as DiceScreen;
+                if (_gameState.Current != GameState.Menu || dice == null || !dice.IsOpen)
+                {
+                    return Fail(Elapsed > 5.0, "Würfelfenster ist nicht aufgegangen (Zustand " + _gameState.Current + ").");
+                }
+
+                switch (dice.Mode)
+                {
+                    case DiceMode.Stake:
+                        dice.SecondaryAction();
+                        if (dice.Mode != DiceMode.Playing)
+                        {
+                            return Fail(true, "Krähenwurf startet nicht: " + dice.LastMessage);
+                        }
+
+                        Note("Krähenwurf gegen Ulf, Einsatz " + dice.Stake + " Gold.");
+                        return false;
+                    case DiceMode.Done:
+                        CrowThrowGame finished = dice.Game;
+                        Note("Krähenwurf beendet nach " + moves + " Zügen: " + finished.Score(CrowThrowGame.Player) + " zu " +
+                             finished.Score(CrowThrowGame.Opponent) + ". " + dice.LastMessage);
+                        return true;
+                }
+
+                if (++moves > 2000)
+                {
+                    return Fail(true, "Krähenwurf endet nicht.");
+                }
+
+                CrowThrowGame game = dice.Game;
+                if (game.Current == CrowThrowGame.Opponent)
+                {
+                    dice.StepOpponent();
+                }
+                else if (game.Phase == CrowThrowPhase.AwaitRoll)
+                {
+                    dice.PrimaryAction();
+                }
+                else
+                {
+                    int points = game.BestSelection(best);
+                    foreach (int die in best)
+                    {
+                        dice.TogglePick(die);
+                    }
+
+                    if (game.TurnPoints + points >= 300)
+                    {
+                        dice.SecondaryAction();
+                    }
+                    else
+                    {
+                        dice.PrimaryAction();
+                    }
+                }
+
+                return false;
             };
         }
 
@@ -408,6 +491,14 @@ namespace Aetherfall.EditorTools.World
         }
 
         private static readonly HashSet<string> ChosenOptions = new HashSet<string>();
+        private static string _preferredOption = string.Empty;
+
+        /// <summary>The next conversation takes this answer as soon as it is offered (then the usual order).</summary>
+        private static bool PreferOption(string text)
+        {
+            _preferredOption = text ?? string.Empty;
+            return true;
+        }
 
         private static bool DriveDialogue()
         {
@@ -415,6 +506,7 @@ namespace Aetherfall.EditorTools.World
             if (!dialogues.IsRunning)
             {
                 ChosenOptions.Clear();
+                _preferredOption = string.Empty;
                 return true;
             }
 
@@ -428,7 +520,8 @@ namespace Aetherfall.EditorTools.World
             {
                 // The first answer not taken yet (hubs lead back to their choice), at last the final one ("Mach's gut").
                 List<DialogueOptionView> options = dialogues.View.Options.ToList();
-                DialogueOptionView option = options.FirstOrDefault(o => o.IsEnabled && !ChosenOptions.Contains(o.Text)) ??
+                DialogueOptionView option = options.FirstOrDefault(o => o.IsEnabled && o.Text == _preferredOption && !ChosenOptions.Contains(o.Text)) ??
+                                            options.FirstOrDefault(o => o.IsEnabled && !ChosenOptions.Contains(o.Text)) ??
                                             options.LastOrDefault(o => o.IsEnabled);
                 int index = option != null ? options.IndexOf(option) : 0;
                 if (option != null)

@@ -1,0 +1,50 @@
+/*
+ * Dice game "Krähenwurf" (GDD 04 10.3): five large dice on the table, picked dice framed in the focus colour, dice set
+ * aside in this turn dimmed. Uses the panel, header and footer of the journal (Journal.uss).
+ */
+.af-dice__body {
+    flex-grow: 1;
+    padding: 0 32px;
+}
+
+.af-dice__table {
+    flex-direction: row;
+    justify-content: center;
+    margin: 28px 0 20px 0;
+}
+
+.af-die {
+    width: 104px;
+    height: 104px;
+    margin: 0 14px;
+    padding: 0;
+    font-size: 56px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    justify-content: center;
+}
+
+.af-die.is-picked {
+    border-color: var(--ui-focus);
+    border-width: 4px;
+    color: var(--ui-focus);
+}
+
+.af-die.is-aside {
+    opacity: 0.35;
+}
+
+.af-dice__actions {
+    flex-direction: row;
+    justify-content: center;
+}
+
+.af-dice__actions .af-button {
+    width: 360px;
+    margin: 0 10px;
+}
+
+.af-dice__event {
+    margin-top: 18px;
+    -unity-text-align: middle-center;
+}

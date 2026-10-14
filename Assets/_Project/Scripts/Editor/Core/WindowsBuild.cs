@@ -119,6 +119,8 @@ namespace Aetherfall.EditorTools.Core
                    "  F5 / F9        schnell speichern / laden\r\n" +
                    "  Esc            Pause und Menü\r\n" +
                    "  Im Gespräch: 1–9 oder Maus wählen, E oder Leertaste weiter.\r\n\r\n" +
+                   "Händler: Tobold (Schmied) und Ulf (Wirt) in Lindenhain – im Gespräch nach den Waren fragen.\r\n" +
+                   "Würfeln: Ulf fragen \"Würfeln wir eine Runde?\" (Krähenwurf, die Regeln stehen im Fenster).\r\n\r\n" +
                    "Gamepad (Xbox): A springen und benutzen, X/Y angreifen, B ausweichen, LB blocken, Start Pause.\r\n\r\n" +
                    "Spielstände und Protokoll: %USERPROFILE%\\AppData\\LocalLow\\" + PlayerSettings.companyName + "\\" + PlayerSettings.productName + "\\\r\n" +
                    "Bei Problemen die Datei Player.log aus diesem Ordner an Claude schicken.\r\n";

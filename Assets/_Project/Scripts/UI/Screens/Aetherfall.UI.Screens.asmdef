@@ -19,6 +19,7 @@
         "Aetherfall.Quests",
         "Aetherfall.Dialogue",
         "Aetherfall.Economy",
+        "Aetherfall.Minigames",
         "Aetherfall.UI.Framework",
         "Unity.InputSystem"
     ],

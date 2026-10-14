@@ -49,6 +49,9 @@ namespace Aetherfall.EditorTools.Narrative
         /// <summary>Ulf Krugmann, innkeeper of "Zum Krummen Kessel".</summary>
         public const string Ulf = "npc.eichental.wirt_ulf";
 
+        /// <summary>Ulf's answer that starts the dice game "Krähenwurf".</summary>
+        public const string UlfDiceOption = "Würfeln wir eine Runde?";
+
         /// <summary>Hannes Brenner, miller.</summary>
         public const string Brenner = "npc.eichental.mueller_brenner";
 
@@ -305,6 +308,7 @@ namespace Aetherfall.EditorTools.Narrative
                     .Add(new DialogueOption("a", "Was hört man so?", "n200"))
                     .Add(new DialogueOption("b", "Ein Bier, bitte.", "n300"))
                     .Add(new DialogueOption("d", "Was verkaufst du?", "n400"))
+                    .Add(new DialogueOption("e", UlfDiceOption, "n500"))
                     .Add(new DialogueOption("c", "Mach's gut.", "n900")),
                 new BranchNode("n200", "n230")
                     .When(new AllOf(new QuestStatusIs(Q.Prologue, QuestStatus.Completed), wolvesOpen), "n210")
@@ -315,6 +319,9 @@ namespace Aetherfall.EditorTools.Narrative
                 new LineNode("n300", "Bier ist aus. Seit dem Riss trinken alle doppelt. Wasser hab ich noch, das ist umsonst.").To("n100"),
                 // GDD 04 8.2: general goods of Lindenhain (healing potions, light armour).
                 new LineNode("n400", "Heiltränke, Lederzeug, warme Sachen. Viel ist es nicht, aber es hält.").EndWith("handeln", DialogueFollowUp.Trade),
+                // GDD 04 10.3: "Krähenwurf" in the tavern.
+                new LineNode("n500", "Krähenwurf? Setz dich. Aber jammer nicht, wenn die Krähe mich liebt.")
+                    .EndWith(Aetherfall.Minigames.CrowThrowGame.DialogueExitId, DialogueFollowUp.Minigame),
                 new LineNode("n900", "Komm wieder, wenn du was hörst.").EndWith("weiter"));
         }
 

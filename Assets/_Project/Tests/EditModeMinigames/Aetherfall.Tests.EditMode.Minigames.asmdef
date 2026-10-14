@@ -1,0 +1,32 @@
+{
+    "name": "Aetherfall.Tests.EditMode.Minigames",
+    "rootNamespace": "Aetherfall.Tests.EditMode.Minigames",
+    "references": [
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner",
+        "Aetherfall.Utilities",
+        "Aetherfall.Minigames"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS",
+        "AETHERFALL_NEWTONSOFT"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.unity.nuget.newtonsoft-json",
+            "expression": "3.0",
+            "define": "AETHERFALL_NEWTONSOFT"
+        }
+    ],
+    "noEngineReferences": false
+}

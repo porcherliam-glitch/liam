@@ -8,6 +8,7 @@ using Aetherfall.Events;
 using Aetherfall.Input;
 using Aetherfall.Inventory;
 using Aetherfall.Items;
+using Aetherfall.Minigames;
 using Aetherfall.Progression;
 using Aetherfall.Quests;
 using Aetherfall.SaveSystem;
@@ -88,6 +89,9 @@ namespace Aetherfall.UI.Screens
         [Tooltip("Trade.uxml (Handel mit einem Händler nach einem Gespräch mit Ende „Handeln“; Zeilen aus QuestRow.uxml)")]
         [SerializeField] private VisualTreeAsset tradeLayout = null;
 
+        [Tooltip("Dice.uxml (Würfelspiel „Krähenwurf“ nach einem Gespräch mit Ende „Würfeln“)")]
+        [SerializeField] private VisualTreeAsset diceLayout = null;
+
         [Tooltip("QuestRow.uxml (eine Quest in der Liste des Questlogs)")]
         [SerializeField] private VisualTreeAsset questRowLayout = null;
 
@@ -133,9 +137,13 @@ namespace Aetherfall.UI.Screens
         private QuestNotifier _notifier;
         private JournalScreen _journal;
         private TradeScreen _trade;
+        private DiceScreen _dice;
         private IMerchantService _merchants;
         private IDialogueService _dialogues;
-        private string _pendingTrade = string.Empty;
+        private IDialogueSpeakerDirectory _speakers;
+        private UIScreen _pendingMenu;
+        private object _pendingMenuArgs;
+        private string _pendingMenuReason = string.Empty;
         private LoadingScreenProxy _loadingProxy;
         private UiStateDirector _director;
         private HudView _hud;
@@ -219,6 +227,7 @@ namespace Aetherfall.UI.Screens
                 locator.TryGet(out _progression);
                 locator.TryGet(out _bosses);
                 locator.TryGet(out _merchants);
+                locator.TryGet(out _speakers);
                 Build();
             }
             catch (OperationCanceledException)
@@ -267,6 +276,12 @@ namespace Aetherfall.UI.Screens
                 _ui.RegisterScreen(_trade);
             }
 
+            if (diceLayout != null && _inventory != null)
+            {
+                _dice = new DiceScreen(CloneScreen(diceLayout, screensRoot), _glyphs, _inventory, null, OnDiceCloseRequested);
+                _ui.RegisterScreen(_dice);
+            }
+
             _hud = new HudView(hudDocument.rootVisualElement, _players, _inventory, _glyphs, _preferences);
             VisualElement hudRoot = hudDocument.rootVisualElement;
             QuestTrackerView tracker = _quests != null && trackedQuestLayout != null && objectiveRowLayout != null && hudRoot.Q<VisualElement>("hud-quests") != null
@@ -289,7 +304,8 @@ namespace Aetherfall.UI.Screens
             _director = new UiStateDirector(_ui, _gameState, _input.Gameplay, _input.WasPausePressedThisFrame, _flow, _mainMenu, _pauseMenu,
                 _deathScreen, deathScreenDelay);
             _director.AttachJournal(_journal);
-            _director.AttachTrade(_trade);
+            _director.AttachMenu(_trade);
+            _director.AttachMenu(_dice);
             _ui.AttachLayerHost(this);
             _input.SetPauseButtonRouting(false);
             _glyphs.SetStyleOverride(_preferences.GlyphStyle);
@@ -380,11 +396,12 @@ namespace Aetherfall.UI.Screens
 
             float dt = Time.unscaledDeltaTime;
             _director.Update(dt);
-            if (_pendingTrade.Length > 0 && _gameState.Current == GameState.Playing)
+            if (_pendingMenu != null && _gameState.Current == GameState.Playing)
             {
-                // The conversation that ended with "Handeln" has handed the game back: now the trade screen can open.
-                _director.OpenTrade(_pendingTrade);
-                _pendingTrade = string.Empty;
+                // The conversation that ended with "Handeln" or "Würfeln" has handed the game back: now the screen can open.
+                _director.OpenMenu(_pendingMenu, _pendingMenuArgs, _pendingMenuReason);
+                _pendingMenu = null;
+                _pendingMenuArgs = null;
             }
 
             if (_dialogueDirector != null)
@@ -634,15 +651,37 @@ namespace Aetherfall.UI.Screens
 
         private void OnTradeCloseRequested()
         {
-            _director.CloseTrade();
+            _director.CloseMenu(_trade);
+        }
+
+        private void OnDiceCloseRequested()
+        {
+            _director.CloseMenu(_dice);
         }
 
         private void OnDialogueEnded(DialogueEndInfo info)
         {
-            if (!info.Cancelled && info.FollowUp == DialogueFollowUp.Trade && _merchants != null && _merchants.TryGetForNpc(info.NpcId, out MerchantDefinition merchant))
+            if (info.Cancelled)
             {
-                _pendingTrade = merchant.Id;
+                return;
             }
+
+            if (info.FollowUp == DialogueFollowUp.Trade && _trade != null && _merchants != null && _merchants.TryGetForNpc(info.NpcId, out MerchantDefinition merchant))
+            {
+                RequestMenu(_trade, merchant.Id, "Trade");
+            }
+            else if (info.FollowUp == DialogueFollowUp.Minigame && _dice != null && info.ExitId == CrowThrowGame.DialogueExitId)
+            {
+                string opponent = _speakers != null && _speakers.TryGetSpeaker(info.NpcId, out DialogueSpeakerInfo speaker) ? speaker.Name : string.Empty;
+                RequestMenu(_dice, opponent, "Dice game");
+            }
+        }
+
+        private void RequestMenu(UIScreen screen, object args, string reason)
+        {
+            _pendingMenu = screen;
+            _pendingMenuArgs = args;
+            _pendingMenuReason = reason;
         }
 
         private static bool NotifiesQuests(GameState state)
@@ -680,6 +719,11 @@ namespace Aetherfall.UI.Screens
             if (_trade != null)
             {
                 _trade.RefreshGlyphs();
+            }
+
+            if (_dice != null)
+            {
+                _dice.RefreshGlyphs();
             }
 
             _hud.RefreshGlyphs();

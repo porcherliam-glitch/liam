@@ -51,6 +51,12 @@ Sprich auch mit den anderen Leuten (**E**): Wirt Ulf im Gasthaus kennt Gerüchte
 
 **Händler in Lindenhain:** Bei **Tobold** (Schmied: Schwerter, Streitkolben, Schilde, Plattenrüstung) und bei **Ulf** (Heiltränke, Leder- und Stoffkleidung) wählst du im Gespräch „Zeig mir deine Waren.“ bzw. „Was verkaufst du?“. Im Handelsfenster wechselst du mit **Q/E** zwischen Kaufen, Verkaufen und Zurückkaufen; **Enter** handelt ein Stück, **F** alle bzw. den ganzen Stapel, **Esc** schließt. Händler haben nur begrenzt Gold und füllen ihre Waren alle drei Spieltage (etwa 2,4 Stunden Spielzeit) wieder auf. Verkauftes kannst du bis dahin zum selben Preis zurückkaufen.
 
+**Würfeln mit Ulf („Krähenwurf“):** Frag Ulf „Würfeln wir eine Runde?“. Zuerst wählst du den Einsatz mit **◄ ►** (10 bis 500 Gold) und klickst „Spiel beginnen“. Dann klickst du auf „Würfeln“. Nach jedem Wurf klickst du die Würfel an, die Punkte bringen, und wählst:
+- „Beiseitelegen und weiterwürfeln“: Die übrigen Würfel rollen noch einmal. Bringt der neue Wurf keinen Punkt, sind alle Punkte dieser Runde weg.
+- „Beiseitelegen und sichern“: Die Punkte zählen fest, dann ist Ulf dran.
+
+Punkte: eine 1 = 100, eine 5 = 50, drei gleiche = Augenzahl × 100 (drei Einsen 1000), die Straße 1-2-3-4-5 = 500. Wer zuerst 2000 Punkte hat, gewinnt. Gewinnst du, bekommst du den doppelten Einsatz. Mit **Esc** stehst du auf; mitten im Spiel ist der Einsatz dann verloren.
+
 Oben rechts steht immer dein aktuelles Ziel. Die Gruft ist auf Stufe 4 eingestellt; nach den ersten beiden Quests bist du ungefähr Stufe 3–4. Wenn es zu schwer ist: erst ein paar Wölfe besiegen.
 
 ## 4. Bekannte Lücken

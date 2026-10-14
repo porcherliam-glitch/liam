@@ -15,6 +15,7 @@
         "Aetherfall.World.Gameplay",
         "Aetherfall.Dialogue",
         "Aetherfall.NPC",
+        "Aetherfall.Minigames",
         "Aetherfall.EditorTools.Core"
     ],
     "includePlatforms": [

@@ -27,7 +27,7 @@ namespace Aetherfall.UI.Screens
     /// the last action. A / Enter / click: one piece; X / F: all affordable pieces or the whole stack. B / Esc closes.
     /// </summary>
     /// <remarks>
-    /// Opened by <see cref="UiStateDirector.OpenTrade"/> with the merchant id as argument (after a conversation that ended with
+    /// Opened by <see cref="UiStateDirector.OpenMenu"/> with the merchant id as argument (after a conversation that ended with
     /// "Handeln"); the rows are rebuilt when the merchant service or the inventory changes.
     /// </remarks>
     public sealed class TradeScreen : MenuScreen

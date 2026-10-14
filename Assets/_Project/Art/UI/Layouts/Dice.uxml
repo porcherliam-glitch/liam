@@ -1,0 +1,37 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- Dice game "Krähenwurf" (GDD 04 10.3): stake, five dice, actions "Würfeln" / "Beiseitelegen und weiter" / "Beiseitelegen und sichern". -->
+    <ui:VisualElement name="dice" class="af-root af-screen af-overlay af-journal">
+        <ui:VisualElement class="af-panel af-journal__panel">
+            <ui:VisualElement class="af-pause__header">
+                <ui:Label name="dice-title" class="af-text af-pause__title" />
+            </ui:VisualElement>
+            <ui:VisualElement class="af-dice__body">
+                <ui:Label name="dice-scores" class="af-text af-questlog__section" />
+                <ui:Label name="dice-turn" class="af-text af-questlog__meta" />
+                <ui:VisualElement name="dice-table" class="af-dice__table">
+                    <ui:Button name="dice-die-0" class="af-text af-button af-die" focusable="false" />
+                    <ui:Button name="dice-die-1" class="af-text af-button af-die" focusable="false" />
+                    <ui:Button name="dice-die-2" class="af-text af-button af-die" focusable="false" />
+                    <ui:Button name="dice-die-3" class="af-text af-button af-die" focusable="false" />
+                    <ui:Button name="dice-die-4" class="af-text af-button af-die" focusable="false" />
+                </ui:VisualElement>
+                <ui:VisualElement name="dice-actions" class="af-dice__actions">
+                    <ui:Button name="dice-action-0" class="af-text af-button" focusable="false" />
+                    <ui:Button name="dice-action-1" class="af-text af-button" focusable="false" />
+                </ui:VisualElement>
+                <ui:Label name="dice-event" class="af-text af-questlog__stage af-dice__event" />
+                <ui:Label name="dice-rules" class="af-text af-page__note" />
+            </ui:VisualElement>
+            <ui:VisualElement class="af-footer af-footer--panel" picking-mode="Ignore">
+                <ui:VisualElement class="af-hint" picking-mode="Ignore">
+                    <ui:Label name="dice-hint-glyph-confirm" class="af-text af-glyph af-glyph--face" picking-mode="Ignore" />
+                    <ui:Label name="dice-hint-select" class="af-text af-hint__text" picking-mode="Ignore" />
+                </ui:VisualElement>
+                <ui:VisualElement class="af-hint" picking-mode="Ignore">
+                    <ui:Label name="dice-hint-glyph-back" class="af-text af-glyph af-glyph--face" picking-mode="Ignore" />
+                    <ui:Label name="dice-hint-leave" class="af-text af-hint__text" picking-mode="Ignore" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>
