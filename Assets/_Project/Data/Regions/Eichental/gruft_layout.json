@@ -19,7 +19,8 @@
     "Bodenhöhe von Objekten ohne „y“ kommt aus dem Raster (Raum oder Gang an dieser Stelle). „height“ ist die Höhe über diesem Boden (z. B. Fackeln an der Wand).",
     "Ablauf nach GDD 02, 11.7: Vorraum mit Grabplatten-Rätsel (s20) → Hallen der Eichenritter mit 6 Skelett-Kriegern (s30), Käfig mit Fenn, Nebenkammer, Seitengang für Schleicher → Spiegelsaal = Siegelkammer-Vorraum mit Spiegel-Rätsel (s40) → Siegelkammer mit dem Wachenden Ritter (s50) und dem Siegelstein (s60) → Fluchtweg nach draußen.",
     "Vorschlag: Der vierte Spiegel in der Siegelkammer bekommt erst in Phase 2 Licht (der Ritter schlägt mit dem Schild auf den Boden, der Spalt bricht auf). So ist die Mechanik genau dann da, wenn GDD 02 sie verlangt.",
-    "Vorschlag: Rätsel-Hinweis nach 120 s ohne Fortschritt: Ohne Begleiter (Mini-Slice) leuchten die Fairness-Hinweise (Inschrift bzw. Rußspuren) auf."
+    "Vorschlag: Rätsel-Hinweis nach 120 s ohne Fortschritt: Ohne Begleiter (Mini-Slice) leuchten die Fairness-Hinweise (Inschrift bzw. Rußspuren) auf.",
+    "Boss-Arena: Der Kampfbereich beginnt 3,6 m hinter dem Fallgitter (z 62,4 → 66), das Gitter fällt in ca. 0,6 s. So ist der Spieler sicher in der Arena, wenn es zufällt (Validator-Regel arena.gate_gap: mindestens 3 m)."
   ],
   "atmosphere": {
     "ambientColor": "#141720",
@@ -129,7 +130,7 @@
     { "id": "prop.gruft_aether_riss_hallen", "kind": "aether_crack", "x": 0, "z": 18, "yaw": 30, "size": [3.2, 0.03, 0.5] },
     { "id": "prop.gruft_kletterstelle", "kind": "climb_marker", "x": 11.75, "z": 6, "yaw": 0, "size": [0.5, 1.0, 2.0] },
     { "id": "obj.eichental.gruft_kaefig", "kind": "cage", "name": "Käfig des Grabräubers", "x": -10.4, "z": 21.5, "yaw": 90, "size": [2.2, 2.6, 2.2], "prompt": "Befreie den Grabräuber" },
-    { "id": "npc.eichental.grabraeuber_fenn", "kind": "npc", "name": "Fenn", "x": -10.4, "z": 21.5, "yaw": 90, "size": [0.6, 1.75, 0.6], "text": "Fenn: „Danke, Fremder. Hinter dem dritten Grab an der Westwand ist eine lose Platte – dahinter liegt die Kammer, aus der ich nicht mehr rauskam.“" },
+    { "id": "npc.eichental.grabraeuber_fenn", "kind": "npc", "name": "Fenn", "x": -10.4, "z": 21.5, "yaw": 90, "size": [0.6, 1.75, 0.6], "text": "Fenn: „Danke, Fremder. Ein paar Schritte Richtung Treppe, zwischen den beiden Gräbern an der Westwand, ist eine lose Platte – dahinter liegt die Kammer, aus der ich nicht mehr rauskam.“" },
     { "id": "obj.eichental.gruft_tafel_eid", "kind": "lore_tablet", "name": "Steintafel: Eid der Eichenritter", "x": -7, "z": 31.92, "height": 1.6, "yaw": 180, "size": [1.4, 1.0, 0.12], "prompt": "Lesen: Eid der Eichenritter", "text": "„Wir halten die Risse, solange Stein auf Stein liegt. Wer den Riegel nimmt, weckt uns alle.“ – Aldric Sturmfels, letzter Ritter der Eiche" },
     { "id": "obj.eichental.gruft_druckplatte_seitengang", "kind": "pressure_plate", "name": "Druckplatte im Seitengang", "x": 14.5, "z": 22, "yaw": 0, "size": [1.4, 0.08, 1.4] },
     { "id": "obj.eichental.gruft_pfeilschlitz_seitengang", "kind": "trap_slit", "name": "Pfeilschlitze (Seitengang)", "x": 15.95, "z": 22, "height": 1.2, "yaw": 270, "size": [0.08, 0.5, 1.6] },
@@ -205,7 +206,7 @@
     "x": -14,
     "z": 79,
     "yaw": 180,
-    "encounterArea": { "x": -27, "z": 64, "width": 26, "depth": 24 },
+    "encounterArea": { "x": -27, "z": 66, "width": 26, "depth": 22 },
     "closeGates": ["door.eichental.gruft_arena_tor"],
     "covers": ["prop.gruft_arena_saeule_1", "prop.gruft_arena_saeule_2", "prop.gruft_arena_saeule_3", "prop.gruft_arena_saeule_4"],
     "mirror": "obj.eichental.gruft_spiegel_4",

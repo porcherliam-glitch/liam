@@ -11,7 +11,8 @@ namespace Aetherfall.Tests.EditMode.Gruft
     /// <summary>
     /// Decisions of the mini boss "Der Wachende Ritter" (GDD 02 11.7, GDD 03 9.6): encounter start in the arena, invulnerable
     /// rising and phase change, tower-shield guard, telegraphed attacks per phase, adds in phase 2, Aether-beam stun with
-    /// cooldown, parry opening, death exactly once, reset after the player's death.
+    /// cooldown, parry opening, death exactly once, reset after the player's death, reset when the player stays outside the
+    /// closed arena, phase change also during a stun, health floor at the phase threshold.
     /// </summary>
     [TestFixture]
     public sealed class BossBrainTests
@@ -19,6 +20,7 @@ namespace Aetherfall.Tests.EditMode.Gruft
         private BossBrain _brain;
         private int _encounters;
         private int _deaths;
+        private int _abandoned;
         private readonly List<int> _phases = new List<int>();
         private readonly List<int> _summons = new List<int>();
 
@@ -28,12 +30,14 @@ namespace Aetherfall.Tests.EditMode.Gruft
             _brain = new BossBrain(Settings(), new SequenceRandom(0.1f, 0.5f, 0.9f), null);
             _encounters = 0;
             _deaths = 0;
+            _abandoned = 0;
             _phases.Clear();
             _summons.Clear();
             _brain.EncounterStarted += () => _encounters++;
             _brain.Died += () => _deaths++;
             _brain.PhaseChanged += _phases.Add;
             _brain.SummonRequested += _summons.Add;
+            _brain.EncounterAbandoned += () => _abandoned++;
         }
 
         [Test]
@@ -214,6 +218,88 @@ namespace Aetherfall.Tests.EditMode.Gruft
         }
 
         [Test]
+        public void PlayerOutsideTheClosedArenaStartsTheFightOverAfterTwoSeconds()
+        {
+            Awaken();
+
+            Run(1.9f, Outside(5f, 1f));
+            Assert.That(_brain.State, Is.EqualTo(BossStateId.Fighting), "a short step outside is fine");
+            Assert.That(_abandoned, Is.EqualTo(0));
+
+            Run(0.2f, Outside(5f, 1f));
+
+            Assert.That(_abandoned, Is.EqualTo(1), "GDD 03 9.4: the arena must not stay closed with the player outside");
+            Assert.That(_brain.State, Is.EqualTo(BossStateId.Dormant));
+            Assert.That(_brain.IsEncounterRunning, Is.False, "the controller ends the encounter, the gate opens");
+            Assert.That(_brain.Phase, Is.EqualTo(1));
+        }
+
+        [Test]
+        public void ComingBackInTimeKeepsTheFightAndTheCountStartsAgain()
+        {
+            Awaken();
+            Run(1.5f, Outside(5f, 1f));
+            _brain.Tick(0.05f, Senses(5f, true, 1f));
+            Run(1.5f, Outside(5f, 1f));
+
+            Assert.That(_abandoned, Is.EqualTo(0));
+            Assert.That(_brain.IsEncounterRunning, Is.True);
+        }
+
+        [Test]
+        public void LeavingAlsoCountsWhileStunnedButNotWhileDormant()
+        {
+            Run(5f, Outside(5f, 1f));
+            Assert.That(_abandoned, Is.EqualTo(0), "dormant: nothing to reset");
+
+            Awaken();
+            Assert.That(_brain.NotifyPoiseBroken(4f), Is.True);
+            Run(2.1f, Outside(5f, 1f));
+
+            Assert.That(_abandoned, Is.EqualTo(1));
+            Assert.That(_brain.StunKind, Is.EqualTo(BossStunKind.None));
+        }
+
+        [Test]
+        public void PhaseThresholdEndsAStunAndCallsTheAdds()
+        {
+            Awaken();
+            _brain.Tick(0.05f, Senses(5f, true, 0.55f));
+            Assert.That(_brain.NotifyPoiseBroken(4f), Is.True, "poise break at 55 %");
+
+            // The controller holds the health just below the threshold until the phase has begun (finisher from 55 % to 10 %).
+            const float max = 1000f;
+            float health = Math.Max(0.1f * max, _brain.HealthFloor(max));
+            _brain.Tick(0.05f, Senses(5f, true, health / max));
+
+            Assert.That(health, Is.GreaterThan(0f), "no death in phase 1");
+            Assert.That(_brain.State, Is.EqualTo(BossStateId.Transition), "GDD 03 9.6: phase 2 at 50 %, also during a stun");
+            Assert.That(_brain.Phase, Is.EqualTo(2));
+            Assert.That(_brain.StunKind, Is.EqualTo(BossStunKind.None));
+            Assert.That(_summons, Is.EqualTo(new[] { 2 }), "GDD 02 11.7: the two adds are not skipped");
+            Assert.That(_deaths, Is.EqualTo(0));
+            Assert.That(_brain.IsInvulnerable, Is.True);
+        }
+
+        [Test]
+        public void HealthFloorStopsDamageJustBelowTheNextThreshold()
+        {
+            Assert.That(_brain.HealthFloor(1000f), Is.EqualTo(0f), "dormant: no floor");
+
+            Awaken();
+            float floor = _brain.HealthFloor(1000f);
+            Assert.That(floor, Is.LessThan(500f), "below 50 %, so phase 2 begins");
+            Assert.That(floor, Is.GreaterThan(498f), "a lethal hit leaves the boss at the threshold");
+
+            EnterPhaseTwo();
+            Assert.That(_brain.HealthFloor(1000f), Is.EqualTo(0f), "last phase: the boss can die");
+
+            var tracker = new BossPhaseTracker(new[] { 1f, 0.66f, 0.33f });
+            Assert.That(tracker.HealthFloor(1f), Is.GreaterThan(0f).And.LessThan(0.66f), "tiny maximum: still above 0");
+            Assert.That(tracker.PhaseFor(tracker.HealthFloor(300f) / 300f), Is.EqualTo(2), "the floor belongs to the next phase");
+        }
+
+        [Test]
         public void SettingsAreValidated()
         {
             BossBrainSettings slowTransition = Settings();
@@ -268,6 +354,13 @@ namespace Aetherfall.Tests.EditMode.Gruft
             {
                 _brain.Tick(step, senses);
             }
+        }
+
+        private static BossSenses Outside(float distanceNorth, float health)
+        {
+            BossSenses senses = Senses(distanceNorth, false, health);
+            senses.TargetLeftArena = true;
+            return senses;
         }
 
         private static BossSenses Senses(float distanceNorth, bool inArena, float health)

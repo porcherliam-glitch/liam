@@ -8,7 +8,7 @@ namespace Aetherfall.Tests.EditMode.Gruft
 {
     /// <summary>
     /// Pure helpers of the crypt fights: the arena beam geometry (GDD 02 11.7 phase 2), the tower shield of the elite skeleton
-    /// and the boss health bar source (GDD 05).
+    /// the boss health bar source (GDD 05) and the full poise after a phase change (GDD 03 9.6).
     /// </summary>
     [TestFixture]
     public sealed class BossHelpersTests
@@ -82,6 +82,39 @@ namespace Aetherfall.Tests.EditMode.Gruft
             Assert.That(state.HealthFraction, Is.EqualTo(1f));
             Assert.That(state.With(-0.2f, 2).HealthFraction, Is.EqualTo(0f));
             Assert.That(state.Hidden().Visible, Is.False);
+        }
+
+        [Test]
+        public void PhaseChangeFillsThePoiseAndKeepsTheGrowth()
+        {
+            var poise = new PoiseMeter(100f, PoiseSettings.Boss);
+            Assert.That(poise.ApplyDamage(100f), Is.EqualTo(PoiseOutcome.Broken));
+            poise.Tick(5f);
+            float grownMax = poise.Max;
+            poise.ApplyDamage(80f);
+            Assert.That(poise.Buildup, Is.GreaterThan(0f), "almost broken again at the end of phase 1");
+
+            BossPoise.Refill(poise);
+
+            Assert.That(poise.Buildup, Is.EqualTo(0f), "GDD 03 9.6: Haltung danach voll");
+            Assert.That(poise.IsStunned, Is.False);
+            Assert.That(poise.Max, Is.EqualTo(grownMax).Within(0.001f), "GDD 03 4.9: +25 % per break stays");
+            Assert.That(grownMax, Is.GreaterThan(100f));
+        }
+
+        [Test]
+        public void PhaseChangeEndsARunningPoiseStun()
+        {
+            var poise = new PoiseMeter(100f, PoiseSettings.Boss);
+            poise.ApplyDamage(100f);
+            Assert.That(poise.IsStunned, Is.True);
+
+            BossPoise.Refill(poise);
+            BossPoise.Refill(null);
+
+            Assert.That(poise.IsStunned, Is.False, "no finisher window across the phase change");
+            Assert.That(poise.StunAllowsFinisher, Is.False);
+            Assert.That(poise.Buildup, Is.EqualTo(0f));
         }
     }
 }

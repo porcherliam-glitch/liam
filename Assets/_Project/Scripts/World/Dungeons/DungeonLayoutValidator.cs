@@ -10,7 +10,8 @@ namespace Aetherfall.World.Dungeons
     /// the id scheme (architecture 6.1, GDD 02 2.3), rooms on the grid without overlaps, corridors axis-aligned with at most
     /// 30° slope, everything reachable from the spawn by walking and jumping (step up at most 1.2 m), objects, doors, enemies
     /// and lights on a floor, all references resolvable, the sequence puzzle consistent, the light puzzle solvable with its
-    /// solution and not solved at the start, and the boss arena after GDD 03 9.6 (at least 25 × 25 m, 2–4 covers). Pure logic.
+    /// solution and not solved at the start, and the boss arena after GDD 03 9.6 (at least 25 × 25 m, 2–4 covers, encounter area at
+    /// least 3 m behind the closing gate). Pure logic.
     /// </summary>
     public static class DungeonLayoutValidator
     {
@@ -25,6 +26,12 @@ namespace Aetherfall.World.Dungeons
 
         /// <summary>Smallest boss arena edge (GDD 03 9.6: at least 25 × 25 m).</summary>
         public const float MinArenaSize = 25f;
+
+        /// <summary>
+        /// Smallest gap between a closing arena gate and the encounter area: the fight starts this far behind the gate, so the
+        /// player is surely inside when the gate falls (otherwise one can shut oneself out by stepping back at once).
+        /// </summary>
+        public const float MinGateGap = 3f;
 
         /// <summary>Most point lights that may light one room (URP forward: 8 additional lights per object).</summary>
         public const int MaxLightsPerRoom = 8;
@@ -825,6 +832,14 @@ namespace Aetherfall.World.Dungeons
                 if (door == null || door.OpensOn.Type != DungeonTrigger.Arena || door.OpensOn.Id != arena.BossId)
                 {
                     report.Error("arena.gates", arena.Id, gate + " ist kein Arena-Tor dieses Bosses.");
+                    continue;
+                }
+
+                float gap = DistanceToRect(door.X, door.Z, arena.EncounterArea);
+                if (gap < MinGateGap)
+                {
+                    report.Error("arena.gate_gap", arena.Id, "Der Kampfbereich beginnt nur " + Format(gap) + " m hinter " + gate +
+                                                             " (mindestens 3 m, sonst kann sich der Spieler beim Schließen aussperren).");
                 }
             }
 
@@ -875,6 +890,13 @@ namespace Aetherfall.World.Dungeons
             {
                 report.Error("arena.seal_stone", arena.Id, "Der Siegelstein fehlt.");
             }
+        }
+
+        private static float DistanceToRect(float x, float z, in DungeonRect rect)
+        {
+            float dx = Math.Max(Math.Max(rect.X - x, 0f), x - rect.MaxX);
+            float dz = Math.Max(Math.Max(rect.Z - z, 0f), z - rect.MaxZ);
+            return (float)Math.Sqrt(dx * dx + dz * dz);
         }
 
         private static void CheckArenaPhases(DungeonBossArena arena, DungeonLayoutReport report)

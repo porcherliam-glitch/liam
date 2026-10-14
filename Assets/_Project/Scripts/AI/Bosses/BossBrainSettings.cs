@@ -39,6 +39,12 @@ namespace Aetherfall.AI.Bosses
         /// <summary>Pause after an attack before the next one (guard up).</summary>
         public float RecoverSeconds { get; set; } = 0.8f;
 
+        /// <summary>
+        /// Seconds the target may stand outside the closed arena during the fight before the encounter starts over (fallback
+        /// against shutting oneself out, GDD 03 9.4 "Boss-Arenen sind geschlossen statt geleasht"); 0 or less = never.
+        /// </summary>
+        public float LeaveArenaResetSeconds { get; set; } = 2f;
+
         /// <summary>Walking speed (m/s).</summary>
         public float WalkSpeed { get; set; } = 1.6f;
 

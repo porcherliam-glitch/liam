@@ -59,6 +59,8 @@ namespace Aetherfall.EditorTools.World
             ArrivalAnchor anchor = anchorObject.AddComponent<ArrivalAnchor>();
             TestGroundFields.SetString(anchor, "anchorId", spawn.AnchorId, report);
             TestGroundFields.SetReference(anchor, "spawnPoint", spawnObject.transform, report);
+            // Inside the crypt no save on arrival: the entrance portal in Eichental saved before the travel (GDD 05 5.3).
+            TestGroundFields.SetBool(anchor, "autosaveOnArrival", false, report);
 
             new GameObject("DevPlayStarter").AddComponent<DevPlayStarter>();
             new GameObject("QuickSaveInput").AddComponent<QuickSaveInput>();

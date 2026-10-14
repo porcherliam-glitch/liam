@@ -79,6 +79,25 @@ namespace Aetherfall.AI.Bosses
             return false;
         }
 
+        /// <summary>
+        /// Lowest health the boss may drop to while the current phase lasts: just below the start of the next phase, so that
+        /// fraction makes the next phase begin (GDD 03 9.6: phases at health thresholds). A big hit or a finisher during a stun
+        /// then cannot kill the boss or skip the phase change with its adds (GDD 02 11.7). 0 in the last phase.
+        /// </summary>
+        /// <param name="maxHealth">Maximum health of the boss.</param>
+        /// <returns>Absolute health floor, 0 if there is none.</returns>
+        public float HealthFloor(float maxHealth)
+        {
+            if (Phase >= _thresholds.Length || !(maxHealth > 0f))
+            {
+                return 0f;
+            }
+
+            // Strictly below the threshold (PhaseFor compares with "<"), but always above 0.
+            float start = _thresholds[Phase] * maxHealth;
+            return Math.Max(start - 1f, start * 0.5f);
+        }
+
         /// <summary>Back to phase 1 (reset after the player died).</summary>
         public void Reset()
         {

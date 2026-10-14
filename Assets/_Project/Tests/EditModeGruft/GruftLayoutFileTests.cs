@@ -186,6 +186,19 @@ namespace Aetherfall.Tests.EditMode.Gruft
         }
 
         [Test]
+        public void PlayerIsSurelyInsideWhenTheArenaGateFalls()
+        {
+            DungeonBossArena arena = _layout.BossArena;
+            DungeonDoor gate = _layout.FindDoor("door.eichental.gruft_arena_tor");
+            DungeonRect room = _layout.FindRoom(arena.Room).Bounds;
+
+            Assert.That(arena.CloseGates, Does.Contain(gate.Id));
+            Assert.That(arena.EncounterArea.Z - gate.Z, Is.GreaterThanOrEqualTo(DungeonLayoutValidator.MinGateGap),
+                "the fight starts 3.6 m behind the gate, so stepping back at once does not shut the player out");
+            Assert.That(room.Z, Is.LessThanOrEqualTo(gate.Z), "the arena bounds (room) reach up to the gate: the strip in front of it counts as inside");
+        }
+
+        [Test]
         public void SpawnIsAtTheEntranceInsideTheCryptZone()
         {
             DungeonSpawn spawn = _layout.Spawn;

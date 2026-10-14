@@ -5,9 +5,9 @@ using UnityEngine;
 namespace Aetherfall.AI.Bosses
 {
     /// <summary>
-    /// Placeholder boss health bar (GDD 05: wide bar with name and title at the bottom of the screen) drawn with IMGUI until
-    /// the HUD of UI Toolkit shows <see cref="IBossBarService"/> itself (see guide 12, section "Integration"). Display only,
-    /// needs no input.
+    /// Placeholder boss health bar (GDD 05 1.2 and GDD 03 9.6: wide bar with name and title, top centre below the compass)
+    /// drawn with IMGUI until the HUD of UI Toolkit shows <see cref="IBossBarService"/> itself (see guide 12, section
+    /// "Integration"). Display only, needs no input.
     /// </summary>
     /// <remarks>GameObject: any object of the dungeon scene ("Boss-Lebensbalken"). Switch it off once the HUD has its bar.</remarks>
     [DisallowMultipleComponent]
@@ -21,6 +21,9 @@ namespace Aetherfall.AI.Bosses
 
         [Tooltip("Farbe des verlorenen Lebens (verzögert).")]
         [SerializeField] private Color lagColor = new Color(0.95f, 0.8f, 0.4f);
+
+        // Pixels from the top edge to the bar: room for the compass above and the boss name between them.
+        private const float TopOffset = 70f;
 
         private IBossBarService _service;
         private BossBarState _state;
@@ -114,7 +117,8 @@ namespace Aetherfall.AI.Bosses
 
             float width = Screen.width * widthFraction;
             float x = (Screen.width - width) * 0.5f;
-            float y = Screen.height - 96f;
+            // GDD 05 1.2: "oben Mitte, unter dem Kompass" (name above the bar, title below it).
+            float y = TopOffset;
             Color old = GUI.color;
             GUI.color = Color.white;
             GUI.Label(new Rect(x, y - 30f, width, 28f), _state.DisplayName, _nameStyle);

@@ -1,4 +1,5 @@
 using Aetherfall.Core;
+using Aetherfall.Events;
 using UnityEngine;
 
 namespace Aetherfall.World.Dungeons
@@ -7,11 +8,14 @@ namespace Aetherfall.World.Dungeons
     /// Arrival point of a scene change (architecture 10.8: "Spieler am Eingangs-Anker"): if the <see cref="IWorldTravelService"/>
     /// expects the player at this anchor, the anchor moves the spawn point of the scene to its own pose in <c>Awake</c> – before
     /// the spawn point places the player (Loading → Playing). Without a pending anchor (new game, start in the editor) the spawn
-    /// point stays where it is.
+    /// point stays where it is. With <see cref="AutosaveOnArrival"/> it requests an autosave once the player is placed (GDD 05
+    /// 5.3: "nach dem Verlassen von Dungeons").
     /// </summary>
     /// <remarks>
     /// GameObject: an empty object at the arrival pose (position on the floor, Y rotation = view direction). <see cref="spawnPoint"/>
     /// is the transform of the scene's PlayerSpawnPoint (World may not reference the player assembly, so it moves the transform).
+    /// "Autosave On Arrival" is on for the anchor in front of a dungeon entrance in the world (Eichental) and off inside the
+    /// dungeon (the entrance portal already saved before the travel).
     /// </remarks>
     [DisallowMultipleComponent]
     public sealed class ArrivalAnchor : MonoBehaviour
@@ -22,8 +26,20 @@ namespace Aetherfall.World.Dungeons
         [Tooltip("Transform des PlayerSpawnPoint dieser Szene.")]
         [SerializeField] private Transform spawnPoint = null;
 
+        [Tooltip("Nach der Ankunft automatisch speichern, sobald die Spielfigur steht (an: Ankunftspunkt vor einem Dungeon-Eingang " +
+                 "in der Welt, GDD 05, 5.3 „nach dem Verlassen von Dungeons“; aus: Ankunft im Dungeon, dort hat der Eingang schon " +
+                 "gespeichert).")]
+        [SerializeField] private bool autosaveOnArrival = false;
+
+        private IEventBus _eventBus;
+        private ArrivalAutosave _arrivalSave;
+        private bool _subscribed;
+
         /// <summary>Anchor id.</summary>
         public string AnchorId => anchorId ?? string.Empty;
+
+        /// <summary>True if the anchor saves after an arrival.</summary>
+        public bool AutosaveOnArrival => autosaveOnArrival;
 
         /// <summary>True if the player arrived here in this scene lifetime.</summary>
         public bool Arrived { get; private set; }
@@ -48,12 +64,55 @@ namespace Aetherfall.World.Dungeons
                 return;
             }
 
-            if (travel.TryConsume(AnchorId))
+            if (!travel.TryConsume(AnchorId))
             {
-                MoveSpawnPointHere();
-                Arrived = true;
-                Log.Info(LogCategory.World, "Arrival at anchor '" + AnchorId + "'.");
+                return;
             }
+
+            MoveSpawnPointHere();
+            Arrived = true;
+            Log.Info(LogCategory.World, "Arrival at anchor '" + AnchorId + "'.");
+            if (autosaveOnArrival)
+            {
+                locator.TryGet(out IWorldAutosave autosave);
+                locator.TryGet(out _eventBus);
+                _arrivalSave = new ArrivalAutosave(autosave, AnchorId);
+                _arrivalSave.Arm();
+            }
+        }
+
+        private void OnEnable()
+        {
+            if (_eventBus == null || _subscribed || _arrivalSave == null || !_arrivalSave.IsArmed)
+            {
+                return;
+            }
+
+            _eventBus.Subscribe<PlayerSpawned>(OnPlayerSpawned);
+            _subscribed = true;
+        }
+
+        private void OnDisable()
+        {
+            Unsubscribe();
+        }
+
+        private void Unsubscribe()
+        {
+            if (!_subscribed)
+            {
+                return;
+            }
+
+            _eventBus.Unsubscribe<PlayerSpawned>(OnPlayerSpawned);
+            _subscribed = false;
+        }
+
+        private void OnPlayerSpawned(PlayerSpawned evt)
+        {
+            // The spawn point placed the player here (Loading -> Playing): the scene is ready to be saved.
+            _arrivalSave.NotifyPlayerSpawned();
+            Unsubscribe();
         }
 
         private void OnDrawGizmos()

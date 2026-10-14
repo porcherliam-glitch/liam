@@ -7,14 +7,17 @@ namespace Aetherfall.World.Dungeons
 {
     /// <summary>
     /// Entrance or exit between world spaces (architecture 10.8: "Dungeons sind eigene Szenen … Eingangs-Trigger: Speicherpunkt,
-    /// Ladeschirm mit Ortsname, Spieler am Eingangs-Anker"): on interaction it requests an autosave (if the save bridge is
-    /// installed and saving is allowed), remembers the arrival anchor, switches to Loading, changes the world space through the
-    /// scene loader (loading screen with the title) and switches back to Playing; the <see cref="ArrivalAnchor"/> of the target
-    /// scene then places the player. A target scene that is not in the scene list is refused before anything is unloaded.
+    /// Ladeschirm mit Ortsname, Spieler am Eingangs-Anker"): on interaction it requests an autosave if
+    /// <see cref="AutosaveBeforeTravel"/> is on (dungeon entrances, GDD 05 5.3 "vor dem Betreten"), remembers the arrival
+    /// anchor, switches to Loading, changes the world space through the scene loader (loading screen with the title) and
+    /// switches back to Playing; the <see cref="ArrivalAnchor"/> of the target scene then places the player (and saves after
+    /// leaving a dungeon, GDD 05 5.3 "nach dem Verlassen"). A target scene that is not in the scene list is refused before
+    /// anything is unloaded.
     /// </summary>
     /// <remarks>
     /// GameObject: the gate or stair of the exit with a trigger collider on the layer Interactable. In the crypt: both exits
-    /// lead to Eichental (<c>Assets/_Project/Scenes/World/Eichental.unity</c>, anchor <c>anchor.eichental.gruft_eingang</c>).
+    /// lead to Eichental (<c>Assets/_Project/Scenes/World/Eichental.unity</c>, anchor <c>anchor.eichental.gruft_eingang</c>)
+    /// and do not save before the travel (a save inside the crypt right at its exit would bring "Fortsetzen" back there).
     /// </remarks>
     [DisallowMultipleComponent]
     public sealed class DungeonPortal : MonoBehaviour, IInteractable
@@ -34,6 +37,10 @@ namespace Aetherfall.World.Dungeons
         [Tooltip("Anker in der Zielszene, an dem der Spieler ankommt.")]
         [SerializeField] private string targetAnchorId = string.Empty;
 
+        [Tooltip("Vor der Reise automatisch speichern (an: Dungeon-Eingang in der Welt; aus: Dungeon-Ausgang – dort speichert der " +
+                 "Ankunftspunkt draußen nach der Reise, GDD 05, 5.3).")]
+        [SerializeField] private bool autosaveBeforeTravel = true;
+
         private IGameStateService _gameState;
         private ISceneLoader _scenes;
         private IWorldTravelService _travel;
@@ -48,6 +55,9 @@ namespace Aetherfall.World.Dungeons
 
         /// <summary>Target anchor id.</summary>
         public string TargetAnchorId => targetAnchorId ?? string.Empty;
+
+        /// <summary>True if the portal saves before the travel (dungeon entrance).</summary>
+        public bool AutosaveBeforeTravel => autosaveBeforeTravel;
 
         /// <inheritdoc />
         public string InteractionObjectId => ObjectId;
@@ -130,7 +140,7 @@ namespace Aetherfall.World.Dungeons
             string id = ObjectId;
             try
             {
-                if (_autosave != null)
+                if (autosaveBeforeTravel && _autosave != null)
                 {
                     _autosave.RequestAutosave(id);
                 }

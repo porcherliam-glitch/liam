@@ -19,6 +19,9 @@ namespace Aetherfall.EditorTools.World
     /// </summary>
     public static class GruftObjectBuilder
     {
+        /// <summary>Speed of the arena gate in m/s (other portcullises: 3).</summary>
+        public const float ArenaGateSpeed = 8f;
+
         private static readonly Color TextColor = new Color(0.93f, 0.88f, 0.75f);
 
         /// <summary>Builds everything listed above.</summary>
@@ -481,6 +484,8 @@ namespace Aetherfall.EditorTools.World
             DungeonExit exit = ctx.Layout.FindExit(o.Id);
             TestGroundFields.SetString(portal, "objectId", o.Id, ctx.Report);
             TestGroundFields.SetString(portal, "prompt", string.IsNullOrEmpty(o.Prompt) ? "Gruft verlassen" : o.Prompt, ctx.Report);
+            // GDD 05 5.3 "nach dem Verlassen von Dungeons": the arrival anchor outside saves, not the exit inside the crypt.
+            TestGroundFields.SetBool(portal, "autosaveBeforeTravel", false, ctx.Report);
             if (exit != null)
             {
                 TestGroundFields.SetString(portal, "targetSceneKey", exit.TargetSceneKey, ctx.Report);
@@ -586,7 +591,9 @@ namespace Aetherfall.EditorTools.World
                     case DungeonDoor.Portcullis:
                         BuildPortcullis(moving, door, m.Iron, ctx.EnvironmentLayer);
                         openOffset = new Vector3(0f, door.Height - 0.3f, 0f);
-                        speed = 3f;
+                        // The arena gate falls fast (about 0.6 s): together with the gap to the encounter area the player is
+                        // surely inside when it closes (guide 12, 7.7).
+                        speed = door.OpensOn.Type == DungeonTrigger.Arena ? ArenaGateSpeed : 3f;
                         break;
                     case DungeonDoor.HiddenWall:
                         GruftParts.Part(moving, "Wandstueck", PrimitiveType.Cube, new Vector3(0f, door.Height * 0.5f, 0f),

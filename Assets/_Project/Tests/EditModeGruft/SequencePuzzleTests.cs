@@ -121,6 +121,23 @@ namespace Aetherfall.Tests.EditMode.Gruft
         }
 
         [Test]
+        public void LoadingAnUnsolvedStateRestartsTheHintAfterSolving()
+        {
+            var hint = new PuzzleHintTimer(120f);
+            hint.Tick(50f, true);
+            hint.Stop();
+            Assert.That(hint.IsStopped, Is.True, "solved");
+
+            // An older save in which the puzzle is not solved yet is loaded.
+            hint.Restart();
+
+            Assert.That(hint.IsStopped, Is.False);
+            Assert.That(hint.Elapsed, Is.EqualTo(0f));
+            Assert.That(hint.Tick(119f, true), Is.False, "counts from 0 again");
+            Assert.That(hint.Tick(1f, true), Is.True, "after 120 s the hint is due again");
+        }
+
+        [Test]
         public void ZeroSecondsMeansNoHint()
         {
             var hint = new PuzzleHintTimer(0f);

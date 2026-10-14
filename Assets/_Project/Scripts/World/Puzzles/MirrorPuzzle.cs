@@ -65,6 +65,7 @@ namespace Aetherfall.World.Puzzles
 
             Trace = ComputeTrace();
             IsSolved = Trace.HitTarget;
+            MostMirrorsHit = Trace.MirrorsHit.Count;
         }
 
         /// <summary>Number of mirrors.</summary>
@@ -75,6 +76,16 @@ namespace Aetherfall.World.Puzzles
 
         /// <summary>The current beam path.</summary>
         public BeamTrace Trace { get; private set; }
+
+        /// <summary>Most mirrors the beam has passed since the start or the last <see cref="Restore"/>.</summary>
+        public int MostMirrorsHit { get; private set; }
+
+        /// <summary>
+        /// True if the last <see cref="Rotate"/> was progress for the hint timer (GDD 02 11.7: hint after 120 s without
+        /// progress): the beam now passes more mirrors than ever before, or the puzzle is solved. Turning a mirror outside the
+        /// beam, or turning one away and back, is no progress.
+        /// </summary>
+        public bool LastTurnMadeProgress { get; private set; }
 
         /// <summary>Raised after a mirror turned or the state was restored (beam visuals).</summary>
         public event Action Changed;
@@ -112,6 +123,7 @@ namespace Aetherfall.World.Puzzles
         /// <returns>True if the mirror turned.</returns>
         public bool Rotate(string mirrorId)
         {
+            LastTurnMadeProgress = false;
             int index = IndexOf(mirrorId);
             if (index < 0 || IsSolved)
             {
@@ -120,6 +132,9 @@ namespace Aetherfall.World.Puzzles
 
             _directions[index] = GridDirections.Clockwise(_directions[index]);
             Refresh();
+            int hit = Trace.MirrorsHit.Count;
+            LastTurnMadeProgress = IsSolved || hit > MostMirrorsHit;
+            MostMirrorsHit = Math.Max(MostMirrorsHit, hit);
             return true;
         }
 
@@ -144,6 +159,8 @@ namespace Aetherfall.World.Puzzles
 
             Trace = ComputeTrace();
             IsSolved = solved || Trace.HitTarget;
+            MostMirrorsHit = Trace.MirrorsHit.Count;
+            LastTurnMadeProgress = false;
             RaiseChanged();
         }
 

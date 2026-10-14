@@ -7,7 +7,10 @@ using UnityEngine;
 
 namespace Aetherfall.Tests.EditMode.GruftSave
 {
-    /// <summary>Save manager double for the world save bridge: records saves and blockers, refuses saving while blocked.</summary>
+    /// <summary>
+    /// Save manager double for the world save bridge: records saves and blockers, refuses saving while blocked (also the combat
+    /// lock of the real save manager, <see cref="SetInCombat"/>).
+    /// </summary>
     public sealed class FakeWorldSaveManager : ISaveManager
     {
         private readonly Dictionary<string, string> _blockers = new Dictionary<string, string>();
@@ -116,6 +119,23 @@ namespace Aetherfall.Tests.EditMode.GruftSave
         public void RemoveBlocker(string blockerId)
         {
             _blockers.Remove(blockerId);
+        }
+
+        /// <summary>
+        /// Like the real save manager on <c>CombatStateChanged</c>: the combat lock (the player dealt or took damage in the last
+        /// 5 s, GDD 05 5.2) blocks saving.
+        /// </summary>
+        /// <param name="inCombat">True while in combat.</param>
+        public void SetInCombat(bool inCombat)
+        {
+            if (inCombat)
+            {
+                AddBlocker(SaveManager.CombatBlockerId, SaveReasonKeys.Combat);
+            }
+            else
+            {
+                RemoveBlocker(SaveManager.CombatBlockerId);
+            }
         }
     }
 }

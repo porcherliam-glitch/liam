@@ -18,6 +18,12 @@ namespace Aetherfall.AI.Bosses
         /// <summary>True if the target stands inside the encounter area (starts the fight).</summary>
         public bool TargetInArena { get; set; }
 
+        /// <summary>
+        /// True if the target stands outside the closed arena (the room behind the arena gate). During the fight this lasting
+        /// longer than <see cref="BossBrainSettings.LeaveArenaResetSeconds"/> starts the encounter over.
+        /// </summary>
+        public bool TargetLeftArena { get; set; }
+
         /// <summary>Own health from 0 to 1.</summary>
         public float HealthFraction { get; set; }
     }

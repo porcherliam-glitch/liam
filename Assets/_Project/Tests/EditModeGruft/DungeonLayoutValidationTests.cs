@@ -7,7 +7,8 @@ namespace Aetherfall.Tests.EditMode.Gruft
 {
     /// <summary>
     /// The layout reader and validator find broken data before the generator builds a scene: malformed JSON, duplicate keys,
-    /// unsolvable or already solved light puzzles, unreachable rooms, duplicate ids, too small arenas, traps without a fitting
+    /// unsolvable or already solved light puzzles, unreachable rooms, duplicate ids, too small arenas, an encounter area right
+    /// behind the arena gate, traps without a fitting
     /// trigger. Each test breaks one thing in a copy of the real crypt layout.
     /// </summary>
     [TestFixture]
@@ -88,6 +89,19 @@ namespace Aetherfall.Tests.EditMode.Gruft
             DungeonLayoutReport report = DungeonLayoutValidator.Validate(_layout);
 
             Assert.That(report.Has("arena.size", _layout.BossArena.Id), Is.True, "GDD 03 9.6: at least 25 x 25 m");
+            Assert.That(report.IsValid, Is.False);
+        }
+
+        [Test]
+        public void EncounterAreaRightBehindTheArenaGateIsAnError()
+        {
+            DungeonBossArena arena = _layout.BossArena;
+            DungeonRect area = arena.EncounterArea;
+            arena.EncounterArea = new DungeonRect(area.X, 63f, area.Width, area.MaxZ - 63f);
+
+            DungeonLayoutReport report = DungeonLayoutValidator.Validate(_layout);
+
+            Assert.That(report.Has("arena.gate_gap", arena.Id), Is.True, "0.6 m behind the gate: one step back and the player is shut out");
             Assert.That(report.IsValid, Is.False);
         }
 

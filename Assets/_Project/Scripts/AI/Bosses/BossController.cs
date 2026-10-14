@@ -13,8 +13,9 @@ namespace Aetherfall.AI.Bosses
     /// senses (player in the encounter area, distance, health), moves the body (<see cref="EnemyLocomotion"/>), blocks frontal
     /// hits with the tower shield, opens the hitbox in the attack windows, summons the adds in phase 2, checks the Aether beam
     /// of the arena mirror and publishes <c>BossEncounterStarted</c>, <c>BossPhaseChanged</c>, <c>BossEncounterEnded</c> and –
-    /// exactly once – <c>BossDefeated</c>. Shows the boss health bar through <see cref="IBossBarService"/>. If the player dies,
-    /// the fight resets (boss back at full health, adds gone, gate open).
+    /// exactly once – <c>BossDefeated</c>. Shows the boss health bar through <see cref="IBossBarService"/>. If the player dies
+    /// or stays outside the closed arena, the fight resets (boss back at full health, adds gone, gate open). Damage stops at the
+    /// next phase threshold until that phase has begun; the poise is full after a phase change.
     /// </summary>
     /// <remarks>
     /// GameObject: "Der Wachende Ritter" with CharacterController, Combatant (team Enemy, combatant id = boss id),
@@ -34,8 +35,13 @@ namespace Aetherfall.AI.Bosses
         [Tooltip("Boss-Daten (Assets/_Project/Data/Enemies/…). Pflichtfeld.")]
         [SerializeField] private BossDefinition definition = null;
 
-        [Tooltip("Kampfbereich (min x, min z, max x, max z): betritt der Spieler ihn, beginnt der Kampf.")]
-        [SerializeField] private Vector4 encounterArea = new Vector4(-27f, 64f, -1f, 88f);
+        [Tooltip("Kampfbereich (min x, min z, max x, max z): betritt der Spieler ihn, beginnt der Kampf. Mit Abstand zum Fallgitter, " +
+                 "damit der Spieler sicher drin ist, wenn es zufällt.")]
+        [SerializeField] private Vector4 encounterArea = new Vector4(-27f, 66f, -1f, 88f);
+
+        [Tooltip("Grenzen der geschlossenen Arena (Raum hinter dem Fallgitter; min x, min z, max x, max z). Steht der Spieler im " +
+                 "Kampf länger als 2 s außerhalb, beginnt der Kampf von vorn (das Gitter geht auf). Leer = Kampfbereich.")]
+        [SerializeField] private Vector4 arenaBounds = new Vector4(-27f, 62f, -1f, 88f);
 
         [Header("Teile")]
         [Tooltip("Hitbox der Angriffe. Leer = Hitbox am selben GameObject.")]
@@ -218,8 +224,13 @@ namespace Aetherfall.AI.Bosses
             }
 
             bool running = _brain.IsEncounterRunning;
-            CloseHitWindow();
             _brain.Reset();
+            PutBack(running);
+        }
+
+        private void PutBack(bool endEncounter)
+        {
+            CloseHitWindow();
             bool enabledController = _controller.enabled;
             if (enabledController)
             {
@@ -244,7 +255,7 @@ namespace Aetherfall.AI.Bosses
                 _bar.Hide(BossId);
             }
 
-            if (running)
+            if (endEncounter)
             {
                 PublishEncounterEnded(false);
             }
@@ -328,6 +339,7 @@ namespace Aetherfall.AI.Bosses
                 _brain.SummonRequested += OnSummonRequested;
                 _brain.Stunned += OnStunned;
                 _brain.Died += OnBrainDied;
+                _brain.EncounterAbandoned += OnEncounterAbandoned;
                 SetAddsActive(false);
                 SetInvulnerable(true);
                 SubscribeBus();
@@ -348,6 +360,7 @@ namespace Aetherfall.AI.Bosses
             if (health != null && !_healthSubscribed)
             {
                 health.Died += OnDied;
+                health.Damaged += OnDamaged;
                 _healthSubscribed = true;
             }
 
@@ -367,6 +380,7 @@ namespace Aetherfall.AI.Bosses
             if (health != null && _healthSubscribed)
             {
                 health.Died -= OnDied;
+                health.Damaged -= OnDamaged;
                 _healthSubscribed = false;
             }
 
@@ -437,9 +451,15 @@ namespace Aetherfall.AI.Bosses
             Vector3 target = _target.transform.position;
             senses.HasTarget = true;
             senses.Target = new FlatPoint(target.x, target.z);
-            senses.TargetInArena = target.x >= encounterArea.x && target.x <= encounterArea.z && target.z >= encounterArea.y &&
-                                   target.z <= encounterArea.w;
+            senses.TargetInArena = Contains(encounterArea, target);
+            bool hasBounds = arenaBounds.z > arenaBounds.x && arenaBounds.w > arenaBounds.y;
+            senses.TargetLeftArena = !Contains(hasBounds ? arenaBounds : encounterArea, target);
             return senses;
+        }
+
+        private static bool Contains(Vector4 area, Vector3 point)
+        {
+            return point.x >= area.x && point.x <= area.z && point.z >= area.y && point.z <= area.w;
         }
 
         private void FindTarget()
@@ -562,6 +582,12 @@ namespace Aetherfall.AI.Bosses
 
         private void OnPhaseChanged(int phase)
         {
+            if (phase > 1)
+            {
+                // GDD 03 9.6: "Boss waehrenddessen unverwundbar, Haltung danach voll".
+                BossPoise.Refill(_combatant.Poise);
+            }
+
             Log.Info(LogCategory.AI, "Boss '" + BossId + "': phase " + phase + ".");
             if (_eventBus != null)
             {
@@ -589,6 +615,29 @@ namespace Aetherfall.AI.Bosses
         {
             CloseHitWindow();
             Log.Info(LogCategory.AI, "Boss '" + BossId + "': " + kind + " for " + seconds.ToString("0.0") + " s.");
+        }
+
+        private void OnDamaged(DamageTaken taken)
+        {
+            // Until the next phase has begun, damage stops just below its threshold (raised before the death check, so a
+            // lethal hit in phase 1 leaves the boss alive and the phase change with its adds follows, GDD 03 9.6).
+            Health health = _combatant != null ? _combatant.Health : null;
+            if (_brain == null || health == null)
+            {
+                return;
+            }
+
+            float floor = _brain.HealthFloor(health.Max);
+            if (floor > 0f && health.Current < floor)
+            {
+                health.Heal(floor - health.Current);
+            }
+        }
+
+        private void OnEncounterAbandoned()
+        {
+            Log.Info(LogCategory.AI, "Boss '" + BossId + "': the player stayed outside the arena, the fight starts over.");
+            PutBack(true);
         }
 
         private void OnDied(DamageInfo killingDamage)
@@ -709,6 +758,10 @@ namespace Aetherfall.AI.Bosses
             Gizmos.color = new Color(1f, 0.3f, 0.2f, 0.8f);
             var center = new Vector3((encounterArea.x + encounterArea.z) * 0.5f, transform.position.y + 0.1f, (encounterArea.y + encounterArea.w) * 0.5f);
             var size = new Vector3(Mathf.Abs(encounterArea.z - encounterArea.x), 0.2f, Mathf.Abs(encounterArea.w - encounterArea.y));
+            Gizmos.DrawWireCube(center, size);
+            Gizmos.color = new Color(1f, 0.75f, 0.2f, 0.6f);
+            center = new Vector3((arenaBounds.x + arenaBounds.z) * 0.5f, transform.position.y + 0.15f, (arenaBounds.y + arenaBounds.w) * 0.5f);
+            size = new Vector3(Mathf.Abs(arenaBounds.z - arenaBounds.x), 0.2f, Mathf.Abs(arenaBounds.w - arenaBounds.y));
             Gizmos.DrawWireCube(center, size);
         }
     }

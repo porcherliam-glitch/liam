@@ -10,7 +10,8 @@ namespace Aetherfall.Tests.EditMode.Gruft
 {
     /// <summary>
     /// World object states (architecture 9.7): the store, the service that records solved puzzles and beaten bosses
-    /// ("besiegt bleibt besiegt"), the door rules of the crypt and the arrival anchors of scene changes.
+    /// ("besiegt bleibt besiegt"), the door rules of the crypt, the arrival anchors of scene changes and the autosave after an
+    /// arrival outside a dungeon.
     /// </summary>
     [TestFixture]
     public sealed class WorldObjectStateTests
@@ -118,6 +119,33 @@ namespace Aetherfall.Tests.EditMode.Gruft
             travel.SetPendingAnchor("anchor.gruft.eingang");
             travel.EndSession();
             Assert.That(travel.PendingAnchorId, Is.Empty);
+        }
+
+        [Test]
+        public void ArrivalOutsideTheDungeonSavesOnceThePlayerIsPlaced()
+        {
+            var autosave = new RecordingAutosave();
+            var arrival = new ArrivalAutosave(autosave, "anchor.eichental.gruft_eingang");
+
+            Assert.That(arrival.NotifyPlayerSpawned(), Is.False, "not armed: no arrival at this anchor");
+            Assert.That(arrival.Arm(), Is.True);
+            Assert.That(autosave.Reasons, Is.Empty, "not before the player stands in the new scene");
+
+            Assert.That(arrival.NotifyPlayerSpawned(), Is.True);
+            Assert.That(arrival.NotifyPlayerSpawned(), Is.False, "once per arrival (respawns do not save)");
+
+            Assert.That(autosave.Reasons, Is.EqualTo(new[] { "anchor.eichental.gruft_eingang" }), "GDD 05 5.3: nach dem Verlassen von Dungeons");
+            Assert.That(new ArrivalAutosave(null, "x").Arm(), Is.False, "without the save bridge nothing happens");
+        }
+
+        private sealed class RecordingAutosave : IWorldAutosave
+        {
+            public List<string> Reasons { get; } = new List<string>();
+
+            public void RequestAutosave(string reason)
+            {
+                Reasons.Add(reason);
+            }
         }
     }
 }

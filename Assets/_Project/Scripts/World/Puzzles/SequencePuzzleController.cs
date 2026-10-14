@@ -225,7 +225,8 @@ namespace Aetherfall.World.Puzzles
             }
             else
             {
-                _hint.NotifyProgress();
+                // An older save in which the puzzle is not solved yet: the hint counts again even after solving it before.
+                _hint.Restart();
             }
 
             SetHints(false);

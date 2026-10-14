@@ -7,7 +7,7 @@ namespace Aetherfall.Tests.EditMode.Gruft
     /// <summary>
     /// Light puzzle of the mirror hall (GDD 02 11.7: "Spiegel 1 → Ost, Spiegel 2 → Nord, Spiegel 3 → West", no penalty) and the
     /// beam tracer: straight beams, reflection in the mirror's direction, a mirror facing back blocks, the beam ends at the room
-    /// bounds, solved puzzles lock, saved directions restore.
+    /// bounds, solved puzzles lock, saved directions restore, only real progress restarts the hint timer.
     /// </summary>
     [TestFixture]
     public sealed class MirrorPuzzleTests
@@ -150,6 +150,49 @@ namespace Aetherfall.Tests.EditMode.Gruft
             Assert.That(WorldObjectStates.TryGetDirection(WorldObjectStates.FromDirection(GridDirection.South), out GridDirection back), Is.True);
             Assert.That(back, Is.EqualTo(GridDirection.South));
             Assert.That(WorldObjectStates.TryGetDirection(WorldObjectStates.Initial, out _), Is.False, "0 = nothing saved");
+        }
+
+        [Test]
+        public void TurningAMirrorOutsideTheBeamIsNoProgress()
+        {
+            MirrorPuzzle puzzle = Create();
+            var hint = new PuzzleHintTimer(120f);
+            hint.Tick(100f, true);
+
+            Assert.That(puzzle.Rotate("m3"), Is.True);
+            Assert.That(puzzle.Rotate("m2"), Is.True);
+            Assert.That(puzzle.LastTurnMadeProgress, Is.False, "mirrors 2 and 3 are not in the beam yet");
+            if (puzzle.LastTurnMadeProgress)
+            {
+                hint.NotifyProgress();
+            }
+
+            Assert.That(hint.Tick(20f, true), Is.True, "GDD 02 11.7: the 120 s keep running, the soot marks light up");
+        }
+
+        [Test]
+        public void OnlyAMirrorMoreInTheBeamThanEverBeforeCountsAsProgress()
+        {
+            MirrorPuzzle puzzle = Create();
+            Assert.That(puzzle.MostMirrorsHit, Is.EqualTo(1));
+
+            puzzle.Rotate("m1");
+            Assert.That(puzzle.DirectionOf("m1"), Is.EqualTo(GridDirection.East));
+            Assert.That(puzzle.LastTurnMadeProgress, Is.True, "the beam now reaches mirror 2");
+
+            puzzle.Rotate("m1");
+            Assert.That(puzzle.LastTurnMadeProgress, Is.False, "away again");
+            RotateTo(puzzle, "m1", GridDirection.East);
+            Assert.That(puzzle.LastTurnMadeProgress, Is.False, "back to a known state: no progress");
+
+            RotateTo(puzzle, "m2", GridDirection.North);
+            Assert.That(puzzle.LastTurnMadeProgress, Is.True, "the beam reaches mirror 3");
+            RotateTo(puzzle, "m3", GridDirection.West);
+            Assert.That(puzzle.IsSolved, Is.True);
+            Assert.That(puzzle.LastTurnMadeProgress, Is.True);
+
+            puzzle.Restore(new Dictionary<string, GridDirection>(), false);
+            Assert.That(puzzle.MostMirrorsHit, Is.EqualTo(puzzle.Trace.MirrorsHit.Count), "loading starts the measure anew");
         }
 
         private static void RotateTo(MirrorPuzzle puzzle, string id, GridDirection direction)

@@ -168,6 +168,9 @@ namespace Aetherfall.EditorTools.World
             TestGroundFields.SetReference(boss, "definition", assets.Boss, ctx.Report);
             DungeonRect area = arena.EncounterArea;
             GruftParts.SetVector4(boss, "encounterArea", new Vector4(area.X, area.Z, area.MaxX, area.MaxZ), ctx.Report);
+            DungeonRoom arenaRoom = ctx.Layout.FindRoom(arena.Room);
+            DungeonRect bounds = arenaRoom != null ? arenaRoom.Bounds : area;
+            GruftParts.SetVector4(boss, "arenaBounds", new Vector4(bounds.X, bounds.Z, bounds.MaxX, bounds.MaxZ), ctx.Report);
             TestGroundFields.SetReference(boss, "hitbox", hitbox, ctx.Report);
             TestGroundFields.SetReference(boss, "hitFlash", flash, ctx.Report);
             TestGroundFields.SetReference(boss, "body", body, ctx.Report);

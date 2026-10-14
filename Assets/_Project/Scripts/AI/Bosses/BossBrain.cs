@@ -8,7 +8,8 @@ namespace Aetherfall.AI.Bosses
     /// Decisions of a mini-boss (GDD 03 9.6 "Bosse"; GDD 02 11.7 "Der Wachende Ritter"), without Unity calls: waits until the
     /// player enters the arena, rises (invulnerable), fights with telegraphed attacks from a frontal tower-shield guard, changes
     /// the phase at health thresholds (invulnerable transition, summons adds), can be opened by a parried shield bash, stunned
-    /// by broken poise or – from phase 2 on – by the Aether beam, and dies exactly once. Movement wishes go out as
+    /// by broken poise or – from phase 2 on – by the Aether beam, and dies exactly once. A phase threshold also ends a stun;
+    /// a target that stays outside the closed arena makes the encounter start over. Movement wishes go out as
     /// <see cref="Intent"/>; attacks run through an <see cref="AttackRunner"/> (hit windows to the controller's hitbox).
     /// </summary>
     /// <remarks>Main thread only. The <see cref="BossController"/> turns senses into ticks and events into the world.</remarks>
@@ -25,6 +26,7 @@ namespace Aetherfall.AI.Bosses
         private float _recover;
         private float _stunRemaining;
         private float _beamCooldown;
+        private float _outsideArena;
 
         /// <summary>Creates the brain.</summary>
         /// <param name="settings">Values (validated).</param>
@@ -118,6 +120,13 @@ namespace Aetherfall.AI.Bosses
         /// <summary>Raised once when the boss dies.</summary>
         public event Action Died;
 
+        /// <summary>
+        /// Raised when the target stayed outside the closed arena for longer than
+        /// <see cref="BossBrainSettings.LeaveArenaResetSeconds"/> during the fight: the brain is dormant again (already reset), the
+        /// controller puts the body back and ends the encounter as not beaten (the arena gate opens).
+        /// </summary>
+        public event Action EncounterAbandoned;
+
         /// <summary>Starts the encounter (also done by <see cref="Tick"/> when the target enters the arena).</summary>
         /// <returns>True if it started now.</returns>
         public bool StartEncounter()
@@ -141,6 +150,11 @@ namespace Aetherfall.AI.Bosses
             float dt = Math.Max(0f, deltaTime);
             StateTime += dt;
             TickCooldowns(dt);
+            if (CheckLeftArena(dt, senses))
+            {
+                return;
+            }
+
             switch (State)
             {
                 case BossStateId.Dormant:
@@ -169,6 +183,16 @@ namespace Aetherfall.AI.Bosses
                     break;
                 case BossStateId.Stunned:
                     Intent = default;
+                    if (_phases.TryAdvance(senses.HealthFraction, out int stunnedPhase))
+                    {
+                        // GDD 03 9.6: the phase starts at its health threshold, also during a stun (a poise break or parry
+                        // opening must not shorten or skip the phase change with its adds, GDD 02 11.7).
+                        _stunRemaining = 0f;
+                        StunKind = BossStunKind.None;
+                        EnterTransition(stunnedPhase);
+                        break;
+                    }
+
                     _stunRemaining -= dt;
                     if (_stunRemaining <= 0f)
                     {
@@ -216,6 +240,17 @@ namespace Aetherfall.AI.Bosses
             return Stun(BossStunKind.Beam, _settings.BeamStunSeconds);
         }
 
+        /// <summary>
+        /// Lowest health the boss may have right now (absolute): until the next phase has begun, damage must not push the
+        /// health further than just below its threshold (see <see cref="BossPhaseTracker.HealthFloor"/>). 0 = no floor (last
+        /// phase, no running encounter).
+        /// </summary>
+        /// <param name="maxHealth">Maximum health of the boss.</param>
+        public float HealthFloor(float maxHealth)
+        {
+            return IsEncounterRunning ? _phases.HealthFloor(maxHealth) : 0f;
+        }
+
         /// <summary>The boss died (raises <see cref="Died"/> once).</summary>
         public void Kill()
         {
@@ -242,9 +277,31 @@ namespace Aetherfall.AI.Bosses
             _recover = 0f;
             _stunRemaining = 0f;
             _beamCooldown = 0f;
+            _outsideArena = 0f;
             StunKind = BossStunKind.None;
             Intent = default;
             ChangeState(BossStateId.Dormant);
+        }
+
+        private bool CheckLeftArena(float dt, in BossSenses senses)
+        {
+            // Fallback (GDD 03 9.4: arenas are closed instead of leashed): a target shut out by the closing gate or otherwise
+            // outside the closed arena must not leave a running fight behind (gate closed, saving blocked).
+            if (!IsEncounterRunning || !(_settings.LeaveArenaResetSeconds > 0f) || !(senses.HasTarget && senses.TargetLeftArena))
+            {
+                _outsideArena = 0f;
+                return false;
+            }
+
+            _outsideArena += dt;
+            if (_outsideArena <= _settings.LeaveArenaResetSeconds)
+            {
+                return false;
+            }
+
+            Reset();
+            Raise(EncounterAbandoned);
+            return true;
         }
 
         private void TickFighting(float dt, in BossSenses senses)

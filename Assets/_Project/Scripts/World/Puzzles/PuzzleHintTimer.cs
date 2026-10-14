@@ -25,7 +25,7 @@ namespace Aetherfall.World.Puzzles
         /// <summary>True while the hint is shown.</summary>
         public bool IsHintShown { get; private set; }
 
-        /// <summary>True after <see cref="Stop"/> (puzzle solved): never counts again.</summary>
+        /// <summary>True after <see cref="Stop"/> (puzzle solved): counts again only after <see cref="Restart"/>.</summary>
         public bool IsStopped { get; private set; }
 
         /// <summary>Seconds counted since the last progress.</summary>
@@ -63,6 +63,16 @@ namespace Aetherfall.World.Puzzles
         public void Stop()
         {
             IsStopped = true;
+            IsHintShown = false;
+            _elapsed = 0f;
+        }
+
+        /// <summary>
+        /// Counts from the start again, also after <see cref="Stop"/>: a loaded save in which the puzzle is not solved yet.
+        /// </summary>
+        public void Restart()
+        {
+            IsStopped = false;
             IsHintShown = false;
             _elapsed = 0f;
         }

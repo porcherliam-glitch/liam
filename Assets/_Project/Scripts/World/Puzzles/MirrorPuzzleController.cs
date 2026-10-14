@@ -173,7 +173,6 @@ namespace Aetherfall.World.Puzzles
                 return;
             }
 
-            int hitBefore = _puzzle.Trace.MirrorsHit.Count;
             if (!_puzzle.Rotate(mirror.ObjectId))
             {
                 return;
@@ -186,8 +185,9 @@ namespace Aetherfall.World.Puzzles
                 return;
             }
 
-            // Progress = the beam now passes more mirrors than before the turn.
-            if (_puzzle.Trace.MirrorsHit.Count >= hitBefore)
+            // Progress = the beam now passes more mirrors than ever before; turning a mirror outside the beam keeps the
+            // 120 s running (GDD 02 11.7: hint after 120 s without progress).
+            if (_puzzle.LastTurnMadeProgress)
             {
                 _hint.NotifyProgress();
                 SetHints(false);
@@ -251,7 +251,8 @@ namespace Aetherfall.World.Puzzles
             }
             else
             {
-                _hint.NotifyProgress();
+                // An older save in which the puzzle is not solved yet: the hint counts again even after solving it before.
+                _hint.Restart();
             }
 
             SetHints(false);

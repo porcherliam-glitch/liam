@@ -8,7 +8,10 @@ namespace Aetherfall.World.Dungeons
     /// </summary>
     public interface IWorldAutosave
     {
-        /// <summary>Requests an autosave; it is skipped (and logged) while saving is not allowed (combat, boss arena, loading).</summary>
+        /// <summary>
+        /// Requests an autosave. While saving is not allowed (combat, boss arena, loading) it waits and runs as soon as saving
+        /// is allowed again (newest request wins; dropped after 30 s or when a save is loaded).
+        /// </summary>
         /// <param name="reason">Short English reason for the log, e.g. <c>checkpoint.gruft.vorkammer</c>.</param>
         void RequestAutosave(string reason);
     }

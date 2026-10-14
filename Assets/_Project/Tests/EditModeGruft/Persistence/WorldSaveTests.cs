@@ -11,7 +11,8 @@ namespace Aetherfall.Tests.EditMode.GruftSave
 {
     /// <summary>
     /// Saving the crypt (architecture 9.2/9.7, section <c>worldobjects</c>): the saveable round trip including JSON, a new game
-    /// clears everything, the autosave bridge (checkpoint, no saving in the boss fight, autosave after the victory), the
+    /// clears everything, the autosave bridge (checkpoint, no saving in the boss fight, autosave after the victory once the
+    /// combat lock is gone, waiting requests), the
     /// conditions and the action of the world objects and the trap damage.
     /// </summary>
     [TestFixture]
@@ -82,6 +83,90 @@ namespace Aetherfall.Tests.EditMode.GruftSave
 
                 bridge.Dispose();
             }
+        }
+
+        [Test]
+        public void VictoryAutosaveWaitsForTheCombatLockOfTheKillingBlow()
+        {
+            using (var bus = new EventBus())
+            {
+                var saves = new FakeWorldSaveManager();
+                var bridge = new WorldSaveBridge(saves, bus);
+                bridge.PostInitialize();
+                var started = new BossEncounterStarted("boss.eichental.wachender_ritter");
+                bus.Publish(in started);
+                saves.SetInCombat(true);
+
+                var ended = new BossEncounterEnded("boss.eichental.wachender_ritter", true);
+                bus.Publish(in ended);
+
+                Assert.That(saves.Saves, Is.EqualTo(0), "the last hits keep the player in combat for 5 s (GDD 05 5.2)");
+                Assert.That(bridge.HasPendingAutosave, Is.True);
+                Assert.That(bridge.PendingReason, Is.EqualTo("boss.eichental.wachender_ritter"));
+                bridge.Tick(4f);
+                Assert.That(saves.Saves, Is.EqualTo(0), "still locked");
+
+                saves.SetInCombat(false);
+                bridge.Tick(0.02f);
+                bridge.Tick(0.02f);
+
+                Assert.That(saves.Saves, Is.EqualTo(1), "GDD 05 5.3: autosave after the victory, exactly once");
+                Assert.That(bridge.HasPendingAutosave, Is.False);
+                bridge.Dispose();
+            }
+        }
+
+        [Test]
+        public void WaitingAutosaveIsDroppedAfterThirtySeconds()
+        {
+            var saves = new FakeWorldSaveManager();
+            var bridge = new WorldSaveBridge(saves, null);
+            saves.SetInCombat(true);
+
+            bridge.RequestAutosave("checkpoint.gruft.vorkammer");
+            bridge.Tick(WorldSaveBridge.PendingLimitSeconds + 1f);
+            saves.SetInCombat(false);
+            bridge.Tick(0.02f);
+
+            Assert.That(bridge.HasPendingAutosave, Is.False);
+            Assert.That(saves.Saves, Is.EqualTo(0), "too late: no surprise save half a minute later");
+        }
+
+        [Test]
+        public void LoadingASaveDropsTheWaitingAutosave()
+        {
+            using (var bus = new EventBus())
+            {
+                var saves = new FakeWorldSaveManager();
+                var bridge = new WorldSaveBridge(saves, bus);
+                bridge.PostInitialize();
+                saves.SetInCombat(true);
+                bridge.RequestAutosave("checkpoint.gruft.vorkammer");
+
+                var loaded = new GameLoaded("char_01/quick_0", 1);
+                bus.Publish(in loaded);
+                saves.SetInCombat(false);
+                bridge.Tick(0.02f);
+
+                Assert.That(saves.Saves, Is.EqualTo(0));
+                bridge.Dispose();
+            }
+        }
+
+        [Test]
+        public void NewestWaitingRequestWins()
+        {
+            var saves = new FakeWorldSaveManager();
+            var bridge = new WorldSaveBridge(saves, null);
+            saves.SetInCombat(true);
+
+            bridge.RequestAutosave("a");
+            bridge.RequestAutosave("b");
+            saves.SetInCombat(false);
+            bridge.Tick(0.02f);
+
+            Assert.That(saves.Saves, Is.EqualTo(1), "one autosave for both requests");
+            Assert.That(bridge.RequestedSaves, Is.EqualTo(1));
         }
 
         [Test]
