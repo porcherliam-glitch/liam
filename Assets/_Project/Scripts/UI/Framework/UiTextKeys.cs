@@ -144,9 +144,6 @@ namespace Aetherfall.UI.Framework
         /// <summary>Footer hint "Zuruecknehmen".</summary>
         public const string HintRefund = "hint-refund";
 
-        /// <summary>Prefix of the quest category names (<c>quest-category-main</c> …).</summary>
-        public const string QuestCategoryPrefix = "quest-category-";
-
         /// <summary>"{0} · Stufe {1}" second line of a quest row.</summary>
         public const string QuestRowInfo = "fmt-quest-row-info";
 

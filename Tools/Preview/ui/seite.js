@@ -456,7 +456,8 @@
       const solid = Array.from(panel.querySelectorAll(
         '.af-button, .af-tab, .af-hint, .af-version, .af-title, .af-subtitle, .af-divider, .af-page__title, .af-page__note, ' +
         '.af-page__empty, .af-page__status, .af-pause__info-title, .af-pause__last-save, .af-pause__status, .af-death__title, ' +
-        '.af-death__subtitle, .af-death__info, .af-mainmenu__page'))
+        '.af-death__subtitle, .af-death__info, .af-mainmenu__page, .af-subtab, .af-tracked, .af-toast, .af-questlog__title, ' +
+        '.af-character__level, .af-xp'))
         .filter((element) => !skipped(element) && visible(element));
       const rects = solid.map((element) => element.getBoundingClientRect());
       for (let i = 0; i < solid.length; i++) {

@@ -11,8 +11,13 @@ namespace Aetherfall.Progression
     /// band when the curve changes). The source (quest id) goes with the event <c>XpGained</c>.
     /// </summary>
     /// <remarks>
-    /// Reference level of a level share: the recommended level of the content (field "Bezugslevel"); 0 = the player's level at
-    /// the moment of the reward. Example: 0.5 Lv at level 3 = 0.5 × 610 = 305 XP.
+    /// <para>Reference level of a level share: the recommended level of the content (field "Bezugslevel"); 0 = the player's
+    /// level at the moment of the reward. Example: 0.5 Lv at level 3 = 0.5 × 610 = 305 XP.</para>
+    /// <para>Overlevel attenuation (GDD 02 8.4 "D", GDD 03 12.7): with a reference level the reward shrinks by 10 % per level
+    /// the player is more than 3 levels above it, down to 25 % (<see cref="ProgressionRules.QuestLevelShareXp"/>). Example:
+    /// 0.5 Lv at level 2 = 200 XP; a player of level 9 gets 120 XP. Fixed rewards and reference level 0 are not attenuated.</para>
+    /// <para>TODO (story corridor step): main quests use their own attenuation, −10 % per level above corridor + 3, at least
+    /// 50 % (GDD 03 12.7); until the corridor exists they get the attenuation above.</para>
     /// </remarks>
     [Serializable]
     [TypeMenu("Spieler/Erfahrung geben", 0)]
@@ -27,7 +32,8 @@ namespace Aetherfall.Progression
         [Tooltip("Nur bei „Level-Anteil“: Anteil eines Levels, z. B. 0,5 (Nebenquest bis Level 10: 0,3–0,5 Lv, GDD 02 2.2).")]
         [Min(0f)] [SerializeField] private float levelShare = 0.5f;
 
-        [Tooltip("Nur bei „Level-Anteil“: Bezugslevel (empfohlenes Level der Quest). 0 = aktuelles Level des Spielers.")]
+        [Tooltip("Nur bei „Level-Anteil“: Bezugslevel (empfohlenes Level der Quest). 0 = aktuelles Level des Spielers. " +
+                 "Liegt der Spieler mehr als 3 Level darüber, gibt es 10 % weniger je Level, mindestens 25 % (GDD 02, 8.4).")]
         [Range(0, 80)] [SerializeField] private int referenceLevel = 0;
 
         /// <summary>Creates an empty action (level share 0.5 at the player's level).</summary>
@@ -73,9 +79,13 @@ namespace Aetherfall.Progression
             {
                 progression.AddXp(amount, ctx.SourceId);
             }
+            else if (referenceLevel > 0)
+            {
+                progression.AddXp(ProgressionRules.QuestLevelShareXp(progression.Curve, levelShare, referenceLevel, progression.Level), ctx.SourceId);
+            }
             else
             {
-                progression.AddXpLevelShare(levelShare, referenceLevel, ctx.SourceId);
+                progression.AddXpLevelShare(levelShare, 0, ctx.SourceId);
             }
         }
 

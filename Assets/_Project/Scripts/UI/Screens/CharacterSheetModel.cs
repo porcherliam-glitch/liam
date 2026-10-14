@@ -18,6 +18,10 @@ namespace Aetherfall.UI.Screens
         /// <summary>Shown when a value is unknown (no player stats bound).</summary>
         public const string Unknown = "–";
 
+        // Allowances of the rounding down: float sums like 100 + 15 × 8 + 12 × 9 may land a hair below the whole number.
+        private const double DisplayEpsilon = 1e-4;
+        private const double PercentEpsilon = 1e-3;
+
         private static readonly StatId[] DerivedStats =
         {
             StatId.MaxHealth, StatId.MaxStamina, StatId.MaxMana, StatId.Armor, StatId.Poise, StatId.CritChance, StatId.CarryCapacity
@@ -35,7 +39,7 @@ namespace Aetherfall.UI.Screens
             return UiTexts.Format(UiTextKeys.CharacterLevel, progression != null ? Number(progression.Level) : Unknown);
         }
 
-        /// <summary>"120 / 460 EP", or "Höchststufe erreicht" at the maximum level.</summary>
+        /// <summary>"120 / 460 EP", or the maximum level text.</summary>
         /// <param name="progression">Progression (null = unknown).</param>
         public static string XpText(IProgressionService progression)
         {
@@ -102,7 +106,7 @@ namespace Aetherfall.UI.Screens
                 StatId stat = attributes[i];
                 int refundable = progression != null ? progression.GetRefundablePoints(stat) : 0;
                 bool canSpend = progression != null && progression.CanSpendAttributePoint(stat, out _);
-                string value = stats != null ? Number((int)Math.Round(stats.Get(stat))) : Unknown;
+                string value = stats != null ? Number(FloorForDisplay(stats.Get(stat))) : Unknown;
                 string bonus = refundable > 0 ? UiTexts.Format(UiTextKeys.AttributeBonus, Number(refundable)) : string.Empty;
                 results.Add(new CharacterAttributeRow(stat, UiTexts.Get(AttributeNameKey(stat)), AttributeColorClass(stat), value, bonus, canSpend, refundable > 0));
             }
@@ -127,7 +131,10 @@ namespace Aetherfall.UI.Screens
             }
         }
 
-        /// <summary>German text of a derived value: percent with one decimal for the crit chance, kilograms for the carry capacity.</summary>
+        /// <summary>
+        /// German text of a derived value, rounded down like GDD 03 10.3 asks ("intern ungerundet, abgerundet angezeigt"):
+        /// whole numbers, the crit chance as percent with one decimal (12.59 % → "12,5 %"), the carry capacity in kilograms.
+        /// </summary>
         /// <param name="stat">Stat.</param>
         /// <param name="value">Value (percent values as fractions).</param>
         public static string FormatDerived(StatId stat, float value)
@@ -140,12 +147,45 @@ namespace Aetherfall.UI.Screens
             switch (stat)
             {
                 case StatId.CritChance:
-                    return (value * 100f).ToString("0.0", CultureInfo.InvariantCulture).Replace('.', ',') + " %";
+                    return PercentOneDecimal(value);
                 case StatId.CarryCapacity:
-                    return UiTexts.Format(UiTextKeys.ValueKg, Number((int)Math.Round(value)));
+                    return UiTexts.Format(UiTextKeys.ValueKg, Number(FloorForDisplay(value)));
                 default:
-                    return Number((int)Math.Round(value));
+                    return Number(FloorForDisplay(value));
             }
+        }
+
+        /// <summary>
+        /// Rounds a stat value down for the display (GDD 03 10.3: 120.5 → 120, 117.5 → 117). The small allowance catches float
+        /// errors such as 116.99998 for 117, so a value that is whole in the formula never shows one too low.
+        /// </summary>
+        /// <param name="value">Value.</param>
+        public static int FloorForDisplay(float value)
+        {
+            if (float.IsNaN(value) || float.IsInfinity(value))
+            {
+                return 0;
+            }
+
+            double floored = Math.Floor(value + DisplayEpsilon);
+            return (int)Math.Max(int.MinValue, Math.Min(int.MaxValue, floored));
+        }
+
+        /// <summary>
+        /// A fraction as percent with one decimal, rounded down (GDD 03 10.3: "Prozentwerte mit einer Nachkommastelle"):
+        /// 0.1259 → "12,5 %", 0.055 → "5,5 %".
+        /// </summary>
+        /// <param name="fraction">Value as fraction (0.125 = 12.5 %).</param>
+        public static string PercentOneDecimal(float fraction)
+        {
+            if (float.IsNaN(fraction) || float.IsInfinity(fraction))
+            {
+                return Unknown;
+            }
+
+            // Tenths of a percent = fraction × 1000; the allowance catches float errors (0.055f × 1000 = 54.99999).
+            double tenths = Math.Floor(fraction * 1000.0 + PercentEpsilon);
+            return (tenths / 10.0).ToString("0.0", CultureInfo.InvariantCulture).Replace('.', ',') + " %";
         }
 
         /// <summary>Whole number with German thousands dots ("12.500").</summary>

@@ -21,6 +21,9 @@ namespace Aetherfall.Progression
     /// Modifiers are never saved; they are rebuilt from the loaded points (architecture 11.5).</para>
     /// <para><b>Saving:</b> <see cref="ProgressionSaveable"/> (section <c>progression</c>, load order 40) sets the state with
     /// <see cref="LoadState"/> without events.</para>
+    /// <para><b>Start level:</b> a new game starts at <see cref="StartLevel"/> without experience and points; the service also
+    /// starts there (play mode started directly in a scene runs no new game). The game uses 1 (GDD 03 12); the test ground
+    /// uses 10 (field "Startstufe neues Spiel (nur Test)" of the <see cref="ProgressionInstaller"/>).</para>
     /// </remarks>
     public sealed class ProgressionService : IProgressionService, IPostInitializable, IDisposable
     {
@@ -37,15 +40,18 @@ namespace Aetherfall.Progression
         private bool _subscribed;
         private bool _disposed;
 
-        /// <summary>Creates the service at level 1 without experience.</summary>
+        /// <summary>Creates the service at the start level without experience.</summary>
         /// <param name="bus">Event bus (EnemyKilled in, XpGained and LevelUp out).</param>
         /// <param name="curve">Experience curve (null = GDD values).</param>
         /// <param name="killRules">Kill experience rules (null = GDD values).</param>
-        public ProgressionService(IEventBus bus, XpCurve curve = null, KillXpRules killRules = null)
+        /// <param name="startLevel">Level of a new game (1 in the game, 10 on the test ground); clamped to 1 … max level.</param>
+        public ProgressionService(IEventBus bus, XpCurve curve = null, KillXpRules killRules = null, int startLevel = 1)
         {
             _bus = bus ?? throw new ArgumentNullException(nameof(bus));
             Curve = curve ?? XpCurve.Default;
             _killRules = killRules ?? new KillXpRules();
+            StartLevel = Math.Max(1, Math.Min(Curve.MaxLevel, startLevel));
+            _level = StartLevel;
         }
 
         /// <inheritdoc />
@@ -59,6 +65,9 @@ namespace Aetherfall.Progression
 
         /// <summary>Kill experience rules.</summary>
         public KillXpRules KillRules => _killRules;
+
+        /// <summary>Level of a new game (1 in the game; the test ground uses 10).</summary>
+        public int StartLevel { get; }
 
         /// <inheritdoc />
         public int Level => _level;
@@ -365,10 +374,10 @@ namespace Aetherfall.Progression
             RaiseChanged();
         }
 
-        /// <summary>New game: level 1, no experience, no points (load step with data null).</summary>
+        /// <summary>New game: <see cref="StartLevel"/>, no experience, no points (load step with data null).</summary>
         public void ResetToNewGame()
         {
-            LoadState(1, 0, 0, 0, 0, null);
+            LoadState(StartLevel, 0, 0, 0, 0, null);
         }
 
         /// <summary>Distributed points per attribute (for the save), attributes with 0 points left out.</summary>

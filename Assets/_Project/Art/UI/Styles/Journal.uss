@@ -125,7 +125,7 @@
     white-space: normal;
 }
 
-/* Small caps-like section headings ("AKTUELLER STAND", "ENTSCHEIDUNGEN"). */
+/* Section headings ("Aktueller Stand", "Bisher", "Entscheidungen", "Attribute", "Werte"). */
 .af-questlog__section {
     margin: 18px 0 6px 0;
     font-size: 17px;
@@ -336,7 +336,7 @@
 
 .af-objective.is-done .af-objective__text,
 .af-objective.is-done .af-objective__count {
-    color: var(--text-muted);
+    color: var(--text-secondary);
 }
 
 /* GDD 05 1.2: optional objectives in italics. */

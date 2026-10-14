@@ -8,7 +8,8 @@ namespace Aetherfall.Progression
 {
     /// <summary>
     /// Saves and restores the section <c>progression</c> (architecture 9.2, load order 40) and writes the level into the save
-    /// header (preview "Level 14", GDD 05 5.5). A new game (data null) starts at level 1 without experience and points.
+    /// header (preview "Level 14", GDD 05 5.5). A new game (data null) starts at the start level of the service (1 in the
+    /// game) without experience and points.
     /// </summary>
     public sealed class ProgressionSaveable : Saveable<ProgressionDto>, ISaveHeaderContributor
     {

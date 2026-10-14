@@ -99,6 +99,41 @@ namespace Aetherfall.Tests.EditMode.Progression
         }
 
         [Test]
+        public void GiveXp_LevelShare_IsAttenuatedWhenThePlayerIsFarAboveTheRecommendedLevel()
+        {
+            _service.LoadState(9, 0, 0, 0, 0, null);
+            int before = _service.TotalXp;
+
+            new GiveXp(0.5f, 2).Execute(ActionContext.ForPlayer(_services, "quest.side.test.wolfsjagd"));
+
+            Assert.That(_service.TotalXp - before, Is.EqualTo(120), "GDD 02 8.4: 200 × (1 − 0.1 × (9 − 2 − 3)) = 120");
+        }
+
+        [Test]
+        public void GiveXp_LevelShare_UpToThreeLevelsAbove_GivesTheFullReward()
+        {
+            _service.LoadState(5, 0, 0, 0, 0, null);
+            int before = _service.TotalXp;
+
+            new GiveXp(0.5f, 2).Execute(ActionContext.ForPlayer(_services, "quest.a"));
+
+            Assert.That(_service.TotalXp - before, Is.EqualTo(200));
+        }
+
+        [Test]
+        public void GiveXp_FixedAndPlayerLevelShares_AreNotAttenuated()
+        {
+            _service.LoadState(9, 0, 0, 0, 0, null);
+            int before = _service.TotalXp;
+
+            new GiveXp(60).Execute(ActionContext.ForPlayer(_services, "quest.a"));
+            Assert.That(_service.TotalXp - before, Is.EqualTo(60));
+
+            new GiveXp(0.5f, 0).Execute(ActionContext.ForPlayer(_services, "quest.a"));
+            Assert.That(_service.TotalXp - before, Is.EqualTo(60 + 980), "0.5 × XP_next(9) = 0.5 × 1960");
+        }
+
+        [Test]
         public void GiveXp_Validation()
         {
             var report = new ValidationReport();

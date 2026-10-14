@@ -19,6 +19,9 @@ namespace Aetherfall.Tests.EditMode.UIScreens
         /// <summary>Number of times the screen closed.</summary>
         public int CloseCount { get; private set; }
 
+        /// <summary>Arguments of the last opening.</summary>
+        public object LastArgs { get; private set; }
+
         /// <summary>Last error line, or null.</summary>
         public string LastError { get; private set; }
 
@@ -37,6 +40,7 @@ namespace Aetherfall.Tests.EditMode.UIScreens
         protected override void OnOpen(object args)
         {
             OpenCount++;
+            LastArgs = args;
         }
 
         /// <inheritdoc />

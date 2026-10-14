@@ -249,9 +249,50 @@ namespace Aetherfall.EditorTools.World
                 typeof(ConditionsInstaller), typeof(SaveInstaller), typeof(GameTimeInstaller), typeof(ContentInstaller));
             bool progression = EnsureInstallerInBootConfig<ProgressionInstaller>(TestGroundPaths.ProgressionInstallerPath, report,
                 typeof(EventBusInstaller), typeof(SaveInstaller), typeof(InventoryInstaller));
+            if (progression)
+            {
+                SetProgressionStartLevel(report);
+            }
+
             bool quests = worldState && progression && EnsureInstallerInBootConfig<QuestInstaller>(TestGroundPaths.QuestInstallerPath, report,
                 typeof(WorldStateInstaller), typeof(InventoryInstaller), typeof(ProgressionInstaller));
             return conditions && worldState && progression && quests;
+        }
+
+        /// <summary>
+        /// Sets the field "Startstufe neues Spiel (nur Test)" of the ProgressionInstaller to the level of the test character
+        /// (<see cref="Aetherfall.EditorTools.Narrative.TestGroundLevels.PlayerStartLevel"/>, warrior of GDD 03 8.3). Without it a
+        /// new game would start at level 1: fewer health points than in guide 05, and the starting equipment and chest loot of
+        /// item level 10 could not be equipped (GDD 04 2.4: player level ≥ item level − 3).
+        /// </summary>
+        /// <param name="report">Protocol.</param>
+        private static void SetProgressionStartLevel(TestGroundReport report)
+        {
+            ProgressionInstaller installer = AssetDatabase.LoadAssetAtPath<ProgressionInstaller>(TestGroundPaths.ProgressionInstallerPath);
+            if (installer == null)
+            {
+                return;
+            }
+
+            const int startLevel = Aetherfall.EditorTools.Narrative.TestGroundLevels.PlayerStartLevel;
+            var serialized = new SerializedObject(installer);
+            SerializedProperty field = serialized.FindProperty("newGameStartLevel");
+            if (field == null)
+            {
+                report.Warning("ProgressionInstaller: Feld „newGameStartLevel“ nicht gefunden. Bitte „Startstufe neues Spiel (nur Test)“ " +
+                               "von Hand auf " + startLevel + " stellen.");
+                return;
+            }
+
+            if (field.intValue == startLevel)
+            {
+                return;
+            }
+
+            field.intValue = startLevel;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(installer);
+            report.Info("ProgressionInstaller: Startstufe neues Spiel = " + startLevel + " (Testgelände, nur zum Testen; vor dem Mini-Slice wieder 1).");
         }
 
         /// <summary>

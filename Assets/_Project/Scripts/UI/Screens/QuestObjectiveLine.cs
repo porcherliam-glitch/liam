@@ -9,7 +9,7 @@ namespace Aetherfall.UI.Screens
         /// <summary>Stage-qualified objective id (<c>s10.o1</c>).</summary>
         public readonly string Key;
 
-        /// <summary>Text, e.g. "Wölfe besiegen".</summary>
+        /// <summary>Text, e.g. "Woelfe besiegen".</summary>
         public readonly string Text;
 
         /// <summary>Current progress.</summary>

@@ -5,6 +5,8 @@ using Aetherfall.Events;
 using Aetherfall.Input;
 using Aetherfall.Inventory;
 using Aetherfall.Items;
+using Aetherfall.Progression;
+using Aetherfall.Quests;
 using Aetherfall.SaveSystem;
 using Aetherfall.UI.Framework;
 using UnityEngine;
@@ -26,6 +28,9 @@ namespace Aetherfall.UI.Screens
     /// <para>The panel settings asset is copied at start: the UI size option changes the copy, never the asset.</para>
     /// <para>Events are subscribed in OnEnable once the services are resolved and unsubscribed in OnDisable. While this
     /// component exists, the pause button belongs to the UI (the stand-in routing of the input service is switched off).</para>
+    /// <para>Quests and progression (optional services): the journal (quest log and character page, key J or the pause menu),
+    /// the quest tracker and the experience bar of the HUD, and the quest messages (<see cref="QuestNotifier"/>). Without the
+    /// journal layouts or the quest service these parts are left out with a warning.</para>
     /// </remarks>
     [DefaultExecutionOrder(-200)]
     [DisallowMultipleComponent]
@@ -69,6 +74,28 @@ namespace Aetherfall.UI.Screens
         [Tooltip("ToastEntry.uxml (eine Meldung)")]
         [SerializeField] private VisualTreeAsset toastEntryLayout = null;
 
+        [Header("Layouts Questlog und Charakter (UXML)")]
+        [Tooltip("Journal.uxml (Questlog und Charakter-Seite, Taste J oder Pausemenü)")]
+        [SerializeField] private VisualTreeAsset journalLayout = null;
+
+        [Tooltip("QuestRow.uxml (eine Quest in der Liste des Questlogs)")]
+        [SerializeField] private VisualTreeAsset questRowLayout = null;
+
+        [Tooltip("ObjectiveRow.uxml (ein Ziel mit Kästchen und Zähler; Questlog und HUD)")]
+        [SerializeField] private VisualTreeAsset objectiveRowLayout = null;
+
+        [Tooltip("TrackedQuest.uxml (eine verfolgte Quest im HUD, rechts oben)")]
+        [SerializeField] private VisualTreeAsset trackedQuestLayout = null;
+
+        [Tooltip("JournalLine.uxml (eine Zeile „Bisher“ oder „Entscheidungen“ im Questlog)")]
+        [SerializeField] private VisualTreeAsset journalLineLayout = null;
+
+        [Tooltip("AttributeRow.uxml (ein Attribut auf der Charakter-Seite)")]
+        [SerializeField] private VisualTreeAsset attributeRowLayout = null;
+
+        [Tooltip("ValueRow.uxml (ein abgeleiteter Wert auf der Charakter-Seite)")]
+        [SerializeField] private VisualTreeAsset valueRowLayout = null;
+
         [Tooltip("Kamera der Boot-Szene (Objekt MenuCamera): füllt im Hauptmenü und beim Laden das Bild mit der Menüfarbe, " +
                  "solange keine Spielszene mit eigener Kamera geladen ist. Zeigt sonst nichts.")]
         [SerializeField] private Camera menuCamera = null;
@@ -89,6 +116,10 @@ namespace Aetherfall.UI.Screens
         private IGlyphService _glyphs;
         private IPlayerHudRegistry _players;
         private IInventoryService _inventory;
+        private IQuestService _quests;
+        private IProgressionService _progression;
+        private QuestNotifier _notifier;
+        private JournalScreen _journal;
         private LoadingScreenProxy _loadingProxy;
         private UiStateDirector _director;
         private HudView _hud;
@@ -165,6 +196,8 @@ namespace Aetherfall.UI.Screens
                 _players = locator.Get<IPlayerHudRegistry>();
                 _loadingProxy = locator.Get<ILoadingScreen>() as LoadingScreenProxy;
                 locator.TryGet(out _inventory);
+                locator.TryGet(out _quests);
+                locator.TryGet(out _progression);
                 Build();
             }
             catch (OperationCanceledException)
@@ -189,13 +222,34 @@ namespace Aetherfall.UI.Screens
             _mainMenu = new MainMenuScreen(CloneScreen(mainMenuLayout, screensRoot), loadPageLayout, saveSlotRowLayout, optionsPageLayout, _glyphs,
                 _flow, _preferences, UiTexts.Format(UiTextKeys.Version, Application.version));
             _pauseMenu = new PauseMenuScreen(CloneScreen(pauseMenuLayout, screensRoot), loadPageLayout, saveSlotRowLayout, optionsPageLayout, _glyphs,
-                _flow, _gameState, _saves, _preferences);
+                _flow, _gameState, _saves, _preferences, HasJournalLayouts() ? OpenJournalFromPause : (Func<bool>)null);
             _deathScreen = new DeathScreen(CloneScreen(deathScreenLayout, screensRoot), _glyphs, _flow, OnDeathLoadLast, OnDeathRespawn);
             _ui.RegisterScreen(_mainMenu);
             _ui.RegisterScreen(_pauseMenu);
             _ui.RegisterScreen(_deathScreen);
+            if (HasJournalLayouts())
+            {
+                _journal = new JournalScreen(CloneScreen(journalLayout, screensRoot), questRowLayout, objectiveRowLayout, journalLineLayout,
+                    attributeRowLayout, valueRowLayout, _glyphs, _quests, _progression, OnJournalCloseRequested);
+                _ui.RegisterScreen(_journal);
+            }
+            else
+            {
+                Log.Warning(LogCategory.UI, "UIRoot: the journal layouts (Journal.uxml, QuestRow.uxml, ObjectiveRow.uxml, JournalLine.uxml, " +
+                                            "AttributeRow.uxml, ValueRow.uxml) are not set - no quest log. Run Aetherfall > Oberflaeche einrichten.");
+            }
 
             _hud = new HudView(hudDocument.rootVisualElement, _players, _inventory, _glyphs, _preferences);
+            VisualElement hudRoot = hudDocument.rootVisualElement;
+            QuestTrackerView tracker = _quests != null && trackedQuestLayout != null && objectiveRowLayout != null && hudRoot.Q<VisualElement>("hud-quests") != null
+                ? new QuestTrackerView(hudRoot.Q<VisualElement>("hud-quests"), trackedQuestLayout, objectiveRowLayout, _quests)
+                : null;
+            XpBarView xpBar = _progression != null && hudRoot.Q<VisualElement>("hud-xp") != null ? new XpBarView(hudRoot.Q<VisualElement>("hud-xp"), _progression) : null;
+            _hud.AttachProgressViews(tracker, xpBar);
+            if (_quests != null)
+            {
+                _notifier = new QuestNotifier(_quests, ShowNotification) { Enabled = NotifiesQuests(_gameState.Current) };
+            }
             _toasts = new ToastView(toastsDocument.rootVisualElement, toastEntryLayout, _ui.Notifications);
             var loadingView = new LoadingScreenView(loadingDocument.rootVisualElement);
             if (_loadingProxy != null)
@@ -205,6 +259,7 @@ namespace Aetherfall.UI.Screens
 
             _director = new UiStateDirector(_ui, _gameState, _input.Gameplay, _input.WasPausePressedThisFrame, _flow, _mainMenu, _pauseMenu,
                 _deathScreen, deathScreenDelay);
+            _director.AttachJournal(_journal);
             _ui.AttachLayerHost(this);
             _input.SetPauseButtonRouting(false);
             _glyphs.SetStyleOverride(_preferences.GlyphStyle);
@@ -214,7 +269,8 @@ namespace Aetherfall.UI.Screens
             _director.Apply(_gameState.Current);
             ApplyMenuCamera(_gameState.Current);
             HandOverPlayer();
-            Log.Info(LogCategory.UI, "UIRoot: user interface ready (main menu, pause menu, death screen, HUD, messages, loading screen).");
+            Log.Info(LogCategory.UI, "UIRoot: user interface ready (main menu, pause menu, death screen, HUD, messages, loading screen" +
+                                     (_journal != null ? ", journal" : string.Empty) + (tracker != null ? ", quest tracker" : string.Empty) + ").");
         }
 
         private void OnEnable()
@@ -238,6 +294,11 @@ namespace Aetherfall.UI.Screens
             _eventBus.Unsubscribe<XpGained>(OnXpGained);
             _eventBus.Unsubscribe<LevelUp>(OnLevelUp);
             _eventBus.Unsubscribe<CombatStateChanged>(OnCombatStateChanged);
+            _eventBus.Unsubscribe<QuestStarted>(OnQuestStarted);
+            _eventBus.Unsubscribe<QuestStageChanged>(OnQuestStageChanged);
+            _eventBus.Unsubscribe<ObjectiveProgressed>(OnObjectiveProgressed);
+            _eventBus.Unsubscribe<QuestCompleted>(OnQuestCompleted);
+            _eventBus.Unsubscribe<QuestFailed>(OnQuestFailed);
             _glyphs.Changed -= OnGlyphsChanged;
             _preferences.Changed -= OnPreferencesChanged;
             _flow.Failed -= OnFlowFailed;
@@ -284,6 +345,12 @@ namespace Aetherfall.UI.Screens
             }
 
             _hud.Tick(dt);
+            if (_notifier != null)
+            {
+                _notifier.Update(Time.realtimeSinceStartupAsDouble);
+            }
+
+            _toasts.SetProgressTop(_hud.QuestTrackerBottom);
             _toasts.Tick(dt, _saves.IsBusy && _gameState.Current != GameState.Loading);
             ApplyUiScale(false);
         }
@@ -304,6 +371,11 @@ namespace Aetherfall.UI.Screens
             _eventBus.Subscribe<XpGained>(OnXpGained);
             _eventBus.Subscribe<LevelUp>(OnLevelUp);
             _eventBus.Subscribe<CombatStateChanged>(OnCombatStateChanged);
+            _eventBus.Subscribe<QuestStarted>(OnQuestStarted);
+            _eventBus.Subscribe<QuestStageChanged>(OnQuestStageChanged);
+            _eventBus.Subscribe<ObjectiveProgressed>(OnObjectiveProgressed);
+            _eventBus.Subscribe<QuestCompleted>(OnQuestCompleted);
+            _eventBus.Subscribe<QuestFailed>(OnQuestFailed);
             _glyphs.Changed += OnGlyphsChanged;
             _preferences.Changed += OnPreferencesChanged;
             _flow.Failed += OnFlowFailed;
@@ -314,6 +386,16 @@ namespace Aetherfall.UI.Screens
 
         private void OnGameStateChanged(GameStateChanged evt)
         {
+            if (_notifier != null)
+            {
+                // A loaded game recounts its objectives: no messages while loading or outside the game.
+                _notifier.Enabled = NotifiesQuests(evt.Current);
+                if (evt.Current == GameState.MainMenu)
+                {
+                    _notifier.Reset();
+                }
+            }
+
             _director.Apply(evt.Current);
             ApplyMenuCamera(evt.Current);
         }
@@ -335,6 +417,13 @@ namespace Aetherfall.UI.Screens
         {
             _director.OnGameLoaded();
             _hud.ResetState();
+            if (_notifier != null)
+            {
+                _notifier.Reset();
+            }
+
+            // The tracked quests show for a moment, so the player sees where the game continues.
+            _hud.Rules.NotifyQuestActivity();
             if (!string.IsNullOrEmpty(evt.SlotId))
             {
                 _ui.ShowToast(Notification.Message(NotificationPriority.Progress, UiTexts.Get(UiTextKeys.NoteLoaded), "saved"));
@@ -383,11 +472,98 @@ namespace Aetherfall.UI.Screens
         private void OnXpGained(XpGained evt)
         {
             _ui.ShowToast(Notification.Experience(evt.Amount));
+            _hud.Rules.NotifyXpGained();
         }
 
         private void OnLevelUp(LevelUp evt)
         {
-            _ui.ShowToast(Notification.LevelUp(evt.NewLevel));
+            _hud.Rules.NotifyXpGained();
+            if (_notifier != null)
+            {
+                _notifier.OnLevelUp(evt.NewLevel, Time.realtimeSinceStartupAsDouble);
+            }
+            else
+            {
+                _ui.ShowToast(Notification.LevelUp(evt.NewLevel));
+            }
+        }
+
+        private void OnQuestStarted(QuestStarted evt)
+        {
+            _hud.Rules.NotifyQuestActivity();
+            if (_notifier != null)
+            {
+                _notifier.OnQuestStarted(evt.QuestId);
+            }
+        }
+
+        private void OnQuestStageChanged(QuestStageChanged evt)
+        {
+            _hud.Rules.NotifyQuestActivity();
+            if (_notifier != null)
+            {
+                _notifier.OnStageChanged(evt.QuestId, evt.StageId, evt.PreviousStageId);
+            }
+        }
+
+        private void OnObjectiveProgressed(ObjectiveProgressed evt)
+        {
+            _hud.Rules.NotifyQuestActivity();
+            if (_hud.QuestTracker != null)
+            {
+                _hud.QuestTracker.OnObjectiveProgressed(evt.QuestId, evt.ObjectiveId, evt.Current, evt.Required);
+            }
+
+            if (_notifier != null)
+            {
+                _notifier.OnObjectiveProgressed(evt.QuestId, evt.ObjectiveId, evt.Current, evt.Required, Time.realtimeSinceStartupAsDouble);
+            }
+        }
+
+        private void OnQuestCompleted(QuestCompleted evt)
+        {
+            _hud.Rules.NotifyQuestActivity();
+            if (_notifier != null)
+            {
+                _notifier.OnQuestCompleted(evt.QuestId);
+            }
+        }
+
+        private void OnQuestFailed(QuestFailed evt)
+        {
+            _hud.Rules.NotifyQuestActivity();
+            if (_notifier != null)
+            {
+                _notifier.OnQuestFailed(evt.QuestId);
+            }
+        }
+
+        private void ShowNotification(Notification notification)
+        {
+            _ui.ShowToast(notification);
+        }
+
+        private bool OpenJournalFromPause()
+        {
+            return _director != null && _director.OpenJournal(JournalPage.Quests);
+        }
+
+        private void OnJournalCloseRequested()
+        {
+            _director.CloseJournal();
+            // GDD 05 1.2: the tracked quests show for a moment after closing the quest log.
+            _hud.Rules.NotifyQuestActivity();
+        }
+
+        private static bool NotifiesQuests(GameState state)
+        {
+            return state != GameState.Loading && state != GameState.MainMenu && state != GameState.Boot;
+        }
+
+        private bool HasJournalLayouts()
+        {
+            return journalLayout != null && questRowLayout != null && objectiveRowLayout != null && journalLineLayout != null &&
+                   attributeRowLayout != null && valueRowLayout != null;
         }
 
         private void OnCombatStateChanged(CombatStateChanged evt)
@@ -401,6 +577,11 @@ namespace Aetherfall.UI.Screens
             _mainMenu.RefreshGlyphs();
             _pauseMenu.RefreshGlyphs();
             _deathScreen.RefreshGlyphs();
+            if (_journal != null)
+            {
+                _journal.RefreshGlyphs();
+            }
+
             _hud.RefreshGlyphs();
         }
 

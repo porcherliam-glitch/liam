@@ -85,6 +85,15 @@
     border-color: var(--text-secondary);
 }
 
+/* Quest messages (GDD 02 7.5): gold like the main quest symbol; failed quests in the warning red. */
+.af-toast--quest {
+    border-color: var(--quest-main);
+}
+
+.af-toast--quest-failed {
+    border-color: var(--ui-worse);
+}
+
 .af-toast--rarity-common {
     border-color: var(--rarity-common);
 }

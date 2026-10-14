@@ -25,6 +25,12 @@ namespace Aetherfall.Tests.EditMode.UI
         /// <summary>Tab deltas.</summary>
         public List<int> Tabs { get; } = new List<int>();
 
+        /// <summary>Category tab deltas (LT/RT).</summary>
+        public List<int> SubTabs { get; } = new List<int>();
+
+        /// <summary>Secondary action calls (X, F) with the focused index.</summary>
+        public List<int> Secondaries { get; } = new List<int>();
+
         /// <summary>Back calls (true = close button).</summary>
         public List<bool> Backs { get; } = new List<bool>();
 
@@ -113,6 +119,18 @@ namespace Aetherfall.Tests.EditMode.UI
         public override void Tab(int delta)
         {
             Tabs.Add(delta);
+        }
+
+        /// <inheritdoc />
+        public override void SubTab(int delta)
+        {
+            SubTabs.Add(delta);
+        }
+
+        /// <inheritdoc />
+        public override void Secondary(int index)
+        {
+            Secondaries.Add(index);
         }
 
         /// <inheritdoc />

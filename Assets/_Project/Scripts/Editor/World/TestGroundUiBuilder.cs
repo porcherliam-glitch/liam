@@ -76,7 +76,14 @@ namespace Aetherfall.EditorTools.World
             new KeyValuePair<string, string>("loadPageLayout", "LoadPage.uxml"),
             new KeyValuePair<string, string>("saveSlotRowLayout", "SaveSlotRow.uxml"),
             new KeyValuePair<string, string>("optionsPageLayout", "OptionsPage.uxml"),
-            new KeyValuePair<string, string>("toastEntryLayout", "ToastEntry.uxml")
+            new KeyValuePair<string, string>("toastEntryLayout", "ToastEntry.uxml"),
+            new KeyValuePair<string, string>("journalLayout", "Journal.uxml"),
+            new KeyValuePair<string, string>("questRowLayout", "QuestRow.uxml"),
+            new KeyValuePair<string, string>("objectiveRowLayout", "ObjectiveRow.uxml"),
+            new KeyValuePair<string, string>("trackedQuestLayout", "TrackedQuest.uxml"),
+            new KeyValuePair<string, string>("journalLineLayout", "JournalLine.uxml"),
+            new KeyValuePair<string, string>("attributeRowLayout", "AttributeRow.uxml"),
+            new KeyValuePair<string, string>("valueRowLayout", "ValueRow.uxml")
         };
 
         /// <summary>Runs the UI setup alone (asks first).</summary>

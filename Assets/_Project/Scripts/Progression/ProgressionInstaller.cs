@@ -23,6 +23,10 @@ namespace Aetherfall.Progression
         [Tooltip("XP-Kurve und Kampf-Erfahrung (GDD 03, 12.3 und 12.7). Leer = Werte aus dem GDD (200 · L · (1 + (L/30)²), Level 80).")]
         [SerializeField] private XpCurveSettings curve = null;
 
+        [Tooltip("Startstufe neues Spiel (nur Test): Mit dieser Stufe beginnt ein neues Spiel. Im echten Spiel 1 (GDD 03, 12). " +
+                 "Das Testgelände setzt 10 (Krieger aus GDD 03, 8.3, Anleitungen 05, 06 und 09). Vor dem Mini-Slice wieder auf 1 stellen.")]
+        [Range(1, 80)] [SerializeField] private int newGameStartLevel = 1;
+
         /// <inheritdoc />
         public override IEnumerable<Type> Provides => new[] { typeof(IProgressionService) };
 
@@ -34,12 +38,13 @@ namespace Aetherfall.Progression
         {
             XpCurve xpCurve = curve != null ? curve.CreateCurve() : XpCurve.Default;
             KillXpRules killRules = curve != null ? curve.CreateKillRules() : new KillXpRules();
-            var service = new ProgressionService(locator.Get<IEventBus>(), xpCurve, killRules);
+            var service = new ProgressionService(locator.Get<IEventBus>(), xpCurve, killRules, newGameStartLevel);
             var saveable = new ProgressionSaveable(service);
             ISaveManager saves = locator.Get<ISaveManager>();
             saves.Register(saveable);
             saves.RegisterHeaderContributor(saveable);
-            Log.Info(LogCategory.Player, "Progression: level 1-" + xpCurve.MaxLevel + ", " + xpCurve.TotalToMaxLevel + " XP to the max level.");
+            Log.Info(LogCategory.Player, "Progression: level 1-" + xpCurve.MaxLevel + ", " + xpCurve.TotalToMaxLevel + " XP to the max level, " +
+                                         "new games start at level " + service.StartLevel + (service.StartLevel > 1 ? " (test setting)." : "."));
             registry.Register<IProgressionService>(service);
         }
     }

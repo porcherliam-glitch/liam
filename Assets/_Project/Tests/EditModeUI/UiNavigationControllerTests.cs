@@ -80,6 +80,46 @@ namespace Aetherfall.Tests.EditMode.UI
         }
 
         [Test]
+        public void SubTabs_GoToTheScreen_AsSteps()
+        {
+            UiInputFrame frame = Frame();
+            frame.SubTabDelta = 1;
+            Assert.That(_controller.Process(_screen, frame, 0.016f), Is.EqualTo(UiNavResult.SubTabChanged));
+            frame.SubTabDelta = -3;
+            _controller.Process(_screen, frame, 0.016f);
+
+            Assert.That(_screen.SubTabs, Is.EqualTo(new[] { 1, -1 }), "LT/RT move one category per press");
+            Assert.That(_screen.Tabs, Is.Empty);
+        }
+
+        [Test]
+        public void Secondary_GoesToTheScreen_WithTheFocusedItem()
+        {
+            _screen.Focus.SetCurrent(3);
+            UiInputFrame frame = Frame();
+            frame.SecondaryPressed = true;
+
+            Assert.That(_controller.Process(_screen, frame, 0.016f), Is.EqualTo(UiNavResult.Secondary));
+            Assert.That(_screen.Secondaries, Is.EqualTo(new[] { 3 }));
+            Assert.That(_screen.Submitted, Is.Empty, "X does not confirm");
+        }
+
+        [Test]
+        public void Back_WinsOverTabsAndSecondary_InTheSameFrame()
+        {
+            UiInputFrame frame = Frame();
+            frame.CancelPressed = true;
+            frame.SubTabDelta = 1;
+            frame.SecondaryPressed = true;
+
+            _controller.Process(_screen, frame, 0.016f);
+
+            Assert.That(_screen.Backs.Count, Is.EqualTo(1));
+            Assert.That(_screen.SubTabs, Is.Empty);
+            Assert.That(_screen.Secondaries, Is.Empty);
+        }
+
+        [Test]
         public void LeftRight_OnAValueItem_Adjusts_OtherwiseNothing()
         {
             _screen.AdjustsFirstItem = true;

@@ -113,8 +113,8 @@ namespace Aetherfall.EditorTools.World
         /// <summary>Name of the pickup layer.</summary>
         public const string PickupLayerName = "Pickup";
 
-        /// <summary>Area level of the test ground (item level of chest content, GDD 04 4.1).</summary>
-        public const int AreaLevel = 10;
+        /// <summary>Area level of the test ground (item level of chest content and starting equipment, GDD 04 4.1).</summary>
+        public const int AreaLevel = Aetherfall.EditorTools.Narrative.TestGroundLevels.AreaLevel;
 
         /// <summary>Installer asset of the condition watcher (BootConfig, architecture 4.1 step 11).</summary>
         public const string ConditionsInstallerPath = SetupPaths.BootSettingsFolder + "/ConditionsInstaller.asset";

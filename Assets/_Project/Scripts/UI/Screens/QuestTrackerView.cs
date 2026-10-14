@@ -8,7 +8,7 @@ namespace Aetherfall.UI.Screens
 {
     /// <summary>
     /// The tracked quests of the HUD (GDD 05 1.2 "Verfolgte Quests", top right): up to 3 quests with title, category colour,
-    /// focus mark and objectives with counters ("Wölfe besiegen 1/3"). A fulfilled objective is ticked off with a short
+    /// focus mark and objectives with counters ("Woelfe besiegen 1/3"). A fulfilled objective is ticked off with a short
     /// animation and stays visible for 1.5 s even if its stage ended in the same frame (<see cref="RecentObjectiveList"/>).
     /// </summary>
     /// <remarks>
@@ -39,8 +39,13 @@ namespace Aetherfall.UI.Screens
         public QuestTrackerView(VisualElement container, VisualTreeAsset trackedAsset, VisualTreeAsset objectiveAsset, IQuestService quests)
         {
             _container = container ?? throw new ArgumentNullException(nameof(container));
-            _trackedAsset = trackedAsset ?? throw new ArgumentNullException(nameof(trackedAsset));
-            _objectiveAsset = objectiveAsset ?? throw new ArgumentNullException(nameof(objectiveAsset));
+            if (trackedAsset == null || objectiveAsset == null)
+            {
+                throw new ArgumentNullException(trackedAsset == null ? nameof(trackedAsset) : nameof(objectiveAsset));
+            }
+
+            _trackedAsset = trackedAsset;
+            _objectiveAsset = objectiveAsset;
             _quests = quests ?? throw new ArgumentNullException(nameof(quests));
             UiElementUtility.SetDisplayed(_container, false);
         }

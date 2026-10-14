@@ -13,6 +13,10 @@
         "Aetherfall.Combat",
         "Aetherfall.AI",
         "Aetherfall.Player",
+        "Aetherfall.Data",
+        "Aetherfall.Conditions",
+        "Aetherfall.Progression",
+        "Aetherfall.Quests",
         "Aetherfall.UI.Framework"
     ],
     "includePlatforms": [],

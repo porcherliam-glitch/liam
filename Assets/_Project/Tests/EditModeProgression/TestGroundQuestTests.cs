@@ -17,8 +17,9 @@ namespace Aetherfall.Tests.EditMode.Progression
     /// <summary>
     /// The two test quests of the test ground (guide 09) played through with the real services, exactly like the game would
     /// send the events: notice board, kills in the arena, picking up the wolf fur, back to the board with and without fur,
-    /// rewards (experience with level-up, gold, potions), the flag that unlocks the second quest, both branches of the trial
-    /// (chest or dummy) with ledger entries, saving in the middle of a quest, and the validator (0 errors, 0 warnings).
+    /// rewards (experience, gold, potions), the flag that unlocks the second quest, both branches of the trial (chest or
+    /// dummy) with ledger entries and the level-up from 10 to 11, saving in the middle of a quest, the validator (0 errors,
+    /// 0 warnings), and that the start level of the test ground can equip what the test ground hands out (guide 06).
     /// </summary>
     [TestFixture]
     public sealed class TestGroundQuestTests
@@ -63,6 +64,8 @@ namespace Aetherfall.Tests.EditMode.Progression
         [Test]
         public void WolfHunt_FullPath()
         {
+            Assert.That(_env.Progression.Level, Is.EqualTo(TestGroundLevels.PlayerStartLevel), "the test character starts at level 10");
+            int start = _env.Progression.TotalXp;
             Assert.That(QuestBoardRules.FindOffer(_env.Quests, TestGroundQuestLibrary.BoardId, new List<string>()), Is.EqualTo(TestGroundQuestLibrary.WolfHuntId));
 
             Assert.That(_env.ReadBoard(), Is.EqualTo(TestGroundQuestLibrary.WolfHuntId));
@@ -74,7 +77,7 @@ namespace Aetherfall.Tests.EditMode.Progression
             Assert.That(_env.StageOf(TestGroundQuestLibrary.WolfHuntId), Is.EqualTo("s10"));
             KillWolf("wolf_3");
             Assert.That(_env.StageOf(TestGroundQuestLibrary.WolfHuntId), Is.EqualTo("s20"));
-            Assert.That(_env.Progression.TotalXp, Is.EqualTo(60), "3 kills of level 8 wolves at level 1: 3 × 20");
+            Assert.That(_env.Progression.TotalXp - start, Is.EqualTo(48), "3 kills of level 8 wolves at level 10: 3 × 16");
 
             PickUpFur();
             Assert.That(_env.StageOf(TestGroundQuestLibrary.WolfHuntId), Is.EqualTo("s30"));
@@ -86,8 +89,9 @@ namespace Aetherfall.Tests.EditMode.Progression
             Assert.That(_env.Inventory.CountOf(InventoryOwners.Player, TestGroundQuestLibrary.WolfFurId), Is.EqualTo(0), "the fur was handed in");
             Assert.That(_env.Inventory.CountOf(InventoryOwners.Player, TestGroundQuestLibrary.PotionId), Is.EqualTo(2));
             Assert.That(_env.Inventory.GetCurrency(InventoryOwners.Player, CurrencyIds.Gold), Is.EqualTo(50));
-            Assert.That(_env.Progression.TotalXp, Is.EqualTo(260), "60 kill XP + 0.5 × XP_next(2) = 200");
-            Assert.That(_env.Progression.Level, Is.EqualTo(2));
+            Assert.That(_env.Progression.TotalXp - start, Is.EqualTo(48 + 1110), "48 kill XP + 0.5 × XP_next(10) = 0.5 × 2220");
+            Assert.That(_env.Progression.Level, Is.EqualTo(10), "the level-up comes with the second quest");
+            Assert.That(_env.Progression.XpIntoLevel, Is.EqualTo(1158));
             Assert.That(_env.World.GetInt(TestGroundQuestLibrary.FlagWolfHuntDone), Is.EqualTo(1));
             Assert.That(_env.Quests.GetLedger(TestGroundQuestLibrary.WolfHuntId).Count, Is.EqualTo(1));
             Assert.That(QuestBoardRules.FindTurnIn(_env.Quests, TestGroundQuestLibrary.BoardId), Is.Empty);
@@ -150,6 +154,10 @@ namespace Aetherfall.Tests.EditMode.Progression
             Assert.That(instance.EndStageId, Is.EqualTo("s30_truhe"));
             Assert.That(_env.World.GetInt(TestGroundQuestLibrary.FlagTrialPath), Is.EqualTo(1));
             Assert.That(_env.Inventory.GetCurrency(InventoryOwners.Player, CurrencyIds.Gold), Is.EqualTo(50 + 25 + 20));
+            Assert.That(_env.Progression.Level, Is.EqualTo(11), "1158 + 1110 = 2268 ≥ XP_next(10) = 2220");
+            Assert.That(_env.Progression.XpIntoLevel, Is.EqualTo(48));
+            Assert.That(_env.Progression.UnspentAttributePoints, Is.EqualTo(1));
+            Assert.That(_env.Progression.UnspentSkillPoints, Is.EqualTo(1));
             List<QuestLedgerLine> ledger = _env.Quests.GetLedger(TestGroundQuestLibrary.TrialId);
             Assert.That(ledger.Count, Is.EqualTo(1));
             Assert.That(ledger[0].Text, Does.Contain("Truhe"));
@@ -173,7 +181,9 @@ namespace Aetherfall.Tests.EditMode.Progression
             Assert.That(_env.Quests.TryGetInstance(TestGroundQuestLibrary.TrialId, out QuestInstance instance), Is.True);
             Assert.That(instance.EndStageId, Is.EqualTo("s30_puppe"));
             Assert.That(_env.World.GetInt(TestGroundQuestLibrary.FlagTrialPath), Is.EqualTo(2));
-            Assert.That(_env.Progression.TotalXp - xpBefore, Is.EqualTo(60 + 120), "60 for the dummy path + 0.3 × 400");
+            Assert.That(_env.Progression.TotalXp - xpBefore, Is.EqualTo(60 + 1110), "60 for the dummy path + 0.5 × 2220");
+            Assert.That(_env.Progression.Level, Is.EqualTo(11));
+            Assert.That(_env.Progression.XpIntoLevel, Is.EqualTo(108), "48 kill XP + 60 + 2 × 1110 − 2220");
             List<QuestLedgerLine> ledger = _env.Quests.GetLedger(TestGroundQuestLibrary.TrialId);
             Assert.That(ledger.Count, Is.EqualTo(1));
             Assert.That(ledger[0].Text, Does.Contain("Trainingspuppe"));
@@ -203,7 +213,9 @@ namespace Aetherfall.Tests.EditMode.Progression
                 loaded.Settle();
 
                 Assert.That(loaded.StageOf(TestGroundQuestLibrary.WolfHuntId), Is.EqualTo("s10"));
-                Assert.That(loaded.Progression.TotalXp, Is.EqualTo(40));
+                Assert.That(loaded.Progression.Level, Is.EqualTo(10));
+                Assert.That(loaded.Progression.XpIntoLevel, Is.EqualTo(32), "2 wolves × 16");
+                Assert.That(loaded.Progression.TotalXp, Is.EqualTo(_env.Progression.TotalXp));
                 loaded.Publish(new EnemyKilled(TestGroundQuestLibrary.WolfTypeId, "normal", "wolf_3", "player", string.Empty, string.Empty, 8, default(Vector3)));
                 Assert.That(loaded.StageOf(TestGroundQuestLibrary.WolfHuntId), Is.EqualTo("s20"));
             }

@@ -55,12 +55,14 @@ namespace Aetherfall.EditorTools.World
                 "• Items, Affixe, Loot-Tabellen und Startausrüstung (" + TestGroundPaths.ItemFolder + ", " + TestGroundPaths.LootTableFolder +
                 "), " + TestGroundPaths.ContentCatalogPath + ", ContentInstaller und InventoryInstaller in der BootConfig\n" +
                 "• 3 Truhen (Holz, Eisen, versteckt) und Beute-Anzeige\n" +
-                "• Quests: Conditions-, WorldState-, Progression- und QuestInstaller in der BootConfig, 2 Test-Quests mit Flags (" +
+                "• Quests: Conditions-, WorldState-, Progression- und QuestInstaller in der BootConfig (Startstufe neues Spiel " +
+                Aetherfall.EditorTools.Narrative.TestGroundLevels.PlayerStartLevel + ", nur zum Testen), 2 Test-Quests mit Flags (" +
                 TestGroundPaths.QuestFolder + ", " + TestGroundPaths.FlagFolder + "), Anschlagtafel und Übungsplatz, Wölfe kehren nach " +
                 TestGroundPaths.ArenaRespawnSeconds + " s zurück\n" +
                 "• Layer 6 „Player“, 7 „Enemy“, 9 „Hurtbox“, 10 „Interactable“, 11 „Environment“, 14 „TriggerVolume“ und 16 „Pickup“, falls frei\n" +
                 "• Oberfläche: SceneLoaderInstaller und UIInstaller in der BootConfig, " + TestGroundUiBuilder.PanelSettingsPath +
-                ", Objekt „UI“ in der Boot-Szene (Hauptmenü, HUD, Pausemenü, Todesbildschirm, Ladebildschirm, Menükamera), Szenenliste Boot + Testgelände\n\n" +
+                ", Objekt „UI“ in der Boot-Szene (Hauptmenü, HUD mit Quest-Verfolgung, Pausemenü, Questlog & Charakter, Todesbildschirm, " +
+                "Ladebildschirm, Menükamera), Szenenliste Boot + Testgelände\n\n" +
                 (sceneExists
                     ? "Die Szene existiert bereits und wird NEU AUFGEBAUT. Eigene Änderungen in dieser Szene gehen verloren. " +
                       "Die Assets (Materialien, Einstellungen) bleiben erhalten."

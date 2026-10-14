@@ -329,7 +329,7 @@ namespace Aetherfall.EditorTools.World
                 Set(so, "enemyTypeId", "enemy.wolf.grauwolf", report);
                 Set(so, "variantId", aether ? "aether_verderbt" : "normal", report);
                 Set(so, "displayName", aether ? "Aether-Wolf" : "Grauwolf", report);
-                Set(so, "level", 8, report);
+                Set(so, "level", Aetherfall.EditorTools.Narrative.TestGroundLevels.WolfLevel, report);
                 Set(so, "lootTableId", string.Empty, report);
                 Set(so, "baseHealth", 70f, report);
                 Set(so, "baseDamage", 25f, report);

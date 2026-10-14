@@ -8,7 +8,7 @@ namespace Aetherfall.UI.Screens
         /// <summary>Attribute.</summary>
         public readonly StatId Stat;
 
-        /// <summary>German name ("Stärke").</summary>
+        /// <summary>German name ("Staerke").</summary>
         public readonly string Name;
 
         /// <summary>Colour class (<c>af-attr--strength</c>).</summary>

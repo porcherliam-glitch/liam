@@ -16,8 +16,10 @@ namespace Aetherfall.EditorTools.Narrative
     /// "Aetherfall > Testgelaende erstellen" (German menu text) writes them as assets that the quest validator accepts.
     /// </summary>
     /// <remarks>
-    /// The ids of the scene objects (notice board, chests, dummy, training ground zone) are the ones the test ground menu
-    /// uses. Built fresh on every call: specs and the objects inside them are never shared between quests or assets.
+    /// <para>The ids of the scene objects (notice board, chests, dummy, training ground zone) are the ones the test ground menu
+    /// uses. Built fresh on every call: specs and the objects inside them are never shared between quests or assets.</para>
+    /// <para>Levels: made for the test character of level 10 (<see cref="TestGroundLevels"/>). Each quest gives 0.5 Lv at level
+    /// 10 = 1110 XP, so the level-up to 11 (2220 XP) comes with the second quest.</para>
     /// </remarks>
     public static class TestGroundQuestLibrary
     {
@@ -54,8 +56,14 @@ namespace Aetherfall.EditorTools.Narrative
         /// <summary>Flag: the path of the trial (enum: 0 open, 1 chest, 2 dummy).</summary>
         public const string FlagTrialPath = "flag.test.bewaehrung_weg";
 
-        /// <summary>Recommended level and reference level of the level share rewards.</summary>
-        public const int RecommendedLevel = 2;
+        /// <summary>
+        /// Recommended level and reference level of the level share rewards: the start level of the test ground (level 10), so
+        /// the rewards are not attenuated (GDD 02 8.4) and both quests together fill exactly one level (2 × 0.5 × 2220 XP).
+        /// </summary>
+        public const int RecommendedLevel = TestGroundLevels.PlayerStartLevel;
+
+        /// <summary>Level share of each quest reward (GDD 02 2.2: side quests up to level 10 give 0.3–0.5 Lv).</summary>
+        public const float RewardLevelShare = 0.5f;
 
         /// <summary>The flag definitions both quests need.</summary>
         public static FlagSpec[] CreateFlags()
@@ -105,7 +113,7 @@ namespace Aetherfall.EditorTools.Narrative
                     .Ledger("ledger.c1")
                     .EndSuccess())
                 .LedgerEntry("ledger.c1", "Du hast drei Wölfe in der Kampfarena erlegt und das Fell an der Anschlagtafel abgegeben.")
-                .Rewards(new GiveXp(0.5f, RecommendedLevel), new GiveCurrency(50, CurrencyIds.Gold), new GiveItem(PotionId, 2))
+                .Rewards(new GiveXp(RewardLevelShare, RecommendedLevel), new GiveCurrency(50, CurrencyIds.Gold), new GiveItem(PotionId, 2))
                 .Production(ContentStatus.Draft, QuestScopeTier.A, 0, "claude", 120, "Test-Quest des Testgeländes (Anleitung 09).")
                 .Build();
         }
@@ -146,7 +154,7 @@ namespace Aetherfall.EditorTools.Narrative
                     .EndSuccess())
                 .LedgerEntry("ledger.c1", "Du hast dich für die Truhe entschieden und 25 Gold extra bekommen.", false, new FlagIs(FlagTrialPath, 1))
                 .LedgerEntry("ledger.c2", "Du hast an der Trainingspuppe geübt und 60 Erfahrung extra bekommen.", false, new FlagIs(FlagTrialPath, 2))
-                .Rewards(new GiveXp(0.3f, RecommendedLevel), new GiveCurrency(20, CurrencyIds.Gold))
+                .Rewards(new GiveXp(RewardLevelShare, RecommendedLevel), new GiveCurrency(20, CurrencyIds.Gold))
                 .Production(ContentStatus.Draft, QuestScopeTier.A, 0, "claude", 120, "Test-Quest des Testgeländes mit Verzweigung (Anleitung 09).")
                 .Build();
         }

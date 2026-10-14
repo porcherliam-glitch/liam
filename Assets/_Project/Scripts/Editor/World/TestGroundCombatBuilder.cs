@@ -30,6 +30,8 @@ namespace Aetherfall.EditorTools.World
         /// <summary>
         /// Adds the combat components to the player and sets its stats to the warrior of GDD 03 8.3 (level 10, strength 20,
         /// dexterity 10, constitution 18). Weapon damage and armor come from the equipped items (<see cref="TestGroundItemBuilder"/>).
+        /// The level is the same number as the start level of the ProgressionInstaller (<see cref="TestGroundAssets"/>), which sets
+        /// it again when the progression binds the player; it only counts on its own when no ProgressionInstaller is registered.
         /// </summary>
         /// <param name="player">Player root.</param>
         /// <param name="mainCamera">Main camera.</param>
@@ -47,7 +49,7 @@ namespace Aetherfall.EditorTools.World
             PlayerMotor motor = player.GetComponent<PlayerMotor>();
             if (stats != null)
             {
-                TestGroundFields.SetInt(stats, "level", 10, report);
+                TestGroundFields.SetInt(stats, "level", Aetherfall.EditorTools.Narrative.TestGroundLevels.PlayerStartLevel, report);
                 TestGroundFields.SetFloat(stats, "strength", 20f, report);
                 TestGroundFields.SetFloat(stats, "dexterity", 10f, report);
                 TestGroundFields.SetFloat(stats, "constitution", 18f, report);

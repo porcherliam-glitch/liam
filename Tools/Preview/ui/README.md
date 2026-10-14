@@ -1,10 +1,10 @@
 # UI-Vorschau ohne Unity (HTML-Nachbau)
 
-Stand: 2026-10-14 (Panel-Größe, 150-%-Szenen, Layout-Prüfung)
+Stand: 2026-10-14 (Questlog, Charakter-Seite, Quest-Verfolgung im HUD)
 
 ## Wozu?
 
-Die Oberfläche (Hauptmenü, Pausemenü, HUD, Todesbildschirm, Ladebildschirm) ist mit **UI Toolkit** gebaut: Layouts als UXML, Aussehen als USS. Solange Unity nicht läuft, kann man sie nicht ansehen. Dieses Werkzeug baut die Bildschirme deshalb als **HTML-Seite im Browser** nach und macht davon Bilder (900 Pixel hoch, bei 16:9 also 1600 × 900). Dabei prüft es, ob etwas aus dem Bild ragt, ob Texte in ihre Felder passen und ob sich Teile überlappen (Abschnitt „Layout-Prüfung“).
+Die Oberfläche (Hauptmenü, Pausemenü, HUD mit Quest-Verfolgung, Questlog, Charakter-Seite, Todesbildschirm, Ladebildschirm) ist mit **UI Toolkit** gebaut: Layouts als UXML, Aussehen als USS. Solange Unity nicht läuft, kann man sie nicht ansehen. Dieses Werkzeug baut die Bildschirme deshalb als **HTML-Seite im Browser** nach und macht davon Bilder (900 Pixel hoch, bei 16:9 also 1600 × 900). Dabei prüft es, ob etwas aus dem Bild ragt, ob Texte in ihre Felder passen und ob sich Teile überlappen (Abschnitt „Layout-Prüfung“).
 
 **Wichtig: Das sind Vorschauen, keine Unity-Screenshots.** Jedes Bild trägt unten den Balken „Vorschau – HTML-Nachbau der Unity-Oberfläche (kein Unity-Screenshot)“.
 
@@ -15,15 +15,15 @@ Nichts ist von Hand abgezeichnet. Das Skript liest bei jedem Lauf **dieselben Da
 | Teil | Quelle |
 |---|---|
 | Aufbau (welches Element wo, Namen, Klassen) | `Assets/_Project/Art/UI/Layouts/*.uxml` |
-| Farben, Maße, Abstände, Schriftgrößen | `Assets/_Project/Art/UI/Theme/AetherfallTheme.tss` und die USS-Dateien, die es einbindet (`Styles/Tokens.uss`, `Base.uss`, `Menus.uss`, `Hud.uss`, `Toasts.uss`, `Loading.uss`) |
+| Farben, Maße, Abstände, Schriftgrößen | `Assets/_Project/Art/UI/Theme/AetherfallTheme.tss` und die USS-Dateien, die es einbindet (`Styles/Tokens.uss`, `Base.uss`, `Menus.uss`, `Hud.uss`, `Toasts.uss`, `Loading.uss`, `Journal.uss`) |
 | Alle Texte | `Assets/_Project/Scripts/UI/Framework/UiTexts.cs` (zentrale Texttabelle) |
 | Tastensymbole je Gerät | `Assets/_Project/Scripts/UI/Framework/GlyphCatalog.cs` und `GlyphNames.cs` |
 | Größe der Oberfläche bei einer UI-Größe | `Assets/_Project/Scripts/UI/Framework/UiScaleRules.cs` (Grenzen `MinLogicalWidth`/`MinLogicalHeight`, gleiche Rechnung wie in Unity) |
-| Zustand im Bild (Fokus, Balken, Meldungen) | `szenen.js`: bildet den Code in `Assets/_Project/Scripts/UI/Screens/` nach (z. B. `MainMenuScreen`, `PauseMenuScreen`, `HudView`, `ToastView`) |
+| Zustand im Bild (Fokus, Balken, Meldungen) | `szenen.js`: bildet den Code in `Assets/_Project/Scripts/UI/Screens/` nach (z. B. `MainMenuScreen`, `PauseMenuScreen`, `HudView`, `QuestTrackerView`, `JournalScreen`, `ToastView`) |
 
 Ändert sich eine UXML-, USS- oder Textdatei, zeigt der nächste Lauf automatisch den neuen Stand. Wird ein Element in einer UXML-Datei umbenannt, das der Code braucht, bricht das Skript mit einer Meldung ab.
 
-Nur die **Beispielwerte** in `szenen.js` sind ausgedacht: Lebenspunkte, Gegnername „Grauwolf“, Spielstände vom 13./14.10.2026, Meldungen wie „Wolfsfell ×2“ oder „Stufe 2 erreicht!“.
+Nur die **Beispielwerte** in `szenen.js` sind ausgedacht: Lebenspunkte, Gegnername „Grauwolf“, Spielstände vom 13./14.10.2026, Meldungen wie „Wolfsfell ×2“ oder „Stufe 2 erreicht!“, die Quests „Kräuter für die Heilerin“ und „Der verlorene Siegelring“ in der Questliste, „Die Wölfe vom Nordhang“ im HUD und die Attributwerte. Titel, Texte und Ziele der beiden Test-Quests („Wolfsjagd im Testgelände“, „Die Bewährungsprobe“) sind die echten aus `TestGroundQuestLibrary.cs`.
 
 ## Was entsteht?
 
@@ -31,7 +31,11 @@ Nur die **Beispielwerte** in `szenen.js` sind ausgedacht: Lebenspunkte, Gegnerna
 |---|---|
 | `hud.png` | HUD im Kampf über einem neutralen Spielhintergrund: Kompass, Zielanzeige „Grauwolf“ mit Haltung, Lebens-, Ausdauer- und Manabalken mit Verzögerungsbalken, Fähigkeiten 1–4, Schnellslots, Hinweis „[E] Aufheben: Wolfsfell“, Meldungen (Stufe, Speichern, Beute, Gold, EP), Speicher-Anzeige; Tastatur-Symbole |
 | `hud_gamepad.png` | dasselbe mit **PlayStation**-Symbolen (× ○ □ ▲, L1/R1) |
-| `pausemenue.png` | Pausemenü, Reiter System: Fokus auf „Hauptmenü“, Halten-zum-Bestätigen zu 55 % gefüllt, rechts der letzte Spielstand |
+| `hud_quests.png` | HUD beim Erkunden direkt nach dem dritten Wolf: rechts oben die verfolgten Quests (Fokus-Quest zuerst, „Wölfe besiegen 3/3“ gerade abgehakt und kurz grün hinterlegt, optionales Ziel kursiv), darunter die P1-Meldungen „Wölfe besiegen (3/3)“ und „Wolfsjagd im Testgelände: Wolfsfell aufheben“, unten Mitte die dünne EP-Leiste „Stufe 2“ |
+| `questlog.png` | Questlog, Reiter **Neben**: Liste links (Fokus, Verfolgt, Kategorie-Farbstreifen), rechts die Details mit aktuellem Stand, Ziel-Kästchen und „Bisher“; Tastatur-Symbole |
+| `questlog_abgeschlossen.png` | Questlog, Reiter **Abgeschlossen** mit Ausgang und Entscheidung (Ledger); **Xbox**-Symbole |
+| `charakter.png` | Charakter-Seite: Stufe 2, EP-Balken 60 / 400, freie Punkte, sechs Attribute (Stärke mit „+1“, gerade verteilt), abgeleitete Werte; PlayStation-Symbole |
+| `pausemenue.png` | Pausemenü, Reiter System (mit dem neuen Eintrag „Questlog & Charakter“): Fokus auf „Hauptmenü“, Halten-zum-Bestätigen zu 55 % gefüllt, rechts der letzte Spielstand |
 | `pausemenue_laden.png` | Pausemenü, Reiter Laden: Liste der Spielstände mit Art, Datum und Spielzeit, ein beschädigter Stand (nicht wählbar); PlayStation-Symbole |
 | `hauptmenue.png` | Hauptmenü mit Titel „Chroniken von Aetherfall“, Fokus auf „Neues Spiel“, „Fortsetzen“ mit dem neuesten Stand |
 | `hauptmenue_optionen.png` | Hauptmenü mit geöffneter Optionen-Seite (UI-Größe, HUD-Anzeige, Tastensymbole); **Xbox**-Symbole |
@@ -39,6 +43,7 @@ Nur die **Beispielwerte** in `szenen.js` sind ausgedacht: Lebenspunkte, Gegnerna
 | `ladebildschirm.png` | Ladebildschirm „Testgelände“ bei 64 % |
 | `hauptmenue_laden_150.png` | Hauptmenü mit geöffneter Seite „Spielstand laden“ bei **UI-Größe 150 %** auf einem Mac-Bildschirm (16:10, 2880 × 1800): durch die Grenze aus `UiScaleRules` etwa 107 %, Panel 1620 × 1013 |
 | `pausemenue_150.png` | Pausemenü bei **UI-Größe 150 %** auf 1920 × 1080 (16:9): etwa 118 %, Panel 1620 × 911 |
+| `questlog_150.png` | Questlog bei **UI-Größe 150 %** auf 1920 × 1080 (Panel 1620 × 911) |
 | `*.html`, `aetherfall_ui.css` | die erzeugten Seiten (im Browser öffnen) und das umgewandelte CSS |
 
 ## Voraussetzungen
@@ -64,7 +69,7 @@ node Tools/Preview/ui/vorschau_ui.cjs --panel 1620x840 --streng   # alle Bilder 
 
 Mit `--hintergrund` liegt ein beliebiges Bild hinter HUD, Pausemenü und Todesbildschirm, z. B. die Spielersicht aus dem Blender-Nachbau des Testgeländes ([../README.md](../README.md)). Ohne die Option malt das Skript einen schlichten grauen Hintergrund (Himmel, Boden mit Raster, Figur, ein Wolf).
 
-Ein Lauf dauert wenige Sekunden (alle zehn Bilder etwa 5 s).
+Ein Lauf dauert wenige Sekunden (alle 15 Bilder etwa 8 s).
 
 ## Layout-Prüfung
 

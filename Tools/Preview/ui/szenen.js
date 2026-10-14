@@ -1,7 +1,8 @@
 /*
  * Scenes of the UI preview. Every builder mirrors the C# view code in Assets/_Project/Scripts/UI/Screens (constructor + OnOpen
  * + the state of one moment): MainMenuScreen, PauseMenuScreen, DeathScreen, SaveSlotListView, OptionsPageView, HudView with
- * HudVisibilityRules, ToastView with NotificationRules.FormatText, LoadingScreenView, and UiStateDirector for the layers.
+ * HudVisibilityRules, QuestTrackerView, XpBarView, JournalScreen (quest log and character page), ToastView with
+ * NotificationRules.FormatText and SetProgressTop, LoadingScreenView, and UiStateDirector for the layers.
  * Element names, classes and texts come from the UXML files and UiTexts.cs; only the example values (bars, saves, messages)
  * are made up here. If the C# views change, change the matching builder.
  */
@@ -75,11 +76,11 @@
     const staminaFullFor = context.stamina01 >= 1 ? Infinity : 0;
     const manaFullFor = context.mana01 >= 1 ? Infinity : 0;
     if (mode === 'Full') {
-      return { health: true, stamina: true, mana: true, abilities: true, quick: true, compass: true };
+      return { health: true, stamina: true, mana: true, abilities: true, quick: true, compass: true, quests: true, xp: true };
     }
 
     if (mode === 'Minimal') {
-      return { health: context.health01 < 0.3, stamina: context.exhausted, mana: false, abilities: false, quick: false, compass: false };
+      return { health: context.health01 < 0.3, stamina: context.exhausted, mana: false, abilities: false, quick: false, compass: false, quests: false, xp: false };
     }
 
     const combatGlow = sinceCombat <= 4;
@@ -89,7 +90,10 @@
       mana: manaFullFor <= 2 || context.inCombat,
       abilities: combatGlow,
       quick: combatGlow,
-      compass: true
+      compass: true,
+      // NotifyQuestActivity (8 s) and NotifyXpGained (4 s) of the moment shown
+      quests: !!context.questActivity,
+      xp: !!context.xpGained
     };
   }
 
@@ -330,6 +334,7 @@
     const system = new MenuList();
     system.add(AF.q(root, 'pause-resume'));
     system.add(AF.q(root, 'pause-quicksave'));
+    system.add(AF.q(root, 'pause-journal'));
     system.add(AF.q(root, 'pause-load'));
     system.add(AF.q(root, 'pause-options'));
     system.add(AF.q(root, 'pause-main-menu'), true);
@@ -436,6 +441,9 @@
     AF.setDisplayed(exhausted, false);
     AF.setDisplayed(targetPanel, false);
     AF.setDisplayed(prompt, false);
+    // AttachProgressViews: tracker and experience bar start hidden
+    AF.setDisplayed(q('hud-quests'), false);
+    AF.setDisplayed(q('hud-xp'), false);
     AF.refreshGlyphs(root, glyphLabels, state.family);
 
     // Bars (DelayedBar: value and trail)
@@ -449,7 +457,8 @@
     AF.enableClass(staminaBar, 'is-exhausted', !!state.exhausted);
 
     const rules = hudVisibility({
-      health01: state.health[0], stamina01: state.stamina[0], mana01: state.mana[0], inCombat: state.inCombat, exhausted: !!state.exhausted
+      health01: state.health[0], stamina01: state.stamina[0], mana01: state.mana[0], inCombat: state.inCombat, exhausted: !!state.exhausted,
+      questActivity: !!state.questActivity, xpGained: !!state.xpGained
     }, PREFERENCES.hudMode);
     AF.setDisplayed(healthBar, rules.health);
     AF.setDisplayed(staminaBar, rules.stamina);
@@ -495,6 +504,175 @@
       AF.setText(q(prefix + '-count'), item ? String(item.count) : '');
       AF.enableClass(q(prefix), 'is-empty', !item);
     }
+
+    // QuestTrackerView.Rebuild (TrackedQuest.uxml + ObjectiveRow.uxml)
+    const tracked = state.tracked || [];
+    const tracker = q('hud-quests');
+    for (const quest of tracked) {
+      const element = AF.clone('TrackedQuest.uxml', tracker)[0];
+      AF.setText(AF.q(element, 'tracked-title'), quest.title);
+      AF.enableClass(element, 'is-focus', !!quest.focus);
+      AF.enableClass(AF.q(element, 'tracked-marker'), 'af-cat--' + quest.category, true);
+      const objectives = AF.q(element, 'tracked-objectives');
+      for (const line of quest.objectives) {
+        bindObjective(AF.clone('ObjectiveRow.uxml', objectives)[0], line);
+      }
+    }
+
+    AF.setDisplayed(tracker, rules.quests && tracked.length > 0);
+
+    // XpBarView
+    if (state.xp) {
+      AF.setText(q('hud-xp-level'), AF.format('fmt-hud-level', state.xp.level));
+      AF.setFill(q('hud-xp-fill'), state.xp.progress);
+    }
+
+    AF.setDisplayed(q('hud-xp'), rules.xp && !!state.xp);
+  }
+
+  /** ObjectiveRowView.Bind (text, counter "1/3" only above one step, done / optional / failed / just done). */
+  function bindObjective(row, line) {
+    const shows = line.required > 1;
+    AF.setText(AF.q(row, 'objective-text'), line.text);
+    const count = AF.q(row, 'objective-count');
+    AF.setText(count, shows ? AF.format('fmt-objective-count', line.progress, line.required) : '');
+    AF.setDisplayed(count, shows);
+    AF.enableClass(row, 'is-done', !!line.done);
+    AF.enableClass(row, 'is-failed', !!line.failed);
+    AF.enableClass(row, 'is-optional', !!line.optional);
+    AF.enableClass(row, 'is-just-done', !!line.justDone);
+  }
+
+  /** Steps that need the laid-out texts (run after AF.renderTexts, like the next frame in Unity). */
+  const AFTER_TEXTS = [];
+
+  /** ToastView.SetProgressTop: P1 below the quest tracker (GDD 05 1.7), P2 220 below P1; never above the USS positions. */
+  function moveToastsBelowTracker(layers) {
+    AFTER_TEXTS.push(() => placeToasts(layers));
+  }
+
+  function placeToasts(layers) {
+    const tracker = AF.q(layers.hud, 'hud-quests');
+    const visible = tracker && getComputedStyle(tracker).display !== 'none' && getComputedStyle(layers.hud).display !== 'none';
+    const bottom = visible ? tracker.getBoundingClientRect().bottom : 0;
+    const top = bottom > 0 ? Math.max(200, bottom + 16) : 200;
+    AF.q(layers.toasts, 'toast-p1').style.top = top + 'px';
+    AF.q(layers.toasts, 'toast-p2').style.top = top + 220 + 'px';
+  }
+
+  /**
+   * JournalScreen (constructor + OnOpen + the state of one moment). options: family, page ('quests' | 'character'), tab
+   * (QuestLogTab index), counts (rows per tab), entries, focus, details, character.
+   */
+  function journal(screensRoot, o) {
+    const screen = new Screen('Journal.uxml', screensRoot, o.family);
+    const root = screen.root;
+    const q = (name) => AF.q(root, name);
+    const setLine = (label, text) => {
+      AF.setText(label, text || '');
+      AF.setDisplayed(label, !!text);
+    };
+
+    // Character rows (BuildCharacterRows)
+    const attributes = new MenuList();
+    const attributeHost = q('character-attributes');
+    const c = o.character;
+    for (const attribute of c.attributes) {
+      const row = AF.clone('AttributeRow.uxml', attributeHost)[0];
+      AF.enableClass(AF.q(row, 'attribute-color'), attribute.cls, true);
+      AF.setText(AF.q(row, 'attribute-name'), attribute.name);
+      AF.setText(AF.q(row, 'attribute-value'), attribute.value);
+      AF.setText(AF.q(row, 'attribute-bonus'), attribute.bonus || '');
+      attributes.add(row);
+    }
+
+    const derivedHost = q('character-derived');
+    for (const value of c.derived) {
+      const row = AF.clone('ValueRow.uxml', derivedHost)[0];
+      AF.setText(AF.q(row, 'value-label'), value.label);
+      AF.setText(AF.q(row, 'value-number'), value.value);
+    }
+
+    // RefreshCharacter
+    AF.setText(q('character-level'), AF.format('fmt-character-level', c.level));
+    AF.setFill(q('character-xp-fill'), c.xpInto / c.xpNext);
+    AF.setText(q('character-xp-text'), AF.format('fmt-character-xp', c.xpInto, c.xpNext));
+    AF.setText(q('character-points'), AF.format('fmt-character-points', c.attributePoints, c.skillPoints));
+    AF.enableClass(q('character-points'), 'has-points', c.attributePoints > 0);
+    screen.bindGlyphs();
+
+    // RebuildQuests
+    const questList = new MenuList();
+    const rows = q('questlog-list');
+    for (const entry of o.entries) {
+      const row = AF.clone('QuestRow.uxml', rows)[0];
+      AF.setText(AF.q(row, 'quest-row-title'), entry.title);
+      AF.setText(AF.q(row, 'quest-row-info'), entry.info);
+      AF.setText(AF.q(row, 'quest-row-badge'), entry.badge || '');
+      AF.enableClass(AF.q(row, 'quest-row-stripe'), 'af-cat--' + entry.category, true);
+      AF.enableClass(row, 'is-tracked', !!entry.tracked);
+      AF.enableClass(row, 'is-focus-quest', !!entry.focus);
+      AF.enableClass(row, 'is-finished', !!entry.finished);
+      AF.enableClass(row, 'is-failed', !!entry.failed);
+      questList.add(row);
+    }
+
+    const categories = ['questlog-cat-main', 'questlog-cat-faction', 'questlog-cat-region', 'questlog-cat-side', 'questlog-cat-companion',
+      'questlog-cat-contracts', 'questlog-cat-done'];
+    categories.forEach((name, i) => {
+      AF.enableClass(q(name), 'is-selected', i === o.tab);
+      AF.enableClass(q(name), 'is-empty', !(o.counts[i] > 0));
+    });
+
+    // ListWindow (5 rows) around the focus
+    const visibleRows = 5;
+    const first = Math.max(0, Math.min((o.focus || 0) - visibleRows + 1, o.entries.length - visibleRows));
+    o.entries.forEach((entry, i) => AF.setDisplayed(questList.items[i], i >= first && i < first + visibleRows));
+    AF.enableClass(q('questlog-more-up'), 'is-off', first <= 0);
+    AF.enableClass(q('questlog-more-down'), 'is-off', first + visibleRows >= o.entries.length);
+    AF.setDisplayed(q('questlog-empty'), o.entries.length === 0);
+    AF.setDisplayed(q('questlog-details'), o.entries.length > 0);
+
+    // ShowDetails
+    const d = o.details;
+    if (d) {
+      setLine(q('questlog-detail-title'), d.title);
+      setLine(q('questlog-detail-meta'), d.meta);
+      setLine(q('questlog-detail-description'), d.description);
+      setLine(q('questlog-detail-stage-title'), d.currentTitle);
+      setLine(q('questlog-detail-stage'), d.currentText);
+      setLine(q('questlog-detail-history-title'), d.historyTitle);
+      const objectives = q('questlog-detail-objectives');
+      for (const line of d.objectives) {
+        bindObjective(AF.clone('ObjectiveRow.uxml', objectives)[0], line);
+      }
+
+      AF.setDisplayed(objectives, d.objectives.length > 0);
+      const history = q('questlog-detail-history');
+      for (const line of d.history) {
+        const element = AF.clone('JournalLine.uxml', history)[0];
+        AF.setText(element, line.text);
+        AF.enableClass(element, 'is-decision', line.kind === 'Decision');
+        AF.enableClass(element, 'is-consequence', line.kind === 'Consequence');
+      }
+    }
+
+    // SelectPage
+    const quests = o.page !== 'character';
+    AF.setDisplayed(q('journal-quests-page'), quests);
+    AF.setDisplayed(q('journal-character-page'), !quests);
+    AF.enableClass(q('journal-tab-quests'), 'is-selected', quests);
+    AF.enableClass(q('journal-tab-character'), 'is-selected', !quests);
+    AF.setText(q('journal-title'), AF.text(quests ? 'journal-tab-quests' : 'journal-tab-character'));
+    AF.setText(q('journal-hint-confirm'), AF.text(quests ? 'hint-track' : 'hint-spend'));
+    AF.setText(q('journal-hint-secondary'), AF.text(quests ? 'hint-focus' : 'hint-refund'));
+    AF.setDisplayed(q('journal-hint-subtabs-group'), quests);
+    // UpdateActionHints: no "track" / "focus" on the tab "Abgeschlossen"
+    const actions = !quests || o.tab !== 6;
+    AF.setDisplayed(q('journal-hint-confirm').parentElement, actions);
+    AF.setDisplayed(q('journal-hint-secondary-group'), actions);
+    screen.activate(quests ? questList : attributes, o.focus || 0);
+    screen.open();
   }
 
   /** ToastView (one rebuild) with the save indicator. */
@@ -577,7 +755,7 @@
   }
 
   const COMBAT_MESSAGES = [
-    { priority: 0, kind: 'LevelUp', amount: 2, accent: 'levelup' },
+    { priority: 0, kind: 'LevelUp', amount: 11, accent: 'levelup' },
     { priority: 1, kind: 'Message', text: 'Schnellspeicherung erstellt', accent: 'saved' },
     { priority: 2, kind: 'Item', text: 'Wolfsfell', amount: 2, accent: 'rarity-common' },
     { priority: 2, kind: 'Item', text: 'Lederwams', amount: 1, accent: 'rarity-rare' },
@@ -585,7 +763,142 @@
     { priority: 2, kind: 'Experience', amount: 50, accent: 'xp' }
   ];
 
+  /** Tracked quests while exploring: the wolf hunt just changed its stage (the ticked-off objective lingers 1.5 s). */
+  const TRACKED = [
+    {
+      title: 'Wolfsjagd im Testgelände', category: 'side', focus: true,
+      objectives: [
+        { text: 'Wölfe besiegen', progress: 3, required: 3, done: true, justDone: true },
+        { text: 'Wolfsfell aufheben', progress: 0, required: 1 }
+      ]
+    },
+    {
+      title: 'Die Wölfe vom Nordhang', category: 'region', focus: false,
+      objectives: [
+        { text: 'Spuren auf der Weide untersuchen', progress: 1, required: 3 },
+        { text: 'Hollmanns Hund finden', progress: 0, required: 1, optional: true }
+      ]
+    }
+  ];
+
+  const QUEST_MESSAGES = [
+    { priority: 1, kind: 'Message', text: 'Wölfe besiegen (3/3)', accent: 'quest' },
+    { priority: 1, kind: 'Message', text: 'Wolfsjagd im Testgelände: Wolfsfell aufheben', accent: 'quest' },
+    { priority: 2, kind: 'Item', text: 'Wolfsfell', amount: 1, accent: 'rarity-common' },
+    { priority: 2, kind: 'Experience', amount: 16, accent: 'xp' }
+  ];
+
+  /** Quest log rows (QuestLogModel.CreateEntry) of the tab "Neben": focus first, then tracked, then the rest. */
+  const SIDE_ENTRIES = [
+    { title: 'Wolfsjagd im Testgelände', info: 'Nebenquest · Stufe 10', badge: 'Fokus', category: 'side', tracked: true, focus: true },
+    { title: 'Kräuter für die Heilerin', info: 'Nebenquest · Stufe 1', badge: 'Verfolgt', category: 'side', tracked: true },
+    { title: 'Der verlorene Siegelring', info: 'Schatzsuche · Stufe 3', badge: '', category: 'treasure' }
+  ];
+
+  /**
+   * Test character of the test ground after both test quests (guide 09, 8): level 11 with 48 of 2500 EP (chest path), one
+   * point placed in Stärke while the menu is open. Values like CharacterSheetModel computes them (GDD 03 10.3, rounded down):
+   * Str 20 + 1, Dex 10, Int/Wis/Cha 11, Con 18; health 100 + 15 × 8 + 12 × 10 = 340, stamina 100 + 2 × 8 + 0.5 × 10 = 121,
+   * mana 50 + 5 × 1 + 2 × 10 = 75, armour 28 of the starting kit (guide 06), poise 20 + 0 (cloth) + 0.5 × 8 = 24,
+   * crit 5 % + 0.25 % × E(10) = 5,0 %, carry 60 + 2 × E(21) = 82 kg.
+   */
+  const CHARACTER = {
+    level: 11, xpInto: 48, xpNext: 2500, attributePoints: 0, skillPoints: 1,
+    attributes: [
+      { name: 'Stärke', cls: 'af-attr--strength', value: '21', bonus: '+1' },
+      { name: 'Geschick', cls: 'af-attr--dexterity', value: '10' },
+      { name: 'Intelligenz', cls: 'af-attr--intelligence', value: '11' },
+      { name: 'Weisheit', cls: 'af-attr--wisdom', value: '11' },
+      { name: 'Konstitution', cls: 'af-attr--constitution', value: '18' },
+      { name: 'Charisma', cls: 'af-attr--charisma', value: '11' }
+    ],
+    derived: [
+      { label: 'Max. Lebenspunkte', value: '340' },
+      { label: 'Max. Ausdauer', value: '121' },
+      { label: 'Max. Mana', value: '75' },
+      { label: 'Rüstung', value: '28' },
+      { label: 'Standfestigkeit', value: '24' },
+      { label: 'Krit-Chance', value: '5,0 %' },
+      { label: 'Traglast', value: '82 kg' }
+    ]
+  };
+
   const SCENES = {
+    hud_quests(layers) {
+      AF.addBackground('ruhe');
+      applyLayers(layers, 'Playing', false);
+      const state = calmHud('KeyboardMouse');
+      state.prompt = 'Aufheben: Wolfsfell';
+      state.questActivity = true;
+      state.xpGained = true;
+      state.tracked = TRACKED;
+      state.xp = { level: 10, progress: 48 / 2220 };
+      hud(layers.hud, state);
+      toasts(layers.toasts, QUEST_MESSAGES, null);
+      moveToastsBelowTracker(layers);
+    },
+    questlog(layers) {
+      AF.addBackground('ruhe');
+      applyLayers(layers, 'Menu', false);
+      hud(layers.hud, calmHud('KeyboardMouse'));
+      toasts(layers.toasts, [], null);
+      journal(layers.screens, {
+        family: 'KeyboardMouse',
+        page: 'quests',
+        tab: 3,
+        counts: [0, 0, 0, 3, 0, 0, 1],
+        entries: SIDE_ENTRIES,
+        focus: 0,
+        details: {
+          title: 'Wolfsjagd im Testgelände',
+          meta: 'Nebenquest · empfohlen ab Stufe 10',
+          description: 'Ein Aushang an der Anschlagtafel: Wölfe streifen durch die Kampfarena. Wer drei von ihnen erlegt und ein Fell als Beweis bringt, bekommt eine Belohnung.',
+          currentTitle: AF.text('quest-section-current'),
+          currentText: 'Die Wölfe sind besiegt. Nimm ein Wolfsfell als Beweis mit.',
+          objectives: [{ text: 'Wolfsfell aufheben', progress: 0, required: 1 }],
+          historyTitle: AF.text('quest-section-history'),
+          history: [{ text: 'Drei Wölfe streifen durch die Kampfarena südwestlich des Startpunkts. Besiege sie.', kind: 'Stage' }]
+        },
+        character: CHARACTER
+      });
+    },
+    questlog_abgeschlossen(layers) {
+      AF.addBackground('ruhe');
+      applyLayers(layers, 'Menu', false);
+      hud(layers.hud, calmHud('Xbox'));
+      toasts(layers.toasts, [], null);
+      journal(layers.screens, {
+        family: 'Xbox',
+        page: 'quests',
+        tab: 6,
+        counts: [0, 0, 0, 0, 0, 0, 2],
+        entries: [
+          { title: 'Die Bewährungsprobe', info: 'Nebenquest', badge: 'Abgeschlossen', category: 'side', finished: true },
+          { title: 'Wolfsjagd im Testgelände', info: 'Nebenquest', badge: 'Abgeschlossen', category: 'side', finished: true }
+        ],
+        focus: 0,
+        details: {
+          title: 'Die Bewährungsprobe',
+          meta: 'Nebenquest · empfohlen ab Stufe 10',
+          description: 'Ein zweiter Aushang: Zeig am Übungsplatz, was du kannst. Ob du eine Truhe öffnest oder die Trainingspuppe triffst, entscheidest du.',
+          currentTitle: AF.text('quest-section-outcome'),
+          currentText: 'Die Trainingspuppe hat drei Treffer eingesteckt – deine Technik sitzt.',
+          objectives: [],
+          historyTitle: AF.text('quest-section-decisions'),
+          history: [{ text: 'Du hast an der Trainingspuppe geübt und 60 Erfahrung extra bekommen.', kind: 'Decision' }]
+        },
+        character: CHARACTER
+      });
+    },
+    charakter(layers) {
+      AF.addBackground('ruhe');
+      applyLayers(layers, 'Menu', false);
+      hud(layers.hud, calmHud('PlayStation'));
+      toasts(layers.toasts, [], null);
+      journal(layers.screens, {
+        family: 'PlayStation', page: 'character', tab: 3, counts: [0, 0, 0, 1, 0, 0, 0], entries: [], focus: 0, details: null, character: CHARACTER
+      });
+    },
     hud(layers) {
       AF.addBackground('kampf');
       applyLayers(layers, 'Playing', false);
@@ -606,8 +919,8 @@
       pauseMenu(layers.screens, {
         family: 'KeyboardMouse',
         tab: 0,
-        focus: 4,
-        hold: { index: 4, progress: 0.55 },
+        focus: 5,
+        hold: { index: 5, progress: 0.55 },
         status: { text: AF.format('fmt-save-ok', SlotText.kindName('Quick')), error: false }
       });
     },
@@ -660,6 +973,7 @@
     }
 
     AF.renderTexts();
+    AFTER_TEXTS.forEach((step) => step());
     AF.addPreviewBar();
   } catch (error) {
     AF.fail(String(error && error.stack ? error.stack : error));

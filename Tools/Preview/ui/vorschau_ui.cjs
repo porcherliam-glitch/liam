@@ -42,6 +42,10 @@ const BAR_TEXT = 'Vorschau – HTML-Nachbau der Unity-Oberfläche (kein Unity-Sc
 const SCENES = [
   { name: 'hud', title: 'HUD (Tastatur)' },
   { name: 'hud_gamepad', title: 'HUD (PlayStation-Glyphen)' },
+  { name: 'hud_quests', title: 'HUD mit Quest-Verfolgung und EP-Leiste' },
+  { name: 'questlog', title: 'Questlog, Reiter Neben' },
+  { name: 'questlog_abgeschlossen', title: 'Questlog, Reiter Abgeschlossen (Xbox-Glyphen)' },
+  { name: 'charakter', title: 'Charakter-Seite (PlayStation-Glyphen)' },
   { name: 'pausemenue', title: 'Pausemenü' },
   { name: 'pausemenue_laden', title: 'Pausemenü, Reiter Laden' },
   { name: 'hauptmenue', title: 'Hauptmenü' },
@@ -49,7 +53,8 @@ const SCENES = [
   { name: 'todesbildschirm', title: 'Todesbildschirm' },
   { name: 'ladebildschirm', title: 'Ladebildschirm' },
   { name: 'hauptmenue_laden_150', title: 'Hauptmenü, Laden, UI-Größe 150 % (16:10, 2880 × 1800)', screen: { width: 2880, height: 1800, uiPercent: 150 }, builder: 'hauptmenue_laden' },
-  { name: 'pausemenue_150', title: 'Pausemenü, UI-Größe 150 % (16:9, 1920 × 1080)', screen: { width: 1920, height: 1080, uiPercent: 150 }, builder: 'pausemenue' }
+  { name: 'pausemenue_150', title: 'Pausemenü, UI-Größe 150 % (16:9, 1920 × 1080)', screen: { width: 1920, height: 1080, uiPercent: 150 }, builder: 'pausemenue' },
+  { name: 'questlog_150', title: 'Questlog, UI-Größe 150 % (16:9, 1920 × 1080)', screen: { width: 1920, height: 1080, uiPercent: 150 }, builder: 'questlog' }
 ];
 
 function main() {

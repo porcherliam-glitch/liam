@@ -64,6 +64,7 @@ namespace Aetherfall.UI.Screens
         private readonly List<VisualElement> _attributeElements = new List<VisualElement>(6);
         private readonly Label _hintConfirm;
         private readonly Label _hintSecondary;
+        private readonly VisualElement _hintSecondaryGroup;
         private readonly VisualElement _hintSubtabs;
         private readonly List<QuestLogEntry> _entries = new List<QuestLogEntry>();
         private readonly QuestDetails _shown = new QuestDetails();
@@ -92,18 +93,18 @@ namespace Aetherfall.UI.Screens
             VisualTreeAsset attributeRowAsset, VisualTreeAsset valueRowAsset, IGlyphService glyphs, IQuestService quests, IProgressionService progression,
             Action closeRequested) : base(Id, root, glyphs)
         {
-            _questRowAsset = questRowAsset ?? throw new ArgumentNullException(nameof(questRowAsset));
-            _objectiveRowAsset = objectiveRowAsset ?? throw new ArgumentNullException(nameof(objectiveRowAsset));
-            _lineAsset = lineAsset ?? throw new ArgumentNullException(nameof(lineAsset));
-            if (attributeRowAsset == null)
+            if (questRowAsset == null || objectiveRowAsset == null || lineAsset == null || attributeRowAsset == null || valueRowAsset == null)
             {
-                throw new ArgumentNullException(nameof(attributeRowAsset));
+                throw new ArgumentNullException(questRowAsset == null ? nameof(questRowAsset)
+                    : objectiveRowAsset == null ? nameof(objectiveRowAsset)
+                    : lineAsset == null ? nameof(lineAsset)
+                    : attributeRowAsset == null ? nameof(attributeRowAsset)
+                    : nameof(valueRowAsset));
             }
 
-            if (valueRowAsset == null)
-            {
-                throw new ArgumentNullException(nameof(valueRowAsset));
-            }
+            _questRowAsset = questRowAsset;
+            _objectiveRowAsset = objectiveRowAsset;
+            _lineAsset = lineAsset;
 
             _quests = quests;
             _progression = progression;
@@ -148,6 +149,7 @@ namespace Aetherfall.UI.Screens
             _derivedRows = root.Q<VisualElement>("character-derived");
             _hintConfirm = root.Q<Label>("journal-hint-confirm");
             _hintSecondary = root.Q<Label>("journal-hint-secondary");
+            _hintSecondaryGroup = root.Q<VisualElement>("journal-hint-secondary-group");
             _hintSubtabs = root.Q<VisualElement>("journal-hint-subtabs-group");
 
             _questList = CreateList("quests");
@@ -323,6 +325,7 @@ namespace Aetherfall.UI.Screens
             UiElementUtility.SetText(_hintConfirm, UiTexts.Get(quests ? UiTextKeys.HintTrack : UiTextKeys.HintSpend));
             UiElementUtility.SetText(_hintSecondary, UiTexts.Get(quests ? UiTextKeys.HintFocus : UiTextKeys.HintRefund));
             UiElementUtility.SetDisplayed(_hintSubtabs, quests);
+            UpdateActionHints();
             if (quests)
             {
                 Activate(_questList, _questList.Focus.HasFocus ? _questList.Focus.Current : 0);
@@ -341,10 +344,19 @@ namespace Aetherfall.UI.Screens
             _window.Reset();
             _questList.Focus.FocusFirst();
             RebuildQuests(string.Empty);
+            UpdateActionHints();
             if (_page != JournalPage.Quests)
             {
                 SelectPage(JournalPage.Quests);
             }
+        }
+
+        private void UpdateActionHints()
+        {
+            // Finished quests cannot be tracked or focused: the hints for A and X are hidden on the tab "Abgeschlossen".
+            bool actions = _page == JournalPage.Character || _tab != QuestLogTab.Completed;
+            UiElementUtility.SetDisplayed(_hintConfirm != null ? _hintConfirm.parent : null, actions);
+            UiElementUtility.SetDisplayed(_hintSecondaryGroup, actions);
         }
 
         private void RebuildQuests(string keepQuestId)
@@ -435,9 +447,9 @@ namespace Aetherfall.UI.Screens
             SetLine(_detailTitle, _shown.HasQuest ? _shown.Title : UiTexts.Get(UiTextKeys.QuestNoneSelected));
             SetLine(_detailMeta, _shown.Meta);
             SetLine(_detailDescription, _shown.Description);
-            SetLine(_detailStageTitle, _shown.CurrentTitle.ToUpperInvariant());
+            SetLine(_detailStageTitle, _shown.CurrentTitle);
             SetLine(_detailStage, _shown.CurrentText);
-            SetLine(_detailHistoryTitle, _shown.HistoryTitle.ToUpperInvariant());
+            SetLine(_detailHistoryTitle, _shown.HistoryTitle);
 
             ObjectiveRowView.EnsureRows(_detailObjectives, _objectiveRowAsset, _shown.Objectives.Count);
             for (int i = 0; i < _shown.Objectives.Count; i++)

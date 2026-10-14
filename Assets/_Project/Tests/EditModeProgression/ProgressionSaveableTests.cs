@@ -83,6 +83,36 @@ namespace Aetherfall.Tests.EditMode.Progression
         }
 
         [Test]
+        public void NewGame_StartsAtTheConfiguredStartLevel()
+        {
+            var service = new ProgressionService(_bus, null, null, 10);
+            Assert.That(service.Level, Is.EqualTo(10), "also without a new game (play mode started in a scene)");
+            service.AddXp(5000, "test");
+            Assert.That(service.Level, Is.EqualTo(12));
+
+            new ProgressionSaveable(service).Load(null, LoadContext.NewGame);
+
+            Assert.That(service.StartLevel, Is.EqualTo(10));
+            Assert.That(service.Level, Is.EqualTo(10));
+            Assert.That(service.XpIntoLevel, Is.EqualTo(0));
+            Assert.That(service.UnspentAttributePoints, Is.EqualTo(0));
+            Assert.That(service.UnspentSkillPoints, Is.EqualTo(0));
+        }
+
+        [Test]
+        public void StartLevel_IsClampedAndALoadedSaveWins()
+        {
+            Assert.That(new ProgressionService(_bus, null, null, 0).StartLevel, Is.EqualTo(1));
+            Assert.That(new ProgressionService(_bus, null, null, 500).StartLevel, Is.EqualTo(80));
+
+            var service = new ProgressionService(_bus, null, null, 10);
+            new ProgressionSaveable(service).Load(new ProgressionDto { Level = 3, XpIntoLevel = 40 }, Loaded);
+
+            Assert.That(service.Level, Is.EqualTo(3), "a save keeps its level, the start level is for new games only");
+            Assert.That(service.XpIntoLevel, Is.EqualTo(40));
+        }
+
+        [Test]
         public void UnknownAttribute_IsIgnoredWithAWarning()
         {
             var service = new ProgressionService(_bus);

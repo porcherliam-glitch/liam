@@ -13,6 +13,9 @@ namespace Aetherfall.UI.Screens
         /// <summary>Number of tabs.</summary>
         public const int TabCount = 7;
 
+        /// <summary>Prefix of the text keys of the category names (<c>quest-category-side</c>, UiTexts).</summary>
+        public const string CategoryTextPrefix = "quest-category-";
+
         /// <summary>Prefix of the category colour classes (<c>af-cat--main</c> …, Journal.uss).</summary>
         public const string CategoryClassPrefix = "af-cat--";
 
@@ -79,7 +82,7 @@ namespace Aetherfall.UI.Screens
         /// <param name="category">Category.</param>
         public static string CategoryTextKey(QuestCategory category)
         {
-            return UiTextKeys.QuestCategoryPrefix + CategoryId(category);
+            return CategoryTextPrefix + CategoryId(category);
         }
 
         /// <summary>German category name, e.g. "Nebenquest".</summary>
@@ -171,7 +174,32 @@ namespace Aetherfall.UI.Screens
             return objective != null;
         }
 
-        /// <summary>Text of a recommended level ("Stufe 2").</summary>
+        /// <summary>Id of a category in text keys and data (<c>main</c>, <c>side</c>, <c>procedural</c> …).</summary>
+        /// <param name="category">Category.</param>
+        public static string CategoryId(QuestCategory category)
+        {
+            switch (category)
+            {
+                case QuestCategory.Main: return "main";
+                case QuestCategory.Faction: return "faction";
+                case QuestCategory.Region: return "region";
+                case QuestCategory.Side: return "side";
+                case QuestCategory.Companion: return "companion";
+                case QuestCategory.Bounty: return "bounty";
+                case QuestCategory.Treasure: return "treasure";
+                case QuestCategory.Dungeon: return "dungeon";
+                case QuestCategory.Craft: return "craft";
+                case QuestCategory.Puzzle: return "puzzle";
+                case QuestCategory.Legendary: return "legendary";
+                case QuestCategory.Daily: return "daily";
+                case QuestCategory.Weekly: return "weekly";
+                case QuestCategory.Procedural: return "procedural";
+                case QuestCategory.WorldEvent: return "event";
+                default: return "side";
+            }
+        }
+
+        /// <summary>Text of a recommended level (number, at least 1).</summary>
         /// <param name="level">Level.</param>
         public static string LevelText(int level)
         {

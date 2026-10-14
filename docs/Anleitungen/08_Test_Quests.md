@@ -222,6 +222,8 @@ Alle Skripte sind reine Dateien im Projekt; du musst nichts an GameObjects häng
 
 Dieser Abschnitt ist die Arbeitsliste für Claude beim Einbau ins Spiel. Du musst hier nichts tun.
 
+> **Stand 2026-10-14:** 11.1 (BootConfig, `EndSession` beim Wechsel ins Hauptmenü), 11.2 für zwei Test-Quests, `AreaEntered` aus 11.3 und der HUD-Tracker mit Questlog aus 11.4 sind erledigt – siehe [Anleitung 09](./09_Test_Quests_im_Spiel.md). Ebenso aus Abschnitt 12 die Inventar-Typen und `PlayerLevelAtLeast`/`GiveXp`. Offen bleiben die Mini-Slice-Quests, die übrigen Ereignis-Sender, das Debug-Overlay „Quests“ und die Konsolenbefehle.
+
 **11.1 BootConfig (Reihenfolge der Installer, Architektur 4.1):**
 
 | Installer (Asset unter `Assets/_Project/Settings/Boot/`) | Menü zum Anlegen | muss hinter … stehen | braucht |

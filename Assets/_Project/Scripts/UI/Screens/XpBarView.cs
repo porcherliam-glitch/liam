@@ -7,7 +7,7 @@ namespace Aetherfall.UI.Screens
 {
     /// <summary>
     /// The thin experience bar of the HUD (GDD 05 1.2 "XP-Leiste", bottom centre) with the level ("Stufe 2"). Shown by
-    /// <see cref="HudVisibilityRules.ShowXp"/> (4 s after experience, always in the mode "Vollständig").
+    /// <see cref="HudVisibilityRules.ShowXp"/> (4 s after experience, always in the mode "Vollstaendig").
     /// </summary>
     public sealed class XpBarView
     {

@@ -93,6 +93,38 @@ namespace Aetherfall.Tests.EditMode.Progression
             Assert.That(curve.LevelShareToXp(1f, 80), Is.EqualTo(curve.XpToNext(79)), "at the max level the last level counts");
         }
 
+        [TestCase(1, 2, 1f)]
+        [TestCase(5, 2, 1f)]
+        [TestCase(6, 2, 0.9f)]
+        [TestCase(9, 2, 0.6f)]
+        [TestCase(12, 2, 0.3f)]
+        [TestCase(13, 2, 0.25f)]
+        [TestCase(40, 2, 0.25f)]
+        [TestCase(10, 10, 1f)]
+        [TestCase(14, 10, 0.9f)]
+        [TestCase(30, 0, 1f)]
+        public void OverlevelFactor_FollowsFormulaDOfGdd02(int playerLevel, int recommendedLevel, float expected)
+        {
+            // GDD 02 8.4: D = max(0,25; 1 − 0,1 × max(0; Spielerlevel − L − 3)); L = 0 means "no recommended level".
+            Assert.That(ProgressionRules.OverlevelFactor(playerLevel, recommendedLevel), Is.EqualTo(expected).Within(1e-6f));
+        }
+
+        [Test]
+        public void QuestLevelShareXp_AttenuatesAboveTheRecommendedLevel()
+        {
+            XpCurve curve = XpCurve.Default;
+
+            // "Wolfsjagd": 0.5 Lv at level 2 = 200 XP; at player level 9: × 0.6 = 120 XP (review example).
+            Assert.That(ProgressionRules.QuestLevelShareXp(curve, 0.5f, 2, 2), Is.EqualTo(200));
+            Assert.That(ProgressionRules.QuestLevelShareXp(curve, 0.5f, 2, 5), Is.EqualTo(200), "up to 3 levels above: full XP");
+            Assert.That(ProgressionRules.QuestLevelShareXp(curve, 0.5f, 2, 9), Is.EqualTo(120));
+            Assert.That(ProgressionRules.QuestLevelShareXp(curve, 0.5f, 2, 30), Is.EqualTo(50), "never below 25 %");
+            Assert.That(ProgressionRules.QuestLevelShareXp(curve, 0.5f, 3, 7), Is.EqualTo(275), "305 × 0.9 = 274.5, rounded away from zero");
+            Assert.That(ProgressionRules.QuestLevelShareXp(curve, 0.5f, 10, 1), Is.EqualTo(1110), "below the recommended level: no bonus, no malus");
+            Assert.That(ProgressionRules.QuestLevelShareXp(curve, 0.5f, 0, 9), Is.EqualTo(curve.LevelShareToXp(0.5f, 9)), "reference 0 = player level");
+            Assert.That(ProgressionRules.QuestLevelShareXp(curve, 0f, 2, 2), Is.EqualTo(0));
+        }
+
         [Test]
         public void Parameters_ChangeTheCurve()
         {

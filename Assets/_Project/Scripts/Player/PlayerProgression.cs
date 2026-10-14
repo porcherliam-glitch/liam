@@ -12,6 +12,8 @@ namespace Aetherfall.Player
     /// the distributed attribute points as modifiers with the source <c>progression:attributes</c>.
     /// </summary>
     /// <remarks>
+    /// The level of the progression replaces the level of the <c>CharacterStatsComponent</c>. A new game starts at the start
+    /// level of the ProgressionInstaller (1 in the game, 10 on the test ground, see <c>TestGroundLevels</c>).
     /// GameObject: the player root (the test ground menu adds it). Unbinds when the player is destroyed (scene change), so
     /// the service never holds stats of a destroyed player.
     /// </remarks>
@@ -43,7 +45,7 @@ namespace Aetherfall.Player
                 await Services.WaitForAsync<IGameStateService>(destroyCancellationToken);
                 if (!Services.Locator.TryGet(out _progression))
                 {
-                    Log.Warning(LogCategory.Player, "PlayerProgression: no IProgressionService registered, the player stays at level 1. " +
+                    Log.Warning(LogCategory.Player, "PlayerProgression: no IProgressionService registered, the player keeps the level of its CharacterStatsComponent. " +
                                                     "Add the ProgressionInstaller to the BootConfig (menu Aetherfall > Testgelaende erstellen does that).");
                     return;
                 }

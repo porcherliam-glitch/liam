@@ -14,9 +14,9 @@ namespace Aetherfall.Tests.EditMode.Progression
 {
     /// <summary>
     /// The game services the test quests of the test ground use, built like the installers do it (guide 08, 11.1): event bus,
-    /// world state with the test flags, condition watcher, inventory with a small item catalog, progression and the quest
-    /// service with both test quests of <see cref="TestGroundQuestLibrary"/>. Real conditions, actions and objectives, no
-    /// stand-ins.
+    /// world state with the test flags, condition watcher, inventory with a small item catalog, progression at the start level
+    /// of the test ground (10, <see cref="TestGroundLevels"/>) and the quest service with both test quests of
+    /// <see cref="TestGroundQuestLibrary"/>. Real conditions, actions and objectives, no stand-ins.
     /// </summary>
     public sealed class TestGroundQuestEnvironment : IDisposable
     {
@@ -35,7 +35,7 @@ namespace Aetherfall.Tests.EditMode.Progression
             Watcher = new ConditionWatcher(Bus);
             Catalog = CreateCatalog();
             Inventory = new InventoryService(Bus, Catalog, 7UL, StartingKit.Empty);
-            Progression = new ProgressionService(Bus);
+            Progression = new ProgressionService(Bus, null, null, TestGroundLevels.PlayerStartLevel);
             Quests = new QuestService(Bus, QuestCatalog.FromSpecs(TestGroundQuestLibrary.CreateQuests()), Services, Watcher,
                 new InventoryQuestBridge(Inventory), World, null, null);
             Services.Register<IEventBus>(Bus);
