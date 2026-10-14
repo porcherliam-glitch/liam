@@ -52,12 +52,12 @@ namespace Aetherfall.EditorTools.World
                 Entry(LootEntryKind.Equipment, 100, string.Empty, 0f, 0f, LootEntryFlags.None)
             });
 
-            // GDD 04 5.2: bosses drop with loot quality 3 (at least rare), two pieces plus gold; the blade fragment is a guaranteed
-            // world reward (picked up in the arena), so it survives loading (world drops do not).
+            // GDD 04 5.7 "Mini-Boss": guaranteed on the first win the boss unique plus 1 random piece with loot quality 3 (GDD 04 5.2:
+            // at least rare), here with gold and a consumable. The boss unique (blade fragment) is a world reward picked up in the
+            // arena, so it survives loading (world drops do not). The 2 % legendary roll needs the loot system (guide 12, open points).
             EnsureLootTable("Loot_Boss_Wachender_Ritter", GruftPaths.BossLootTableId, 0, 0, 3, new[]
             {
                 Entry(LootEntryKind.Gold, 0, string.Empty, 1.0f, 1.5f, LootEntryFlags.Guaranteed),
-                Entry(LootEntryKind.Equipment, 0, string.Empty, 0f, 0f, LootEntryFlags.Guaranteed),
                 Entry(LootEntryKind.Equipment, 0, string.Empty, 0f, 0f, LootEntryFlags.Guaranteed),
                 Entry(LootEntryKind.Table, 0, TestGroundLootTableAssets.ConsumablesTableId, 0f, 0f, LootEntryFlags.Guaranteed)
             });
@@ -250,7 +250,7 @@ namespace Aetherfall.EditorTools.World
                         TestGroundSerialized.Set(so, "displayName", "Skelett-Krieger (Turmschild)", report);
                         TestGroundSerialized.Set(so, "level", GruftPaths.EliteLevel, report);
                         TestGroundSerialized.Set(so, "healthVariantFactor", 2f, report);
-                        TestGroundSerialized.Set(so, "damageVariantFactor", 1.25f, report);
+                        TestGroundSerialized.Set(so, "damageVariantFactor", 1.3f, report);
                         TestGroundSerialized.Set(so, "poiseVariantFactor", 1.5f, report);
                         TestGroundSerialized.Set(so, "lootTableId", GruftPaths.SkeletonLootTableId, report);
                         break;

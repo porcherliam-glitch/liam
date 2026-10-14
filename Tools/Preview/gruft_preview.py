@@ -6,12 +6,12 @@ skeletons, the boss and the player like GruftObjectBuilder / GruftEnemyBuilder, 
 
 - gruft_karte.png       top view with labelled rooms, puzzles, boss, exits (Workbench, then labels with Pillow)
 - gruft_halle.png       view into the great hall with torch light (Cycles)
-- gruft_bossarena.png   the knight in the seal chamber, phase-2 Aether beam (Cycles)
+- gruft_bossarena.png   phase 2 in the seal chamber: mirror 4 sends the Aether beam onto the stunned knight (Cycles)
 
 Every image gets the bar "Vorschau – Blender-Nachbau aus den Layout-Daten (kein Unity-Screenshot)".
 
 Usage:
-    blender -b -P Tools/Preview/gruft_preview.py -- --out OUTPUT_DIR [--samples 48] [--only karte,halle,arena] [--test]
+    blender -b -P Tools/Preview/gruft_preview.py -- --out OUTPUT_DIR [--samples 96] [--only karte,halle,arena] [--test] [--percent 50]
     python3 -I Tools/Preview/gruft_preview.py --post --out OUTPUT_DIR      (labels and bar only; run automatically)
 """
 import argparse
@@ -34,6 +34,7 @@ STEP_FACE = 0.3          # GruftGeometryBuilder.StepFaceThickness
 MAP_SIZE = (1000, 2000)
 MAP_CENTER = (-6.0, 31.0)
 MAP_ORTHO = 124.0
+ARENA_FOV = 42.0
 
 
 # --------------------------------------------------------------------------------------------------------------------
@@ -253,6 +254,7 @@ def run_blender(argv):
     parser.add_argument("--samples", type=int, default=48)
     parser.add_argument("--only", default="karte,halle,arena")
     parser.add_argument("--test", action="store_true")
+    parser.add_argument("--percent", type=int, default=100, help="resolution in percent (quick composition checks)")
     args = parser.parse_args(argv)
     os.makedirs(args.out, exist_ok=True)
     jobs = [j.strip() for j in args.only.split(",") if j.strip()]
@@ -576,44 +578,142 @@ def run_blender(argv):
             box("Kiste", (x, y + 0.28, z), (1.0, 0.56, 1.0), lit("wood"), yaw)
 
     # ---------------- figures ----------------
-    def figure(name, position, yaw, scale, knight, tower_shield, telegraph=False):
-        x, y, z = position
+    # Simple low-poly stand-ins for the Unity placeholders: skeleton warriors (bones, ribs, rusty helmet, sword, round or tower
+    # shield) and the Wachende Ritter (champion skeleton in plate armour, great helm with Aether glow, tower shield, tabard).
+    up_axis = Vector((0.0, 1.0, 0.0))
+
+    def limb(name, a, b, thickness, material, col="Figuren", kind="cylinder", width=None):
+        """Cylinder (or flat box) from Unity point a to Unity point b."""
+        d = Vector((b[0] - a[0], b[1] - a[1], b[2] - a[2]))
+        length = max(d.length, 1e-4)
+        rotation = up_axis.rotation_difference(d.normalized()).to_matrix().to_4x4()
+        center = ((a[0] + b[0]) * 0.5, (a[1] + b[1]) * 0.5, (a[2] + b[2]) * 0.5)
+        if kind == "cube":
+            size = (width or thickness, length, thickness)
+        else:
+            size = (thickness, length * 0.5, thickness)
+        return prim(kind, name, u_trs(center, rotation, size), material, col)
+
+    POSES = {
+        # lean (deg, + = forward), right hand, sword tip, left elbow, left hand, shield centre, shield yaw/pitch offsets
+        "guard": dict(lean=4.0, r_elbow=(0.28, 1.2, 0.08), r_hand=(0.27, 1.07, 0.3), tip=(0.26, 1.3, 1.05),
+                      l_elbow=(-0.3, 1.22, 0.1), l_hand=(-0.24, 1.15, 0.3), shield=(-0.24, 1.08, 0.4), s_yaw=0.0, s_pitch=0.0),
+        "telegraph": dict(lean=-10.0, r_elbow=(0.3, 1.25, 0.0), r_hand=(0.3, 1.12, 0.22), tip=(0.3, 1.5, 0.9),
+                          l_elbow=(-0.34, 1.25, -0.12), l_hand=(-0.4, 1.18, -0.02), shield=(-0.45, 1.1, 0.02), s_yaw=-35.0, s_pitch=0.0),
+        "stunned": dict(lean=22.0, r_elbow=(0.3, 1.18, 0.06), r_hand=(0.3, 0.98, 0.18), tip=(0.36, 0.08, 0.62),
+                        l_elbow=(-0.32, 1.18, 0.04), l_hand=(-0.36, 0.98, 0.1), shield=(-0.52, 0.72, 0.22), s_yaw=25.0, s_pitch=14.0),
+    }
+
+    def figure(name, position, yaw, scale, knight, tower_shield, pose="guard", col="Figuren"):
+        ox, oy, oz = position
         s = scale
-        hip = (x, y + 0.95 * s, z)
-        torso_mat = lit("knight", metallic=0.5, roughness=0.5) if knight else lit("armor", metallic=0.4, roughness=0.6)
-        lean = -14.0 if telegraph else 0.0
+        p = POSES[pose]
+        lean = math.radians(p["lean"])
+        hip_y = 0.95
 
-        def part(kind, offset, size, material):
-            # Body pivot at the hips (EnemyVisuals rears the body up on the telegraph).
-            rx = math.radians(lean)
-            ox, oy, oz = offset
-            oy2 = oy * math.cos(rx) - oz * math.sin(rx)
-            oz2 = oy * math.sin(rx) + oz * math.cos(rx)
-            p = local(hip, yaw, (ox * s, oy2 * s, oz2 * s))
-            return prim(kind, name, u_trs(p, u_euler(lean, yaw, 0), (size[0] * s, size[1] * s, size[2] * s)), material, "Figuren")
+        def lower(lp):
+            return local((ox, oy, oz), yaw, (lp[0] * s, lp[1] * s, lp[2] * s))
 
-        part("cube", (0, 0.32, 0), (0.5, 0.62, 0.28), torso_mat)
-        part("sphere", (0, 0.82, 0), (0.3, 0.32, 0.3), lit("bone"))
+        def upper(lp):
+            # Upper body leans around the hips (EnemyVisuals rears the body up on the telegraph; stunned = bowed).
+            ry, rz = lp[1] - hip_y, lp[2]
+            y2 = ry * math.cos(lean) - rz * math.sin(lean)
+            z2 = rz * math.cos(lean) + ry * math.sin(lean)
+            return local((ox, oy, oz), yaw, (lp[0] * s, (hip_y + y2) * s, z2 * s))
+
+        def ubox(part, lp, size, material, extra_yaw=0.0, extra_pitch=0.0):
+            return prim("cube", name + " " + part, u_trs(upper(lp), u_euler(p["lean"] + extra_pitch, yaw + extra_yaw, 0),
+                                                           (size[0] * s, size[1] * s, size[2] * s)), material, col)
+
+        def usphere(part, lp, size, material):
+            return prim("sphere", name + " " + part, u_trs(upper(lp), u_euler(p["lean"], yaw, 0), (size[0] * s, size[1] * s, size[2] * s)),
+                        material, col)
+
+        bone = lit("bone")
+        dark = lit("soot")
+        metal = lit("knight", metallic=0.55, roughness=0.42) if knight else lit("rust", (0.36, 0.25, 0.18), 0.8, 0.35)
+        cloth = lit("cloth")
+        limb_r = 0.075 if knight else 0.06
+        leg_mat = metal if knight else bone
+
+        # Legs and pelvis (not leaned).
+        for side in (-1.0, 1.0):
+            knee = (0.12 * side, 0.5, 0.04)
+            hip = (0.1 * side, 0.92, 0.0)
+            ankle = (0.12 * side, 0.09, 0.0)
+            limb(name + " Schienbein", lower(ankle), lower(knee), (0.1 if knight else 0.065) * s, leg_mat, col)
+            limb(name + " Oberschenkel", lower(knee), lower(hip), (0.11 if knight else 0.075) * s, leg_mat, col)
+            prim("sphere", name + " Knie", u_trs(lower(knee), None, (0.12 * s, 0.12 * s, 0.12 * s)), metal if knight else bone, col)
+            prim("cube", name + " Fuss", u_trs(lower((0.12 * side, 0.04, 0.06)), u_euler(0, yaw, 0), (0.11 * s, 0.08 * s, 0.26 * s)),
+                 metal if knight else bone, col)
+        prim("cube", name + " Becken", u_trs(lower((0, hip_y, 0)), u_euler(0, yaw, 0), (0.32 * s, 0.13 * s, 0.16 * s)), bone, col)
+
+        # Spine, ribs (dark core between the ribs), collar bone, neck, skull.
+        limb(name + " Wirbelsaeule", upper((0, hip_y, -0.04)), upper((0, 1.5, -0.04)), 0.06 * s, bone, col)
         if knight:
-            part("cylinder", (0, 0.9, 0), (0.36, 0.1, 0.36), torso_mat)
-            part("cube", (0, 0.05, 0.15), (0.42, 0.8, 0.03), lit("cloth"))
-        part("cube", (0.33, 0.3, 0.05), (0.12, 0.6, 0.12), lit("bone"))
-        part("cube", (-0.33, 0.3, 0.05), (0.12, 0.6, 0.12), lit("bone"))
-        part("cube", (0.12, -0.48, 0), (0.14, 0.92, 0.14), lit("bone"))
-        part("cube", (-0.12, -0.48, 0), (0.14, 0.92, 0.14), lit("bone"))
-        part("cube", (0.36, 0.05, 0.7), (0.06, 0.1, 1.0), lit("iron", metallic=0.7, roughness=0.3))
-        if tower_shield:
-            part("cube", (-0.36, 0.15, 0.3), (0.75, 1.35, 0.08), torso_mat if knight else lit("wood"))
-        if telegraph:
-            # Telegraph colour of the knight's shield bash (GDD 03 9.5).
-            part("sphere", (0, 0.82, 0.18), (0.08, 0.05, 0.02), glow("telegraph", (1.0, 0.75, 0.2), 8.0))
+            ubox("Brustpanzer", (0, 1.3, 0.0), (0.46, 0.44, 0.3), metal)
+            ubox("Bauchschienen", (0, 1.04, 0.0), (0.4, 0.14, 0.26), metal)
+            ubox("Wappenrock", (0, 1.0, 0.16), (0.32, 0.74, 0.02), cloth)
+            ubox("Eichenzeichen", (0, 1.22, 0.175), (0.12, 0.16, 0.01), lit("gold", metallic=0.7, roughness=0.4))
+            ubox("Umhang", (0, 1.02, -0.19), (0.52, 1.0, 0.03), cloth, 0.0, -6.0)
+        else:
+            ubox("Brustkern", (0, 1.3, -0.01), (0.24, 0.3, 0.14), dark)
+            for i, ry in enumerate((1.17, 1.25, 1.33, 1.41)):
+                ubox("Rippe", (0, ry, 0.0), (0.34 - abs(i - 1.5) * 0.03, 0.032, 0.22), bone)
+            ubox("Brustbein", (0, 1.29, 0.11), (0.04, 0.26, 0.02), bone)
+            ubox("Lendentuch", (0, 0.86, 0.09), (0.26, 0.28, 0.02), cloth)
+        ubox("Schluesselbein", (0, 1.5, 0.0), (0.48, 0.036, 0.05), bone)
+        limb(name + " Hals", upper((0, 1.5, -0.02)), upper((0, 1.59, 0.0)), 0.05 * s, bone, col)
+        usphere("Schaedel", (0, 1.67, 0.01), (0.21, 0.24, 0.23), bone)
+        if knight:
+            prim("cylinder", name + " Topfhelm", u_trs(upper((0, 1.69, 0.01)), u_euler(p["lean"], yaw, 0), (0.29 * s, 0.15 * s, 0.31 * s)), metal, col)
+            ubox("Sehschlitz", (0, 1.7, 0.16), (0.2, 0.028, 0.01), glow("aether", aether_rgb, 6.0))
+            ubox("Helmkamm", (0, 1.88, -0.01), (0.04, 0.09, 0.3), cloth)
+        else:
+            usphere("Augenhoehle", (-0.045, 1.685, 0.105), (0.06, 0.05, 0.03), dark)
+            usphere("Augenhoehle", (0.045, 1.685, 0.105), (0.06, 0.05, 0.03), dark)
+            ubox("Kiefer", (0, 1.575, 0.05), (0.13, 0.05, 0.12), bone)
+            usphere("Helm", (0, 1.745, 0.0), (0.26, 0.16, 0.28), metal)
+        for side in (-1.0, 1.0):
+            usphere("Schulter", (0.25 * side, 1.49, 0.0), (0.24, 0.15, 0.26) if knight else (0.17, 0.12, 0.19), metal)
 
-    def player(position, yaw):
+        # Sword arm.
+        shoulder_r = (0.25, 1.48, 0.0)
+        limb(name + " Oberarm", upper(shoulder_r), upper(p["r_elbow"]), limb_r * s, metal if knight else bone, col)
+        limb(name + " Unterarm", upper(p["r_elbow"]), upper(p["r_hand"]), limb_r * s, metal if knight else bone, col)
+        prim("sphere", name + " Hand", u_trs(upper(p["r_hand"]), None, (0.09 * s, 0.09 * s, 0.09 * s)), metal if knight else bone, col)
+        blade = lit("blade", (0.7, 0.72, 0.74), 0.3, 0.8)
+        limb(name + " Klinge", upper(p["r_hand"]), upper(p["tip"]), 0.02 * s, blade, col, "cube", (0.07 if knight else 0.05) * s)
+        hand = upper(p["r_hand"])
+        prim("cube", name + " Parierstange", u_trs(hand, u_euler(0, yaw, 0), (0.2 * s, 0.035 * s, 0.035 * s)), lit("iron", metallic=0.6), col)
+
+        # Shield arm.
+        shoulder_l = (-0.25, 1.48, 0.0)
+        limb(name + " Oberarm", upper(shoulder_l), upper(p["l_elbow"]), limb_r * s, metal if knight else bone, col)
+        limb(name + " Unterarm", upper(p["l_elbow"]), upper(p["l_hand"]), limb_r * s, metal if knight else bone, col)
+        if tower_shield:
+            size = (0.82, 1.48, 0.08) if knight else (0.64, 1.25, 0.06)
+            material = metal if knight else lit("wood")
+            ubox("Turmschild", p["shield"], size, material, p["s_yaw"], p["s_pitch"])
+            emblem_offset = (p["shield"][0], p["shield"][1] + 0.1, p["shield"][2] + size[2] * 0.6)
+            ubox("Schildzeichen", emblem_offset, (0.3, 0.4, 0.02), lit("trim") if knight else lit("iron", metallic=0.6), p["s_yaw"], p["s_pitch"])
+        else:
+            c = upper(p["shield"])
+            prim("cylinder", name + " Rundschild", u_trs(c, u_euler(90 + p["lean"] + p["s_pitch"], yaw + p["s_yaw"], 0), (0.62 * s, 0.025 * s, 0.62 * s)),
+                 lit("wood"), col)
+            prim("sphere", name + " Schildbuckel", u_trs(local(c, yaw, (0, 0, 0.03 * s)), None, (0.14 * s, 0.14 * s, 0.1 * s)),
+                 lit("iron", metallic=0.6), col)
+        if pose == "telegraph":
+            # Telegraph colour of the knight's shield bash (GDD 03 9.5): the shield edge lights up yellow.
+            ubox("Telegrafie", (p["shield"][0] + 0.3, p["shield"][1], p["shield"][2]), (0.04, 1.3, 0.1), glow("telegraph", (1.0, 0.75, 0.2), 8.0),
+                 p["s_yaw"])
+
+    def player(position, yaw, col="Figuren"):
         x, y, z = position
-        prim("cylinder", "Spieler", u_trs((x, y + 0.9, z), None, (0.7, 0.9, 0.7)), lit("player"), "Figuren")
-        box("Nase", local((x, y, z), yaw, (0, 1.45, 0.45)), (0.18, 0.12, 0.3), lit("nose"), yaw, "Figuren")
-        box("Schwert", local((x, y, z), yaw, (0.42, 1.15, 0.75)), (0.06, 0.12, 1.0), lit("iron", metallic=0.7, roughness=0.3), yaw, "Figuren")
-        box("Schild", local((x, y, z), yaw, (-0.45, 1.1, 0.22)), (0.55, 0.7, 0.08), lit("wood"), yaw, "Figuren")
+        prim("cylinder", "Spieler", u_trs((x, y + 0.9, z), None, (0.7, 0.9, 0.7)), lit("player"), col)
+        box("Nase", local((x, y, z), yaw, (0, 1.45, 0.45)), (0.18, 0.12, 0.3), lit("nose"), yaw, col)
+        box("Schwert", local((x, y, z), yaw, (0.42, 1.15, 0.75)), (0.06, 0.12, 1.0), lit("iron", metallic=0.7, roughness=0.3), yaw, col)
+        box("Schild", local((x, y, z), yaw, (-0.45, 1.1, 0.22)), (0.55, 0.7, 0.08), lit("wood"), yaw, col)
 
     for spawner in layout["spawners"]:
         for enemy in spawner["enemies"]:
@@ -622,39 +722,74 @@ def run_blender(argv):
     arena = layout.get("bossArena")
     if arena:
         p = (arena["x"], geometry.floor_near(arena["x"], arena["z"]), arena["z"])
-        figure("Der Wachende Ritter", p, arena.get("yaw", 180.0), 1.22, True, True, telegraph=True)
+        figure("Der Wachende Ritter", p, arena.get("yaw", 180.0), 1.22, True, True, "guard", "RitterStart")
     spawn = layout["spawn"]
     spawn_position = (spawn["x"], geometry.floor_near(spawn["x"], spawn["z"]), spawn["z"])
     player(spawn_position, spawn.get("yaw", 0.0))
-    arena_player = None
-    if arena:
-        area = arena["encounterArea"]
-        px, pz = arena["x"] + 0.6, area["z"] + 3.5
-        arena_player = (px, geometry.floor_near(px, pz), pz)
-        player(arena_player, 0.0)
 
     # ---------------- beams ----------------
     def beam(points, name, strength=6.0, col="Strahlen", width=0.12):
         for a, b in zip(points[:-1], points[1:]):
-            mx, my, mz = (a[0] + b[0]) * 0.5, (a[1] + b[1]) * 0.5, (a[2] + b[2]) * 0.5
-            length = math.dist((a[0], a[2]), (b[0], b[2]))
-            yaw = math.degrees(math.atan2(b[0] - a[0], b[2] - a[2]))
-            box(name, (mx, my, mz), (width, width, length), glow("beam", aether_rgb, strength), yaw, col, shadow=False)
+            limb(name, a, b, width, glow("beam", aether_rgb, strength), col, "cube", width)
 
     solution = mirror_solution_path(layout)
     if solution:
         hy = geometry.floor_near(solution[0][0], solution[0][1]) + 1.2
         beam([(x, hy, z) for x, z in solution], "Loesungsweg", 6.0, "Loesung")
+
+    # Phase 2 of the boss fight, staged from the layout values: the knight was lured into the line of the Aether beam
+    # (spawn -> mirror 4 in its start direction); the beam hits him, he is stunned (GDD 02 11.7: 5 s), the guard is down, and the
+    # two summoned skeleton warriors stand at their spots. Only the arena still shows this scene; the map shows the start.
+    arena_scene = None
     if arena:
         source = objects.get(arena.get("beamSource"))
         mirror = objects.get(arena.get("mirror"))
+        room = next(r for r in layout["rooms"] if r["id"] == arena["room"])
+        floor = geometry.floor_near(arena["x"], arena["z"])
         if source and mirror:
-            sy_ = object_position(geometry, source)[1]
-            room = next(r for r in layout["rooms"] if r["id"] == arena["room"])
+            beam_y = object_position(geometry, source)[1]
             direction = DIRECTIONS.get(arena.get("mirrorStart", "W"), (-1, 0))
             end_x = room["x"] if direction[0] < 0 else room["x"] + room["width"] if direction[0] > 0 else mirror["x"]
             end_z = room["z"] if direction[1] < 0 else room["z"] + room["depth"] if direction[1] > 0 else mirror["z"]
-            beam([(source["x"], sy_, source["z"]), (mirror["x"], sy_, mirror["z"]), (end_x, sy_, end_z)], "Arena-Strahl", 8.0, "ArenaStrahl", 0.14)
+            beam([(source["x"], beam_y, source["z"]), (mirror["x"], beam_y, mirror["z"]), (end_x, beam_y, end_z)], "Arena-Strahl", 8.0,
+                 "ArenaStrahl", 0.14)
+            # Staged knight 4 m behind the mirror on the beam line, facing the player. "back" points from the knight to the mirror,
+            # "side" to the arena gate (for the start direction W: east and south).
+            back = (-direction[0], -direction[1])
+            side = (-direction[1], direction[0])
+            knight_xz = (mirror["x"] + direction[0] * 4.0, mirror["z"] + direction[1] * 4.0)
+            player_xz = (knight_xz[0] + back[0] * 3.0 + side[0] * 2.8, knight_xz[1] + back[1] * 3.0 + side[1] * 2.8)
+            knight_yaw = math.degrees(math.atan2(player_xz[0] - knight_xz[0], player_xz[1] - knight_xz[1]))
+            knight_pos = (knight_xz[0], geometry.floor_near(*knight_xz), knight_xz[1])
+            figure("Ritter Phase 2", knight_pos, knight_yaw, 1.22, True, True, "stunned", "ArenaSzene")
+            hit = (knight_xz[0] - direction[0] * 0.45, beam_y, knight_xz[1] - direction[1] * 0.45)
+            beam([(source["x"], beam_y, source["z"]), (mirror["x"], beam_y, mirror["z"]), hit], "Strahl Treffer", 9.0, "ArenaSzene", 0.16)
+            prim("sphere", "Treffer", u_trs(hit, None, (0.34, 0.34, 0.34)), glow("hit", aether_rgb, 14.0), "ArenaSzene", False)
+            stun = bpy.data.lights.new("Betaeubt", "POINT")
+            stun.color = aether_rgb
+            stun.energy = 420.0
+            stun.shadow_soft_size = 0.4
+            stun_ob = bpy.data.objects.new("Betaeubt", stun)
+            stun_ob.location = bvec(hit[0] + side[0] * 1.4 + back[0] * 0.6, beam_y + 0.6, hit[2] + side[1] * 1.4 + back[1] * 0.6)
+            collection("ArenaSzene").objects.link(stun_ob)
+            # Camera from the gate side: knight on the left, player in the middle, mirror 4 and the beam on the right.
+            cam_xz = (knight_xz[0] + back[0] * 4.0 + side[0] * 9.0, knight_xz[1] + back[1] * 4.0 + side[1] * 9.0)
+            target_xz = (knight_xz[0] + back[0] * 2.0, knight_xz[1] + back[1] * 2.0)
+            view_yaw = math.atan2(target_xz[0] - cam_xz[0], target_xz[1] - cam_xz[1])
+            half_view = math.atan(math.tan(math.radians(ARENA_FOV * 0.5)) * 16.0 / 9.0)
+            for add in arena.get("adds", []):
+                # Summoned skeletons at their spots; one cut by the frame edge would only show a stray sword, so it is left out.
+                rel = math.atan2(add["x"] - cam_xz[0], add["z"] - cam_xz[1]) - view_yaw
+                rel = (rel + math.pi) % (2.0 * math.pi) - math.pi
+                if abs(rel) > half_view - math.radians(8.0):
+                    continue
+                ap = (add["x"], geometry.floor_near(add["x"], add["z"]), add["z"])
+                figure("Helfer " + add["number"], ap, add.get("yaw", 0.0), 1.0, False, add.get("towerShield", False), "guard", "ArenaSzene")
+            player_yaw = math.degrees(math.atan2(knight_xz[0] - player_xz[0], knight_xz[1] - player_xz[1]))
+            player((player_xz[0], geometry.floor_near(*player_xz), player_xz[1]), player_yaw, "ArenaSzene")
+            arena_scene = dict(knight=knight_pos, player=player_xz, mirror=(mirror["x"], mirror["z"]), floor=floor, beam_y=beam_y,
+                               camera=cam_xz, target=target_xz)
+
 
     # ---------------- lights ----------------
     light_objects = []
@@ -734,7 +869,7 @@ def run_blender(argv):
         ob.rotation_euler = direction.to_track_quat("-Z", "Y").to_euler()
         scene.camera = ob
         scene.render.resolution_x, scene.render.resolution_y = size
-        scene.render.resolution_percentage = 100
+        scene.render.resolution_percentage = max(10, min(100, args.percent))
         return ob
 
     def show(name, visible):
@@ -754,6 +889,8 @@ def run_blender(argv):
         show("Lampen", False)
         show("Loesung", True)
         show("ArenaStrahl", True)
+        show("RitterStart", True)
+        show("ArenaSzene", False)
         set_cycles(min(args.samples, 24))
         scene.view_settings.view_transform = "Standard"
         scene.view_settings.look = "None"
@@ -807,18 +944,24 @@ def run_blender(argv):
     if "halle" in jobs:
         set_cycles(args.samples)
         show("ArenaStrahl", False)
+        show("ArenaSzene", False)
+        show("RitterStart", True)
         hall = next(r for r in layout["rooms"] if r["id"] == "room.hallen")
         floor = hall.get("floorY", 0.0)
-        camera("Halle", (1.2, floor + 1.9, hall["z"] + 1.2), (-0.8, floor + 1.4, hall["z"] + hall["depth"] - 2.0), 55, None, (1600, 900))
+        # From the foot of the stairs, centred between the braziers (they light the view but stay out of the frame).
+        camera("Halle", (0.0, floor + 2.3, hall["z"] + 0.6), (-0.6, floor + 1.3, hall["z"] + hall["depth"] - 2.0), 52, None, (1600, 900))
         render(os.path.join(args.out, "gruft_halle_roh.png"))
 
     # ---------------- arena ----------------
-    if "arena" in jobs and arena and arena_player:
+    if "arena" in jobs and arena_scene:
         set_cycles(args.samples)
-        show("ArenaStrahl", True)
-        floor = arena_player[1]
-        cam_pos = (arena_player[0] + 0.9, floor + 2.3, arena_player[2] - 3.4)
-        camera("Arena", cam_pos, (arena["x"], floor + 1.7, arena["z"]), 55, None, (1600, 900))
+        show("ArenaStrahl", False)
+        show("ArenaSzene", True)
+        show("RitterStart", False)
+        floor = arena_scene["floor"]
+        cx, cz = arena_scene["camera"]
+        tx, tz = arena_scene["target"]
+        camera("Arena", (cx, floor + 2.4, cz), (tx, floor + 1.3, tz), ARENA_FOV, None, (1600, 900))
         render(os.path.join(args.out, "gruft_bossarena_roh.png"))
 
     # Labels and the bar need Pillow (system Python, not Blender's).
@@ -833,7 +976,7 @@ def run_blender(argv):
 # --------------------------------------------------------------------------------------------------------------------
 
 def run_post(argv):
-    from PIL import Image, ImageDraw, ImageFont
+    from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--post", action="store_true")
@@ -905,8 +1048,8 @@ def run_post(argv):
             key = "room:" + room["id"]
             if key in anchors:
                 x, y = anchors[key]
-                outlined(draw, (x, y - 40 if room["id"] == "room.siegelkammer" else y), room_names.get(room["id"], room["name"]), f_room,
-                         (255, 236, 190), anchor="mm")
+                shift = {"room.siegelkammer": -40, "room.nebenkammer": 40}.get(room["id"], 0)
+                outlined(draw, (x, y + shift), room_names.get(room["id"], room["name"]), f_room, (255, 236, 190), anchor="mm")
 
         warm = (255, 196, 120)
         cyan = (90, 240, 230)
@@ -920,23 +1063,23 @@ def run_post(argv):
         callout("obj:obj.eichental.gruft_pfeilschlitz_west", "Pfeilfalle (10 % LP)", (-40, 45), red)
         callout("door:door.eichental.gruft_tor", "Steintor", (-80, 20), white)
         callout("enemy:gruft_hallen_6", "Elite mit Turmschild", (90, 30), red)
-        callout("enemy:gruft_hallen_1", "6 Skelett-Krieger", (-110, 30), red)
-        callout("obj:obj.eichental.gruft_kaefig", "Käfig: Grabräuber Fenn", (-40, 50), warm)
+        callout("enemy:gruft_hallen_1", "6 Skelett-Krieger", (40, 60), red)
+        callout("obj:obj.eichental.gruft_kaefig", "Käfig: Grabräuber Fenn", (90, -60), warm)
         callout("obj:obj.eichental.gruft_truhe_nebenkammer", "Truhe (versteckt)", (-30, -50), warm)
-        callout("door:door.eichental.gruft_nebenkammer", "verborgene Tür", (-30, -80), white)
+        callout("door:door.eichental.gruft_nebenkammer", "verborgene Tür", (-20, 70), white)
         callout("obj:obj.eichental.gruft_druckplatte_seitengang", "Druckplatte + Falle", (60, 0), red)
         callout("obj:obj.eichental.gruft_hebel_seitengang", "Hebel → Gitter", (70, -30), warm)
         callout("obj:prop.gruft_kletterstelle", "Kletterstelle", (90, 20), white)
-        callout("obj:obj.eichental.gruft_aether_spalt", "Rätsel 2: Spiegel (1 → Ost, 2 → Nord, 3 → West)", (-60, 60), cyan)
+        callout("obj:obj.eichental.gruft_aether_spalt", "Rätsel 2: Spiegel (1 → Ost, 2 → Nord, 3 → West)", (-25, 80), cyan)
         callout("obj:obj.eichental.gruft_siegel", "Siegel + Siegeltür", (-60, -30), cyan)
         callout("cp:checkpoint.gruft.vorkammer", "Checkpoint + Autosave", (-70, 20), green)
         callout("door:door.eichental.gruft_arena_tor", "Arena-Tor (schließt im Kampf)", (-60, -30), white)
-        callout("boss", "Boss: Der Wachende Ritter", (60, -40), red)
+        callout("boss", "Boss: Der Wachende Ritter", (-90, -25), red)
         callout("obj:obj.eichental.gruft_spiegel_4", "Spiegel 4 (Strahl ab Phase 2)", (60, -50), cyan)
-        callout("obj:obj.eichental.gruft_siegelstein", "Siegelstein (Altar)", (-60, 40), warm)
-        callout("obj:obj.eichental.gruft_truhe_siegelkammer", "Truhe (Eisen)", (-30, 55), warm)
+        callout("obj:obj.eichental.gruft_siegelstein", "Siegelstein (Altar)", (-60, 50), warm)
+        callout("obj:obj.eichental.gruft_truhe_siegelkammer", "Truhe (Eisen)", (-15, -30), warm)
         callout("door:door.eichental.gruft_fluchtweg_tor", "Gitter (nach dem Sieg offen)", (60, 60), white)
-        callout("obj:obj.eichental.gruft_ausgang_fluchtweg", "Ausgang Fluchtweg", (40, -40), green)
+        callout("obj:obj.eichental.gruft_ausgang_fluchtweg", "Ausgang Fluchtweg", (-20, -45), green)
 
         # Encounter area as a dashed rectangle.
         if "area:min" in anchors:
@@ -955,7 +1098,7 @@ def run_post(argv):
             (sx0, sy0), (sx1, _) = anchors["scale:0"], anchors["scale:10"]
             draw.rectangle((sx0, sy0 - 6, sx1, sy0 + 6), fill=white, outline=(0, 0, 0))
             outlined(draw, ((sx0 + sx1) / 2, sy0 - 22), "10 m", f_label, white, anchor="mm")
-        nx, ny = base.width - 70, 80
+        nx, ny = base.width - 70, base.height - 160
         draw.polygon([(nx, ny - 40), (nx - 16, ny + 10), (nx + 16, ny + 10)], fill=white, outline=(0, 0, 0))
         outlined(draw, (nx, ny + 30), "N", f_room, white, anchor="mm")
 
@@ -964,7 +1107,7 @@ def run_post(argv):
         y = 40
         draw.text((px, y), "Die vergessene Gruft", font=font(34, True), fill=(255, 236, 190))
         y += 50
-        draw.text((px, y), "Draufsicht ohne Decken – Maßstab 1 Kästchen = 1 m", font=f_small, fill=(200, 200, 200))
+        draw.text((px, y), "Draufsicht ohne Decken, Norden oben – Maßstab: Balken unten links", font=f_small, fill=(200, 200, 200))
         y += 40
         legend = [
             ((255, 236, 190), "Räume (Namen)"),
@@ -980,7 +1123,7 @@ def run_post(argv):
             y += 36
         y += 20
         facts = [
-            "Weg (GDD 02, 11.7):",
+            "Weg (GDD 02, 11.7)",
             "1. Vorraum: Inschrift lesen, Grabplatten",
             "   Eiche → Krone → Schild drücken.",
             "   Falsche Reihenfolge: Pfeilfalle (10 % LP).",
@@ -1000,7 +1143,7 @@ def run_post(argv):
             "   nehmen oder liegen lassen, Fluchtweg.",
         ]
         for line in facts:
-            draw.text((px, y), line, font=f_small if not line.endswith(":") else font(19, True), fill=(220, 220, 220))
+            draw.text((px, y), line, font=font(19, True) if line == facts[0] else f_small, fill=(220, 220, 220))
             y += 26
         add_bar(image).save(os.path.join(out_dir, "gruft_karte.png"))
         print("[gruft_preview] fertig:", os.path.join(out_dir, "gruft_karte.png"))
@@ -1008,13 +1151,14 @@ def run_post(argv):
     # ---------------- perspective views ----------------
     captions = {
         "gruft_halle": "Hallen der Eichenritter (−3 m): Pfeiler, Sarkophage, Fackeln, Skelett-Krieger",
-        "gruft_bossarena": "Siegelkammer: Der Wachende Ritter holt zum Schildstoß aus – Aether-Strahl (Phase 2) über Spiegel 4",
+        "gruft_bossarena": "Siegelkammer, Phase 2: Spiegel 4 lenkt den Aether-Strahl auf den Wachenden Ritter – 5 s betäubt",
     }
     for name, caption in captions.items():
         raw = os.path.join(out_dir, name + "_roh.png")
         if not os.path.exists(raw):
             continue
-        image = Image.open(raw).convert("RGB")
+        # Cycles runs without its denoiser (CPU build); a 3 x 3 median removes the remaining sample noise.
+        image = Image.open(raw).convert("RGB").filter(ImageFilter.MedianFilter(3))
         draw = ImageDraw.Draw(image)
         outlined(draw, (24, 24), caption, font(24, True), (255, 236, 190))
         add_bar(image).save(os.path.join(out_dir, name + ".png"))
