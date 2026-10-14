@@ -190,6 +190,12 @@ namespace Aetherfall.EditorTools.World
                         _report);
                     // Hills hide the player as well as walls do.
                     TestGroundFields.SetInt(enemy, "sightBlockers", sightBlockers, _report);
+                    if (spawner.BossId.Length > 0 && i == 0)
+                    {
+                        // Named enemy (Glutfang, prologue Rissbrut): quest objectives "Töte bestimmten Gegner" count this id.
+                        TestGroundFields.SetString(enemy, "uniqueId", spawner.BossId, _report);
+                    }
+
                     enemies[i] = enemy;
                 }
 
@@ -269,12 +275,19 @@ namespace Aetherfall.EditorTools.World
             _report.Info("Truhen: " + _layout.Chests.Count + " (Schmiede, Kapelle, Mühle, Wolfsbau, versteckt auf dem Rabenfels), Gebietslevel aus dem Layout.");
         }
 
-        /// <summary>NPC placeholders: capsules with nose and name sign, grouped by story phase.</summary>
+        /// <summary>
+        /// NPC placeholders: capsules with nose and name sign, grouped by story phase. Each marker that belongs to a quest state
+        /// sits in its own <see cref="ConditionalObjectGroup"/> (<see cref="MiniSliceWorld.NpcVisibility"/>), and NPCs with an
+        /// NPC asset (<see cref="MiniSliceAssets"/>) can be talked to (<see cref="Aetherfall.NPC.NpcInteractable"/>).
+        /// </summary>
         /// <param name="parent">Parent.</param>
-        public void BuildNpcMarkers(Transform parent)
+        /// <param name="player">Player object (the NPCs look at it).</param>
+        /// <param name="interactableLayer">Interactable layer or −1.</param>
+        public void BuildNpcMarkers(Transform parent, GameObject player, int interactableLayer)
         {
             var groups = new Dictionary<NpcMarkerPhase, Transform>();
             Material body = _materials.Get("npcMarker", 0.3f);
+            int talking = 0;
             foreach (LayoutNpcMarker npc in _layout.NpcMarkers)
             {
                 if (!groups.TryGetValue(npc.Phase, out Transform group))
@@ -288,8 +301,26 @@ namespace Aetherfall.EditorTools.World
                 double x = npc.Position.X;
                 double z = npc.Position.Z;
                 string phaseName = PhaseName(npc.Phase) + (npc.Stage.Length > 0 ? " " + npc.Stage : string.Empty);
+                Conditions.Condition visibleWhile = MiniSliceWorld.NpcVisibility(npc.NpcId, npc.Phase, npc.Stage);
+                Transform holder = group;
+                if (visibleWhile != null)
+                {
+                    var visibility = new GameObject("Sichtbar: " + npc.Name + " (" + phaseName + ")");
+                    visibility.transform.SetParent(group, false);
+                    ConditionalObjectGroup conditional = visibility.AddComponent<ConditionalObjectGroup>();
+                    TestGroundFields.SetString(conditional, "phaseId", phaseName, _report);
+                    var serialized = new UnityEditor.SerializedObject(conditional);
+                    serialized.FindProperty("visibleWhile").managedReferenceValue = visibleWhile;
+                    serialized.ApplyModifiedPropertiesWithoutUndo();
+                    holder = visibility.transform;
+                }
+
                 var root = new GameObject(npc.Name + " (" + npc.NpcId + ", " + phaseName + ")");
-                root.transform.SetParent(group, false);
+                root.transform.SetParent(holder, false);
+                if (MiniSliceAssets.TryMakeTalkable(root, npc.NpcId, player, interactableLayer, _report))
+                {
+                    talking++;
+                }
                 root.transform.SetPositionAndRotation(new Vector3((float)x, H(x, z), (float)z), Quaternion.Euler(0f, (float)npc.Yaw, 0f));
 
                 GameObject capsule = GameObject.CreatePrimitive(PrimitiveType.Capsule);
@@ -326,7 +357,8 @@ namespace Aetherfall.EditorTools.World
                 EichentalLabel.Create(root.transform, npc.Name + phase, new Vector3(0f, signHeight, 0f), 180f, _labelFont, 0.03f);
             }
 
-            _report.Info("NPC-Platzhalter: " + _layout.NpcMarkers.Count + " Kapseln mit NpcMarker (NPC-ID aus GDD 02, Ort, Phase, Stufe). Der NPC-Baustein " +
+            _report.Info("NPC-Platzhalter: " + _layout.NpcMarkers.Count + " Kapseln mit NpcMarker (NPC-ID aus GDD 02, Ort, Phase, Stufe), " + talking +
+                         " davon ansprechbar, sichtbar je nach Stand von „Asche über Eichental“. Der NPC-Baustein " +
                          "ersetzt sie durch echte Figuren mit Dialogen.");
         }
 
@@ -363,8 +395,12 @@ namespace Aetherfall.EditorTools.World
         /// <summary>Quest objects (beam, door, clues, straw targets, corpse, Aether shard, pup) with <see cref="QuestObjectMarker"/>.</summary>
         /// <param name="parent">Parent.</param>
         /// <param name="environmentLayer">Environment layer (colliders of beam, door and targets).</param>
-        public void BuildQuestObjects(Transform parent, int environmentLayer)
+        /// <param name="interactableLayer">Interactable layer or −1 (interaction triggers).</param>
+        /// <param name="triggerVolumeLayer">TriggerVolume layer or −1 (timed area at the bakery door).</param>
+        /// <param name="playerLayer">Player layer or −1.</param>
+        public void BuildQuestObjects(Transform parent, int environmentLayer, int interactableLayer, int triggerVolumeLayer, int playerLayer)
         {
+            int interactive = 0;
             foreach (LayoutQuestObject q in _layout.QuestObjects)
             {
                 double x = q.Position.X;
@@ -415,10 +451,76 @@ namespace Aetherfall.EditorTools.World
                 TestGroundFields.SetString(marker, "groupId", q.Group, _report);
                 TestGroundFields.SetString(marker, "questId", q.QuestId, _report);
                 TestGroundFields.SetString(marker, "locationId", q.LocationId, _report);
+                MiniSliceWorld.ObjectSetup setup = MiniSliceWorld.ForObject(q.Id);
+                if (setup != null)
+                {
+                    ConfigureInteraction(marker, setup, interactableLayer);
+                    interactive++;
+                }
+
+                if (q.Id == MiniSliceWorld.SplinterId)
+                {
+                    // Second way to deal with the splinter (break it out instead of smashing it): same object id, other verb.
+                    var breakOut = new GameObject("Herausbrechen");
+                    breakOut.transform.SetParent(root.transform, false);
+                    breakOut.transform.localPosition = new Vector3(0f, 0f, 0.6f);
+                    QuestObjectMarker second = breakOut.AddComponent<QuestObjectMarker>();
+                    TestGroundFields.SetString(second, "objectId", q.Id, _report);
+                    TestGroundFields.SetString(second, "questId", q.QuestId, _report);
+                    TestGroundFields.SetString(second, "locationId", q.LocationId, _report);
+                    ConfigureInteraction(second, MiniSliceWorld.SplinterBreakOut(), interactableLayer);
+                }
+
+                if (q.Id == MiniSliceWorld.WennaDoorId)
+                {
+                    // "Hol Wenna aus dem Haus" (GDD 02 11.1 s25) is reached by stepping up to the door within the time limit.
+                    AddAreaTrigger(root.transform, q.Id, 2.5f, triggerVolumeLayer, playerLayer);
+                }
             }
 
-            _report.Info("Quest-Objekte: " + _layout.QuestObjects.Count + " mit QuestObjectMarker (Balken über Tobold, Tür der Bäckerei, Spuren, " +
-                         "Strohziele, Postreiter, Aether-Splitter, Welpe). Ihre Interaktionen kommen mit den Quest-Daten.");
+            _report.Info("Quest-Objekte: " + _layout.QuestObjects.Count + " mit QuestObjectMarker, davon " + interactive + " benutzbar in ihrer " +
+                         "Quest-Stufe (Balken, Runen, Weide, Strohziele, Postreiter, Splitter, Welpe); die Tür der Bäckerei ist ein Zeit-Ziel.");
+        }
+
+        private void ConfigureInteraction(QuestObjectMarker marker, MiniSliceWorld.ObjectSetup setup, int interactableLayer)
+        {
+            TestGroundFields.SetInt(marker, "action", (int)setup.Action, _report);
+            TestGroundFields.SetString(marker, "prompt", setup.Prompt, _report);
+            TestGroundFields.SetBool(marker, "singleUse", true, _report);
+            TestGroundFields.SetBool(marker, "hideWhenUsed", setup.HideWhenUsed, _report);
+            var serialized = new UnityEditor.SerializedObject(marker);
+            UnityEditor.SerializedProperty condition = serialized.FindProperty("interactableWhile");
+            if (condition != null)
+            {
+                condition.managedReferenceValue = setup.InteractableWhile;
+                serialized.ApplyModifiedPropertiesWithoutUndo();
+            }
+
+            var trigger = new GameObject("Interaktion");
+            trigger.transform.SetParent(marker.transform, false);
+            trigger.transform.localPosition = new Vector3(0f, 0.8f, 0f);
+            trigger.layer = interactableLayer >= 0 ? interactableLayer : 0;
+            SphereCollider sphere = trigger.AddComponent<SphereCollider>();
+            sphere.isTrigger = true;
+            sphere.radius = 0.9f;
+        }
+
+        private void AddAreaTrigger(Transform parent, string areaId, float radius, int triggerVolumeLayer, int playerLayer)
+        {
+            var zone = new GameObject("Zeit-Ziel " + areaId);
+            zone.transform.SetParent(parent, false);
+            zone.transform.localPosition = new Vector3(0f, 1f, 0f);
+            zone.layer = triggerVolumeLayer >= 0 ? triggerVolumeLayer : 0;
+            CapsuleCollider capsule = zone.AddComponent<CapsuleCollider>();
+            capsule.isTrigger = true;
+            capsule.radius = radius;
+            capsule.height = 4f + 2f * radius;
+            Rigidbody body = zone.AddComponent<Rigidbody>();
+            body.isKinematic = true;
+            body.useGravity = false;
+            AreaTrigger area = zone.AddComponent<AreaTrigger>();
+            TestGroundFields.SetString(area, "areaId", areaId, _report);
+            TestGroundFields.SetInt(area, "playerLayers", playerLayer >= 0 ? 1 << playerLayer : 1 << TestGroundPaths.PlayerLayerIndex, _report);
         }
 
         /// <summary>

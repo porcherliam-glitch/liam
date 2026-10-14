@@ -1,0 +1,280 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8e8dae9f016d99b4cb368684cefc2e46, type: 3}
+  m_Name: Dlg_hedda
+  m_EditorClassIdentifier: Aetherfall.Dialogue::Aetherfall.Dialogue.DialogueDefinition
+  id: dlg.eichental.hedda
+  status: 1
+  title: Hedda Eichholz
+  mode: 0
+  speakerId: npc.eichental.dorfvorsteherin_hedda
+  startNodeId: n010
+  cancelable: 0
+  questId: 
+  questExitIds: []
+  nodes:
+  - rid: 8292696249713295423
+  - rid: 8292696249713295431
+  - rid: 8292696249713295432
+  - rid: 8292696249713295433
+  - rid: 8292696249713295434
+  - rid: 8292696249713295435
+  - rid: 8292696249713295436
+  - rid: 8292696249713295437
+  - rid: 8292696249713295438
+  - rid: 8292696249713295439
+  - rid: 8292696249713295441
+  notes: 
+  references:
+    version: 2
+    RefIds:
+    - rid: -2
+      type: {class: , ns: , asm: }
+    - rid: 8292696249713295423
+      type: {class: BranchNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n010
+        editorPosition: {x: 0, y: 0}
+        branches:
+        - condition:
+            rid: 8292696249713295424
+          targetNodeId: n400
+        - condition:
+            rid: 8292696249713295425
+          targetNodeId: n500
+        - condition:
+            rid: 8292696249713295426
+          targetNodeId: n300
+        - condition:
+            rid: 8292696249713295427
+          targetNodeId: n200
+        defaultNodeId: n100
+    - rid: 8292696249713295424
+      type: {class: AllOf, ns: Aetherfall.Conditions, asm: Aetherfall.Conditions}
+      data:
+        conditions:
+        - rid: 8292696249713295428
+        - rid: 8292696249713295429
+    - rid: 8292696249713295425
+      type: {class: QuestStatusIs, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
+      data:
+        questId: quest.main.asche_ueber_eichental
+        status: 3
+    - rid: 8292696249713295426
+      type: {class: QuestStageReached, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
+      data:
+        questId: quest.main.asche_ueber_eichental
+        stageId: s40
+    - rid: 8292696249713295427
+      type: {class: QuestStageReached, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
+      data:
+        questId: quest.main.asche_ueber_eichental
+        stageId: s25
+    - rid: 8292696249713295428
+      type: {class: QuestStageReached, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
+      data:
+        questId: quest.main.asche_ueber_eichental
+        stageId: s70
+    - rid: 8292696249713295429
+      type: {class: Not, ns: Aetherfall.Conditions, asm: Aetherfall.Conditions}
+      data:
+        condition:
+          rid: 8292696249713295430
+    - rid: 8292696249713295430
+      type: {class: FlagIs, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
+      data:
+        flagId: flag.eichental.hedda_bericht_gehoert
+        comparison: 0
+        value: 1
+    - rid: 8292696249713295431
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n100
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: 
+        exitId: weiter
+        followUp: 0
+        speakerId: 
+        text: Du lebst! Komm her, schnell, weg von den Flammen!
+        variants: []
+        emotion: 0
+        camera: 0
+        actions: []
+        voiceClipId: 
+    - rid: 8292696249713295432
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n200
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: n210
+        exitId: 
+        followUp: 0
+        speakerId: 
+        text: "Den G\xF6ttern sei Dank, du lebst. Lina \u2026 ich habe sie im Licht verschwinden sehen. Es tut mir so leid."
+        variants: []
+        emotion: 4
+        camera: 1
+        actions: []
+        voiceClipId: 
+    - rid: 8292696249713295433
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n210
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: n220
+        exitId: 
+        followUp: 0
+        speakerId: 
+        text: "Tobold liegt unter einem Balken bei der Schmiede, und Wennas B\xE4ckerei brennt lichterloh. Hilf ihnen, wenn du kannst."
+        variants: []
+        emotion: 0
+        camera: 0
+        actions: []
+        voiceClipId: 
+    - rid: 8292696249713295434
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n220
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: 
+        exitId: dorfrand
+        followUp: 0
+        speakerId: 
+        text: "Ich sammle alle, die noch laufen k\xF6nnen, am Dorfrand. Beeil dich!"
+        variants: []
+        emotion: 0
+        camera: 0
+        actions: []
+        voiceClipId: 
+    - rid: 8292696249713295435
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n300
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: 
+        exitId: weiter
+        followUp: 0
+        speakerId: 
+        text: Geh, folge der Gestalt. Ich bringe die Leute nach Lindenhain. Pass auf dich auf.
+        variants: []
+        emotion: 0
+        camera: 0
+        actions: []
+        voiceClipId: 
+    - rid: 8292696249713295436
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n400
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: n405
+        exitId: 
+        followUp: 0
+        speakerId: 
+        text: "Du bist zur\xFCck! Was ist am Riss passiert?"
+        variants: []
+        emotion: 0
+        camera: 0
+        actions: []
+        voiceClipId: 
+    - rid: 8292696249713295437
+      type: {class: ChoiceNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n405
+        editorPosition: {x: 0, y: 0}
+        hub: 0
+        options:
+        - id: a
+          text: Die graue Gestalt hat auf mich gewartet.
+          targetNodeId: n410
+          visibleIf:
+            rid: -2
+          selectableIf:
+            rid: -2
+          lockedReason: 
+          once: 0
+          irreversible: 0
+          actions: []
+          choiceId: 
+          choiceOptionId: 
+        - id: b
+          text: Lina ist fort. Ich werde sie finden.
+          targetNodeId: n420
+          visibleIf:
+            rid: -2
+          selectableIf:
+            rid: -2
+          lockedReason: 
+          once: 0
+          irreversible: 0
+          actions: []
+          choiceId: 
+          choiceOptionId: 
+    - rid: 8292696249713295438
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n410
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: n420
+        exitId: 
+        followUp: 0
+        speakerId: 
+        text: "Gewartet? Dann wusste sie, dass du kommst \u2026 Das gef\xE4llt mir nicht."
+        variants: []
+        emotion: 0
+        camera: 0
+        actions: []
+        voiceClipId: 
+    - rid: 8292696249713295439
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n420
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: 
+        exitId: abschluss
+        followUp: 0
+        speakerId: 
+        text: "Lindenhain nimmt uns auf. Hier, mein Notgroschen. Und h\xF6r dich um \u2013 Hollmann und der Gelehrte im Gasthaus brauchen Hilfe."
+        variants: []
+        emotion: 0
+        camera: 0
+        actions:
+        - rid: 8292696249713295440
+        voiceClipId: 
+    - rid: 8292696249713295440
+      type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
+      data:
+        flagId: flag.eichental.hedda_bericht_gehoert
+        value: 1
+    - rid: 8292696249713295441
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n500
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: 
+        exitId: weiter
+        followUp: 0
+        speakerId: 
+        text: "Wir bauen wieder auf, Stein f\xFCr Stein. Hollmann oben am Hof und der Gelehrte im Gasthaus suchen noch Hilfe."
+        variants:
+        - condition:
+            rid: 8292696249713295442
+          text: Wenna backt schon wieder, stell dir vor. Hollmann oben am Hof und der Gelehrte im Gasthaus suchen noch Hilfe.
+        emotion: 0
+        camera: 0
+        actions: []
+        voiceClipId: 
+    - rid: 8292696249713295442
+      type: {class: FlagIs, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
+      data:
+        flagId: flag.eichental.wenna_gerettet
+        comparison: 0
+        value: 1

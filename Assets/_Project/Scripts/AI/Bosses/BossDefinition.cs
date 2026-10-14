@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Aetherfall.Data;
 using UnityEngine;
 
 namespace Aetherfall.AI.Bosses
@@ -10,7 +11,7 @@ namespace Aetherfall.AI.Bosses
     /// of awakening, phase change, parry opening and Aether-beam stun. Lives in <c>Assets/_Project/Data/Enemies/</c>.
     /// </summary>
     [CreateAssetMenu(menuName = "Aetherfall/Gegner/Boss", fileName = "Boss", order = 21)]
-    public sealed class BossDefinition : ScriptableObject
+    public sealed class BossDefinition : ScriptableObject, IContentIdProvider
     {
         [Header("Identität")]
         [Tooltip("Boss-ID, z. B. boss.eichental.wachender_ritter (Quest „Töte Bestimmten“, „besiegt bleibt besiegt“).")]
@@ -69,6 +70,9 @@ namespace Aetherfall.AI.Bosses
 
         /// <summary>Boss id.</summary>
         public string BossId => bossId ?? string.Empty;
+
+        /// <inheritdoc />
+        public string ContentId => BossId;
 
         /// <summary>Display name.</summary>
         public string DisplayName => displayName ?? string.Empty;

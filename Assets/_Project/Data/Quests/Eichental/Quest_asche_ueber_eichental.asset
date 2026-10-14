@@ -1,0 +1,438 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ed54fda899259d8408571c9b5aae9298, type: 3}
+  m_Name: Quest_asche_ueber_eichental
+  m_EditorClassIdentifier: Aetherfall.Quests::Aetherfall.Quests.QuestDefinition
+  id: quest.main.asche_ueber_eichental
+  status: 1
+  title: "Asche \xFCber Eichental"
+  description: "Am Erntefest hat sich \xFCber Eichental ein Riss ge\xF6ffnet. Lina ist fort, das Dorf brennt. Finde \xDCberlebende und folge der grauen Gestalt."
+  category: 0
+  traits: 0
+  twistType: Zufall und Zeit
+  recommendedLevel: 1
+  regionId: 
+  giverId: npc.eichental.dorfvorsteherin_hedda
+  fallbackGiverIds: []
+  turnInNpcId: npc.eichental.dorfvorsteherin_hedda
+  startTriggerKind: 6
+  startTriggerId: 
+  startCondition:
+    rid: -2
+  startStageId: 
+  startBranches: []
+  stages:
+  - id: s10
+    journalText: Eichental brennt. Lina ist fort. Irgendwo ruft jemand um Hilfe.
+    explorationHint: Der Dorfplatz liegt westlich, beim Brunnen.
+    objectives:
+    - rid: 8292696249713295493
+    completionMode: 0
+    requiredCount: 1
+    actionOnly: 0
+    onStart:
+    - rid: 8292696249713295494
+    onComplete: []
+    branches: []
+    defaultNextStageId: s20
+    failRules: []
+    endType: 0
+    ledgerEntryId: 
+    saveLock: 0
+    markerIds: []
+    searchRadius: 50
+  - id: s20
+    journalText: Hedda, die Dorfvorsteherin, lebt.
+    explorationHint: Hedda steht am Brunnen auf dem Dorfplatz.
+    objectives:
+    - rid: 8292696249713295495
+    completionMode: 0
+    requiredCount: 1
+    actionOnly: 0
+    onStart: []
+    onComplete: []
+    branches: []
+    defaultNextStageId: s25
+    failRules: []
+    endType: 0
+    ledgerEntryId: 
+    saveLock: 0
+    markerIds: []
+    searchRadius: 50
+  - id: s25
+    journalText: "Hedda sammelt die \xDCberlebenden am Dorfrand. Tobold liegt unter einem Balken, Wennas Haus steht in Flammen."
+    explorationHint: "Der Dorfrand liegt im S\xFCdwesten. Die B\xE4ckerei steht n\xF6rdlich des Dorfplatzes."
+    objectives:
+    - rid: 8292696249713295496
+    - rid: 8292696249713295497
+    - rid: 8292696249713295499
+    completionMode: 0
+    requiredCount: 1
+    actionOnly: 0
+    onStart: []
+    onComplete: []
+    branches: []
+    defaultNextStageId: s30
+    failRules: []
+    endType: 0
+    ledgerEntryId: ledger.c1
+    saveLock: 0
+    markerIds: []
+    searchRadius: 50
+  - id: s30
+    journalText: "Kreaturen aus dem Riss greifen an. Halte sie von den \xDCberlebenden fern."
+    explorationHint: 
+    objectives:
+    - rid: 8292696249713295501
+    completionMode: 0
+    requiredCount: 1
+    actionOnly: 0
+    onStart:
+    - rid: 8292696249713295502
+    onComplete: []
+    branches: []
+    defaultNextStageId: s40
+    failRules: []
+    endType: 0
+    ledgerEntryId: ledger.c2
+    saveLock: 0
+    markerIds: []
+    searchRadius: 50
+  - id: s40
+    journalText: "Eine Gestalt in grauem Mantel geht ruhig durch die Flammen zum Wald. Hedda f\xFChrt die anderen nach Lindenhain. Du folgst der Gestalt."
+    explorationHint: "Die Spur f\xFChrt nach Osten durch das Dorf zum Waldrand."
+    objectives:
+    - rid: 8292696249713295503
+    - rid: 8292696249713295504
+    completionMode: 0
+    requiredCount: 1
+    actionOnly: 0
+    onStart: []
+    onComplete: []
+    branches: []
+    defaultNextStageId: s50
+    failRules: []
+    endType: 0
+    ledgerEntryId: 
+    saveLock: 0
+    markerIds: []
+    searchRadius: 50
+  - id: s50
+    journalText: "Der Riss klafft am Waldrand. Die Gestalt wartet dort, als h\xE4tte sie dich erwartet."
+    explorationHint: 
+    objectives:
+    - rid: 8292696249713295505
+    completionMode: 0
+    requiredCount: 1
+    actionOnly: 0
+    onStart: []
+    onComplete:
+    - rid: 8292696249713295506
+    branches: []
+    defaultNextStageId: s60
+    failRules: []
+    endType: 0
+    ledgerEntryId: 
+    saveLock: 0
+    markerIds: []
+    searchRadius: 50
+  - id: s60
+    journalText: "Etwas Gro\xDFes kriecht aus dem Riss. Nutze die neue Kraft."
+    explorationHint: 
+    objectives:
+    - rid: 8292696249713295507
+    completionMode: 0
+    requiredCount: 1
+    actionOnly: 0
+    onStart:
+    - rid: 8292696249713295508
+    onComplete: []
+    branches: []
+    defaultNextStageId: s70
+    failRules: []
+    endType: 0
+    ledgerEntryId: 
+    saveLock: 0
+    markerIds: []
+    searchRadius: 50
+  - id: s70
+    journalText: "Der Riss ist still, die Gestalt verschwunden. Die \xDCberlebenden warten in Lindenhain."
+    explorationHint: "Lindenhain liegt im Westen, hinter der M\xFChle."
+    objectives:
+    - rid: 8292696249713295509
+    - rid: 8292696249713295510
+    completionMode: 0
+    requiredCount: 1
+    actionOnly: 0
+    onStart: []
+    onComplete:
+    - rid: 8292696249713295511
+    branches: []
+    defaultNextStageId: 
+    failRules: []
+    endType: 1
+    ledgerEntryId: ledger.c3
+    saveLock: 0
+    markerIds: []
+    searchRadius: 50
+  rewards:
+  - rid: 8292696249713295512
+  - rid: 8292696249713295513
+  followUps: []
+  repeatMode: 0
+  cooldownHours: 0
+  canFail: 0
+  failRules: []
+  deadlineHours: 0
+  chainId: 
+  chainPosition: 0
+  ledger:
+  - id: ledger.c1
+    text: Du hast Wenna aus dem brennenden Haus geholt.
+    isConsequence: 0
+    visibleCondition:
+      rid: 8292696249713295514
+  - id: ledger.c2
+    text: "F\xFCr Wenna kam jede Hilfe zu sp\xE4t."
+    isConsequence: 0
+    visibleCondition:
+      rid: 8292696249713295515
+  - id: ledger.c3
+    text: Eine graue Gestalt hat am Riss auf dich gewartet.
+    isConsequence: 0
+    visibleCondition:
+      rid: -2
+  companionReactions: []
+  pacingMinute: 0
+  scopeTier: 0
+  author: claude
+  wordBudget: 40
+  notes: "Mini-Slice: ohne Zwischensequenzen, Musik und Aether-Sto\xDF; Risslinge und Rissbrut sind Aether-W\xF6lfe (Platzhalter)."
+  references:
+    version: 2
+    RefIds:
+    - rid: -2
+      type: {class: , ns: , asm: }
+    - rid: 8292696249713295493
+      type: {class: GoToObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
+      data:
+        id: o1
+        optional: 0
+        journalText: Zum Dorfplatz gehen
+        visibleCondition:
+          rid: -2
+        markerIds: []
+        onCompleted: []
+        locationId: loc.eichental.dorfplatz
+        radius: 15
+    - rid: 8292696249713295494
+      type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
+      data:
+        flagId: flag.eichental.dorf_zerstoert
+        value: 1
+    - rid: 8292696249713295495
+      type: {class: TalkToObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
+      data:
+        id: o1
+        optional: 0
+        journalText: Mit Hedda sprechen
+        visibleCondition:
+          rid: -2
+        markerIds: []
+        onCompleted: []
+        npcId: npc.eichental.dorfvorsteherin_hedda
+        dialogueId: 
+    - rid: 8292696249713295496
+      type: {class: GoToObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
+      data:
+        id: o1
+        optional: 0
+        journalText: Zum Dorfrand gehen
+        visibleCondition:
+          rid: -2
+        markerIds: []
+        onCompleted: []
+        locationId: loc.eichental.dorfrand
+        radius: 10
+    - rid: 8292696249713295497
+      type: {class: InteractObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
+      data:
+        id: o2
+        optional: 1
+        journalText: Befreie Tobold
+        visibleCondition:
+          rid: -2
+        markerIds: []
+        onCompleted:
+        - rid: 8292696249713295498
+        objectIds:
+        - obj.eichental.balken_tobold
+        count: 1
+        verb: use
+    - rid: 8292696249713295498
+      type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
+      data:
+        flagId: flag.eichental.tobold_gerettet
+        value: 1
+    - rid: 8292696249713295499
+      type: {class: ReachInTimeObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
+      data:
+        id: o3
+        optional: 1
+        journalText: Hol Wenna aus dem Haus
+        visibleCondition:
+          rid: -2
+        markerIds: []
+        onCompleted:
+        - rid: 8292696249713295500
+        locationId: obj.eichental.tuer_haus_wenna
+        seconds: 120
+    - rid: 8292696249713295500
+      type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
+      data:
+        flagId: flag.eichental.wenna_gerettet
+        value: 1
+    - rid: 8292696249713295501
+      type: {class: KillObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
+      data:
+        id: o1
+        optional: 0
+        journalText: Kreaturen aus dem Riss besiegen
+        visibleCondition:
+          rid: -2
+        markerIds: []
+        onCompleted: []
+        enemyTypeId: enemy.wolf.grauwolf
+        variantId: aether_verderbt
+        count: 4
+        regionId: 
+    - rid: 8292696249713295502
+      type: {class: SpawnEncounter, ns: Aetherfall.World, asm: Aetherfall.World}
+      data:
+        spawnId: spawn.eichental.dorfrand_risslinge
+    - rid: 8292696249713295503
+      type: {class: FollowTrailObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
+      data:
+        id: o1
+        optional: 0
+        journalText: Der grauen Gestalt folgen
+        visibleCondition:
+          rid: -2
+        markerIds: []
+        onCompleted: []
+        trailId: spur.eichental.graue_gestalt
+        nodeCount: 7
+    - rid: 8292696249713295504
+      type: {class: InspectCluesObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
+      data:
+        id: o2
+        optional: 1
+        journalText: Untersuche die verbrannten Runen
+        visibleCondition:
+          rid: -2
+        markerIds: []
+        onCompleted: []
+        clueIds:
+        - clue.eichental.verbrannte_runen_1
+        - clue.eichental.verbrannte_runen_2
+        count: 2
+    - rid: 8292696249713295505
+      type: {class: GoToObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
+      data:
+        id: o1
+        optional: 0
+        journalText: Zum Riss gehen
+        visibleCondition:
+          rid: -2
+        markerIds: []
+        onCompleted: []
+        locationId: loc.eichental.riss_eichental
+        radius: 20
+    - rid: 8292696249713295506
+      type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
+      data:
+        flagId: flag.main.aether_kraft_erhalten
+        value: 1
+    - rid: 8292696249713295507
+      type: {class: KillSpecificObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
+      data:
+        id: o1
+        optional: 0
+        journalText: Die Rissbrut besiegen
+        visibleCondition:
+          rid: -2
+        markerIds: []
+        onCompleted: []
+        targetId: boss.eichental.rissbrut_prolog
+        allowDefeat: 0
+    - rid: 8292696249713295508
+      type: {class: SpawnEncounter, ns: Aetherfall.World, asm: Aetherfall.World}
+      data:
+        spawnId: spawn.eichental.rissbrut_prolog
+    - rid: 8292696249713295509
+      type: {class: GoToObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
+      data:
+        id: o1
+        optional: 0
+        journalText: Nach Lindenhain gehen
+        visibleCondition:
+          rid: -2
+        markerIds: []
+        onCompleted: []
+        locationId: loc.eichental.lindenhain
+        radius: 40
+    - rid: 8292696249713295510
+      type: {class: TalkToObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
+      data:
+        id: o2
+        optional: 0
+        journalText: Mit Hedda sprechen
+        visibleCondition:
+          rid: -2
+        markerIds: []
+        onCompleted: []
+        npcId: npc.eichental.dorfvorsteherin_hedda
+        dialogueId: 
+    - rid: 8292696249713295511
+      type: {class: GiveCurrency, ns: Aetherfall.Inventory, asm: Aetherfall.Inventory}
+      data:
+        currencyId: currency.gold
+        amount: 20
+    - rid: 8292696249713295512
+      type: {class: GiveXp, ns: Aetherfall.Progression, asm: Aetherfall.Progression}
+      data:
+        mode: 0
+        amount: 500
+        levelShare: 0.5
+        referenceLevel: 0
+    - rid: 8292696249713295513
+      type: {class: GiveItem, ns: Aetherfall.Inventory, asm: Aetherfall.Inventory}
+      data:
+        itemId: item.potion.heiltrank_schwach
+        amount: 3
+    - rid: 8292696249713295514
+      type: {class: FlagIs, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
+      data:
+        flagId: flag.eichental.wenna_gerettet
+        comparison: 0
+        value: 1
+    - rid: 8292696249713295515
+      type: {class: Not, ns: Aetherfall.Conditions, asm: Aetherfall.Conditions}
+      data:
+        condition:
+          rid: 8292696249713295516
+    - rid: 8292696249713295516
+      type: {class: FlagIs, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
+      data:
+        flagId: flag.eichental.wenna_gerettet
+        comparison: 0
+        value: 1

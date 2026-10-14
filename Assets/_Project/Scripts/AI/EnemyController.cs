@@ -42,6 +42,10 @@ namespace Aetherfall.AI
         [Tooltip("Laufende Nummer dieses Gegners in der Szene; die eindeutige ID ist „Typ-ID#Nummer“.")]
         [SerializeField] private string instanceNumber = "1";
 
+        [Tooltip("Nur für benannte Gegner: feste ID statt „Typ-ID#Nummer“, z. B. boss.eichental.glutfang. Quest-Ziele " +
+                 "„Töte bestimmten Gegner“ zählen diese ID.")]
+        [SerializeField] private string uniqueId = string.Empty;
+
         [Tooltip("Wachen (an der Stelle stehen) statt Patrouillieren.")]
         [SerializeField] private bool guard = true;
 
@@ -311,7 +315,7 @@ namespace Aetherfall.AI
             }
 
             _combatant.SetController(this);
-            string id = definition.EnemyTypeId + "#" + instanceNumber;
+            string id = !string.IsNullOrEmpty(uniqueId) ? uniqueId : definition.EnemyTypeId + "#" + instanceNumber;
             _combatant.Configure(definition.Level, definition.Armor, definition.CreateResistances(), definition.MaxPoise, PoiseSettings.Normal, id,
                 definition.EnemyTypeId, definition.ParryPoiseLoss);
             Health health = _combatant.Health;

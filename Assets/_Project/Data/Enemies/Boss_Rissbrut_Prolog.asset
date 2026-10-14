@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2b04f2e4d7abd7441b9f404574a8ca56, type: 3}
+  m_Name: Boss_Rissbrut_Prolog
+  m_EditorClassIdentifier: Aetherfall.AI::Aetherfall.AI.Bosses.BossDefinition
+  bossId: boss.eichental.rissbrut_prolog
+  displayName: Rissbrut
+  title: Aus dem Riss von Eichental
+  baseType: {fileID: 11400000, guid: a672eef150b6f4d4b860056424064bda, type: 2}
+  musicId: 
+  phaseThresholds:
+  - 1
+  - 0.5
+  addsPerPhase: 0000000002000000i
+  transitionSeconds: 2.5
+  awakenSeconds: 1.5
+  guardAngle: 170
+  guardReduction: 1
+  parryOpenSeconds: 1.5
+  recoverSeconds: 0.8
+  beamFromPhase: 2
+  beamStunSeconds: 5
+  beamCooldownSeconds: 8
+  attacks: []

@@ -88,6 +88,7 @@ namespace Aetherfall.EditorTools.World
             TestGroundAssets.EnsureItemInstallersInBootConfig(items.Catalog, items.StartingEquipment, report);
             TestGroundAssets.EnsureDialogueInstallersInBootConfig(report);
             TestGroundNpcBuilder.CreateAssets(items.Catalog, report);
+            MiniSliceAssets.CreateAll(items.Catalog, report);
             TestGroundAssets.EnsureNarrativeInstallersInBootConfig(report, applyTestGroundStartLevel);
             var quests = new TestGroundQuestAssets(items.Catalog, report);
             TestGroundUiBuilder.EnsureInstallers(report);

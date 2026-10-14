@@ -11,6 +11,8 @@
         "Aetherfall.Inventory",
         "Aetherfall.Progression",
         "Aetherfall.Quests",
+        "Aetherfall.World",
+        "Aetherfall.World.Gameplay",
         "Aetherfall.Dialogue",
         "Aetherfall.NPC",
         "Aetherfall.EditorTools.Core"

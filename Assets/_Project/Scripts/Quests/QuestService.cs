@@ -50,6 +50,7 @@ namespace Aetherfall.Quests
         private readonly IPlaytimeClock _clock;
         private readonly ISaveManager _saveManager;
         private readonly QuestAvailabilityService _availability;
+        private readonly QuestAutoStarter _autoStarter;
         private readonly Dictionary<string, QuestInstance> _instances = new Dictionary<string, QuestInstance>(StringComparer.Ordinal);
         private readonly List<QuestInstance> _order = new List<QuestInstance>();
         private readonly Dictionary<string, List<ObjectiveBinding>> _bindings = new Dictionary<string, List<ObjectiveBinding>>(StringComparer.Ordinal);
@@ -89,6 +90,7 @@ namespace Aetherfall.Quests
             _saveManager = saveManager;
             Router = new ObjectiveEventRouter(bus, this);
             _availability = new QuestAvailabilityService(this, bus, watcher, catalog, services);
+            _autoStarter = new QuestAutoStarter(bus, this, catalog);
         }
 
         /// <inheritdoc />
@@ -602,6 +604,7 @@ namespace Aetherfall.Quests
             ClearState();
             Router.Dispose();
             _availability.Dispose();
+            _autoStarter.Dispose();
             _disposed = true;
         }
 

@@ -19,5 +19,5 @@ MonoBehaviour:
   min: 0
   max: 0
   enumValues: []
-  description: 
+  description: "Wenna wurde im Prolog aus der brennenden B\xE4ckerei geholt."
   carryToNewGamePlus: 0
