@@ -35,6 +35,12 @@ namespace Aetherfall.EditorTools.Narrative
         /// <summary>Quest 7 (dungeon).</summary>
         public const string Crypt = "quest.dungeon.eichental.vergessene_gruft";
 
+        /// <summary>
+        /// Level of quest 7 and area level of the crypt. Mini-Slice: 4 instead of 6 (GDD 02 11.7), because only quests 1 and 2
+        /// lie before it (the player arrives at level 3–4); back to 6 with Stufe A.
+        /// </summary>
+        public const int CryptLevel = 4;
+
         /// <summary>Hedda Eichholz (prologue giver and turn-in).</summary>
         public const string Hedda = "npc.eichental.dorfvorsteherin_hedda";
 
@@ -270,7 +276,7 @@ namespace Aetherfall.EditorTools.Narrative
                 .Title("Die vergessene Gruft",
                     "Corvin Ascher vom Aether-Konvent will den Siegelstein aus der Gruft der Eichenritter. Der Eingang liegt in der Senke unter dem Rabenfels.")
                 .Category(QuestCategory.Dungeon)
-                .Level(6, string.Empty, "Moralischer Preis")
+                .Level(CryptLevel, string.Empty, "Moralischer Preis")
                 .Giver(Corvin, Corvin, Dorn)
                 .StartTrigger(QuestStartTriggerKind.AreaEntered, "loc.eichental.vergessene_gruft")
                 .StartCondition(new QuestStatusIs(Prologue, QuestStatus.Completed))
@@ -331,9 +337,9 @@ namespace Aetherfall.EditorTools.Narrative
                     .EndSuccess())
                 .LedgerEntry("ledger.c1", "Du hast den Siegelstein aus der Gruft genommen. Nachts gehen im Tal Untote um.", true)
                 .LedgerEntry("ledger.c2", "Du hast den Siegelstein in der Gruft gelassen. Die Toten schlafen weiter.")
-                .Rewards(new GiveXp(0.6f, 6))
+                .Rewards(new GiveXp(0.6f, CryptLevel))
                 .Production(ContentStatus.Draft, QuestScopeTier.A, 150, "claude", 35,
-                    "Mini-Slice: ohne Fraktionsruf; Klingenfragment und Siegelstein geben die Objekte der Gruft (Anleitung 12, 11.4).")
+                    "Mini-Slice: Stufe 4 statt 6, ohne Fraktionsruf; Klingenfragment und Siegelstein geben die Objekte der Gruft (Anleitung 12, 11.4).")
                 .Build();
         }
 

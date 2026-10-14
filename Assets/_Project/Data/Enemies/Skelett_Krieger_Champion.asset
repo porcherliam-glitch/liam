@@ -15,7 +15,7 @@ MonoBehaviour:
   enemyTypeId: enemy.untot.skelett_krieger
   variantId: champion
   displayName: Der Wachende Ritter
-  level: 9
+  level: 7
   lootTableId: loot.boss.wachender_ritter
   baseHealth: 80
   healthVariantFactor: 4

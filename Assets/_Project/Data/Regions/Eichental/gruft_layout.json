@@ -9,7 +9,7 @@
   "questId": "quest.dungeon.eichental.vergessene_gruft",
   "worldSpaceId": "worldspace.eichental.gruft",
   "sceneKey": "Assets/_Project/Scenes/Dungeons/Gruft.unity",
-  "areaLevel": 6,
+  "areaLevel": 4,
   "cellSize": 1,
   "wallThickness": 0.6,
   "source": "GDD 02, 11.7 (Stages, Rätsel, Mini-Boss, IDs) · GDD 01, 4.1 und 11 (Gruft der Eichenritter, Skelett-Krieger, Der Wachende Ritter) · GDD 03, 9.6 (Boss-Regeln) · Architektur 10.8 (eigene Szene)",
@@ -20,7 +20,8 @@
     "Ablauf nach GDD 02, 11.7: Vorraum mit Grabplatten-Rätsel (s20) → Hallen der Eichenritter mit 6 Skelett-Kriegern (s30), Käfig mit Fenn, Nebenkammer, Seitengang für Schleicher → Spiegelsaal = Siegelkammer-Vorraum mit Spiegel-Rätsel (s40) → Siegelkammer mit dem Wachenden Ritter (s50) und dem Siegelstein (s60) → Fluchtweg nach draußen.",
     "Vorschlag: Der vierte Spiegel in der Siegelkammer bekommt erst in Phase 2 Licht (der Ritter schlägt mit dem Schild auf den Boden, der Spalt bricht auf). So ist die Mechanik genau dann da, wenn GDD 02 sie verlangt.",
     "Vorschlag: Rätsel-Hinweis nach 120 s ohne Fortschritt: Ohne Begleiter (Mini-Slice) leuchten die Fairness-Hinweise (Inschrift bzw. Rußspuren) auf.",
-    "Boss-Arena: Der Kampfbereich beginnt 3,6 m hinter dem Fallgitter (z 62,4 → 66), das Gitter fällt in ca. 0,6 s. So ist der Spieler sicher in der Arena, wenn es zufällt (Validator-Regel arena.gate_gap: mindestens 3 m)."
+    "Boss-Arena: Der Kampfbereich beginnt 3,6 m hinter dem Fallgitter (z 62,4 → 66), das Gitter fällt in ca. 0,6 s. So ist der Spieler sicher in der Arena, wenn es zufällt (Validator-Regel arena.gate_gap: mindestens 3 m).",
+    "Mini-Slice: Gebietsstufe 4 statt 6 (GDD 02, 11.7). Vor der Gruft liegen im Mini-Slice nur zwei Quests, der Spieler kommt mit Stufe 3–4 an. Skelette Stufe 4, Elite 6, Ritter 7 (Regeln GDD 03 9.7: Elite +2, Champion +3). Mit Stufe A (mehr Quests davor) wieder auf 6."
   ],
   "atmosphere": {
     "ambientColor": "#262B38",

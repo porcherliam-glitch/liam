@@ -15,7 +15,7 @@ MonoBehaviour:
   enemyTypeId: enemy.untot.skelett_krieger
   variantId: normal
   displayName: Skelett-Krieger
-  level: 6
+  level: 4
   lootTableId: loot.enemy.untot.skelett
   baseHealth: 80
   healthVariantFactor: 1

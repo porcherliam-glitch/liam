@@ -21,16 +21,14 @@ Stand: 2026-10-14. Diese Schritte hat Claude auf deinem PC schon im Hintergrund 
 1. Unten im Fenster **Console** (falls nicht sichtbar: Menü **Window > General > Console**). Es dürfen **keine roten Fehler** stehen.
 2. Menü **Aetherfall > Projekt-Setup …** öffnen. Alle Schritte sollten ✓ zeigen. Ein Punkt bleibt bewusst offen:
    - **Rendering Path** ✗ beim Renderer „Mobile“: wird nicht benutzt, kann so bleiben.
-3. Menü **Window > General > Test Runner**, Reiter **EditMode**, **Run All**. Ergebnis: 2159 grün, 2 grau („unentschieden“).
+3. Menü **Window > General > Test Runner**, Reiter **EditMode**, **Run All**. Ergebnis: 2179 grün, 2 grau („unentschieden“).
 
 ## 4. Spiel kurz anspielen
-
-**Hinweis:** Den Play Mode hat Claude noch nicht selbst ausprobiert. Das ist der nächste Schritt.
 
 1. Im Project-Fenster `Assets/_Project/Scenes/Boot/Boot.unity` doppelklicken.
 2. Oben auf ▶ (Play) drücken.
 3. Hauptmenü → **Neues Spiel**. Du solltest im Dorf Eichental starten.
-4. Steuerung: siehe [Anleitung 03](./03_Test_Spielfigur.md) und [Anleitung 05](./05_Test_Kampf.md).
+4. Tasten und Ablauf: siehe [Anleitung 15 – Den Mini-Slice spielen](./15_Mini-Slice_spielen.md).
 5. Mit ▶ wieder beenden.
 
 Wenn etwas komisch aussieht oder rote Fehler kommen: Screenshot machen und Claude schicken.

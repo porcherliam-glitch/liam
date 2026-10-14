@@ -15,7 +15,7 @@ MonoBehaviour:
   enemyTypeId: enemy.untot.skelett_krieger
   variantId: elite
   displayName: Skelett-Krieger (Turmschild)
-  level: 8
+  level: 6
   lootTableId: loot.enemy.untot.skelett
   baseHealth: 80
   healthVariantFactor: 2

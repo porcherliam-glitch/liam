@@ -29,7 +29,7 @@ namespace Aetherfall.Tests.EditMode.Gruft
             Assert.That(_layout.LocationId, Is.EqualTo("loc.eichental.vergessene_gruft"));
             Assert.That(_layout.QuestId, Is.EqualTo("quest.dungeon.eichental.vergessene_gruft"));
             Assert.That(_layout.SceneKey, Is.EqualTo("Assets/_Project/Scenes/Dungeons/Gruft.unity"), "architecture 10.8: own dungeon scene");
-            Assert.That(_layout.AreaLevel, Is.EqualTo(6), "GDD 02 11.7: recommended level 6");
+            Assert.That(_layout.AreaLevel, Is.EqualTo(4), "Mini-Slice: level 4 instead of 6 (GDD 02 11.7), only quests 1 and 2 lie before it");
         }
 
         [Test]

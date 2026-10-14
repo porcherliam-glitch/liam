@@ -12,7 +12,7 @@ namespace Aetherfall.EditorTools.World
 {
     /// <summary>
     /// Data of the crypt (GDD 02 11.7; GDD 03 9 and 10.6; GDD 04 5): the skeleton warrior <c>enemy.untot.skelett_krieger</c>
-    /// as normal (level 6), elite with tower shield (level 8) and champion (base of the boss, level 9) with its attacks, the
+    /// as normal, elite with tower shield and champion (base of the boss) at the levels of GruftPaths with its attacks, the
     /// boss "Der Wachende Ritter" (<see cref="BossDefinition"/>: phases 100 %/50 %, 2 adds, shield bash, sword blow, charge,
     /// spin), the loot tables of the skeletons and of the boss, the quest items blade fragment and seal stone, and their entries
     /// in the content catalog. Existing assets stay unchanged.
@@ -43,6 +43,10 @@ namespace Aetherfall.EditorTools.World
             Skeleton = EnsureSkeleton(GruftPaths.SkeletonPath, DungeonVariant.Normal, blow, thrust);
             SkeletonElite = EnsureSkeleton(GruftPaths.SkeletonElitePath, DungeonVariant.Elite, blow, thrust);
             SkeletonChampion = EnsureSkeleton(GruftPaths.SkeletonChampionPath, DungeonVariant.Champion, blow, thrust);
+            // The levels follow the area level (GruftPaths), also for skeletons created by an earlier run.
+            SetLevel(Skeleton, GruftPaths.SkeletonLevel);
+            SetLevel(SkeletonElite, GruftPaths.EliteLevel);
+            SetLevel(SkeletonChampion, GruftPaths.BossLevel);
             Boss = EnsureBoss(SkeletonChampion, bash, sword, charge, spin);
 
             EnsureLootTable("Loot_Skelett", GruftPaths.SkeletonLootTableId, 1, 1, -1, new[]
@@ -236,6 +240,20 @@ namespace Aetherfall.EditorTools.World
                 TestGroundSerialized.Set(so, "shakeAmplitude", spec.ShakeAmplitude, report);
                 TestGroundSerialized.Set(so, "shakeDuration", spec.ShakeDuration, report);
             });
+        }
+
+        private void SetLevel(EnemyTypeDefinition type, int level)
+        {
+            if (type == null || type.Level == level)
+            {
+                return;
+            }
+
+            var serialized = new SerializedObject(type);
+            TestGroundSerialized.Set(serialized, "level", level, _report);
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(type);
+            _report.Info(type.name + ": Stufe " + level + ".");
         }
 
         private EnemyTypeDefinition EnsureSkeleton(string path, DungeonVariant variant, AttackDefinition blow, AttackDefinition thrust)
