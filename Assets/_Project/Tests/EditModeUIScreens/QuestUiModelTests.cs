@@ -58,7 +58,7 @@ namespace Aetherfall.Tests.EditMode.UIScreens
             QuestLogEntry row = _rows[0];
             Assert.That(row.QuestId, Is.EqualTo(TestGroundQuestLibrary.WolfHuntId));
             Assert.That(row.Title, Is.EqualTo(WolfTitle));
-            Assert.That(row.Info, Is.EqualTo("Nebenquest · Stufe 2"));
+            Assert.That(row.Info, Is.EqualTo("Nebenquest · Stufe 10"), "recommended level of the test quests = start level of the test ground");
             Assert.That(row.Badge, Is.EqualTo("Fokus"), "the first tracked quest becomes the focus quest");
             Assert.That(row.CategoryClass, Is.EqualTo("af-cat--side"));
             Assert.That(row.Tracked && row.Focus && !row.Finished, Is.True);
@@ -121,7 +121,7 @@ namespace Aetherfall.Tests.EditMode.UIScreens
 
             Assert.That(QuestDetailsBuilder.Fill(_env.Quests, TestGroundQuestLibrary.WolfHuntId, details), Is.True);
             Assert.That(details.Title, Is.EqualTo(WolfTitle));
-            Assert.That(details.Meta, Is.EqualTo("Nebenquest · empfohlen ab Stufe 2"));
+            Assert.That(details.Meta, Is.EqualTo("Nebenquest · empfohlen ab Stufe 10"));
             Assert.That(details.Description, Does.StartWith("Ein Aushang an der Anschlagtafel"));
             Assert.That(details.CurrentTitle, Is.EqualTo("Aktueller Stand"));
             Assert.That(details.CurrentText, Does.StartWith("Drei Wölfe streifen"));

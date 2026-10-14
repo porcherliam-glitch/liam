@@ -53,6 +53,11 @@
     }
   };
 
+  /** CharacterSheetModel.Number: whole number with German thousands dots ("2.500"). */
+  function germanNumber(value) {
+    return String(Math.trunc(value)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  }
+
   /** NotificationRules.FormatText */
   function formatNotification(kind, text, amount) {
     switch (kind) {
@@ -594,10 +599,10 @@
     }
 
     // RefreshCharacter
-    AF.setText(q('character-level'), AF.format('fmt-character-level', c.level));
+    AF.setText(q('character-level'), AF.format('fmt-character-level', germanNumber(c.level)));
     AF.setFill(q('character-xp-fill'), c.xpInto / c.xpNext);
-    AF.setText(q('character-xp-text'), AF.format('fmt-character-xp', c.xpInto, c.xpNext));
-    AF.setText(q('character-points'), AF.format('fmt-character-points', c.attributePoints, c.skillPoints));
+    AF.setText(q('character-xp-text'), AF.format('fmt-character-xp', germanNumber(c.xpInto), germanNumber(c.xpNext)));
+    AF.setText(q('character-points'), AF.format('fmt-character-points', germanNumber(c.attributePoints), germanNumber(c.skillPoints)));
     AF.enableClass(q('character-points'), 'has-points', c.attributePoints > 0);
     screen.bindGlyphs();
 

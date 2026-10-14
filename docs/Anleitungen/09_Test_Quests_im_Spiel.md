@@ -50,7 +50,7 @@ Voraussetzung: [Anleitung 01](./01_Projekt-Setup.md) bis [Anleitung 08](./08_Tes
 | **Testgelände** | Anschlagtafel nordwestlich vom Startpunkt, Zone „Übungsplatz“ (8 × 8 m) um die Trainingspuppe, Wölfe der Arena kommen nach 45 s zurück, zwei Test-Quests (für Stufe 10) und zwei Flags als Dateien (Assets), vier neue Installer in der BootConfig, **Startstufe 10** für ein neues Spiel (nur zum Testen), Quest-Prüfung läuft automatisch mit. |
 | **Oberfläche** | Quest-Verfolgung im HUD mit Abhak-Animation, EP-Leiste, Quest-Meldungen (GDD 02, 7.5), Questlog, Charakter-Seite, neuer Eintrag im Pausemenü. |
 | **Spielstart/Hauptmenü** | Beim Zurückkehren ins Hauptmenü räumen Quests und Bedingungen jetzt richtig auf; ein neues Spiel beginnt sauber. |
-| **Tests** | rund 210 neue automatische Testfälle (insgesamt jetzt TESTZAHL_GESAMT, davon TESTZAHL_OHNE auch ohne Pakete), u. a. die EP-Kurve bis Stufe 80, die Überlevel-Abschwächung, beide Test-Quests komplett durchgespielt (auch beide Wege der zweiten Quest, Stufe 11 und Speichern mitten in der Quest), Startstufe und Ausrüstung des Testgeländes, Orts-Zonen nach einem Teleport, Questlog, Meldungen, Charakter-Seite (abgerundete Werte), Taste J und Pausemenü-Eintrag. |
+| **Tests** | rund 210 neue automatische Testfälle (insgesamt jetzt 1658, davon 908 auch ohne Pakete), u. a. die EP-Kurve bis Stufe 80, die Überlevel-Abschwächung, beide Test-Quests komplett durchgespielt (auch beide Wege der zweiten Quest, Stufe 11 und Speichern mitten in der Quest), Startstufe und Ausrüstung des Testgeländes, Orts-Zonen nach einem Teleport, Questlog, Meldungen, Charakter-Seite (abgerundete Werte), Taste J und Pausemenü-Eintrag. |
 
 ---
 
@@ -170,7 +170,7 @@ Ist ein Test **rot**: anklicken, unten erscheint die Meldung. Text abschreiben o
 10. **E** drücken.
     **Du siehst danach:**
     - oben in der Mitte groß „**Quest abgeschlossen: Wolfsjagd im Testgelände**“,
-    - rechts „+1.110 EP“, „+50 Gold“, „Kleiner Heiltrank ×2“ (die EP-Leiste ist jetzt gut halb voll; eine neue Stufe gibt es erst mit Quest 2),
+    - rechts „+1110 EP“, „+50 Gold“, „Kleiner Heiltrank ×2“ (die EP-Leiste ist jetzt gut halb voll; eine neue Stufe gibt es erst mit Quest 2),
     - die Tafel glitzert weiter: Sie bietet jetzt **Quest 2** an.
 11. **J** drücken und mit **C** (Gamepad **RT**) bis zur Kategorie **Abgeschlossen** gehen.
     **Du siehst danach:** „Wolfsjagd im Testgelände“ mit „Abgeschlossen“, rechts „Ausgang“ und unter „Entscheidungen“: „Du hast drei Wölfe in der Kampfarena erlegt und das Fell an der Anschlagtafel abgegeben.“ Unten in der Fußzeile fehlen hier „Verfolgen“ und „Als Fokus“ – abgeschlossene Quests kann man nicht verfolgen.
@@ -188,9 +188,9 @@ Diese Quest gibt es erst, wenn Quest 1 abgeschlossen ist (Flag `flag.test.wolfsj
 2. Zur **Trainingspuppe** gehen (südwestlich vom Startpunkt). Um sie herum markieren vier kleine Pfosten den **Übungsplatz** (8 × 8 m).
    **Du siehst danach:** beim Betreten „Erledigt: Zum Übungsplatz gehen“ und „Die Bewährungsprobe: Eine Truhe öffnen“. Rechts oben stehen jetzt **zwei** Ziele: „Eine Truhe öffnen“ und „Trainingspuppe treffen 0/3“. Eines davon reicht.
 3. **Weg A – Truhe:** Eine der drei Truhen beim Startpunkt öffnen (**E**).
-   **Du siehst danach:** „Erledigt: Eine Truhe öffnen“, dann „Quest abgeschlossen: Die Bewährungsprobe“, Belohnung **+1.110 EP, +20 Gold** und zusätzlich **+25 Gold** für die Truhe.
+   **Du siehst danach:** „Erledigt: Eine Truhe öffnen“, dann „Quest abgeschlossen: Die Bewährungsprobe“, Belohnung **+1110 EP, +20 Gold** und zusätzlich **+25 Gold** für die Truhe.
    **Weg B – Puppe:** Die Trainingspuppe dreimal treffen (linke Maustaste).
-   **Du siehst danach:** „Trainingspuppe treffen (1/3)“ … „(3/3)“, dann „Quest abgeschlossen“, Belohnung **+1.110 EP, +20 Gold** und zusätzlich **+60 EP**.
+   **Du siehst danach:** „Trainingspuppe treffen (1/3)“ … „(3/3)“, dann „Quest abgeschlossen“, Belohnung **+1110 EP, +20 Gold** und zusätzlich **+60 EP**.
    **Bei beiden Wegen:** das Banner „**Stufe 11 erreicht!**“ und rechts „Neue Punkte – im Charakter-Menü verteilen“.
 4. **J** → Kategorie **Abgeschlossen** → „Die Bewährungsprobe“.
    **Du siehst danach:** unter „Ausgang“ je nach Weg „Du hast eine Truhe geöffnet – Neugier zahlt sich aus.“ bzw. „Die Trainingspuppe hat drei Treffer eingesteckt – deine Technik sitzt.“ und unter „Entscheidungen“ der passende Satz („… 25 Gold extra …“ bzw. „… 60 Erfahrung extra …“).
@@ -225,6 +225,8 @@ Skillpunkte werden gesammelt; den Skillbaum gibt es noch nicht.
    **Du siehst danach:** nach dem Laden rechts oben wieder „Wölfe besiegen **1/3**“ (für 8 Sekunden), im Questlog ebenso. EP, Stufe und Gold sind wieder wie beim Speichern.
 4. **Esc** → **Hauptmenü** (gedrückt halten) → **Neues Spiel**.
    **Du siehst danach:** Die Tafel bietet wieder „Wolfsjagd im Testgelände“ an, das Questlog ist leer, Stufe 10 (die Startstufe des Testgeländes) mit 0 EP.
+5. **Orts-Zone nach dem Laden:** Quest 1 erledigen, Quest 2 aber **noch nicht** annehmen. Auf den Übungsplatz gehen (zwischen die vier Pfosten), **F5** drücken und gleich danach **F9**. Du stehst nach dem Laden wieder auf dem Übungsplatz. Jetzt den Übungsplatz verlassen, an der Tafel Quest 2 annehmen und zurück auf den Übungsplatz gehen.
+   **Du siehst danach:** „Erledigt: Zum Übungsplatz gehen“ wie in Abschnitt 7, Schritt 2. (Früher konnte die Zone nach dem Laden „vergessen“, dass du sie verlassen hast, und meldete das Betreten dann nie wieder.)
 
 ---
 
@@ -239,12 +241,12 @@ Skillpunkte werden gesammelt; den Skillbaum gibt es noch nicht.
 - [ ] Beim 3. Wolf: grüner Haken mit kurzem grünem Aufleuchten, danach das nächste Ziel.
 - [ ] Meldungen kommen höchstens alle 2 Sekunden je Quest („Wölfe besiegen (2/3)“ kommt ggf. etwas später).
 - [ ] Neues Spiel: Figur auf Stufe 10, im Debug-Overlay „LP 328/328“ wie in Anleitung 05; Schild ablegen und wieder anlegen klappt (Anleitung 06, 7.2).
-- [ ] Abgabe an der Tafel: Banner „Quest abgeschlossen“, +1.110 EP, +50 Gold, 2 Heiltränke (noch keine neue Stufe).
+- [ ] Abgabe an der Tafel: Banner „Quest abgeschlossen“, +1110 EP, +50 Gold, 2 Heiltränke (noch keine neue Stufe).
 - [ ] EP-Leiste unten in der Mitte erscheint 4 s nach jedem EP-Gewinn.
 - [ ] Ohne Fell an der Tafel melden: Quest springt zurück auf „Wolfsfell aufheben“.
 - [ ] Quest 2 erst nach Quest 1 verfügbar; Zone „Übungsplatz“ hakt „Zum Übungsplatz gehen“ ab.
-- [ ] Weg A (Truhe) und Weg B (Puppe 3×) führen beide zum Abschluss, mit unterschiedlichem Bonus und Entscheidungs-Text, +1.110 EP, „Stufe 11 erreicht!“ und Hinweis auf neue Punkte.
-- [ ] Auf dem Übungsplatz F5, später F9 (beim Laden stehst du wieder in der Zone), dann hinaus und wieder hinein: Ein neues „Zum Übungsplatz gehen“ (z. B. nach „Neues Spiel“) wird weiterhin abgehakt.
+- [ ] Weg A (Truhe) und Weg B (Puppe 3×) führen beide zum Abschluss, mit unterschiedlichem Bonus und Entscheidungs-Text, +1110 EP, „Stufe 11 erreicht!“ und Hinweis auf neue Punkte.
+- [ ] Orts-Zone nach dem Laden: auf dem Übungsplatz F5 und F9, hinaus, Quest 2 annehmen, wieder hinein → „Zum Übungsplatz gehen“ wird abgehakt (Abschnitt 9, Schritt 5).
 - [ ] Questlog: **J** öffnet, **Esc**/**J** schließt; mit dem Gamepad über **Start → Questlog & Charakter**, schließen mit **B**.
 - [ ] Questlog: **Q/E** bzw. **LB/RB** wechseln den Reiter, **Z/C** (bzw. **Y/C**) bzw. **LT/RT** die Kategorie; leere Kategorien sind dunkler.
 - [ ] Questlog: **Enter**/**A** schaltet „Verfolgt“ um (die Quest verschwindet rechts oben bzw. kommt zurück), **F**/**X** macht sie zur Fokus-Quest.
@@ -341,6 +343,8 @@ Tests wie in der [CLAUDE.md](../../CLAUDE.md) (`-runTests -testPlatform EditMode
 | P1-Meldungen | GDD 05, 1.7: „rechts unter der Questanzeige“ | rücken automatisch unter die Quest-Verfolgung, wenn sie sichtbar ist | wie im GDD |
 | Quest-Meldungen beim Laden | – | während des Ladens keine Quest-Meldungen | ein geladenes Spiel zählt seine Ziele neu; das wären sonst falsche „Erledigt“-Meldungen |
 | Tastenbeschriftung Z | – | die Tastensymbole zeigen die US-Beschriftung („Z“); auf deutschen Tastaturen ist es die Taste **Y** | Das Input System bindet Tasten nach ihrer Lage. **Vorschlag:** später die Beschriftung aus dem aktuellen Tastatur-Layout lesen. |
+| Startstufe eines neuen Spiels | GDD 03, 12: Start auf Stufe 1 | Im Testgelände **Stufe 10**. Das Menü „Testgelände erstellen“ stellt am `ProgressionInstaller` das Feld „Startstufe neues Spiel (nur Test)“ auf 10; Standard ist 1 | Die Testfigur ist seit Anleitung 05 ein Krieger der Stufe 10 (328 LP). Startausrüstung und Truhen haben Item-Level 10, das ist ab Stufe 7 anlegbar (GDD 04, 2.4). Auf Stufe 1 ließe sich nichts davon wieder anlegen, und die Werte aus Anleitung 05 und 06 stimmten nicht mehr. **Vor dem Mini-Slice wieder auf 1 stellen** (steht auch in der Status-Liste). |
+| Belohnung der Test-Quests | GDD 02, 2.2: Nebenquests bis Stufe 10 geben 0,3–0,5 Stufen | beide je 0,5 Stufen bei empfohlener Stufe 10 (je 1.110 EP) | So passt es zur Startstufe 10: keine Abschwächung, und der Stufenaufstieg kommt genau mit der zweiten Quest. |
 
 **Noch offen (TODO):**
 
@@ -351,3 +355,5 @@ Tests wie in der [CLAUDE.md](../../CLAUDE.md) (`-runTests -testPlatform EditMode
 - Resistenzen, Verderbnis, Titel und Paragon auf der Charakter-Seite (GDD 05, 1.3) – mit ihren Systemen.
 - Skillbaum für die Skillpunkte.
 - Speichern der Optionen (HUD-Anzeige) – mit dem Optionen-Schritt.
+- Hauptquests bekommen eine eigene, mildere Abschwächung: 10 % weniger je Stufe über „Story-Korridor + 3“, höchstens bis auf 50 % (GDD 03, 12.7). Das kommt, sobald es den Story-Korridor gibt. Bis dahin gilt für alle Quests mit empfohlener Stufe die Abschwächung aus GDD 02, 8.4.
+- Vor dem Mini-Slice: „Startstufe neues Spiel (nur Test)“ am `ProgressionInstaller` zurück auf 1.
