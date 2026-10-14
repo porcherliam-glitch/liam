@@ -82,7 +82,7 @@ Der Rest ist Platzhalter: einfache Formen, später Blender-Modelle oder kostenlo
 | `EditorTools.World` | **Testgelände erstellen**, **Eichental erstellen**, **Gruft erstellen**, **Oberfläche einrichten**, **Neues Spiel startet in …**, **Szene öffnen …** |
 | `EditorTools.Narrative` | **Quests prüfen** (Dialoge prüfen liegt in `Dialogue`) |
 
-Tests liegen unter `Assets/_Project/Tests/` (EditMode, getrennt nach Bereich). Stand 2026-10-14: **2066 Tests grün im Harness**.
+Tests liegen unter `Assets/_Project/Tests/` (EditMode, getrennt nach Bereich). Stand 2026-10-14 nach Dorf und Gruft: **2159 Tests grün im Harness** (dazu 1 nur in Unity; 1194 auch ohne Pakete).
 
 **Zuletzt fertig (Cloud-Sitzung, 2026-10-14):**
 - **Dorf Eichental:** Generator und Layout fertig, alle 11 Prüfbefunde eingearbeitet ([Anleitung 11](docs/Anleitungen/11_Test_Eichental.md)).
