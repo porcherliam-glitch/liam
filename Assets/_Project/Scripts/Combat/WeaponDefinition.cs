@@ -30,6 +30,9 @@ namespace Aetherfall.Combat
         [Tooltip("Skalierung mit Geschick (Einhandschwert 0,4).")]
         [Range(0f, 1f)] [SerializeField] private float dexterityWeight = 0.4f;
 
+        [Tooltip("Skalierung mit Intelligenz (Zauberstab 1,0, GDD 03 5.3).")]
+        [Range(0f, 1f)] [SerializeField] private float intelligenceWeight = 0f;
+
         [Header("Moveset")]
         [Tooltip("Leichte Kombo (3–5 Schläge).")]
         [SerializeField] private ComboDefinition lightCombo = null;
@@ -92,7 +95,7 @@ namespace Aetherfall.Combat
                 BaseDamage = baseDamage,
                 DamageType = damageType,
                 WeaponPoise = weaponPoise,
-                Scaling = new AttributeScaling(strengthWeight, dexterityWeight),
+                Scaling = new AttributeScaling(strengthWeight, dexterityWeight, intelligenceWeight),
                 LightCombo = combo,
                 Heavy = heavyAttack.CreateSpec(),
                 Sprint = sprintAttack.CreateSpec(),

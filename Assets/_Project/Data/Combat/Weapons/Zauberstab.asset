@@ -1,0 +1,31 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9eeee2139787c02469ffd1f259de1cff, type: 3}
+  m_Name: Zauberstab
+  m_EditorClassIdentifier: Aetherfall.Combat::Aetherfall.Combat.WeaponDefinition
+  weaponId: item.weapon.lehrlingsstab
+  baseDamage: 20
+  damageType: 3
+  weaponPoise: 8
+  strengthWeight: 0
+  dexterityWeight: 0
+  intelligenceWeight: 1
+  lightCombo: {fileID: 11400000, guid: 03e1f5eae3218ab4394230152cd830ff, type: 2}
+  heavyAttack: {fileID: 11400000, guid: cb1f5d3f7ec791f4e889addfac8c6a80, type: 2}
+  sprintAttack: {fileID: 11400000, guid: 9f6fc45fb01b7d241b97ef82881cf663, type: 2}
+  jumpAttack: {fileID: 11400000, guid: e33ff5f30b96db841b5f6cb9ade534e1, type: 2}
+  counterAttack: {fileID: 11400000, guid: 7c7b48c0f3fdce04f98e61d3ab2462bd, type: 2}
+  finisher: {fileID: 11400000, guid: ba1c059aa56a6ef4997cf95b904a6d43, type: 2}
+  blockAngle: 140
+  blockPhysicalReduction: 0.8
+  blockElementalReduction: 0.8
+  blockStability: 0.3

@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7a517c3c3a178694a8158ba37060af3f, type: 3}
+  m_Name: Klasse_Magier
+  m_EditorClassIdentifier: Aetherfall.Classes::Aetherfall.Classes.ClassDefinition
+  classId: class.magier
+  displayName: Magier
+  motto: Feuer, Eis und Sturm gehorchen mir.
+  description: "Kampf auf Abstand mit dem Lehrlingsstab: Feuergeschosse (Maustaste links) und ein gro\xDFer Feuerball (rechts). Wenig Leben, viel Mana \u2013 halte Gegner auf Abstand. Start mit Stoffrobe, 3 Heil- und 3 Manatr\xE4nken."
+  strength: 8
+  dexterity: 10
+  intelligence: 15
+  wisdom: 13
+  constitution: 10
+  charisma: 10
+  startingEquipment: {fileID: 11400000, guid: 34f708f3ef8b9064b93e0a7594035087, type: 2}

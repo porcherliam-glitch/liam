@@ -22,6 +22,9 @@ namespace Aetherfall.EditorTools.World
         /// <summary>Wooden shield of the starting kit.</summary>
         public const string WoodenShield = Folder + "/Holzschild.fbx";
 
+        /// <summary>Apprentice staff of the mage (crystal slot "Stab_Kristall_Leuchten").</summary>
+        public const string Staff = Folder + "/Zauberstab.fbx";
+
         /// <summary>Grey wolf.</summary>
         public const string Wolf = Folder + "/Wolf.fbx";
 

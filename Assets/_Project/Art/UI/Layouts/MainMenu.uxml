@@ -26,6 +26,17 @@
             <ui:VisualElement name="mainmenu-page" class="af-mainmenu__page">
                 <ui:VisualElement name="mainmenu-load-page" class="af-page" />
                 <ui:VisualElement name="mainmenu-options-page" class="af-page" />
+                <!-- Class choice of a new game (GDD 03 11.2, decision of the client: at "Neues Spiel"). -->
+                <ui:VisualElement name="mainmenu-class-page" class="af-page">
+                    <ui:Label name="mainmenu-class-title" class="af-text af-page__title" />
+                    <ui:VisualElement name="mainmenu-class-list" class="af-menu-list af-classpage__list">
+                        <ui:Button name="mainmenu-class-0" class="af-text af-button" focusable="false" />
+                        <ui:Button name="mainmenu-class-1" class="af-text af-button" focusable="false" />
+                    </ui:VisualElement>
+                    <ui:Label name="mainmenu-class-motto" class="af-text af-classpage__motto" />
+                    <ui:Label name="mainmenu-class-description" class="af-text af-page__note af-classpage__description" />
+                    <ui:Label name="mainmenu-class-values" class="af-text af-classpage__values" />
+                </ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>
         <ui:VisualElement class="af-footer" picking-mode="Ignore">

@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using Aetherfall.AI;
+using Aetherfall.EditorTools.Core;
 using Aetherfall.Inventory;
 using Aetherfall.Items;
 using Aetherfall.Progression;
@@ -27,20 +29,124 @@ namespace Aetherfall.EditorTools.World
         /// <summary>Folder of the level copies of the enemy types used in the Eichental.</summary>
         public const string EnemyFolder = TestGroundPaths.EnemyFolder + "/Eichental";
 
-        /// <summary>Sets start level and kit of the mini slice.</summary>
+        /// <summary>Kit of the mage (GDD 03 11.2).</summary>
+        public const string MageEquipmentPath = TestGroundPaths.ItemSettingsFolder + "/Startausruestung_Magier_MiniSlice.asset";
+
+        /// <summary>Folder of the class assets.</summary>
+        public const string ClassFolder = SetupPaths.ProjectFolder + "/Data/Classes";
+
+        /// <summary>Installer of the classes in the BootConfig.</summary>
+        public const string ClassInstallerPath = SetupPaths.BootSettingsFolder + "/ClassInstaller.asset";
+
+        /// <summary>Sets start level, kits and the classes (warrior, mage) of the mini slice.</summary>
         /// <param name="report">Protocol.</param>
         public static void Apply(TestGroundReport report)
         {
             SetStartLevel(StartLevel, report);
-            SetStartingEquipment(EnsureKit(report), report);
+            StartingEquipment warriorKit = EnsureKit(report);
+            SetStartingEquipment(warriorKit, report);
+            StartingEquipment mageKit = EnsureMageKit(report);
+            var classes = new List<Object>
+            {
+                // GDD 03 11.2: start attributes Str / Dex / Int / Wis / Con / Cha (sum 66).
+                EnsureClass("Klasse_Krieger", "class.krieger", "Krieger", "Ich stehe, wo andere fallen.",
+                    "Nahkampf mit Schwert und Schild: Schläge, Blocken und Parieren. Viel Leben, wenig Mana. Für alle, die mitten ins Getümmel wollen.",
+                    new[] { 14f, 10f, 8f, 9f, 15f, 10f }, warriorKit, report),
+                EnsureClass("Klasse_Magier", "class.magier", "Magier", "Feuer, Eis und Sturm gehorchen mir.",
+                    "Kampf auf Abstand mit dem Lehrlingsstab: Feuergeschosse (Maustaste links) und ein großer Feuerball (rechts). Wenig Leben, viel Mana – halte Gegner auf Abstand. Start mit Stoffrobe, 3 Heil- und 3 Manatränken.",
+                    new[] { 8f, 10f, 15f, 13f, 10f, 10f }, mageKit, report)
+            };
+            SetClasses(classes, report);
         }
 
-        /// <summary>Sets the test kit at the InventoryInstaller (the test ground generator; it sets its start level itself).</summary>
+        /// <summary>
+        /// Sets the test kit at the InventoryInstaller (the test ground generator; it sets its start level itself) and empties the
+        /// class list: the test ground starts without class choice and keeps its test values.
+        /// </summary>
         /// <param name="testKit">Kit of the test ground.</param>
         /// <param name="report">Protocol.</param>
         public static void ApplyTestGround(StartingEquipment testKit, TestGroundReport report)
         {
             SetStartingEquipment(testKit, report);
+            SetClasses(new List<Object>(), report);
+        }
+
+        private static void SetClasses(List<Object> classes, TestGroundReport report)
+        {
+            if (!TestGroundAssets.EnsureInstallerInBootConfig<Aetherfall.Classes.ClassInstaller>(ClassInstallerPath, report,
+                    typeof(InventoryInstaller), typeof(Aetherfall.SaveSystem.SaveInstaller)))
+            {
+                return;
+            }
+
+            var installer = AssetDatabase.LoadAssetAtPath<Aetherfall.Classes.ClassInstaller>(ClassInstallerPath);
+            var so = new SerializedObject(installer);
+            SerializedProperty list = so.FindProperty("classes");
+            list.arraySize = classes.Count;
+            for (int i = 0; i < classes.Count; i++)
+            {
+                list.GetArrayElementAtIndex(i).objectReferenceValue = classes[i];
+            }
+
+            so.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(installer);
+            report.Info("ClassInstaller: " + (classes.Count > 0 ? classes.Count + " Klassen (Krieger, Magier), Klassenwahl bei „Neues Spiel“" : "ohne Klassen (Testgelände)") + ".");
+        }
+
+        private static Aetherfall.Classes.ClassDefinition EnsureClass(string file, string id, string name, string motto, string description, float[] attributes,
+            StartingEquipment kit, TestGroundReport report)
+        {
+            if (!TestGroundAssets.EnsureFolder(ClassFolder, report))
+            {
+                return null;
+            }
+
+            var definition = TestGroundSerialized.EnsureAsset<Aetherfall.Classes.ClassDefinition>(ClassFolder + "/" + file + ".asset", report, null);
+            if (definition == null)
+            {
+                return null;
+            }
+
+            // Written on every run: the texts and values follow the GDD here, not in the asset.
+            var so = new SerializedObject(definition);
+            so.FindProperty("classId").stringValue = id;
+            so.FindProperty("displayName").stringValue = name;
+            so.FindProperty("motto").stringValue = motto;
+            so.FindProperty("description").stringValue = description;
+            string[] fields = { "strength", "dexterity", "intelligence", "wisdom", "constitution", "charisma" };
+            for (int i = 0; i < fields.Length; i++)
+            {
+                so.FindProperty(fields[i]).floatValue = attributes[i];
+            }
+
+            so.FindProperty("startingEquipment").objectReferenceValue = kit;
+            so.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(definition);
+            return definition;
+        }
+
+        private static StartingEquipment EnsureMageKit(TestGroundReport report)
+        {
+            // GDD 03 11.2 mage: apprentice staff (fire), cloth robe, 3 small mana potions, 3 small healing potions; cloth shoes
+            // (Vorschlag: the warrior also has boots). Item level 1, common.
+            StartingEquipment kit = TestGroundSerialized.EnsureAsset<StartingEquipment>(MageEquipmentPath, report, null);
+            if (kit == null)
+            {
+                return null;
+            }
+
+            var so = new SerializedObject(kit);
+            SerializedProperty list = so.FindProperty("items");
+            list.arraySize = 5;
+            Entry(list.GetArrayElementAtIndex(0), TestGroundItemAssets.StaffId, 1, EquipmentSlot.MainHand);
+            Entry(list.GetArrayElementAtIndex(1), TestGroundItemAssets.RobeId, 1, EquipmentSlot.Chest);
+            Entry(list.GetArrayElementAtIndex(2), "item.armor.stoffschuhe", 1, EquipmentSlot.Feet);
+            Entry(list.GetArrayElementAtIndex(3), TestGroundItemAssets.PotionId, 3, EquipmentSlot.QuickSlot1);
+            Entry(list.GetArrayElementAtIndex(4), TestGroundItemAssets.ManaPotionId, 3, EquipmentSlot.QuickSlot2);
+            so.FindProperty("gold").intValue = 0;
+            so.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(kit);
+            return kit;
         }
 
         /// <summary>

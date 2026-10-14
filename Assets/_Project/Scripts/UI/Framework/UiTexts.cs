@@ -38,6 +38,8 @@ namespace Aetherfall.UI.Framework
             new UiTextEntry("options-ui-scale-label", "UI-Größe"),
             new UiTextEntry("options-hud-mode-label", "HUD-Anzeige"),
             new UiTextEntry("options-glyphs-label", "Tastensymbole"),
+            new UiTextEntry("mainmenu-class-title", "Wähle deine Klasse"),
+            new UiTextEntry("fmt-class-values", "Startwerte: Stärke {0} · Geschick {1} · Intelligenz {2} · Weisheit {3} · Konstitution {4} · Charisma {5}"),
 
             // Pause menu (GDD 05 1.3, System tab)
             new UiTextEntry("pause-title", "Pause"),

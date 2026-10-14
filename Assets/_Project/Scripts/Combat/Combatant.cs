@@ -255,6 +255,8 @@ namespace Aetherfall.Combat
             request.AttackMultiplier = hit.Attack.DamageMultiplier;
             request.Scaling = hit.Profile.Scaling;
             request.Zone = hit.Zone;
+            // GDD 03 8.2: head hits of projectiles count ×1.75 instead of ×1.5.
+            request.IsRanged = hit.Attack.IsProjectile;
             request.WeaponPoise = hit.Profile.WeaponPoise;
             request.PoiseMultiplier = hit.Attack.PoiseMultiplier;
             request.StaminaDamage = hit.Attack.StaminaDamage;

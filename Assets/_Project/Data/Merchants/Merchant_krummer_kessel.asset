@@ -23,6 +23,10 @@ MonoBehaviour:
   stock:
   - itemId: item.potion.heiltrank_schwach
     count: 10
+  - itemId: item.potion.manatrank_schwach
+    count: 8
+  - itemId: item.armor.stoffrobe
+    count: 1
   - itemId: item.armor.lederkappe
     count: 1
   - itemId: item.armor.lederwams

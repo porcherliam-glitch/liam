@@ -30,6 +30,15 @@ namespace Aetherfall.EditorTools.World
         /// <summary>Small healing potion.</summary>
         public const string PotionId = "item.potion.heiltrank_schwach";
 
+        /// <summary>Small mana potion (mage start kit, GDD 03 11.2).</summary>
+        public const string ManaPotionId = "item.potion.manatrank_schwach";
+
+        /// <summary>Apprentice staff (fire), the mage's start weapon.</summary>
+        public const string StaffId = "item.weapon.lehrlingsstab";
+
+        /// <summary>Cloth robe, the mage's start armour.</summary>
+        public const string RobeId = "item.armor.stoffrobe";
+
         /// <summary>Wolf fur.</summary>
         public const string WolfFurId = "item.material.wolfsfell";
 
@@ -151,6 +160,7 @@ namespace Aetherfall.EditorTools.World
             Weapon("Axt_Eisen", "item.weapon.axt_eisen", "Eiserne Axt", WeaponType.Axe, 60, 0f, 0f, 0f, 0f);
             Weapon("Streitkolben_Eisen", "item.weapon.streitkolben_eisen", "Eiserner Streitkolben", WeaponType.Mace, 60, 0f, 0f, 0f, 0f);
             Weapon("Zweihandschwert_Eisen", "item.weapon.zweihandschwert_eisen", "Eisernes Zweihandschwert", WeaponType.TwoHandedSword, 40, 0f, 0f, 0f, 0f);
+            Weapon("Lehrlingsstab", StaffId, "Lehrlingsstab (Feuer)", WeaponType.Staff, 40, 0f, 0f, 0f, 0f);
 
             // Block values of GDD 03 4.7: wooden 150° / 80 % / 20 % / 40 %, iron 150° / 90 % / 35 % / 55 % (6 kg).
             Weapon("Holzschild", WoodenShieldId, "Holzschild", WeaponType.Shield, 60, 150f, 0.8f, 0.2f, 0.4f);
@@ -175,6 +185,7 @@ namespace Aetherfall.EditorTools.World
             Armor("Plattenbeinschienen", "item.armor.plattenbeinschienen", "Plattenbeinschienen", EquipKind.Legs, ArmorClass.Heavy);
             Armor("Plattenstiefel", "item.armor.plattenstiefel", "Plattenstiefel", EquipKind.Feet, ArmorClass.Heavy);
             Armor("Wollumhang", "item.armor.wollumhang", "Wollumhang", EquipKind.Cloak, ArmorClass.None);
+            Armor("Stoffrobe", RobeId, "Stoffrobe", EquipKind.Chest, ArmorClass.Light);
         }
 
         private void CreateJewelry()
@@ -191,6 +202,12 @@ namespace Aetherfall.EditorTools.World
         {
             Simple(Consumables, "Heiltrank_Schwach", PotionId, "Kleiner Heiltrank", ItemCategory.Consumable, EquipKind.QuickUse, 20, 0.3f, 30f,
                 ItemRarity.Common);
+            Simple(Consumables, "Manatrank_Schwach", ManaPotionId, "Kleiner Manatrank", ItemCategory.Consumable, EquipKind.QuickUse, 20, 0.3f, 30f,
+                ItemRarity.Common);
+            // Effects of drinking (Vorschlag, GDD has no value): small healing potion 35 % of the maximum health, small mana potion
+            // 40 % of the maximum mana. Set on every run, also on existing assets.
+            SetUse(Consumables + "/Heiltrank_Schwach", 0.35f, 0f);
+            SetUse(Consumables + "/Manatrank_Schwach", 0f, 0.4f);
             Simple(Materials, "Wolfsfell", WolfFurId, "Wolfsfell", ItemCategory.Material, EquipKind.None, 99, 1f, 4f, ItemRarity.Common);
             Simple(Materials, "Wolfsfleisch", WolfMeatId, "Wolfsfleisch", ItemCategory.Material, EquipKind.None, 99, 0.5f, 2f, ItemRarity.Common);
             Simple(Materials, "Wolfspelz_Aether", AetherPeltId, "Aether-Wolfspelz", ItemCategory.Material, EquipKind.None, 99, 1f, 15f,
@@ -248,6 +265,22 @@ namespace Aetherfall.EditorTools.World
                 TestGroundSerialized.Set(so, "dropWeight", 100, _report);
                 Implicit(so, stat, StatModifierKind.Flat, scale, atLevel1, atLevel80, text);
             });
+        }
+
+        private void SetUse(string file, float health, float mana)
+        {
+            var item = AssetDatabase.LoadAssetAtPath<ItemDefinition>(TestGroundPaths.ItemFolder + file + ".asset");
+            if (item == null)
+            {
+                _report.Warning("Trank " + file + " fehlt – Wirkung nicht gesetzt.");
+                return;
+            }
+
+            var so = new SerializedObject(item);
+            TestGroundSerialized.Set(so, "restoreHealth", health, _report);
+            TestGroundSerialized.Set(so, "restoreMana", mana, _report);
+            so.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(item);
         }
 
         private void Simple(string folder, string file, string id, string name, ItemCategory category, EquipKind kind, int stackSize, float weight,

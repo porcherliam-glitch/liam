@@ -190,22 +190,37 @@ namespace Aetherfall.EditorTools.World
             PlayerLootCollector collector = player.AddComponent<PlayerLootCollector>();
             TestGroundFields.SetInt(collector, "pickupLayers", pickupLayer >= 0 ? 1 << pickupLayer : 0, report);
 
+            AddPlayerEquipment(player, report);
+            report.Info("Spieler-Items: PlayerInteractor (2 m vor der Figur, Layer Interactable und Pickup), PlayerLootCollector (automatisch " +
+                        "aufheben: Gold und Materialien) und PlayerEquipment (Startausrüstung des Kriegers aus GDD 03 11.2: Waffenschaden und " +
+                        "Rüstung kommen jetzt aus der angelegten Ausrüstung).");
+        }
+
+        /// <summary>
+        /// Adds <see cref="PlayerEquipment"/> with the weapon models it shows and hides: the sword ("SwordHand/Schwert", the
+        /// cube placeholder without model: the whole pivot), the shield ("ShieldHand/Holzschild" or "Shield") and the staff
+        /// ("SwordHand/Zauberstab"); the grip stays, so the hand holds whichever weapon is shown.
+        /// </summary>
+        /// <param name="player">Player root.</param>
+        /// <param name="report">Protocol.</param>
+        internal static void AddPlayerEquipment(GameObject player, TestGroundReport report)
+        {
             PlayerEquipment equipment = player.AddComponent<PlayerEquipment>();
             TestGroundFields.SetReference(equipment, "stats", player.GetComponent<CharacterStatsComponent>(), report);
             TestGroundFields.SetReference(equipment, "combat", player.GetComponent<PlayerCombatController>(), report);
             TestGroundFields.SetReference(equipment, "motor", player.GetComponent<PlayerMotor>(), report);
             Transform swordHand = Child(player.transform, "SwordHand");
-            Transform shield = Child(Child(player.transform, "ShieldHand"), "Shield");
-            TestGroundFields.SetReference(equipment, "weaponVisual", swordHand != null ? swordHand.gameObject : null, report);
+            Transform shieldHand = Child(player.transform, "ShieldHand");
+            Transform sword = Child(swordHand, "Schwert") ?? swordHand;
+            Transform shield = Child(shieldHand, "Holzschild") ?? Child(shieldHand, "Shield");
+            Transform staff = Child(swordHand, "Zauberstab");
+            TestGroundFields.SetReference(equipment, "weaponVisual", sword != null ? sword.gameObject : null, report);
             TestGroundFields.SetReference(equipment, "shieldVisual", shield != null ? shield.gameObject : null, report);
-            if (swordHand == null || shield == null)
+            TestGroundFields.SetReference(equipment, "staffVisual", staff != null ? staff.gameObject : null, report);
+            if (sword == null || shield == null)
             {
-                report.Warning("Schwert- oder Schild-Platzhalter am Spieler fehlt – das Ein- und Ausblenden beim Ablegen funktioniert nicht.");
+                report.Warning("Schwert- oder Schild-Modell am Spieler fehlt – das Ein- und Ausblenden beim Ablegen funktioniert nicht.");
             }
-
-            report.Info("Spieler-Items: PlayerInteractor (2 m vor der Figur, Layer Interactable und Pickup), PlayerLootCollector (automatisch " +
-                        "aufheben: Gold und Materialien) und PlayerEquipment (Startausrüstung des Kriegers aus GDD 03 11.2: Waffenschaden und " +
-                        "Rüstung kommen jetzt aus der angelegten Ausrüstung).");
         }
 
         private static Transform Child(Transform parent, string name)

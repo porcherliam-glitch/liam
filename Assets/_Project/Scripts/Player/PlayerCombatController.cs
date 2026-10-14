@@ -3,6 +3,7 @@ using Aetherfall.Combat;
 using Aetherfall.Core;
 using Aetherfall.Events;
 using Aetherfall.Input;
+using Aetherfall.Items;
 using Aetherfall.Stats;
 using UnityEngine;
 
@@ -38,6 +39,10 @@ namespace Aetherfall.Player
     public sealed class PlayerCombatController : MonoBehaviour, ICombatantController, IHitWindowReceiver, ICombatDebugSource
     {
         private const float CastTurnRate = 1080f;
+        private const float RangedAimHalfAngle = 35f;
+        private const float DrinkSpeedLimit = 2.5f;
+        private const float UntargetedAimDistance = 15f;
+        private const float UntargetedAimHeight = 0.9f;
 
         [Tooltip("Bewegung der Figur. Leer = PlayerMotor am selben GameObject.")]
         [SerializeField] private PlayerMotor motor = null;
@@ -67,6 +72,12 @@ namespace Aetherfall.Player
         [Tooltip("Kampf-Regeln (Assets/_Project/Settings/Combat/CombatSettings.asset). Leer = Werte aus GDD 03.")]
         [SerializeField] private CombatSettings settings = null;
 
+        [Tooltip("Bewegungssets weiterer Waffentypen (Zauberstab, Streitkolben, …). Die angelegte Haupthandwaffe wählt das Set; ohne Eintrag gilt „Weapon“.")]
+        [SerializeField] private WeaponMoveset[] movesets = new WeaponMoveset[0];
+
+        [Tooltip("Geschosse für Angriffe mit Geschoss (Zauberstab). Leer = ProjectileLauncher am selben GameObject.")]
+        [SerializeField] private ProjectileLauncher projectiles = null;
+
         [Header("Zielhilfe (GDD 03, 2.3)")]
         [Tooltip("Soft-Lock ohne Lock-On: Angriffe drehen die Figur zum nächsten Gegner in dieser Entfernung (3 m).")]
         [Range(0f, 10f)] [SerializeField] private float softLockRange = 3f;
@@ -92,7 +103,12 @@ namespace Aetherfall.Player
         private bool _heavyHeld;
         private bool _blockHeld;
         private bool _casting;
+        private bool _drinking;
+        private bool _queuedLight;
         private float _castYaw;
+        private WeaponType _weaponType = WeaponType.OneHandedSword;
+        private Combatant _rangedTarget;
+        private readonly System.Collections.Generic.List<Combatant> _coneBuffer = new System.Collections.Generic.List<Combatant>(8);
 
         /// <summary>The combat state machine (read-only use: weapon pose, overlays); null if the setup is invalid.</summary>
         public CombatStateMachine StateMachine => _machine;
@@ -196,12 +212,24 @@ namespace Aetherfall.Player
             }
         }
 
+        /// <summary>Weapon type whose moveset is in use (one-handed sword unless a moveset for the equipped type exists).</summary>
+        public WeaponType WeaponType => _weaponType;
+
+        /// <summary>Projectile launcher (null without one).</summary>
+        public ProjectileLauncher Projectiles => projectiles;
+
         /// <inheritdoc />
         public void OpenHitWindow(AttackSpec attack)
         {
             if (attack != null && attack.Kind == AttackKind.Finisher)
             {
                 HitFinisherTarget(attack);
+                return;
+            }
+
+            if (attack != null && attack.IsProjectile)
+            {
+                FireProjectile(attack);
                 return;
             }
 
@@ -250,11 +278,74 @@ namespace Aetherfall.Player
             _castYaw = yaw;
         }
 
+        /// <summary>
+        /// Drinking from a quick slot (<see cref="PlayerQuickSlots"/>, GDD 03 4.3): half speed, no sprint or jump, and no new
+        /// attack, block or dodge presses until the drink is done (0.8 s).
+        /// </summary>
+        /// <param name="drinking">True while drinking.</param>
+        public void SetDrinking(bool drinking)
+        {
+            _drinking = drinking;
+        }
+
+        /// <summary>Presses the light attack once with the next frame, like the button (tools and the play-through use it).</summary>
+        public void QueueLightAttack()
+        {
+            _queuedLight = true;
+        }
+
         /// <summary>The nearest enemy within <paramref name="range"/> metres (aim of abilities without lock-on), or null.</summary>
         /// <param name="range">Range in metres.</param>
         public Combatant FindNearestEnemy(float range)
         {
             return _service != null ? CombatantQueries.FindNearestHostile(_service.Combatants, combatant, range) : null;
+        }
+
+        /// <summary>
+        /// Switches the moveset to the equipped main hand weapon type (GDD 03 5.3): a type with an entry in <c>movesets</c> uses
+        /// it, every other type the default weapon (one-handed sword). Rebuilds the combat state machine, so it only happens
+        /// when the type really changes; weapon damage and block values stay (they come from <see cref="ApplyEquipment"/>).
+        /// </summary>
+        /// <param name="type">Weapon type of the main hand (None = unarmed).</param>
+        public void SetWeaponType(WeaponType type)
+        {
+            WeaponDefinition definition = weapon;
+            WeaponType resolved = WeaponType.OneHandedSword;
+            for (int i = 0; i < movesets.Length; i++)
+            {
+                if (movesets[i] != null && movesets[i].Type == type && movesets[i].Weapon != null)
+                {
+                    definition = movesets[i].Weapon;
+                    resolved = type;
+                    break;
+                }
+            }
+
+            if (resolved == _weaponType || _machine == null || definition == null)
+            {
+                return;
+            }
+
+            WeaponSpec spec = definition.CreateSpec(shield, out string problem);
+            if (spec == null)
+            {
+                Log.Error(LogCategory.Player, "PlayerCombatController: moveset of " + type + " is invalid: " + problem);
+                return;
+            }
+
+            spec.BaseDamage = _weapon.BaseDamage;
+            spec.Block = _weapon.Block;
+            WeaponSpec shieldless = definition.CreateSpec(null, out _);
+            _weaponBlock = shieldless != null ? shieldless.Block : _weaponBlock;
+            _machine.AttackStarted -= OnAttackStarted;
+            _machine.DodgeStarted -= OnDodgeStarted;
+            CloseHitWindow();
+            _weapon = spec;
+            _weaponType = resolved;
+            _machine = new CombatStateMachine(_tuning, _weapon, stats != null ? stats.Stamina : null, this, _machine.Stability.Stability);
+            _machine.AttackStarted += OnAttackStarted;
+            _machine.DodgeStarted += OnDodgeStarted;
+            Log.Info(LogCategory.Player, "Moveset: " + resolved + " (" + definition.name + ").");
         }
 
         /// <summary>Sets the dodge roll profile (armor class light/medium/heavy, overloaded = dodge step only, GDD 03 3.2).</summary>
@@ -332,6 +423,11 @@ namespace Aetherfall.Player
             if (lockOn == null)
             {
                 TryGetComponent(out lockOn);
+            }
+
+            if (projectiles == null)
+            {
+                TryGetComponent(out projectiles);
             }
 
             if (weapon == null)
@@ -440,9 +536,11 @@ namespace Aetherfall.Player
             float local = combatant.Tick(deltaTime);
             bool playing = _gameState != null && _gameState.Current == GameState.Playing;
             CombatInput input;
-            if (playing && !_casting)
+            if (playing && !_casting && !_drinking)
             {
                 input = ReadInput();
+                input.LightPressed |= _queuedLight;
+                _queuedLight = false;
                 _heavyHeld = input.HeavyHeld;
                 _blockHeld = input.BlockHeld;
             }
@@ -566,7 +664,16 @@ namespace Aetherfall.Player
                 targetYaw = CombatMath.YawOf(point.x - position.x, point.z - position.z);
             }
 
-            return _motion.Build(_machine.Movement, _machine.State, _machine.IsRoll, target != null, targetYaw);
+            PlayerMovementOverride limits = _motion.Build(_machine.Movement, _machine.State, _machine.IsRoll, target != null, targetYaw);
+            if (_drinking)
+            {
+                // GDD 03 4.3: drinking at half speed, no sprint or jump.
+                limits.SpeedLimit = limits.SpeedLimit > 0f ? Mathf.Min(limits.SpeedLimit, DrinkSpeedLimit) : DrinkSpeedLimit;
+                limits.BlockSprint = true;
+                limits.BlockJump = true;
+            }
+
+            return limits;
         }
 
         private void OnAttackStarted(AttackSpec attack)
@@ -574,6 +681,18 @@ namespace Aetherfall.Player
             float yaw = motor.Model != null ? motor.Model.Yaw : transform.eulerAngles.y;
             Vector3 position = transform.position;
             Combatant target = lockOn != null ? lockOn.Target : null;
+            _rangedTarget = null;
+            if (attack.IsProjectile && target == null)
+            {
+                // Ranged aim without lock-on (GDD 03 2.3, 6.3): the nearest enemy in a 35° cone around the view, up to the range.
+                target = FindRangedTarget(yaw, attack.ProjectileRange);
+            }
+
+            if (attack.IsProjectile)
+            {
+                _rangedTarget = target;
+            }
+
             if (attack.Kind == AttackKind.Finisher)
             {
                 _finisherTarget = FindFinisherTarget();
@@ -656,6 +775,62 @@ namespace Aetherfall.Player
             {
                 target.Poise.EndStun();
             }
+        }
+
+        private void FireProjectile(AttackSpec attack)
+        {
+            if (projectiles == null)
+            {
+                Log.Warning(LogCategory.Player, "PlayerCombatController: attack '" + attack.Id + "' fires a projectile, but there is no ProjectileLauncher.");
+                return;
+            }
+
+            AttackProfile profile = GetAttackProfile(attack);
+            Combatant target = _rangedTarget != null && _rangedTarget.IsAlive ? _rangedTarget : null;
+            if (target != null)
+            {
+                projectiles.FireAt(combatant, attack, profile, target.TargetPosition);
+                return;
+            }
+
+            // No target: ahead in the attack direction towards chest height 15 m away (from the raised staff tip a level flight
+            // would pass over wolves and other small enemies).
+            Vector3 ahead = transform.position + Quaternion.Euler(0f, _motion.AttackYaw, 0f) * Vector3.forward * UntargetedAimDistance +
+                            Vector3.up * UntargetedAimHeight;
+            projectiles.FireAt(combatant, attack, profile, ahead);
+        }
+
+        private Combatant FindRangedTarget(float facingYaw, float range)
+        {
+            if (_service == null)
+            {
+                return null;
+            }
+
+            // The camera decides what the player looks at; the facing is the fallback.
+            float yaw = cameraTransform != null ? CameraYaw() : facingYaw;
+            CombatantQueries.FindInCone(_service.Combatants, combatant, yaw, range, RangedAimHalfAngle, _coneBuffer);
+            if (_coneBuffer.Count == 0 && Mathf.Abs(Mathf.DeltaAngle(yaw, facingYaw)) > 1f)
+            {
+                CombatantQueries.FindInCone(_service.Combatants, combatant, facingYaw, range, RangedAimHalfAngle, _coneBuffer);
+            }
+
+            Combatant best = null;
+            for (int i = 0; i < _coneBuffer.Count && best == null; i++)
+            {
+                if (_coneBuffer[i].IsTargetable && _coneBuffer[i].Team != CombatTeam.Neutral)
+                {
+                    best = _coneBuffer[i];
+                }
+            }
+
+            if (best == null && _coneBuffer.Count > 0)
+            {
+                best = _coneBuffer[0];
+            }
+
+            _coneBuffer.Clear();
+            return best;
         }
 
         private Combatant FindFinisherTarget()

@@ -71,6 +71,7 @@ namespace Aetherfall.EditorTools.World
             TestGroundCombatBuilder.SetUpPlayer(player, mainCamera, testMaterials, combat, ctx.HurtboxLayer, ctx.EnvironmentLayer, report,
                 abilityUnlockFlag: Narrative.MiniSliceQuestLibrary.FlagAetherPower);
             TestGroundCombatBuilder.SetUpCameras(player, pivot, exploreCamera, exploreOrbital, collisionMask, report);
+            PlayerClassBuilder.AddTo(player, report);
             TestGroundFields.SetReference(look, "lockOn", player.GetComponent<PlayerLockOn>(), report);
             PlayerRespawn respawn = player.GetComponent<PlayerRespawn>();
             TestGroundFields.SetReference(respawn, "spawnPoint", spawnPoint, report);
@@ -280,15 +281,7 @@ namespace Aetherfall.EditorTools.World
 
             PlayerLootCollector collector = player.AddComponent<PlayerLootCollector>();
             TestGroundFields.SetInt(collector, "pickupLayers", pickupLayer >= 0 ? 1 << pickupLayer : 0, report);
-            PlayerEquipment equipment = player.AddComponent<PlayerEquipment>();
-            TestGroundFields.SetReference(equipment, "stats", player.GetComponent<CharacterStatsComponent>(), report);
-            TestGroundFields.SetReference(equipment, "combat", player.GetComponent<PlayerCombatController>(), report);
-            TestGroundFields.SetReference(equipment, "motor", player.GetComponent<PlayerMotor>(), report);
-            Transform swordHand = player.transform.Find("SwordHand");
-            Transform shieldHand = player.transform.Find("ShieldHand");
-            Transform shield = shieldHand != null ? shieldHand.Find("Shield") : null;
-            TestGroundFields.SetReference(equipment, "weaponVisual", swordHand != null ? swordHand.gameObject : null, report);
-            TestGroundFields.SetReference(equipment, "shieldVisual", shield != null ? shield.gameObject : null, report);
+            TestGroundItemBuilder.AddPlayerEquipment(player, report);
         }
 
         private static void PrepareVisual(GameObject visual, Transform parent, Vector3 localPosition, Vector3 localScale, Material material, int layer)

@@ -105,7 +105,9 @@ namespace Aetherfall.EditorTools.Core
         {
             return "Chroniken von Aetherfall – Mini-Slice (Version " + PlayerSettings.bundleVersion + ", gebaut " + DateTime.Now.ToString("yyyy-MM-dd HH:mm") +
                    ")\r\n\r\n" +
-                   "Starten: Doppelklick auf Aetherfall.exe. Im Hauptmenü \"Neues Spiel\".\r\n" +
+                   "Starten: Doppelklick auf Aetherfall.exe. Im Hauptmenü \"Neues Spiel\", dann die Klasse wählen:\r\n" +
+                   "  Krieger – Schwert und Schild, viel Leben, Nahkampf.\r\n" +
+                   "  Magier  – Lehrlingsstab: linke Maus Feuergeschosse (25 m), rechte Maus Feuerball; wenig Leben, viel Mana.\r\n" +
                    "Beenden: Esc, dann \"Spiel beenden\" gedrückt halten (oder Alt+F4).\r\n" +
                    "Dauer: etwa 45–60 Minuten (3 Quests: Asche über Eichental, Die Wölfe vom Nordhang, Die vergessene Gruft).\r\n\r\n" +
                    "Tasten:\r\n" +
@@ -114,7 +116,8 @@ namespace Aetherfall.EditorTools.Core
                    "  Leertaste      springen        E              sprechen, benutzen\r\n" +
                    "  Linke Maus     leichter Angriff  Rechte Maus  schwerer Angriff\r\n" +
                    "  Q (halten)     blocken         Strg           ausweichen\r\n" +
-                   "  T              Gegner anvisieren  5           Heiltrank\r\n" +
+                   "  T              Gegner anvisieren\r\n" +
+                   "  5 / 6          Heiltrank / Manatrank trinken (knapp 1 s, ein harter Treffer bricht ab)\r\n" +
                    "  4              Aether-Stoß (ab dem Riss im Prolog; 15 Mana, 8 s warten)\r\n" +
                    "  Tab            Inventar        J              Questlog\r\n" +
                    "  F5 / F9        schnell speichern / laden\r\n" +

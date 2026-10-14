@@ -85,6 +85,19 @@ namespace Aetherfall.Combat
         [Tooltip("So weit dreht sich die Figur beim Start zum Ziel bzw. zur Stick-Richtung, in Grad (GDD 03, 4.4: 45°).")]
         [Range(0f, 180f)] [SerializeField] private float maxTurnDegrees = 45f;
 
+        [Header("Geschoss (0 = Nahkampf mit der Hitbox)")]
+        [Tooltip("Fluggeschwindigkeit in m/s. Größer 0: Der Angriff feuert im Trefferfenster ein Geschoss statt die Hitbox zu öffnen (Zauberstab, Bogen).")]
+        [Min(0f)] [SerializeField] private float projectileSpeed = 0f;
+
+        [Tooltip("Reichweite des Geschosses in Metern (Elementgeschoss des Zauberstabs: 25 m, GDD 03 5.3).")]
+        [Min(0f)] [SerializeField] private float projectileRange = 25f;
+
+        [Tooltip("Radius des Geschosses für die Treffer-Abfrage in Metern.")]
+        [Min(0.02f)] [SerializeField] private float projectileRadius = 0.2f;
+
+        [Tooltip("Fallbeschleunigung in m/s² (0 = gerade; Pfeil: 0,5 g = 4,9, GDD 03 6.1).")]
+        [Min(0f)] [SerializeField] private float projectileGravity = 0f;
+
         [Header("Treffer-Gefühl (0 = Wert aus der Tabelle GDD 03, 4.11)")]
         [Tooltip("Hitstop in Sekunden (eingefrorene Akteure bei einem Treffer). 0 = Tabellenwert.")]
         [Min(0f)] [SerializeField] private float hitStopSeconds = 0f;
@@ -134,7 +147,11 @@ namespace Aetherfall.Combat
                 MaxTurnDegrees = maxTurnDegrees,
                 HitStopSeconds = hitStopSeconds,
                 ShakeAmplitude = shakeAmplitude,
-                ShakeDuration = shakeDuration
+                ShakeDuration = shakeDuration,
+                ProjectileSpeed = projectileSpeed,
+                ProjectileRange = projectileRange,
+                ProjectileRadius = projectileRadius,
+                ProjectileGravity = projectileGravity
             };
         }
     }

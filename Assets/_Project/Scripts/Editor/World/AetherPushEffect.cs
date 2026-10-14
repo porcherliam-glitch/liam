@@ -126,6 +126,13 @@ namespace Aetherfall.EditorTools.World
             renderer.receiveShadows = false;
         }
 
+        /// <summary>The additive particle material with the soft spark texture (also for the fire of the mage).</summary>
+        /// <param name="report">Protocol.</param>
+        public static Material ParticleMaterial(TestGroundReport report)
+        {
+            return EnsureMaterial(report);
+        }
+
         private static Material EnsureMaterial(TestGroundReport report)
         {
             Shader shader = Shader.Find("Universal Render Pipeline/Particles/Unlit");

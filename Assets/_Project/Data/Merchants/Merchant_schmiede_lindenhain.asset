@@ -25,6 +25,8 @@ MonoBehaviour:
     count: 2
   - itemId: item.weapon.streitkolben_eisen
     count: 1
+  - itemId: item.weapon.lehrlingsstab
+    count: 1
   - itemId: item.weapon.holzschild
     count: 2
   - itemId: item.weapon.eisenschild

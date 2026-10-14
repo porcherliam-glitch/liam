@@ -106,6 +106,8 @@ namespace Aetherfall.EditorTools.World
             Combatant playerCombatant = TestGroundCombatBuilder.SetUpPlayer(player, mainCamera, testMaterials, combat, layers.Hurtbox, env, report,
                 playerLevel, Narrative.MiniSliceQuestLibrary.FlagAetherPower);
             TestGroundFields.SetInt(player.GetComponent<PlayerLockOn>(), "sightBlockers", solidMask, report);
+            TestGroundFields.SetInt(player.GetComponent<ProjectileLauncher>(), "solidLayers", solidMask, report);
+            PlayerClassBuilder.AddTo(player, report);
             TestGroundCombatBuilder.SetUpCameras(player, pivot, exploreCamera, exploreOrbital, solidMask, report);
             TestGroundFields.SetReference(look, "lockOn", player.GetComponent<PlayerLockOn>(), report);
             PlayerRespawn respawn = player.GetComponent<PlayerRespawn>();

@@ -91,6 +91,13 @@ namespace Aetherfall.Inventory
         /// <param name="ownerId">Owner id.</param>
         InventoryContainer GetContainer(string ownerId);
 
+        /// <summary>
+        /// Replaces the starting kit of a new game (the kit of the chosen class, GDD 03 11.2). Takes effect at the next new game;
+        /// the current bag stays as it is.
+        /// </summary>
+        /// <param name="kit">Starting kit (null = empty).</param>
+        void SetStartingKit(StartingKit kit);
+
         /// <summary>Equips an item of the bag. Sends <c>ItemEquipped</c> for every changed slot.</summary>
         /// <param name="instanceId">Instance id in the bag.</param>
         /// <param name="slot">Target slot; <see cref="EquipmentSlot.None"/> = the suggested slot.</param>

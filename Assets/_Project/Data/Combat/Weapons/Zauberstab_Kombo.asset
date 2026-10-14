@@ -1,0 +1,19 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9de56cfc63b79464dba5dd5553dd633e, type: 3}
+  m_Name: Zauberstab_Kombo
+  m_EditorClassIdentifier: Aetherfall.Combat::Aetherfall.Combat.ComboDefinition
+  comboId: combo.zauberstab.geschoss
+  steps:
+  - {fileID: 11400000, guid: b0b05fd4e91d5ad4b81a73046a967faa, type: 2}
+  - {fileID: 11400000, guid: 953b6646f4594d14486c867d90d3b438, type: 2}
+  - {fileID: 11400000, guid: 53922ffb855127f409872275903ab3bf, type: 2}

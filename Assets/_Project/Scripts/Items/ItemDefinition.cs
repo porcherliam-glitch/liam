@@ -98,6 +98,13 @@ namespace Aetherfall.Items
         [Tooltip("Stabilität (Holzschild 0,4).")]
         [Range(0f, 1f)] [SerializeField] private float blockStability = 0f;
 
+        [Header("Benutzen (Schnellslot)")]
+        [Tooltip("Stellt diesen Anteil der maximalen Lebenspunkte wieder her (kleiner Heiltrank 0,35).")]
+        [Range(0f, 1f)] [SerializeField] private float restoreHealth = 0f;
+
+        [Tooltip("Stellt diesen Anteil des maximalen Manas wieder her (kleiner Manatrank 0,4).")]
+        [Range(0f, 1f)] [SerializeField] private float restoreMana = 0f;
+
         /// <summary>Display name (German).</summary>
         public string DisplayName => displayName;
 
@@ -136,7 +143,9 @@ namespace Aetherfall.Items
                 BlockAngle = blockAngle,
                 BlockPhysical = blockPhysical,
                 BlockElemental = blockElemental,
-                BlockStability = blockStability
+                BlockStability = blockStability,
+                RestoreHealth = restoreHealth,
+                RestoreMana = restoreMana
             };
         }
     }

@@ -87,7 +87,9 @@ namespace Aetherfall.EditorTools.World
             Messages.Clear();
             Steps.Clear();
             string projectRoot = Path.GetDirectoryName(Application.dataPath) ?? ".";
-            _outputFolder = Path.Combine(projectRoot, "Logs", "Tour", Path.GetFileNameWithoutExtension(scenePath) + (ReadArgument("-tourMode") == "quests" ? "_Quests" : string.Empty));
+            string mode = ReadArgument("-tourMode");
+            _outputFolder = Path.Combine(projectRoot, "Logs", "Tour", Path.GetFileNameWithoutExtension(scenePath) +
+                                                                      (mode == "quests" ? "_Quests" : mode == "magier" ? "_Magier" : string.Empty));
             Directory.CreateDirectory(_outputFolder);
             foreach (string old in Directory.GetFiles(_outputFolder))
             {
@@ -129,6 +131,13 @@ namespace Aetherfall.EditorTools.World
             {
                 // Automated play-through of the mini slice quests instead of the screenshot tour (PlayTour.Quests.cs).
                 BuildQuestPlan();
+                return;
+            }
+
+            if (ReadArgument("-tourMode") == "magier")
+            {
+                // The mage class: start values, staff, fire bolts, mana potion (PlayTour.Mage.cs).
+                BuildMagePlan();
                 return;
             }
 
@@ -586,6 +595,17 @@ namespace Aetherfall.EditorTools.World
             if (!Services.Locator.TryGet(out IGameFlow flow))
             {
                 return Fail(true, "IGameFlow nicht registriert.");
+            }
+
+            if (ReadArgument("-tourMode") == "magier")
+            {
+                // Like the class choice of the main menu (GDD 03 11.2).
+                if (!Services.Locator.TryGet(out Aetherfall.Classes.IClassService classes) || !classes.ChooseForNewGame("class.magier"))
+                {
+                    return Fail(true, "Klasse Magier nicht wählbar (ClassInstaller fehlt in der BootConfig?).");
+                }
+
+                Note("Klasse gewählt: Magier.");
             }
 
             Note("Starte „Neues Spiel“.");

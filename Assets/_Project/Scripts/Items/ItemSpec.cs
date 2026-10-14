@@ -85,6 +85,15 @@ namespace Aetherfall.Items
         /// <summary>Shield: stability (wooden 0.4).</summary>
         public float BlockStability { get; set; }
 
+        /// <summary>Quick-use item: share of the maximum health it restores (small healing potion 0.35).</summary>
+        public float RestoreHealth { get; set; }
+
+        /// <summary>Quick-use item: share of the maximum mana it restores (small mana potion 0.4).</summary>
+        public float RestoreMana { get; set; }
+
+        /// <summary>True for quick-use items that do something when used (potions).</summary>
+        public bool IsUsable => EquipKind == EquipKind.QuickUse && (RestoreHealth > 0f || RestoreMana > 0f);
+
         /// <summary>True if several pieces share one stack.</summary>
         public bool IsStackable => StackSize > 1;
 

@@ -315,6 +315,30 @@ def schwert():
     sword.build(root, (0, 0, 0))
 
 
+def zauberstab():
+    """Apprentice staff (Lehrlingsstab, fire; GDD 03 11.2 mage): grip at the origin, the head with the crystal along the look
+    direction (-Y), the butt behind the hand. The crystal slot ends in "_Leuchten": Unity gives it the glowing fire material."""
+    wood = material("Stab_Holz", "6A4426", 0.8)
+    dark = material("Stab_Holz_Dunkel", "4A2E1A", 0.85)
+    iron = material("Stab_Eisen", "5E5E62", 0.45, 0.8)
+    crystal = material("Stab_Kristall_Leuchten", "FF8A2A", 0.2)
+    root = empty("Zauberstab")
+    staff = PartBuilder("Stab")
+    # Shaft 1.5 m: 0.4 m behind the hand, 1.1 m in front of it, a little thicker towards the head.
+    staff.cylinder(0.018, 1.5, (0, -0.35, 0), wood, segments=8, radius_top=0.024, axis='Y')
+    staff.cylinder(0.026, 0.12, (0, 0.0, 0), dark, segments=8, axis='Y')
+    for y in (-0.62, -0.98, 0.32):
+        staff.cylinder(0.029, 0.03, (0, y, 0), iron, segments=8, axis='Y')
+    # Head: three prongs around the crystal, tilted outwards.
+    for angle in (0, 120, 240):
+        a = math.radians(angle)
+        x, z = math.cos(a) * 0.05, math.sin(a) * 0.05
+        staff.box((0.016, 0.16, 0.016), (x, -1.13, z), dark,
+                  rotate=Matrix.Rotation(a, 3, 'Y') @ Matrix.Rotation(math.radians(18), 3, 'Z'))
+    staff.sphere(0.055, (0, -1.19, 0), crystal, scale=(0.8, 1.35, 0.8), segments=6, rings=4)
+    staff.build(root, (0, 0, 0))
+
+
 def holzschild():
     """Round wooden shield (Holzschild): grip at the origin, the face looks along -Y."""
     wood = material("Holzschild_Holz", "8A5A32", 0.9)
@@ -728,6 +752,7 @@ MODELS = {
     "aetherwolf": ("Characters/AetherWolf.fbx", aetherwolf),
     "schwert": ("Characters/Schwert.fbx", schwert),
     "holzschild": ("Characters/Holzschild.fbx", holzschild),
+    "zauberstab": ("Characters/Zauberstab.fbx", zauberstab),
     "hausteile": ("Buildings/Hausteile.fbx", hausteile),
 }
 
@@ -759,7 +784,7 @@ def render_preview(path, height):
     print("Vorschau:", path)
 
 
-PREVIEW_HEIGHT = {"schwert": 1.0, "holzschild": 1.0, "wolf": 1.1, "aetherwolf": 1.1, "turmschild": 1.5, "hausteile": 2.5}
+PREVIEW_HEIGHT = {"schwert": 1.0, "holzschild": 1.0, "zauberstab": 1.6, "wolf": 1.1, "aetherwolf": 1.1, "turmschild": 1.5, "hausteile": 2.5}
 
 
 def main():

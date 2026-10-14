@@ -111,6 +111,21 @@ namespace Aetherfall.Combat
         /// <summary>Largest turn towards the target or stick direction at the start in degrees (GDD 03 4.4: 45°).</summary>
         public float MaxTurnDegrees { get; set; } = 45f;
 
+        /// <summary>Flight speed of the projectile in m/s; 0 = a melee attack with the hitbox (staff bolt, arrow: greater than 0).</summary>
+        public float ProjectileSpeed { get; set; }
+
+        /// <summary>Range of the projectile in metres.</summary>
+        public float ProjectileRange { get; set; } = 25f;
+
+        /// <summary>Radius of the projectile for the hit query in metres.</summary>
+        public float ProjectileRadius { get; set; } = 0.2f;
+
+        /// <summary>Downward acceleration of the projectile in m/s² (0 = straight; arrows 0.5 g, GDD 03 6.1).</summary>
+        public float ProjectileGravity { get; set; }
+
+        /// <summary>True if the attack fires a projectile in its hit window instead of opening the hitbox.</summary>
+        public bool IsProjectile => ProjectileSpeed > 0f;
+
         /// <summary>Wind-up + active + recovery.</summary>
         public float TotalSeconds => WindupSeconds + ActiveSeconds + RecoverySeconds;
 
@@ -198,6 +213,11 @@ namespace Aetherfall.Combat
             if (!(LungeDistance >= 0f && KnockbackDistance >= 0f && MaxTurnDegrees >= 0f))
             {
                 return "Attack '" + Id + "': lunge, knockback and turn must be 0 or more.";
+            }
+
+            if (IsProjectile && !(ProjectileRange > 0f && ProjectileRadius > 0f && ProjectileGravity >= 0f))
+            {
+                return "Attack '" + Id + "': a projectile needs a range and a radius greater than 0 and a gravity of 0 or more.";
             }
 
             return string.Empty;

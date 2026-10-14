@@ -18,9 +18,10 @@ namespace Aetherfall.Player
     /// <remarks>
     /// <para>GameObject: the player root (the test ground menu adds it and sets the references). Refreshes after every
     /// inventory change (local event <see cref="IInventoryService.Changed"/>, also after loading a save).</para>
-    /// <para>Moveset: the combat controller keeps the moveset of its weapon asset (one-handed sword); other weapon types bring
-    /// their damage but still swing like a sword until their movesets exist (GDD 03 5.3). Without a weapon the player fights
-    /// unarmed with the field "Waffenschaden ohne Waffe" (Vorschlag 5, GDD has no value).</para>
+    /// <para>Moveset: the type of the main hand weapon picks the moveset of the combat controller (sword, staff …); types
+    /// without a moveset bring their damage but swing like a sword until their movesets exist (GDD 03 5.3). A staff shows the
+    /// staff model instead of the sword. Without a weapon the player fights unarmed with the field "Waffenschaden ohne Waffe"
+    /// (Vorschlag 5, GDD has no value).</para>
     /// </remarks>
     [DisallowMultipleComponent]
     public sealed class PlayerEquipment : MonoBehaviour
@@ -39,6 +40,9 @@ namespace Aetherfall.Player
 
         [Tooltip("Platzhalter-Modell des Schilds (wird ohne Schild ausgeblendet).")]
         [SerializeField] private GameObject shieldVisual = null;
+
+        [Tooltip("Modell des Zauberstabs (sichtbar statt des Schwerts, wenn ein Zauberstab angelegt ist).")]
+        [SerializeField] private GameObject staffVisual = null;
 
         [Tooltip("Waffenschaden ohne Waffe (Vorschlag: 5; das GDD nennt keinen Wert).")]
         [Min(0f)] [SerializeField] private float unarmedDamage = 5f;
@@ -178,12 +182,19 @@ namespace Aetherfall.Player
 
             bool hasWeapon = mainSpec != null && mainSpec.IsWeapon;
             WeaponDamage = hasWeapon ? ItemStats.WeaponDamage(mainSpec, main) : unarmedDamage;
-            if (hasWeapon && mainSpec.WeaponType != WeaponType.OneHandedSword && _warnedType != mainSpec.WeaponType)
+            WeaponType type = hasWeapon ? mainSpec.WeaponType : WeaponType.None;
+            if (combat != null)
             {
-                _warnedType = mainSpec.WeaponType;
-                Log.Info(LogCategory.Player, "Weapon type " + mainSpec.WeaponType + " has no moveset yet; it swings like the one-handed sword (damage " +
-                                             WeaponDamage.ToString("0") + ").");
+                combat.SetWeaponType(type);
+                if (hasWeapon && combat.WeaponType != type && _warnedType != type)
+                {
+                    _warnedType = type;
+                    Log.Info(LogCategory.Player, "Weapon type " + type + " has no moveset yet; it swings like the one-handed sword (damage " +
+                                                 WeaponDamage.ToString("0") + ").");
+                }
             }
+
+            bool staff = hasWeapon && type == WeaponType.Staff;
 
             ItemInstance off = equipment.Get(EquipmentSlot.OffHand);
             ItemSpec offSpec = null;
@@ -215,7 +226,12 @@ namespace Aetherfall.Player
 
             if (weaponVisual != null)
             {
-                weaponVisual.SetActive(hasWeapon);
+                weaponVisual.SetActive(hasWeapon && (!staff || staffVisual == null));
+            }
+
+            if (staffVisual != null)
+            {
+                staffVisual.SetActive(staff);
             }
 
             if (shieldVisual != null)

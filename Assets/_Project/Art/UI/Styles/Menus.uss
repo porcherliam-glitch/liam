@@ -86,6 +86,29 @@
     border-radius: 6px;
 }
 
+/* Class choice of a new game: two class buttons, below the motto, how the class plays and its start values. */
+.af-classpage__list {
+    margin: 0 0 18px 0;
+}
+
+.af-classpage__motto {
+    font-size: var(--font-body);
+    -unity-font-style: italic;
+    color: var(--text-title);
+    white-space: normal;
+}
+
+.af-classpage__description {
+    margin: 10px 0 0 0;
+}
+
+.af-classpage__values {
+    margin: 16px 0 0 0;
+    font-size: var(--font-small);
+    color: var(--text-primary);
+    white-space: normal;
+}
+
 /* Wraps after "Chroniken von", so the title never runs into the page panel on the right. */
 .af-title {
     font-size: 76px;

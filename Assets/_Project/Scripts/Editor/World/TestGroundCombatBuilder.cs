@@ -170,6 +170,33 @@ namespace Aetherfall.EditorTools.World
             TestGroundFields.SetReference(caster, "combat", combat, report);
             TestGroundFields.SetReference(caster, "puppet", puppet, report);
             AetherPushEffect.Build(player.transform, caster, report);
+
+            // GDD 03 11.2 / 5.3 mage: the staff lies in the sword hand (shown instead of the sword when it is equipped) and its
+            // moveset fires fire bolts from the crystal; quick slots 5–8 drink potions.
+            Transform staffModel = model != null ? CharacterModels.Instantiate(CharacterModels.Staff, swordHand, "Zauberstab", player.layer, report) : null;
+            Transform muzzle = null;
+            if (staffModel != null)
+            {
+                staffModel.localPosition = new Vector3(0f, 0f, SwordGripReach);
+                staffModel.localRotation = Quaternion.Euler(-35f, 0f, 0f);
+                SpellEffects.GlowFire(staffModel, report);
+                muzzle = CreateChild(staffModel, "Spitze", new Vector3(0f, 0f, 1.2f));
+                staffModel.gameObject.SetActive(false);
+            }
+
+            ProjectileLauncher launcher = player.AddComponent<ProjectileLauncher>();
+            SpellEffects.BuildFireBolt(player.transform, launcher, muzzle, hurtboxLayer, 1 << environmentLayer, report);
+            TestGroundFields.SetReference(combat, "projectiles", launcher, report);
+            var combatSerialized = new SerializedObject(combat);
+            SerializedProperty movesets = combatSerialized.FindProperty("movesets");
+            movesets.arraySize = 1;
+            movesets.GetArrayElementAtIndex(0).FindPropertyRelative("type").intValue = (int)Aetherfall.Items.WeaponType.Staff;
+            movesets.GetArrayElementAtIndex(0).FindPropertyRelative("weapon").objectReferenceValue = assets.Staff;
+            combatSerialized.ApplyModifiedPropertiesWithoutUndo();
+            PlayerQuickSlots quickSlots = player.AddComponent<PlayerQuickSlots>();
+            TestGroundFields.SetReference(quickSlots, "combat", combat, report);
+            TestGroundFields.SetReference(quickSlots, "health", damageable, report);
+            TestGroundFields.SetReference(quickSlots, "stats", stats, report);
             report.Info("Aether-Stoß (Taste 4): " + (string.IsNullOrEmpty(abilityUnlockFlag) ? "von Anfang an" : "ab Flag " + abilityUnlockFlag) +
                         ", Kegel 6 m / 90°, 15 Mana, 8 s Abklingzeit.");
             report.Info("Spieler-Kampf: Combatant, Trefferzonen (Körper, Kopf), Hitbox, Lock-On, Kampfsteuerung, " +

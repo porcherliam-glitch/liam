@@ -1,0 +1,43 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 723ddc38fb428bc499f79f79ad10f2c0, type: 3}
+  m_Name: Zauberstab_Feuerball
+  m_EditorClassIdentifier: Aetherfall.Combat::Aetherfall.Combat.AttackDefinition
+  attackId: attack.zauberstab.feuerball
+  kind: 2
+  windupSeconds: 0.6
+  activeSeconds: 0.05
+  recoverySeconds: 0.6
+  comboWindowStartSeconds: 10
+  cancelOnlyInRecovery: 1
+  damageMultiplier: 1.8
+  poiseMultiplier: 1.6
+  staminaCost: 14
+  staminaDamage: 30
+  overrideDamageType: 0
+  damageType: 0
+  unblockable: 0
+  unparryable: 0
+  shape: 0
+  offset: {x: 0, y: 1, z: 1.1}
+  size: {x: 1.6, y: 1.2, z: 1.4}
+  radius: 0.8
+  lungeDistance: 0
+  knockbackDistance: 1.2
+  maxTurnDegrees: 90
+  projectileSpeed: 22
+  projectileRange: 25
+  projectileRadius: 0.45
+  projectileGravity: 0
+  hitStopSeconds: 0
+  shakeAmplitude: 0
+  shakeDuration: 0

@@ -24,7 +24,7 @@ namespace Aetherfall.Inventory
         private readonly IItemCatalog _catalog;
         private readonly ItemGenerator _generator;
         private readonly IRandom _ids;
-        private readonly StartingKit _kit;
+        private StartingKit _kit;
         private readonly Dictionary<string, InventoryContainer> _containers = new Dictionary<string, InventoryContainer>(StringComparer.Ordinal);
         private readonly Dictionary<string, CurrencyWallet> _wallets = new Dictionary<string, CurrencyWallet>(StringComparer.Ordinal);
         private readonly Equipment _equipment;
@@ -366,6 +366,12 @@ namespace Aetherfall.Inventory
             stats.Changed -= OnStatChanged;
             _binding.Detach();
             RefreshEncumbrance(false);
+        }
+
+        /// <inheritdoc />
+        public void SetStartingKit(StartingKit kit)
+        {
+            _kit = kit ?? StartingKit.Empty;
         }
 
         /// <summary>Resets to the starting kit (new game): bag, equipment, quick slots and gold; no global events.</summary>

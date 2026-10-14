@@ -6,7 +6,12 @@ Stand: 2026-10-14. Der Mini-Slice ist jetzt von Anfang bis Ende spielbar: Dorf E
 
 ## 1. Starten
 
-**Am einfachsten, ohne Unity:** Auf dem Desktop den Ordner **Aetherfall Spiel** öffnen und **Aetherfall.exe** doppelklicken. Im Hauptmenü **Neues Spiel**. Im Ordner liegt auch „So spielst du.txt“ mit allen Tasten. Claude baut diese Version neu, wenn sich etwas ändert.
+**Am einfachsten, ohne Unity:** Auf dem Desktop den Ordner **Aetherfall Spiel** öffnen und **Aetherfall.exe** doppelklicken. Im Hauptmenü **Neues Spiel**, dann deine **Klasse** wählen. Im Ordner liegt auch „So spielst du.txt“ mit allen Tasten. Claude baut diese Version neu, wenn sich etwas ändert. Läuft das Spiel gerade, während Claude baut, liegt die neue Version im Ordner **Aetherfall Spiel (neu)**.
+
+**Klassenwahl:**
+- **Krieger:** Schwert und Schild, viel Leben. Er kämpft im Nahkampf: schlagen, blocken, parieren.
+- **Magier:** Lehrlingsstab und Stoffrobe, wenig Leben, viel Mana. Die linke Maustaste schießt Feuergeschosse (bis 25 m, sie fliegen zum nächsten Gegner vor dir oder zum anvisierten). Die rechte Maustaste wirft einen großen, langsameren Feuerball. Halte Gegner auf Abstand.
+- Beide Klassen bekommen am Riss den Aether-Stoß (Taste 4).
 
 **In Unity (zum Testen):**
 
@@ -33,7 +38,8 @@ Tipp: Im Game-Fenster oben in der Leiste **Play Maximized** wählen, dann ist da
 | Ausweichen | **Strg links** |
 | Gegner anvisieren / wechseln | **T** oder mittlere Maustaste / Mausrad |
 | Aether-Stoß (ab dem Riss im Prolog): stößt alle Gegner vor dir 3 m zurück, 15 Mana, danach 8 s warten | **4** |
-| Heiltrank (3 Stück zu Beginn) | **5** |
+| Heiltrank trinken: +35 % Leben, dauert knapp eine Sekunde, ein harter Treffer bricht ab (3 Stück zu Beginn) | **5** |
+| Manatrank trinken (Magier, 3 Stück zu Beginn): +40 % Mana | **6** |
 | Inventar und Charakter | **Tab** |
 | Questlog | **J** |
 | Schnell speichern / laden | **F5** / **F9** |

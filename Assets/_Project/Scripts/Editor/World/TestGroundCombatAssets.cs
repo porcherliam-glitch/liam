@@ -44,7 +44,11 @@ namespace Aetherfall.EditorTools.World
             AetherPush = EnsureAetherPush(report);
             Wolf = EnsureEnemy("Grauwolf", false, bite, snap, pounce, report);
             AetherWolf = EnsureEnemy("AetherWolf", true, bite, snap, pounce, report);
+            Staff = EnsureStaff(finisher, report);
         }
+
+        /// <summary>Apprentice staff moveset (fire bolts, fire ball; GDD 03 5.3).</summary>
+        public WeaponDefinition Staff { get; }
 
         /// <summary>One-handed sword with moveset.</summary>
         public WeaponDefinition Weapon { get; }
@@ -65,7 +69,89 @@ namespace Aetherfall.EditorTools.World
         public EnemyTypeDefinition AetherWolf { get; }
 
         /// <summary>True if every asset exists.</summary>
-        public bool IsComplete => Weapon != null && Shield != null && Settings != null && AetherPush != null && Wolf != null && AetherWolf != null;
+        public bool IsComplete => Weapon != null && Shield != null && Settings != null && AetherPush != null && Wolf != null && AetherWolf != null &&
+                                  Staff != null;
+
+        private static WeaponDefinition EnsureStaff(AttackDefinition finisher, TestGroundReport report)
+        {
+            // GDD 03 5.3 staff: base attack "Elementgeschoss" (25 m, sequence of 3, tempo 500 ms, element of the staff), stamina
+            // 6 / 14, grows with intelligence. Heavy: a slower, bigger fire ball. The finisher stays the melee finisher.
+            AttackDefinition bolt1 = EnsureAttack("Zauberstab_Geschoss1", StaffBolt("attack.zauberstab.geschoss_1", 0.22f, AttackKind.Light), report);
+            AttackDefinition bolt2 = EnsureAttack("Zauberstab_Geschoss2", StaffBolt("attack.zauberstab.geschoss_2", 0.2f, AttackKind.Light), report);
+            AttackDefinition bolt3 = EnsureAttack("Zauberstab_Geschoss3", StaffBolt("attack.zauberstab.geschoss_3", 0.26f, AttackKind.ComboFinisher), report);
+            AttackDefinition fireball = EnsureAttack("Zauberstab_Feuerball", StaffFireball(), report);
+            AttackDefinition sprint = EnsureAttack("Zauberstab_Sprint", StaffBolt("attack.zauberstab.sprint", 0.2f, AttackKind.Sprint), report);
+            AttackDefinition jump = EnsureAttack("Zauberstab_Sprung", StaffBolt("attack.zauberstab.sprung", 0.18f, AttackKind.Jump), report);
+            AttackSpec counterSpec = StaffBolt("attack.zauberstab.konter", 0.12f, AttackKind.Counter);
+            counterSpec.DamageMultiplier = 2.5f;
+            counterSpec.StaminaCost = 0f;
+            AttackDefinition counter = EnsureAttack("Zauberstab_Konter", counterSpec, report);
+            ComboDefinition combo = EnsureAsset<ComboDefinition>(TestGroundPaths.WeaponFolder + "/Zauberstab_Kombo.asset", report, asset =>
+            {
+                var so = new SerializedObject(asset);
+                Set(so, "comboId", "combo.zauberstab.geschoss", report);
+                SetReferences(so, "steps", new Object[] { bolt1, bolt2, bolt3 }, report);
+                so.ApplyModifiedPropertiesWithoutUndo();
+            });
+            return EnsureAsset<WeaponDefinition>(TestGroundPaths.WeaponFolder + "/Zauberstab.asset", report, asset =>
+            {
+                var so = new SerializedObject(asset);
+                Set(so, "weaponId", "item.weapon.lehrlingsstab", report);
+                Set(so, "baseDamage", 20f, report);
+                Set(so, "damageType", (int)DamageType.Fire, report);
+                Set(so, "weaponPoise", 8f, report);
+                Set(so, "strengthWeight", 0f, report);
+                Set(so, "dexterityWeight", 0f, report);
+                Set(so, "intelligenceWeight", 1f, report);
+                Set(so, "lightCombo", combo, report);
+                Set(so, "heavyAttack", fireball, report);
+                Set(so, "sprintAttack", sprint, report);
+                Set(so, "jumpAttack", jump, report);
+                Set(so, "counterAttack", counter, report);
+                Set(so, "finisher", finisher, report);
+                // The staff blocks like the barrier of GDD 03 4.7 (140°); the mana cost of the barrier comes later.
+                Set(so, "blockAngle", 140f, report);
+                Set(so, "blockPhysicalReduction", 0.8f, report);
+                Set(so, "blockElementalReduction", 0.8f, report);
+                Set(so, "blockStability", 0.3f, report);
+                so.ApplyModifiedPropertiesWithoutUndo();
+            });
+        }
+
+        private static AttackSpec StaffBolt(string id, float windup, AttackKind kind)
+        {
+            AttackSpec spec = AttackSpec.Create(id, windup, 0.05f, 0.33f);
+            spec.Kind = kind;
+            spec.ComboWindowStartSeconds = windup + 0.12f;
+            spec.DamageMultiplier = kind == AttackKind.ComboFinisher ? 1.2f : 1f;
+            spec.PoiseMultiplier = 0.6f;
+            spec.StaminaCost = 6f;
+            spec.StaminaDamage = 10f;
+            spec.KnockbackDistance = 0.3f;
+            spec.MaxTurnDegrees = 90f;
+            spec.ProjectileSpeed = 30f;
+            spec.ProjectileRange = 25f;
+            spec.ProjectileRadius = 0.25f;
+            return spec;
+        }
+
+        private static AttackSpec StaffFireball()
+        {
+            AttackSpec spec = AttackSpec.Create("attack.zauberstab.feuerball", 0.6f, 0.05f, 0.6f);
+            spec.Kind = AttackKind.Heavy;
+            spec.ComboWindowStartSeconds = 10f;
+            spec.CancelOnlyInRecovery = true;
+            spec.DamageMultiplier = 1.8f;
+            spec.PoiseMultiplier = 1.6f;
+            spec.StaminaCost = 14f;
+            spec.StaminaDamage = 30f;
+            spec.KnockbackDistance = 1.2f;
+            spec.MaxTurnDegrees = 90f;
+            spec.ProjectileSpeed = 22f;
+            spec.ProjectileRange = 25f;
+            spec.ProjectileRadius = 0.45f;
+            return spec;
+        }
 
         private static AbilityDefinition EnsureAetherPush(TestGroundReport report)
         {
@@ -301,6 +387,10 @@ namespace Aetherfall.EditorTools.World
                 Set(so, "lungeDistance", spec.LungeDistance, report);
                 Set(so, "knockbackDistance", spec.KnockbackDistance, report);
                 Set(so, "maxTurnDegrees", spec.MaxTurnDegrees, report);
+                Set(so, "projectileSpeed", spec.ProjectileSpeed, report);
+                Set(so, "projectileRange", spec.ProjectileRange, report);
+                Set(so, "projectileRadius", spec.ProjectileRadius, report);
+                Set(so, "projectileGravity", spec.ProjectileGravity, report);
                 so.ApplyModifiedPropertiesWithoutUndo();
             });
         }

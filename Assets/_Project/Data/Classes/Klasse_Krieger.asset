@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7a517c3c3a178694a8158ba37060af3f, type: 3}
+  m_Name: Klasse_Krieger
+  m_EditorClassIdentifier: Aetherfall.Classes::Aetherfall.Classes.ClassDefinition
+  classId: class.krieger
+  displayName: Krieger
+  motto: Ich stehe, wo andere fallen.
+  description: "Nahkampf mit Schwert und Schild: Schl\xE4ge, Blocken und Parieren. Viel Leben, wenig Mana. F\xFCr alle, die mitten ins Get\xFCmmel wollen."
+  strength: 14
+  dexterity: 10
+  intelligence: 8
+  wisdom: 9
+  constitution: 15
+  charisma: 10
+  startingEquipment: {fileID: 11400000, guid: 855497a544d5a6a4295818e1ea795ff5, type: 2}

@@ -39,3 +39,5 @@ MonoBehaviour:
   blockPhysical: 0
   blockElemental: 0
   blockStability: 0
+  restoreHealth: 0.35
+  restoreMana: 0

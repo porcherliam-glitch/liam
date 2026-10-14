@@ -141,6 +141,7 @@ namespace Aetherfall.UI.Screens
         private IMerchantService _merchants;
         private IDialogueService _dialogues;
         private IDialogueSpeakerDirectory _speakers;
+        private Aetherfall.Classes.IClassService _classes;
         private UIScreen _pendingMenu;
         private object _pendingMenuArgs;
         private string _pendingMenuReason = string.Empty;
@@ -228,6 +229,7 @@ namespace Aetherfall.UI.Screens
                 locator.TryGet(out _bosses);
                 locator.TryGet(out _merchants);
                 locator.TryGet(out _speakers);
+                locator.TryGet(out _classes);
                 Build();
             }
             catch (OperationCanceledException)
@@ -250,7 +252,7 @@ namespace Aetherfall.UI.Screens
 
             VisualElement screensRoot = screensDocument.rootVisualElement;
             _mainMenu = new MainMenuScreen(CloneScreen(mainMenuLayout, screensRoot), loadPageLayout, saveSlotRowLayout, optionsPageLayout, _glyphs,
-                _flow, _preferences, UiTexts.Format(UiTextKeys.Version, Application.version));
+                _flow, _preferences, UiTexts.Format(UiTextKeys.Version, Application.version), _classes);
             _pauseMenu = new PauseMenuScreen(CloneScreen(pauseMenuLayout, screensRoot), loadPageLayout, saveSlotRowLayout, optionsPageLayout, _glyphs,
                 _flow, _gameState, _saves, _preferences, HasJournalLayouts() ? OpenJournalFromPause : (Func<bool>)null);
             _deathScreen = new DeathScreen(CloneScreen(deathScreenLayout, screensRoot), _glyphs, _flow, OnDeathLoadLast, OnDeathRespawn);
