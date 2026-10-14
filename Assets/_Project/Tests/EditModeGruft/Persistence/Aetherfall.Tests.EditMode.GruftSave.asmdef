@@ -1,0 +1,40 @@
+{
+    "name": "Aetherfall.Tests.EditMode.GruftSave",
+    "rootNamespace": "Aetherfall.Tests.EditMode.GruftSave",
+    "references": [
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner",
+        "Aetherfall.Utilities",
+        "Aetherfall.Core",
+        "Aetherfall.Events",
+        "Aetherfall.Data",
+        "Aetherfall.Conditions",
+        "Aetherfall.SaveSystem",
+        "Aetherfall.World",
+        "Aetherfall.World.Gameplay",
+        "Aetherfall.Tests.Shared"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll",
+        "Newtonsoft.Json.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS",
+        "AETHERFALL_NEWTONSOFT"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.unity.nuget.newtonsoft-json",
+            "expression": "3.0",
+            "define": "AETHERFALL_NEWTONSOFT"
+        }
+    ],
+    "noEngineReferences": false
+}

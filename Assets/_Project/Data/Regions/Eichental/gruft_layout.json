@@ -1,0 +1,262 @@
+{
+  "format": "aetherfall.dungeon_layout",
+  "version": 1,
+  "id": "dungeon.eichental.vergessene_gruft",
+  "name": "Die vergessene Gruft",
+  "nameEn": "The Forgotten Crypt",
+  "regionId": "region.eichental",
+  "locationId": "loc.eichental.vergessene_gruft",
+  "questId": "quest.dungeon.eichental.vergessene_gruft",
+  "worldSpaceId": "worldspace.eichental.gruft",
+  "sceneKey": "Assets/_Project/Scenes/Dungeons/Gruft.unity",
+  "areaLevel": 6,
+  "cellSize": 1,
+  "wallThickness": 0.6,
+  "source": "GDD 02, 11.7 (Stages, Rätsel, Mini-Boss, IDs) · GDD 01, 4.1 und 11 (Gruft der Eichenritter, Skelett-Krieger, Der Wachende Ritter) · GDD 03, 9.6 (Boss-Regeln) · Architektur 10.8 (eigene Szene)",
+  "notes": [
+    "Eine Quelle für Unity (Menü „Aetherfall > Gruft erstellen“) und Blender (Tools/Preview/gruft_preview.py). Einheiten: Meter. Unity-Koordinaten: x = Osten, y = oben, z = Norden.",
+    "Raster 1 m: Räume sind Rechtecke [x, x + width) × [z, z + depth). Gänge sind Linienzüge mit gerader Breite; jede Zelle mit Boden ist begehbar, zwischen Boden und Leere entsteht automatisch eine Wand.",
+    "Bodenhöhe von Objekten ohne „y“ kommt aus dem Raster (Raum oder Gang an dieser Stelle). „height“ ist die Höhe über diesem Boden (z. B. Fackeln an der Wand).",
+    "Ablauf nach GDD 02, 11.7: Vorraum mit Grabplatten-Rätsel (s20) → Hallen der Eichenritter mit 6 Skelett-Kriegern (s30), Käfig mit Fenn, Nebenkammer, Seitengang für Schleicher → Spiegelsaal = Siegelkammer-Vorraum mit Spiegel-Rätsel (s40) → Siegelkammer mit dem Wachenden Ritter (s50) und dem Siegelstein (s60) → Fluchtweg nach draußen.",
+    "Vorschlag: Der vierte Spiegel in der Siegelkammer bekommt erst in Phase 2 Licht (der Ritter schlägt mit dem Schild auf den Boden, der Spalt bricht auf). So ist die Mechanik genau dann da, wenn GDD 02 sie verlangt.",
+    "Vorschlag: Rätsel-Hinweis nach 120 s ohne Fortschritt: Ohne Begleiter (Mini-Slice) leuchten die Fairness-Hinweise (Inschrift bzw. Rußspuren) auf.",
+    "Boss-Arena: Der Kampfbereich beginnt 3,6 m hinter dem Fallgitter (z 62,4 → 66), das Gitter fällt in ca. 0,6 s. So ist der Spieler sicher in der Arena, wenn es zufällt (Validator-Regel arena.gate_gap: mindestens 3 m)."
+  ],
+  "atmosphere": {
+    "ambientColor": "#141720",
+    "fogColor": "#07080C",
+    "fogDensity": 0.04,
+    "stoneColor": "#5C5852",
+    "floorColor": "#46423C",
+    "ceilingColor": "#2E2B28",
+    "torchColor": "#FF9A4A",
+    "aetherColor": "#2FE6D6",
+    "daylightColor": "#CFDDFF"
+  },
+  "rooms": [
+    { "id": "room.vorraum", "name": "Vorraum der Gruft", "x": -7, "z": -20, "width": 14, "depth": 16, "floorY": 0, "height": 6 },
+    { "id": "room.hallen", "name": "Hallen der Eichenritter", "x": -12, "z": 4, "width": 24, "depth": 28, "floorY": -3, "height": 8 },
+    { "id": "room.seitengang", "name": "Seitengang", "x": 13, "z": 5, "width": 3, "depth": 30, "floorY": -2, "height": 3.5 },
+    { "id": "room.nebenkammer", "name": "Nebenkammer", "x": -21, "z": 10, "width": 8, "depth": 8, "floorY": -3, "height": 4 },
+    { "id": "room.spiegelsaal", "name": "Spiegelsaal (Vorraum der Siegelkammer)", "x": -9, "z": 38, "width": 18, "depth": 18, "floorY": -3, "height": 7 },
+    { "id": "room.siegelkammer", "name": "Siegelkammer", "x": -27, "z": 62, "width": 26, "depth": 26, "floorY": -6, "height": 9 },
+    { "id": "room.fluchtweg", "name": "Fluchtweg der Eichenritter", "x": 9, "z": 82, "width": 6, "depth": 8, "floorY": -2, "height": 4 }
+  ],
+  "corridors": [
+    { "id": "corridor.ausgang", "name": "Treppe zur Senke", "width": 4, "height": 4, "points": [[0, -20, 0], [0, -26, 1.5]] },
+    { "id": "corridor.treppe_hallen", "name": "Treppe in die Hallen", "width": 4, "height": 5, "points": [[0, -4, 0], [0, 4, -3]] },
+    { "id": "corridor.hallen_spiegel", "name": "Gang zum Spiegelsaal", "width": 4, "height": 5, "points": [[0, 32, -3], [0, 38, -3]] },
+    { "id": "corridor.kletterstelle", "name": "Kletterstelle zum Seitengang", "width": 2, "height": 3.5, "points": [[12, 6, -2], [13, 6, -2]] },
+    { "id": "corridor.seitengang_nord", "name": "Ende des Seitengangs", "width": 2, "height": 3.5, "points": [[13, 34, -2], [2, 34, -2.5]] },
+    { "id": "corridor.nebenkammer_tuer", "name": "Durchgang zur Nebenkammer", "width": 2, "height": 3.5, "points": [[-12, 14, -3], [-13, 14, -3]] },
+    { "id": "corridor.spiegel_siegel", "name": "Abstieg zur Siegelkammer", "width": 4, "height": 5, "points": [[-9, 52, -3], [-14, 52, -3], [-14, 62, -6]] },
+    { "id": "corridor.fluchtweg", "name": "Aufgang zum Fluchtweg", "width": 4, "height": 4, "points": [[-1, 86, -6], [9, 86, -2]] }
+  ],
+  "doors": [
+    { "id": "door.eichental.gruft_tor", "name": "Tor der Gruft", "kind": "stone_gate", "x": 0, "z": -4.3, "axis": "x", "width": 4, "height": 5, "startsOpen": false, "opensOn": { "type": "puzzle", "id": "puzzle.eichental.gruft_grabplatten" } },
+    { "id": "door.eichental.gruft_nebenkammer", "name": "Verborgene Tür zur Nebenkammer", "kind": "hidden_wall", "x": -12.5, "z": 14, "axis": "z", "width": 2, "height": 3.5, "startsOpen": false, "opensOn": { "type": "objectState", "id": "obj.eichental.gruft_kaefig", "state": 1 } },
+    { "id": "door.eichental.gruft_seitengang_gitter", "name": "Gitter am Ende des Seitengangs", "kind": "portcullis", "x": 2.5, "z": 34, "axis": "z", "width": 2, "height": 3.5, "startsOpen": false, "opensOn": { "type": "lever", "id": "obj.eichental.gruft_hebel_seitengang" } },
+    { "id": "door.eichental.gruft_siegelkammer", "name": "Siegeltür der Siegelkammer", "kind": "seal_door", "x": -9.5, "z": 52, "axis": "z", "width": 4, "height": 5, "startsOpen": false, "opensOn": { "type": "puzzle", "id": "puzzle.eichental.gruft_spiegel" } },
+    { "id": "door.eichental.gruft_arena_tor", "name": "Fallgitter der Siegelkammer", "kind": "portcullis", "x": -14, "z": 62.4, "axis": "x", "width": 4, "height": 5, "startsOpen": true, "opensOn": { "type": "arena", "id": "boss.eichental.wachender_ritter" } },
+    { "id": "door.eichental.gruft_fluchtweg_tor", "name": "Fallgitter zum Fluchtweg", "kind": "portcullis", "x": -0.5, "z": 86, "axis": "z", "width": 4, "height": 4, "startsOpen": false, "opensOn": { "type": "bossDefeated", "id": "boss.eichental.wachender_ritter" } }
+  ],
+  "puzzles": [
+    {
+      "id": "puzzle.eichental.gruft_grabplatten",
+      "type": "sequence",
+      "name": "Die drei Grabplatten",
+      "questStage": "s20",
+      "puzzleType": "Hebel und Sequenzen (GDD 01, 6.7)",
+      "door": "door.eichental.gruft_tor",
+      "steps": ["obj.eichental.gruft_grabplatte_eiche", "obj.eichental.gruft_grabplatte_krone", "obj.eichental.gruft_grabplatte_schild"],
+      "failTrap": "trap.eichental.gruft_pfeilfalle",
+      "hintAfterSeconds": 120,
+      "hintObjects": ["obj.eichental.gruft_tor_inschrift"]
+    },
+    {
+      "id": "puzzle.eichental.gruft_spiegel",
+      "type": "mirror",
+      "name": "Die drei Spiegel",
+      "questStage": "s40",
+      "puzzleType": "Spiegel und Licht (GDD 01, 6.7)",
+      "door": "door.eichental.gruft_siegelkammer",
+      "source": "obj.eichental.gruft_aether_spalt",
+      "sourceDirection": "N",
+      "target": "obj.eichental.gruft_siegel",
+      "mirrors": [
+        { "id": "obj.eichental.gruft_spiegel_1", "start": "N", "solution": "E" },
+        { "id": "obj.eichental.gruft_spiegel_2", "start": "W", "solution": "N" },
+        { "id": "obj.eichental.gruft_spiegel_3", "start": "S", "solution": "W" }
+      ],
+      "hintAfterSeconds": 120,
+      "hintObjects": ["prop.gruft_russ_1", "prop.gruft_russ_2", "prop.gruft_russ_3", "prop.gruft_russ_4"]
+    }
+  ],
+  "traps": [
+    { "id": "trap.eichental.gruft_pfeilfalle", "name": "Pfeilfalle der Grabplatten", "kind": "arrows", "damageFraction": 0.1, "trigger": { "type": "puzzleFailed", "id": "puzzle.eichental.gruft_grabplatten" }, "slits": ["obj.eichental.gruft_pfeilschlitz_west", "obj.eichental.gruft_pfeilschlitz_ost"] },
+    { "id": "trap.eichental.gruft_seitengang", "name": "Pfeilfalle im Seitengang", "kind": "arrows", "damageFraction": 0.1, "trigger": { "type": "pressurePlate", "id": "obj.eichental.gruft_druckplatte_seitengang" }, "slits": ["obj.eichental.gruft_pfeilschlitz_seitengang"] }
+  ],
+  "objects": [
+    { "id": "obj.eichental.gruft_tor_inschrift", "kind": "inscription", "name": "Inschrift am Tor", "x": 4.6, "z": -4.15, "height": 2.2, "yaw": 180, "size": [1.6, 0.9, 0.08], "prompt": "Lesen: Inschrift am Tor", "text": "„Erst die Eiche, die den Schild trug, dann die Krone, die sich beugte, zuletzt der Schild, der nie brach.“" },
+    { "id": "obj.eichental.gruft_grabplatte_schild", "kind": "grave_slab", "name": "Grabplatte mit Schild", "relief": "schild", "x": -4, "z": -10, "yaw": 0, "size": [1.4, 0.15, 2.2], "prompt": "Drücken: Grabplatte mit Schild" },
+    { "id": "obj.eichental.gruft_grabplatte_eiche", "kind": "grave_slab", "name": "Grabplatte mit Eiche und Schild", "relief": "eiche", "x": 0, "z": -10, "yaw": 0, "size": [1.4, 0.15, 2.2], "prompt": "Drücken: Grabplatte mit Eiche" },
+    { "id": "obj.eichental.gruft_grabplatte_krone", "kind": "grave_slab", "name": "Grabplatte mit gebeugter Krone", "relief": "krone", "x": 4, "z": -10, "yaw": 0, "size": [1.4, 0.15, 2.2], "prompt": "Drücken: Grabplatte mit Krone" },
+    { "id": "obj.eichental.gruft_pfeilschlitz_west", "kind": "trap_slit", "name": "Pfeilschlitze (West)", "x": -6.95, "z": -10, "height": 1.3, "yaw": 90, "size": [0.08, 0.5, 2.4] },
+    { "id": "obj.eichental.gruft_pfeilschlitz_ost", "kind": "trap_slit", "name": "Pfeilschlitze (Ost)", "x": 6.95, "z": -10, "height": 1.3, "yaw": 270, "size": [0.08, 0.5, 2.4] },
+    { "id": "obj.eichental.gruft_wandrelief_1", "kind": "relief", "name": "Wandrelief: Ritter unter der Eiche", "clueId": "clue.eichental.gruft_wandrelief_1", "x": -6.92, "z": -16, "height": 1.8, "yaw": 90, "size": [0.1, 1.4, 2.0], "prompt": "Untersuchen: Wandrelief", "text": "Ein Ritter kniet unter einer Eiche. Sein Schild hängt im Geäst, als hätte der Baum ihn getragen." },
+    { "id": "obj.eichental.gruft_wandrelief_2", "kind": "relief", "name": "Wandrelief: Die gebeugte Krone", "clueId": "clue.eichental.gruft_wandrelief_2", "x": 6.92, "z": -16, "height": 1.8, "yaw": 270, "size": [0.1, 1.4, 2.0], "prompt": "Untersuchen: Wandrelief", "text": "Eine Krone neigt sich vor zwölf Rittern. Darunter: „Der Eid steht über dem Thron.“" },
+    { "id": "obj.eichental.gruft_wandrelief_3", "kind": "relief", "name": "Wandrelief: Der Schild, der nie brach", "clueId": "clue.eichental.gruft_wandrelief_3", "x": -3.5, "z": -19.92, "height": 1.8, "yaw": 0, "size": [2.0, 1.4, 0.1], "prompt": "Untersuchen: Wandrelief", "text": "Ein Schild ohne Kratzer, umringt von Rissen im Stein. „Was nie brach, hält das Tal.“ – Codex: Die Eichenritter" },
+    { "id": "obj.eichental.gruft_ausgang_eingang", "kind": "portal", "name": "Treppe hinauf zur Senke", "x": 0, "z": -25.4, "yaw": 180, "size": [3.6, 3.2, 0.3], "prompt": "Gruft verlassen" },
+
+    { "id": "prop.gruft_torsaeule_west", "kind": "column", "x": -2.8, "z": -4.6, "size": [0.8, 6, 0.6] },
+    { "id": "prop.gruft_torsaeule_ost", "kind": "column", "x": 2.8, "z": -4.6, "size": [0.8, 6, 0.6] },
+    { "id": "prop.gruft_schutt_vorraum_1", "kind": "rubble", "x": -5.6, "z": -18.8, "yaw": 20, "size": [1.4, 0.5, 1.0] },
+    { "id": "prop.gruft_schutt_vorraum_2", "kind": "rubble", "x": 5.7, "z": -19, "yaw": -35, "size": [1.1, 0.4, 0.9] },
+
+    { "id": "prop.gruft_hallen_saeule_1", "kind": "pillar", "x": -5, "z": 9, "size": [1.2, 8, 1.2] },
+    { "id": "prop.gruft_hallen_saeule_2", "kind": "pillar", "x": 5, "z": 9, "size": [1.2, 8, 1.2] },
+    { "id": "prop.gruft_hallen_saeule_3", "kind": "pillar", "x": -5, "z": 15, "size": [1.2, 8, 1.2] },
+    { "id": "prop.gruft_hallen_saeule_4", "kind": "pillar", "x": 5, "z": 15, "size": [1.2, 8, 1.2] },
+    { "id": "prop.gruft_hallen_saeule_5", "kind": "pillar", "x": -5, "z": 21, "size": [1.2, 8, 1.2] },
+    { "id": "prop.gruft_hallen_saeule_6", "kind": "pillar", "x": 5, "z": 21, "size": [1.2, 8, 1.2] },
+    { "id": "prop.gruft_hallen_saeule_7", "kind": "pillar", "x": -5, "z": 27, "size": [1.2, 8, 1.2] },
+    { "id": "prop.gruft_hallen_saeule_8", "kind": "pillar", "x": 5, "z": 27, "size": [1.2, 8, 1.2] },
+    { "id": "prop.gruft_sarkophag_1", "kind": "sarcophagus", "x": -10, "z": 8, "yaw": 0, "size": [1.2, 1.0, 2.4] },
+    { "id": "prop.gruft_sarkophag_2", "kind": "sarcophagus", "x": -10, "z": 28, "yaw": 0, "size": [1.2, 1.0, 2.4] },
+    { "id": "prop.gruft_sarkophag_3", "kind": "sarcophagus", "x": 10, "z": 9, "yaw": 0, "size": [1.2, 1.0, 2.4] },
+    { "id": "prop.gruft_sarkophag_4", "kind": "sarcophagus", "x": 10, "z": 15, "yaw": 0, "size": [1.2, 1.0, 2.4] },
+    { "id": "prop.gruft_sarkophag_5", "kind": "sarcophagus", "x": 10, "z": 21, "yaw": 0, "size": [1.2, 1.0, 2.4] },
+    { "id": "prop.gruft_sarkophag_6", "kind": "sarcophagus", "x": 10, "z": 27, "yaw": 0, "size": [1.2, 1.0, 2.4] },
+    { "id": "prop.gruft_aether_riss_hallen", "kind": "aether_crack", "x": 0, "z": 18, "yaw": 30, "size": [3.2, 0.03, 0.5] },
+    { "id": "prop.gruft_kletterstelle", "kind": "climb_marker", "x": 11.75, "z": 6, "yaw": 0, "size": [0.5, 1.0, 2.0] },
+    { "id": "obj.eichental.gruft_kaefig", "kind": "cage", "name": "Käfig des Grabräubers", "x": -10.4, "z": 21.5, "yaw": 90, "size": [2.2, 2.6, 2.2], "prompt": "Befreie den Grabräuber" },
+    { "id": "npc.eichental.grabraeuber_fenn", "kind": "npc", "name": "Fenn", "x": -10.4, "z": 21.5, "yaw": 90, "size": [0.6, 1.75, 0.6], "text": "Fenn: „Danke, Fremder. Ein paar Schritte Richtung Treppe, zwischen den beiden Gräbern an der Westwand, ist eine lose Platte – dahinter liegt die Kammer, aus der ich nicht mehr rauskam.“" },
+    { "id": "obj.eichental.gruft_tafel_eid", "kind": "lore_tablet", "name": "Steintafel: Eid der Eichenritter", "x": -7, "z": 31.92, "height": 1.6, "yaw": 180, "size": [1.4, 1.0, 0.12], "prompt": "Lesen: Eid der Eichenritter", "text": "„Wir halten die Risse, solange Stein auf Stein liegt. Wer den Riegel nimmt, weckt uns alle.“ – Aldric Sturmfels, letzter Ritter der Eiche" },
+    { "id": "obj.eichental.gruft_druckplatte_seitengang", "kind": "pressure_plate", "name": "Druckplatte im Seitengang", "x": 14.5, "z": 22, "yaw": 0, "size": [1.4, 0.08, 1.4] },
+    { "id": "obj.eichental.gruft_pfeilschlitz_seitengang", "kind": "trap_slit", "name": "Pfeilschlitze (Seitengang)", "x": 15.95, "z": 22, "height": 1.2, "yaw": 270, "size": [0.08, 0.5, 1.6] },
+    { "id": "obj.eichental.gruft_hebel_seitengang", "kind": "lever", "name": "Hebel am Gitter", "x": 4.5, "z": 34.85, "height": 0, "yaw": 180, "size": [0.3, 1.2, 0.3], "prompt": "Ziehen: Hebel" },
+
+    { "id": "obj.eichental.gruft_truhe_nebenkammer", "kind": "chest", "name": "Truhe in der Nebenkammer", "tier": "hidden", "lootTable": "loot.chest.versteckt", "x": -19.6, "z": 16.4, "yaw": 90, "size": [1.1, 0.75, 0.7] },
+    { "id": "obj.eichental.gruft_notiz_fenn", "kind": "lore_note", "name": "Fenns Notiz", "x": -15, "z": 11, "height": 0.8, "yaw": 0, "size": [0.6, 0.8, 0.6], "prompt": "Lesen: Fenns Notiz", "text": "„Zwölf Ritter, zwölf Gräber, ein Stein. Der Gelehrte zahlt gut für den Stein. Aber das Summen … es kommt von unten.“" },
+
+    { "id": "obj.eichental.gruft_aether_spalt", "kind": "aether_crack", "name": "Spalt mit Aether-Licht", "x": -5, "z": 38.1, "height": 1.2, "yaw": 0, "size": [0.5, 1.6, 0.1] },
+    { "id": "obj.eichental.gruft_spiegel_1", "kind": "mirror", "name": "Spiegel 1", "x": -5, "z": 41, "height": 0, "size": [1.4, 2.0, 0.15], "prompt": "Drehen: Spiegel 1" },
+    { "id": "obj.eichental.gruft_spiegel_2", "kind": "mirror", "name": "Spiegel 2", "x": 5, "z": 41, "height": 0, "size": [1.4, 2.0, 0.15], "prompt": "Drehen: Spiegel 2" },
+    { "id": "obj.eichental.gruft_spiegel_3", "kind": "mirror", "name": "Spiegel 3", "x": 5, "z": 52, "height": 0, "size": [1.4, 2.0, 0.15], "prompt": "Drehen: Spiegel 3" },
+    { "id": "obj.eichental.gruft_siegel", "kind": "seal", "name": "Siegel an der Tür", "x": -9.25, "z": 52, "height": 1.2, "yaw": 90, "size": [0.08, 1.2, 1.2] },
+    { "id": "prop.gruft_russ_1", "kind": "soot", "x": -5, "z": 39.5, "yaw": 0, "size": [0.6, 0.02, 3.0] },
+    { "id": "prop.gruft_russ_2", "kind": "soot", "x": 0, "z": 41, "yaw": 0, "size": [10.0, 0.02, 0.6] },
+    { "id": "prop.gruft_russ_3", "kind": "soot", "x": 5, "z": 46.5, "yaw": 0, "size": [0.6, 0.02, 11.0] },
+    { "id": "prop.gruft_russ_4", "kind": "soot", "x": -2, "z": 52, "yaw": 0, "size": [14.0, 0.02, 0.6] },
+    { "id": "prop.gruft_schutt_spiegelsaal", "kind": "rubble", "x": 7.4, "z": 39.2, "yaw": 15, "size": [1.2, 0.45, 0.9] },
+
+    { "id": "prop.gruft_arena_saeule_1", "kind": "pillar", "x": -20, "z": 68, "size": [1.6, 9, 1.6] },
+    { "id": "prop.gruft_arena_saeule_2", "kind": "pillar", "x": -8, "z": 68, "size": [1.6, 9, 1.6] },
+    { "id": "prop.gruft_arena_saeule_3", "kind": "pillar", "x": -20, "z": 82, "size": [1.6, 9, 1.6] },
+    { "id": "prop.gruft_arena_saeule_4", "kind": "pillar", "x": -8, "z": 82, "size": [1.6, 9, 1.6] },
+    { "id": "prop.gruft_altar", "kind": "altar", "x": -14, "z": 86, "yaw": 0, "size": [3.0, 1.1, 1.6] },
+    { "id": "prop.gruft_sarkophag_arena_1", "kind": "sarcophagus", "x": -25.5, "z": 66, "yaw": 90, "size": [1.2, 1.0, 2.4] },
+    { "id": "prop.gruft_sarkophag_arena_2", "kind": "sarcophagus", "x": -2.5, "z": 65, "yaw": 90, "size": [1.2, 1.0, 2.4] },
+    { "id": "obj.eichental.gruft_siegelstein", "kind": "seal_stone", "name": "Siegelstein der Eichenritter", "x": -14, "z": 86, "height": 1.1, "yaw": 0, "size": [0.6, 0.5, 0.6], "prompt": "Nimm den Siegelstein", "itemId": "item.quest.siegelstein_gruft" },
+    { "id": "obj.eichental.gruft_klingenfragment", "kind": "reward", "name": "Klingenfragment „Eidwahrer“", "x": -14, "z": 83.5, "yaw": 0, "size": [0.15, 0.04, 0.9], "prompt": "Aufheben: Klingenfragment „Eidwahrer“", "itemId": "item.quest.klingenfragment_eidwahrer" },
+    { "id": "obj.eichental.gruft_aether_spalt_arena", "kind": "aether_crack", "name": "Spalt in der Ostwand", "x": -1.1, "z": 75, "height": 1.2, "yaw": 270, "size": [0.1, 1.6, 0.5] },
+    { "id": "obj.eichental.gruft_spiegel_4", "kind": "mirror", "name": "Spiegel 4", "x": -5, "z": 75, "height": 0, "size": [1.4, 2.0, 0.15], "prompt": "Drehen: Spiegel 4" },
+    { "id": "obj.eichental.gruft_truhe_siegelkammer", "kind": "chest", "name": "Truhe in der Siegelkammer", "tier": "iron", "lootTable": "loot.chest.eisen", "x": -24.6, "z": 86.4, "yaw": 90, "size": [1.1, 0.75, 0.7] },
+
+    { "id": "obj.eichental.gruft_ausgang_fluchtweg", "kind": "portal", "name": "Fluchtweg ins Freie", "x": 14.6, "z": 86, "yaw": 90, "size": [0.3, 3.2, 3.6], "prompt": "Gruft verlassen (Fluchtweg)" }
+  ],
+  "spawners": [
+    {
+      "id": "spawn.eichental.gruft_hallen",
+      "name": "Skelett-Krieger in den Hallen",
+      "room": "room.hallen",
+      "activation": { "type": "puzzle", "id": "puzzle.eichental.gruft_grabplatten" },
+      "enemies": [
+        { "number": "gruft_hallen_1", "type": "enemy.untot.skelett_krieger", "variant": "normal", "x": -4, "z": 12, "yaw": 180, "guard": true },
+        { "number": "gruft_hallen_2", "type": "enemy.untot.skelett_krieger", "variant": "normal", "x": 4, "z": 12, "yaw": 180, "guard": true },
+        { "number": "gruft_hallen_3", "type": "enemy.untot.skelett_krieger", "variant": "normal", "x": -7, "z": 18, "yaw": 0, "guard": false, "patrol": [[-7, 18], [-7, 26]] },
+        { "number": "gruft_hallen_4", "type": "enemy.untot.skelett_krieger", "variant": "normal", "x": 7, "z": 22, "yaw": 180, "guard": false, "patrol": [[7, 22], [7, 14]] },
+        { "number": "gruft_hallen_5", "type": "enemy.untot.skelett_krieger", "variant": "normal", "x": 0, "z": 24, "yaw": 180, "guard": true },
+        { "number": "gruft_hallen_6", "type": "enemy.untot.skelett_krieger", "variant": "elite", "x": 0, "z": 29.5, "yaw": 180, "guard": true, "towerShield": true }
+      ]
+    }
+  ],
+  "areas": [
+    { "id": "zone.gruft.vorraum", "locationId": "loc.eichental.vergessene_gruft", "x": -7, "z": -20, "width": 14, "depth": 16 },
+    { "id": "zone.gruft.siegelkammer_vorraum", "locationId": "loc.eichental.gruft_siegelkammer_vorraum", "x": -9, "z": 38, "width": 18, "depth": 18 },
+    { "id": "zone.gruft.ausgang_eingang", "locationId": "loc.eichental.gruft_ausgang", "x": -2, "z": -26, "width": 4, "depth": 5 },
+    { "id": "zone.gruft.ausgang_fluchtweg", "locationId": "loc.eichental.gruft_ausgang", "x": 9, "z": 82, "width": 6, "depth": 8 }
+  ],
+  "checkpoints": [
+    { "id": "checkpoint.gruft.vorkammer", "name": "Vorkammer der Siegelkammer", "x": -16, "z": 56, "width": 4, "depth": 4, "autosave": true, "respawn": { "x": -14, "z": 59, "yaw": 0 } }
+  ],
+  "spawn": { "id": "spawn.gruft.eingang", "anchorId": "anchor.gruft.eingang", "x": 0, "z": -17, "yaw": 0 },
+  "exits": [
+    { "object": "obj.eichental.gruft_ausgang_eingang", "targetSceneKey": "Assets/_Project/Scenes/World/Eichental.unity", "targetTitle": "Eichental", "targetAnchorId": "anchor.eichental.gruft_eingang" },
+    { "object": "obj.eichental.gruft_ausgang_fluchtweg", "targetSceneKey": "Assets/_Project/Scenes/World/Eichental.unity", "targetTitle": "Eichental", "targetAnchorId": "anchor.eichental.gruft_eingang" }
+  ],
+  "bossArena": {
+    "id": "arena.eichental.gruft_siegelkammer",
+    "room": "room.siegelkammer",
+    "bossId": "boss.eichental.wachender_ritter",
+    "name": "Der Wachende Ritter",
+    "title": "Letzter Wächter der Eichenritter",
+    "enemyType": "enemy.untot.skelett_krieger",
+    "variant": "champion",
+    "x": -14,
+    "z": 79,
+    "yaw": 180,
+    "encounterArea": { "x": -27, "z": 66, "width": 26, "depth": 22 },
+    "closeGates": ["door.eichental.gruft_arena_tor"],
+    "covers": ["prop.gruft_arena_saeule_1", "prop.gruft_arena_saeule_2", "prop.gruft_arena_saeule_3", "prop.gruft_arena_saeule_4"],
+    "mirror": "obj.eichental.gruft_spiegel_4",
+    "mirrorStart": "W",
+    "beamSource": "obj.eichental.gruft_aether_spalt_arena",
+    "beamSourceDirection": "W",
+    "beamFromPhase": 2,
+    "beamStunSeconds": 5,
+    "beamCooldownSeconds": 8,
+    "phases": [
+      { "phase": 1, "fromHealth": 1.0, "summon": 0 },
+      { "phase": 2, "fromHealth": 0.5, "summon": 2 }
+    ],
+    "adds": [
+      { "number": "gruft_ritter_ruf_1", "type": "enemy.untot.skelett_krieger", "variant": "normal", "x": -25.5, "z": 72, "yaw": 90, "guard": true },
+      { "number": "gruft_ritter_ruf_2", "type": "enemy.untot.skelett_krieger", "variant": "normal", "x": -2.5, "z": 70, "yaw": 270, "guard": true }
+    ],
+    "lootTable": "loot.boss.wachender_ritter",
+    "reward": "obj.eichental.gruft_klingenfragment",
+    "sealStone": "obj.eichental.gruft_siegelstein",
+    "music": "mus.boss_gruft"
+  },
+  "lights": [
+    { "kind": "torch", "x": -6.75, "z": -6, "height": 2.4, "range": 9, "intensity": 1.6 },
+    { "kind": "torch", "x": 6.75, "z": -6, "height": 2.4, "range": 9, "intensity": 1.6 },
+    { "kind": "torch", "x": -6.75, "z": -18, "height": 2.4, "range": 9, "intensity": 1.6 },
+    { "kind": "torch", "x": 6.75, "z": -18, "height": 2.4, "range": 9, "intensity": 1.6 },
+    { "kind": "daylight", "x": 0, "z": -25, "height": 3.0, "range": 8, "intensity": 1.4 },
+    { "kind": "torch", "x": 1.75, "z": 0, "height": 2.2, "range": 8, "intensity": 1.3 },
+    { "kind": "brazier", "x": -3, "z": 7, "range": 12, "intensity": 2.0 },
+    { "kind": "brazier", "x": 3, "z": 7, "range": 12, "intensity": 2.0 },
+    { "kind": "brazier", "x": -3, "z": 29, "range": 12, "intensity": 2.0 },
+    { "kind": "brazier", "x": 3, "z": 29, "range": 12, "intensity": 2.0 },
+    { "kind": "torch", "x": -11.75, "z": 19, "height": 2.4, "range": 8, "intensity": 1.4 },
+    { "kind": "aether", "x": 0, "z": 18, "height": 0.4, "range": 9, "intensity": 1.6 },
+    { "kind": "aether", "x": 14.5, "z": 20, "height": 2.0, "range": 7, "intensity": 0.8 },
+    { "kind": "torch", "x": 15.75, "z": 30, "height": 2.0, "range": 6, "intensity": 1.0 },
+    { "kind": "torch", "x": -13.25, "z": 16.5, "height": 2.0, "range": 7, "intensity": 1.2 },
+    { "kind": "torch", "x": 1.75, "z": 35, "height": 2.2, "range": 8, "intensity": 1.2 },
+    { "kind": "torch", "x": -8.75, "z": 46, "height": 2.4, "range": 8, "intensity": 1.1 },
+    { "kind": "torch", "x": 8.75, "z": 46, "height": 2.4, "range": 8, "intensity": 1.1 },
+    { "kind": "torch", "x": 8.75, "z": 54, "height": 2.4, "range": 8, "intensity": 1.1 },
+    { "kind": "aether", "x": -5, "z": 38.6, "height": 1.2, "range": 5, "intensity": 1.5 },
+    { "kind": "torch", "x": -12.25, "z": 57, "height": 2.2, "range": 8, "intensity": 1.2 },
+    { "kind": "brazier", "x": -14, "z": 65.5, "range": 12, "intensity": 2.0 },
+    { "kind": "brazier", "x": -24, "z": 75, "range": 12, "intensity": 2.0 },
+    { "kind": "torch", "x": -16.5, "z": 87.75, "height": 2.6, "range": 9, "intensity": 1.6 },
+    { "kind": "torch", "x": -11.5, "z": 87.75, "height": 2.6, "range": 9, "intensity": 1.6 },
+    { "kind": "aether", "x": -14, "z": 86, "height": 1.6, "range": 6, "intensity": 2.0 },
+    { "kind": "aether", "x": -1.4, "z": 75, "height": 1.2, "range": 6, "intensity": 1.2 },
+    { "kind": "daylight", "x": 12, "z": 86, "height": 3.0, "range": 10, "intensity": 2.5 }
+  ]
+}

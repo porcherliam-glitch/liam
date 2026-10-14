@@ -1,0 +1,32 @@
+{
+    "name": "Aetherfall.World.Gameplay",
+    "rootNamespace": "Aetherfall.World.Gameplay",
+    "references": [
+        "Aetherfall.Utilities",
+        "Aetherfall.Core",
+        "Aetherfall.Events",
+        "Aetherfall.Data",
+        "Aetherfall.Conditions",
+        "Aetherfall.SaveSystem",
+        "Aetherfall.Stats",
+        "Aetherfall.Combat",
+        "Aetherfall.World"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "AETHERFALL_NEWTONSOFT"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.unity.nuget.newtonsoft-json",
+            "expression": "3.0",
+            "define": "AETHERFALL_NEWTONSOFT"
+        }
+    ],
+    "noEngineReferences": false
+}
