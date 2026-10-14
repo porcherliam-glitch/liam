@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Aetherfall.World;
 using NUnit.Framework;
@@ -6,8 +7,8 @@ namespace Aetherfall.Tests.EditMode.World
 {
     /// <summary>
     /// The real layout of the mini slice (<c>Data/Regions/Eichental/eichental_layout.json</c>): no findings, the size from
-    /// GDD 01 3.1 / architecture 10.5, and the ids of GDD 01 (4.1) and GDD 02 (11.0–11.2, 11.7) for places, NPCs, spawners
-    /// and quest objects.
+    /// GDD 01 3.1 / architecture 10.5, and the ids of GDD 01 (4.1) and GDD 02 (11.0–11.2, 11.7) for places, NPCs, spawners,
+    /// quest objects and trails; wildlife keeps away from the prologue, and the walking distance of the size rationale is right.
     /// </summary>
     [TestFixture]
     public sealed class EichentalLayoutFileTests
@@ -52,6 +53,16 @@ namespace Aetherfall.Tests.EditMode.World
             "clue.eichental.weide_pfoten", "clue.eichental.weide_aetherspeichel", "obj.eichental.strohziel_*", "obj.eichental.leiche_postreiter",
             "obj.eichental.aethersplitter_bau", "obj.eichental.wolfswelpe"
         };
+
+        // Trails of the objectives "Folge(...)" in GDD 02 11.1 s40 and 11.2 s20, with their quest.
+        private static readonly string[][] QuestTrails =
+        {
+            new[] { "spur.eichental.graue_gestalt", "quest.main.asche_ueber_eichental" },
+            new[] { "spur.eichental.wolfsspur", "quest.side.eichental.woelfe_vom_nordhang" }
+        };
+
+        // Sight range of the wolves (EnemyTypeDefinition.sightRange, 22 m) plus a margin for running and hearing.
+        private const double PrologueDistance = 45.0;
 
         private static readonly string[] MiniSliceQuests =
         {
@@ -169,6 +180,105 @@ namespace Aetherfall.Tests.EditMode.World
         }
 
         [Test]
+        public void QuestTrailsExist()
+        {
+            foreach (string[] expected in QuestTrails)
+            {
+                LayoutTrail trail = Trail(expected[0]);
+                Assert.That(trail.QuestId, Is.EqualTo(expected[1]));
+                Assert.That(trail.Nodes.Count, Is.GreaterThanOrEqualTo(3), expected[0] + ": a trail worth following");
+            }
+        }
+
+        [Test]
+        public void TrailsLeadToTheNextGoal()
+        {
+            // s40 follows the grey figure, s50 asks to walk into the rift zone: the trail ends just before it.
+            LayoutTrail figure = Trail("spur.eichental.graue_gestalt");
+            LayoutLocation rift = Location("loc.eichental.riss_eichental");
+            LayoutLocation edge = Location("loc.eichental.dorfrand");
+            double figureEnd = figure.Nodes[figure.Nodes.Count - 1].DistanceTo(rift.Center);
+            Assert.That(figureEnd, Is.InRange(rift.Radius, rift.Radius + 15.0));
+            Assert.That(figure.Nodes[0].DistanceTo(edge.Center), Is.LessThan(edge.Radius + 15.0), "starts at the village edge (s30)");
+
+            // s20 starts at the clues on the upper pasture and ends before the wolf den (s30: walk to the den).
+            LayoutTrail wolves = Trail("spur.eichental.wolfsspur");
+            LayoutLocation den = Location("loc.eichental.wolfsbau_nordhang");
+            double wolvesEnd = wolves.Nodes[wolves.Nodes.Count - 1].DistanceTo(den.Center);
+            Assert.That(wolvesEnd, Is.InRange(den.Radius, den.Radius + 15.0));
+            Assert.That(wolves.Nodes[0].DistanceTo(QuestObject("clue.eichental.weide_pfoten").Position), Is.LessThan(15.0));
+            bool passesTheCourier = false;
+            foreach (LayoutPoint node in wolves.Nodes)
+            {
+                passesTheCourier |= node.DistanceTo(QuestObject("obj.eichental.leiche_postreiter").Position) < 12.0;
+            }
+
+            Assert.That(passesTheCourier, Is.True, "GDD 02 11.2: the dead courier lies by the trail (start of quest 3)");
+        }
+
+        [Test]
+        public void WildlifeKeepsAwayFromThePrologue()
+        {
+            LayoutRift rift = _layout.Rift;
+            LayoutTrail figure = Trail("spur.eichental.graue_gestalt");
+            LayoutLocation village = Location("loc.eichental.dorf_eichental");
+            foreach (LayoutSpawner spawner in _layout.Spawners)
+            {
+                if (spawner.Activation != SpawnActivation.Always)
+                {
+                    continue;
+                }
+
+                foreach (PlacedPoint p in LayoutPlacement.SpawnerPositions(spawner))
+                {
+                    var position = new LayoutPoint(p.X, p.Z);
+                    double toRim = position.DistanceTo(rift.Center) - rift.Radius - rift.RimWidth;
+                    Assert.That(toRim, Is.GreaterThanOrEqualTo(PrologueDistance), spawner.Id + ": too close to the rift (quest 1, s40–s60)");
+                    Assert.That(position.DistanceTo(village.Center) - village.Radius, Is.GreaterThanOrEqualTo(PrologueDistance), spawner.Id);
+                    foreach (LayoutPoint node in figure.Nodes)
+                    {
+                        Assert.That(position.DistanceTo(node), Is.GreaterThanOrEqualTo(PrologueDistance), spawner.Id + ": near the trail of s40");
+                    }
+                }
+            }
+        }
+
+        [Test]
+        public void SurvivorsGatherAtTheVillageEdge()
+        {
+            // GDD 02 11.1: s20 Hedda on the plaza, s25 NPC+(hedda, dorfrand); rescued Tobold and Wenna join her there (s30).
+            Assert.That(Marker("npc.eichental.dorfvorsteherin_hedda", "s20").LocationId, Is.EqualTo("loc.eichental.dorfplatz"));
+            Assert.That(Marker("npc.eichental.dorfvorsteherin_hedda", "s25").LocationId, Is.EqualTo("loc.eichental.dorfrand"));
+            Assert.That(Marker("npc.eichental.schmied_tobold", "s30").LocationId, Is.EqualTo("loc.eichental.dorfrand"));
+            Assert.That(Marker("npc.eichental.baeckerin_wenna", "s30").LocationId, Is.EqualTo("loc.eichental.dorfrand"));
+            Assert.That(Marker("npc.eichental.baeckerin_wenna", "s25").InsideBuilding, Is.True, "trapped in the burning bakery");
+        }
+
+        [Test]
+        public void WalkingDistanceOfTheRationaleIsRight()
+        {
+            // Start → plaza → village edge → rift → Lindenhain → farm → den → farm → Lindenhain → crypt → Lindenhain.
+            string[] route =
+            {
+                "loc.eichental.dorfplatz", "loc.eichental.dorfrand", "loc.eichental.riss_eichental", "loc.eichental.lindenhain",
+                "loc.eichental.hof_hollmann", "loc.eichental.wolfsbau_nordhang", "loc.eichental.hof_hollmann", "loc.eichental.lindenhain",
+                "loc.eichental.vergessene_gruft", "loc.eichental.lindenhain"
+            };
+            LayoutPoint from = _layout.PlayerStart.Position;
+            double metres = 0.0;
+            foreach (string id in route)
+            {
+                LayoutPoint to = Location(id).Center;
+                metres += from.DistanceTo(to);
+                from = to;
+            }
+
+            Assert.That(metres, Is.InRange(1450.0, 1600.0), "straight lines between the places");
+            string rationale = string.Join(" ", RationaleLines());
+            Assert.That(rationale, Does.Contain("Luftlinie etwa 1,5 km"));
+        }
+
+        [Test]
         public void PlayerWakesInTheVillageAwayFromThePlaza()
         {
             LayoutLocation village = Location("loc.eichental.dorf_eichental");
@@ -199,6 +309,57 @@ namespace Aetherfall.Tests.EditMode.World
             }
 
             Assert.That(chest, Is.True, "GDD 00 pillar 1: exploration always rewards");
+        }
+
+        private static IEnumerable<string> RationaleLines()
+        {
+            // The rationale is documentation only (not read into RegionLayout); search the file text.
+            string text = LayoutTestFiles.ReadEichental();
+            int start = text.IndexOf("\"sizeRationale\"", StringComparison.Ordinal);
+            int end = text.IndexOf("]", start, StringComparison.Ordinal);
+            yield return text.Substring(start, end - start);
+        }
+
+        private LayoutTrail Trail(string id)
+        {
+            foreach (LayoutTrail trail in _layout.Trails)
+            {
+                if (trail.Id == id)
+                {
+                    return trail;
+                }
+            }
+
+            Assert.Fail("Trail missing: " + id);
+            return null;
+        }
+
+        private LayoutQuestObject QuestObject(string id)
+        {
+            foreach (LayoutQuestObject quest in _layout.QuestObjects)
+            {
+                if (quest.Id == id)
+                {
+                    return quest;
+                }
+            }
+
+            Assert.Fail("Quest object missing: " + id);
+            return null;
+        }
+
+        private LayoutNpcMarker Marker(string npcId, string stage)
+        {
+            foreach (LayoutNpcMarker marker in _layout.NpcMarkers)
+            {
+                if (marker.NpcId == npcId && marker.Stage == stage)
+                {
+                    return marker;
+                }
+            }
+
+            Assert.Fail("NPC marker missing: " + npcId + " " + stage);
+            return null;
         }
 
         private LayoutLocation Location(string id)

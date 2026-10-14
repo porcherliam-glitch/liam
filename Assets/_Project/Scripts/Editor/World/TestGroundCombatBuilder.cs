@@ -40,16 +40,17 @@ namespace Aetherfall.EditorTools.World
         /// <param name="hurtboxLayer">Hurtbox layer or −1.</param>
         /// <param name="environmentLayer">Environment layer.</param>
         /// <param name="report">Protocol.</param>
+        /// <param name="level">Level of the player stats (test ground: 10; the Eichental passes the start level of the ProgressionInstaller).</param>
         /// <returns>The player's combatant.</returns>
         public static Combatant SetUpPlayer(GameObject player, Camera mainCamera, TestGroundMaterials materials, TestGroundCombatAssets assets,
-            int hurtboxLayer, int environmentLayer, TestGroundReport report)
+            int hurtboxLayer, int environmentLayer, TestGroundReport report, int level = Aetherfall.EditorTools.Narrative.TestGroundLevels.PlayerStartLevel)
         {
             CharacterStatsComponent stats = player.GetComponent<CharacterStatsComponent>();
             DamageableComponent damageable = player.GetComponent<DamageableComponent>();
             PlayerMotor motor = player.GetComponent<PlayerMotor>();
             if (stats != null)
             {
-                TestGroundFields.SetInt(stats, "level", Aetherfall.EditorTools.Narrative.TestGroundLevels.PlayerStartLevel, report);
+                TestGroundFields.SetInt(stats, "level", Mathf.Max(1, level), report);
                 TestGroundFields.SetFloat(stats, "strength", 20f, report);
                 TestGroundFields.SetFloat(stats, "dexterity", 10f, report);
                 TestGroundFields.SetFloat(stats, "constitution", 18f, report);

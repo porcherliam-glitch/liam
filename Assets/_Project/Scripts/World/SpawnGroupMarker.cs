@@ -1,14 +1,19 @@
+using System;
+using Aetherfall.Core;
 using UnityEngine;
 
 namespace Aetherfall.World
 {
     /// <summary>
-    /// Id and activation rule of an enemy group (spawner id from GDD 02, e.g. <c>spawn.eichental.nordhang_rudel</c>). Sits on the
-    /// GameObject of the <c>EnemySpawner</c>. Groups with activation "Quest" are built inactive; the quest action
-    /// <c>Gegner+(spawn-id)</c> switches them on (comes with the quests of the mini slice).
+    /// Id and activation rule of an enemy group (spawner id from GDD 02, e.g. <c>spawn.eichental.nordhang_rudel</c>). The marker
+    /// stays active and registers with the <see cref="ISpawnGroupRegistry"/>; the enemies and their <c>EnemySpawner</c> sit on the
+    /// child <see cref="Group"/>. Groups with activation "Quest" keep that child switched off until the quest action
+    /// <c>Gegner+(spawn-id)</c> (<see cref="SpawnEncounter"/>) activates them. Activated and defeated groups are saved (section
+    /// <c>spawners</c>), so a pack that a quest stage called stays there after loading.
     /// </summary>
+    /// <remarks>GameObject: the root "Gegner … (spawn id)" created by "Aetherfall > Eichental erstellen"; child "Gruppe".</remarks>
     [DisallowMultipleComponent]
-    public sealed class SpawnGroupMarker : MonoBehaviour
+    public sealed class SpawnGroupMarker : MonoBehaviour, ISpawnGroup
     {
         [Tooltip("Spawner-ID, z. B. spawn.eichental.nordhang_rudel (GDD 02).")]
         [SerializeField] private string spawnId = "spawn.region.name";
@@ -31,6 +36,12 @@ namespace Aetherfall.World
         [Tooltip("True, wenn ein Platzhalter-Gegnertyp benutzt wird, weil es den echten Typ noch nicht gibt.")]
         [SerializeField] private bool usesStandIn;
 
+        [Tooltip("Kind-Objekt mit den Gegnern und dem EnemySpawner. Bei Aktivierung „Quest“ ausgeschaltet, bis die Quest es einschaltet.")]
+        [SerializeField] private GameObject group;
+
+        private ISpawnGroupRegistry _registry;
+        private bool _registered;
+
         /// <summary>Spawner id.</summary>
         public string SpawnId => spawnId ?? string.Empty;
 
@@ -51,6 +62,89 @@ namespace Aetherfall.World
 
         /// <summary>True if a stand-in enemy type is used.</summary>
         public bool UsesStandIn => usesStandIn;
+
+        /// <summary>Child object with the enemies (may be null in hand-made scenes).</summary>
+        public GameObject Group => group;
+
+        /// <summary>True while the enemies are shown.</summary>
+        public bool IsGroupActive => group != null && group.activeSelf;
+
+        /// <inheritdoc />
+        public void SetGroupActive(bool active)
+        {
+            if (group != null && group.activeSelf != active)
+            {
+                group.SetActive(active);
+            }
+        }
+
+        /// <summary>
+        /// Switches the group on through the registry (so it is saved); without a registry (no WorldInstaller in the BootConfig)
+        /// only in this scene.
+        /// </summary>
+        public void Activate()
+        {
+            if (_registry != null)
+            {
+                _registry.Activate(SpawnId);
+            }
+            else
+            {
+                SetGroupActive(true);
+            }
+        }
+
+        /// <summary>Called by the group's spawner when all its enemies are dead and none come back.</summary>
+        public void ReportCleared()
+        {
+            if (_registry != null)
+            {
+                _registry.MarkCleared(SpawnId);
+            }
+        }
+
+        private async void Start()
+        {
+            // async void is the documented exception for Unity event adapters (architecture 15.2, rule 10).
+            try
+            {
+                _registry = await Services.WaitForAsync<ISpawnGroupRegistry>(destroyCancellationToken);
+                Register();
+            }
+            catch (OperationCanceledException)
+            {
+                // Destroyed while waiting for the boot.
+            }
+            catch (Exception exception)
+            {
+                Log.Exception(LogCategory.World, exception, "SpawnGroupMarker '" + SpawnId + "' could not resolve ISpawnGroupRegistry.");
+            }
+        }
+
+        private void OnEnable()
+        {
+            Register();
+        }
+
+        private void OnDisable()
+        {
+            if (_registered)
+            {
+                _registry.Unregister(this);
+                _registered = false;
+            }
+        }
+
+        private void Register()
+        {
+            if (_registered || _registry == null || !isActiveAndEnabled)
+            {
+                return;
+            }
+
+            _registry.Register(this);
+            _registered = true;
+        }
 
         private void OnDrawGizmos()
         {

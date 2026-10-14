@@ -9,12 +9,12 @@
   "notes": [
     "Einzige Datenquelle für den Blockout des Mini-Slice: Der Unity-Generator (Menü Aetherfall > Eichental erstellen) und die Blender-Vorschau (Tools/Preview/eichental_preview.py) lesen beide diese Datei.",
     "Koordinaten in Metern: x = Osten, z = Norden, Ursprung = Mitte des Ausschnitts. Drehung (yaw) in Grad im Uhrzeigersinn, 0 = Norden (wie Unity). Größen [Breite, Wandhöhe, Tiefe]: Breite quer, Tiefe entlang der Blickrichtung des Gebäudes (Giebelseite mit Tür vorne).",
-    "Orte, NPCs, Spawner und Flags tragen die IDs aus GDD 01 (4.1) und GDD 02 (11.0–11.2, 11.7). Mit (Vorschlag) markierte IDs stehen noch nicht im GDD.",
+    "Orte, NPCs, Spawner, Spuren und Flags tragen die IDs aus GDD 01 (4.1) und GDD 02 (11.0–11.2, 11.7). Mit (Vorschlag) markierte IDs stehen noch nicht im GDD.",
     "Höhen: Grundhöhe + Hänge + Hügel + Rauschen + Randhügel, danach Ebenen (flatten), danach Riss-Krater, danach Bachbetten. Formeln: Aetherfall.World.LayoutHeightField (C#) und Tools/Preview/eichental_layout.py (Python), beide gleich."
   ],
   "sizeRationale": [
     "Begehbar sind 400 × 400 m (0,16 km²). Das Terrain misst 512 × 512 m, also genau eine Streaming-Zelle (Architektur 10.1 und 10.5: Heightmap 513²). Der 56 m breite Rand ist Kulisse: Hügel und dichter Wald schließen das Tal ab.",
-    "GDD 01, 3.1: Laufen 5 m/s. 400 m quer dauern 80 s, die Diagonale 113 s. Alle Wege der drei Quests zusammen (Dorf → Riss → Lindenhain → Hof → Nordhang → Hof → Lindenhain → Gruft → Lindenhain) sind etwa 1,3 km, also 4–5 Minuten. Das sind rund 10 % von 30–60 Minuten Spielzeit, der Rest ist Kampf, Gespräch und Rätsel.",
+    "GDD 01, 3.1: Laufen 5 m/s. 400 m quer dauern 80 s, die Diagonale 113 s. Alle Wege der drei Quests zusammen (Start → Dorfplatz → Dorfrand → Riss → Lindenhain → Hof → Wolfsbau → Hof → Lindenhain → Gruft → Lindenhain) sind in Luftlinie etwa 1,5 km, auf den Wegen etwa 1,8–2 km, also 6–7 Minuten. Das sind rund 10–20 % von 30–60 Minuten Spielzeit, der Rest ist Kampf, Gespräch und Rätsel.",
     "90-Sekunden-Regel (GDD 01, 3.1: etwa alle 450 m ein Ort): Im Ausschnitt liegt alle 80–150 m ein Ort. Das passt zu einem dichten Einstiegsgebiet.",
     "Gegenüber dem Vertical-Slice-Plan (GDD 01, 4.1.2: etwa 1,16 × 0,97 km) sind die Abstände auf rund die Hälfte verdichtet. Die Himmelsrichtungen bleiben: Lindenhain im Westen, das Dorf in der Mitte, der Riss im Nordosten, Hollmann-Hof und Nordhang im Nordwesten, der Rabenfels mit der Gruft im Norden, die Mühle am Mühlbach im Süden."
   ],
@@ -317,9 +317,9 @@
     { "id": "spawn.eichental.nordhang_woelfe", "name": "Wölfe am Nordhang (Vorschlag)", "enemyTypeId": "enemy.wolf.grauwolf", "variant": "normal", "count": 2,
       "center": [-176, 190], "radius": 6, "activation": "always", "respawnSeconds": 180, "locationId": "loc.eichental.nordhang",
       "patrol": [[-190, 186], [-150, 194]], "note": "Wildtiere am Nordhang (GDD 01, 11.4: Grauwolf in der Wildnis)." },
-    { "id": "spawn.eichental.riss_streuner", "name": "Aether-Wolf am Riss (Vorschlag)", "enemyTypeId": "enemy.wolf.grauwolf", "variant": "aether_verderbt", "count": 1,
-      "center": [150, 72], "radius": 4, "activation": "always", "respawnSeconds": 240, "locationId": "loc.eichental.riss_eichental",
-      "note": "Ein vom Riss verdorbener Wolf am Waldrand (GDD 01, 2.3: Tiere verderben am Riss)." },
+    { "id": "spawn.eichental.riss_streuner", "name": "Aether-Wolf im Wald nordöstlich des Risses (Vorschlag)", "enemyTypeId": "enemy.wolf.grauwolf", "variant": "aether_verderbt", "count": 1,
+      "center": [176, 104], "radius": 4, "activation": "always", "respawnSeconds": 240, "locationId": "loc.eichental.riss_eichental",
+      "note": "Ein vom Riss verdorbener Wolf, der in den Wald gestreunt ist (GDD 01, 2.3: Tiere verderben am Riss). 62 m vom Kraterrand, weit außerhalb seiner Sichtweite von 22 m: Er greift nicht in den Prolog am Riss ein (GDD 02, 11.1, s40–s60). Am Riss selbst gehören laut GDD 01, 11.4 Risslinge hin." },
     { "id": "spawn.eichental.nordhang_rudel", "name": "Leuchtendes Rudel am Nordhang", "enemyTypeId": "enemy.wolf.grauwolf", "variant": "aether_verderbt", "count": 3,
       "center": [-97, 160], "radius": 8, "activation": "quest", "respawnSeconds": 0, "locationId": "loc.eichental.nordhang",
       "quest": "quest.side.eichental.woelfe_vom_nordhang", "note": "GDD 02, 11.2, s20: Gegner+(spawn.eichental.nordhang_rudel)." },
@@ -346,11 +346,14 @@
     { "id": "obj.eichental.truhe_rabenfels", "name": "Versteckte Truhe auf dem Rabenfels", "tier": "hidden", "position": [16, 188], "yaw": 200, "areaLevel": 3, "locationId": "loc.eichental.rabenfels_spitze" }
   ],
   "npcMarkers": [
-    { "npcId": "npc.eichental.dorfvorsteherin_hedda", "name": "Hedda Eichholz", "phase": "prolog", "locationId": "loc.eichental.dorfplatz", "position": [34, -24], "yaw": 120 },
+    { "npcId": "npc.eichental.dorfvorsteherin_hedda", "name": "Hedda Eichholz", "phase": "prolog", "stage": "s20", "locationId": "loc.eichental.dorfplatz", "position": [34, -24], "yaw": 120 },
+    { "npcId": "npc.eichental.dorfvorsteherin_hedda", "name": "Hedda Eichholz (sammelt die Überlebenden)", "phase": "prolog", "stage": "s25", "locationId": "loc.eichental.dorfrand", "position": [-12, -43], "yaw": 220 },
     { "npcId": "npc.eichental.dorfvorsteherin_hedda", "name": "Hedda Eichholz", "phase": "after_prolog", "locationId": "loc.eichental.lindenhain", "position": [-144, -40], "yaw": 90 },
-    { "npcId": "npc.eichental.schmied_tobold", "name": "Tobold Kern (unter dem Balken)", "phase": "prolog", "locationId": "loc.eichental.dorf_eichental", "position": [19, -50], "yaw": 200 },
+    { "npcId": "npc.eichental.schmied_tobold", "name": "Tobold Kern (unter dem Balken)", "phase": "prolog", "stage": "s25", "locationId": "loc.eichental.dorf_eichental", "position": [19, -50], "yaw": 200 },
+    { "npcId": "npc.eichental.schmied_tobold", "name": "Tobold Kern (gerettet)", "phase": "prolog", "stage": "s30", "locationId": "loc.eichental.dorfrand", "position": [-21, -43], "yaw": 150 },
     { "npcId": "npc.eichental.schmied_tobold", "name": "Tobold Kern", "phase": "after_prolog", "locationId": "loc.eichental.lindenhain", "position": [-138, -46], "yaw": 250 },
-    { "npcId": "npc.eichental.baeckerin_wenna", "name": "Wenna Holt (im brennenden Haus)", "phase": "prolog", "locationId": "loc.eichental.dorf_eichental", "position": [7, 9], "yaw": 135 },
+    { "npcId": "npc.eichental.baeckerin_wenna", "name": "Wenna Holt (im brennenden Haus)", "phase": "prolog", "stage": "s25", "insideBuilding": true, "locationId": "loc.eichental.dorf_eichental", "position": [7, 9], "yaw": 135 },
+    { "npcId": "npc.eichental.baeckerin_wenna", "name": "Wenna Holt (gerettet)", "phase": "prolog", "stage": "s30", "locationId": "loc.eichental.dorfrand", "position": [-14, -52], "yaw": 330 },
     { "npcId": "npc.eichental.baeckerin_wenna", "name": "Wenna Holt", "phase": "after_prolog", "locationId": "loc.eichental.lindenhain", "position": [-142, -56], "yaw": 300 },
     { "npcId": "npc.eichental.lina", "name": "Lina (im Licht des Risses)", "phase": "prolog", "locationId": "loc.eichental.riss_eichental", "position": [121, 46], "yaw": 200 },
     { "npcId": "npc.main.graue_gestalt", "name": "Die graue Gestalt", "phase": "prolog", "locationId": "loc.eichental.riss_eichental", "position": [106, 31], "yaw": 220 },
@@ -376,6 +379,14 @@
     { "id": "obj.eichental.leiche_postreiter", "name": "Toter Postreiter am Weg", "kind": "corpse", "position": [-127, 151], "yaw": 70, "locationId": "loc.eichental.nordhang", "quest": "quest.side.eichental.woelfe_vom_nordhang" },
     { "id": "obj.eichental.aethersplitter_bau", "name": "Aether-Splitter im Fels", "kind": "aether_shard", "position": [-82, 192], "yaw": 0, "locationId": "loc.eichental.wolfsbau_nordhang", "quest": "quest.side.eichental.woelfe_vom_nordhang" },
     { "id": "obj.eichental.wolfswelpe", "name": "Wolfswelpe", "kind": "pup", "position": [-78, 189], "yaw": 220, "locationId": "loc.eichental.wolfsbau_nordhang", "quest": "quest.side.eichental.woelfe_vom_nordhang" }
+  ],
+  "trails": [
+    { "id": "spur.eichental.graue_gestalt", "name": "Spur der grauen Gestalt", "quest": "quest.main.asche_ueber_eichental", "radius": 5,
+      "nodes": [[-4, -36], [20, -31], [46, -20], [58, -12], [72, -4], [86, 12], [100, 26]],
+      "note": "GDD 02, 11.1, s40: Folge(spur.eichental.graue_gestalt). Vom Dorfrand durch das Dorf und die Brandspur (weg.riss) bis vor den Riss; s50 GeheZu(loc.eichental.riss_eichental) schließt an." },
+    { "id": "spur.eichental.wolfsspur", "name": "Wolfsspur zum Nordhang", "quest": "quest.side.eichental.woelfe_vom_nordhang", "radius": 4,
+      "nodes": [[-160, 152], [-147, 141], [-133, 146], [-122, 156], [-101, 172], [-92, 177]],
+      "note": "GDD 02, 11.2, s20: Folge(spur.eichental.wolfsspur). Von der oberen Weide über den Wildpfad (weg.nordhang), vorbei am toten Postreiter, bis kurz vor den Wolfsbau; s30 GeheZu(loc.eichental.wolfsbau_nordhang) schließt an." }
   ],
   "playerStart": {
     "position": [80, -40],

@@ -1,6 +1,6 @@
 # Testanleitung: Dorf Eichental als begehbarer Rohbau
 
-> Eichental aus einer Layout-Datei: Gelände, Bäche, Häuser (heil, verbrannt, eingestürzt), Wald, Felder, Aether-Riss, Wölfe, Truhen, Orts-Zonen, NPC-Platzhalter · Stand: 2026-10-14 · Bezug: [GDD 01, Abschnitte 3.1 und 4.1](../GDD/01_Welt_Story_Fraktionen.md) · [GDD 02, Abschnitt 11](../GDD/02_Quests_und_Dialoge.md) · [GDD 05, Abschnitt 3](../GDD/05_UI_Audio_Grafik_Barrierefreiheit.md) · [Architektur 2.8, 3.1, 10](../Technik/01_Architektur.md) · [Status, Kurskorrektur „Mini-Slice“](../Status.md)
+> Eichental aus einer Layout-Datei: Gelände, Bäche, Häuser (heil, verbrannt, eingestürzt), Wald, Felder, Aether-Riss, Wölfe, Truhen, Orts-Zonen, Spuren, NPC-Platzhalter · Stand: 2026-10-14 (nach der Prüfung überarbeitet) · Bezug: [GDD 01, Abschnitte 3.1 und 4.1](../GDD/01_Welt_Story_Fraktionen.md) · [GDD 02, Abschnitt 11](../GDD/02_Quests_und_Dialoge.md) · [GDD 05, Abschnitt 3](../GDD/05_UI_Audio_Grafik_Barrierefreiheit.md) · [Architektur 2.8, 3.1, 10](../Technik/01_Architektur.md) · [Status, Kurskorrektur „Mini-Slice“](../Status.md)
 
 Bisher gab es nur das Testgelände: eine flache Fläche mit Rampen, Treppen und einer Arena. Jetzt gibt es den ersten **echten Ort** des Mini-Slice: das **Dorf Eichental** mit seiner Umgebung. Es ist ein **Rohbau** (englisch „Blockout“): Häuser aus Quadern mit Satteldach, Bäume aus Stamm und Krone, Wölfe aus Würfeln. Schöne Modelle kommen später aus Blender oder als kostenlose CC0-Pakete. Aber du kannst schon **herumlaufen**, die Wege, Abstände und Höhen ausprobieren und gegen Wölfe kämpfen.
 
@@ -39,13 +39,13 @@ Voraussetzung: [Anleitung 01](./01_Projekt-Setup.md) bis [Anleitung 09](./09_Tes
 
 | Baustein | Was er tut |
 |---|---|
-| **Layout-Datei** `eichental_layout.json` | Beschreibt den ganzen Ausschnitt in Zahlen: Größe und Höhen des Geländes, Bäche (Linie mit Breite), Wege, Brücken, 20 Gebäude (Art, Lage, Drehung, Größe, Dach, Zustand), Zäune, Felder, Waldgebiete, Felsen, Requisiten (Brunnen, Lagerfeuer, Zelte …), den Riss, 13 Orte mit den IDs aus GDD 02, 7 Gegnergruppen, 5 Truhen, 15 NPC-Platzhalter, 13 Quest-Objekte, den Startpunkt und die Farbpalette nach GDD 05. Lesbar mit jedem Texteditor. |
-| **Layout-Leser und Prüfung** (`Aetherfall.World`, Ordner `Scripts/World/Layout`) | Liest die Datei und prüft sie: Version, Pflichtfelder, keine doppelten IDs, alles innerhalb des begehbaren Bereichs, **kein Haus im Bach**, keine Häuser übereinander, Gegner nicht im Wasser oder in Häusern, Brücken wirklich über einem Bach. Fehlermeldungen auf Deutsch mit Zeile und Feld. Rechnet auch die Geländehöhen, die Bodenarten (Gras, Erde, Fels, Asche) und die Verteilung von Bäumen und Büschen aus. |
-| **Generator** (Menü **Aetherfall > Eichental erstellen**) | Baut daraus die Szene `Assets/_Project/Scenes/World/Eichental.unity`: Gelände (Terrain) mit vier Bodenschichten, Wasser, Häuser mit eigenem Dachmodell, verbrannte Häuser dunkel mit Glut und Rauch, eingestürzte als Mauerreste, rund 2 450 Bäume, Büsche und Steine, Felder, Zäune, Brücken, Requisiten, den leuchtenden Riss, Licht, Himmel und leichten Dunst. Dazu Spielfigur, Kamera, Bildschirmanzeige, Wölfe, Truhen, Orts-Zonen, Anschlagbrett, NPC-Platzhalter und Quest-Objekte. **Idempotent:** Du kannst das Menü beliebig oft ausführen; es baut die Szene jedes Mal frisch aus der Datei. |
+| **Layout-Datei** `eichental_layout.json` | Beschreibt den ganzen Ausschnitt in Zahlen: Größe und Höhen des Geländes, Bäche (Linie mit Breite), Wege, Brücken, 20 Gebäude (Art, Lage, Drehung, Größe, Dach, Zustand), Zäune, Felder, Waldgebiete, Felsen, Requisiten (Brunnen, Lagerfeuer, Zelte …), den Riss, 13 Orte mit den IDs aus GDD 02, 7 Gegnergruppen, 5 Truhen, 18 NPC-Platzhalter, 13 Quest-Objekte, 2 Spuren für „Folge der Spur“, den Startpunkt und die Farbpalette nach GDD 05. Lesbar mit jedem Texteditor. |
+| **Layout-Leser und Prüfung** (`Aetherfall.World`, Ordner `Scripts/World/Layout`) | Liest die Datei und prüft sie: Version, Pflichtfelder, keine doppelten IDs, alles innerhalb des begehbaren Bereichs, **kein Haus im Bach**, keine Häuser übereinander, Gegner, NPC-Platzhalter und Spur-Knoten nicht im Wasser oder in Häusern, Brücken wirklich über einem Bach. Fehlermeldungen auf Deutsch mit Zeile und Feld. Rechnet auch die Geländehöhen, die Bodenarten (Gras, Erde, Fels, Asche), die Verteilung von Bäumen und Büschen und die Formen von Felsen und Brückenbogen aus. |
+| **Generator** (Menü **Aetherfall > Eichental erstellen**) | Baut daraus die Szene `Assets/_Project/Scenes/World/Eichental.unity`: Gelände (Terrain) mit vier Bodenschichten, Wasser, Häuser mit eigenem Dachmodell, verbrannte Häuser dunkel mit Glut und Rauch, eingestürzte als Mauerreste, rund 2 450 Bäume, Büsche und Steine, Felder, Zäune, Brücken, Requisiten, den leuchtenden Riss, Licht, Himmel und leichten Dunst. Dazu Spielfigur, Kamera, Bildschirmanzeige, Wölfe, Truhen, Orts-Zonen, Spuren, Anschlagbrett, NPC-Platzhalter und Quest-Objekte. **Idempotent:** Du kannst das Menü beliebig oft ausführen; es baut die Szene jedes Mal frisch aus der Datei. |
 | **Neues Spiel** | „Neues Spiel“ im Hauptmenü startet jetzt im **Eichental**. Die Szenenliste ist **Boot → Eichental → Testgelände**. Das Testgelände bleibt erreichbar (siehe [Abschnitt 5](#5-spielen-zwei-wege)). |
-| **Platzhalter-Bausteine** | `NpcMarker` (Kapsel mit NPC-ID aus GDD 02, wird später durch echte NPCs ersetzt), `QuestObjectMarker` (Objekt-ID für Quests), `SpawnGroupMarker` (Gegnergruppe mit ID und Quest). |
+| **Welt-Bausteine** | `NpcMarker` (Kapsel mit NPC-ID aus GDD 02, Phase und Quest-Stufe, wird später durch echte NPCs ersetzt), `QuestObjectMarker` (Objekt-ID für Quests), `SpawnGroupMarker` (Gegnergruppe mit ID; meldet sich beim Dienst `ISpawnGroupRegistry` an), `TrailNodeTrigger` (Knoten einer Spur, meldet „Spur-Knoten erreicht“), `ConditionalObjectGroup` (zeigt den Brand im Dorf nur während des Prologs), Quest-Aktion **„Welt/Gegner spawnen“** (`SpawnEncounter`, im GDD `Gegner+(spawn-id)`). |
 | **Vorschau** (`Tools/Preview/eichental_preview.py`) | Baut das Eichental aus derselben Datei in **Blender** nach und rendert Übersicht, Dorfansicht, beschriftete Karte und einen 15-Sekunden-Rundflug. Unten auf jedem Bild steht „Vorschau – Blender-Nachbau aus den Layout-Daten (kein Unity-Screenshot)“. |
-| **Tests** | Neue Test-Gruppe `Aetherfall.Tests.EditMode.World` (166 Testfälle). Sie lesen die **echte** Layout-Datei und prüfen u. a., dass sie fehlerfrei ist, dass alle Orts-, NPC- und Gegner-IDs aus GDD 02 vorkommen und dass Unity und die Blender-Vorschau dieselben Höhen, Bäume, Gegnerpositionen und Kristalle berechnen. |
+| **Tests** | Neue Test-Gruppe `Aetherfall.Tests.EditMode.World` (204 Testfälle). Sie lesen die **echte** Layout-Datei und prüfen u. a., dass sie fehlerfrei ist, dass alle Orts-, NPC- und Gegner-IDs aus GDD 02 vorkommen und dass Unity und die Blender-Vorschau dieselben Höhen, Bäume, Gegnerpositionen und Kristalle berechnen. |
 
 ---
 
@@ -73,7 +73,7 @@ Es kommen **keine neuen Pakete** dazu.
 3. **Erstellen** klicken (beim zweiten Mal heißt der Knopf **Neu aufbauen**). Fragt Unity, ob die offene Szene gespeichert werden soll: **Save** oder **Don't Save**, je nachdem, ob du dort etwas geändert hast.
    **Du siehst danach:** Unity arbeitet etwa eine Minute (der Mauszeiger dreht sich, vielleicht ein Fortschrittsbalken). Dann: „Fertig! Die Szene „Eichental“ ist geöffnet. …“. **OK** klicken.
 4. Steht im Fenster unter „Hinweise (…)“ etwas, bitte abschreiben oder fotografieren und an Claude schicken.
-5. Im **Hierarchy**-Fenster (links) stehen jetzt u. a.: **Sonne**, **Main Camera**, **Landschaft**, **Siedlungen**, **Der Riss von Eichental**, **Player**, **PlayerSpawnPoint**, **CM_Explore**, **CM_LockOn**, **Spiel**.
+5. Im **Hierarchy**-Fenster (links) stehen jetzt u. a.: **Sonne**, **Main Camera**, **Landschaft**, **Siedlungen** (darin **Gebäude** und **Brand (Prolog)**), **Der Riss von Eichental**, **Player**, **PlayerSpawnPoint**, **CM_Explore**, **CM_LockOn**, **Spiel** (darin **Gegner**, **Truhen**, **Orte**, **NPC-Platzhalter**, **Quest-Objekte**, **Spuren**).
 6. Im **Scene**-Fenster (Mitte) siehst du das Tal. Zum Umsehen: rechte Maustaste halten und mit **W A S D** fliegen, Mausrad zum Zoomen. Doppelklick auf **Player** in der Hierarchy holt die Ansicht zur Spielfigur.
 
 **Was angelegt wird:**
@@ -87,7 +87,10 @@ Es kommen **keine neuen Pakete** dazu.
 | Alle erzeugten Modelle (Dächer, Bäume, Felsen, Zäune, Felder, Wasser …) in einer Datei | `Assets/_Project/Art/Models/Generated/Eichental/EichentalMeshes.asset` |
 | Layer 12 „Terrain“ (falls frei) | Projekt-Einstellungen |
 | Eintrag „Neues Spiel startet in: Eichental“ | am `UIInstaller` in `Assets/_Project/Settings/Boot/` |
+| `WorldInstaller.asset` (Dienst für die Gegnergruppen), in der BootConfig vor dem `QuestInstaller` | `Assets/_Project/Settings/Boot/` |
 | Szenenliste Boot → Eichental → Testgelände | **File > Build Profiles** (bzw. Build Settings) |
+
+**Startstufe:** Das Eichental-Menü **ändert die „Startstufe neues Spiel (nur Test)“ am `ProgressionInstaller` nicht** (nur „Testgelände erstellen“ stellt sie auf 10). Das Fenster nennt den aktuellen Wert, z. B. „ProgressionInstaller: Startstufe neues Spiel = 10 (unverändert …)“. Die Figur in der Szene bekommt dieselbe Stufe.
 
 > **Wichtig:** Änderungen, die du **von Hand in der Szene** machst (z. B. ein Haus verschieben), gehen beim nächsten Ausführen des Menüs verloren. Dauerhafte Änderungen gehören in die Layout-Datei (siehe [Abschnitt 13](#13-das-layout-ändern)).
 
@@ -97,7 +100,7 @@ Es kommen **keine neuen Pakete** dazu.
 
 1. Menü **Window > General > Test Runner**.
 2. Reiter **EditMode** wählen, oben **Run All** klicken.
-   **Du siehst danach:** grüne Haken. Neu ist der Eintrag **Aetherfall.Tests.EditMode.World** mit 166 Tests.
+   **Du siehst danach:** grüne Haken. Neu ist der Eintrag **Aetherfall.Tests.EditMode.World** mit 204 Tests.
 3. Ist etwas rot: auf den roten Eintrag klicken, unten steht die Meldung. Bitte als Text oder Foto an Claude schicken.
 
 Die wichtigsten neuen Tests:
@@ -108,6 +111,9 @@ Die wichtigsten neuen Tests:
 | `RegionLayoutValidatorTests` | Die Prüfung findet absichtlich eingebaute Fehler (Haus im Bach, doppelte ID, außerhalb des Bereichs …). |
 | `LayoutHeightFieldTests`, `VegetationScatterTests`, `LayoutPlacementTests` | Unity und die Blender-Vorschau rechnen **dieselben** Höhen, Bäume, Gegnerpositionen und Kristalle (Vergleich mit Werten aus der Vorschau). |
 | `RoofGeometryTests` | Die Dächer sind geschlossen und zeigen mit der richtigen Seite nach außen. |
+| `RockAndBridgeGeometryTests` | Felsen liegen mit ihrer flachen Unterseite auf dem Drehpunkt (schweben nicht), haben einen Collider unter der Grenze von 255 Dreiecken und **dieselben Eckpunkte wie in der Vorschau**; der Bogen der Steinbrücke liegt ganz unter der Fahrbahn. |
+| `TrailAndNpcMarkerValidationTests` | Spuren brauchen mindestens 2 Knoten, nicht im Bach, nicht in Häusern; mehrere Platzhalter eines NPC in einer Phase nur mit verschiedener Stufe; Platzhalter nicht in Hauswänden (außer mit `insideBuilding`). |
+| `SpawnGroupRegistryTests`, `SpawnGroupSaveableTests` | Quest-Gegnergruppen bleiben aus, bis „Gegner spawnen“ sie einschaltet; nach dem Laden sind eingeschaltete Gruppen wieder da und besiegte bleiben weg. |
 
 ---
 
@@ -152,9 +158,11 @@ Der Startpunkt liegt bei **x 80, z −40** (Koordinaten in Metern; x = Osten, z 
 | **Rabenfels** und **Gruft-Eingang** | 230 m nach Norden | Senke mit dem steinernen Eingang der Gruft (noch verschlossen, Schild „Eingang folgt später“), Aufstieg zur Spitze mit Steinmann, Aussicht über das ganze Tal, versteckte Truhe |
 | **Talrand** | überall außen | Hügel und dichter Wald; an den Enden der Reichsstraße liegen umgestürzte Bäume bzw. eine Wagenburg. Weiter als etwa 15 m hinter den begehbaren Bereich kommst du nicht (unsichtbare Wand). |
 
-In der Vorschau-Karte `eichental_karte.png` (von Claude mitgeschickt) sind alle Orte, Zonen, Gegner, Truhen und NPC-Platzhalter eingezeichnet.
+In der Vorschau-Karte `eichental_karte.png` (von Claude mitgeschickt) sind alle Orte, Zonen, Gegner, Truhen, NPC-Platzhalter und die beiden Spuren (lila gestrichelt) eingezeichnet.
 
-**NPC-Platzhalter:** An den Stellen, an denen später Figuren stehen, stehen **orange Kapseln mit Namensschild** (z. B. „Hedda Eichholz (Prolog)“, „Ulf Krugmann“). Sie können noch nicht sprechen. Figuren, die es im Prolog und danach an zwei Orten gibt (Hedda, Tobold, Wenna), stehen vorerst **an beiden Stellen**; das Schild sagt, wann sie dort hingehören.
+**NPC-Platzhalter:** An den Stellen, an denen später Figuren stehen, stehen **orange Kapseln mit Namensschild** (z. B. „Hedda Eichholz (Prolog, Stufe s20)“, „Ulf Krugmann“). Sie können noch nicht sprechen. Figuren, die im Prolog den Platz wechseln, stehen vorerst **an allen Stellen**; das Schild sagt, in welcher Phase und Quest-Stufe (GDD 02, 11.1) sie dort hingehören: Hedda auf dem Dorfplatz (s20) und am Dorfrand (s25), Tobold unter dem Balken (s25) und gerettet am Dorfrand (s30), Wenna im brennenden Haus (s25) und gerettet am Dorfrand (s30), alle drei nach dem Prolog in Lindenhain. **Wenna im Haus** ist absichtlich im Gebäude: Ihre Kapsel steckt in der Bäckerei, ihr Schild schwebt über dem Dach.
+
+**Spuren:** Kleine **gelb leuchtende Scheiben am Boden** markieren die Knoten der zwei Spuren für „Folge der Spur“: die **Spur der grauen Gestalt** (Quest 1, s40) vom Dorfrand durch das Dorf und die Brandspur bis vor den Riss, und die **Wolfsspur** (Quest 2, s20) von der oberen Weide über den Wildpfad am toten Postreiter vorbei bis kurz vor den Wolfsbau. Jeder Knoten ist eine unsichtbare Zone, die beim Betreten „Spur-Knoten erreicht“ meldet (Hierarchy: **Spiel > Spuren**).
 
 **Orts-Zonen:** Die 13 Orte sind unsichtbare Zonen (Area Trigger). Sie melden „Ort betreten“ an das Quest-System. Sehen kannst du sie im Scene-Fenster, wenn du unter **Spiel > Orte** einen Eintrag anklickst (grüner Umriss).
 
@@ -162,8 +170,8 @@ In der Vorschau-Karte `eichental_karte.png` (von Claude mitgeschickt) sind alle 
 
 ## 7. Kämpfen, Truhen, Speichern
 
-- **Wölfe:** Am Nordhang streifen **2 Grauwölfe**, am Waldrand östlich des Risses lauert **1 Aether-Wolf** (leuchtender Kristallkern). Besiegte Wölfe kommen nach 3 bzw. 4 Minuten zurück. Sie verfolgen dich nicht beliebig weit (Leash). Hügel verdecken die Sicht: Hinter einer Kuppe sehen sie dich nicht.
-- **Weitere Gegnergruppen** (Rudel am Nordhang, Leitwolf Glutfang, Risslinge am Dorfrand, Prolog-Rissbrut) sind **schon platziert, aber ausgeschaltet**. Die Quests schalten sie später ein.
+- **Wölfe:** Am Nordhang streifen **2 Grauwölfe**, im Wald nordöstlich des Risses lauert **1 Aether-Wolf** (leuchtender Kristallkern), gut 60 m vom Krater entfernt, damit er den Prolog am Riss nicht stört. Besiegte Wölfe kommen nach 3 bzw. 4 Minuten zurück. Sie verfolgen dich nicht beliebig weit (Leash). Hügel verdecken die Sicht: Hinter einer Kuppe sehen sie dich nicht.
+- **Weitere Gegnergruppen** (Rudel am Nordhang, Leitwolf Glutfang, Risslinge am Dorfrand, Prolog-Rissbrut) sind **schon platziert, aber ausgeschaltet**: In der Hierarchy ist bei ihnen das Kind **Gruppe** grau. Die Quest-Aktion „Gegner spawnen“ schaltet sie ein. Ob eine Gruppe eingeschaltet oder schon besiegt ist, wird **gespeichert**; nach dem Laden mitten in einer Quest ist das Rudel also wieder da, ein besiegtes kommt nicht zurück.
 - **Truhen:** 5 Stück – Holztruhe in der Schmiede, Eisentruhe hinter der Kapelle, Holztruhe an der Mühle, Eisentruhe im Wolfsbau, versteckte Truhe auf dem Rabenfels. **E** öffnet sie, die Beute landet im Rucksack (**Tab**).
 - **Speichern:** **F5** speichert, **F9** (zweimal) lädt. Nach dem Laden stehst du wieder an der gespeicherten Stelle im Eichental, offene Truhen bleiben offen.
 - **Sterben:** Nach dem Tod belebt dich das Spiel nach 3 Sekunden am Startpunkt im Dorf wieder.
@@ -183,7 +191,10 @@ Bitte abhaken, was stimmt. Was nicht stimmt, bitte mit kurzer Beschreibung (oder
 - [ ] Das Gelände hat Gras, Erdwege, Felsen an steilen Stellen und graue Asche im Dorf (nicht rosa, nicht einfarbig grau).
 - [ ] Die Bäche haben dunkles Wasser, das ungefähr in Höhe der Ufer liegt (nicht schwebend, nicht tief unter dem Boden).
 - [ ] Verbrannte Häuser sind dunkel und haben Löcher im Dach, eingestürzte zeigen nur Mauerreste und Balken; heile Häuser (Lindenhain, Hof, Mühle) haben ganze Dächer.
-- [ ] Glut leuchtet rot an einigen Ruinen, darüber steigt Rauch auf.
+- [ ] Glut leuchtet rot an einigen Ruinen, darüber steigt Rauch auf. In der Hierarchy liegen Glut, Glutlicht und Rauch aller Häuser unter **Siedlungen > Brand (Prolog)**.
+- [ ] Die Felsen am Rabenfels und am Wolfskopf stehen **auf dem Boden** (keine Lücke darunter), Gruft-Eingang und Wolfsbau sind von Fels eingerahmt. Auch die kleinen Findlinge am Nordhang sitzen halb im Boden.
+- [ ] Auf der **Steinbrücke** steht nichts im Weg: Der Steinbogen liegt unter der Fahrbahn.
+- [ ] Gelb leuchtende **Spurzeichen** am Boden: vom Dorfrand zum Riss und von der Hollmann-Weide zum Wolfsbau.
 - [ ] Der Riss leuchtet türkis und färbt die Umgebung leicht ein.
 - [ ] Dächer sind von außen und von innen zu sehen (keine „unsichtbaren“ Dachflächen von außen).
 - [ ] Bäume stehen auf dem Boden (nicht schwebend) und nicht auf Wegen, in Häusern oder im Wasser.
@@ -193,13 +204,13 @@ Bitte abhaken, was stimmt. Was nicht stimmt, bitte mit kurzer Beschreibung (oder
 - [ ] Vom Start aus lassen sich Dorfplatz, Riss, Lindenhain, Mühle, Hollmann-Hof, Nordhang, Wolfsbau und Rabenfels erreichen.
 - [ ] Die Steinbrücke und der Holzsteg über den Birkenbach sind begehbar.
 - [ ] Durch Bäche kommt man auch ohne Brücke hindurch (das Wasser ist flach, Schwimmen gibt es noch nicht) und kommt am anderen Ufer wieder heraus.
-- [ ] Man läuft nicht durch Hauswände, Zäune, Felsen, Baumstämme, Karren oder Brunnen.
+- [ ] Man läuft nicht durch Hauswände, Zäune, Felsen, Baumstämme, Karren oder Brunnen, und nicht unter den großen Felsen hindurch.
 - [ ] Der Aufstieg zum Rabenfels geht über den Pfad; der Gruft-Eingang ist zu.
 - [ ] Am Rand des Tals geht es nicht weiter (Hügel und unsichtbare Wand).
 - [ ] Die Kamera verschwindet nicht im Boden, wenn du am Hang stehst und nach unten schaust.
 
 **Spiel**
-- [ ] Am Nordhang greifen die Grauwölfe an; der Aether-Wolf am Riss auch. Lock-On (**T**) funktioniert.
+- [ ] Am Nordhang greifen die Grauwölfe an; der Aether-Wolf im Wald nordöstlich des Risses auch (am Riss selbst ist kein Wolf). Lock-On (**T**) funktioniert.
 - [ ] Die 5 Truhen lassen sich öffnen.
 - [ ] Am Anschlagbrett in Lindenhain erscheint „Lesen: Anschlagbrett am Gasthaus“.
 - [ ] **F5**, ein Stück laufen, **F9** zweimal: Die Figur steht wieder an der gespeicherten Stelle.
@@ -215,11 +226,11 @@ Das Eichental ist ein **Rohbau zum Laufen und Ausprobieren**. Noch nicht dabei (
 | Was | Stand | Kommt mit |
 |---|---|---|
 | **NPCs mit Dialogen** | Nur graue Platzhalter-Kapseln mit NPC-ID (`NpcMarker`). Hedda, Tobold, Wenna, Lina, die graue Gestalt, die Hollmanns, Ulf, Corvin, Hauptmann Dorn, Hannes und Liese Brenner stehen schon an ihren Plätzen. | Baustein „Dialoge und NPCs“ (läuft parallel). Die echten NPCs ersetzen die Kapseln an derselben Stelle mit derselben ID. |
-| **Die drei Quests als Daten** | Orte, Gegnergruppen, Quest-Objekte und Anschlagbrett haben ihre IDs aus GDD 02, 11. Die Quest-Dateien selbst („Asche über Eichental“, „Die Wölfe vom Nordhang“, „Die vergessene Gruft“) gibt es noch nicht; deshalb bietet das Anschlagbrett nichts an und die Quest-Gegner sind ausgeschaltet. | Baustein „Die 3 Quests als Daten“ |
-| **Prolog-Ablauf** | Du startest im brennenden Dorf, aber ohne Ereignisse (Balken anheben, Wenna retten, Risslinge, Rissbrut). Die Prolog- und Nach-Prolog-Figuren stehen gleichzeitig da. | Quests als Daten + NPCs (Phasen schalten) |
+| **Die drei Quests als Daten** | Orte, Gegnergruppen, Spuren, Quest-Objekte und Anschlagbrett haben ihre IDs aus GDD 02, 11; die Aktion „Gegner spawnen“ und die Spur-Knoten sind bereit. Die Quest-Dateien selbst („Asche über Eichental“, „Die Wölfe vom Nordhang“, „Die vergessene Gruft“) gibt es noch nicht; deshalb bietet das Anschlagbrett nichts an und die Quest-Gegner sind ausgeschaltet. Das Ziel „Folge der Spur“ braucht dort dieselbe Knotenzahl wie die Layout-Datei (graue Gestalt 7, Wolfsspur 6). | Baustein „Die 3 Quests als Daten“ |
+| **Prolog-Ablauf** | Du startest im brennenden Dorf, aber ohne Ereignisse (Balken anheben, Wenna retten, Risslinge, Rissbrut). Die Figuren aller Prolog-Stufen und nach dem Prolog stehen gleichzeitig da. Der Brand geht von selbst aus, sobald „Asche über Eichental“ abgeschlossen ist (Bedingung an **Brand (Prolog)**); prüfen lässt sich das erst mit den Quest-Daten. | Quests als Daten + NPCs (Phasen und Stufen schalten) |
 | **Die vergessene Gruft** | Nur der verschlossene Eingang am Rabenfels. Das Innere mit Rätsel und Gruftwächter wird eine eigene Szene. | Baustein „Die vergessene Gruft“ |
 | **Risslinge** | Gibt es als Gegnertyp noch nicht. Ihre Gruppen benutzen vorerst **Aether-Wölfe als Platzhalter** (im Namen „(Platzhalter)“). | eigener Gegner-Baustein |
-| **Balance** | Wölfe sind noch **Stufe 8** (Werte aus dem Testgelände), die Figur beginnt auf **Stufe 10** (Testeinstellung aus [Anleitung 09](./09_Test_Quests_im_Spiel.md)). Im fertigen Mini-Slice: Figur Stufe 1, Gebiet Stufe 1–3. | Baustein „Erfahrung und Level“ / Mini-Slice-Abstimmung |
+| **Balance** | Wölfe sind noch **Stufe 8** (Werte aus dem Testgelände), die Figur beginnt auf der Stufe, die am `ProgressionInstaller` steht (nach „Testgelände erstellen“ **10**, Testeinstellung aus [Anleitung 09](./09_Test_Quests_im_Spiel.md)). Das Eichental-Menü lässt diesen Wert jetzt unverändert. Im fertigen Mini-Slice: Figur Stufe 1, Gebiet Stufe 1–3. | Baustein „Erfahrung und Level“ / Mini-Slice-Abstimmung (stellt dann auf 1) |
 | **Schöne Modelle, Animationen, Ton** | Alles aus einfachen Formen; Wölfe ohne Animation; kein Ton. | Blender-Modelle oder CC0-Pakete (Lizenzregister) |
 | **Wasser, Schwimmen** | Wasser ist eine dunkle Fläche ohne Bewegung; man watet durch den Bach. | später |
 | **Wegfindung der Wölfe** | Wölfe weichen nur einfachen Hindernissen aus (keine NavMesh-Wege). An steilen Hängen oder Zäunen können sie hängen bleiben. | später (NavMesh) |
@@ -259,13 +270,15 @@ Alles kommt mit dem Pull; du musst nichts kopieren. Zur Orientierung:
 | Datei(en) | Ordner | Kommt an ein GameObject? |
 |---|---|---|
 | `eichental_layout.json` | `Assets/_Project/Data/Regions/Eichental/` | nein (Daten) |
-| `RegionLayoutReader.cs`, `RegionLayoutValidator.cs`, `LayoutHeightField.cs`, `LayoutGroundMap.cs`, `VegetationScatter.cs`, `LayoutPlacement.cs`, `RoofGeometry.cs`, `LayoutJsonParser.cs` und die Datenklassen (`RegionLayout.cs`, `LayoutBuilding.cs` …) | `Assets/_Project/Scripts/World/Layout/` | nein (reine Logik, getestet) |
-| `NpcMarker.cs`, `QuestObjectMarker.cs`, `SpawnGroupMarker.cs` | `Assets/_Project/Scripts/World/` | ja – setzt der Generator an NPC-Platzhalter, Quest-Objekte und Gegnergruppen |
+| `RegionLayoutReader.cs`, `RegionLayoutValidator.cs`, `LayoutHeightField.cs`, `LayoutGroundMap.cs`, `VegetationScatter.cs`, `LayoutPlacement.cs`, `RoofGeometry.cs`, `BlobGeometry.cs`, `RockGeometry.cs`, `BridgeGeometry.cs`, `LayoutJsonParser.cs` und die Datenklassen (`RegionLayout.cs`, `LayoutBuilding.cs`, `LayoutTrail.cs` …) | `Assets/_Project/Scripts/World/Layout/` | nein (reine Logik, getestet) |
+| `NpcMarker.cs`, `QuestObjectMarker.cs`, `SpawnGroupMarker.cs`, `TrailNodeTrigger.cs`, `ConditionalObjectGroup.cs` | `Assets/_Project/Scripts/World/` | ja – setzt der Generator an NPC-Platzhalter, Quest-Objekte, Gegnergruppen (Wurzel „Gegner …“), Spur-Knoten und an „Brand (Prolog)“ |
+| `ISpawnGroup.cs`, `ISpawnGroupRegistry.cs`, `SpawnGroupRegistry.cs`, `SpawnEncounter.cs` (Quest-Aktion), `WorldInstaller.cs` | `Assets/_Project/Scripts/World/` | nein (Dienst und Aktion; `WorldInstaller.asset` legt das Menü in `Settings/Boot/` an) |
+| `SpawnGroupSaveable.cs`, `SpawnGroupsDto.cs` | `Assets/_Project/Scripts/Quests/` | nein (Speicher-Sektion `spawners`, registriert vom `QuestInstaller`) |
 | `EichentalMenu.cs`, `EichentalSceneBuilder.cs`, `EichentalTerrainBuilder.cs`, `EichentalBuildingBuilder.cs`, `EichentalNatureBuilder.cs`, `EichentalPropBuilder.cs`, `EichentalGameplayBuilder.cs`, `EichentalMaterials.cs`, `EichentalMeshBuilder.cs`, `EichentalMeshLibrary.cs`, `EichentalSmoke.cs`, `EichentalLabel.cs`, `EichentalPaths.cs`, `WorldSetup.cs`, `WorldLayers.cs` | `Assets/_Project/Scripts/Editor/World/` | nein (Editor-Werkzeuge) |
 | Tests | `Assets/_Project/Tests/EditModeWorld/` | nein |
 | `eichental_layout.py`, `eichental_preview.py`, `eichental_nachbearbeiten.py`, `eichental_referenz.py` | `Tools/Preview/` | nein (Blender-Vorschau, außerhalb von Unity) |
 
-Geändert wurden außerdem: `TestGroundMenu.cs` (nutzt jetzt `WorldSetup`), `TestGroundUiBuilder.cs` (Szenenliste mit Eichental), `TestGroundItemBuilder.cs` und `TestGroundCombatBuilder.cs` (Truhen und Wölfe auch für andere Szenen), `PlayerPersistence.cs` (Position aus einer anderen Welt wird nicht übernommen).
+Geändert wurden außerdem: `TestGroundMenu.cs` (nutzt jetzt `WorldSetup`), `TestGroundUiBuilder.cs` (Szenenliste mit Eichental), `TestGroundItemBuilder.cs` und `TestGroundCombatBuilder.cs` (Truhen und Wölfe auch für andere Szenen), `PlayerPersistence.cs` (Position aus einer anderen Welt wird nicht übernommen), `TestGroundAssets.cs` (WorldInstaller in die BootConfig; Startstufe nur beim Testgelände), `EnemySpawner.cs` (meldet eine besiegte Quest-Gruppe), `QuestInstaller.cs` (registriert die Sektion `spawners`), `ProjectSettingsSetupStep.cs` (Empfehlung „Static Batching aus“).
 
 ---
 
@@ -311,12 +324,14 @@ Details in [Tools/Preview/README.md](../../Tools/Preview/README.md#eichental).
 
 ## 15. Hinweise, Abweichungen und offene Punkte
 
-- **Größe (Vorschlag):** begehbar 400 × 400 m, Terrain 512 × 512 m = genau eine Streaming-Zelle (Architektur 10.1/10.5). Begründung (steht auch in der Datei unter `sizeRationale`): Bei 5 m/s Laufen dauert die Strecke aller drei Quests zusammen (Dorf → Riss → Lindenhain → Hof → Nordhang → Hof → Lindenhain → Gruft → Lindenhain) etwa 1,3 km, also 4–5 Minuten – rund 10 % von 30–60 Minuten Spielzeit; der Rest ist Kampf, Gespräch und Rätsel. Gegenüber dem Plan für den Vertical Slice (GDD 01, 4.1.2: etwa 1,16 × 0,97 km) sind die Abstände auf rund die Hälfte verdichtet, die Himmelsrichtungen bleiben gleich.
+- **Größe (Vorschlag):** begehbar 400 × 400 m, Terrain 512 × 512 m = genau eine Streaming-Zelle (Architektur 10.1/10.5). Begründung (steht auch in der Datei unter `sizeRationale`): Die Strecke aller drei Quests zusammen (Start → Dorfplatz → Dorfrand → Riss → Lindenhain → Hof → Wolfsbau → Hof → Lindenhain → Gruft → Lindenhain) ist in Luftlinie etwa 1,5 km, auf den Wegen etwa 1,8–2 km. Bei 5 m/s sind das 6–7 Minuten – rund 10–20 % von 30–60 Minuten Spielzeit; der Rest ist Kampf, Gespräch und Rätsel. Ein Test rechnet die Luftlinie aus den Orten nach. Gegenüber dem Plan für den Vertical Slice (GDD 01, 4.1.2: etwa 1,16 × 0,97 km) sind die Abstände auf rund die Hälfte verdichtet, die Himmelsrichtungen bleiben gleich.
 - **IDs mit „(Vorschlag)“** (z. B. Rabenfels-Spitze als Aussichtspunkt, Dorfschenke, Elternhaus der Spielfigur, die beiden immer aktiven Wolfsgruppen) stehen noch nicht im GDD. Bitte bestätigen oder ablehnen.
 - **Eine Szene, kein Streaming:** Der Mini-Slice passt in eine Zelle. Das Zellen-Streaming aus Architektur 10 kommt erst, wenn die Welt größer wird.
-- **Pflanzen als Einzelobjekte:** Bäume und Büsche sind normale Objekte mit Kollision am Stamm (statisch gebündelt), keine Terrain-Bäume. So sehen sie in Unity und in der Vorschau gleich aus. Wird die Bildrate zu niedrig, stellt Claude auf Terrain-Bäume oder GPU-Instancing um.
+- **Pflanzen als Einzelobjekte:** Bäume und Büsche sind normale Objekte mit Kollision am Stamm, keine Terrain-Bäume. So sehen sie in Unity und in der Vorschau gleich aus. Der Generator setzt **kein „Batching Static“** mehr: Der GPU Resident Drawer (Architektur 1.2) zeichnet gleiche Modelle gebündelt, und Unity rät, Static Batching dafür abzuschalten ([Unity-Handbuch](https://docs.unity3d.com/Manual/urp/gpu-resident-drawer-performance.html)). Die Liste im **Projekt-Setup, Schritt b)** zeigt dazu „Static Batching: aus“ als Empfehlung (Edit > Project Settings > Player > Other Settings > Rendering > Static Batching). Gebäude, Felsen und Gelände tragen nur noch die Flags für die Verdeckung (Occluder/Occludee), Quest-Objekte gar keine (sie werden später bewegt). Wird die Bildrate zu niedrig, stellt Claude auf Terrain-Bäume um.
 - **Unsichtbare Wand** 14 m hinter dem begehbaren Rand (in den Randhügeln). Sie hält Figur und Wölfe auf, die Kamera nicht.
-- **Glut-Lichter:** Jede glühende Ruine hat ein kleines oranges Punktlicht, dazu das Lagerfeuer und das Licht des Risses. Unity zeigt in URP nur eine begrenzte Zahl zusätzlicher Lichter pro Objekt; flackert es, bitte melden.
+- **Glut-Lichter:** Jede glühende Ruine hat ein kleines oranges Punktlicht, dazu das Lagerfeuer und das Licht des Risses. Unity zeigt in URP nur eine begrenzte Zahl zusätzlicher Lichter pro Objekt; flackert es, bitte melden. Glut (eigenes Modell), Glutlicht und Rauch hängen nicht mehr an den Häusern, sondern je Haus unter **Siedlungen > Brand (Prolog)**. Die Komponente `ConditionalObjectGroup` dort zeigt sie, solange „Asche über Eichental“ nicht abgeschlossen ist (GDD 01, 6.5: danach „Ruine und Asche“).
 - **Startstufe 10 und Wolfsstufe 8** sind Testeinstellungen aus dem Testgelände ([Anleitung 09, Abschnitt 15](./09_Test_Quests_im_Spiel.md#15-hinweise-abweichungen-und-offene-punkte)). Vor dem fertigen Mini-Slice: Figur Stufe 1, Gegner passend zum Gebietslevel 1–3 (steht in der Layout-Datei je Truhe und Ort).
 - **Truhen-Beute** nutzt die Loot-Tabellen des Testgeländes (Holz, Eisen, versteckt) mit dem Gebietslevel aus der Layout-Datei.
+- **Nach der Prüfung geändert (2026-10-14):** Felsen schwebten in Unity, weil ihr Modell unten abgeschnitten war; die Vorschau zeigte sie richtig. Jetzt rechnen Unity und Vorschau die Felsen **mit demselben Code-Zwilling** (gleiche Eckpunkte, per Test geprüft). Der Bogen der Steinbrücke stand 3 m hoch auf der Fahrbahn (in Unity und Vorschau); er liegt jetzt darunter. Neu sind die Spuren, die Stufen bei den NPC-Platzhaltern, die gespeicherten Gegnergruppen und die Brand-Gruppe. Der Aether-Wolf am Riss steht jetzt im Wald nordöstlich davon. Das Schild „Wachposten der Silberwacht“ verdeckte auf der Karte die Mühle; die Karte prüft die Schilder jetzt selbst.
+- **Weidezaun ohne Tor:** Die obere Weide der Hollmanns ist rundum eingezäunt (1,1 m). Für die Hinweise auf der Weide (Quest 2, s10) springst du darüber (Sprunghöhe 1,2 m). Ist das zu knapp, bekommt der Zaun ein Tor.
 - **Vorschau ≠ Unity:** Die Blender-Bilder zeigen Formen, Lage, Farben und Licht nach denselben Zahlen, aber mit Blenders Renderer. In Unity wirken Licht, Schatten und Dunst anders; Rauch ist in Unity ein Partikelsystem, in der Vorschau eine Wolke.

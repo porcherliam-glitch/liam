@@ -12,6 +12,18 @@ namespace Aetherfall.World
         /// <summary>When the NPC stands here.</summary>
         public NpcMarkerPhase Phase { get; internal set; }
 
+        /// <summary>
+        /// Quest stage inside the phase (e.g. <c>s25</c> of GDD 02 11.1), empty = the whole phase. Several markers of one NPC in
+        /// the same phase need different stages.
+        /// </summary>
+        public string Stage { get; internal set; } = string.Empty;
+
+        /// <summary>
+        /// True if the NPC stands inside a building on purpose (e.g. Wenna in her burning bakery): the validator allows it and
+        /// the generator shows the sign above the roof.
+        /// </summary>
+        public bool InsideBuilding { get; internal set; }
+
         /// <summary>Location id.</summary>
         public string LocationId { get; internal set; } = string.Empty;
 

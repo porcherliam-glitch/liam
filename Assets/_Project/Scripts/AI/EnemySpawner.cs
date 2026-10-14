@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Aetherfall.World;
 using UnityEngine;
 
 namespace Aetherfall.AI
@@ -9,7 +10,11 @@ namespace Aetherfall.AI
     /// of enemies; GDD 03 12.7: respawned enemies give full XP). TODO (world step): real spawners with save state
     /// (architecture 9.7 "SpawnerState"), respawn rules per region and region levels.
     /// </summary>
-    /// <remarks>GameObject: "Arena" in the test ground; the list is filled by the test ground menu.</remarks>
+    /// <remarks>
+    /// GameObject: "Arena" in the test ground; in the Eichental the child "Gruppe" of an enemy group whose root carries a
+    /// <see cref="SpawnGroupMarker"/>. The lists are filled by the menus. A group without respawn reports to its marker once all
+    /// its enemies are dead, so a defeated quest pack does not come back after loading.
+    /// </remarks>
     [DisallowMultipleComponent]
     public sealed class EnemySpawner : MonoBehaviour
     {
@@ -20,6 +25,8 @@ namespace Aetherfall.AI
         [Min(0f)] [SerializeField] private float respawnSeconds = 0f;
 
         private readonly RespawnTimers _timers = new RespawnTimers();
+        private SpawnGroupMarker _marker;
+        private bool _clearedReported;
 
         /// <summary>Enemies of the group.</summary>
         public IReadOnlyList<EnemyController> Enemies => enemies;
@@ -60,10 +67,17 @@ namespace Aetherfall.AI
             _timers.Clear();
         }
 
+        private void Awake()
+        {
+            // The marker sits on the root of the group (Eichental); the test ground arena has none.
+            _marker = GetComponentInParent<SpawnGroupMarker>(true);
+        }
+
         private void Update()
         {
             if (respawnSeconds <= 0f)
             {
+                ReportClearedOnce();
                 return;
             }
 
@@ -78,6 +92,27 @@ namespace Aetherfall.AI
                     enemy.ResetToAnchor();
                 }
             }
+        }
+
+        private void ReportClearedOnce()
+        {
+            if (_clearedReported || _marker == null || enemies.Count == 0)
+            {
+                return;
+            }
+
+            for (int i = 0; i < enemies.Count; i++)
+            {
+                EnemyController enemy = enemies[i];
+                bool dead = enemy == null || (enemy.Combatant != null && !enemy.Combatant.IsAlive);
+                if (!dead)
+                {
+                    return;
+                }
+            }
+
+            _clearedReported = true;
+            _marker.ReportCleared();
         }
     }
 }

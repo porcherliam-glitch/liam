@@ -15,13 +15,14 @@ namespace Aetherfall.EditorTools.World
     public sealed class WorldSetup
     {
         private WorldSetup(WorldLayers layers, PlayerMovementSettings settings, TestGroundMaterials materials, TestGroundCombatAssets combat,
-            TestGroundItemAssets items)
+            TestGroundItemAssets items, int playerLevel)
         {
             Layers = layers;
             Settings = settings;
             Materials = materials;
             Combat = combat;
             Items = items;
+            PlayerLevel = playerLevel;
         }
 
         /// <summary>Layer indices.</summary>
@@ -39,13 +40,24 @@ namespace Aetherfall.EditorTools.World
         /// <summary>Item data (items, affixes, loot tables, starting equipment, catalog, chest materials).</summary>
         public TestGroundItemAssets Items { get; }
 
+        /// <summary>
+        /// Level of a new game ("Startstufe neues Spiel" at the ProgressionInstaller after <see cref="Prepare"/>); the player object
+        /// of the scene gets the same level.
+        /// </summary>
+        public int PlayerLevel { get; }
+
         /// <summary>True if combat and item data are complete.</summary>
         public bool IsComplete => Combat != null && Combat.IsComplete && Items != null && Items.IsComplete;
 
         /// <summary>Creates or completes all shared assets and the boot scene UI (the boot scene is left open).</summary>
         /// <param name="report">Protocol.</param>
+        /// <param name="applyTestGroundStartLevel">
+        /// True only for the test ground: sets "Startstufe neues Spiel (nur Test)" at the ProgressionInstaller to the test level
+        /// (10). The Eichental passes false and keeps the value that is set (status list, "Als Naechstes" no. 7: 1 for the mini
+        /// slice).
+        /// </param>
         /// <returns>The setup, or null if folders or the movement settings are missing.</returns>
-        public static WorldSetup Prepare(TestGroundReport report)
+        public static WorldSetup Prepare(TestGroundReport report, bool applyTestGroundStartLevel)
         {
             if (!TestGroundAssets.EnsureFolder(TestGroundPaths.SceneFolder, report) ||
                 !TestGroundAssets.EnsureFolder(TestGroundPaths.MaterialFolder, report) ||
@@ -73,7 +85,7 @@ namespace Aetherfall.EditorTools.World
             var items = new TestGroundItemAssets(report);
             items.AssignWolfLoot(combat.Wolf, combat.AetherWolf);
             TestGroundAssets.EnsureItemInstallersInBootConfig(items.Catalog, items.StartingEquipment, report);
-            TestGroundAssets.EnsureNarrativeInstallersInBootConfig(report);
+            TestGroundAssets.EnsureNarrativeInstallersInBootConfig(report, applyTestGroundStartLevel);
             var quests = new TestGroundQuestAssets(items.Catalog, report);
             TestGroundUiBuilder.EnsureInstallers(report);
             AssetDatabase.SaveAssets();
@@ -97,7 +109,7 @@ namespace Aetherfall.EditorTools.World
                                "trotzdem, Hauptmenü und HUD fehlen aber. Danach „" + TestGroundUiBuilder.MenuPath + "“ ausführen.");
             }
 
-            return new WorldSetup(layers, settings, materials, combat, items);
+            return new WorldSetup(layers, settings, materials, combat, items, TestGroundAssets.CurrentProgressionStartLevel());
         }
 
         private static WorldLayers EnsureLayers(TestGroundReport report)

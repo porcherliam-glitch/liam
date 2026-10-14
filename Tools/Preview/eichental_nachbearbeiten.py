@@ -3,8 +3,9 @@
 
 - Stills get the bar "Vorschau – Blender-Nachbau aus den Layout-Daten (kein Unity-Screenshot)"; the overview gets small
   name tags of the main places (screen positions from eichental_uebersicht_daten.json, written by eichental_preview.py).
-- The map gets the location zones (AreaTrigger) with names, NPC markers, enemy groups, chests, quest objects, the player start,
-  the playable bounds, a legend, a scale bar and a north arrow (positions from eichental_karte_daten.json).
+- The map gets the location zones (AreaTrigger) with names, NPC markers, enemy groups, chests, quest objects, trails, the player
+  start, the playable bounds, a legend, a scale bar and a north arrow (positions from eichental_karte_daten.json). A check warns
+  when a name sign covers another sign or a zone it does not belong to.
 - The flight frames become eichental_rundflug.mp4 (H.264, 1280x720, 30 fps; frames rendered at a lower rate are interpolated
   with ffmpeg minterpolate).
 
@@ -29,22 +30,25 @@ FONT_DIRS = ["/usr/share/fonts/truetype/dejavu", "/usr/share/fonts/dejavu", "/Li
 BAR_STILL = "Vorschau – Blender-Nachbau aus den Layout-Daten (kein Unity-Screenshot)"
 BAR_VIDEO = BAR_STILL
 
-# Label position of each location on the 1600 px map: offset of the label box from the zone centre (pixels).
+# Label position of each location on the 1600 px map: offset of the label box from the zone centre (pixels). A sign must not
+# cover another sign or a zone other than its own and the zones around it (check_labels prints a warning).
 MAP_LABEL_OFFSETS = {
     "loc.eichental.dorf_eichental": (330, 70),
     "loc.eichental.dorfplatz": (-40, 215),
-    "loc.eichental.dorfrand": (-215, 150),
+    "loc.eichental.dorfrand": (-190, 116),
     "loc.eichental.riss_eichental": (250, -95),
-    "loc.eichental.lindenhain": (-95, 175),
-    "loc.eichental.gasthaus_krummer_kessel": (250, -55),
-    "loc.eichental.wachposten_lindenhain": (60, 235),
+    "loc.eichental.lindenhain": (-170, -184),
+    "loc.eichental.gasthaus_krummer_kessel": (225, -200),
+    "loc.eichental.wachposten_lindenhain": (-54, 118),
     "loc.eichental.hof_hollmann": (255, 45),
     "loc.eichental.nordhang": (-110, -150),
     "loc.eichental.wolfsbau_nordhang": (300, -150),
     "loc.eichental.vergessene_gruft": (275, 55),
     "loc.eichental.muehle_muehlbach": (270, 200),
-    "loc.eichental.rabenfels_spitze": (330, -100),
+    "loc.eichental.rabenfels_spitze": (330, -95),
 }
+
+TRAIL_COLOR = (186, 120, 255)
 
 # Quest short names for the map labels.
 QUEST_SHORT = {
@@ -62,6 +66,7 @@ MARKER_STYLE = {
     "chest": ((140, 85, 40), "square"),
     "quest": ((245, 208, 107), "diamond"),
     "start": ((255, 255, 255), "ring"),
+    "trail": (TRAIL_COLOR, "circle"),
 }
 
 
@@ -157,6 +162,61 @@ def dashed_rect(d, box, color, width, dash):
             d.line((ax + (bx - ax) * t0, ay + (by - ay) * t0, ax + (bx - ax) * t1, ay + (by - ay) * t1), fill=color, width=width)
 
 
+def label_boxes(d, data, layout, k, f_name, f_detail):
+    """Box, anchor and text lines of every zone label (the same numbers make_map draws)."""
+    quests = {loc["id"]: loc.get("quests", []) for loc in layout["locations"]}
+    out = {}
+    for loc in data["locations"]:
+        ax, ay = loc["center"]
+        dx, dy = MAP_LABEL_OFFSETS.get(loc["id"], (0, -60))
+        cx, cy = ax + dx * k, ay + dy * k
+        short = ", ".join(QUEST_SHORT.get(q, q) for q in quests.get(loc["id"], []))
+        lines = [(loc["name"], f_name), (loc["id"].replace("loc.eichental.", "loc.…") + (" · " + short if short else ""), f_detail)]
+        widths = [d.textbbox((0, 0), t, font=fnt)[2] for t, fnt in lines]
+        heights = [fnt.size + 6 * k for _, fnt in lines]
+        bw, bh = max(widths) + 20 * k, sum(heights) + 10 * k
+        out[loc["id"]] = {"box": (cx - bw / 2, cy - bh / 2, cx + bw / 2, cy + bh / 2), "anchor": (ax, ay), "label": (cx, cy),
+                          "lines": lines, "heights": heights}
+    return out
+
+
+def _box_hits_zone(box, zone):
+    if zone["shape"] == "circle":
+        cx, cy = zone["center"]
+        x = min(max(cx, box[0]), box[2])
+        y = min(max(cy, box[1]), box[3])
+        return (x - cx) ** 2 + (y - cy) ** 2 < zone["radius"] ** 2
+    xs = [p[0] for p in zone["corners"]]
+    ys = [p[1] for p in zone["corners"]]
+    return not (box[2] < min(xs) or max(xs) < box[0] or box[3] < min(ys) or max(ys) < box[1])
+
+
+def _point_in_zone(point, zone):
+    if zone["shape"] == "circle":
+        return (point[0] - zone["center"][0]) ** 2 + (point[1] - zone["center"][1]) ** 2 <= zone["radius"] ** 2
+    xs = [p[0] for p in zone["corners"]]
+    ys = [p[1] for p in zone["corners"]]
+    return min(xs) <= point[0] <= max(xs) and min(ys) <= point[1] <= max(ys)
+
+
+def check_labels(boxes, zones):
+    """Problems of the sign layout: a sign covers another sign, or a zone that is neither its own nor one around its zone."""
+    problems = []
+    ids = list(boxes)
+    for i, lid in enumerate(ids):
+        box = boxes[lid]["box"]
+        for oid in ids[i + 1:]:
+            other = boxes[oid]["box"]
+            if not (box[2] <= other[0] or other[2] <= box[0] or box[3] <= other[1] or other[3] <= box[1]):
+                problems.append("Schild %s überdeckt Schild %s" % (lid, oid))
+        for zone in zones:
+            if zone["id"] == lid or _point_in_zone(boxes[lid]["anchor"], zone):
+                continue
+            if _box_hits_zone(box, zone):
+                problems.append("Schild %s überdeckt die Zone %s" % (lid, zone["id"]))
+    return problems
+
+
 def make_map(directory):
     raw_path = os.path.join(directory, "eichental_karte_roh.png")
     data_path = os.path.join(directory, "eichental_karte_daten.json")
@@ -191,6 +251,23 @@ def make_map(directory):
         else:
             d.polygon([tuple(p) for p in loc["corners"]], fill=zone_fill, outline=zone_line, width=max(2, round(3 * k)))
 
+    # Trails ("Folge der Spur"): dotted line through the nodes, a ring per node trigger.
+    for trail in data.get("trails", []):
+        pts = trail["points"]
+        for (x0, y0), (x1, y1) in zip(pts, pts[1:]):
+            length = max(1.0, ((x1 - x0) ** 2 + (y1 - y0) ** 2) ** 0.5)
+            step = 9 * k
+            n = int(length // (step * 2)) + 1
+            for i in range(n):
+                t0 = min(1.0, i * step * 2 / length)
+                t1 = min(1.0, (i * step * 2 + step) / length)
+                d.line((x0 + (x1 - x0) * t0, y0 + (y1 - y0) * t0, x0 + (x1 - x0) * t1, y0 + (y1 - y0) * t1), fill=TRAIL_COLOR + (255,),
+                       width=max(2, round(4 * k)))
+        for x, y in pts:
+            r = trail["radius"]
+            d.ellipse((x - r, y - r, x + r, y + r), outline=TRAIL_COLOR + (255,), width=max(1, round(2 * k)))
+            marker(d, "trail", x, y, 4 * k)
+
     # Markers.
     for m in data["markers"]:
         marker(d, m["type"], m["p"][0], m["p"][1], 7 * k if m["type"] != "start" else 7 * k)
@@ -204,21 +281,26 @@ def make_map(directory):
         d.text((x, y - 22 * k), label["text"], font=f_water, fill=(220, 240, 255, 255), anchor="mm", stroke_width=max(2, round(3 * k)),
                stroke_fill=(30, 60, 80, 255))
 
+    # Trail names at the last node.
+    f_trail = font(round(16 * k), bold=True)
+    for trail in data.get("trails", []):
+        x, y = trail["points"][-1]
+        d.text((x + 10 * k, y - 10 * k), trail["name"], font=f_trail, fill=(250, 240, 255, 255), anchor="ld", stroke_width=max(2, round(3 * k)),
+               stroke_fill=(60, 30, 90, 255))
+
     # Zone labels with leader lines.
     f_name = font(round(21 * k), bold=True)
     f_detail = font(round(16 * k))
-    quests = {loc["id"]: loc.get("quests", []) for loc in layout["locations"]}
+    boxes = label_boxes(d, data, layout, k, f_name, f_detail)
+    for problem in check_labels(boxes, data["locations"]):
+        print("WARNUNG Karte:", problem)
     for loc in data["locations"]:
-        ax, ay = loc["center"]
-        dx, dy = MAP_LABEL_OFFSETS.get(loc["id"], (0, -60))
-        cx, cy = ax + dx * k, ay + dy * k
-        name = loc["name"]
-        short = ", ".join(QUEST_SHORT.get(q, q) for q in quests.get(loc["id"], []))
-        lines = [(name, f_name), (loc["id"].replace("loc.eichental.", "loc.…") + (" · " + short if short else ""), f_detail)]
-        widths = [d.textbbox((0, 0), t, font=fnt)[2] for t, fnt in lines]
-        heights = [fnt.size + 6 * k for _, fnt in lines]
-        bw, bh = max(widths) + 20 * k, sum(heights) + 10 * k
-        box = (cx - bw / 2, cy - bh / 2, cx + bw / 2, cy + bh / 2)
+        entry = boxes[loc["id"]]
+        ax, ay = entry["anchor"]
+        cx, cy = entry["label"]
+        lines = entry["lines"]
+        heights = entry["heights"]
+        box = entry["box"]
         d.line((ax, ay, cx, cy), fill=(25, 25, 25, 235), width=max(2, round(2.5 * k)))
         r = 5 * k
         d.ellipse((ax - r, ay - r, ax + r, ay + r), fill=(255, 214, 64, 255), outline=(20, 20, 20, 255))
@@ -246,6 +328,7 @@ def make_map(directory):
         ("spawn_quest", "Gegner, erscheinen per Quest"),
         ("chest", "Truhe"),
         ("quest", "Quest-Objekt (Hinweis, Ziel, Tür …)"),
+        ("trail", "Spur „Folge der Spur“ (Knoten = Auslöser)"),
         ("start", "Spieler-Start (Erwachen im Dorf)"),
         ("rift", "Riss mit Aether-Krater (türkis)"),
         ("bounds", "Rand des begehbaren Bereichs"),
@@ -283,6 +366,7 @@ def make_map(directory):
         "%d Orte · %d Gebäude · %d Truhen" % (len(layout["locations"]), len(layout["buildings"]), len(layout["chests"])),
         "%d Gegnergruppen · %d NPC-Marker · %d Quest-Objekte" % (len(layout["spawners"]), len(layout["npcMarkers"]),
                                                                len(layout["questObjects"])),
+        "%d Spuren mit %d Knoten" % (len(layout.get("trails", [])), sum(len(t["nodes"]) for t in layout.get("trails", []))),
         "Quests: Q1 Asche über Eichental · Q2 Die Wölfe",
         "vom Nordhang · Q7 Die vergessene Gruft (Eingang)",
     ]

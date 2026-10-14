@@ -19,7 +19,7 @@ namespace Aetherfall.EditorTools.World
     /// the layout, terrain (<see cref="EichentalTerrainBuilder"/>), brooks, bridges, buildings (<see cref="EichentalBuildingBuilder"/>),
     /// vegetation, rocks, fields, fences (<see cref="EichentalNatureBuilder"/>), set pieces (<see cref="EichentalPropBuilder"/>),
     /// the Aether rift, and the gameplay part (<see cref="EichentalGameplayBuilder"/>: location zones, enemies, chests, NPC
-    /// placeholders, quest objects, start point). Player, cameras, HUD link and debug overlays are the same as in the test ground
+    /// placeholders, quest objects, trails, start point). Player, cameras, HUD link and debug overlays are the same as in the test ground
     /// (<see cref="TestGroundSceneBuilder"/>, <see cref="TestGroundCombatBuilder"/>, <see cref="TestGroundItemBuilder"/>).
     /// </summary>
     /// <remarks>Layer: terrain 12 "Terrain"; the cameras and the enemies' line of sight treat Environment and Terrain as walls.</remarks>
@@ -35,10 +35,11 @@ namespace Aetherfall.EditorTools.World
         /// <param name="layers">Layer indices.</param>
         /// <param name="combat">Combat assets.</param>
         /// <param name="items">Item assets.</param>
+        /// <param name="playerLevel">Level of the player object (the same as the start level of a new game).</param>
         /// <param name="report">Protocol.</param>
         /// <returns>The player object, or null if the scene could not be saved.</returns>
         public static GameObject Build(RegionLayout layout, PlayerMovementSettings settings, TestGroundMaterials testMaterials, WorldLayers layers,
-            TestGroundCombatAssets combat, TestGroundItemAssets items, TestGroundReport report)
+            TestGroundCombatAssets combat, TestGroundItemAssets items, int playerLevel, TestGroundReport report)
         {
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.DefaultGameObjects, NewSceneMode.Single);
             int env = layers.Environment >= 0 ? layers.Environment : 0;
@@ -67,12 +68,14 @@ namespace Aetherfall.EditorTools.World
             var smoke = new EichentalSmoke(report);
             var buildings = new EichentalBuildingBuilder(materials, meshes, heights, smoke, env);
             Transform buildingGroup = Group(village.transform, "Gebäude");
+            Transform fireGroup = EichentalBuildingBuilder.CreateFireGroup(village.transform, report);
             for (int i = 0; i < layout.Buildings.Count; i++)
             {
-                buildings.Build(layout.Buildings[i], i, buildingGroup);
+                buildings.Build(layout.Buildings[i], i, buildingGroup, fireGroup);
             }
 
-            report.Info("Gebäude: " + layout.Buildings.Count + " (intakt, verbrannt, eingestürzt laut Layout), " + smoke.Count + " Rauchsäulen.");
+            report.Info("Gebäude: " + layout.Buildings.Count + " (intakt, verbrannt, eingestürzt laut Layout); Glut, Glutlicht und " + smoke.Count +
+                        " Rauchsäulen unter „Brand (Prolog)“: sichtbar, bis " + EichentalBuildingBuilder.PrologueQuestId + " abgeschlossen ist.");
             nature.BuildFences(Group(village.transform, "Zäune"));
             nature.BuildFields(Group(village.transform, "Felder"));
             nature.BuildBridges(Group(village.transform, "Brücken"));
@@ -94,7 +97,8 @@ namespace Aetherfall.EditorTools.World
             new GameObject("QuickSaveInput").AddComponent<QuickSaveInput>();
             PlayerStatusDebugOverlay statusOverlay = TestGroundSceneBuilder.CreateStatusOverlay(player, report);
 
-            Combatant playerCombatant = TestGroundCombatBuilder.SetUpPlayer(player, mainCamera, testMaterials, combat, layers.Hurtbox, env, report);
+            Combatant playerCombatant = TestGroundCombatBuilder.SetUpPlayer(player, mainCamera, testMaterials, combat, layers.Hurtbox, env, report,
+                playerLevel);
             TestGroundFields.SetInt(player.GetComponent<PlayerLockOn>(), "sightBlockers", solidMask, report);
             TestGroundCombatBuilder.SetUpCameras(player, pivot, exploreCamera, exploreOrbital, solidMask, report);
             TestGroundFields.SetReference(look, "lockOn", player.GetComponent<PlayerLockOn>(), report);
@@ -116,6 +120,7 @@ namespace Aetherfall.EditorTools.World
             gameplay.BuildAreaTriggers(Group(game.transform, "Orte"), layers.TriggerVolume, layers.Player);
             gameplay.BuildNpcMarkers(Group(game.transform, "NPC-Platzhalter"));
             gameplay.BuildQuestObjects(Group(game.transform, "Quest-Objekte"), env);
+            gameplay.BuildTrails(Group(game.transform, "Spuren"), layers.TriggerVolume, layers.Player);
             TestGroundUiBuilder.AddPlayerHudLink(player, mainCamera, report);
 
             report.Info("Meshes: " + meshes.Count + " in " + EichentalPaths.MeshLibraryPath + ".");

@@ -10,7 +10,8 @@
         "Aetherfall.SaveSystem",
         "Aetherfall.GameTime",
         "Aetherfall.WorldState",
-        "Aetherfall.Inventory"
+        "Aetherfall.Inventory",
+        "Aetherfall.World"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

@@ -133,7 +133,7 @@ namespace Aetherfall.EditorTools.World
 
         private static GameObject Build(TestGroundReport report)
         {
-            WorldSetup setup = WorldSetup.Prepare(report);
+            WorldSetup setup = WorldSetup.Prepare(report, true);
             if (setup == null)
             {
                 return null;

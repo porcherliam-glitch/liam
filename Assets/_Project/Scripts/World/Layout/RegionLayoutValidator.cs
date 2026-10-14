@@ -8,13 +8,17 @@ namespace Aetherfall.World
     /// <summary>
     /// Semantic checks of a <see cref="RegionLayout"/> (messages in German, shown by the generator):
     /// id format and prefixes (architecture 6.1), unique ids, numbers in a sensible range, gameplay objects inside the playable
-    /// bounds, no building in a brook or on top of another building, start/chests/spawners not in water, references to
-    /// existing locations, bridges over a brook, required palette colours, terrain heights inside the terrain volume.
+    /// bounds, no building in a brook or on top of another building, start/chests/spawners/trail nodes not in water, NPC markers
+    /// and trail nodes not inside buildings, references to existing locations, bridges over a brook, required palette colours,
+    /// terrain heights inside the terrain volume.
     /// </summary>
     public static class RegionLayoutValidator
     {
         /// <summary>Distance in metres that buildings keep from the water edge of a brook.</summary>
         public const double BuildingWaterMargin = 1.0;
+
+        /// <summary>Largest radius of a trail node trigger in metres.</summary>
+        public const double MaxTrailRadius = 15.0;
 
         private const double RiverSampleStep = 0.5;
 
@@ -501,15 +505,31 @@ namespace Aetherfall.World
             for (int i = 0; i < layout.NpcMarkers.Count; i++)
             {
                 LayoutNpcMarker n = layout.NpcMarkers[i];
-                string key = n.NpcId + "@" + n.Phase;
+                string key = n.NpcId + "@" + n.Phase + "/" + n.Stage;
                 RequireId(n.NpcId, "npc.", "npcMarkers[" + i + "]", report);
                 if (!npcKeys.Add(key))
                 {
-                    report.Error(n.NpcId, "NPC-Marker doppelt für dieselbe Phase (" + n.Phase + ").");
+                    report.Error(n.NpcId, "NPC-Marker doppelt für dieselbe Phase (" + n.Phase + ")" +
+                                          (n.Stage.Length > 0 ? " und Stufe " + n.Stage : string.Empty) + ". Unterscheide sie mit \"stage\".");
+                }
+
+                if (n.Stage.Length > 0 && !IsStageId(n.Stage))
+                {
+                    report.Error(n.NpcId, "stage „" + n.Stage + "“ muss eine Stufen-ID wie s25 sein (GDD 02, Abschnitt 11).");
                 }
 
                 RequireInside(bounds, n.Position, n.NpcId, report);
                 RequireLocation(locations, n.LocationId, n.NpcId, report);
+                CheckDry(layout, n.Position.X, n.Position.Z, n.NpcId, "NPC-Marker steht im Bach.", report);
+                if (!n.InsideBuilding)
+                {
+                    CheckOutsideBuildings(layout, n.Position.X, n.Position.Z, n.NpcId,
+                        "NPC-Marker steht in einem Gebäude (dort wäre er unsichtbar). Verschieben oder \"insideBuilding\": true setzen.", report);
+                }
+                else if (!InsideAnyBuilding(layout, n.Position.X, n.Position.Z))
+                {
+                    report.Warning(n.NpcId, "\"insideBuilding\": true, der Marker steht aber in keinem Gebäude.");
+                }
             }
 
             for (int i = 0; i < layout.QuestObjects.Count; i++)
@@ -536,10 +556,79 @@ namespace Aetherfall.World
                 RequireLocation(locations, q.LocationId, q.Id, report);
             }
 
+            CheckTrails(layout, report, ids);
+
             LayoutPlayerStart start = layout.PlayerStart;
             RequireInside(bounds, start.Position, "playerStart", report);
             CheckDry(layout, start.Position.X, start.Position.Z, "playerStart", "Der Spieler-Start liegt im Bach.", report);
             CheckOutsideBuildings(layout, start.Position.X, start.Position.Z, "playerStart", "Der Spieler-Start liegt in einem Gebäude.", report);
+        }
+
+        private static void CheckTrails(RegionLayout layout, LayoutReport report, Dictionary<string, string> ids)
+        {
+            LayoutBounds bounds = layout.Terrain.PlayableBounds;
+            for (int i = 0; i < layout.Trails.Count; i++)
+            {
+                LayoutTrail t = layout.Trails[i];
+                Unique(ids, t.Id, "trails", report);
+                RequireId(t.Id, "spur.", t.Id, report);
+                RequireId(t.QuestId, "quest.", t.Id + ".quest", report);
+                if (t.Nodes.Count < 2)
+                {
+                    report.Error(t.Id, "Spur: mindestens 2 Knoten nötig (sonst ist es ein „Gehe zu“-Ziel).");
+                }
+
+                if (t.Radius <= 0.0 || t.Radius > MaxTrailRadius)
+                {
+                    report.Error(t.Id, "Spur: Radius der Knoten muss größer als 0 und höchstens " + Format(MaxTrailRadius) + " m sein.");
+                }
+
+                for (int n = 0; n < t.Nodes.Count; n++)
+                {
+                    LayoutPoint node = t.Nodes[n];
+                    string path = t.Id + ".nodes[" + n + "]";
+                    RequireInside(bounds, node, path, report);
+                    CheckDry(layout, node.X, node.Z, path, "Spur-Knoten liegt im Bach.", report);
+                    CheckOutsideBuildings(layout, node.X, node.Z, path, "Spur-Knoten liegt in einem Gebäude.", report);
+                    if (n > 0 && node.DistanceTo(t.Nodes[n - 1]) < t.Radius)
+                    {
+                        report.Warning(path, "Spur-Knoten liegt näher als sein Radius am vorigen Knoten.");
+                    }
+                }
+            }
+        }
+
+        private static bool IsStageId(string stage)
+        {
+            if (stage.Length < 2 || stage[0] != 's' || stage[1] < '0' || stage[1] > '9')
+            {
+                return false;
+            }
+
+            for (int i = 1; i < stage.Length; i++)
+            {
+                char c = stage[i];
+                if (!(c >= 'a' && c <= 'z') && !(c >= '0' && c <= '9') && c != '_')
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private static bool InsideAnyBuilding(RegionLayout layout, double x, double z)
+        {
+            for (int i = 0; i < layout.Buildings.Count; i++)
+            {
+                LayoutBuilding b = layout.Buildings[i];
+                if (LayoutGeometry.RectExcess(x, z, b.Position, b.Width, b.Depth, b.Yaw) < 0.0)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private static void CheckHeights(RegionLayout layout, LayoutReport report)

@@ -84,6 +84,9 @@ namespace Aetherfall.World
         /// <summary>Placeholder quest objects (clues, targets, doors).</summary>
         public IReadOnlyList<LayoutQuestObject> QuestObjects { get; internal set; } = Array.Empty<LayoutQuestObject>();
 
+        /// <summary>Trails of "Folge der Spur" objectives (node triggers).</summary>
+        public IReadOnlyList<LayoutTrail> Trails { get; internal set; } = Array.Empty<LayoutTrail>();
+
         /// <summary>Start position of a new game.</summary>
         public LayoutPlayerStart PlayerStart { get; internal set; }
     }

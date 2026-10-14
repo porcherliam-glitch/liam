@@ -1457,7 +1457,7 @@ namespace Aetherfall.Inventory {
 | NPC-Beziehung ändern | `ChangeRelationship` | NPC/Beziehung ändern | NPC |
 | Weltzustand-Flag setzen | `SetFlag`, `AddToFlag` | Welt/Flag setzen, Welt/Flag erhöhen | WorldState |
 | NPC spawnen / entfernen / bewegen | `SpawnNpc`, `DespawnNpc`, `MoveNpc` (Tagesablauf-Override oder Teleport) | NPC/… | NPC |
-| Gegner spawnen | `SpawnEncounter` (Spawn-Definition oder Gegnertyp + Anzahl + Ort); nutzt das Interface `IEnemySpawnService` (in World), implementiert in AI und im AI-Installer registriert | Welt/Gegner spawnen | World |
+| Gegner spawnen | `SpawnEncounter` (Spawn-Definition oder Gegnertyp + Anzahl + Ort); nutzt das Interface `IEnemySpawnService` (in World), implementiert in AI und im AI-Installer registriert. **Stand Mini-Slice:** nur „Spawn-Definition“: schaltet eine Gegnergruppe der Szene über `ISpawnGroupRegistry` (World, `WorldInstaller`) ein | Welt/Gegner spawnen | World |
 | Zwischensequenz abspielen | `PlayCutscene` | Inszenierung/Zwischensequenz | Cinematics |
 | Kartenmarker hinzufügen | `AddMapMarker`, `RemoveMapMarker` | Karte/… | World |
 | Tür öffnen / schließen | `SetDoorState` (offen, zu, verriegelt) | Welt/Tür | World |
@@ -1584,7 +1584,7 @@ namespace Aetherfall.SaveSystem {
 | 80 | `world` | World | entdeckte Orte, Kartennebel, eigene Marker, Wegpunkte, Wetter je Region, Weltereignis-Zustände |
 | 85 | `worldobjects` | World | Zustände der Szenenobjekte (9.7) |
 | 86 | `dynamic` | World | Laufzeit-Spawns (9.7) |
-| 88 | `spawners` | World | Spawner- und Boss-Zustände; AI schreibt Boss- und Spawner-Zustände über `ISpawnerStateStore` (Interface in World) |
+| 88 | `spawners` | World | Spawner- und Boss-Zustände; AI schreibt Boss- und Spawner-Zustände über `ISpawnerStateStore` (Interface in World). **Stand Mini-Slice:** eingeschaltete und besiegte Quest-Gegnergruppen aus `ISpawnGroupRegistry` (World); die Sektion registriert vorläufig der `QuestInstaller` (`SpawnGroupSaveable`), weil World ohne das Newtonsoft-Paket kompilieren muss und SaveSystem deshalb nicht referenzieren kann (asmdef-`defineConstraints`) |
 | 90 | `housing` | Housing | Ausbaustufen, Räume, platzierte Möbel, Garten |
 | 95 | `economy` | Economy | Händlerbestände und -gold (nur besuchte Händler), Restock-Zeitpunkte |
 | 97 | `audio` | Audio | aktiver Musik-Override (MusicSet-ID); lädt vor `quests`, damit Quest-Actions den Override danach neu setzen dürfen |

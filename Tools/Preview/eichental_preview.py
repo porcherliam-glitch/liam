@@ -1215,6 +1215,11 @@ def build_gameplay(b, with_markers=True):
             ob = b.obj("Hinweis", ico_mesh(b), col, location=(0, 0, 0.25), scale=(0.18, 0.18, 0.18), parent=root)
             Builder.assign(ob, b.glow("questMarker", 5.0) if "aether" not in q["id"] else b.glow("aether", 5.0))
             b.box("Spur", col, (0.8, 0.8, 0.03), (0, 0, 0.01), b.mat("trace", (0.3, 0.22, 0.18)), parent=root)
+    # Trail nodes: small glowing marks on the ground like the generator's "Spurzeichen".
+    for trail in lay.get("trails", []):
+        for i, (x, z) in enumerate(trail["nodes"]):
+            b.cyl("Spurzeichen %s %d" % (trail["id"], i), col, 0.35, 0.04, bv(x, z, ground_y(b, x, z) + 0.01), b.glow("questMarker", 3.0),
+                  segments=12)
     start = lay["playerStart"]
     build_player(b, start["position"][0], start["position"][1], start["yaw"])
 
@@ -1506,6 +1511,8 @@ def write_map_data(b, out, size, extent):
     for q in lay["questObjects"]:
         data["markers"].append({"type": "quest", "p": px(*q["position"]), "name": q["name"]})
     data["markers"].append({"type": "start", "p": px(*lay["playerStart"]["position"]), "name": "Spieler-Start"})
+    data["trails"] = [{"id": t["id"], "name": t["name"], "points": [px(x, z) for x, z in t["nodes"]], "radius": t.get("radius", 4.0) * size / extent}
+                      for t in lay.get("trails", [])]
     data["rift"] = px(*lay["rift"]["center"])
     bounds = lay["terrain"]["playableBounds"]
     data["bounds"] = [px(bounds["min"][0], bounds["max"][1]), px(bounds["max"][0], bounds["min"][1])]

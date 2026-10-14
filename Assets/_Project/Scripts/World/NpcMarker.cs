@@ -4,8 +4,8 @@ namespace Aetherfall.World
 {
     /// <summary>
     /// Placeholder of an NPC in a blockout scene (e.g. Eichental): holds the NPC id from GDD 01 4.1.3 / GDD 02 11.0, the location
-    /// and the phase in which the NPC stands here. The NPC step replaces markers by real NPCs; until then they only show where
-    /// someone will stand (orange capsule with a name).
+    /// and the phase (optionally the quest stage) in which the NPC stands here. The NPC step replaces markers by real NPCs; until
+    /// then they only show where someone will stand (orange capsule with a name).
     /// </summary>
     /// <remarks>GameObject: one per marker, created by the menu "Aetherfall > Eichental erstellen" from the layout file.</remarks>
     [DisallowMultipleComponent]
@@ -23,6 +23,9 @@ namespace Aetherfall.World
         [Tooltip("Wann der NPC hier steht: immer, im Prolog oder nach dem Prolog.")]
         [SerializeField] private NpcMarkerPhase phase = NpcMarkerPhase.Always;
 
+        [Tooltip("Quest-Stufe innerhalb der Phase, z. B. s25 (GDD 02, Abschnitt 11). Leer = die ganze Phase.")]
+        [SerializeField] private string stage = string.Empty;
+
         /// <summary>NPC id.</summary>
         public string NpcId => npcId ?? string.Empty;
 
@@ -34,6 +37,9 @@ namespace Aetherfall.World
 
         /// <summary>Phase in which the NPC stands here.</summary>
         public NpcMarkerPhase Phase => phase;
+
+        /// <summary>Quest stage inside the phase (e.g. <c>s25</c>), empty = the whole phase.</summary>
+        public string Stage => stage ?? string.Empty;
 
         private void OnDrawGizmos()
         {

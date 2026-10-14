@@ -131,7 +131,7 @@ namespace Aetherfall.World
             var ctx = new LayoutJsonContext(report);
             ctx.Known(root, string.Empty, "schemaVersion", "layoutId", "regionId", "name", "sceneTitle", "worldSpaceId", "areaLevel", "notes",
                 "sizeRationale", "terrain", "palette", "lighting", "rivers", "paths", "bridges", "buildings", "fences", "fields", "groundZones",
-                "vegetation", "rocks", "props", "rift", "locations", "spawners", "chests", "npcMarkers", "questObjects", "playerStart");
+                "vegetation", "rocks", "props", "rift", "locations", "spawners", "chests", "npcMarkers", "questObjects", "trails", "playerStart");
             int schema = ctx.Integer(root, "schemaVersion", string.Empty);
             if (schema != SupportedSchemaVersion)
             {
@@ -166,6 +166,7 @@ namespace Aetherfall.World
                 Chests = ReadList(ctx, root, "chests", false, ReadChest),
                 NpcMarkers = ReadList(ctx, root, "npcMarkers", false, ReadNpcMarker),
                 QuestObjects = ReadList(ctx, root, "questObjects", false, ReadQuestObject),
+                Trails = ReadList(ctx, root, "trails", false, ReadTrail),
                 PlayerStart = ReadPlayerStart(ctx, ctx.Object(root, "playerStart", string.Empty, true), "playerStart")
             };
             JsonNode rift = ctx.Object(root, "rift", string.Empty, false);
@@ -708,12 +709,14 @@ namespace Aetherfall.World
 
         private static LayoutNpcMarker ReadNpcMarker(LayoutJsonContext ctx, JsonNode node, string path)
         {
-            ctx.Known(node, path, "npcId", "name", "phase", "locationId", "position", "yaw");
+            ctx.Known(node, path, "npcId", "name", "phase", "stage", "insideBuilding", "locationId", "position", "yaw");
             return new LayoutNpcMarker
             {
                 NpcId = ctx.String(node, "npcId", path),
                 Name = ctx.String(node, "name", path, string.Empty),
                 Phase = ctx.Token(node, "phase", path, NpcPhases, NpcMarkerPhase.Always),
+                Stage = ctx.String(node, "stage", path, string.Empty),
+                InsideBuilding = ctx.Boolean(node, "insideBuilding", path, false),
                 LocationId = ctx.String(node, "locationId", path, string.Empty),
                 Position = ctx.Point(node, "position", path),
                 Yaw = ctx.Number(node, "yaw", path, 0.0)
@@ -733,6 +736,20 @@ namespace Aetherfall.World
                 Yaw = ctx.Number(node, "yaw", path, 0.0),
                 LocationId = ctx.String(node, "locationId", path, string.Empty),
                 QuestId = ctx.String(node, "quest", path, string.Empty)
+            };
+        }
+
+        private static LayoutTrail ReadTrail(LayoutJsonContext ctx, JsonNode node, string path)
+        {
+            ctx.Known(node, path, "id", "name", "quest", "radius", "nodes", "note");
+            return new LayoutTrail
+            {
+                Id = ctx.String(node, "id", path),
+                Name = ctx.String(node, "name", path, string.Empty),
+                QuestId = ctx.String(node, "quest", path, string.Empty),
+                Radius = ctx.Number(node, "radius", path, 4.0),
+                Nodes = ctx.Points(node, "nodes", path, 0),
+                Note = ctx.String(node, "note", path, string.Empty)
             };
         }
 

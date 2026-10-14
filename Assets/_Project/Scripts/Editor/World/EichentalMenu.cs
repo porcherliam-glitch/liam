@@ -211,7 +211,7 @@ namespace Aetherfall.EditorTools.World
                 return null;
             }
 
-            WorldSetup setup = WorldSetup.Prepare(report);
+            WorldSetup setup = WorldSetup.Prepare(report, false);
             if (setup == null)
             {
                 return null;
@@ -223,7 +223,8 @@ namespace Aetherfall.EditorTools.World
                 return null;
             }
 
-            GameObject player = EichentalSceneBuilder.Build(layout, setup.Settings, setup.Materials, setup.Layers, setup.Combat, setup.Items, report);
+            GameObject player = EichentalSceneBuilder.Build(layout, setup.Settings, setup.Materials, setup.Layers, setup.Combat, setup.Items,
+                setup.PlayerLevel, report);
             if (player == null)
             {
                 return null;

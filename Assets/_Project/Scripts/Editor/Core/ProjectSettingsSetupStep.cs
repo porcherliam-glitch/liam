@@ -281,6 +281,14 @@ namespace Aetherfall.EditorTools.Core
                     }),
 
                 new SettingRule(
+                    "Static Batching: aus (GPU Resident Drawer)",
+                    "Edit > Project Settings > Player > Other Settings > Rendering > Static Batching",
+                    () => (SetupStatus.Unknown, "Empfehlung: ausschalten. Der GPU Resident Drawer (Architektur 1.2) zeichnet statische Objekte " +
+                                                "selbst gebündelt; Unity rät, Static Batching dafür abzuschalten. Die Generatoren setzen " +
+                                                "kein „Batching Static“ mehr. Bitte von Hand prüfen."),
+                    null),
+
+                new SettingRule(
                     "Active Input Handling: Input System Package (New)",
                     ActiveInputHandlingMenu,
                     EvaluateActiveInputHandling,

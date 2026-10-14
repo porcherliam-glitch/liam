@@ -1,3 +1,5 @@
+using Aetherfall.Conditions;
+using Aetherfall.Quests;
 using Aetherfall.World;
 using UnityEditor;
 using UnityEngine;
@@ -8,8 +10,10 @@ namespace Aetherfall.EditorTools.World
     /// Builds the buildings of a layout as blockout meshes: stone plinth, walls with a simple timber frame, door and windows, a
     /// generated roof (<see cref="RoofGeometry"/>: gable or lean-to) and type details (chapel tower, smithy chimney and anvil, mill
     /// wheel, tavern sign, guard post banner). Burned houses get dark walls with a soot band, a partly missing roof with bare
-    /// rafters; collapsed ones only uneven wall stumps, rubble and fallen beams. Smouldering buildings glow (emissive embers,
-    /// small orange light) and smoke. One mesh per building (several materials), box colliders for the walls.
+    /// rafters; collapsed ones only uneven wall stumps, rubble and fallen beams. One mesh per building (several materials), box
+    /// colliders for the walls. The fire of smouldering buildings (emissive embers as their own mesh, small orange light, smoke)
+    /// is a separate node per building under the group "Brand (Prolog)" (<see cref="CreateFireGroup"/>), which a
+    /// <see cref="ConditionalObjectGroup"/> switches off when the prologue quest is completed (GDD 01 6.5: ruin and ash).
     /// </summary>
     public sealed class EichentalBuildingBuilder
     {
@@ -21,9 +25,11 @@ namespace Aetherfall.EditorTools.World
         private const int Roof = 5;
         private const int Gable = 6;
         private const int Soot = 7;
-        private const int Ember = 8;
-        private const int Extra = 9;
-        private const int Submeshes = 10;
+        private const int Extra = 8;
+        private const int Submeshes = 9;
+
+        /// <summary>Quest whose completion puts out the fire of the village (GDD 02 11.1, prologue).</summary>
+        public const string PrologueQuestId = "quest.main.asche_ueber_eichental";
 
         /// <summary>Roof overhang beyond the walls in metres.</summary>
         public const float RoofOverhang = 0.45f;
@@ -67,11 +73,38 @@ namespace Aetherfall.EditorTools.World
             return (float)min;
         }
 
-        /// <summary>Builds one building under <paramref name="parent"/>.</summary>
+        /// <summary>
+        /// Creates the group "Brand (Prolog)" for the fire nodes of all buildings: a <see cref="ConditionalObjectGroup"/> shows them
+        /// while the prologue quest (<see cref="PrologueQuestId"/>) is not completed.
+        /// </summary>
+        /// <param name="parent">Parent.</param>
+        /// <param name="report">Protocol.</param>
+        public static Transform CreateFireGroup(Transform parent, TestGroundReport report)
+        {
+            var group = new GameObject("Brand (Prolog)");
+            group.transform.SetParent(parent, false);
+            ConditionalObjectGroup visibility = group.AddComponent<ConditionalObjectGroup>();
+            var serialized = new SerializedObject(visibility);
+            SerializedProperty condition = serialized.FindProperty("visibleWhile");
+            if (condition != null)
+            {
+                condition.managedReferenceValue = new Not(new QuestStatusIs(PrologueQuestId, QuestStatus.Completed));
+                serialized.ApplyModifiedPropertiesWithoutUndo();
+            }
+            else
+            {
+                report.Warning("ConditionalObjectGroup: Feld „visibleWhile“ nicht gefunden – der Brand bleibt immer sichtbar.");
+            }
+
+            return group.transform;
+        }
+
+        /// <summary>Builds one building under <paramref name="parent"/>; its fire (if it glows) goes under <paramref name="fireParent"/>.</summary>
         /// <param name="b">Building.</param>
         /// <param name="index">Index in the layout (seed of the random details).</param>
         /// <param name="parent">Parent.</param>
-        public GameObject Build(LayoutBuilding b, int index, Transform parent)
+        /// <param name="fireParent">Group "Brand (Prolog)" (<see cref="CreateFireGroup"/>).</param>
+        public GameObject Build(LayoutBuilding b, int index, Transform parent, Transform fireParent)
         {
             var root = new GameObject(b.Name.Length > 0 ? b.Name + " (" + b.Id + ")" : b.Id);
             root.transform.SetParent(parent, false);
@@ -98,7 +131,7 @@ namespace Aetherfall.EditorTools.World
             BuildDetails(mesh, root, b, w, d, h, rise);
             if (b.Glow)
             {
-                BuildEmbers(mesh, root, b, w, d, h, seed);
+                BuildFire(root.transform, fireParent, b, w, d, h, seed);
             }
 
             var filter = root.AddComponent<MeshFilter>();
@@ -301,12 +334,21 @@ namespace Aetherfall.EditorTools.World
             }
         }
 
-        private void BuildEmbers(EichentalMeshBuilder mesh, GameObject root, LayoutBuilding b, float w, float d, float h, int seed)
+        /// <summary>
+        /// Fire of a smouldering building: a node at the building's pose under <paramref name="fireParent"/> with the children
+        /// "Glut" (emissive ember boxes, own mesh), "Glutlicht" and the smoke.
+        /// </summary>
+        private void BuildFire(Transform building, Transform fireParent, LayoutBuilding b, float w, float d, float h, int seed)
         {
+            var node = new GameObject("Brand " + b.Id);
+            node.transform.SetParent(fireParent != null ? fireParent : building, false);
+            node.transform.SetPositionAndRotation(building.position, building.rotation);
+
+            var embers = new EichentalMeshBuilder(1);
             for (int i = 0; i < 3; i++)
             {
                 var center = new Vector3((Jagged(seed, 80 + i) - 0.5f) * w * 0.6f, 0.09f, (Jagged(seed, 90 + i) - 0.5f) * d * 0.6f);
-                mesh.AddBox(Ember, center, new Vector3(1.2f + Jagged(seed, 95 + i), 0.18f, 0.9f),
+                embers.AddBox(0, center, new Vector3(1.2f + Jagged(seed, 95 + i), 0.18f, 0.9f),
                     Quaternion.Euler(0f, -Jagged(seed, 99 + i) * 3f * Mathf.Rad2Deg, 0f));
             }
 
@@ -314,13 +356,20 @@ namespace Aetherfall.EditorTools.World
             {
                 for (int side = -1; side <= 1; side += 2)
                 {
-                    mesh.AddBox(Ember, new Vector3((Jagged(seed, 3) - 0.5f) * w * 0.2f, h - 0.1f, side * (d * 0.5f + 0.03f)), new Vector3(w * 0.7f, 0.12f, 0.3f),
+                    embers.AddBox(0, new Vector3((Jagged(seed, 3) - 0.5f) * w * 0.2f, h - 0.1f, side * (d * 0.5f + 0.03f)), new Vector3(w * 0.7f, 0.12f, 0.3f),
                         Quaternion.identity);
                 }
             }
 
+            var glow = new GameObject("Glut");
+            glow.transform.SetParent(node.transform, false);
+            glow.AddComponent<MeshFilter>().sharedMesh = _meshes.Add("Glut_" + b.Id, embers);
+            MeshRenderer glowRenderer = glow.AddComponent<MeshRenderer>();
+            glowRenderer.sharedMaterial = _materials.Glow("ember", 3f);
+            glowRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+
             var lightObject = new GameObject("Glutlicht");
-            lightObject.transform.SetParent(root.transform, false);
+            lightObject.transform.SetParent(node.transform, false);
             lightObject.transform.localPosition = new Vector3(0f, 1.2f, 0f);
             Light light = lightObject.AddComponent<Light>();
             light.type = LightType.Point;
@@ -328,7 +377,7 @@ namespace Aetherfall.EditorTools.World
             light.range = 9f;
             light.intensity = 2.5f;
             light.shadows = LightShadows.None;
-            _smoke.Add(root.transform, new Vector3(0f, h, 0f));
+            _smoke.Add(node.transform, new Vector3(0f, h, 0f));
         }
 
         private Material[] Materials(LayoutBuilding b)
@@ -360,7 +409,6 @@ namespace Aetherfall.EditorTools.World
                 intact ? _materials.Get(roofKey, 0.1f) : _materials.Fixed("burnedRoof", new Color(0.11f, 0.09f, 0.08f), 0.05f),
                 intact ? wall : soot,
                 soot,
-                _materials.Glow("ember", 3f),
                 b.Kind == BuildingKind.Guardpost ? _materials.Fixed("banner", new Color(0.72f, 0.74f, 0.78f)) :
                 b.Kind == BuildingKind.Smithy ? _materials.Fixed("iron", new Color(0.37f, 0.38f, 0.4f), 0.6f, 0.6f) :
                 _materials.Fixed("sign", new Color(0.55f, 0.38f, 0.2f))

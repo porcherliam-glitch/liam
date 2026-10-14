@@ -106,10 +106,10 @@ Das Dorf Eichental (Mini-Slice, [Anleitung 11](../../docs/Anleitungen/11_Test_Ei
 
 | Datei | Aufgabe |
 |---|---|
-| `eichental_layout.py` | Python-Zwilling der C#-Logik in `Assets/_Project/Scripts/World/Layout/`: Höhen (`LayoutHeightField`), Bodenarten (`LayoutGroundMap`), Pflanzen-Verteilung (`VegetationScatter`, gleicher PCG32-Zufall), Gegnerpositionen und Riss-Kristalle (`LayoutPlacement`). |
+| `eichental_layout.py` | Python-Zwilling der C#-Logik in `Assets/_Project/Scripts/World/Layout/`: Höhen (`LayoutHeightField`), Bodenarten (`LayoutGroundMap`), Pflanzen-Verteilung (`VegetationScatter`, gleicher PCG32-Zufall), Gegnerpositionen und Riss-Kristalle (`LayoutPlacement`), Felsen und Findlinge (`BlobGeometry`, `RockGeometry`: dieselben Eckpunkte wie in Unity) und der Bogen der Steinbrücke (`BridgeGeometry`). |
 | `eichental_referenz.py` | Schreibt Vergleichswerte des Python-Zwillings nach `Assets/_Project/Tests/EditModeWorld/EichentalPreviewReference.cs`. Die EditMode-Tests prüfen damit, dass C# und Python gleich rechnen. **Nach jeder Änderung der Layout-Datei ausführen.** |
 | `eichental_preview.py` | Baut das Eichental in Blender nach (Gelände mit Bodenfarben, Bäche, Häuser mit Dächern, verbrannte und eingestürzte Häuser mit Glut und Rauch, Pflanzen, Felsen, Requisiten, Riss, Wölfe, Truhen, NPC-Platzhalter, Spielfigur) und rendert. Jobs: `uebersicht`, `dorf`, `karte`, `alle_bilder`, `rundflug`. |
-| `eichental_nachbearbeiten.py` | Hinweis-Balken, Ortsnamen in der Übersicht, Beschriftung, Legende, Maßstab und Nordpfeil der Karte; setzt das Video zusammen (Zwischenbilder auf 30 fps, leichtes Entrauschen, H.264). |
+| `eichental_nachbearbeiten.py` | Hinweis-Balken, Ortsnamen in der Übersicht, Beschriftung, Spuren, Legende, Maßstab und Nordpfeil der Karte; prüft, dass kein Ortsschild ein anderes Schild oder eine fremde Zone verdeckt („WARNUNG Karte: …“); setzt das Video zusammen (Zwischenbilder auf 30 fps, leichtes Entrauschen, H.264). |
 
 ```bash
 blender -b -P Tools/Preview/eichental_preview.py -- --job alle_bilder --samples 96 --out AUSGABE

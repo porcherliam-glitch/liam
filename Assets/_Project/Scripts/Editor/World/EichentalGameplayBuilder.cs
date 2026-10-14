@@ -4,7 +4,6 @@ using Aetherfall.Combat;
 using Aetherfall.Items;
 using Aetherfall.Player;
 using Aetherfall.World;
-using UnityEditor;
 using UnityEngine;
 using Object = UnityEngine.Object;
 
@@ -12,10 +11,12 @@ namespace Aetherfall.EditorTools.World
 {
     /// <summary>
     /// Gameplay part of the Eichental from the layout: location zones (<see cref="AreaTrigger"/> with the location ids of GDD 02
-    /// 11), enemy groups (wolves and Aether wolves with <see cref="EnemySpawner"/> and <see cref="SpawnGroupMarker"/>; groups
-    /// that a quest starts stay inactive), chests (<see cref="Aetherfall.Inventory.LootChest"/> via
-    /// <see cref="TestGroundItemBuilder"/>), NPC placeholders (capsules with <see cref="NpcMarker"/>; the NPC step replaces them),
-    /// quest objects (<see cref="QuestObjectMarker"/>) and the spawn point at the player start.
+    /// 11), enemy groups (root with <see cref="SpawnGroupMarker"/>, child "Gruppe" with the wolves and the <see cref="EnemySpawner"/>;
+    /// quest groups keep the child switched off until <see cref="SpawnEncounter"/>), chests
+    /// (<see cref="Aetherfall.Inventory.LootChest"/> via <see cref="TestGroundItemBuilder"/>), NPC placeholders (capsules with
+    /// <see cref="NpcMarker"/>; the NPC step replaces them), quest objects (<see cref="QuestObjectMarker"/>), trail nodes
+    /// (<see cref="TrailNodeTrigger"/>) and the spawn point at the player start. Nothing here is marked static: quest objects
+    /// move later, and the GPU Resident Drawer draws the rest (architecture 1.2).
     /// </summary>
     public sealed class EichentalGameplayBuilder
     {
@@ -156,6 +157,10 @@ namespace Aetherfall.EditorTools.World
                 root.transform.SetParent(parent, false);
                 root.transform.position = new Vector3(cx, H(cx, cz), cz);
 
+                // The root (marker) stays active and registers with the ISpawnGroupRegistry; quest groups switch the child on.
+                var groupObject = new GameObject("Gruppe");
+                groupObject.transform.SetParent(root.transform, false);
+
                 Transform[] patrol = null;
                 if (spawner.Patrol.Count > 0)
                 {
@@ -180,7 +185,7 @@ namespace Aetherfall.EditorTools.World
                     string name = (spawner.BossId.Length > 0 ? spawner.Name : (aether ? "Aether-Wolf" : "Grauwolf") + " " + (i + 1)) +
                                   (standIn ? " (Platzhalter)" : string.Empty);
                     Vector3 local = new Vector3((float)p.X, H(p.X, p.Z), (float)p.Z) - root.transform.position;
-                    EnemyController enemy = TestGroundCombatBuilder.BuildWolf(root.transform, name, _enemyNumber.ToString(), definition, fur, _testMaterials,
+                    EnemyController enemy = TestGroundCombatBuilder.BuildWolf(groupObject.transform, name, _enemyNumber.ToString(), definition, fur, _testMaterials,
                         local + new Vector3(0f, 0.05f, 0f), (float)p.Yaw, !patrols, patrols ? patrol : null, enemyLayer, hurtboxLayer, environmentLayer,
                         _report);
                     // Hills hide the player as well as walls do.
@@ -188,7 +193,7 @@ namespace Aetherfall.EditorTools.World
                     enemies[i] = enemy;
                 }
 
-                EnemySpawner group = root.AddComponent<EnemySpawner>();
+                EnemySpawner group = groupObject.AddComponent<EnemySpawner>();
                 TestGroundFields.SetReferences(group, "enemies", enemies, _report);
                 TestGroundFields.SetFloat(group, "respawnSeconds", (float)spawner.RespawnSeconds, _report);
 
@@ -200,11 +205,12 @@ namespace Aetherfall.EditorTools.World
                 TestGroundFields.SetInt(marker, "activation", (int)spawner.Activation, _report);
                 TestGroundFields.SetString(marker, "questId", spawner.QuestId, _report);
                 TestGroundFields.SetBool(marker, "usesStandIn", standIn, _report);
+                TestGroundFields.SetReference(marker, "group", groupObject, _report);
 
                 if (spawner.Activation == SpawnActivation.Quest)
                 {
-                    // The quest (GDD 02 11: "Gegner+(spawn...)") switches the group on; until the quests exist as data it stays off.
-                    root.SetActive(false);
+                    // The quest action Gegner+(spawn-id) (SpawnEncounter, GDD 02 11) switches the child on; the registry saves it.
+                    groupObject.SetActive(false);
                     questGroups++;
                 }
                 else
@@ -217,8 +223,9 @@ namespace Aetherfall.EditorTools.World
                 }
             }
 
-            _report.Info("Gegner: " + active + " immer aktiv (Grauwölfe am Nordhang, Aether-Wolf am Riss), " + questGroups + " Quest-Gruppen " +
-                         "(inaktiv, bis die Quests als Daten kommen; Risslinge vertreten durch Aether-Wölfe).");
+            _report.Info("Gegner: " + active + " immer aktiv (Grauwölfe am Nordhang, Aether-Wolf im Wald nordöstlich des Risses), " + questGroups +
+                         " Quest-Gruppen (Kind „Gruppe“ aus, bis die Quest-Aktion „Gegner spawnen“ sie einschaltet; Risslinge vertreten durch " +
+                         "Aether-Wölfe).");
             return first;
         }
 
@@ -280,7 +287,8 @@ namespace Aetherfall.EditorTools.World
 
                 double x = npc.Position.X;
                 double z = npc.Position.Z;
-                var root = new GameObject(npc.Name + " (" + npc.NpcId + ", " + PhaseName(npc.Phase) + ")");
+                string phaseName = PhaseName(npc.Phase) + (npc.Stage.Length > 0 ? " " + npc.Stage : string.Empty);
+                var root = new GameObject(npc.Name + " (" + npc.NpcId + ", " + phaseName + ")");
                 root.transform.SetParent(group, false);
                 root.transform.SetPositionAndRotation(new Vector3((float)x, H(x, z), (float)z), Quaternion.Euler(0f, (float)npc.Yaw, 0f));
 
@@ -290,6 +298,13 @@ namespace Aetherfall.EditorTools.World
                 capsule.transform.localPosition = new Vector3(0f, NpcHeight * 0.5f, 0f);
                 capsule.transform.localScale = new Vector3(0.6f, NpcHeight * 0.5f, 0.6f);
                 capsule.GetComponent<MeshRenderer>().sharedMaterial = body;
+                float signHeight = NpcHeight + 0.55f;
+                if (npc.InsideBuilding)
+                {
+                    // Inside a building on purpose (e.g. trapped in the burning bakery): no collider in the walls, sign above the roof.
+                    Object.DestroyImmediate(capsule.GetComponent<Collider>());
+                    signHeight = Mathf.Max(signHeight, RoofTopAbove(x, z) + 1f);
+                }
 
                 GameObject nose = GameObject.CreatePrimitive(PrimitiveType.Cube);
                 nose.name = "Blickrichtung";
@@ -304,12 +319,32 @@ namespace Aetherfall.EditorTools.World
                 TestGroundFields.SetString(marker, "displayName", npc.Name, _report);
                 TestGroundFields.SetString(marker, "locationId", npc.LocationId, _report);
                 TestGroundFields.SetInt(marker, "phase", (int)npc.Phase, _report);
-                string phase = npc.Phase == NpcMarkerPhase.Prolog ? "\n(Prolog)" : npc.Phase == NpcMarkerPhase.AfterProlog ? "\n(nach dem Prolog)" : string.Empty;
-                EichentalLabel.Create(root.transform, npc.Name + phase, new Vector3(0f, NpcHeight + 0.55f, 0f), 180f, _labelFont, 0.03f);
+                TestGroundFields.SetString(marker, "stage", npc.Stage, _report);
+                string stage = npc.Stage.Length > 0 ? ", Stufe " + npc.Stage : string.Empty;
+                string phase = npc.Phase == NpcMarkerPhase.Prolog ? "\n(Prolog" + stage + ")" :
+                    npc.Phase == NpcMarkerPhase.AfterProlog ? "\n(nach dem Prolog" + stage + ")" : stage.Length > 0 ? "\n(" + stage.Substring(2) + ")" : string.Empty;
+                EichentalLabel.Create(root.transform, npc.Name + phase, new Vector3(0f, signHeight, 0f), 180f, _labelFont, 0.03f);
             }
 
-            _report.Info("NPC-Platzhalter: " + _layout.NpcMarkers.Count + " Kapseln mit NpcMarker (NPC-ID aus GDD 02, Ort, Phase). Der NPC-Baustein " +
+            _report.Info("NPC-Platzhalter: " + _layout.NpcMarkers.Count + " Kapseln mit NpcMarker (NPC-ID aus GDD 02, Ort, Phase, Stufe). Der NPC-Baustein " +
                          "ersetzt sie durch echte Figuren mit Dialogen.");
+        }
+
+        private float RoofTopAbove(double x, double z)
+        {
+            float top = 0f;
+            foreach (LayoutBuilding b in _layout.Buildings)
+            {
+                if (LayoutGeometry.RectExcess(x, z, b.Position, b.Width, b.Depth, b.Yaw) < 0.0)
+                {
+                    bool roof = b.Roof != RoofKind.None && b.State != BuildingState.Collapsed;
+                    float rise = roof ? (float)RoofGeometry.Rise(b.Roof, b.Width, b.RoofPitch) : 0f;
+                    float baseHeight = EichentalBuildingBuilder.BaseHeight(b, _heights);
+                    top = Mathf.Max(top, baseHeight + (float)b.WallHeight + rise - H(x, z));
+                }
+            }
+
+            return top;
         }
 
         private static string PhaseName(NpcMarkerPhase phase)
@@ -384,6 +419,62 @@ namespace Aetherfall.EditorTools.World
 
             _report.Info("Quest-Objekte: " + _layout.QuestObjects.Count + " mit QuestObjectMarker (Balken über Tobold, Tür der Bäckerei, Spuren, " +
                          "Strohziele, Postreiter, Aether-Splitter, Welpe). Ihre Interaktionen kommen mit den Quest-Daten.");
+        }
+
+        /// <summary>
+        /// Trails of "Folge der Spur" objectives: one trigger per node (<see cref="TrailNodeTrigger"/>, layer TriggerVolume, kinematic
+        /// body like the location zones) and a small glowing mark on the ground, so the player sees where the trail goes.
+        /// </summary>
+        /// <param name="parent">Parent.</param>
+        /// <param name="triggerVolumeLayer">TriggerVolume layer or −1.</param>
+        /// <param name="playerLayer">Player layer or −1.</param>
+        public void BuildTrails(Transform parent, int triggerVolumeLayer, int playerLayer)
+        {
+            Material sign = _materials.Glow("questMarker", 1.5f);
+            int playerMask = playerLayer >= 0 ? 1 << playerLayer : 1 << TestGroundPaths.PlayerLayerIndex;
+            var names = new List<string>();
+            foreach (LayoutTrail trail in _layout.Trails)
+            {
+                var root = new GameObject("Spur " + trail.Name + " (" + trail.Id + ")");
+                root.transform.SetParent(parent, false);
+                float radius = (float)trail.Radius;
+                for (int i = 0; i < trail.Nodes.Count; i++)
+                {
+                    LayoutPoint p = trail.Nodes[i];
+                    float ground = H(p.X, p.Z);
+                    var node = new GameObject("Knoten " + i);
+                    node.transform.SetParent(root.transform, false);
+                    node.transform.position = new Vector3((float)p.X, ground + 1f, (float)p.Z);
+                    node.layer = triggerVolumeLayer >= 0 ? triggerVolumeLayer : 0;
+                    CapsuleCollider capsule = node.AddComponent<CapsuleCollider>();
+                    capsule.isTrigger = true;
+                    capsule.direction = 1;
+                    capsule.radius = radius;
+                    capsule.height = 8f + 2f * radius;
+                    Rigidbody body = node.AddComponent<Rigidbody>();
+                    body.isKinematic = true;
+                    body.useGravity = false;
+                    TrailNodeTrigger trigger = node.AddComponent<TrailNodeTrigger>();
+                    TestGroundFields.SetString(trigger, "trailId", trail.Id, _report);
+                    TestGroundFields.SetInt(trigger, "index", i, _report);
+                    TestGroundFields.SetInt(trigger, "playerLayers", playerMask, _report);
+
+                    GameObject mark = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+                    mark.name = "Spurzeichen";
+                    mark.transform.SetParent(node.transform, false);
+                    mark.transform.localPosition = new Vector3(0f, -0.97f, 0f);
+                    mark.transform.localScale = new Vector3(0.7f, 0.02f, 0.7f);
+                    Object.DestroyImmediate(mark.GetComponent<Collider>());
+                    MeshRenderer renderer = mark.GetComponent<MeshRenderer>();
+                    renderer.sharedMaterial = sign;
+                    renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                }
+
+                names.Add(trail.Id + " (" + trail.Nodes.Count + " Knoten)");
+            }
+
+            _report.Info("Spuren (TrailNodeTrigger, Layer " + (triggerVolumeLayer >= 0 ? triggerVolumeLayer.ToString() : "Default") + "): " +
+                         string.Join(", ", names) + ". Das Quest-Ziel „Folge der Spur“ braucht dieselbe Knotenzahl.");
         }
 
         /// <summary>Spawn point at the player start of the layout.</summary>

@@ -8,6 +8,7 @@
         "Aetherfall.Core",
         "Aetherfall.Data",
         "Aetherfall.World",
+        "Aetherfall.Conditions",
         "Aetherfall.Tests.Shared"
     ],
     "includePlatforms": [

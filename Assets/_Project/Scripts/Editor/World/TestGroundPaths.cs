@@ -128,6 +128,9 @@ namespace Aetherfall.EditorTools.World
         /// <summary>Installer asset of the quest system (BootConfig, architecture 4.1 step 13).</summary>
         public const string QuestInstallerPath = SetupPaths.BootSettingsFolder + "/QuestInstaller.asset";
 
+        /// <summary>Installer asset of the world services (enemy group registry; BootConfig before the quest installer).</summary>
+        public const string WorldInstallerPath = SetupPaths.BootSettingsFolder + "/WorldInstaller.asset";
+
         /// <summary>Folder of the test quests (architecture 3.1: Data/Quests).</summary>
         public const string QuestFolder = SetupPaths.ProjectFolder + "/Data/Quests/Test";
 

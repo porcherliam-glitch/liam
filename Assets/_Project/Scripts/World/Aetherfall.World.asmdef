@@ -5,7 +5,8 @@
         "Aetherfall.Utilities",
         "Aetherfall.Core",
         "Aetherfall.Events",
-        "Aetherfall.Data"
+        "Aetherfall.Data",
+        "Aetherfall.Conditions"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

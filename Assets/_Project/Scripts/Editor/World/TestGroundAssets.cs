@@ -13,6 +13,7 @@ using Aetherfall.Player;
 using Aetherfall.Progression;
 using Aetherfall.Quests;
 using Aetherfall.SaveSystem;
+using Aetherfall.World;
 using Aetherfall.WorldState;
 using UnityEditor;
 using UnityEngine;
@@ -233,15 +234,20 @@ namespace Aetherfall.EditorTools.World
         }
 
         /// <summary>
-        /// Loads or creates the installers of conditions, world state, progression and quests and puts them into the BootConfig
-        /// in the order of architecture 4.1 and guide 08, 11.1: ConditionsInstaller behind the EventBus and GameTime installers,
-        /// WorldStateInstaller behind Conditions, Save, GameTime and Content, ProgressionInstaller behind EventBus, Save and
-        /// Inventory, QuestInstaller behind WorldState, Inventory and Progression (quest rewards give items and experience).
-        /// Idempotent like <see cref="EnsureInstallerInBootConfig{T}"/>.
+        /// Loads or creates the installers of conditions, world state, progression, world services and quests and puts them into
+        /// the BootConfig in the order of architecture 4.1 and guide 08, 11.1: ConditionsInstaller behind the EventBus and GameTime
+        /// installers, WorldStateInstaller behind Conditions, Save, GameTime and Content, ProgressionInstaller behind EventBus,
+        /// Save and Inventory, WorldInstaller (enemy group registry) behind EventBus, QuestInstaller behind WorldState, Inventory,
+        /// Progression (quest rewards give items and experience) and World (it saves the enemy groups). Idempotent like
+        /// <see cref="EnsureInstallerInBootConfig{T}"/>.
         /// </summary>
         /// <param name="report">Protocol.</param>
-        /// <returns>True if all four installers are in the BootConfig afterwards.</returns>
-        public static bool EnsureNarrativeInstallersInBootConfig(TestGroundReport report)
+        /// <param name="setTestStartLevel">
+        /// True for the test ground: sets "Startstufe neues Spiel (nur Test)" to the test level. False (Eichental): leaves the
+        /// value as it is and only reports it.
+        /// </param>
+        /// <returns>True if all five installers are in the BootConfig afterwards.</returns>
+        public static bool EnsureNarrativeInstallersInBootConfig(TestGroundReport report, bool setTestStartLevel)
         {
             bool conditions = EnsureInstallerInBootConfig<ConditionsInstaller>(TestGroundPaths.ConditionsInstallerPath, report,
                 typeof(EventBusInstaller), typeof(GameTimeInstaller));
@@ -249,14 +255,36 @@ namespace Aetherfall.EditorTools.World
                 typeof(ConditionsInstaller), typeof(SaveInstaller), typeof(GameTimeInstaller), typeof(ContentInstaller));
             bool progression = EnsureInstallerInBootConfig<ProgressionInstaller>(TestGroundPaths.ProgressionInstallerPath, report,
                 typeof(EventBusInstaller), typeof(SaveInstaller), typeof(InventoryInstaller));
-            if (progression)
+            if (progression && setTestStartLevel)
             {
                 SetProgressionStartLevel(report);
             }
+            else if (progression)
+            {
+                report.Info("ProgressionInstaller: Startstufe neues Spiel = " + CurrentProgressionStartLevel() + " (unverändert; das Testgelände " +
+                            "setzt " + Aetherfall.EditorTools.Narrative.TestGroundLevels.PlayerStartLevel + ", der fertige Mini-Slice braucht 1).");
+            }
 
+            bool world = EnsureInstallerInBootConfig<WorldInstaller>(TestGroundPaths.WorldInstallerPath, report, typeof(EventBusInstaller));
             bool quests = worldState && progression && EnsureInstallerInBootConfig<QuestInstaller>(TestGroundPaths.QuestInstallerPath, report,
-                typeof(WorldStateInstaller), typeof(InventoryInstaller), typeof(ProgressionInstaller));
-            return conditions && worldState && progression && quests;
+                typeof(WorldStateInstaller), typeof(InventoryInstaller), typeof(ProgressionInstaller), typeof(WorldInstaller));
+            return conditions && worldState && progression && world && quests;
+        }
+
+        /// <summary>
+        /// Current value of "Startstufe neues Spiel (nur Test)" at the ProgressionInstaller asset, or the test level if the asset
+        /// or field is missing.
+        /// </summary>
+        public static int CurrentProgressionStartLevel()
+        {
+            ProgressionInstaller installer = AssetDatabase.LoadAssetAtPath<ProgressionInstaller>(TestGroundPaths.ProgressionInstallerPath);
+            if (installer == null)
+            {
+                return Aetherfall.EditorTools.Narrative.TestGroundLevels.PlayerStartLevel;
+            }
+
+            SerializedProperty field = new SerializedObject(installer).FindProperty("newGameStartLevel");
+            return field != null ? field.intValue : Aetherfall.EditorTools.Narrative.TestGroundLevels.PlayerStartLevel;
         }
 
         /// <summary>
