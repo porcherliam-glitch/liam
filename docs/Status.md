@@ -26,7 +26,7 @@ Laufende Liste „Erledigt / In Arbeit / Als Nächstes“ nach §32.14. Ab dem A
 | §33.5 – bis zu 10 Fragen | 10 gebündelte Fragen mit Empfehlungen, dazu alle weiteren offenen Entscheidungen als Tabelle | [Offene Fragen](./Offene_Fragen.md) |
 | Prüfung der Phase-0-Dokumente | Sechs Prüfdurchgänge: Konsistenz Welt/Quests, Konsistenz Systeme, Technik-Fakten, Abdeckung §1–§32, Zahlen GDD 00–02, Zahlen GDD 03–04 | Befunde in den Kapiteln |
 | Projekt-README und diese Status-Liste | Einstieg, GDD auf einen Blick, Dokumente, Arbeitsweise | [README](../README.md) · diese Datei |
-| Erster echter Unity-Lauf (PC-Sitzung, 2026-10-14) | Unity **6000.6.5f1** (auf dem PC installiert, kein 6.3 vorhanden). `Packages/` und `ProjectSettings/` aus der Vorlage „Universal 3D“ (`urp-blank`), Projekt-Setup im Batchmode (`ProjectSetupBatch.RunBatch`) ohne Fehler: Einstellungen, Ordner, Template aufgeräumt, Boot-Szene, Pakete (Cinemachine, ProBuilder, Terrain Tools, Addressables, Animation Rigging, Localization, Newtonsoft; Visual Scripting entfernt), Git LFS lokal eingerichtet. **Kompiliert ohne Fehler, 2159 von 2161 EditMode-Tests grün in Unity** (2 „unentschieden“: Speicher-Messung ist in diesem Unity nicht möglich). Generatoren Testgelände, Eichental und Gruft laufen durch, Quests (2) und Dialoge prüfen ohne Fehler. Behoben: echtes `Awaitable.NextFrameAsync` wartet wirklich einen Frame (Frame-Warten jetzt austauschbar: `FrameWait`), Szenenwechsel in Generatoren entluden frisch geladene Assets (`GeneratorAssetPins`, BootConfig im Setup), zweites `HitFlash` am Spieler war wegen `[DisallowMultipleComponent]` null, Default Render Pipeline fehlte in der neuen Vorlage. Offen: Play Mode im Editor ansehen, Testanleitungen 02–12 durchgehen. | [Anleitungen/13](./Anleitungen/13_Erster_Start_in_Unity.md) |
+| Erster echter Unity-Lauf (PC-Sitzung, 2026-10-14) | Unity **6000.6.5f1** (Entscheidung des Auftraggebers, siehe Entscheidungs-Log). `Packages/` und `ProjectSettings/` aus der Vorlage „Universal 3D“ (`urp-blank`), Projekt-Setup im Batchmode (`ProjectSetupBatch.RunBatch`) ohne Fehler: Einstellungen, Ordner, Template aufgeräumt, Boot-Szene, Pakete (Cinemachine, ProBuilder, Terrain Tools, Addressables, Animation Rigging, Localization, Newtonsoft; Visual Scripting entfernt), Git LFS lokal eingerichtet. **Kompiliert ohne Fehler, 2159 von 2161 EditMode-Tests grün in Unity** (2 „unentschieden“: Speicher-Messung ist in diesem Unity nicht möglich). Generatoren Testgelände, Eichental und Gruft laufen durch, Quests (2) und Dialoge prüfen ohne Fehler. Behoben: echtes `Awaitable.NextFrameAsync` wartet wirklich einen Frame (Frame-Warten jetzt austauschbar: `FrameWait`), Szenenwechsel in Generatoren entluden frisch geladene Assets (`GeneratorAssetPins`, BootConfig im Setup), zweites `HitFlash` am Spieler war wegen `[DisallowMultipleComponent]` null, Default Render Pipeline fehlte in der neuen Vorlage. Offen: Play Mode im Editor ansehen, Testanleitungen 02–12 durchgehen. | [Anleitungen/13](./Anleitungen/13_Erster_Start_in_Unity.md) |
 
 ---
 
@@ -51,18 +51,25 @@ Laufende Liste „Erledigt / In Arbeit / Als Nächstes“ nach §32.14. Ab dem A
 
 ## Als Nächstes
 
-1. **Auftraggeber:** Dokumente lesen, die [10 Fragen](./Offene_Fragen.md#die-10-wichtigsten-fragen) beantworten und das OK zu Phase 0 geben (§32.1, §33: „Danach warte auf meine Antwort“).
-2. **Antworten übernehmen:** Jede Entscheidung ins [Entscheidungs-Log](#entscheidungs-log) eintragen und die betroffenen Kapitel anpassen, insbesondere VV1–VV10 in Technik/01 und Technik/02. Danach ist Gate G0 erreicht.
-3. **Phase 0, Schritt 4 – Projekt-Setup** nach [Technik/01, Abschnitt 2](./Technik/01_Architektur.md#2-projekt-setup-checkliste), erst nach dem OK:
-   - Unity 6.3 LTS (neuester 6000.3-Patch), URP-Projekt, Pakete exakt gepinnt.
-   - Ordnerstruktur nach §5, 40 leere Assemblies (asmdefs), Boot-Szene.
-   - Git mit `.gitignore`, `.gitattributes`, Git LFS und UnityYAMLMerge; erster Commit mit Tag `setup-6000.3.<patch>`.
-   - Checkliste „Nicht verifiziert“ aus [Technik/03](./Technik/03_Technik-Recherche.md#nicht-verifiziert) im Unity Hub und Package Manager abarbeiten.
-   - Testanleitung für den Auftraggeber (§32.10).
-4. **Phase 1, Schritt 1.1:** Test- und CI-Gerüst (GameCI auf Linux, Assembly-Regel-Test) und Logging (S70, S01).
-5. **Phase 1, Schritt 1.2:** Bootstrapper, ServiceLocator, EventBus und GameStateManager (S02–S04; §31, Phase 1.1).
-6. **Phase 1, Schritte 1.3–1.11** laut [Technik/02, Bau-Reihenfolge](./Technik/02_Systeme_und_Abhaengigkeiten.md#bau-reihenfolge): IDs und Validator, Szenen laden, Speicher-Kern mit Golden Saves, Optionen und Lokalisierung, Input System, Conditions & Actions mit Weltzustand, Stats und Health, Spielercontroller und Kamera, UI-Spike mit Haupt- und Pausemenü. Abnahme Phase 1: Golden Save `v1` lädt in der CI, Speicher-Rundreise aller Systeme, Windows-Mono-Build startet.
-7. **Vor dem Mini-Slice:** Am `ProgressionInstaller` das Feld „Startstufe neues Spiel (nur Test)“ zurück auf 1 stellen (das Testgelände setzt 10, siehe [Anleitungen/09, Abschnitt 15](./Anleitungen/09_Test_Quests_im_Spiel.md#15-hinweise-abweichungen-und-offene-punkte)). Nur **Aetherfall > Testgelände erstellen** setzt den Wert auf 10; **Aetherfall > Eichental erstellen** lässt ihn stehen und nennt ihn im Protokoll. Dann auch Startausrüstung und Truhen-Itemlevel des Mini-Slice auf Stufe 1 auslegen.
+Stand 2026-10-14. Ab jetzt arbeitet Claude auf dem Windows-PC des Auftraggebers mit Unity 6.6 und Blender (siehe [CLAUDE.md](../CLAUDE.md)). Die frühere Liste (Fragen beantworten, Projekt-Setup, Phase 1) ist erledigt: Der Code dafür steht oben unter „In Arbeit“ und wartet nur noch auf den Test in Unity.
+
+**1. Mini-Slice fertigstellen (Stufe A0, 30–60 Minuten spielbar)**
+1. Erster echter Unity-Lauf: Projekt einrichten, Kompilierfehler beheben, Tests in Unity grün, Projekt-Setup im Batchmode.
+2. Generatoren laufen lassen (Testgelände, Eichental, Gruft), Szenen prüfen, Testanleitungen 02–12 durchgehen.
+3. Dialoge ins Spiel einbinden ([Anleitungen/10](./Anleitungen/10_Test_Dialoge.md), Abschnitt 12), echte NPCs statt Platzhalter im Eichental.
+4. Gruft anbinden ([Anleitungen/12](./Anleitungen/12_Test_Gruft.md), Abschnitt 11): Portal im Dorf, Laden über die Welt-ID, Werte über den Portalwechsel mitnehmen, Bossbalken im HUD.
+5. Die 3 Quests als Daten: „Asche über Eichental“, „Die Wölfe vom Nordhang“, „Die vergessene Gruft“ ([GDD 02, 11.1, 11.2, 11.7](./GDD/02_Quests_und_Dialoge.md)).
+6. Startstufe am `ProgressionInstaller` zurück auf 1 (nur „Testgelände erstellen“ setzt 10). Neues Spiel und Laden aus dem Hauptmenü, Tod und Wiedereinstieg.
+7. Einmal komplett durchspielen, Fehler beheben, dann Platzhalter nach und nach durch Blender-Modelle und Mixamo-Animationen ersetzen (Häuser, Gruft, Wolf, Spielfigur).
+
+**2. Danach: Stufe A – Vertical Slice (etwa 3,5–4 Stunden, [GDD 00, Umfangsstufen](./GDD/00_Vision_und_Ueberblick.md#umfangsstufen))**
+- Die 5 übrigen Beispiel-Quests aus GDD 02, Abschnitt 11: „Ein Brief, der nie ankam“, „Banditen am Mühlbach“, „Das Kraut der Kräuterfrau“, „Kopfgeld: Grimmbart“, „Die Schatzkarte des alten Seemanns“ (letzte Stufen bis Stufe B gesperrt).
+- Lindenhain mit 2 Händlern, Minispiel Würfeln, Begleiterin Maren, Klasse Magier, 4 Waffentypen, 5 Gegnertypen, Stufe 1–8, ~15 Skill-Knoten je Klasse.
+- Danach messen, wie lange eine Quest, ein Gegnertyp und ein Dungeon wirklich dauern (Gate G2, [Risiken](./Risiken.md)). Auf dieser Grundlage entscheiden: Stufe B, B-Minimal oder Neuausrichtung.
+
+**3. Später: Stufe B (erste veröffentlichbare Version) und Stufe C (volle Vision)**
+- B: Eichental, Goldküste, Moorschatten, Aurelion als Story-Hub, Akt 1–2, ~150 Quests, Crafting, Haus, Reittier. Rückfallebene B-Minimal: Eichental und Goldküste, ~70 Quests.
+- C: alle 8 Regionen, Akt 1–5, Endgame. Für eine Person allein ist das unrealistisch (siehe [Risiken](./Risiken.md)); die Entscheidung fällt erst nach der Messung in Stufe A.
 
 Ab Phase 1 bekommt jeder Schritt hier zusätzlich Ist-Aufwand (PW) und Datum der Abnahme, damit die Schätzung nach Phase 2 nachgerechnet werden kann ([Leitplanke L8](./Risiken.md#empfohlene-leitplanken)).
 
@@ -89,4 +96,4 @@ Hier stehen nur Entscheidungen des Auftraggebers. Bis zu einem Eintrag gilt die 
 |---|---|---|
 | 2026-10-13 | OK für Phase 0, Schritt 4 (Projekt-Setup) und Phase 1. Offene Fragen gelten bis zur Antwort mit der Empfehlung (Unity 6.3 LTS, Code und Kommentare auf Englisch). | Chat ("OK, fang an") |
 | 2026-10-13 | Frage 1 (Kapazität): Solo, Budget 50 € (verfügbar in zwei Tagen). Erstes Ziel wird der „Mini-Slice“ (Stufe A0), siehe Kurskorrektur. | Chat |
-| 2026-10-14 | Erster Unity-Lauf mit der installierten Version **6000.6.5f1**, weil kein 6000.3.x installiert ist (Claude-Entscheidung, vom Auftraggeber noch zu bestätigen). Die Projekt-Prüfung f) meldet die Version deshalb weiter als ✗. Rückweg zu 6.3 LTS: im Unity Hub installieren und das Projekt damit öffnen. | PC-Sitzung |
+| 2026-10-14 | Engine-Version: **Unity 6.6 (6000.6.5f1)** statt 6.3 LTS, Entscheidung des Auftraggebers (auf seinem Windows-PC installiert). 6.6 ist kein LTS; beim Erscheinen von 6.7 LTS wie geplant umsteigen (Architektur 1.1). Ältere Erwähnungen von „6.3 LTS“ gelten sinngemäß für 6.6. Der erste Unity-Lauf (PC-Sitzung) lief bereits mit dieser Version. | Chat (Screenshot Unity Hub) |

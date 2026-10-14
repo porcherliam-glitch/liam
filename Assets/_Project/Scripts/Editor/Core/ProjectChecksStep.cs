@@ -24,7 +24,7 @@ namespace Aetherfall.EditorTools.Core
         private const string UrpRendererDataTypeName = "UnityEngine.Rendering.Universal.UniversalRendererData";
         private const string RenderingModePropertyName = "renderingMode";
         private const string ForwardPlusValue = "ForwardPlus";
-        private const string PlannedEditorLine = "6000.3.";
+        private const string PlannedEditorLine = "6000.6.";
 
         [SerializeField] private bool showGitCommands;
         [SerializeField] private Vector2 commandScroll;
@@ -103,9 +103,9 @@ namespace Aetherfall.EditorTools.Core
         {
             string version = Application.unityVersion;
             return version.StartsWith(PlannedEditorLine, StringComparison.Ordinal)
-                ? new SetupCheckItem("Unity-Version", SetupStatus.Done, version + " (Unity 6.3 LTS)")
+                ? new SetupCheckItem("Unity-Version", SetupStatus.Done, version + " (Unity 6.6)")
                 : new SetupCheckItem("Unity-Version", SetupStatus.Open,
-                    version + " – geplant ist Unity 6.3 LTS (neuester 6000.3.x, Architektur 1.1). Projekt im Unity Hub mit 6000.3.x öffnen.",
+                    version + " – geplant ist Unity 6.6 (neuester 6000.6.x, Architektur 1.1). Projekt im Unity Hub mit 6000.6.x öffnen.",
                     "Unity Hub > Projects > Editor-Version in der Liste");
         }
 

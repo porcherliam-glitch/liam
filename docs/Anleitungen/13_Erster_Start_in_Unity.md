@@ -19,8 +19,7 @@ Stand: 2026-10-14. Diese Schritte hat Claude auf deinem PC schon im Hintergrund 
 ## 3. Kurz prüfen
 
 1. Unten im Fenster **Console** (falls nicht sichtbar: Menü **Window > General > Console**). Es dürfen **keine roten Fehler** stehen.
-2. Menü **Aetherfall > Projekt-Setup …** öffnen. Alle Schritte sollten ✓ zeigen. Zwei Punkte bleiben bewusst offen:
-   - **Unity-Version** ✗: Geplant war 6.3 LTS, installiert ist 6.6. Das ist in Ordnung.
+2. Menü **Aetherfall > Projekt-Setup …** öffnen. Alle Schritte sollten ✓ zeigen. Ein Punkt bleibt bewusst offen:
    - **Rendering Path** ✗ beim Renderer „Mobile“: wird nicht benutzt, kann so bleiben.
 3. Menü **Window > General > Test Runner**, Reiter **EditMode**, **Run All**. Ergebnis: 2159 grün, 2 grau („unentschieden“).
 
