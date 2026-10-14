@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using Aetherfall.Core;
+using Aetherfall.Dialogue;
+using Aetherfall.NPC;
 using Aetherfall.Player;
 using Aetherfall.UI.Screens;
 using UnityEditor;
@@ -47,6 +49,7 @@ namespace Aetherfall.EditorTools.World
         private static bool _exiting;
         private static IGameStateService _gameState;
         private static PendingShot _pending;
+        private static NpcInteractable _npc;
 
         /// <summary>Menu entry: runs the tour for the boot scene in the open editor.</summary>
         [MenuItem(MenuPath)]
@@ -71,6 +74,7 @@ namespace Aetherfall.EditorTools.World
             _failed = false;
             _exiting = false;
             _pending = null;
+            _npc = null;
             Messages.Clear();
             Steps.Clear();
             string projectRoot = Path.GetDirectoryName(Application.dataPath) ?? ".";
@@ -120,6 +124,126 @@ namespace Aetherfall.EditorTools.World
             Steps.Enqueue(PauseGame);
             Steps.Enqueue(() => Wait(1.0));
             Steps.Enqueue(() => Capture("06_pausemenue", null));
+            Steps.Enqueue(ResumeGame);
+            Steps.Enqueue(() => Wait(0.5));
+
+            // Conversation with the first NPC of the scene (skipped if there is none).
+            Steps.Enqueue(WalkToNpc);
+            Steps.Enqueue(() => Wait(1.5));
+            Steps.Enqueue(ReportInteractionTarget);
+            Steps.Enqueue(() => _npc == null || Capture("07_npc_hinweis", null));
+            Steps.Enqueue(TalkToNpc);
+            Steps.Enqueue(() => Wait(1.5));
+            Steps.Enqueue(() => _npc == null || Capture("08_dialog_zeile", null));
+            Steps.Enqueue(ContinueToChoice);
+            Steps.Enqueue(() => Wait(1.0));
+            Steps.Enqueue(() => _npc == null || Capture("09_dialog_auswahl", null));
+            Steps.Enqueue(EndConversation);
+        }
+
+        private static bool ResumeGame()
+        {
+            _gameState.Pop(GameState.Paused);
+            return true;
+        }
+
+        private static bool WalkToNpc()
+        {
+            _npc = UnityEngine.Object.FindAnyObjectByType<NpcInteractable>();
+            PlayerMotor player = FindPlayer();
+            if (_npc == null || player == null)
+            {
+                _npc = null;
+                Note("Keine NPCs in der Szene – Gespräch übersprungen.");
+                return true;
+            }
+
+            // Place the player 1.5 m before the NPC along the camera's view, so the NPC is straight ahead like after walking up to
+            // it (the camera keeps its direction; the CharacterController must be off to move the player).
+            Transform npc = _npc.transform;
+            Camera view = Camera.main;
+            Vector3 look = view != null ? Vector3.ProjectOnPlane(view.transform.forward, Vector3.up).normalized : Vector3.forward;
+            Vector3 target = npc.position - look * 1.5f;
+            var controller = player.GetComponent<CharacterController>();
+            if (controller != null)
+            {
+                controller.enabled = false;
+            }
+
+            player.transform.SetPositionAndRotation(target, Quaternion.LookRotation(look, Vector3.up));
+            if (controller != null)
+            {
+                controller.enabled = true;
+            }
+
+            Note("Spielfigur vor NPC „" + _npc.name + "“ gestellt, Hinweis: " + _npc.InteractionPrompt);
+            return true;
+        }
+
+        private static bool ReportInteractionTarget()
+        {
+            PlayerMotor player = FindPlayer();
+            PlayerInteractor interactor = player != null ? player.GetComponentInChildren<PlayerInteractor>() : null;
+            if (_npc != null)
+            {
+                IInteractable target = interactor != null ? interactor.CurrentTarget : null;
+                Vector3 offset = _npc.InteractionPosition - player.transform.position;
+                Note("Interaktionsziel der Spielfigur: " + (target != null ? target.InteractionPrompt : "keins") + " (Frame " + Time.frameCount +
+                     ", Abstand zum NPC-Punkt " + offset.magnitude.ToString("0.00") + " m, Blick " + player.transform.eulerAngles.y.ToString("0") + "°).");
+            }
+
+            return true;
+        }
+
+        private static bool TalkToNpc()
+        {
+            if (_npc == null)
+            {
+                return true;
+            }
+
+            PlayerMotor player = FindPlayer();
+            bool started = _npc.Interact(new InteractionContext("player", player.transform.position, false));
+            Note(started ? "Gespräch gestartet (Dialog " + _npc.DialogueId + "), Zustand " + _gameState.Current + "." : "FEHLER: Gespräch ließ sich nicht starten.");
+            if (!started)
+            {
+                _failed = true;
+            }
+
+            return true;
+        }
+
+        private static bool ContinueToChoice()
+        {
+            if (_npc == null || !Services.Locator.TryGet(out IDialogueService dialogues))
+            {
+                return true;
+            }
+
+            if (dialogues.View.State == DialogueViewState.Choice || !dialogues.IsRunning)
+            {
+                Note("Auswahl erreicht: " + dialogues.View.Options.Count + " Antworten.");
+                return true;
+            }
+
+            if (Elapsed > 0.8)
+            {
+                dialogues.Continue();
+                _stepStart = EditorApplication.timeSinceStartup;
+            }
+
+            return false;
+        }
+
+        private static bool EndConversation()
+        {
+            if (_npc != null && Services.Locator.TryGet(out IDialogueService dialogues) && dialogues.IsRunning)
+            {
+                dialogues.ForceEnd("Spiel-Rundgang");
+                Note("Gespräch beendet, Zustand " + _gameState.Current + ".");
+            }
+
+            return true;
         }
 
         private static void Tick()

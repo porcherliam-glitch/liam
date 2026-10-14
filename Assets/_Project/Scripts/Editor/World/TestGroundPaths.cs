@@ -128,6 +128,12 @@ namespace Aetherfall.EditorTools.World
         /// <summary>Installer asset of the quest system (BootConfig, architecture 4.1 step 13).</summary>
         public const string QuestInstallerPath = SetupPaths.BootSettingsFolder + "/QuestInstaller.asset";
 
+        /// <summary>Installer asset of the dialogue system.</summary>
+        public const string DialogueInstallerPath = SetupPaths.BootSettingsFolder + "/DialogueInstaller.asset";
+
+        /// <summary>Installer asset of the NPC system.</summary>
+        public const string NpcInstallerPath = SetupPaths.BootSettingsFolder + "/NpcInstaller.asset";
+
         /// <summary>Installer asset of the world services (enemy group registry; BootConfig before the quest installer).</summary>
         public const string WorldInstallerPath = SetupPaths.BootSettingsFolder + "/WorldInstaller.asset";
 

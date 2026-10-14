@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using Aetherfall.Core;
+using Aetherfall.Dialogue;
 using Aetherfall.Events;
 using Aetherfall.Input;
 using Aetherfall.Inventory;
@@ -9,6 +10,7 @@ using Aetherfall.Progression;
 using Aetherfall.Quests;
 using Aetherfall.SaveSystem;
 using Aetherfall.UI.Framework;
+using Aetherfall.UI.Screens.Dialogue;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -74,6 +76,9 @@ namespace Aetherfall.UI.Screens
         [Tooltip("ToastEntry.uxml (eine Meldung)")]
         [SerializeField] private VisualTreeAsset toastEntryLayout = null;
 
+        [Tooltip("Dialogue.uxml (Dialog-Bildschirm: Untertitel und Antworten)")]
+        [SerializeField] private VisualTreeAsset dialogueLayout = null;
+
         [Header("Layouts Questlog und Charakter (UXML)")]
         [Tooltip("Journal.uxml (Questlog und Charakter-Seite, Taste J oder Pausemenü)")]
         [SerializeField] private VisualTreeAsset journalLayout = null;
@@ -128,6 +133,9 @@ namespace Aetherfall.UI.Screens
         private PauseMenuScreen _pauseMenu;
         private DeathScreen _deathScreen;
         private IPlayerHudSource _deathScreenPlayer;
+        private DialogueScreen _dialogueScreen;
+        private DialogueScreenDirector _dialogueDirector;
+        private readonly DialogueScreenPreferences _dialoguePreferences = new DialogueScreenPreferences();
         private int _screenWidth;
         private int _screenHeight;
         private bool _ready;
@@ -227,6 +235,7 @@ namespace Aetherfall.UI.Screens
             _ui.RegisterScreen(_mainMenu);
             _ui.RegisterScreen(_pauseMenu);
             _ui.RegisterScreen(_deathScreen);
+            BuildDialogueScreen(screensRoot);
             if (HasJournalLayouts())
             {
                 _journal = new JournalScreen(CloneScreen(journalLayout, screensRoot), questRowLayout, objectiveRowLayout, journalLineLayout,
@@ -339,6 +348,10 @@ namespace Aetherfall.UI.Screens
 
             float dt = Time.unscaledDeltaTime;
             _director.Update(dt);
+            if (_dialogueDirector != null)
+            {
+                _dialogueDirector.Update();
+            }
             if (_director.PeekRequested)
             {
                 _hud.Peek();
@@ -577,6 +590,11 @@ namespace Aetherfall.UI.Screens
             _mainMenu.RefreshGlyphs();
             _pauseMenu.RefreshGlyphs();
             _deathScreen.RefreshGlyphs();
+            if (_dialogueScreen != null)
+            {
+                _dialogueScreen.RefreshGlyphs();
+            }
+
             if (_journal != null)
             {
                 _journal.RefreshGlyphs();
@@ -694,6 +712,22 @@ namespace Aetherfall.UI.Screens
                 case UILayer.Loading: return loadingDocument;
                 default: return null;
             }
+        }
+
+        private void BuildDialogueScreen(VisualElement screensRoot)
+        {
+            // Without DialogueInstaller in the BootConfig, or without the layout, there is simply no dialogue screen.
+            if (dialogueLayout == null || !Services.Locator.TryGet(out IDialogueService dialogues))
+            {
+                Log.Warning(LogCategory.UI, "UIRoot: no dialogue screen (field 'Dialogue Layout' empty or DialogueInstaller missing).");
+                return;
+            }
+
+            var source = new DialogueServiceScreenSource(dialogues);
+            _dialogueScreen = new DialogueScreen(CloneScreen(dialogueLayout, screensRoot), _glyphs, source, new DialogMapScreenInput(_input),
+                _dialoguePreferences);
+            _ui.RegisterScreen(_dialogueScreen);
+            _dialogueDirector = new DialogueScreenDirector(_ui, _dialogueScreen, source);
         }
 
         private static VisualElement CloneScreen(VisualTreeAsset layout, VisualElement parent)

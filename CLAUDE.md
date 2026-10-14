@@ -95,6 +95,8 @@ Tests liegen unter `Assets/_Project/Tests/` (EditMode, getrennt nach Bereich). S
 - `Awaitable.NextFrameAsync` wartet in Unity wirklich einen Frame (im Harness sofort). Logik, die in Tests synchron laufen soll, bekommt ein `FrameWait` (Tests: `ImmediateFrames.Wait`).
 - `[DisallowMultipleComponent]` wird nur in Unity durchgesetzt; `AddComponent` liefert dann null.
 - Die 6.6-Vorlage `urp-blank` setzt keine Default Render Pipeline; Schritt b) setzt sie jetzt.
+- Szenen neu erzeugen ändert die internen IDs (Eichental.unity: ~10 MB Diff bei gleichem Inhalt). Nur committen, wenn sich der Inhalt wirklich geändert hat, sonst `git checkout` auf die erzeugten Dateien.
+- Screenshots im Batchmode: immer eine frische Kamera rendern (die Spielkamera zeigte durch ihre GPU-Culling-Daten zeitweise nur das Terrain); die UI kommt über `PanelSettings.targetTexture` ins Bild (siehe `PlayTour`).
 
 ## Cloud-Sitzung und PC-Sitzung: wer arbeitet wann
 
@@ -141,6 +143,7 @@ Batchmode-Einstiegspunkte (jeweils mit `-batchmode -nographics -projectPath . -q
 | Testgelände erzeugen | `Aetherfall.EditorTools.World.TestGroundMenu.RunBatch` |
 | Eichental erzeugen | `Aetherfall.EditorTools.World.EichentalMenu.RunBatch` |
 | Gruft erzeugen | `Aetherfall.EditorTools.World.GruftMenu.RunBatch` |
+| Spiel-Rundgang mit Screenshots (mit Grafik: **ohne** `-nographics` und ohne `-quit`; `-tourScene <Szenenpfad>`) | `Aetherfall.EditorTools.World.PlayTour.RunBatch` |
 | Projekt-Setup (ohne `-quit`, beendet sich selbst; nach Paketänderungen ein zweites Mal ausführen) | `Aetherfall.EditorTools.Core.ProjectSetupBatch.RunBatch` |
 | Quests prüfen | `Aetherfall.EditorTools.Narrative.QuestValidationMenu.RunBatch` |
 | Dialoge prüfen | `Aetherfall.Dialogue.DialogueValidationMenu.RunBatch` |
@@ -164,7 +167,7 @@ Batchmode-Einstiegspunkte (jeweils mit `-batchmode -nographics -projectPath . -q
 
 1. Erster echter Unity-Lauf, Fehler beheben, Projekt-Setup im Batchmode (siehe oben)
 2. Generatoren laufen lassen (Testgelände, Eichental, Gruft), die Szenen in Unity prüfen und die Testanleitungen 02–12 durchgehen
-3. Dialoge ins Spiel einbinden (Anleitung 10, Abschnitt 12), echte NPCs statt Marker im Eichental
+3. ~~Dialoge ins Spiel einbinden (Anleitung 10, Abschnitt 12)~~ erledigt (12.1–12.6, Harrik im Testgelände); offen: echte NPCs statt Marker im Eichental, 12.7
 4. Gruft anbinden nach Anleitung 12, Abschnitt 11 (Portal ↔ Dorf, Laden über Welt-ID, Werte mitnehmen, Bossbalken im HUD)
 5. Die 3 Quests als Daten nach GDD 02, Abschnitt 11 („Asche über Eichental“, „Die Wölfe vom Nordhang“, „Die vergessene Gruft“)
 6. Startstufe wieder auf 1 setzen, Neues Spiel/Laden aus dem Hauptmenü, Tod/Wiedereinstieg

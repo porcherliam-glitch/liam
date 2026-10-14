@@ -236,6 +236,10 @@ namespace Aetherfall.Input
             public const string DialogSubmit = "DialogSubmit";
             /// <summary>Back / end the conversation.</summary>
             public const string DialogBack = "DialogBack";
+            /// <summary>Prefix of the direct choice actions DialogDirect1 ... DialogDirect9 (keys 1-9).</summary>
+            public const string DialogDirectPrefix = "DialogDirect";
+            /// <summary>Automatic continue on/off (X / F).</summary>
+            public const string DialogAuto = "DialogAuto";
             /// <summary>Pause menu.</summary>
             public const string Pause = "Pause";
         }

@@ -26,6 +26,7 @@ namespace Aetherfall.EditorTools.World
             Crystal = TestGroundAssets.EnsureMaterial("TestCrystal", new Color(0.2f, 0.95f, 0.85f), report);
             Dummy = TestGroundAssets.EnsureMaterial("TestDummy", new Color(0.82f, 0.7f, 0.42f), report);
             Arena = TestGroundAssets.EnsureMaterial("TestArena", new Color(0.4f, 0.33f, 0.27f), report);
+            Npc = TestGroundAssets.EnsureMaterial("TestNpc", new Color(0.42f, 0.5f, 0.28f), report);
         }
 
         /// <summary>Floor.</summary>
@@ -75,5 +76,8 @@ namespace Aetherfall.EditorTools.World
 
         /// <summary>Arena floor marking.</summary>
         public Material Arena { get; }
+
+        /// <summary>Talking NPCs (placeholder body, olive cloth; distinct from the white player).</summary>
+        public Material Npc { get; }
     }
 }

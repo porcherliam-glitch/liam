@@ -20,6 +20,8 @@
         "Aetherfall.AI",
         "Aetherfall.Player",
         "Aetherfall.Quests",
+        "Aetherfall.Dialogue",
+        "Aetherfall.NPC",
         "Aetherfall.CameraSystem",
         "Aetherfall.UI.Framework",
         "Aetherfall.UI.Screens",

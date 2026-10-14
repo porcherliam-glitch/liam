@@ -243,6 +243,8 @@ Die Daten-Assets (NPC, Dialog) legst du selbst an (Abschnitte 4 und 5). Zwei Kom
 
 ## 12. Integration (für den nächsten Schritt)
 
+**Eingebaut (PC-Sitzung, 2026-10-14):** 12.1–12.6 sind im Projekt. In Unity geprüft: Dialog-Prüfung „1 Dialog(e) geprüft: 0 Fehler, 2 Warnung(en)“, EditMode 2160/2162 grün (2 unentschieden), Spiel-Rundgang im Testgelände: Hinweis „E Sprechen: Banditenanführer“, Untertitel, Auswahl mit „[Angriff]“. Abweichungen beim Einbau: Harrik steht bei (6, 0, −4) und hat ein eigenes Material; die Spielfigur misst die Reichweite (2 m) jetzt ab Hüfthöhe (`PlayerInteractor`), sonst musste man NPCs fast berühren; die Installer trägt `WorldSetup` (Testgelände **und** Eichental) bzw. der Gruft-Generator ein. 12.7 ist noch offen.
+
 Dieser Abschnitt ist die Arbeitsliste für Claude beim Einbau ins Spiel. Du musst hier nichts tun.
 
 **Geprüft (2026-10-14, nach den Review-Befunden erneut):** Alle Änderungen 12.1–12.6 wurden in einer **Kopie** des Projekts (Stand dieses Schritts) angewendet – der Code kommt dabei direkt aus den Blöcken dieser Anleitung – und mit dem Harness geprüft: **1651 Tests grün (inkl. des neuen Durchspiel-Tests über den Bildschirm; 1 übersprungen, braucht Unity), 887 ohne Pakete grün, Exit-Code 0, keine Lint-Meldung**, alle drei Editor-Assemblies kompilieren, und `DialogMapScreenInput` (mit der Maus-Erkennung) kompiliert gegen die Signaturen des Input Systems. Außerdem wurde dieser Schritt **ohne** Einbau auf den Haupt-Branch-Stand `81d3a5d` („Quests im Spiel, Erfahrung und Level“) gelegt: Er lässt sich konfliktfrei anwenden (nur neue Dateien), alles kompiliert, und es fehlt nur die Theme-Zeile aus 12.2 (sonst 1857 Tests grün, ohne Pakete 907). **Mit** allen Schritten 12.1–12.6 auf diesem Stand: Exit-Code 0, 1859 Tests grün, ohne Pakete 908. Die Stellen in `UIRoot`, `TestGroundMenu`, `TestGroundUiBuilder` und den asmdefs liegen auf dem Haupt-Branch an anderen Zeilen: die Anweisungen unten nennen deshalb immer die Nachbarzeile, nicht die Zeilennummer.
@@ -980,8 +982,8 @@ namespace Aetherfall.EditorTools.World
 
 | Teil | Einstellung |
 |---|---|
-| GameObject | `NPC_Harrik` bei (−5, 0, 5): westlich vom Spawn, zwischen Spawn und Rampen, weg von Truhen und Säulen; blickt zum Spawn |
-| Körper | Kapsel 2 m hoch (Pivot am Boden), Layer Environment, Material der Spielfigur (Platzhalter, später Blender-Modell) |
+| GameObject | `NPC_Harrik` bei (6, 0, −4): südöstlich vom Spawn auf freier Fläche (bei (−5, 0, 5) stand er hinter der Anschlagtafel); blickt zum Spawn |
+| Körper | Kapsel 2 m hoch (Pivot am Boden), Layer Environment, eigenes olivgrünes Material `TestNpc` (Platzhalter, später Blender-Modell) |
 | Interaktion | Kind-Objekt `Interaktion` mit `CapsuleCollider` (Trigger, Radius 0,7 m) auf dem Layer **Interactable** – dort sucht der `PlayerInteractor` (wie bei den Truhen) |
 | `NpcInteractable` | **Npc** = `Data/NPCs/Npc_Harrik.asset`, **Dialogue Override** leer (Standard-Dialog des NPC), **Priority** 20 (vor Truhen 10 und Beute 0), **Interaction Point** = Kind-Objekt `Brust` (1,5 m), **Look At** = die `NpcLookAt` am selben Objekt |
 | `NpcLookAt` | **Body** leer (dreht das GameObject), **Look Target** = Spielfigur, Standardwerte: Radius 4 m, 180 °/s, Umschauen bis 25 ° |

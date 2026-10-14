@@ -155,9 +155,10 @@ namespace Aetherfall.Player
 
         private IInteractable FindBest(in InteractionContext context)
         {
-            Vector3 origin = transform.position;
-            int count = Physics.OverlapSphereNonAlloc(origin + Vector3.up * queryHeight, range + 0.5f, _hits, interactionLayers,
-                QueryTriggerInteraction.Collide);
+            // Distances are measured from the query point at hip height, not from the feet: an NPC's interaction point sits at
+            // chest height (1.5 m) and would otherwise only be in range when the player almost touches the NPC.
+            Vector3 origin = transform.position + Vector3.up * queryHeight;
+            int count = Physics.OverlapSphereNonAlloc(origin, range + 0.5f, _hits, interactionLayers, QueryTriggerInteraction.Collide);
             _found.Clear();
             _candidates.Clear();
             for (int i = 0; i < count; i++)

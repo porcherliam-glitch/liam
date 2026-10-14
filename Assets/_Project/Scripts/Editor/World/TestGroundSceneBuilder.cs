@@ -120,6 +120,7 @@ namespace Aetherfall.EditorTools.World
             {
                 TestGroundItemBuilder.Build(player, items, interactableLayer, pickupLayer, envLayer, labelFont, report);
                 TestGroundItemBuilder.CreateOverlays(player, statusOverlay, report);
+                TestGroundNpcBuilder.Build(player, interactableLayer, envLayer, materials.Npc, report);
                 TestGroundQuestBuilder.Build(player, materials, interactableLayer, triggerVolumeLayer, playerLayer, envLayer, labelFont, report);
             }
             else

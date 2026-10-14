@@ -233,6 +233,17 @@ namespace Aetherfall.EditorTools.World
             return content && inventory;
         }
 
+        /// <summary>Dialogue and NPC installers into the BootConfig: DialogueInstaller after InventoryInstaller, NpcInstaller after it.</summary>
+        /// <param name="report">Protocol.</param>
+        /// <returns>True if the BootConfig contains both installers afterwards.</returns>
+        public static bool EnsureDialogueInstallersInBootConfig(TestGroundReport report)
+        {
+            bool dialogue = EnsureInstallerInBootConfig<Aetherfall.Dialogue.DialogueInstaller>(TestGroundPaths.DialogueInstallerPath, report,
+                typeof(InventoryInstaller), typeof(SaveInstaller), typeof(GameStateInstaller));
+            return dialogue && EnsureInstallerInBootConfig<Aetherfall.NPC.NpcInstaller>(TestGroundPaths.NpcInstallerPath, report,
+                typeof(Aetherfall.Dialogue.DialogueInstaller));
+        }
+
         /// <summary>
         /// Loads or creates the installers of conditions, world state, progression, world services and quests and puts them into
         /// the BootConfig in the order of architecture 4.1 and guide 08, 11.1: ConditionsInstaller behind the EventBus and GameTime

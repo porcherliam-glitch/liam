@@ -183,8 +183,13 @@ namespace Aetherfall.Input
             submit.AddBinding("<Mouse>/leftButton", groups: Kbm);
             Button(map, Names.Dialog.DialogBack, "<Gamepad>/buttonEast", "<Mouse>/rightButton");
             Button(map, Names.Dialog.Pause, "<Gamepad>/start", "<Keyboard>/escape");
-            // TODO (dialogue step): DialogDirect1–9 (keys 1–9), DialogDetails (R3 / Shift), DialogLog (Y / Tab),
-            // DialogAuto (X / F) – GDD 03 1.5.
+            for (int i = 1; i <= 9; i++)
+            {
+                Button(map, Names.Dialog.DialogDirectPrefix + i, null, "<Keyboard>/" + i);
+            }
+
+            Button(map, Names.Dialog.DialogAuto, "<Gamepad>/buttonWest", "<Keyboard>/f");
+            // TODO: DialogDetails (R3 / Shift), DialogLog (Y / Tab) - GDD 03 1.5.
         }
 
         private static void AddRiding(InputActionMap map)

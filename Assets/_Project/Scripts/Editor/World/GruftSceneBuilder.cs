@@ -82,6 +82,7 @@ namespace Aetherfall.EditorTools.World
             TestGroundAssets.EnsureCombatInstallersInBootConfig(combat.Settings, report);
             var items = new TestGroundItemAssets(report);
             TestGroundAssets.EnsureItemInstallersInBootConfig(items.Catalog, items.StartingEquipment, report);
+            TestGroundAssets.EnsureDialogueInstallersInBootConfig(report);
             TestGroundAssets.EnsureNarrativeInstallersInBootConfig(report, setTestStartLevel: false);
             TestGroundUiBuilder.EnsureInstallers(report);
             var assets = new GruftAssets(report);

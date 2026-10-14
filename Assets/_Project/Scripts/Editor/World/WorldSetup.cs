@@ -86,6 +86,8 @@ namespace Aetherfall.EditorTools.World
             var items = new TestGroundItemAssets(report);
             items.AssignWolfLoot(combat.Wolf, combat.AetherWolf);
             TestGroundAssets.EnsureItemInstallersInBootConfig(items.Catalog, items.StartingEquipment, report);
+            TestGroundAssets.EnsureDialogueInstallersInBootConfig(report);
+            TestGroundNpcBuilder.CreateAssets(items.Catalog, report);
             TestGroundAssets.EnsureNarrativeInstallersInBootConfig(report, applyTestGroundStartLevel);
             var quests = new TestGroundQuestAssets(items.Catalog, report);
             TestGroundUiBuilder.EnsureInstallers(report);

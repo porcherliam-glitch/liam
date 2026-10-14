@@ -83,7 +83,8 @@ namespace Aetherfall.EditorTools.World
             new KeyValuePair<string, string>("trackedQuestLayout", "TrackedQuest.uxml"),
             new KeyValuePair<string, string>("journalLineLayout", "JournalLine.uxml"),
             new KeyValuePair<string, string>("attributeRowLayout", "AttributeRow.uxml"),
-            new KeyValuePair<string, string>("valueRowLayout", "ValueRow.uxml")
+            new KeyValuePair<string, string>("valueRowLayout", "ValueRow.uxml"),
+            new KeyValuePair<string, string>("dialogueLayout", "Dialogue.uxml")
         };
 
         /// <summary>Runs the UI setup alone (asks first).</summary>

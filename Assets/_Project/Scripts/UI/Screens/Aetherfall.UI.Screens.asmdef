@@ -17,7 +17,9 @@
         "Aetherfall.Conditions",
         "Aetherfall.Progression",
         "Aetherfall.Quests",
-        "Aetherfall.UI.Framework"
+        "Aetherfall.Dialogue",
+        "Aetherfall.UI.Framework",
+        "Unity.InputSystem"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

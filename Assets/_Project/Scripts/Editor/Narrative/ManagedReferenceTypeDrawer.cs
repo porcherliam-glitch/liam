@@ -29,6 +29,7 @@ namespace Aetherfall.EditorTools.Narrative
     [CustomPropertyDrawer(typeof(Condition), true)]
     [CustomPropertyDrawer(typeof(GameAction), true)]
     [CustomPropertyDrawer(typeof(QuestObjective), true)]
+    [CustomPropertyDrawer(typeof(Aetherfall.Dialogue.DialogueNode), true)]
     public sealed class ManagedReferenceTypeDrawer : PropertyDrawer
     {
         private const string NoneText = "(keine – Typ wählen)";

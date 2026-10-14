@@ -569,6 +569,7 @@ MonoBehaviour:
   saveSlotRowLayout: {fileID: 9197481963319205126, guid: bfad459e6a10a4048932bbb2efdb0a1d, type: 3}
   optionsPageLayout: {fileID: 9197481963319205126, guid: 39901eabd18ecaa4e8c9e19bc762a205, type: 3}
   toastEntryLayout: {fileID: 9197481963319205126, guid: e413db98a0019f54bbd11039fab904a5, type: 3}
+  dialogueLayout: {fileID: 9197481963319205126, guid: 91c79c7a3cae5094b82bcc61b81347a4, type: 3}
   journalLayout: {fileID: 9197481963319205126, guid: bdc19ba278ae5094a86aa20a53cda6fc, type: 3}
   questRowLayout: {fileID: 9197481963319205126, guid: f82f6ff184a577e44b97c6187c9d02b6, type: 3}
   objectiveRowLayout: {fileID: 9197481963319205126, guid: 596f6cd69d9b0b34380512fe01543987, type: 3}

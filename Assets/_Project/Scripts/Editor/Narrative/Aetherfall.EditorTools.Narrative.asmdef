@@ -3,6 +3,7 @@
     "rootNamespace": "Aetherfall.EditorTools.Narrative",
     "references": [
         "Aetherfall.Core",
+        "Aetherfall.Events",
         "Aetherfall.Data",
         "Aetherfall.Conditions",
         "Aetherfall.WorldState",
@@ -10,6 +11,8 @@
         "Aetherfall.Inventory",
         "Aetherfall.Progression",
         "Aetherfall.Quests",
+        "Aetherfall.Dialogue",
+        "Aetherfall.NPC",
         "Aetherfall.EditorTools.Core"
     ],
     "includePlatforms": [

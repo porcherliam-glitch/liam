@@ -6,8 +6,10 @@
         "UnityEditor.TestRunner",
         "Aetherfall.Core",
         "Aetherfall.Events",
+        "Aetherfall.Dialogue",
         "Aetherfall.UI.Framework",
         "Aetherfall.UI.Screens",
+        "Aetherfall.Tests.EditMode.Dialogue",
         "Aetherfall.Tests.Shared"
     ],
     "includePlatforms": [

@@ -1,0 +1,827 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8e8dae9f016d99b4cb368684cefc2e46, type: 3}
+  m_Name: Dlg_Harrik_Verhandlung
+  m_EditorClassIdentifier: Aetherfall.Dialogue::Aetherfall.Dialogue.DialogueDefinition
+  id: dlg.eichental.harrik_verhandlung
+  status: 1
+  title: "Verhandlung mit Harrik am M\xFChlbach"
+  mode: 0
+  speakerId: npc.eichental.banditenfuehrer_harrik
+  startNodeId: n010
+  cancelable: 0
+  questId: quest.side.eichental.banditen_am_muehlbach
+  questExitIds:
+  - abzug
+  - vertrieben
+  - muehlenwache
+  - abmachung
+  - kampf
+  - attentat
+  nodes:
+  - rid: 8292696248934727680
+  - rid: 8292696248934727682
+  - rid: 8292696248934727683
+  - rid: 8292696248934727684
+  - rid: 8292696248934727685
+  - rid: 8292696248934727687
+  - rid: 8292696248934727693
+  - rid: 8292696248934727695
+  - rid: 8292696248934727697
+  - rid: 8292696248934727698
+  - rid: 8292696248934727699
+  - rid: 8292696248934727700
+  - rid: 8292696248934727705
+  - rid: 8292696248934727706
+  - rid: 8292696248934727707
+  - rid: 8292696248934727709
+  - rid: 8292696248934727713
+  - rid: 8292696248934727714
+  - rid: 8292696248934727716
+  - rid: 8292696248934727721
+  - rid: 8292696248934727723
+  - rid: 8292696248934727725
+  - rid: 8292696248934727729
+  - rid: 8292696248934727731
+  - rid: 8292696248934727734
+  - rid: 8292696248934727735
+  - rid: 8292696248934727737
+  - rid: 8292696248934727742
+  notes: 
+  references:
+    version: 2
+    RefIds:
+    - rid: -2
+      type: {class: , ns: , asm: }
+    - rid: 8292696248934727680
+      type: {class: BranchNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n010
+        editorPosition: {x: 0, y: 0}
+        branches:
+        - condition:
+            rid: 8292696248934727681
+          targetNodeId: n015
+        defaultNodeId: n020
+    - rid: 8292696248934727681
+      type: {class: FlagIs, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
+      data:
+        flagId: quest.side.eichental.banditen_am_muehlbach.lokal.messer_an_kehle
+        comparison: 0
+        value: 1
+    - rid: 8292696248934727682
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n015
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: n030
+        exitId: 
+        followUp: 0
+        speakerId: 
+        text: "Leise Schritte f\xFCr jemanden mit so viel Eisen am Leib. Gut. Dann reden wir eben so."
+        variants: []
+        emotion: 6
+        camera: 1
+        actions: []
+        voiceClipId: 
+    - rid: 8292696248934727683
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n020
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: n025
+        exitId: 
+        followUp: 0
+        speakerId: 
+        text: "Noch ein Schritt, und meine Jungs spicken dich mit Bolzen. Wer schickt dich \u2013 Brenner oder die Silberwacht?"
+        variants: []
+        emotion: 2
+        camera: 5
+        actions: []
+        voiceClipId: 
+    - rid: 8292696248934727684
+      type: {class: ChoiceNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n025
+        editorPosition: {x: 0, y: 0}
+        hub: 0
+        options:
+        - id: a
+          text: "Der M\xFCller. Er will seine M\xFChle zur\xFCck."
+          targetNodeId: n030
+          visibleIf:
+            rid: -2
+          selectableIf:
+            rid: -2
+          lockedReason: 
+          once: 0
+          irreversible: 0
+          actions: []
+          choiceId: 
+          choiceOptionId: 
+        - id: b
+          text: Niemand. Ich will nur reden.
+          targetNodeId: n030
+          visibleIf:
+            rid: -2
+          selectableIf:
+            rid: -2
+          lockedReason: 
+          once: 0
+          irreversible: 0
+          actions: []
+          choiceId: 
+          choiceOptionId: 
+        - id: c
+          text: Ich bin hier, um euch zu erledigen.
+          targetNodeId: n900
+          visibleIf:
+            rid: -2
+          selectableIf:
+            rid: -2
+          lockedReason: 
+          once: 0
+          irreversible: 0
+          actions: []
+          choiceId: 
+          choiceOptionId: 
+    - rid: 8292696248934727685
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n030
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: n040
+        exitId: 
+        followUp: 0
+        speakerId: 
+        text: "Seine M\xFChle. Ich hab sein Mehl zehn Jahre lang gefahren, dr\xFCben nach Eichental. Ich bin Harrik. Und Eichental gibt's nicht mehr."
+        variants: []
+        emotion: 0
+        camera: 0
+        actions:
+        - rid: 8292696248934727686
+        voiceClipId: 
+    - rid: 8292696248934727686
+      type: {class: RevealName, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        npcId: npc.eichental.banditenfuehrer_harrik
+    - rid: 8292696248934727687
+      type: {class: ChoiceNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n040
+        editorPosition: {x: 0, y: 0}
+        hub: 1
+        options:
+        - id: a
+          text: Ihr seid alle aus Eichental?
+          targetNodeId: n050
+          visibleIf:
+            rid: -2
+          selectableIf:
+            rid: -2
+          lockedReason: 
+          once: 1
+          irreversible: 0
+          actions: []
+          choiceId: 
+          choiceOptionId: 
+        - id: b
+          text: "Lindenhain nimmt Fl\xFCchtlinge auf. Ihr m\xFCsst nicht stehlen."
+          targetNodeId: n100
+          visibleIf:
+            rid: -2
+          selectableIf:
+            rid: -2
+          lockedReason: 
+          once: 0
+          irreversible: 0
+          actions: []
+          choiceId: 
+          choiceOptionId: 
+        - id: c
+          text: "Zieht ab, oder ich hole mir eure K\xF6pfe. Einen nach dem anderen."
+          targetNodeId: n200
+          visibleIf:
+            rid: -2
+          selectableIf:
+            rid: -2
+          lockedReason: 
+          once: 0
+          irreversible: 0
+          actions: []
+          choiceId: 
+          choiceOptionId: 
+        - id: d
+          text: "Die Silberwacht r\xFCckt morgen mit drei\xDFig Mann an."
+          targetNodeId: n300
+          visibleIf:
+            rid: -2
+          selectableIf:
+            rid: -2
+          lockedReason: 
+          once: 0
+          irreversible: 0
+          actions: []
+          choiceId: 
+          choiceOptionId: 
+        - id: e
+          text: Nehmt das Gold und verschwindet.
+          targetNodeId: n400
+          visibleIf:
+            rid: -2
+          selectableIf:
+            rid: -2
+          lockedReason: 
+          once: 0
+          irreversible: 0
+          actions: []
+          choiceId: 
+          choiceOptionId: 
+        - id: f
+          text: Wem zahlt ihr eigentlich Tribut?
+          targetNodeId: n500
+          visibleIf:
+            rid: 8292696248934727688
+          selectableIf:
+            rid: -2
+          lockedReason: 
+          once: 0
+          irreversible: 0
+          actions: []
+          choiceId: 
+          choiceOptionId: 
+        - id: g
+          text: Dann regeln wir das mit Stahl.
+          targetNodeId: n900
+          visibleIf:
+            rid: -2
+          selectableIf:
+            rid: -2
+          lockedReason: 
+          once: 0
+          irreversible: 0
+          actions: []
+          choiceId: 
+          choiceOptionId: 
+        - id: h
+          text: "Du dr\xFCckst die Klinge tiefer."
+          targetNodeId: n910
+          visibleIf:
+            rid: 8292696248934727689
+          selectableIf:
+            rid: -2
+          lockedReason: 
+          once: 0
+          irreversible: 1
+          actions: []
+          choiceId: 
+          choiceOptionId: 
+        - id: i
+          text: Ich komme wieder.
+          targetNodeId: n990
+          visibleIf:
+            rid: -2
+          selectableIf:
+            rid: -2
+          lockedReason: 
+          once: 0
+          irreversible: 0
+          actions: []
+          choiceId: 
+          choiceOptionId: 
+    - rid: 8292696248934727688
+      type: {class: AnyOf, ns: Aetherfall.Conditions, asm: Aetherfall.Conditions}
+      data:
+        conditions:
+        - rid: 8292696248934727690
+        - rid: 8292696248934727691
+        - rid: 8292696248934727692
+    - rid: 8292696248934727689
+      type: {class: FlagIs, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
+      data:
+        flagId: quest.side.eichental.banditen_am_muehlbach.lokal.messer_an_kehle
+        comparison: 0
+        value: 1
+    - rid: 8292696248934727690
+      type: {class: TopicKnown, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        topicId: thema.grimmbart
+    - rid: 8292696248934727691
+      type: {class: FlagIs, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
+      data:
+        flagId: flag.eichental.grimmbart_schwaeche_bekannt
+        comparison: 0
+        value: 1
+    - rid: 8292696248934727692
+      type: {class: QuestStatusIs, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
+      data:
+        questId: quest.bounty.eichental.grimmbart
+        status: 2
+    - rid: 8292696248934727693
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n050
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: n040
+        exitId: 
+        followUp: 0
+        speakerId: 
+        text: "Die H\xE4lfte von uns. Hast du gesehen, was von unseren H\xE4usern \xFCbrig ist? Asche. Und Grimmbart will trotzdem seinen Anteil."
+        variants: []
+        emotion: 4
+        camera: 0
+        actions:
+        - rid: 8292696248934727694
+        voiceClipId: 
+    - rid: 8292696248934727694
+      type: {class: UnlockTopic, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        topicId: thema.grimmbart
+    - rid: 8292696248934727695
+      type: {class: CheckNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n100
+        editorPosition: {x: 0, y: 0}
+        checkType: 0
+        difficulty: 1
+        modifiers:
+        - condition:
+            rid: 8292696248934727696
+          bonus: 2
+          label: "Die B\xE4ckerin braucht H\xE4nde"
+        levelAdvantage: 0
+        rememberResult: 1
+        successNodeId: n110
+        failureNodeId: n120
+    - rid: 8292696248934727696
+      type: {class: FlagIs, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
+      data:
+        flagId: flag.eichental.wenna_gerettet
+        comparison: 0
+        value: 1
+    - rid: 8292696248934727697
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n110
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: n115
+        exitId: 
+        followUp: 0
+        speakerId: 
+        text: "Brot statt Beute \u2026 Und wenn sie uns in Lindenhain aufkn\xFCpfen?"
+        variants: []
+        emotion: 0
+        camera: 0
+        actions: []
+        voiceClipId: 
+    - rid: 8292696248934727698
+      type: {class: ChoiceNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n115
+        editorPosition: {x: 0, y: 0}
+        hub: 0
+        options:
+        - id: a
+          text: "Ich b\xFCrge bei Hedda f\xFCr euch."
+          targetNodeId: n130
+          visibleIf:
+            rid: -2
+          selectableIf:
+            rid: -2
+          lockedReason: 
+          once: 0
+          irreversible: 0
+          actions: []
+          choiceId: 
+          choiceOptionId: 
+        - id: b
+          text: "Bewacht die M\xFChle f\xFCr Brenner. Gegen Mehl."
+          targetNodeId: n140
+          visibleIf:
+            rid: -2
+          selectableIf:
+            rid: -2
+          lockedReason: 
+          once: 0
+          irreversible: 0
+          actions: []
+          choiceId: 
+          choiceOptionId: 
+    - rid: 8292696248934727699
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n120
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: n040
+        exitId: 
+        followUp: 0
+        speakerId: 
+        text: "Sch\xF6ne Worte. Davon wird keiner satt."
+        variants: []
+        emotion: 0
+        camera: 0
+        actions: []
+        voiceClipId: 
+    - rid: 8292696248934727700
+      type: {class: ActionNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n130
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: n135
+        exitId: 
+        followUp: 0
+        actions:
+        - rid: 8292696248934727701
+        - rid: 8292696248934727702
+        - rid: 8292696248934727703
+        - rid: 8292696248934727704
+    - rid: 8292696248934727701
+      type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
+      data:
+        flagId: flag.eichental.muehlbach_ausgang
+        value: 3
+    - rid: 8292696248934727702
+      type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
+      data:
+        flagId: flag.eichental.harrik_verschont
+        value: 1
+    - rid: 8292696248934727703
+      type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
+      data:
+        flagId: flag.eichental.harrik_status
+        value: 0
+    - rid: 8292696248934727704
+      type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
+      data:
+        flagId: flag.eichental.banditen_in_lindenhain
+        value: 1
+    - rid: 8292696248934727705
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n135
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: 
+        exitId: abzug
+        followUp: 0
+        speakerId: 
+        text: Wenn du gelogen hast, Rissgeborener, finden wir dich.
+        variants: []
+        emotion: 0
+        camera: 0
+        actions: []
+        voiceClipId: 
+    - rid: 8292696248934727706
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n140
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: 
+        exitId: muehlenwache
+        followUp: 0
+        speakerId: 
+        text: "W\xE4chter statt Wegelagerer. Klingt fast ehrlich. Red mit Brenner."
+        variants: []
+        emotion: 0
+        camera: 0
+        actions: []
+        voiceClipId: 
+    - rid: 8292696248934727707
+      type: {class: CheckNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n200
+        editorPosition: {x: 0, y: 0}
+        checkType: 1
+        difficulty: 2
+        modifiers:
+        - condition:
+            rid: 8292696248934727708
+          bonus: 4
+          label: Klinge an der Kehle
+        levelAdvantage: 1
+        rememberResult: 1
+        successNodeId: n210
+        failureNodeId: n220
+    - rid: 8292696248934727708
+      type: {class: FlagIs, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
+      data:
+        flagId: quest.side.eichental.banditen_am_muehlbach.lokal.messer_an_kehle
+        comparison: 0
+        value: 1
+    - rid: 8292696248934727709
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n210
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: 
+        exitId: vertrieben
+        followUp: 0
+        speakerId: 
+        text: Schon gut. Wir ziehen weiter. Aber merk dir mein Gesicht.
+        variants: []
+        emotion: 2
+        camera: 0
+        actions:
+        - rid: 8292696248934727710
+        - rid: 8292696248934727711
+        - rid: 8292696248934727712
+        voiceClipId: 
+    - rid: 8292696248934727710
+      type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
+      data:
+        flagId: flag.eichental.muehlbach_ausgang
+        value: 2
+    - rid: 8292696248934727711
+      type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
+      data:
+        flagId: flag.eichental.harrik_verschont
+        value: 1
+    - rid: 8292696248934727712
+      type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
+      data:
+        flagId: flag.eichental.harrik_status
+        value: 0
+    - rid: 8292696248934727713
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n220
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: n900
+        exitId: 
+        followUp: 0
+        speakerId: 
+        text: "Gro\xDFe Worte f\xFCr jemanden, der allein gekommen ist."
+        variants: []
+        emotion: 0
+        camera: 0
+        actions: []
+        voiceClipId: 
+    - rid: 8292696248934727714
+      type: {class: CheckNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n300
+        editorPosition: {x: 0, y: 0}
+        checkType: 2
+        difficulty: 1
+        modifiers:
+        - condition:
+            rid: 8292696248934727715
+          bonus: -5
+          label: "Harrik hat eine L\xFCge bemerkt"
+        levelAdvantage: 0
+        rememberResult: 1
+        successNodeId: n310
+        failureNodeId: n320
+    - rid: 8292696248934727715
+      type: {class: FlagIs, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
+      data:
+        flagId: flag.eichental.harrik_luege_bemerkt
+        comparison: 0
+        value: 1
+    - rid: 8292696248934727716
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n310
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: 
+        exitId: vertrieben
+        followUp: 0
+        speakerId: 
+        text: "Drei\xDFig? \u2026 Packt zusammen! Wir gehen."
+        variants: []
+        emotion: 0
+        camera: 0
+        actions:
+        - rid: 8292696248934727717
+        - rid: 8292696248934727718
+        - rid: 8292696248934727719
+        - rid: 8292696248934727720
+        voiceClipId: 
+    - rid: 8292696248934727717
+      type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
+      data:
+        flagId: flag.eichental.muehlbach_ausgang
+        value: 2
+    - rid: 8292696248934727718
+      type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
+      data:
+        flagId: flag.eichental.harrik_verschont
+        value: 1
+    - rid: 8292696248934727719
+      type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
+      data:
+        flagId: flag.eichental.harrik_status
+        value: 0
+    - rid: 8292696248934727720
+      type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
+      data:
+        flagId: flag.eichental.harrik_belogen
+        value: 1
+    - rid: 8292696248934727721
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n320
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: n040
+        exitId: 
+        followUp: 0
+        speakerId: 
+        text: "Die Silberwacht hat keine drei\xDFig Mann im ganzen Tal."
+        variants: []
+        emotion: 0
+        camera: 0
+        actions:
+        - rid: 8292696248934727722
+        voiceClipId: 
+    - rid: 8292696248934727722
+      type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
+      data:
+        flagId: flag.eichental.harrik_luege_bemerkt
+        value: 1
+    - rid: 8292696248934727723
+      type: {class: ActionNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n400
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: n410
+        exitId: 
+        followUp: 0
+        actions:
+        - rid: 8292696248934727724
+    - rid: 8292696248934727724
+      type: {class: Bribe, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        basePrice: 80
+    - rid: 8292696248934727725
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n410
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: 
+        exitId: abzug
+        followUp: 0
+        speakerId: 
+        text: Gold aus Eichental riecht nach Rauch. Ich nehm's trotzdem.
+        variants: []
+        emotion: 0
+        camera: 0
+        actions:
+        - rid: 8292696248934727726
+        - rid: 8292696248934727727
+        - rid: 8292696248934727728
+        voiceClipId: 
+    - rid: 8292696248934727726
+      type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
+      data:
+        flagId: flag.eichental.muehlbach_ausgang
+        value: 3
+    - rid: 8292696248934727727
+      type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
+      data:
+        flagId: flag.eichental.harrik_verschont
+        value: 1
+    - rid: 8292696248934727728
+      type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
+      data:
+        flagId: flag.eichental.harrik_status
+        value: 0
+    - rid: 8292696248934727729
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n500
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: n510
+        exitId: 
+        followUp: 0
+        speakerId: 
+        text: Grimmbart. Hockt im alten Steinbruch. Ohne sein Kriegshorn ist er nur ein fetter Kerl mit Hammer.
+        variants: []
+        emotion: 0
+        camera: 0
+        actions:
+        - rid: 8292696248934727730
+        voiceClipId: 
+    - rid: 8292696248934727730
+      type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
+      data:
+        flagId: flag.eichental.grimmbart_schwaeche_bekannt
+        value: 1
+    - rid: 8292696248934727731
+      type: {class: ChoiceNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n510
+        editorPosition: {x: 0, y: 0}
+        hub: 0
+        options:
+        - id: a
+          text: "Ich k\xFCmmere mich um Grimmbart. Daf\xFCr lasst ihr die M\xFChle in Ruhe."
+          targetNodeId: n520
+          visibleIf:
+            rid: 8292696248934727732
+          selectableIf:
+            rid: -2
+          lockedReason: 
+          once: 0
+          irreversible: 0
+          actions: []
+          choiceId: 
+          choiceOptionId: 
+        - id: b
+          text: Gut zu wissen.
+          targetNodeId: n040
+          visibleIf:
+            rid: -2
+          selectableIf:
+            rid: -2
+          lockedReason: 
+          once: 0
+          irreversible: 0
+          actions: []
+          choiceId: 
+          choiceOptionId: 
+    - rid: 8292696248934727732
+      type: {class: Not, ns: Aetherfall.Conditions, asm: Aetherfall.Conditions}
+      data:
+        condition:
+          rid: 8292696248934727733
+    - rid: 8292696248934727733
+      type: {class: QuestStatusIs, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
+      data:
+        questId: quest.bounty.eichental.grimmbart
+        status: 3
+    - rid: 8292696248934727734
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n520
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: 
+        exitId: abmachung
+        followUp: 0
+        speakerId: 
+        text: "Bring mir seinen Bart, und wir reden \xFCber die M\xFChle."
+        variants: []
+        emotion: 0
+        camera: 0
+        actions: []
+        voiceClipId: 
+    - rid: 8292696248934727735
+      type: {class: ActionNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n900
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: 
+        exitId: kampf
+        followUp: 2
+        actions:
+        - rid: 8292696248934727736
+    - rid: 8292696248934727736
+      type: {class: StartCombat, ns: Aetherfall.NPC, asm: Aetherfall.NPC}
+      data:
+        targetId: group.banditen_muehlbach
+    - rid: 8292696248934727737
+      type: {class: ActionNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n910
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: 
+        exitId: attentat
+        followUp: 0
+        actions:
+        - rid: 8292696248934727738
+        - rid: 8292696248934727739
+        - rid: 8292696248934727740
+        - rid: 8292696248934727741
+    - rid: 8292696248934727738
+      type: {class: KillNpc, ns: Aetherfall.NPC, asm: Aetherfall.NPC}
+      data:
+        npcId: npc.eichental.banditenfuehrer_harrik
+    - rid: 8292696248934727739
+      type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
+      data:
+        flagId: flag.eichental.harrik_status
+        value: 1
+    - rid: 8292696248934727740
+      type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
+      data:
+        flagId: flag.eichental.muehlbach_ausgang
+        value: 1
+    - rid: 8292696248934727741
+      type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
+      data:
+        flagId: flag.eichental.banditen_geflohen
+        value: 1
+    - rid: 8292696248934727742
+      type: {class: EndNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n990
+        editorPosition: {x: 0, y: 0}
+        exitId: vertagt
+        followUp: 0
