@@ -24,5 +24,12 @@ namespace Aetherfall.Conditions
         /// The result never changes on its own (constant conditions like <c>Always</c>): no events and no polling needed.
         /// </summary>
         void Constant();
+
+        /// <summary>
+        /// The result can change without a declared event: poll once per second. Logic types call it (through
+        /// <see cref="TriggerCollectorExtensions.CollectChild"/>) when one of their entries declares nothing, so a polled entry
+        /// inside an AND/OR is not missed because a sibling declared an event.
+        /// </summary>
+        void Poll();
     }
 }

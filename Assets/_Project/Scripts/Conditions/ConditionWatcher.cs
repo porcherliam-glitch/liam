@@ -11,7 +11,8 @@ namespace Aetherfall.Conditions
     /// type is subscribed once (when the first watch declares it), an event marks only the watches that declared it as dirty,
     /// <see cref="Tick"/> evaluates dirty watches until the time budget (default 0.5 ms) is used up and continues in the next
     /// frame. <c>FlagChanged</c> is filtered by flag id, <c>TimeOfDayChanged</c> by a change of the hour. Watches without
-    /// triggers are polled every second.
+    /// triggers, and watches whose AND/OR/NOT contains an entry without triggers (<see cref="ITriggerCollector.Poll"/>), are
+    /// polled every second (in addition to their events).
     /// </summary>
     /// <remarks>
     /// Callbacks run only when the value changed and never during <see cref="Watch"/>. A throwing condition counts as false,
@@ -72,6 +73,12 @@ namespace Aetherfall.Conditions
         /// <summary>Number of event types the watcher subscribed to (each exactly once).</summary>
         public int SubscribedEventTypeCount => _channels.Count + (_flagSubscribed ? 1 : 0) + (_hourSubscribed ? 1 : 0);
 
+        /// <summary>
+        /// True once a <c>TimeOfDayChanged</c> event arrived. Until then (no game clock yet) watches that declared
+        /// <see cref="ITriggerCollector.OnGameHour"/> are polled once per interval like watches without triggers.
+        /// </summary>
+        public bool HasGameClock => _lastHour >= 0;
+
         /// <inheritdoc />
         public int Watch(Condition condition, in ConditionContext ctx, Action<bool> onChanged)
         {
@@ -96,7 +103,7 @@ namespace Aetherfall.Conditions
                 _collector.Constant();
             }
 
-            if (!_collector.End())
+            if (!_collector.End(out bool pollRequested) || pollRequested)
             {
                 entry.Polled = true;
                 _polledWatches.Add(entry);
@@ -202,6 +209,13 @@ namespace Aetherfall.Conditions
                 for (int i = 0; i < _polledWatches.Count; i++)
                 {
                     MarkDirty(_polledWatches[i]);
+                }
+
+                if (!HasGameClock)
+                {
+                    // Fallback until the game clock sends TimeOfDayChanged (game clock step, architecture 4.6): conditions
+                    // that wait for time to pass (FlagAge) are polled like conditions without triggers.
+                    MarkDirty(_hourWatches);
                 }
             }
 
@@ -465,6 +479,7 @@ namespace Aetherfall.Conditions
             private readonly ConditionWatcher _owner;
             private Entry _entry;
             private bool _declared;
+            private bool _poll;
 
             public Collector(ConditionWatcher owner)
             {
@@ -475,11 +490,13 @@ namespace Aetherfall.Conditions
             {
                 _entry = entry;
                 _declared = false;
+                _poll = false;
             }
 
-            public bool End()
+            public bool End(out bool pollRequested)
             {
                 _entry = null;
+                pollRequested = _poll;
                 return _declared;
             }
 
@@ -513,6 +530,12 @@ namespace Aetherfall.Conditions
             public void Constant()
             {
                 _declared = true;
+            }
+
+            public void Poll()
+            {
+                _declared = true;
+                _poll = true;
             }
         }
     }

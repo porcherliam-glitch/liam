@@ -156,6 +156,27 @@ namespace Aetherfall.Tests.EditMode.Conditions
         }
 
         [Test]
+        public void HourTrigger_IsPolledUntilTheGameClockSendsTime()
+        {
+            _watcher.Watch(new HourSwitch("h"), _ctx, _changes.Add);
+            _board.Set("h", true);
+            Assert.That(_watcher.HasGameClock, Is.False);
+
+            _watcher.Tick(1.1f);
+            Assert.That(_changes, Is.EqualTo(new[] { true }), "fallback: polled like a condition without triggers");
+
+            _bus.Publish(new TimeOfDayChanged(0, 6, 0, DayPhase.Morning));
+            _watcher.EvaluatePending();
+            Assert.That(_watcher.HasGameClock, Is.True);
+            _board.Set("h", false);
+            _board.Evaluations = 0;
+            _watcher.Tick(1.1f);
+
+            Assert.That(_board.Evaluations, Is.EqualTo(0), "with a game clock only a new hour re-evaluates");
+            Assert.That(_changes, Is.EqualTo(new[] { true }));
+        }
+
+        [Test]
         public void ConstantAndNullConditions_AreNeitherPolledNorSubscribed()
         {
             int always = _watcher.Watch(new Always(), _ctx, _changes.Add);
@@ -277,6 +298,30 @@ namespace Aetherfall.Tests.EditMode.Conditions
             Assert.That(TriggerSet.Of(new PolledSwitch("p")).IsEmpty, Is.True);
             Assert.That(TriggerSet.Of(new Always()).IsConstant, Is.True);
             Assert.That(TriggerSet.Of(null).IsEmpty, Is.True);
+            Assert.That(set.NeedsPolling, Is.False);
+        }
+
+        [Test]
+        public void TriggerSet_EntryWithoutTriggers_InsideALogicType_RequestsPolling()
+        {
+            TriggerSet set = TriggerSet.Of(new AllOf(new SwitchIsOn("a"), new AnyOf(new PolledSwitch("p"))));
+
+            Assert.That(set.Contains<SwitchFlipped>(), Is.True);
+            Assert.That(set.NeedsPolling, Is.True);
+            Assert.That(set.IsPolled, Is.True);
+            Assert.That(TriggerSet.Of(new AllOf((Condition)null)).IsPolled, Is.False, "an empty entry never changes");
+        }
+
+        [Test]
+        public void PolledEntryInsideAnd_IsPolled_AlthoughASiblingDeclaresAnEvent()
+        {
+            _board.Set("a", true);
+            _watcher.Watch(new AllOf(new SwitchIsOn("a"), new PolledSwitch("p")), _ctx, _changes.Add);
+
+            _board.Set("p", true);
+            _watcher.Tick(1.1f);
+
+            Assert.That(_changes, Is.EqualTo(new[] { true }), "changed without any event: found by polling");
         }
     }
 }

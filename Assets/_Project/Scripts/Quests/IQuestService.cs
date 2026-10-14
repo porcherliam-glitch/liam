@@ -34,7 +34,10 @@ namespace Aetherfall.Quests
         /// <summary>The focus quest (big compass marker), empty if none.</summary>
         string FocusQuestId { get; }
 
-        /// <summary>Life cycle status (unknown, available, active, completed, failed).</summary>
+        /// <summary>
+        /// Life cycle status (unknown, available, active, completed, failed; GDD 02 4.3). A finished repeatable quest reads
+        /// "available" again once its cool-down is over and its giver offers it.
+        /// </summary>
         /// <param name="questId">Quest id.</param>
         QuestStatus GetStatus(string questId);
 

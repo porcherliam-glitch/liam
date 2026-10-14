@@ -99,7 +99,7 @@ namespace Aetherfall.Tests.EditMode.Conditions
 
                 checkedTypes++;
                 Assert.That(type.IsSealed, Is.True, type.Name + " must be sealed");
-                Assert.That(type.IsSerializable, Is.True, type.Name + " must be [Serializable]");
+                Assert.That(Attribute.IsDefined(type, typeof(SerializableAttribute), false), Is.True, type.Name + " must be [Serializable]");
                 Assert.That(type.IsGenericType, Is.False, type.Name + " must not be generic");
                 Assert.That(type.GetConstructor(Type.EmptyTypes), Is.Not.Null, type.Name + " needs a public parameterless constructor");
                 var menu = type.GetCustomAttribute<TypeMenuAttribute>(false);

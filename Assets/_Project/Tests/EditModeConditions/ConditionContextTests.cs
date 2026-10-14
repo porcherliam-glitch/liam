@@ -109,7 +109,7 @@ namespace Aetherfall.Tests.EditMode.Conditions
         public void ConditionalAction_ValidatesItsChildren()
         {
             var report = new ValidationReport();
-            new ConditionalAction(new AllOf(null), new GameAction[] { null }).Validate(report);
+            new ConditionalAction(new AllOf((Condition)null), new GameAction[] { null }).Validate(report);
 
             Assert.That(report.CountOf(ValidationReportExtensions.MissingTypeCode), Is.EqualTo(2));
         }

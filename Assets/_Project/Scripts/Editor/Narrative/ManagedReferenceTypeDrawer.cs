@@ -14,8 +14,10 @@ namespace Aetherfall.EditorTools.Narrative
     /// with "Kopieren", "Einfuegen" and "Leeren". Works for single fields and every element of a list.
     /// </summary>
     /// <remarks>
-    /// Unity copies the reference of the last element when "+" is pressed on a list of managed references; the drawer
-    /// detects such shared references and gives the new element its own object of the same type.
+    /// Unity copies the reference of the last element when "+" is pressed on a list of managed references, and a duplicated
+    /// list element of a plain class (e.g. a stage) keeps pointing to the objectives and actions of the original. The drawer
+    /// compares every reference with the one at the same place in the previous list element and gives a shared one its own
+    /// copy (same type and values), so editing the copy never changes the original.
     /// Deviation from architecture 7.4: the drawer lives in <c>Aetherfall.EditorTools.Narrative</c> (assembly no. 35, the
     /// step that needs it) instead of <c>EditorTools.Core</c>, and is drawn with IMGUI (also shown inside UI Toolkit
     /// inspectors).
@@ -237,31 +239,62 @@ namespace Aetherfall.EditorTools.Narrative
         private static void SeparateSharedReference(SerializedProperty property)
         {
             string path = property.propertyPath;
-            if (!path.EndsWith("]", StringComparison.Ordinal))
+            object current = null;
+            int searchEnd = path.Length;
+            while (searchEnd > 0)
             {
+                int close = path.LastIndexOf(']', searchEnd - 1);
+                int open = close > 0 ? path.LastIndexOf('[', close) : -1;
+                if (open < 0)
+                {
+                    return;
+                }
+
+                searchEnd = open;
+                if (!int.TryParse(path.Substring(open + 1, close - open - 1), out int index) || index == 0)
+                {
+                    continue;
+                }
+
+                string siblingPath = path.Substring(0, open + 1) + (index - 1) + path.Substring(close);
+                SerializedProperty sibling = property.serializedObject.FindProperty(siblingPath);
+                if (sibling == null || sibling.propertyType != SerializedPropertyType.ManagedReference)
+                {
+                    continue;
+                }
+
+                if (current == null)
+                {
+                    current = ReadValue(property);
+                    if (current == null)
+                    {
+                        return;
+                    }
+                }
+
+                if (!ReferenceEquals(current, ReadValue(sibling)))
+                {
+                    continue;
+                }
+
+                property.managedReferenceValue = CopyOf(current);
+                property.serializedObject.ApplyModifiedProperties();
                 return;
             }
+        }
 
-            int open = path.LastIndexOf("[", StringComparison.Ordinal);
-            if (open < 0 || !int.TryParse(path.Substring(open + 1, path.Length - open - 2), out int index) || index == 0)
+        private static object CopyOf(object value)
+        {
+            try
             {
-                return;
+                object copy = Activator.CreateInstance(value.GetType(), true);
+                EditorJsonUtility.FromJsonOverwrite(EditorJsonUtility.ToJson(value), copy);
+                return copy;
             }
-
-            SerializedProperty previous = property.serializedObject.FindProperty(path.Substring(0, open + 1) + (index - 1) + "]");
-            if (previous == null || previous.propertyType != SerializedPropertyType.ManagedReference)
+            catch (Exception)
             {
-                return;
+                return CreateInstance(value.GetType());
             }
-
-            object current = ReadValue(property);
-            if (current == null || !ReferenceEquals(current, ReadValue(previous)))
-            {
-                return;
-            }
-
-            property.managedReferenceValue = CreateInstance(current.GetType());
-            property.serializedObject.ApplyModifiedProperties();
         }
     }
 }

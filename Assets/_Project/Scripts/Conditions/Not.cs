@@ -35,10 +35,7 @@ namespace Aetherfall.Conditions
         /// <inheritdoc />
         public override void CollectTriggers(ITriggerCollector triggers)
         {
-            if (condition != null)
-            {
-                condition.CollectTriggers(triggers);
-            }
+            triggers.CollectChild(condition);
         }
 
         /// <inheritdoc />

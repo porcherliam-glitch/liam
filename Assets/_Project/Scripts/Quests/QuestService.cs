@@ -124,7 +124,8 @@ namespace Aetherfall.Quests
         {
             if (questId != null && _instances.TryGetValue(questId, out QuestInstance instance) && instance.Status != QuestStatus.Unknown)
             {
-                return instance.Status;
+                // A repeatable quest goes back from "completed" to "available" after its cool-down (GDD 02, 4.3).
+                return instance.IsFinished && _availability.IsAvailable(questId) ? QuestStatus.Available : instance.Status;
             }
 
             return _availability.IsAvailable(questId) ? QuestStatus.Available : QuestStatus.Unknown;

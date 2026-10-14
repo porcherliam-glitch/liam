@@ -11,9 +11,9 @@ namespace Aetherfall.WorldState
     /// Makes delayed consequences independent of the travel speed (e.g. <c>FlagAlter(harrik_verschont) ≥ 15 h</c>).
     /// </summary>
     /// <remarks>
-    /// Re-evaluated on <c>FlagChanged</c> of the flag and every new game hour (<c>TimeOfDayChanged</c>). TODO (game clock
-    /// step): until the game clock sends <c>TimeOfDayChanged</c>, the time part is only re-checked when someone evaluates the
-    /// condition directly (stage branches, dialogue options).
+    /// Re-evaluated on <c>FlagChanged</c> of the flag and every new game hour (<c>TimeOfDayChanged</c>). Until the game clock
+    /// sends <c>TimeOfDayChanged</c> (game clock step, architecture 4.6), the condition watcher polls it once per second
+    /// instead (<see cref="Aetherfall.Conditions.ConditionWatcher.HasGameClock"/>).
     /// </remarks>
     [Serializable]
     [TypeMenu("Welt/Flag seit mindestens n Stunden", 1)]

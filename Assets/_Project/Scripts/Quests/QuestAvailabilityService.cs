@@ -12,8 +12,11 @@ namespace Aetherfall.Quests
     /// quests (<see cref="QuestTraits.Hidden"/>) are tracked but never announced. Owned by the <see cref="QuestService"/>.
     /// </summary>
     /// <remarks>
-    /// After a load (<see cref="Rebuild"/>) every available quest is announced again; views should rebuild their symbols on
-    /// <c>GameLoaded</c> as well. Quests without giver are not watched (cost: about 400 quests with giver, architecture 7.5).
+    /// <see cref="Clear"/> (end of session, start of a load) forgets the state without events, because loading must not send
+    /// gameplay events (architecture 9.1); it remembers which quests were announced as available. The next
+    /// <see cref="Rebuild"/> (after the load) then announces only the differences: quests that are no longer available get
+    /// <c>Available = false</c>, newly available ones <c>true</c>. Views should rebuild their symbols on <c>GameLoaded</c> as
+    /// well. Quests without giver are not watched (cost: about 400 quests with giver, architecture 7.5).
     /// </remarks>
     public sealed class QuestAvailabilityService : IDisposable
     {
@@ -25,6 +28,7 @@ namespace Aetherfall.Quests
         private readonly Dictionary<string, int> _watches = new Dictionary<string, int>(StringComparer.Ordinal);
         private readonly HashSet<string> _available = new HashSet<string>(StringComparer.Ordinal);
         private readonly HashSet<string> _coolingDown = new HashSet<string>(StringComparer.Ordinal);
+        private readonly HashSet<string> _announcedBeforeClear = new HashSet<string>(StringComparer.Ordinal);
         private readonly List<string> _scratch = new List<string>();
 
         internal QuestAvailabilityService(QuestService service, IEventBus bus, IConditionWatcher watcher, QuestCatalog catalog, IServiceLocator services)
@@ -49,7 +53,10 @@ namespace Aetherfall.Quests
             return questId != null && _available.Contains(questId);
         }
 
-        /// <summary>Forgets everything and watches all quests again (boot, after loading); announces every available quest.</summary>
+        /// <summary>
+        /// Forgets the watches and watches all quests again (boot, after loading). Announces only changes compared with what
+        /// was announced before (also across <see cref="Clear"/>).
+        /// </summary>
         public void Rebuild()
         {
             Clear();
@@ -57,6 +64,20 @@ namespace Aetherfall.Quests
             for (int i = 0; i < all.Count; i++)
             {
                 Refresh(all[i].Id);
+            }
+
+            if (_announcedBeforeClear.Count == 0)
+            {
+                return;
+            }
+
+            // Quests that were announced before but are no longer in the catalog: withdraw their symbols. A local copy, because
+            // receivers may start quests (re-entrant Refresh) while the events are delivered.
+            var withdrawn = new List<string>(_announcedBeforeClear);
+            _announcedBeforeClear.Clear();
+            for (int i = 0; i < withdrawn.Count; i++)
+            {
+                _bus.Publish(new QuestAvailabilityChanged(withdrawn[i], string.Empty, false));
             }
         }
 
@@ -121,12 +142,23 @@ namespace Aetherfall.Quests
             _scratch.Clear();
         }
 
-        /// <summary>Stops every watch and forgets the availability without events.</summary>
+        /// <summary>
+        /// Stops every watch and forgets the availability without events. Remembers which quests were announced as available,
+        /// so the next <see cref="Rebuild"/> can withdraw them if they are no longer available.
+        /// </summary>
         public void Clear()
         {
             foreach (int watchId in _watches.Values)
             {
                 _watcher.Unwatch(watchId);
+            }
+
+            foreach (string questId in _available)
+            {
+                if (_catalog.TryGet(questId, out QuestSpec spec) && !spec.Has(QuestTraits.Hidden))
+                {
+                    _announcedBeforeClear.Add(questId);
+                }
             }
 
             _watches.Clear();
@@ -159,23 +191,24 @@ namespace Aetherfall.Quests
 
         private void SetAvailable(QuestSpec spec, bool available)
         {
+            bool hidden = spec.Has(QuestTraits.Hidden);
             bool was = _available.Contains(spec.Id);
-            if (was == available)
+            bool wasAnnounced = _announcedBeforeClear.Remove(spec.Id) || (was && !hidden);
+            if (was != available)
             {
-                return;
+                if (available)
+                {
+                    _available.Add(spec.Id);
+                }
+                else
+                {
+                    _available.Remove(spec.Id);
+                }
+
+                _service.OnAvailabilityChanged();
             }
 
-            if (available)
-            {
-                _available.Add(spec.Id);
-            }
-            else
-            {
-                _available.Remove(spec.Id);
-            }
-
-            _service.OnAvailabilityChanged();
-            if (!spec.Has(QuestTraits.Hidden))
+            if (!hidden && wasAnnounced != available)
             {
                 _bus.Publish(new QuestAvailabilityChanged(spec.Id, spec.GiverId, available));
             }

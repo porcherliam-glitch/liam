@@ -70,10 +70,7 @@ namespace Aetherfall.Conditions
         {
             for (int i = 0; i < conditions.Count; i++)
             {
-                if (conditions[i] != null)
-                {
-                    conditions[i].CollectTriggers(triggers);
-                }
+                triggers.CollectChild(conditions[i]);
             }
         }
 

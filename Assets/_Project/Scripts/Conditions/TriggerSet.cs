@@ -26,7 +26,13 @@ namespace Aetherfall.Conditions
         public bool IsConstant { get; private set; }
 
         /// <summary>True if nothing was declared: the watcher would poll this condition once per second.</summary>
-        public bool IsEmpty => _eventTypes.Count == 0 && _flagIds.Count == 0 && !Hourly && !IsConstant;
+        public bool IsEmpty => _eventTypes.Count == 0 && _flagIds.Count == 0 && !Hourly && !IsConstant && !NeedsPolling;
+
+        /// <summary>True if polling was requested (an entry of a logic type declares no trigger).</summary>
+        public bool NeedsPolling { get; private set; }
+
+        /// <summary>True if the watcher polls the condition once per second (nothing declared or polling requested).</summary>
+        public bool IsPolled => IsEmpty || NeedsPolling;
 
         /// <summary>Collects the triggers of a condition (null = nothing).</summary>
         /// <param name="condition">Condition.</param>
@@ -76,6 +82,12 @@ namespace Aetherfall.Conditions
         public void Constant()
         {
             IsConstant = true;
+        }
+
+        /// <inheritdoc />
+        public void Poll()
+        {
+            NeedsPolling = true;
         }
     }
 }

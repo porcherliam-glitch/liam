@@ -787,9 +787,19 @@ namespace Aetherfall.Quests
             var reported = new HashSet<Type>();
             Action<Condition> check = condition =>
             {
-                if (condition != null && TriggerSet.Of(condition).IsEmpty && reported.Add(condition.GetType()))
+                if (condition == null)
+                {
+                    return;
+                }
+
+                TriggerSet triggers = TriggerSet.Of(condition);
+                if (triggers.IsEmpty && reported.Add(condition.GetType()))
                 {
                     report.Info("C01", "Bedingung " + condition.GetType().Name + " meldet keine Auslöser und wird jede Sekunde geprüft (Architektur 7.5).");
+                }
+                else if (!triggers.IsEmpty && triggers.NeedsPolling)
+                {
+                    report.Info("C01", "„" + condition.Describe() + "“ enthält eine Bedingung ohne Auslöser und wird jede Sekunde geprüft (Architektur 7.5).");
                 }
             };
             check(quest.StartCondition);
