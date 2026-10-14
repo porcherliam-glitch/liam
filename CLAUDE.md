@@ -47,6 +47,7 @@ Der Rest ist Platzhalter: einfache Formen, später Blender-Modelle oder kostenlo
 - **Testbarkeit:** Reine Logik ohne UnityEngine-Laufzeitaufrufe in eigene Klassen legen und mit EditMode-Tests absichern. Dünne MonoBehaviour-Adapter nur für Unity-Zugriffe.
 - **Speichern mitdenken:** Jedes System mit Zustand implementiert `ISaveable` (Architektur 9).
 - **Controller mitdenken:** Jede UI muss vollständig mit dem Gamepad bedienbar sein.
+- **Bilder für den Auftraggeber (Wunsch vom 2026-10-14):** Nach den Vorschaubildern von Dorf Eichental und Gruft keine neuen Vorschaubilder oder Videos mehr erstellen, außer er fragt ausdrücklich danach. Screenshots, mit denen Claude die eigene Arbeit prüft, sind weiter erlaubt.
 - **Nach jedem Baustein:**
   - Tests grün
   - Testanleitung `docs/Anleitungen/NN_….md` schreiben
