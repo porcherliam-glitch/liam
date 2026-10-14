@@ -2,6 +2,7 @@
     "name": "Aetherfall.EditorTools.World",
     "rootNamespace": "Aetherfall.EditorTools.World",
     "references": [
+        "Aetherfall.Utilities",
         "Aetherfall.Core",
         "Aetherfall.Events",
         "Aetherfall.Data",

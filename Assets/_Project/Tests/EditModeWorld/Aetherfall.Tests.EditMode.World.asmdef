@@ -1,0 +1,28 @@
+{
+    "name": "Aetherfall.Tests.EditMode.World",
+    "rootNamespace": "Aetherfall.Tests.EditMode.World",
+    "references": [
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner",
+        "Aetherfall.Utilities",
+        "Aetherfall.Core",
+        "Aetherfall.Data",
+        "Aetherfall.World",
+        "Aetherfall.Tests.Shared"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

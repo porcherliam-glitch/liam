@@ -2,8 +2,10 @@
     "name": "Aetherfall.World",
     "rootNamespace": "Aetherfall.World",
     "references": [
+        "Aetherfall.Utilities",
         "Aetherfall.Core",
-        "Aetherfall.Events"
+        "Aetherfall.Events",
+        "Aetherfall.Data"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

@@ -1,10 +1,7 @@
 using System.IO;
-using Aetherfall.EditorTools.Core;
-using Aetherfall.Player;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
-using UnityEngine.UIElements;
 
 namespace Aetherfall.EditorTools.World
 {
@@ -19,7 +16,8 @@ namespace Aetherfall.EditorTools.World
     /// quests with their flags, checked by the quest validator, notice board and training ground zone;
     /// <see cref="TestGroundQuestAssets"/>, <see cref="TestGroundQuestBuilder"/>) and the user interface
     /// (<see cref="TestGroundUiBuilder"/>: SceneLoader and UI installers, panel settings, UI object in the boot scene, scene list
-    /// Boot + test ground). Idempotent: existing assets are reused, an existing scene is rebuilt only after asking.
+    /// Boot + Eichental + test ground; shared part in <see cref="WorldSetup"/>). Idempotent: existing assets are reused, an existing scene is
+    /// rebuilt only after asking.
     /// <see cref="RunBatch"/> does the same without dialogs (batch mode, CLAUDE.md "Batchmode-Einstiegspunkte").
     /// Guides: docs/Anleitungen/03_Test_Spielfigur.md, 04_Test_Werte_Speichern.md, 05_Test_Kampf.md, 06_Test_Items_Loot.md,
     /// 07_Test_Oberflaeche.md, 09_Test_Quests_im_Spiel.md.
@@ -62,7 +60,7 @@ namespace Aetherfall.EditorTools.World
                 "• Layer 6 „Player“, 7 „Enemy“, 9 „Hurtbox“, 10 „Interactable“, 11 „Environment“, 14 „TriggerVolume“ und 16 „Pickup“, falls frei\n" +
                 "• Oberfläche: SceneLoaderInstaller und UIInstaller in der BootConfig, " + TestGroundUiBuilder.PanelSettingsPath +
                 ", Objekt „UI“ in der Boot-Szene (Hauptmenü, HUD mit Quest-Verfolgung, Pausemenü, Questlog & Charakter, Todesbildschirm, " +
-                "Ladebildschirm, Menükamera), Szenenliste Boot + Testgelände\n\n" +
+                "Ladebildschirm, Menükamera), Szenenliste Boot + Eichental (falls erstellt) + Testgelände\n\n" +
                 (sceneExists
                     ? "Die Szene existiert bereits und wird NEU AUFGEBAUT. Eigene Änderungen in dieser Szene gehen verloren. " +
                       "Die Assets (Materialien, Einstellungen) bleiben erhalten."
@@ -135,86 +133,15 @@ namespace Aetherfall.EditorTools.World
 
         private static GameObject Build(TestGroundReport report)
         {
-            if (!TestGroundAssets.EnsureFolder(TestGroundPaths.SceneFolder, report) ||
-                !TestGroundAssets.EnsureFolder(TestGroundPaths.MaterialFolder, report) ||
-                !TestGroundAssets.EnsureFolder(TestGroundPaths.PlayerSettingsFolder, report) ||
-                !TestGroundAssets.EnsureFolder(SetupPaths.BootSettingsFolder, report) ||
-                !TestGroundAssets.EnsureFolder(TestGroundPaths.AttackFolder, report) ||
-                !TestGroundAssets.EnsureFolder(TestGroundPaths.WeaponFolder, report) ||
-                !TestGroundAssets.EnsureFolder(TestGroundPaths.EnemyFolder, report) ||
-                !TestGroundAssets.EnsureFolder(TestGroundPaths.CombatSettingsFolder, report) ||
-                !TestGroundAssets.EnsureFolder(TestGroundPaths.ItemFolder, report) ||
-                !TestGroundAssets.EnsureFolder(TestGroundPaths.LootTableFolder, report) ||
-                !TestGroundAssets.EnsureFolder(TestGroundPaths.ItemSettingsFolder, report))
+            WorldSetup setup = WorldSetup.Prepare(report);
+            if (setup == null)
             {
-                report.Warning("Ordner fehlen – Abbruch.");
                 return null;
             }
 
-            int playerLayer = ProjectLayers.Ensure(TestGroundPaths.PlayerLayerIndex, TestGroundPaths.PlayerLayerName, report);
-            int environmentLayer = ProjectLayers.Ensure(TestGroundPaths.EnvironmentLayerIndex, TestGroundPaths.EnvironmentLayerName, report);
-            int enemyLayer = ProjectLayers.Ensure(TestGroundPaths.EnemyLayerIndex, TestGroundPaths.EnemyLayerName, report);
-            int hurtboxLayer = ProjectLayers.Ensure(TestGroundPaths.HurtboxLayerIndex, TestGroundPaths.HurtboxLayerName, report);
-            if (hurtboxLayer >= 0)
-            {
-                ProjectLayers.IsolateLayer(hurtboxLayer, report);
-            }
-
-            int interactableLayer = ProjectLayers.Ensure(TestGroundPaths.InteractableLayerIndex, TestGroundPaths.InteractableLayerName, report);
-            if (interactableLayer >= 0)
-            {
-                ProjectLayers.IsolateLayer(interactableLayer, report);
-            }
-
-            int pickupLayer = ProjectLayers.Ensure(TestGroundPaths.PickupLayerIndex, TestGroundPaths.PickupLayerName, report);
-            if (pickupLayer >= 0)
-            {
-                // Architecture 2.8: Pickup collides with Environment, Terrain and Player only (the loot collector uses queries).
-                ProjectLayers.RestrictLayer(pickupLayer, new[] { environmentLayer, LayerMask.NameToLayer("Terrain"), playerLayer }, report);
-            }
-
-            int triggerVolumeLayer = ProjectLayers.Ensure(TestGroundPaths.TriggerVolumeLayerIndex, TestGroundPaths.TriggerVolumeLayerName, report);
-            if (triggerVolumeLayer >= 0)
-            {
-                // Architecture 2.8: TriggerVolume collides with Player and NPC only (NPC follows with the NPC step).
-                ProjectLayers.RestrictLayer(triggerVolumeLayer, new[] { playerLayer }, report);
-            }
-
-            var materials = new TestGroundMaterials(report);
-            PlayerMovementSettings settings = TestGroundAssets.EnsureMovementSettings(report);
-            TestGroundAssets.EnsureInputInstallerInBootConfig(report);
-            TestGroundAssets.EnsureSaveInstallersInBootConfig(report);
-            var combat = new TestGroundCombatAssets(report);
-            TestGroundAssets.EnsureCombatInstallersInBootConfig(combat.Settings, report);
-            var items = new TestGroundItemAssets(report);
-            items.AssignWolfLoot(combat.Wolf, combat.AetherWolf);
-            TestGroundAssets.EnsureItemInstallersInBootConfig(items.Catalog, items.StartingEquipment, report);
-            TestGroundAssets.EnsureNarrativeInstallersInBootConfig(report);
-            var quests = new TestGroundQuestAssets(items.Catalog, report);
-            TestGroundUiBuilder.EnsureInstallers(report);
-            AssetDatabase.SaveAssets();
-            if (quests.Count > 0 && !quests.Validate())
-            {
-                report.Warning("Die Quest-Prüfung meldet Fehler (siehe Meldungen oben). Details: „Aetherfall > Quests prüfen“.");
-            }
-
-            if (settings == null)
-            {
-                report.Warning("Ohne PlayerMovementSettings kann sich die Figur nicht bewegen – Szene nicht erstellt.");
-                return null;
-            }
-
-            // The boot scene part (UI object, panel settings) first: it opens and saves the boot scene, the scene builder then
-            // replaces it by the new test ground.
-            PanelSettings panel = TestGroundUiBuilder.EnsurePanelSettings(report);
-            if (panel == null || !TestGroundUiBuilder.EnsureBootUi(panel, report))
-            {
-                report.Warning("Die Oberfläche in der Boot-Szene ist unvollständig (siehe Meldungen oben). Das Testgelände funktioniert " +
-                               "trotzdem, Hauptmenü und HUD fehlen aber. Danach „" + TestGroundUiBuilder.MenuPath + "“ ausführen.");
-            }
-
-            GameObject player = TestGroundSceneBuilder.Build(settings, materials, playerLayer, environmentLayer, combat, enemyLayer, hurtboxLayer, items,
-                interactableLayer, pickupLayer, triggerVolumeLayer, report);
+            WorldLayers layers = setup.Layers;
+            GameObject player = TestGroundSceneBuilder.Build(setup.Settings, setup.Materials, layers.Player, layers.Environment, setup.Combat, layers.Enemy,
+                layers.Hurtbox, setup.Items, layers.Interactable, layers.Pickup, layers.TriggerVolume, report);
             TestGroundUiBuilder.EnsureSceneList(report);
             AssetDatabase.SaveAssets();
             return player;

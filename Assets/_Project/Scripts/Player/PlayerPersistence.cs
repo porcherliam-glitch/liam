@@ -55,9 +55,11 @@ namespace Aetherfall.Player
         {
             if (!string.IsNullOrEmpty(targetWorldSpaceId) && !string.Equals(targetWorldSpaceId, worldSpaceId, StringComparison.Ordinal))
             {
-                // Changing world spaces needs the scene loader (later step); until then the player stays in this scene.
+                // Changing world spaces needs the scene loader (later step). A position from another world (e.g. a test ground
+                // save loaded into the Eichental) would put the player under the terrain, so the player stays at the scene's start.
                 Log.Warning(LogCategory.Player, "Save places the player in world space '" + targetWorldSpaceId + "', but this scene is '" +
-                                                worldSpaceId + "'. The position is applied here.");
+                                                worldSpaceId + "'. The saved position is ignored; the player stays at the start point.");
+                return;
             }
 
             motor.Teleport(pose);

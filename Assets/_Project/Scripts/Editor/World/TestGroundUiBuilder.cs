@@ -28,7 +28,7 @@ namespace Aetherfall.EditorTools.World
     /// Sets up the user interface (UI Toolkit, architecture 12) idempotently: the installers <see cref="SceneLoaderInstaller"/>
     /// (boot step 8b) and <see cref="UIInstaller"/> (step 15) in the BootConfig, the panel settings asset with the Aetherfall
     /// theme, the GameObject "UI" with <see cref="UIRoot"/> and one UIDocument per layer in the boot scene, the scene list
-    /// (Boot index 0, test ground behind it) and the <see cref="PlayerHudLink"/> on the player of the test ground.
+    /// (Boot index 0, then Eichental and test ground) and the <see cref="PlayerHudLink"/> on the player of a world scene.
     /// </summary>
     /// <remarks>
     /// Menu <see cref="MenuPath"/> runs the boot scene part alone; "Aetherfall > Testgelaende erstellen" runs everything.
@@ -101,7 +101,7 @@ namespace Aetherfall.EditorTools.World
                 "• SceneLoaderInstaller und UIInstaller in der BootConfig\n" +
                 "• " + PanelSettingsPath + " mit dem Aetherfall-Theme\n" +
                 "• Objekt „UI“ in der Boot-Szene mit Hauptmenü, Pausemenü, Todesbildschirm, HUD, Meldungen, Ladebildschirm und Menükamera\n" +
-                "• Szenenliste: Boot (Index 0), dahinter das Testgelände\n\n" +
+                "• Szenenliste: Boot (Index 0), dahinter Eichental und Testgelände (falls schon erstellt)\n\n" +
                 "Vorhandenes wird nicht überschrieben. Die Boot-Szene wird dazu geöffnet und gespeichert.";
             if (!EditorUtility.DisplayDialog(DialogTitle, question, "Einrichten", "Abbrechen") ||
                 !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
@@ -263,7 +263,10 @@ namespace Aetherfall.EditorTools.World
             return complete;
         }
 
-        /// <summary>Scene list: Boot first (index 0), the test ground directly behind it; other entries stay.</summary>
+        /// <summary>
+        /// Scene list: Boot first (index 0), then the Eichental (the world of the mini slice, "Neues Spiel" starts there) and the
+        /// test ground, each if it exists; other entries stay behind them.
+        /// </summary>
         /// <param name="report">Protocol.</param>
         public static void EnsureSceneList(TestGroundReport report)
         {
@@ -271,6 +274,12 @@ namespace Aetherfall.EditorTools.World
             {
                 new EditorBuildSettingsScene(SetupPaths.BootScenePath, true)
             };
+            bool hasEichental = File.Exists(FullPath(EichentalPaths.ScenePath));
+            if (hasEichental)
+            {
+                scenes.Add(new EditorBuildSettingsScene(EichentalPaths.ScenePath, true));
+            }
+
             bool hasTestGround = File.Exists(FullPath(TestGroundPaths.ScenePath));
             if (hasTestGround)
             {
@@ -280,7 +289,8 @@ namespace Aetherfall.EditorTools.World
             EditorBuildSettingsScene[] current = EditorBuildSettings.scenes;
             for (int i = 0; i < current.Length; i++)
             {
-                if (current[i].path != SetupPaths.BootScenePath && current[i].path != TestGroundPaths.ScenePath)
+                string path = current[i].path;
+                if (path != SetupPaths.BootScenePath && path != EichentalPaths.ScenePath && path != TestGroundPaths.ScenePath)
                 {
                     scenes.Add(current[i]);
                 }
@@ -293,7 +303,8 @@ namespace Aetherfall.EditorTools.World
             }
 
             EditorBuildSettings.scenes = scenes.ToArray();
-            report.Info("Szenenliste gesetzt: " + Describe(EditorBuildSettings.scenes) + (hasTestGround ? string.Empty : " (Testgelände noch nicht erstellt)"));
+            report.Info("Szenenliste gesetzt: " + Describe(EditorBuildSettings.scenes) +
+                        (hasEichental ? string.Empty : " (Eichental noch nicht erstellt)") + (hasTestGround ? string.Empty : " (Testgelände noch nicht erstellt)"));
         }
 
         /// <summary>Adds the HUD bridge to the player of the test ground and fills its references.</summary>

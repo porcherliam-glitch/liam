@@ -155,7 +155,7 @@ namespace Aetherfall.EditorTools.World
             sun.shadows = LightShadows.Soft;
         }
 
-        private static Camera SetUpMainCamera(Scene scene, TestGroundReport report)
+        internal static Camera SetUpMainCamera(Scene scene, TestGroundReport report)
         {
             Camera camera = FindInScene<Camera>(scene);
             if (camera == null)
@@ -177,7 +177,7 @@ namespace Aetherfall.EditorTools.World
             return camera;
         }
 
-        private static GameObject CreatePlayer(PlayerMovementSettings settings, TestGroundMaterials materials, int playerLayer, Camera mainCamera,
+        internal static GameObject CreatePlayer(PlayerMovementSettings settings, TestGroundMaterials materials, int playerLayer, Camera mainCamera,
             TestGroundReport report, out Transform pivot)
         {
             var player = new GameObject("Player");
@@ -238,7 +238,7 @@ namespace Aetherfall.EditorTools.World
             return player;
         }
 
-        private static PlayerStatusDebugOverlay CreateStatusOverlay(GameObject player, TestGroundReport report)
+        internal static PlayerStatusDebugOverlay CreateStatusOverlay(GameObject player, TestGroundReport report)
         {
             PlayerStatusDebugOverlay overlay = new GameObject("PlayerStatusOverlay").AddComponent<PlayerStatusDebugOverlay>();
             if (player.TryGetComponent(out DamageableComponent damageable))
@@ -255,7 +255,7 @@ namespace Aetherfall.EditorTools.World
             return overlay;
         }
 
-        private static CameraLookInput CreateExplorationCamera(Transform pivot, int collisionMask, TestGroundReport report, out CinemachineCamera camera,
+        internal static CameraLookInput CreateExplorationCamera(Transform pivot, int collisionMask, TestGroundReport report, out CinemachineCamera camera,
             out CinemachineOrbitalFollow orbitalFollow)
         {
             var cameraObject = new GameObject("CM_Explore");
@@ -367,7 +367,7 @@ namespace Aetherfall.EditorTools.World
             }
         }
 
-        private static Font LoadLabelFont(TestGroundReport report)
+        internal static Font LoadLabelFont(TestGroundReport report)
         {
             try
             {

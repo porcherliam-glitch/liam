@@ -81,7 +81,7 @@ namespace Aetherfall.EditorTools.World
                         "Interaktions-Hinweis „InteractionPrompt“ (Bildmitte unten).");
         }
 
-        private static void BuildLootRoot(TestGroundItemAssets items, int pickupLayer, TestGroundReport report)
+        internal static void BuildLootRoot(TestGroundItemAssets items, int pickupLayer, TestGroundReport report)
         {
             var root = new GameObject("Loot");
             LootBeamPool beams = root.AddComponent<LootBeamPool>();
@@ -100,12 +100,32 @@ namespace Aetherfall.EditorTools.World
         private static void BuildChest(Transform parent, string name, string chestId, string tableId, ChestTier tier, Vector3 localPosition,
             Material material, int interactableLayer, int environmentLayer, Font labelFont, TestGroundReport report)
         {
+            // Front (local +Z) towards the spawn in the south.
+            BuildChest(parent, name, chestId, tableId, tier, localPosition, 180f, TestGroundPaths.AreaLevel, material, interactableLayer,
+                environmentLayer, labelFont, report);
+        }
+
+        /// <summary>Builds one chest with its lid, interaction trigger, <see cref="LootChest"/> and name sign.</summary>
+        /// <param name="parent">Parent transform.</param>
+        /// <param name="name">Display name (German).</param>
+        /// <param name="chestId">Stable object id.</param>
+        /// <param name="tableId">Loot table id.</param>
+        /// <param name="tier">Chest quality.</param>
+        /// <param name="localPosition">Position relative to the parent.</param>
+        /// <param name="localYaw">Rotation around y in degrees (the front faces local +Z).</param>
+        /// <param name="areaLevel">Area level (item level of the loot, GDD 04 4.1).</param>
+        /// <param name="material">Material of body and lid.</param>
+        /// <param name="interactableLayer">Interactable layer or −1.</param>
+        /// <param name="environmentLayer">Environment layer.</param>
+        /// <param name="labelFont">Font of the sign (may be null).</param>
+        /// <param name="report">Protocol.</param>
+        internal static void BuildChest(Transform parent, string name, string chestId, string tableId, ChestTier tier, Vector3 localPosition,
+            float localYaw, int areaLevel, Material material, int interactableLayer, int environmentLayer, Font labelFont, TestGroundReport report)
+        {
             var chest = new GameObject(name);
             chest.transform.SetParent(parent, false);
             chest.transform.localPosition = localPosition;
-
-            // Front (local +Z) towards the spawn in the south.
-            chest.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
+            chest.transform.localRotation = Quaternion.Euler(0f, localYaw, 0f);
 
             GameObject body = GameObject.CreatePrimitive(PrimitiveType.Cube);
             body.name = "Korpus";
@@ -139,14 +159,14 @@ namespace Aetherfall.EditorTools.World
             TestGroundFields.SetString(logic, "chestId", chestId, report);
             TestGroundFields.SetString(logic, "lootTableId", tableId, report);
             TestGroundFields.SetInt(logic, "tier", (int)tier, report);
-            TestGroundFields.SetInt(logic, "areaLevel", TestGroundPaths.AreaLevel, report);
+            TestGroundFields.SetInt(logic, "areaLevel", areaLevel, report);
             TestGroundFields.SetString(logic, "displayName", name, report);
             TestGroundFields.SetReference(logic, "lid", hinge.transform, report);
 
             CreateLabel(chest.transform, name, new Vector3(0f, 1.35f, 0f), labelFont, 0.03f);
         }
 
-        private static void SetUpPlayer(GameObject player, int interactableLayer, int pickupLayer, TestGroundReport report)
+        internal static void SetUpPlayer(GameObject player, int interactableLayer, int pickupLayer, TestGroundReport report)
         {
             int interactMask = 0;
             if (interactableLayer >= 0)

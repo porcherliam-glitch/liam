@@ -322,7 +322,7 @@ namespace Aetherfall.EditorTools.World
             TestGroundFields.SetReference(logic, "hitFlash", flash, report);
         }
 
-        private static EnemyController BuildWolf(Transform parent, string name, string number, EnemyTypeDefinition definition, Material furMaterial,
+        internal static EnemyController BuildWolf(Transform parent, string name, string number, EnemyTypeDefinition definition, Material furMaterial,
             TestGroundMaterials materials, Vector3 localPosition, float yaw, bool guard, Transform[] patrol, int enemyLayer, int hurtboxLayer,
             int environmentLayer, TestGroundReport report)
         {

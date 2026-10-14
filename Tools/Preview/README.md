@@ -99,3 +99,28 @@ Unity: x rechts (Osten), y oben, z vorne (Norden), linkshändig. Blender: x Oste
 - **Keine Spiellogik:** Wölfe stehen still (keine KI, keine Animation). Kamera-Kollision mit Wänden, Lock-On und Kamera-Wackeln sind nicht nachgebaut.
 - **Sprungtest:** Die Bahn nutzt die Formeln von `PlayerMovementModel` (Bodenbeschleunigung, Sprung, steigende und fallende Schwerkraft, Luftsteuerung ohne Umkehr). Kollisionen sind vereinfacht (Kapsel gegen Plattform-Quader). Die „Eingaben“ sind ausgedacht: kurz stehen, laufen, springen, im Sprung den Stick zurückziehen, damit die Figur auf der 2,4 m kleinen Plattform landet. Die Kamera-Drehung beim Laufen ist ein simuliertes Maus-Nachführen (im Spiel dreht die Kamera nicht von selbst mit).
 - **Videos mit EEVEE:** Cycles bräuchte für 1280×720 bei 16 Samples etwa 9 s je Bild (über 1,5 Stunden für beide Videos). EEVEE (Rasterisierung wie in Unity, 16 Samples zur Kantenglättung und für weiche Schatten) braucht etwa 2 s. Die Einzelbilder sind mit Cycles gerendert, daher wirken Schatten und Licht in Bildern und Videos leicht unterschiedlich. Der Rundflug ist 14 s lang, damit beide Videos in rund 22 Minuten fertig sind.
+
+## Eichental
+
+Das Dorf Eichental (Mini-Slice, [Anleitung 11](../../docs/Anleitungen/11_Test_Eichental.md)) hat eigene Skripte. Anders als beim Testgelände sind die Werte hier **nicht kopiert**: Unity-Generator und Vorschau lesen **dieselbe Datei** `Assets/_Project/Data/Regions/Eichental/eichental_layout.json`.
+
+| Datei | Aufgabe |
+|---|---|
+| `eichental_layout.py` | Python-Zwilling der C#-Logik in `Assets/_Project/Scripts/World/Layout/`: Höhen (`LayoutHeightField`), Bodenarten (`LayoutGroundMap`), Pflanzen-Verteilung (`VegetationScatter`, gleicher PCG32-Zufall), Gegnerpositionen und Riss-Kristalle (`LayoutPlacement`). |
+| `eichental_referenz.py` | Schreibt Vergleichswerte des Python-Zwillings nach `Assets/_Project/Tests/EditModeWorld/EichentalPreviewReference.cs`. Die EditMode-Tests prüfen damit, dass C# und Python gleich rechnen. **Nach jeder Änderung der Layout-Datei ausführen.** |
+| `eichental_preview.py` | Baut das Eichental in Blender nach (Gelände mit Bodenfarben, Bäche, Häuser mit Dächern, verbrannte und eingestürzte Häuser mit Glut und Rauch, Pflanzen, Felsen, Requisiten, Riss, Wölfe, Truhen, NPC-Platzhalter, Spielfigur) und rendert. Jobs: `uebersicht`, `dorf`, `karte`, `alle_bilder`, `rundflug`. |
+| `eichental_nachbearbeiten.py` | Hinweis-Balken, Ortsnamen in der Übersicht, Beschriftung, Legende, Maßstab und Nordpfeil der Karte; setzt das Video zusammen (Zwischenbilder auf 30 fps, leichtes Entrauschen, H.264). |
+
+```bash
+blender -b -P Tools/Preview/eichental_preview.py -- --job alle_bilder --samples 96 --out AUSGABE
+python3 -I Tools/Preview/eichental_nachbearbeiten.py --dir AUSGABE
+blender -b -P Tools/Preview/eichental_preview.py -- --job rundflug --samples 2 --fps 15 --fast --out AUSGABE
+python3 -I Tools/Preview/eichental_nachbearbeiten.py --dir AUSGABE --video --render-fps 15
+python3 -I Tools/Preview/eichental_referenz.py
+```
+
+Ergebnis: `eichental_uebersicht.png`, `eichental_dorf.png`, `eichental_karte.png` (1920 × 1080 bzw. 2300 × 1600) und `eichental_rundflug.mp4` (15 s, 1280 × 720). Weitere Schalter: `--test` (halbe Größe), `--first-frame`/`--last-frame` (Teil des Videos), `--overwrite`. Höhen, Bodenarten und Pflanzen werden beim ersten Lauf berechnet und als `eichental_cache_*.pickle` im Ausgabeordner zwischengespeichert (neu, sobald sich die Layout-Datei ändert).
+
+Rechenzeit auf 4 CPU-Kernen ohne Grafikkarte (gemessen am 2026-10-14): drei Einzelbilder mit Cycles und 96 Samples zusammen 11–12 Minuten; Rundflug RUNDFLUGZEIT. Für den Rundflug ist Cycles im Modus `--fast` vereinfacht: Umgebungslicht als Eigenleuchten statt indirektem Licht, 2 Samples, 15 Bilder pro Sekunde, die Zwischenbilder für 30 fps rechnet ffmpeg (`minterpolate`). EEVEE läuft in dieser Umgebung nicht.
+
+**Grenzen:** wie oben (Nachbau, kein Unity-Rendering). Rauch ist in der Vorschau eine Volumen-Wolke (im Video weggelassen), in Unity ein Partikelsystem. Gezeigt werden nur Gegner, die von Anfang an da sind; die Quest-Gruppen sind in Unity ausgeschaltet. Glut-Lichter, Riss-Licht und Lagerfeuer sind in Blender und Unity unterschiedlich hell.
