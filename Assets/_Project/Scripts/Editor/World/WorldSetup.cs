@@ -90,6 +90,15 @@ namespace Aetherfall.EditorTools.World
             TestGroundNpcBuilder.CreateAssets(items.Catalog, report);
             MiniSliceAssets.CreateAll(items.Catalog, report);
             TestGroundAssets.EnsureNarrativeInstallersInBootConfig(report, applyTestGroundStartLevel);
+            if (applyTestGroundStartLevel)
+            {
+                MiniSliceProfile.ApplyTestGround(items.StartingEquipment, report);
+            }
+            else
+            {
+                // Eichental: a new game is the mini slice (start level 1, kit of item level 1).
+                MiniSliceProfile.Apply(report);
+            }
             var quests = new TestGroundQuestAssets(items.Catalog, report);
             TestGroundUiBuilder.EnsureInstallers(report);
             AssetDatabase.SaveAssets();

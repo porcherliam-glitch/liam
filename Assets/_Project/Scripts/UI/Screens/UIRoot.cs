@@ -301,6 +301,7 @@ namespace Aetherfall.UI.Screens
 
             _eventBus.Unsubscribe<GameStateChanged>(OnGameStateChanged);
             _eventBus.Unsubscribe<PlayerDied>(OnPlayerDied);
+            _eventBus.Unsubscribe<PlayerSpawned>(OnPlayerSpawned);
             _eventBus.Unsubscribe<GameLoaded>(OnGameLoaded);
             _eventBus.Unsubscribe<GameSaved>(OnGameSaved);
             _eventBus.Unsubscribe<ItemPickedUp>(OnItemPickedUp);
@@ -389,6 +390,7 @@ namespace Aetherfall.UI.Screens
 
             _eventBus.Subscribe<GameStateChanged>(OnGameStateChanged);
             _eventBus.Subscribe<PlayerDied>(OnPlayerDied);
+            _eventBus.Subscribe<PlayerSpawned>(OnPlayerSpawned);
             _eventBus.Subscribe<GameLoaded>(OnGameLoaded);
             _eventBus.Subscribe<GameSaved>(OnGameSaved);
             _eventBus.Subscribe<ItemPickedUp>(OnItemPickedUp);
@@ -448,6 +450,11 @@ namespace Aetherfall.UI.Screens
         private void OnPlayerDied(PlayerDied evt)
         {
             _director.OnPlayerDied();
+        }
+
+        private void OnPlayerSpawned(PlayerSpawned evt)
+        {
+            _director.OnPlayerSpawned();
         }
 
         private void OnGameLoaded(GameLoaded evt)

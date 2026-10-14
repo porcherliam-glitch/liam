@@ -77,6 +77,31 @@ namespace Aetherfall.EditorTools.World
             }
         }
 
+        /// <summary>
+        /// Level of the enemies of a spawner of the layout (GDD 02 11.0: prologue at level 1, the North slope at level 3; the
+        /// named enemies a little above), 0 = level of the enemy type.
+        /// </summary>
+        /// <param name="spawnerId">Spawner id of the layout.</param>
+        public static int EnemyLevel(string spawnerId)
+        {
+            switch (spawnerId)
+            {
+                case "spawn.eichental.dorfrand_risslinge":
+                    return 1;
+                case "spawn.eichental.rissbrut_prolog":
+                    return 3;
+                case "spawn.eichental.nordhang_woelfe":
+                case "spawn.eichental.riss_streuner":
+                case "spawn.eichental.nordhang_rudel":
+                case "spawn.eichental.bau_wut":
+                    return 3;
+                case "spawn.eichental.glutfang":
+                    return 5;
+                default:
+                    return 0;
+            }
+        }
+
         /// <summary>Second interaction of the splinter: break it out and keep it (outcome 3).</summary>
         public static ObjectSetup SplinterBreakOut()
         {

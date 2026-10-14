@@ -22,41 +22,41 @@ MonoBehaviour:
   questId: 
   questExitIds: []
   nodes:
-  - rid: 8292696249713295487
-  - rid: 8292696249713295491
-  - rid: 8292696249713295492
+  - rid: 8292696249821823103
+  - rid: 8292696249821823107
+  - rid: 8292696249821823108
   notes: 
   references:
     version: 2
     RefIds:
-    - rid: 8292696249713295487
+    - rid: 8292696249821823103
       type: {class: BranchNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n010
         editorPosition: {x: 0, y: 0}
         branches:
         - condition:
-            rid: 8292696249713295488
+            rid: 8292696249821823104
           targetNodeId: n200
         defaultNodeId: n100
-    - rid: 8292696249713295488
+    - rid: 8292696249821823104
       type: {class: AllOf, ns: Aetherfall.Conditions, asm: Aetherfall.Conditions}
       data:
         conditions:
-        - rid: 8292696249713295489
-        - rid: 8292696249713295490
-    - rid: 8292696249713295489
+        - rid: 8292696249821823105
+        - rid: 8292696249821823106
+    - rid: 8292696249821823105
       type: {class: QuestStatusIs, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         questId: quest.dungeon.eichental.vergessene_gruft
         status: 3
-    - rid: 8292696249713295490
+    - rid: 8292696249821823106
       type: {class: FlagIs, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: flag.eichental.siegelstein_verbleib
         comparison: 0
         value: 2
-    - rid: 8292696249713295491
+    - rid: 8292696249821823107
       type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n100
@@ -71,7 +71,7 @@ MonoBehaviour:
         camera: 0
         actions: []
         voiceClipId: 
-    - rid: 8292696249713295492
+    - rid: 8292696249821823108
       type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n200

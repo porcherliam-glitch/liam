@@ -13,4 +13,4 @@ MonoBehaviour:
   m_Name: ProgressionInstaller
   m_EditorClassIdentifier: Aetherfall.Progression::Aetherfall.Progression.ProgressionInstaller
   curve: {fileID: 0}
-  newGameStartLevel: 10
+  newGameStartLevel: 1

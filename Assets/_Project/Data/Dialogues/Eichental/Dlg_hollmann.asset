@@ -22,55 +22,55 @@ MonoBehaviour:
   questId: 
   questExitIds: []
   nodes:
-  - rid: 8292696249713295443
-  - rid: 8292696249713295447
-  - rid: 8292696249713295448
-  - rid: 8292696249713295449
-  - rid: 8292696249713295450
-  - rid: 8292696249713295451
-  - rid: 8292696249713295453
-  - rid: 8292696249713295454
-  - rid: 8292696249713295455
-  - rid: 8292696249713295456
-  - rid: 8292696249713295459
+  - rid: 8292696249821823059
+  - rid: 8292696249821823063
+  - rid: 8292696249821823064
+  - rid: 8292696249821823065
+  - rid: 8292696249821823066
+  - rid: 8292696249821823067
+  - rid: 8292696249821823069
+  - rid: 8292696249821823070
+  - rid: 8292696249821823071
+  - rid: 8292696249821823072
+  - rid: 8292696249821823075
   notes: 
   references:
     version: 2
     RefIds:
     - rid: -2
       type: {class: , ns: , asm: }
-    - rid: 8292696249713295443
+    - rid: 8292696249821823059
       type: {class: BranchNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n010
         editorPosition: {x: 0, y: 0}
         branches:
         - condition:
-            rid: 8292696249713295444
+            rid: 8292696249821823060
           targetNodeId: n400
         - condition:
-            rid: 8292696249713295445
+            rid: 8292696249821823061
           targetNodeId: n300
         - condition:
-            rid: 8292696249713295446
+            rid: 8292696249821823062
           targetNodeId: n200
         defaultNodeId: n100
-    - rid: 8292696249713295444
+    - rid: 8292696249821823060
       type: {class: QuestStatusIs, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         questId: quest.side.eichental.woelfe_vom_nordhang
         status: 3
-    - rid: 8292696249713295445
+    - rid: 8292696249821823061
       type: {class: QuestStatusIs, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         questId: quest.side.eichental.woelfe_vom_nordhang
         status: 2
-    - rid: 8292696249713295446
+    - rid: 8292696249821823062
       type: {class: QuestStatusIs, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         questId: quest.main.asche_ueber_eichental
         status: 3
-    - rid: 8292696249713295447
+    - rid: 8292696249821823063
       type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n100
@@ -85,7 +85,7 @@ MonoBehaviour:
         camera: 0
         actions: []
         voiceClipId: 
-    - rid: 8292696249713295448
+    - rid: 8292696249821823064
       type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n200
@@ -100,7 +100,7 @@ MonoBehaviour:
         camera: 0
         actions: []
         voiceClipId: 
-    - rid: 8292696249713295449
+    - rid: 8292696249821823065
       type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n210
@@ -115,7 +115,7 @@ MonoBehaviour:
         camera: 0
         actions: []
         voiceClipId: 
-    - rid: 8292696249713295450
+    - rid: 8292696249821823066
       type: {class: ChoiceNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n220
@@ -148,7 +148,7 @@ MonoBehaviour:
           actions: []
           choiceId: 
           choiceOptionId: 
-    - rid: 8292696249713295451
+    - rid: 8292696249821823067
       type: {class: ActionNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n230
@@ -157,13 +157,13 @@ MonoBehaviour:
         exitId: 
         followUp: 0
         actions:
-        - rid: 8292696249713295452
-    - rid: 8292696249713295452
+        - rid: 8292696249821823068
+    - rid: 8292696249821823068
       type: {class: StartQuest, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         questId: quest.side.eichental.woelfe_vom_nordhang
         ignoreStartConditions: 0
-    - rid: 8292696249713295453
+    - rid: 8292696249821823069
       type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n240
@@ -178,7 +178,7 @@ MonoBehaviour:
         camera: 0
         actions: []
         voiceClipId: 
-    - rid: 8292696249713295454
+    - rid: 8292696249821823070
       type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n290
@@ -193,7 +193,7 @@ MonoBehaviour:
         camera: 0
         actions: []
         voiceClipId: 
-    - rid: 8292696249713295455
+    - rid: 8292696249821823071
       type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n300
@@ -208,7 +208,7 @@ MonoBehaviour:
         camera: 0
         actions: []
         voiceClipId: 
-    - rid: 8292696249713295456
+    - rid: 8292696249821823072
       type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n400
@@ -220,28 +220,28 @@ MonoBehaviour:
         text: Keine Risse mehr letzte Nacht. Ich danke dir.
         variants:
         - condition:
-            rid: 8292696249713295457
+            rid: 8292696249821823073
           text: "Das Leuchten ist weg, sagst du? Dann sind es wieder nur W\xF6lfe. Damit komme ich klar. Danke."
         - condition:
-            rid: 8292696249713295458
+            rid: 8292696249821823074
           text: "Du hast das Ding mitgenommen? Hoffentlich wei\xDFt du, was du tust. Die W\xF6lfe heulen lauter als je zuvor."
         emotion: 0
         camera: 0
         actions: []
         voiceClipId: 
-    - rid: 8292696249713295457
+    - rid: 8292696249821823073
       type: {class: FlagIs, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: flag.eichental.woelfe_ausgang
         comparison: 0
         value: 2
-    - rid: 8292696249713295458
+    - rid: 8292696249821823074
       type: {class: FlagIs, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: flag.eichental.woelfe_ausgang
         comparison: 0
         value: 3
-    - rid: 8292696249713295459
+    - rid: 8292696249821823075
       type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n410

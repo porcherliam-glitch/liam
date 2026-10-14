@@ -28,57 +28,57 @@ MonoBehaviour:
   - kampf
   - attentat
   nodes:
-  - rid: 8292696249713295360
-  - rid: 8292696249713295362
-  - rid: 8292696249713295363
-  - rid: 8292696249713295364
-  - rid: 8292696249713295365
-  - rid: 8292696249713295367
-  - rid: 8292696249713295373
-  - rid: 8292696249713295375
-  - rid: 8292696249713295377
-  - rid: 8292696249713295378
-  - rid: 8292696249713295379
-  - rid: 8292696249713295380
-  - rid: 8292696249713295385
-  - rid: 8292696249713295386
-  - rid: 8292696249713295387
-  - rid: 8292696249713295389
-  - rid: 8292696249713295393
-  - rid: 8292696249713295394
-  - rid: 8292696249713295396
-  - rid: 8292696249713295401
-  - rid: 8292696249713295403
-  - rid: 8292696249713295405
-  - rid: 8292696249713295409
-  - rid: 8292696249713295411
-  - rid: 8292696249713295414
-  - rid: 8292696249713295415
-  - rid: 8292696249713295417
-  - rid: 8292696249713295422
+  - rid: 8292696249821822976
+  - rid: 8292696249821822978
+  - rid: 8292696249821822979
+  - rid: 8292696249821822980
+  - rid: 8292696249821822981
+  - rid: 8292696249821822983
+  - rid: 8292696249821822989
+  - rid: 8292696249821822991
+  - rid: 8292696249821822993
+  - rid: 8292696249821822994
+  - rid: 8292696249821822995
+  - rid: 8292696249821822996
+  - rid: 8292696249821823001
+  - rid: 8292696249821823002
+  - rid: 8292696249821823003
+  - rid: 8292696249821823005
+  - rid: 8292696249821823009
+  - rid: 8292696249821823010
+  - rid: 8292696249821823012
+  - rid: 8292696249821823017
+  - rid: 8292696249821823019
+  - rid: 8292696249821823021
+  - rid: 8292696249821823025
+  - rid: 8292696249821823027
+  - rid: 8292696249821823030
+  - rid: 8292696249821823031
+  - rid: 8292696249821823033
+  - rid: 8292696249821823038
   notes: 
   references:
     version: 2
     RefIds:
     - rid: -2
       type: {class: , ns: , asm: }
-    - rid: 8292696249713295360
+    - rid: 8292696249821822976
       type: {class: BranchNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n010
         editorPosition: {x: 0, y: 0}
         branches:
         - condition:
-            rid: 8292696249713295361
+            rid: 8292696249821822977
           targetNodeId: n015
         defaultNodeId: n020
-    - rid: 8292696249713295361
+    - rid: 8292696249821822977
       type: {class: FlagIs, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: quest.side.eichental.banditen_am_muehlbach.lokal.messer_an_kehle
         comparison: 0
         value: 1
-    - rid: 8292696249713295362
+    - rid: 8292696249821822978
       type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n015
@@ -93,7 +93,7 @@ MonoBehaviour:
         camera: 1
         actions: []
         voiceClipId: 
-    - rid: 8292696249713295363
+    - rid: 8292696249821822979
       type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n020
@@ -108,7 +108,7 @@ MonoBehaviour:
         camera: 5
         actions: []
         voiceClipId: 
-    - rid: 8292696249713295364
+    - rid: 8292696249821822980
       type: {class: ChoiceNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n025
@@ -154,7 +154,7 @@ MonoBehaviour:
           actions: []
           choiceId: 
           choiceOptionId: 
-    - rid: 8292696249713295365
+    - rid: 8292696249821822981
       type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n030
@@ -168,13 +168,13 @@ MonoBehaviour:
         emotion: 0
         camera: 0
         actions:
-        - rid: 8292696249713295366
+        - rid: 8292696249821822982
         voiceClipId: 
-    - rid: 8292696249713295366
+    - rid: 8292696249821822982
       type: {class: RevealName, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         npcId: npc.eichental.banditenfuehrer_harrik
-    - rid: 8292696249713295367
+    - rid: 8292696249821822983
       type: {class: ChoiceNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n040
@@ -250,7 +250,7 @@ MonoBehaviour:
           text: Wem zahlt ihr eigentlich Tribut?
           targetNodeId: n500
           visibleIf:
-            rid: 8292696249713295368
+            rid: 8292696249821822984
           selectableIf:
             rid: -2
           lockedReason: 
@@ -276,7 +276,7 @@ MonoBehaviour:
           text: "Du dr\xFCckst die Klinge tiefer."
           targetNodeId: n910
           visibleIf:
-            rid: 8292696249713295369
+            rid: 8292696249821822985
           selectableIf:
             rid: -2
           lockedReason: 
@@ -298,35 +298,35 @@ MonoBehaviour:
           actions: []
           choiceId: 
           choiceOptionId: 
-    - rid: 8292696249713295368
+    - rid: 8292696249821822984
       type: {class: AnyOf, ns: Aetherfall.Conditions, asm: Aetherfall.Conditions}
       data:
         conditions:
-        - rid: 8292696249713295370
-        - rid: 8292696249713295371
-        - rid: 8292696249713295372
-    - rid: 8292696249713295369
+        - rid: 8292696249821822986
+        - rid: 8292696249821822987
+        - rid: 8292696249821822988
+    - rid: 8292696249821822985
       type: {class: FlagIs, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: quest.side.eichental.banditen_am_muehlbach.lokal.messer_an_kehle
         comparison: 0
         value: 1
-    - rid: 8292696249713295370
+    - rid: 8292696249821822986
       type: {class: TopicKnown, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         topicId: thema.grimmbart
-    - rid: 8292696249713295371
+    - rid: 8292696249821822987
       type: {class: FlagIs, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: flag.eichental.grimmbart_schwaeche_bekannt
         comparison: 0
         value: 1
-    - rid: 8292696249713295372
+    - rid: 8292696249821822988
       type: {class: QuestStatusIs, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         questId: quest.bounty.eichental.grimmbart
         status: 2
-    - rid: 8292696249713295373
+    - rid: 8292696249821822989
       type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n050
@@ -340,13 +340,13 @@ MonoBehaviour:
         emotion: 4
         camera: 0
         actions:
-        - rid: 8292696249713295374
+        - rid: 8292696249821822990
         voiceClipId: 
-    - rid: 8292696249713295374
+    - rid: 8292696249821822990
       type: {class: UnlockTopic, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         topicId: thema.grimmbart
-    - rid: 8292696249713295375
+    - rid: 8292696249821822991
       type: {class: CheckNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n100
@@ -355,20 +355,20 @@ MonoBehaviour:
         difficulty: 1
         modifiers:
         - condition:
-            rid: 8292696249713295376
+            rid: 8292696249821822992
           bonus: 2
           label: "Die B\xE4ckerin braucht H\xE4nde"
         levelAdvantage: 0
         rememberResult: 1
         successNodeId: n110
         failureNodeId: n120
-    - rid: 8292696249713295376
+    - rid: 8292696249821822992
       type: {class: FlagIs, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: flag.eichental.wenna_gerettet
         comparison: 0
         value: 1
-    - rid: 8292696249713295377
+    - rid: 8292696249821822993
       type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n110
@@ -383,7 +383,7 @@ MonoBehaviour:
         camera: 0
         actions: []
         voiceClipId: 
-    - rid: 8292696249713295378
+    - rid: 8292696249821822994
       type: {class: ChoiceNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n115
@@ -416,7 +416,7 @@ MonoBehaviour:
           actions: []
           choiceId: 
           choiceOptionId: 
-    - rid: 8292696249713295379
+    - rid: 8292696249821822995
       type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n120
@@ -431,7 +431,7 @@ MonoBehaviour:
         camera: 0
         actions: []
         voiceClipId: 
-    - rid: 8292696249713295380
+    - rid: 8292696249821822996
       type: {class: ActionNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n130
@@ -440,31 +440,31 @@ MonoBehaviour:
         exitId: 
         followUp: 0
         actions:
-        - rid: 8292696249713295381
-        - rid: 8292696249713295382
-        - rid: 8292696249713295383
-        - rid: 8292696249713295384
-    - rid: 8292696249713295381
+        - rid: 8292696249821822997
+        - rid: 8292696249821822998
+        - rid: 8292696249821822999
+        - rid: 8292696249821823000
+    - rid: 8292696249821822997
       type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: flag.eichental.muehlbach_ausgang
         value: 3
-    - rid: 8292696249713295382
+    - rid: 8292696249821822998
       type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: flag.eichental.harrik_verschont
         value: 1
-    - rid: 8292696249713295383
+    - rid: 8292696249821822999
       type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: flag.eichental.harrik_status
         value: 0
-    - rid: 8292696249713295384
+    - rid: 8292696249821823000
       type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: flag.eichental.banditen_in_lindenhain
         value: 1
-    - rid: 8292696249713295385
+    - rid: 8292696249821823001
       type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n135
@@ -479,7 +479,7 @@ MonoBehaviour:
         camera: 0
         actions: []
         voiceClipId: 
-    - rid: 8292696249713295386
+    - rid: 8292696249821823002
       type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n140
@@ -494,7 +494,7 @@ MonoBehaviour:
         camera: 0
         actions: []
         voiceClipId: 
-    - rid: 8292696249713295387
+    - rid: 8292696249821823003
       type: {class: CheckNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n200
@@ -503,20 +503,20 @@ MonoBehaviour:
         difficulty: 2
         modifiers:
         - condition:
-            rid: 8292696249713295388
+            rid: 8292696249821823004
           bonus: 4
           label: Klinge an der Kehle
         levelAdvantage: 1
         rememberResult: 1
         successNodeId: n210
         failureNodeId: n220
-    - rid: 8292696249713295388
+    - rid: 8292696249821823004
       type: {class: FlagIs, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: quest.side.eichental.banditen_am_muehlbach.lokal.messer_an_kehle
         comparison: 0
         value: 1
-    - rid: 8292696249713295389
+    - rid: 8292696249821823005
       type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n210
@@ -530,26 +530,26 @@ MonoBehaviour:
         emotion: 2
         camera: 0
         actions:
-        - rid: 8292696249713295390
-        - rid: 8292696249713295391
-        - rid: 8292696249713295392
+        - rid: 8292696249821823006
+        - rid: 8292696249821823007
+        - rid: 8292696249821823008
         voiceClipId: 
-    - rid: 8292696249713295390
+    - rid: 8292696249821823006
       type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: flag.eichental.muehlbach_ausgang
         value: 2
-    - rid: 8292696249713295391
+    - rid: 8292696249821823007
       type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: flag.eichental.harrik_verschont
         value: 1
-    - rid: 8292696249713295392
+    - rid: 8292696249821823008
       type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: flag.eichental.harrik_status
         value: 0
-    - rid: 8292696249713295393
+    - rid: 8292696249821823009
       type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n220
@@ -564,7 +564,7 @@ MonoBehaviour:
         camera: 0
         actions: []
         voiceClipId: 
-    - rid: 8292696249713295394
+    - rid: 8292696249821823010
       type: {class: CheckNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n300
@@ -573,20 +573,20 @@ MonoBehaviour:
         difficulty: 1
         modifiers:
         - condition:
-            rid: 8292696249713295395
+            rid: 8292696249821823011
           bonus: -5
           label: "Harrik hat eine L\xFCge bemerkt"
         levelAdvantage: 0
         rememberResult: 1
         successNodeId: n310
         failureNodeId: n320
-    - rid: 8292696249713295395
+    - rid: 8292696249821823011
       type: {class: FlagIs, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: flag.eichental.harrik_luege_bemerkt
         comparison: 0
         value: 1
-    - rid: 8292696249713295396
+    - rid: 8292696249821823012
       type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n310
@@ -600,32 +600,32 @@ MonoBehaviour:
         emotion: 0
         camera: 0
         actions:
-        - rid: 8292696249713295397
-        - rid: 8292696249713295398
-        - rid: 8292696249713295399
-        - rid: 8292696249713295400
+        - rid: 8292696249821823013
+        - rid: 8292696249821823014
+        - rid: 8292696249821823015
+        - rid: 8292696249821823016
         voiceClipId: 
-    - rid: 8292696249713295397
+    - rid: 8292696249821823013
       type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: flag.eichental.muehlbach_ausgang
         value: 2
-    - rid: 8292696249713295398
+    - rid: 8292696249821823014
       type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: flag.eichental.harrik_verschont
         value: 1
-    - rid: 8292696249713295399
+    - rid: 8292696249821823015
       type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: flag.eichental.harrik_status
         value: 0
-    - rid: 8292696249713295400
+    - rid: 8292696249821823016
       type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: flag.eichental.harrik_belogen
         value: 1
-    - rid: 8292696249713295401
+    - rid: 8292696249821823017
       type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n320
@@ -639,14 +639,14 @@ MonoBehaviour:
         emotion: 0
         camera: 0
         actions:
-        - rid: 8292696249713295402
+        - rid: 8292696249821823018
         voiceClipId: 
-    - rid: 8292696249713295402
+    - rid: 8292696249821823018
       type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: flag.eichental.harrik_luege_bemerkt
         value: 1
-    - rid: 8292696249713295403
+    - rid: 8292696249821823019
       type: {class: ActionNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n400
@@ -655,12 +655,12 @@ MonoBehaviour:
         exitId: 
         followUp: 0
         actions:
-        - rid: 8292696249713295404
-    - rid: 8292696249713295404
+        - rid: 8292696249821823020
+    - rid: 8292696249821823020
       type: {class: Bribe, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         basePrice: 80
-    - rid: 8292696249713295405
+    - rid: 8292696249821823021
       type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n410
@@ -674,26 +674,26 @@ MonoBehaviour:
         emotion: 0
         camera: 0
         actions:
-        - rid: 8292696249713295406
-        - rid: 8292696249713295407
-        - rid: 8292696249713295408
+        - rid: 8292696249821823022
+        - rid: 8292696249821823023
+        - rid: 8292696249821823024
         voiceClipId: 
-    - rid: 8292696249713295406
+    - rid: 8292696249821823022
       type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: flag.eichental.muehlbach_ausgang
         value: 3
-    - rid: 8292696249713295407
+    - rid: 8292696249821823023
       type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: flag.eichental.harrik_verschont
         value: 1
-    - rid: 8292696249713295408
+    - rid: 8292696249821823024
       type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: flag.eichental.harrik_status
         value: 0
-    - rid: 8292696249713295409
+    - rid: 8292696249821823025
       type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n500
@@ -707,14 +707,14 @@ MonoBehaviour:
         emotion: 0
         camera: 0
         actions:
-        - rid: 8292696249713295410
+        - rid: 8292696249821823026
         voiceClipId: 
-    - rid: 8292696249713295410
+    - rid: 8292696249821823026
       type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: flag.eichental.grimmbart_schwaeche_bekannt
         value: 1
-    - rid: 8292696249713295411
+    - rid: 8292696249821823027
       type: {class: ChoiceNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n510
@@ -725,7 +725,7 @@ MonoBehaviour:
           text: "Ich k\xFCmmere mich um Grimmbart. Daf\xFCr lasst ihr die M\xFChle in Ruhe."
           targetNodeId: n520
           visibleIf:
-            rid: 8292696249713295412
+            rid: 8292696249821823028
           selectableIf:
             rid: -2
           lockedReason: 
@@ -747,17 +747,17 @@ MonoBehaviour:
           actions: []
           choiceId: 
           choiceOptionId: 
-    - rid: 8292696249713295412
+    - rid: 8292696249821823028
       type: {class: Not, ns: Aetherfall.Conditions, asm: Aetherfall.Conditions}
       data:
         condition:
-          rid: 8292696249713295413
-    - rid: 8292696249713295413
+          rid: 8292696249821823029
+    - rid: 8292696249821823029
       type: {class: QuestStatusIs, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         questId: quest.bounty.eichental.grimmbart
         status: 3
-    - rid: 8292696249713295414
+    - rid: 8292696249821823030
       type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n520
@@ -772,7 +772,7 @@ MonoBehaviour:
         camera: 0
         actions: []
         voiceClipId: 
-    - rid: 8292696249713295415
+    - rid: 8292696249821823031
       type: {class: ActionNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n900
@@ -781,12 +781,12 @@ MonoBehaviour:
         exitId: kampf
         followUp: 2
         actions:
-        - rid: 8292696249713295416
-    - rid: 8292696249713295416
+        - rid: 8292696249821823032
+    - rid: 8292696249821823032
       type: {class: StartCombat, ns: Aetherfall.NPC, asm: Aetherfall.NPC}
       data:
         targetId: group.banditen_muehlbach
-    - rid: 8292696249713295417
+    - rid: 8292696249821823033
       type: {class: ActionNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n910
@@ -795,30 +795,30 @@ MonoBehaviour:
         exitId: attentat
         followUp: 0
         actions:
-        - rid: 8292696249713295418
-        - rid: 8292696249713295419
-        - rid: 8292696249713295420
-        - rid: 8292696249713295421
-    - rid: 8292696249713295418
+        - rid: 8292696249821823034
+        - rid: 8292696249821823035
+        - rid: 8292696249821823036
+        - rid: 8292696249821823037
+    - rid: 8292696249821823034
       type: {class: KillNpc, ns: Aetherfall.NPC, asm: Aetherfall.NPC}
       data:
         npcId: npc.eichental.banditenfuehrer_harrik
-    - rid: 8292696249713295419
+    - rid: 8292696249821823035
       type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: flag.eichental.harrik_status
         value: 1
-    - rid: 8292696249713295420
+    - rid: 8292696249821823036
       type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: flag.eichental.muehlbach_ausgang
         value: 1
-    - rid: 8292696249713295421
+    - rid: 8292696249821823037
       type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: flag.eichental.banditen_geflohen
         value: 1
-    - rid: 8292696249713295422
+    - rid: 8292696249821823038
       type: {class: EndNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n990

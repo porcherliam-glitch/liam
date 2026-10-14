@@ -22,85 +22,85 @@ MonoBehaviour:
   questId: 
   questExitIds: []
   nodes:
-  - rid: 8292696249713295460
-  - rid: 8292696249713295468
-  - rid: 8292696249713295469
-  - rid: 8292696249713295470
-  - rid: 8292696249713295471
-  - rid: 8292696249713295472
-  - rid: 8292696249713295474
-  - rid: 8292696249713295475
-  - rid: 8292696249713295476
-  - rid: 8292696249713295477
-  - rid: 8292696249713295478
-  - rid: 8292696249713295479
-  - rid: 8292696249713295482
-  - rid: 8292696249713295483
-  - rid: 8292696249713295484
+  - rid: 8292696249821823076
+  - rid: 8292696249821823084
+  - rid: 8292696249821823085
+  - rid: 8292696249821823086
+  - rid: 8292696249821823087
+  - rid: 8292696249821823088
+  - rid: 8292696249821823090
+  - rid: 8292696249821823091
+  - rid: 8292696249821823092
+  - rid: 8292696249821823093
+  - rid: 8292696249821823094
+  - rid: 8292696249821823095
+  - rid: 8292696249821823098
+  - rid: 8292696249821823099
+  - rid: 8292696249821823100
   notes: 
   references:
     version: 2
     RefIds:
     - rid: -2
       type: {class: , ns: , asm: }
-    - rid: 8292696249713295460
+    - rid: 8292696249821823076
       type: {class: BranchNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n010
         editorPosition: {x: 0, y: 0}
         branches:
         - condition:
-            rid: 8292696249713295461
+            rid: 8292696249821823077
           targetNodeId: n500
         - condition:
-            rid: 8292696249713295462
+            rid: 8292696249821823078
           targetNodeId: n600
         - condition:
-            rid: 8292696249713295463
+            rid: 8292696249821823079
           targetNodeId: n300
         - condition:
-            rid: 8292696249713295464
+            rid: 8292696249821823080
           targetNodeId: n200
         defaultNodeId: n100
-    - rid: 8292696249713295461
+    - rid: 8292696249821823077
       type: {class: AllOf, ns: Aetherfall.Conditions, asm: Aetherfall.Conditions}
       data:
         conditions:
-        - rid: 8292696249713295465
-        - rid: 8292696249713295466
-        - rid: 8292696249713295467
-    - rid: 8292696249713295462
+        - rid: 8292696249821823081
+        - rid: 8292696249821823082
+        - rid: 8292696249821823083
+    - rid: 8292696249821823078
       type: {class: QuestStatusIs, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         questId: quest.dungeon.eichental.vergessene_gruft
         status: 3
-    - rid: 8292696249713295463
+    - rid: 8292696249821823079
       type: {class: QuestStatusIs, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         questId: quest.dungeon.eichental.vergessene_gruft
         status: 2
-    - rid: 8292696249713295464
+    - rid: 8292696249821823080
       type: {class: QuestStatusIs, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         questId: quest.main.asche_ueber_eichental
         status: 3
-    - rid: 8292696249713295465
+    - rid: 8292696249821823081
       type: {class: QuestStageReached, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         questId: quest.dungeon.eichental.vergessene_gruft
         stageId: s70_genommen
-    - rid: 8292696249713295466
+    - rid: 8292696249821823082
       type: {class: QuestStatusIs, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         questId: quest.dungeon.eichental.vergessene_gruft
         status: 2
-    - rid: 8292696249713295467
+    - rid: 8292696249821823083
       type: {class: HasItem, ns: Aetherfall.Inventory, asm: Aetherfall.Inventory}
       data:
         itemId: item.quest.siegelstein_gruft
         amount: 1
         bagOnly: 0
-    - rid: 8292696249713295468
+    - rid: 8292696249821823084
       type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n100
@@ -115,7 +115,7 @@ MonoBehaviour:
         camera: 0
         actions: []
         voiceClipId: 
-    - rid: 8292696249713295469
+    - rid: 8292696249821823085
       type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n200
@@ -130,7 +130,7 @@ MonoBehaviour:
         camera: 0
         actions: []
         voiceClipId: 
-    - rid: 8292696249713295470
+    - rid: 8292696249821823086
       type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n210
@@ -145,7 +145,7 @@ MonoBehaviour:
         camera: 0
         actions: []
         voiceClipId: 
-    - rid: 8292696249713295471
+    - rid: 8292696249821823087
       type: {class: ChoiceNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n220
@@ -178,7 +178,7 @@ MonoBehaviour:
           actions: []
           choiceId: 
           choiceOptionId: 
-    - rid: 8292696249713295472
+    - rid: 8292696249821823088
       type: {class: ActionNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n230
@@ -187,13 +187,13 @@ MonoBehaviour:
         exitId: 
         followUp: 0
         actions:
-        - rid: 8292696249713295473
-    - rid: 8292696249713295473
+        - rid: 8292696249821823089
+    - rid: 8292696249821823089
       type: {class: StartQuest, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         questId: quest.dungeon.eichental.vergessene_gruft
         ignoreStartConditions: 0
-    - rid: 8292696249713295474
+    - rid: 8292696249821823090
       type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n240
@@ -208,7 +208,7 @@ MonoBehaviour:
         camera: 0
         actions: []
         voiceClipId: 
-    - rid: 8292696249713295475
+    - rid: 8292696249821823091
       type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n290
@@ -223,7 +223,7 @@ MonoBehaviour:
         camera: 0
         actions: []
         voiceClipId: 
-    - rid: 8292696249713295476
+    - rid: 8292696249821823092
       type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n300
@@ -238,7 +238,7 @@ MonoBehaviour:
         camera: 0
         actions: []
         voiceClipId: 
-    - rid: 8292696249713295477
+    - rid: 8292696249821823093
       type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n500
@@ -253,7 +253,7 @@ MonoBehaviour:
         camera: 0
         actions: []
         voiceClipId: 
-    - rid: 8292696249713295478
+    - rid: 8292696249821823094
       type: {class: ChoiceNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n510
@@ -286,7 +286,7 @@ MonoBehaviour:
           actions: []
           choiceId: 
           choiceOptionId: 
-    - rid: 8292696249713295479
+    - rid: 8292696249821823095
       type: {class: ActionNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n520
@@ -295,19 +295,19 @@ MonoBehaviour:
         exitId: 
         followUp: 0
         actions:
-        - rid: 8292696249713295480
-        - rid: 8292696249713295481
-    - rid: 8292696249713295480
+        - rid: 8292696249821823096
+        - rid: 8292696249821823097
+    - rid: 8292696249821823096
       type: {class: RemoveItem, ns: Aetherfall.Inventory, asm: Aetherfall.Inventory}
       data:
         itemId: item.quest.siegelstein_gruft
         amount: 1
-    - rid: 8292696249713295481
+    - rid: 8292696249821823097
       type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: flag.eichental.siegelstein_verbleib
         value: 1
-    - rid: 8292696249713295482
+    - rid: 8292696249821823098
       type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n530
@@ -322,7 +322,7 @@ MonoBehaviour:
         camera: 0
         actions: []
         voiceClipId: 
-    - rid: 8292696249713295483
+    - rid: 8292696249821823099
       type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n590
@@ -337,7 +337,7 @@ MonoBehaviour:
         camera: 0
         actions: []
         voiceClipId: 
-    - rid: 8292696249713295484
+    - rid: 8292696249821823100
       type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n600
@@ -349,22 +349,22 @@ MonoBehaviour:
         text: "Der Stein verr\xE4t mir mehr, als ich zu hoffen wagte."
         variants:
         - condition:
-            rid: 8292696249713295485
+            rid: 8292696249821823101
           text: Ihr habt ihn liegen lassen? Bedauerlich. Eure Beschreibung der Reliefs ist trotzdem etwas wert.
         - condition:
-            rid: 8292696249713295486
+            rid: 8292696249821823102
           text: "Ihr tragt den Stein noch bei Euch, nicht wahr? Ich sp\xFCre es."
         emotion: 0
         camera: 0
         actions: []
         voiceClipId: 
-    - rid: 8292696249713295485
+    - rid: 8292696249821823101
       type: {class: FlagIs, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: flag.eichental.siegelstein_verbleib
         comparison: 0
         value: 2
-    - rid: 8292696249713295486
+    - rid: 8292696249821823102
       type: {class: FlagIs, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: flag.eichental.siegelstein_verbleib

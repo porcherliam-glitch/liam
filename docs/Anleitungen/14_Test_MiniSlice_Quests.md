@@ -8,7 +8,7 @@ Stand: 2026-10-14. Die Quests „Asche über Eichental“, „Die Wölfe vom Nor
 2. Nur wenn Claude es sagt: Menü **Aetherfall > Eichental erstellen**. Das schreibt die Quests, Gespräche und Figuren neu.
 3. `Assets/_Project/Scenes/Boot/Boot.unity` öffnen, ▶ drücken, **Neues Spiel**.
 
-Hinweis: Die Startstufe steht noch auf 10 (Testwert). Das wird im nächsten Schritt auf 1 gestellt.
+Du startest auf Stufe 1 mit der Ausrüstung des Kriegers (Schwert, Holzschild, Gambeson, Lederstiefel, 3 Heiltränke). Die Gegner im Dorf sind entsprechend schwächer als im Testgelände.
 
 ## 2. Quest 1 – Asche über Eichental (ca. 15–25 Minuten)
 

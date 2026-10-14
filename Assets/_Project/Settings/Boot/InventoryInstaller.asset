@@ -12,6 +12,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a4501e4ebdedd734c837033c16b9e12b, type: 3}
   m_Name: InventoryInstaller
   m_EditorClassIdentifier: Aetherfall.Inventory::Aetherfall.Inventory.InventoryInstaller
-  startingEquipment: {fileID: 11400000, guid: 4426565888ccb034683122dec1f0f841, type: 2}
+  startingEquipment: {fileID: 11400000, guid: 855497a544d5a6a4295818e1ea795ff5, type: 2}
   autoPickup: 1
   randomSeed: 0

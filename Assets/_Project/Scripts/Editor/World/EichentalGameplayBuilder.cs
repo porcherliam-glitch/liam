@@ -148,7 +148,8 @@ namespace Aetherfall.EditorTools.World
                 bool standIn = spawner.StandInTypeId.Length > 0;
                 string variant = standIn ? spawner.StandInVariant : spawner.Variant;
                 bool aether = variant == "aether_verderbt";
-                EnemyTypeDefinition definition = aether ? combat.AetherWolf : combat.Wolf;
+                EnemyTypeDefinition definition = MiniSliceProfile.EnemyAtLevel(aether ? combat.AetherWolf : combat.Wolf, MiniSliceWorld.EnemyLevel(spawner.Id),
+                    _report);
                 Material fur = aether ? _testMaterials.AetherWolf : _testMaterials.Wolf;
 
                 float cx = (float)spawner.Center.X;

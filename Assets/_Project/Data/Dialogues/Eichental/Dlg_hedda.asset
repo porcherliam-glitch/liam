@@ -22,80 +22,80 @@ MonoBehaviour:
   questId: 
   questExitIds: []
   nodes:
-  - rid: 8292696249713295423
-  - rid: 8292696249713295431
-  - rid: 8292696249713295432
-  - rid: 8292696249713295433
-  - rid: 8292696249713295434
-  - rid: 8292696249713295435
-  - rid: 8292696249713295436
-  - rid: 8292696249713295437
-  - rid: 8292696249713295438
-  - rid: 8292696249713295439
-  - rid: 8292696249713295441
+  - rid: 8292696249821823039
+  - rid: 8292696249821823047
+  - rid: 8292696249821823048
+  - rid: 8292696249821823049
+  - rid: 8292696249821823050
+  - rid: 8292696249821823051
+  - rid: 8292696249821823052
+  - rid: 8292696249821823053
+  - rid: 8292696249821823054
+  - rid: 8292696249821823055
+  - rid: 8292696249821823057
   notes: 
   references:
     version: 2
     RefIds:
     - rid: -2
       type: {class: , ns: , asm: }
-    - rid: 8292696249713295423
+    - rid: 8292696249821823039
       type: {class: BranchNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n010
         editorPosition: {x: 0, y: 0}
         branches:
         - condition:
-            rid: 8292696249713295424
+            rid: 8292696249821823040
           targetNodeId: n400
         - condition:
-            rid: 8292696249713295425
+            rid: 8292696249821823041
           targetNodeId: n500
         - condition:
-            rid: 8292696249713295426
+            rid: 8292696249821823042
           targetNodeId: n300
         - condition:
-            rid: 8292696249713295427
+            rid: 8292696249821823043
           targetNodeId: n200
         defaultNodeId: n100
-    - rid: 8292696249713295424
+    - rid: 8292696249821823040
       type: {class: AllOf, ns: Aetherfall.Conditions, asm: Aetherfall.Conditions}
       data:
         conditions:
-        - rid: 8292696249713295428
-        - rid: 8292696249713295429
-    - rid: 8292696249713295425
+        - rid: 8292696249821823044
+        - rid: 8292696249821823045
+    - rid: 8292696249821823041
       type: {class: QuestStatusIs, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         questId: quest.main.asche_ueber_eichental
         status: 3
-    - rid: 8292696249713295426
+    - rid: 8292696249821823042
       type: {class: QuestStageReached, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         questId: quest.main.asche_ueber_eichental
         stageId: s40
-    - rid: 8292696249713295427
+    - rid: 8292696249821823043
       type: {class: QuestStageReached, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         questId: quest.main.asche_ueber_eichental
         stageId: s25
-    - rid: 8292696249713295428
+    - rid: 8292696249821823044
       type: {class: QuestStageReached, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         questId: quest.main.asche_ueber_eichental
         stageId: s70
-    - rid: 8292696249713295429
+    - rid: 8292696249821823045
       type: {class: Not, ns: Aetherfall.Conditions, asm: Aetherfall.Conditions}
       data:
         condition:
-          rid: 8292696249713295430
-    - rid: 8292696249713295430
+          rid: 8292696249821823046
+    - rid: 8292696249821823046
       type: {class: FlagIs, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: flag.eichental.hedda_bericht_gehoert
         comparison: 0
         value: 1
-    - rid: 8292696249713295431
+    - rid: 8292696249821823047
       type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n100
@@ -110,7 +110,7 @@ MonoBehaviour:
         camera: 0
         actions: []
         voiceClipId: 
-    - rid: 8292696249713295432
+    - rid: 8292696249821823048
       type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n200
@@ -125,7 +125,7 @@ MonoBehaviour:
         camera: 1
         actions: []
         voiceClipId: 
-    - rid: 8292696249713295433
+    - rid: 8292696249821823049
       type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n210
@@ -140,7 +140,7 @@ MonoBehaviour:
         camera: 0
         actions: []
         voiceClipId: 
-    - rid: 8292696249713295434
+    - rid: 8292696249821823050
       type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n220
@@ -155,7 +155,7 @@ MonoBehaviour:
         camera: 0
         actions: []
         voiceClipId: 
-    - rid: 8292696249713295435
+    - rid: 8292696249821823051
       type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n300
@@ -170,7 +170,7 @@ MonoBehaviour:
         camera: 0
         actions: []
         voiceClipId: 
-    - rid: 8292696249713295436
+    - rid: 8292696249821823052
       type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n400
@@ -185,7 +185,7 @@ MonoBehaviour:
         camera: 0
         actions: []
         voiceClipId: 
-    - rid: 8292696249713295437
+    - rid: 8292696249821823053
       type: {class: ChoiceNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n405
@@ -218,7 +218,7 @@ MonoBehaviour:
           actions: []
           choiceId: 
           choiceOptionId: 
-    - rid: 8292696249713295438
+    - rid: 8292696249821823054
       type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n410
@@ -233,7 +233,7 @@ MonoBehaviour:
         camera: 0
         actions: []
         voiceClipId: 
-    - rid: 8292696249713295439
+    - rid: 8292696249821823055
       type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n420
@@ -247,14 +247,14 @@ MonoBehaviour:
         emotion: 0
         camera: 0
         actions:
-        - rid: 8292696249713295440
+        - rid: 8292696249821823056
         voiceClipId: 
-    - rid: 8292696249713295440
+    - rid: 8292696249821823056
       type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: flag.eichental.hedda_bericht_gehoert
         value: 1
-    - rid: 8292696249713295441
+    - rid: 8292696249821823057
       type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n500
@@ -266,13 +266,13 @@ MonoBehaviour:
         text: "Wir bauen wieder auf, Stein f\xFCr Stein. Hollmann oben am Hof und der Gelehrte im Gasthaus suchen noch Hilfe."
         variants:
         - condition:
-            rid: 8292696249713295442
+            rid: 8292696249821823058
           text: Wenna backt schon wieder, stell dir vor. Hollmann oben am Hof und der Gelehrte im Gasthaus suchen noch Hilfe.
         emotion: 0
         camera: 0
         actions: []
         voiceClipId: 
-    - rid: 8292696249713295442
+    - rid: 8292696249821823058
       type: {class: FlagIs, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: flag.eichental.wenna_gerettet

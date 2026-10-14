@@ -265,6 +265,16 @@ namespace Aetherfall.UI.Screens
             _deathTimer = Math.Max(0.0001f, _deathDelay);
         }
 
+        /// <summary>
+        /// The player stands in the world again (PlayerSpawned: respawn from the death screen, from the game flow or the automatic
+        /// respawn of test scenes): a pending death is over, the death screen does not come back.
+        /// </summary>
+        public void OnPlayerSpawned()
+        {
+            _deathPending = false;
+            _deathTimer = 0f;
+        }
+
         /// <summary>A save was loaded (GameLoaded): a pending death is over.</summary>
         public void OnGameLoaded()
         {

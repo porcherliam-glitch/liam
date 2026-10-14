@@ -215,6 +215,25 @@ namespace Aetherfall.Tests.EditMode.UIScreens
         }
 
         [Test]
+        public void RespawnedOutsideTheDeathScreen_TheDeathScreenDoesNotComeBack()
+        {
+            StartPlaying();
+            _director.OnPlayerDied();
+            _director.Update(DeathDelay + 0.1f);
+            Assert.That(_death.IsOpen, Is.True);
+
+            // Another caller (game flow, automatic respawn) pops the pause and respawns the player: PlayerSpawned follows.
+            Assert.That(_state.Pop(GameState.Paused), Is.True);
+            _director.OnPlayerSpawned();
+            _director.Update(0.1f);
+            _director.Update(DeathDelay + 0.1f);
+
+            Assert.That(_state.Current, Is.EqualTo(GameState.Playing));
+            Assert.That(_death.IsOpen, Is.False);
+            Assert.That(_director.DeathPending, Is.False);
+        }
+
+        [Test]
         public void PlayerDied_WhileThePauseMenuIsOpen_ReplacesItByTheDeathScreen()
         {
             StartPlaying();

@@ -176,6 +176,78 @@ namespace Aetherfall.EditorTools.World
             Steps.Enqueue(() => Wait(1.0));
             Steps.Enqueue(() => !_bossShown || Capture("13_bossbalken", null));
             Steps.Enqueue(HideBossBar);
+
+            // Death and re-entry: the death screen appears, "am Spawnpunkt wiederbeleben" brings the player back alive.
+            Steps.Enqueue(KillPlayer);
+            Steps.Enqueue(() => WaitForState(GameState.Paused, 15.0));
+            Steps.Enqueue(() => Wait(1.0));
+            Steps.Enqueue(() => Capture("14_tod", null));
+            Steps.Enqueue(Respawn);
+            Steps.Enqueue(() => WaitForState(GameState.Playing, 15.0));
+            Steps.Enqueue(() => Wait(1.5));
+            Steps.Enqueue(ReportAlive);
+
+            // Back to the main menu, then "Fortsetzen" with the newest save (from the boot scene only).
+            if (IsBootScene())
+            {
+                Steps.Enqueue(PauseGame);
+                Steps.Enqueue(() => Wait(0.5));
+                Steps.Enqueue(ReturnToMainMenu);
+                Steps.Enqueue(() => WaitForState(GameState.MainMenu, 30.0));
+                Steps.Enqueue(() => Wait(1.0));
+                Steps.Enqueue(ContinueLatest);
+                Steps.Enqueue(() => WaitForState(GameState.Playing, PlayingTimeoutSeconds));
+                Steps.Enqueue(() => Wait(2.0));
+                Steps.Enqueue(ReportPlayer);
+                Steps.Enqueue(() => Capture("15_fortsetzen", null));
+            }
+        }
+
+        private static bool KillPlayer()
+        {
+            PlayerMotor player = FindPlayer();
+            if (player == null)
+            {
+                return true;
+            }
+
+            Note("Spielfigur stirbt (Test).");
+            player.GetComponent<Aetherfall.Combat.DamageableComponent>().Health.Kill("tour.test");
+            return true;
+        }
+
+        private static bool Respawn()
+        {
+            Note("Wiederbeleben am Spawnpunkt.");
+            Services.Locator.Get<IGameFlow>().RespawnAtSpawnPoint();
+            return true;
+        }
+
+        private static bool ReportAlive()
+        {
+            PlayerMotor player = FindPlayer();
+            Aetherfall.Combat.Health health = player.GetComponent<Aetherfall.Combat.DamageableComponent>().Health;
+            Note("Nach dem Wiederbeleben: " + (health.IsAlive ? "lebt" : "TOT") + ", Lebenspunkte " + health.Current.ToString("0") + " / " +
+                 health.Max.ToString("0") + ", Position " + player.transform.position.ToString("F1") + ".");
+            return Fail(!health.IsAlive, "Spielfigur ist nach dem Wiederbeleben nicht am Leben.") || true;
+        }
+
+        private static bool ReturnToMainMenu()
+        {
+            Note("Zurück ins Hauptmenü.");
+            Services.Locator.Get<IGameFlow>().ReturnToMainMenu();
+            return true;
+        }
+
+        private static bool ContinueLatest()
+        {
+            if (Services.Locator.Get<IGameFlow>().TryGetLatestSave(out SaveSlotInfo slot))
+            {
+                Note("„Fortsetzen“ mit " + slot.SlotId + " (Welt " + slot.WorldSpaceId + ").");
+            }
+
+            Services.Locator.Get<IGameFlow>().ContinueLatest();
+            return true;
         }
 
         private static bool ShowBossBar()
@@ -536,7 +608,11 @@ namespace Aetherfall.EditorTools.World
                 return Fail(true, "Keine Spielfigur (PlayerMotor) in der Szene.");
             }
 
-            Note("Spielfigur bei " + player.transform.position.ToString("F1") + ", Szene " + player.gameObject.scene.name + ".");
+            var combatant = player.GetComponent<Aetherfall.Combat.Combatant>();
+            Aetherfall.Combat.Health health = combatant != null ? combatant.Health : null;
+            Note("Spielfigur bei " + player.transform.position.ToString("F1") + ", Szene " + player.gameObject.scene.name +
+                 (combatant != null ? ", Stufe " + combatant.Level : string.Empty) +
+                 (health != null ? ", Lebenspunkte " + health.Current.ToString("0") + " / " + health.Max.ToString("0") : string.Empty) + ".");
             return true;
         }
 
