@@ -30,6 +30,7 @@
         "Aetherfall.EditorTools.Narrative",
         "Aetherfall.Economy",
         "Aetherfall.Minigames",
+        "Aetherfall.Companions",
         "Unity.Cinemachine",
         "Unity.InputSystem"
     ],

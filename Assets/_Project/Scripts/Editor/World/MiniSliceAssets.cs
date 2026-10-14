@@ -199,8 +199,10 @@ namespace Aetherfall.EditorTools.World
         /// <param name="player">Player object (look target, may be null).</param>
         /// <param name="interactableLayer">Interactable layer or −1.</param>
         /// <param name="report">Protocol.</param>
+        /// <param name="lookAtPlayer">False for NPCs that turn by themselves (companions).</param>
         /// <returns>True if the NPC can be talked to.</returns>
-        public static bool TryMakeTalkable(GameObject root, string npcId, GameObject player, int interactableLayer, TestGroundReport report)
+        public static bool TryMakeTalkable(GameObject root, string npcId, GameObject player, int interactableLayer, TestGroundReport report,
+            bool lookAtPlayer = true)
         {
             var npc = AssetDatabase.LoadAssetAtPath<NpcDefinition>(NpcPath(npcId));
             if (npc == null)
@@ -221,8 +223,13 @@ namespace Aetherfall.EditorTools.World
             capsule.height = 1.8f;
             capsule.radius = 0.7f;
 
-            NpcLookAt look = root.AddComponent<NpcLookAt>();
-            TestGroundFields.SetReference(look, "lookTarget", player != null ? player.transform : null, report);
+            NpcLookAt look = null;
+            if (lookAtPlayer)
+            {
+                look = root.AddComponent<NpcLookAt>();
+                TestGroundFields.SetReference(look, "lookTarget", player != null ? player.transform : null, report);
+            }
+
             NpcInteractable interactable = root.AddComponent<NpcInteractable>();
             TestGroundFields.SetReference(interactable, "npc", npc, report);
             TestGroundFields.SetReference(interactable, "interactionPoint", chest.transform, report);

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Aetherfall.AI;
 using Aetherfall.AI.Bosses;
+using Aetherfall.Companions;
 using Aetherfall.Core;
 using Aetherfall.Dialogue;
 using Aetherfall.Economy;
@@ -107,11 +108,19 @@ namespace Aetherfall.EditorTools.World
             Steps.Enqueue(() => WaitFlag(Q.FlagWolvesOutcome, 3));
             Steps.Enqueue(() => Capture("q06_woelfe_fertig", null));
 
+            // GDD 01 10.6: Ser Maren waits at the guard post of Lindenhain; "Prüft mich" – she comes along (loyalty 40).
+            Steps.Enqueue(TalkTo(D.Maren));
+            Steps.Enqueue(() => WaitFlag(Q.FlagMarenTest, 1));
+            Steps.Enqueue(CompanionNearPlayer("am Wachposten"));
+            Steps.Enqueue(() => Capture("q06b_maren", null));
+
             // GDD 02 11.7 "Die vergessene Gruft" (seal stone taken and brought to Corvin).
             Steps.Enqueue(TalkTo(Q.Corvin));
+            Steps.Enqueue(CompanionNearPlayer("im Gasthaus"));
             Steps.Enqueue(() => WaitStage(Q.Crypt, "s10"));
             Steps.Enqueue(Travel(EichentalDungeonLinks.EntranceId));
             Steps.Enqueue(GoToArea("loc.eichental.vergessene_gruft"));
+            Steps.Enqueue(CompanionNearPlayer("in der Gruft"));
             Steps.Enqueue(() => WaitStage(Q.Crypt, "s20"));
             Steps.Enqueue(() => Capture("q07_gruft_tor", null));
             Steps.Enqueue(UseById("obj.eichental.gruft_wandrelief_1"));
@@ -675,6 +684,29 @@ namespace Aetherfall.EditorTools.World
                         // A moment later the sparks and the wave are on their way.
                         return Elapsed >= 0.12 && Capture("q03b_aether_stoss", null);
                 }
+            };
+        }
+
+        /// <summary>Checks that Maren is in the group and close to the player (she follows, or appears next to him after travel).</summary>
+        private static Func<bool> CompanionNearPlayer(string where)
+        {
+            return () =>
+            {
+                CompanionController companion = Object.FindObjectsByType<CompanionController>(FindObjectsInactive.Exclude).FirstOrDefault();
+                PlayerMotor player = FindPlayer();
+                if (companion == null || player == null || !companion.IsJoined)
+                {
+                    return Fail(Elapsed > 6.0, "Maren ist nicht in der Gruppe (" + where + ").");
+                }
+
+                float distance = Vector3.Distance(companion.transform.position, player.transform.position);
+                if (distance <= 6f && Elapsed > 1.0)
+                {
+                    Note("Maren folgt (" + where + "): " + distance.ToString("0.0") + " m neben der Spielfigur, " + companion.DebugStateText + ".");
+                    return true;
+                }
+
+                return Fail(Elapsed > 10.0, "Maren folgt nicht (" + where + "): " + distance.ToString("0.0") + " m entfernt.");
             };
         }
 

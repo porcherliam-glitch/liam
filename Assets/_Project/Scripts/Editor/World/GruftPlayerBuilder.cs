@@ -82,6 +82,12 @@ namespace Aetherfall.EditorTools.World
             PlayerProgression progression = player.AddComponent<PlayerProgression>();
             TestGroundFields.SetReference(progression, "stats", player.GetComponent<CharacterStatsComponent>(), report);
             TestGroundUiBuilder.AddPlayerHudLink(player, mainCamera, report);
+
+            // Ser Maren comes along once she is in the group (she appears next to the player).
+            var companions = new GameObject("Begleiter");
+            CompanionBuilder.BuildMaren(companions.transform, spawnPosition - spawnRotation * Vector3.forward * 2f + spawnRotation * Vector3.right * 1.5f,
+                spawn.Yaw, false, player, new EichentalMaterials(null, report), ctx.EnemyLayer, ctx.HurtboxLayer, ctx.InteractableLayer,
+                1 << ctx.EnvironmentLayer, ctx.Font, report);
             report.Info("Spieler am Eingang der Gruft (" + spawn.X + " | " + spawn.Z + "), Blick nach Norden; Ankunfts-Anker " + spawn.AnchorId + ".");
             return player;
         }

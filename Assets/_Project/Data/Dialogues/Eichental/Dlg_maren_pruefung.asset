@@ -1,0 +1,403 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8e8dae9f016d99b4cb368684cefc2e46, type: 3}
+  m_Name: Dlg_maren_pruefung
+  m_EditorClassIdentifier: Aetherfall.Dialogue::Aetherfall.Dialogue.DialogueDefinition
+  id: dlg.eichental.maren_pruefung
+  status: 1
+  title: Ser Maren Falkenried
+  mode: 0
+  speakerId: npc.begleiter.maren_falkenried
+  startNodeId: n010
+  cancelable: 0
+  questId: 
+  questExitIds: []
+  nodes:
+  - rid: 8292696253348708542
+  - rid: 8292696253348708546
+  - rid: 8292696253348708547
+  - rid: 8292696253348708548
+  - rid: 8292696253348708549
+  - rid: 8292696253348708550
+  - rid: 8292696253348708551
+  - rid: 8292696253348708554
+  - rid: 8292696253348708557
+  - rid: 8292696253348708559
+  - rid: 8292696253348708560
+  - rid: 8292696253348708561
+  - rid: 8292696253348708562
+  - rid: 8292696253348708563
+  - rid: 8292696253348708565
+  - rid: 8292696253348708567
+  notes: 
+  references:
+    version: 2
+    RefIds:
+    - rid: -2
+      type: {class: , ns: , asm: }
+    - rid: 8292696253348708542
+      type: {class: BranchNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n010
+        editorPosition: {x: 0, y: 0}
+        branches:
+        - condition:
+            rid: 8292696253348708543
+          targetNodeId: n500
+        defaultNodeId: n100
+    - rid: 8292696253348708543
+      type: {class: AnyOf, ns: Aetherfall.Conditions, asm: Aetherfall.Conditions}
+      data:
+        conditions:
+        - rid: 8292696253348708544
+        - rid: 8292696253348708545
+    - rid: 8292696253348708544
+      type: {class: FlagIs, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
+      data:
+        flagId: flag.main.a1_pruefung_angenommen
+        comparison: 0
+        value: 1
+    - rid: 8292696253348708545
+      type: {class: FlagIs, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
+      data:
+        flagId: flag.main.a1_pruefung_angenommen
+        comparison: 0
+        value: 2
+    - rid: 8292696253348708546
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n100
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: n110
+        exitId: 
+        followUp: 0
+        speakerId: 
+        text: "Ser Maren Falkenried, Silberwacht. Ihr seid der \xDCberlebende vom Riss in Eichental."
+        variants: []
+        emotion: 0
+        camera: 0
+        actions: []
+        voiceClipId: 
+    - rid: 8292696253348708547
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n110
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: n120
+        exitId: 
+        followUp: 0
+        speakerId: 
+        text: "Wer den Riss ber\xFChrt und lebt, hei\xDFt bei uns Rissgeborener. Hauptmann Dorn hat mich geschickt, Euch zu pr\xFCfen."
+        variants: []
+        emotion: 0
+        camera: 0
+        actions: []
+        voiceClipId: 
+    - rid: 8292696253348708548
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n120
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: n200
+        exitId: 
+        followUp: 0
+        speakerId: 
+        text: "Ich begleite Euch eine Weile. Ich sehe zu. Geurteilt wird sp\xE4ter."
+        variants: []
+        emotion: 0
+        camera: 0
+        actions: []
+        voiceClipId: 
+    - rid: 8292696253348708549
+      type: {class: ChoiceNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n200
+        editorPosition: {x: 0, y: 0}
+        hub: 0
+        options:
+        - id: a
+          text: "Pr\xFCft mich. Ich habe nichts zu verbergen."
+          targetNodeId: n300
+          visibleIf:
+            rid: -2
+          selectableIf:
+            rid: -2
+          lockedReason: 
+          once: 0
+          irreversible: 0
+          actions: []
+          choiceId: 
+          choiceOptionId: 
+        - id: b
+          text: Was macht die Silberwacht mit Rissgeborenen?
+          targetNodeId: n250
+          visibleIf:
+            rid: -2
+          selectableIf:
+            rid: -2
+          lockedReason: 
+          once: 0
+          irreversible: 0
+          actions: []
+          choiceId: 
+          choiceOptionId: 
+        - id: c
+          text: Ich brauche keine Aufpasserin.
+          targetNodeId: n400
+          visibleIf:
+            rid: -2
+          selectableIf:
+            rid: -2
+          lockedReason: 
+          once: 0
+          irreversible: 0
+          actions: []
+          choiceId: 
+          choiceOptionId: 
+    - rid: 8292696253348708550
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n250
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: n200
+        exitId: 
+        followUp: 0
+        speakerId: 
+        text: Wir nehmen sie in Verwahrung, wenn sie eine Gefahr sind. Ob Ihr eine seid, finde ich heraus.
+        variants: []
+        emotion: 0
+        camera: 1
+        actions: []
+        voiceClipId: 
+    - rid: 8292696253348708551
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n300
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: 
+        exitId: angenommen
+        followUp: 0
+        speakerId: 
+        text: "Ich hatte mehr Widerstand erwartet. Gut. Geht voran, ich halte Euch den R\xFCcken frei."
+        variants: []
+        emotion: 0
+        camera: 0
+        actions:
+        - rid: 8292696253348708552
+        - rid: 8292696253348708553
+        voiceClipId: 
+    - rid: 8292696253348708552
+      type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
+      data:
+        flagId: flag.main.a1_pruefung_angenommen
+        value: 1
+    - rid: 8292696253348708553
+      type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
+      data:
+        flagId: stat.begleiter.maren.loyalitaet
+        value: 40
+    - rid: 8292696253348708554
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n400
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: 
+        exitId: abgelehnt
+        followUp: 0
+        speakerId: 
+        text: Das entscheidet nicht Ihr. Ich folge Euch auf Befehl, ob es Euch passt oder nicht.
+        variants: []
+        emotion: 0
+        camera: 0
+        actions:
+        - rid: 8292696253348708555
+        - rid: 8292696253348708556
+        voiceClipId: 
+    - rid: 8292696253348708555
+      type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
+      data:
+        flagId: flag.main.a1_pruefung_angenommen
+        value: 2
+    - rid: 8292696253348708556
+      type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
+      data:
+        flagId: stat.begleiter.maren.loyalitaet
+        value: 25
+    - rid: 8292696253348708557
+      type: {class: BranchNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n500
+        editorPosition: {x: 0, y: 0}
+        branches:
+        - condition:
+            rid: 8292696253348708558
+          targetNodeId: n520
+        defaultNodeId: n510
+    - rid: 8292696253348708558
+      type: {class: FlagIs, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
+      data:
+        flagId: flag.begleiter.maren_wartet
+        comparison: 0
+        value: 1
+    - rid: 8292696253348708559
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n510
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: n600
+        exitId: 
+        followUp: 0
+        speakerId: 
+        text: Ich bin hier. Was gibt es?
+        variants: []
+        emotion: 0
+        camera: 0
+        actions: []
+        voiceClipId: 
+    - rid: 8292696253348708560
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n520
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: n610
+        exitId: 
+        followUp: 0
+        speakerId: 
+        text: Ich warte hier, wie befohlen. Soll ich mitkommen?
+        variants: []
+        emotion: 0
+        camera: 0
+        actions: []
+        voiceClipId: 
+    - rid: 8292696253348708561
+      type: {class: ChoiceNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n600
+        editorPosition: {x: 0, y: 0}
+        hub: 0
+        options:
+        - id: a
+          text: Nichts. Gehen wir.
+          targetNodeId: n900
+          visibleIf:
+            rid: -2
+          selectableIf:
+            rid: -2
+          lockedReason: 
+          once: 0
+          irreversible: 0
+          actions: []
+          choiceId: 
+          choiceOptionId: 
+        - id: b
+          text: Warte hier.
+          targetNodeId: n700
+          visibleIf:
+            rid: -2
+          selectableIf:
+            rid: -2
+          lockedReason: 
+          once: 0
+          irreversible: 0
+          actions: []
+          choiceId: 
+          choiceOptionId: 
+    - rid: 8292696253348708562
+      type: {class: ChoiceNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n610
+        editorPosition: {x: 0, y: 0}
+        hub: 0
+        options:
+        - id: a
+          text: Komm mit.
+          targetNodeId: n800
+          visibleIf:
+            rid: -2
+          selectableIf:
+            rid: -2
+          lockedReason: 
+          once: 0
+          irreversible: 0
+          actions: []
+          choiceId: 
+          choiceOptionId: 
+        - id: b
+          text: Bleib noch hier.
+          targetNodeId: n900
+          visibleIf:
+            rid: -2
+          selectableIf:
+            rid: -2
+          lockedReason: 
+          once: 0
+          irreversible: 0
+          actions: []
+          choiceId: 
+          choiceOptionId: 
+    - rid: 8292696253348708563
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n700
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: 
+        exitId: warten
+        followUp: 0
+        speakerId: 
+        text: "Gut. Ich r\xFChre mich nicht von der Stelle."
+        variants: []
+        emotion: 0
+        camera: 0
+        actions:
+        - rid: 8292696253348708564
+        voiceClipId: 
+    - rid: 8292696253348708564
+      type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
+      data:
+        flagId: flag.begleiter.maren_wartet
+        value: 1
+    - rid: 8292696253348708565
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n800
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: 
+        exitId: folgen
+        followUp: 0
+        speakerId: 
+        text: "Endlich. Mir wurden schon die F\xFC\xDFe kalt."
+        variants: []
+        emotion: 0
+        camera: 0
+        actions:
+        - rid: 8292696253348708566
+        voiceClipId: 
+    - rid: 8292696253348708566
+      type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
+      data:
+        flagId: flag.begleiter.maren_wartet
+        value: 0
+    - rid: 8292696253348708567
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n900
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: 
+        exitId: weiter
+        followUp: 0
+        speakerId: 
+        text: Wie Ihr meint.
+        variants: []
+        emotion: 0
+        camera: 0
+        actions: []
+        voiceClipId: 

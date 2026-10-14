@@ -13,6 +13,8 @@
         "Aetherfall.Stats",
         "Aetherfall.Combat",
         "Aetherfall.Player",
+        "Aetherfall.AI",
+        "Aetherfall.Companions",
         "Aetherfall.Tests.Shared"
     ],
     "includePlatforms": [

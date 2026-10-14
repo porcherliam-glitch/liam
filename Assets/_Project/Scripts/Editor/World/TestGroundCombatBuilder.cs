@@ -485,7 +485,7 @@ namespace Aetherfall.EditorTools.World
             return enemy;
         }
 
-        private static void AddHurtbox(Transform parent, string name, HitZone zone, Vector3 localCenter, Vector3 size, int hurtboxLayer,
+        internal static void AddHurtbox(Transform parent, string name, HitZone zone, Vector3 localCenter, Vector3 size, int hurtboxLayer,
             TestGroundReport report)
         {
             var zoneObject = new GameObject(name);
@@ -545,7 +545,7 @@ namespace Aetherfall.EditorTools.World
             }
         }
 
-        private static Transform CreateChild(Transform parent, string name, Vector3 localPosition)
+        internal static Transform CreateChild(Transform parent, string name, Vector3 localPosition)
         {
             var child = new GameObject(name);
             child.transform.SetParent(parent, false);

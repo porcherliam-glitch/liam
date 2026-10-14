@@ -81,6 +81,15 @@ namespace Aetherfall.EditorTools.Narrative
         /// <summary>The first ability (GDD 03 6.5).</summary>
         public const string AetherPush = "ability.aether.aether_stoss";
 
+        /// <summary>Maren's test (GDD 01 E1.1, slice: dialogue event): 1 accepted, 2 refused – in both cases she comes along.</summary>
+        public const string FlagMarenTest = "flag.main.a1_pruefung_angenommen";
+
+        /// <summary>Maren's loyalty 0–100 (GDD 01 10.3: 40 after accepting, 25 after refusing).</summary>
+        public const string MarenLoyalty = "stat.begleiter.maren.loyalitaet";
+
+        /// <summary>Command "Warte hier" for Maren (1 = she holds her position).</summary>
+        public const string FlagMarenWaits = "flag.begleiter.maren_wartet";
+
         /// <summary>Outcome of quest 2: 1 fight, 2 destroyed, 3 taken.</summary>
         public const string FlagWolvesOutcome = "flag.eichental.woelfe_ausgang";
 
@@ -127,7 +136,11 @@ namespace Aetherfall.EditorTools.Narrative
                 new FlagSpec(FlagSealStone, FlagKind.Enum, 0, 0, 0, new[] { "offen", "Corvin", "belassen", "behalten" }, false,
                     "Verbleib des Siegelsteins: 1 bei Corvin, 2 in der Gruft belassen, 3 behalten."),
                 Bool(FlagReliefsRead, "Die drei Wandreliefs der Gruft wurden gelesen."),
-                Bool(FlagHeddaReport, "Hedda hat nach dem Prolog den Bericht vom Riss gehört.")
+                Bool(FlagHeddaReport, "Hedda hat nach dem Prolog den Bericht vom Riss gehört."),
+                new FlagSpec(FlagMarenTest, FlagKind.Enum, 0, 0, 0, new[] { "offen", "angenommen", "abgelehnt" }, false,
+                    "Prüfung der Silberwacht (Slice: Dialog mit Maren): 1 angenommen, 2 abgelehnt; in beiden Fällen begleitet sie den Spieler."),
+                new FlagSpec(MarenLoyalty, FlagKind.StoryNumber, 0, 0, 100, null, false, "Loyalität von Ser Maren Falkenried (0–100, GDD 01 10.3)."),
+                Bool(FlagMarenWaits, "Maren wartet an ihrer Stelle („Warte hier.“).")
             };
         }
 

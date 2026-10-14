@@ -28,6 +28,10 @@ namespace Aetherfall.EditorTools.World
         /// <summary>Distance of the invisible walls behind the edge of the playable area (inside the border hills).</summary>
         public const float EdgeWallMargin = 14f;
 
+        private const float MarenPostX = -171f;
+        private const float MarenPostZ = -54f;
+        private const float MarenPostYaw = 60f;
+
         /// <summary>Creates the scene in memory (replacing the open scenes), fills it and saves it.</summary>
         /// <param name="layout">Checked layout.</param>
         /// <param name="settings">Movement settings of the player.</param>
@@ -121,6 +125,9 @@ namespace Aetherfall.EditorTools.World
 
             gameplay.BuildAreaTriggers(Group(game.transform, "Orte"), layers.TriggerVolume, layers.Player);
             gameplay.BuildNpcMarkers(Group(game.transform, "NPC-Platzhalter"), player, layers.Interactable);
+            // GDD 01 10.6: Ser Maren waits at the guard post of Lindenhain, next to Hauptmann Dorn.
+            CompanionBuilder.BuildMaren(Group(game.transform, "Begleiter"), new Vector3(MarenPostX, (float)heights.Height(MarenPostX, MarenPostZ), MarenPostZ),
+                MarenPostYaw, true, player, materials, layers.Enemy, layers.Hurtbox, layers.Interactable, solidMask, labelFont, report);
             gameplay.BuildQuestObjects(Group(game.transform, "Quest-Objekte"), env, layers.Interactable, layers.TriggerVolume, layers.Player);
             gameplay.BuildTrails(Group(game.transform, "Spuren"), layers.TriggerVolume, layers.Player);
             EichentalDungeonLinks.Build(layout, heights, spawnPoint.transform, layers.Interactable, Group(game.transform, "Durchgänge"), report);

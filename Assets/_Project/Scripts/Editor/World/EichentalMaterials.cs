@@ -29,7 +29,8 @@ namespace Aetherfall.EditorTools.World
         /// <param name="key">Palette key.</param>
         public Color Color(string key)
         {
-            LayoutColor c = _palette.Get(key, new LayoutColor(0.5, 0.5, 0.5));
+            // Without a palette (figures outside the Eichental, e.g. Maren in the crypt) every palette colour is grey.
+            LayoutColor c = _palette != null ? _palette.Get(key, new LayoutColor(0.5, 0.5, 0.5)) : new LayoutColor(0.5, 0.5, 0.5);
             return new Color((float)c.R, (float)c.G, (float)c.B, 1f);
         }
 

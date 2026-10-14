@@ -35,7 +35,9 @@ namespace Aetherfall.EditorTools.World
             [Q.Corvin] = new Look(Garment.Robe, "2E3A5E", "2E3A5E", "222222", "E0B49A") { Shawl = "8C7A4A" },
             [Q.Dorn] = new Look(Garment.Trousers, "8C9096", "3A3A44", "4A4A4A", "D9A07E") { Armour = "C8CCD4" },
             [D.Brenner] = new Look(Garment.Trousers, "CFC6B0", "6A5A44", "8A8680", "E0B49A") { Cap = "E0DACA" },
-            [D.Liese] = new Look(Garment.Dress, "8A4A5A", "8A4A5A", "A07A4A", "EBC6AA") { Apron = "D8CFBA" }
+            [D.Liese] = new Look(Garment.Dress, "8A4A5A", "8A4A5A", "A07A4A", "EBC6AA") { Apron = "D8CFBA" },
+            // Ser Maren Falkenried: plate over a dark blue gambeson, silver tabard of the Silberwacht, auburn braid.
+            [D.Maren] = new Look(Garment.Trousers, "9AA0A8", "26304A", "8A4A2A", "E8BFA0") { Armour = "D8DCE4", Braid = true, Scale = 1.03f }
         };
 
         private enum Garment
@@ -60,13 +62,14 @@ namespace Aetherfall.EditorTools.World
         /// <param name="materials">Materials of the Eichental.</param>
         /// <param name="withCollider">False for NPCs inside a building (no collider in the walls).</param>
         /// <param name="report">Protocol.</param>
-        public static void Build(Transform root, string npcId, EichentalMaterials materials, bool withCollider, TestGroundReport report)
+        /// <returns>The figure (with <see cref="HumanoidPuppet"/>), or null if the model is missing.</returns>
+        public static Transform Build(Transform root, string npcId, EichentalMaterials materials, bool withCollider, TestGroundReport report)
         {
             Look look = For(npcId);
             Transform figure = CharacterModels.Instantiate(CharacterModels.Villager, root, "Figur", root.gameObject.layer, report);
             if (figure == null)
             {
-                return;
+                return null;
             }
 
             figure.localPosition = new Vector3(0f, look.Floating ? FloatHeight : 0f, 0f);
@@ -85,6 +88,8 @@ namespace Aetherfall.EditorTools.World
                 capsule.radius = 0.3f * Mathf.Max(0.7f, look.Scale);
                 capsule.center = new Vector3(0f, figure.localPosition.y + capsule.height * 0.5f, 0f);
             }
+
+            return figure;
         }
 
         private static void KeepPieces(Transform figure, Look look)
@@ -93,7 +98,7 @@ namespace Aetherfall.EditorTools.World
             var wanted = new HashSet<string>
             {
                 hair ? "Acc_Haare" : string.Empty,
-                hair && look.Garment == Garment.Dress ? "Acc_Zopf" : string.Empty,
+                hair && (look.Garment == Garment.Dress || look.Braid) ? "Acc_Zopf" : string.Empty,
                 look.Hair == null && !look.Hood ? "Acc_Haarkranz" : string.Empty,
                 look.Beard ? "Acc_Bart" : string.Empty,
                 look.StrawHat ? "Acc_Strohhut" : string.Empty,
@@ -210,6 +215,8 @@ namespace Aetherfall.EditorTools.World
             public string Cap { get; set; }
 
             public bool Beard { get; set; }
+
+            public bool Braid { get; set; }
 
             public bool Hood { get; set; }
 

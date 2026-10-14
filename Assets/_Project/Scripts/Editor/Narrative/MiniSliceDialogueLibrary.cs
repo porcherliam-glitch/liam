@@ -49,6 +49,12 @@ namespace Aetherfall.EditorTools.Narrative
         /// <summary>Ulf Krugmann, innkeeper of "Zum Krummen Kessel".</summary>
         public const string Ulf = "npc.eichental.wirt_ulf";
 
+        /// <summary>Ser Maren Falkenried, knight of the Silberwacht, the companion of the slice (GDD 01 10.6).</summary>
+        public const string Maren = "npc.begleiter.maren_falkenried";
+
+        /// <summary>Maren's test dialogue (GDD 02 11.0); afterwards her commands.</summary>
+        public const string MarenDialogue = "dlg.eichental.maren_pruefung";
+
         /// <summary>Ulf's answer that starts the dice game "Krähenwurf".</summary>
         public const string UlfDiceOption = "Würfeln wir eine Runde?";
 
@@ -74,7 +80,8 @@ namespace Aetherfall.EditorTools.Narrative
                 new NpcSpec(Pim, "Pim Hollmann", "Hollmanns Sohn", true, Dialogue(Pim), 1, 1f, true, 0, string.Empty),
                 new NpcSpec(Ulf, "Ulf Krugmann", "Wirt", true, Dialogue(Ulf), 3, 1.3f, false, 0, string.Empty),
                 new NpcSpec(Brenner, "Hannes Brenner", "Müller", true, Dialogue(Brenner), 3, 1f, false, 0, string.Empty),
-                new NpcSpec(Liese, "Liese Brenner", "Müllerstochter", true, Dialogue(Liese), 2, 1f, false, 0, string.Empty)
+                new NpcSpec(Liese, "Liese Brenner", "Müllerstochter", true, Dialogue(Liese), 2, 1f, false, 0, string.Empty),
+                new NpcSpec(Maren, "Ser Maren Falkenried", "Ritterin der Silberwacht", true, MarenDialogue, 5, 1f, true, 0, string.Empty)
             };
         }
 
@@ -82,7 +89,7 @@ namespace Aetherfall.EditorTools.Narrative
         public static DialogueSpec[] CreateDialogues()
         {
             return new[] { Hedda(), Hollmann(), Corvin(), Dorn(), ToboldTalk(), WennaTalk(), LinaTalk(), GreyFigureTalk(), PimTalk(), UlfTalk(), BrennerTalk(),
-                LieseTalk() };
+                LieseTalk(), MarenTalk() };
         }
 
         /// <summary>Dialogue id of a villager: <c>npc.eichental.schmied_tobold</c> → <c>dlg.eichental.schmied_tobold</c>.</summary>
@@ -341,6 +348,48 @@ namespace Aetherfall.EditorTools.Narrative
                     .Add(new DialogueOption("b", "Von wem denn?", "n120")),
                 new LineNode("n110", "Dachte ich mir. Er hat wohl Wichtigeres zu tun.").Staging(DialogueEmotion.Sad, DialogueCameraHint.Auto).EndWith("weiter"),
                 new LineNode("n120", "Ach … von niemandem. Vergiss es einfach.").EndWith("weiter"));
+        }
+
+        private static DialogueSpec MarenTalk()
+        {
+            // GDD 01 10.6: in the slice the recruitment is a dialogue event with two outcomes; she comes along either way
+            // (accepted: loyalty 40, refused: "auf Befehl", loyalty 25). Afterwards the same dialogue gives the commands
+            // "Warte hier" and "Komm mit" (GDD 03 13.2, until the command wheel exists). Speech: dry, dutiful (GDD 02 12).
+            var joined = new AnyOf(new FlagIs(Q.FlagMarenTest, 1), new FlagIs(Q.FlagMarenTest, 2));
+            return new DialogueSpecBuilder(MarenDialogue)
+                .Title("Ser Maren Falkenried")
+                .Mode(DialogueMode.Full)
+                .Speaker(Maren)
+                .Start("n010")
+                .Nodes(
+                    new BranchNode("n010", "n100").When(joined, "n500"),
+                    new LineNode("n100", "Ser Maren Falkenried, Silberwacht. Ihr seid der Überlebende vom Riss in Eichental.").To("n110"),
+                    new LineNode("n110", "Wer den Riss berührt und lebt, heißt bei uns Rissgeborener. Hauptmann Dorn hat mich geschickt, Euch zu prüfen.")
+                        .To("n120"),
+                    new LineNode("n120", "Ich begleite Euch eine Weile. Ich sehe zu. Geurteilt wird später.").To("n200"),
+                    new ChoiceNode("n200")
+                        .Add(new DialogueOption("a", "Prüft mich. Ich habe nichts zu verbergen.", "n300"))
+                        .Add(new DialogueOption("b", "Was macht die Silberwacht mit Rissgeborenen?", "n250"))
+                        .Add(new DialogueOption("c", "Ich brauche keine Aufpasserin.", "n400")),
+                    new LineNode("n250", "Wir nehmen sie in Verwahrung, wenn sie eine Gefahr sind. Ob Ihr eine seid, finde ich heraus.")
+                        .Staging(DialogueEmotion.Neutral, DialogueCameraHint.Close).To("n200"),
+                    new LineNode("n300", "Ich hatte mehr Widerstand erwartet. Gut. Geht voran, ich halte Euch den Rücken frei.")
+                        .Do(new SetFlag(Q.FlagMarenTest, 1), new SetFlag(Q.MarenLoyalty, 40)).EndWith("angenommen"),
+                    new LineNode("n400", "Das entscheidet nicht Ihr. Ich folge Euch auf Befehl, ob es Euch passt oder nicht.")
+                        .Do(new SetFlag(Q.FlagMarenTest, 2), new SetFlag(Q.MarenLoyalty, 25)).EndWith("abgelehnt"),
+                    new BranchNode("n500", "n510").When(new FlagIs(Q.FlagMarenWaits, 1), "n520"),
+                    new LineNode("n510", "Ich bin hier. Was gibt es?").To("n600"),
+                    new LineNode("n520", "Ich warte hier, wie befohlen. Soll ich mitkommen?").To("n610"),
+                    new ChoiceNode("n600")
+                        .Add(new DialogueOption("a", "Nichts. Gehen wir.", "n900"))
+                        .Add(new DialogueOption("b", "Warte hier.", "n700")),
+                    new ChoiceNode("n610")
+                        .Add(new DialogueOption("a", "Komm mit.", "n800"))
+                        .Add(new DialogueOption("b", "Bleib noch hier.", "n900")),
+                    new LineNode("n700", "Gut. Ich rühre mich nicht von der Stelle.").Do(new SetFlag(Q.FlagMarenWaits, 1)).EndWith("warten"),
+                    new LineNode("n800", "Endlich. Mir wurden schon die Füße kalt.").Do(new SetFlag(Q.FlagMarenWaits, 0)).EndWith("folgen"),
+                    new LineNode("n900", "Wie Ihr meint.").EndWith("weiter"))
+                .Build();
         }
 
         private static DialogueSpec Short(string npcId, string title, params DialogueNode[] nodes)
