@@ -1,7 +1,6 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
     <!-- Death screen: "Du bist gefallen" with "Letzten Stand laden" and "Am Spawnpunkt wiederbeleben". -->
     <ui:VisualElement name="death" class="af-root af-screen af-overlay af-death">
-        <ui:VisualElement class="af-death__vignette" picking-mode="Ignore" />
         <ui:VisualElement class="af-death__content">
             <ui:Label name="death-title" class="af-text af-death__title" />
             <ui:VisualElement class="af-death__divider" />

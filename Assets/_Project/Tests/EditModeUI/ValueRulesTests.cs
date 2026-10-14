@@ -32,15 +32,41 @@ namespace Aetherfall.Tests.EditMode.UI
         }
 
         [Test]
-        public void PanelScale_IsLimitedSoThatTheLayoutKeeps1280x720()
+        public void PanelScale_IsLimitedSoThatTheMenusKeep1620x840()
         {
             Assert.That(UiScaleRules.PanelScale(100, 1920, 1080), Is.EqualTo(1f).Within(0.0001f));
-            Assert.That(UiScaleRules.PanelScale(150, 1920, 1080), Is.EqualTo(1.5f).Within(0.0001f));
-            // 16:10 (MacBook): 1080 * 1.6 / 1280 = 1.35.
-            Assert.That(UiScaleRules.PanelScale(150, 2560, 1600), Is.EqualTo(1.35f).Within(0.0001f));
-            // 4:3: 1080 * 1.333 / 1280 = 1.125.
-            Assert.That(UiScaleRules.PanelScale(150, 1024, 768), Is.EqualTo(1.125f).Within(0.0001f));
+            Assert.That(UiScaleRules.PanelScale(110, 1920, 1080), Is.EqualTo(1.1f).Within(0.0001f));
+            // 16:9: limited by the width, 1920 / 1620 = 1.185.
+            Assert.That(UiScaleRules.PanelScale(150, 1920, 1080), Is.EqualTo(1920f / 1620f).Within(0.0001f));
+            Assert.That(UiScaleRules.PanelScale(150, 3840, 2160), Is.EqualTo(1920f / 1620f).Within(0.0001f));
+            // 16:10 (MacBook): 1080 * 1.6 / 1620 = 1.067.
+            Assert.That(UiScaleRules.PanelScale(150, 2560, 1600), Is.EqualTo(1728f / 1620f).Within(0.0001f));
+            Assert.That(UiScaleRules.PanelScale(100, 2880, 1800), Is.EqualTo(1f).Within(0.0001f));
+            // 21:9: limited by the height, 1080 / 840 = 1.286.
+            Assert.That(UiScaleRules.PanelScale(150, 3440, 1440), Is.EqualTo(1080f / 840f).Within(0.0001f));
+            // 4:3: even 100 % would not fit (1440 < 1620): 1440 / 1620 = 0.889; 80 % stays 80 %.
+            Assert.That(UiScaleRules.PanelScale(100, 1024, 768), Is.EqualTo(1440f / 1620f).Within(0.0001f));
             Assert.That(UiScaleRules.PanelScale(80, 1024, 768), Is.EqualTo(0.8f).Within(0.0001f));
+        }
+
+        [TestCase(1920, 1080)]
+        [TestCase(2560, 1600)]
+        [TestCase(2880, 1800)]
+        [TestCase(3440, 1440)]
+        [TestCase(1280, 720)]
+        [TestCase(1680, 1050)]
+        public void PanelScale_KeepsTheLogicalLayoutAtLeastTheMenuSize_AtEveryUiSize(int width, int height)
+        {
+            for (int percent = UiScaleRules.MinUiPercent; percent <= UiScaleRules.MaxUiPercent; percent += UiScaleRules.StepPercent)
+            {
+                // ScaleWithScreenSize (match = height) times PanelSettings.scale: logical size = screen / (height / 1080 * scale).
+                float scale = UiScaleRules.PanelScale(percent, width, height);
+                float logicalHeight = UiScaleRules.ReferenceHeight / scale;
+                float logicalWidth = logicalHeight * width / height;
+                Assert.That(logicalWidth, Is.GreaterThanOrEqualTo(UiScaleRules.MinLogicalWidth - 0.01f), percent + " %: width");
+                Assert.That(logicalHeight, Is.GreaterThanOrEqualTo(UiScaleRules.MinLogicalHeight - 0.01f), percent + " %: height");
+                Assert.That(scale, Is.LessThanOrEqualTo(percent / 100f + 0.0001f), percent + " %: never larger than chosen");
+            }
         }
 
         [Test]
@@ -184,6 +210,13 @@ namespace Aetherfall.Tests.EditMode.UI
             Assert.That(UiFlowRules.SuppressesNotifications(GameState.Paused), Is.True);
             Assert.That(UiFlowRules.SuppressesNotifications(GameState.Menu), Is.True);
             Assert.That(UiFlowRules.SuppressesNotifications(GameState.Dialogue), Is.True);
+            Assert.That(UiFlowRules.UsesMenuCamera(GameState.Boot), Is.True);
+            Assert.That(UiFlowRules.UsesMenuCamera(GameState.MainMenu), Is.True);
+            Assert.That(UiFlowRules.UsesMenuCamera(GameState.Loading), Is.True);
+            Assert.That(UiFlowRules.UsesMenuCamera(GameState.Playing), Is.False, "in the game the camera of the scene renders");
+            Assert.That(UiFlowRules.UsesMenuCamera(GameState.Paused), Is.False);
+            Assert.That(UiFlowRules.UsesMenuCamera(GameState.Menu), Is.False);
+            Assert.That(UiFlowRules.UsesMenuCamera(GameState.Cutscene), Is.False);
         }
 
         [Test]

@@ -6,6 +6,8 @@ Stand: 2026-10-13
 
 Das Testgelände entsteht in Unity über das Menü **Aetherfall > Testgelände erstellen**. Solange Unity nicht läuft, kann man es nicht ansehen. Diese Skripte bauen das Testgelände deshalb in **Blender** nach und rendern daraus Bilder und Videos. Dazu kommen die Planungsdiagramme aus `docs/` als Bilder.
 
+**Die Oberfläche** (Hauptmenü, HUD, Pausemenü, Todes- und Ladebildschirm) hat ein eigenes Werkzeug: [ui/README.md](ui/README.md) baut sie aus den UXML-, USS- und Textdateien als HTML nach und macht daraus Bilder.
+
 **Wichtig: Das sind Vorschauen, keine Unity-Screenshots.** Jedes Bild und jedes Video trägt unten einen Balken mit diesem Hinweis. Formen, Positionen, Drehungen, Maße und Farben stammen aus dem Code des Generators. Licht, Schatten, Schrift und Materialien sehen in Unity aber anders aus (siehe [Grenzen](#grenzen)).
 
 ## Was entsteht?

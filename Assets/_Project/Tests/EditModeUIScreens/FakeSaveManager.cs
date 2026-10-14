@@ -49,7 +49,8 @@ namespace Aetherfall.Tests.EditMode.UIScreens
         public string SaveDirectory => "saves/char_01";
 
         /// <inheritdoc />
-        public bool IsBusy => false;
+        /// <remarks>Set by tests to simulate a save that is being written (autosave, F5).</remarks>
+        public bool IsBusy { get; set; }
 
         /// <inheritdoc />
         public SaveResult LastSaveResult { get; private set; }

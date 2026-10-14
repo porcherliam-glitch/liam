@@ -50,6 +50,7 @@ namespace Aetherfall.UI.Framework
             new UiTextEntry("pause-options", "Optionen"),
             new UiTextEntry("pause-main-menu", "Hauptmenü"),
             new UiTextEntry("pause-quit", "Spiel beenden"),
+            new UiTextEntry("pause-info-title", "Letzter Spielstand"),
 
             // Death screen
             new UiTextEntry("death-title", "Du bist gefallen"),

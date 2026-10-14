@@ -227,6 +227,12 @@ namespace Aetherfall.UI.Framework
         /// <paramref name="onHold"/>, click → <paramref name="onClick"/>. Buttons use <c>clicked</c>, other elements
         /// <see cref="ClickEvent"/>.
         /// </summary>
+        /// <remarks>
+        /// Buttons lose the class <c>unity-button</c> of the default theme: its state rules (<c>.unity-button:enabled:hover</c>,
+        /// <c>:active</c>, specificity 3) would beat the own classes and paint a light background under the mouse, also on
+        /// disabled items (<see cref="DisabledClass"/> is not <c>:disabled</c>). The look of an item depends only on the own
+        /// classes (<c>af-button</c>, <see cref="FocusedClass"/>, <see cref="DisabledClass"/>); hovering sets the focus.
+        /// </remarks>
         /// <param name="element">Item element.</param>
         /// <param name="onEnter">Hover.</param>
         /// <param name="onHold">Mouse button held (true) or released (false).</param>
@@ -239,6 +245,11 @@ namespace Aetherfall.UI.Framework
             }
 
             element.focusable = false;
+            if (element is Button)
+            {
+                element.RemoveFromClassList(Button.ussClassName);
+            }
+
             element.RegisterCallback<PointerEnterEvent>(evt => onEnter());
             // Trickle-down: the Button's own clickable stops the propagation of pointer down.
             element.RegisterCallback<PointerDownEvent>(evt =>

@@ -69,7 +69,6 @@
     --text-secondary: #B3AC9E;
     --text-muted: #7A746A;
     --text-title: #E8D2A0;
-    --text-shadow-color: rgba(0, 0, 0, 0.85);
     --accent-gold: #C9A24D;
     --accent-blood: #B33A3A;
 

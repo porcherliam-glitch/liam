@@ -73,8 +73,14 @@
 
 /* ---------- Buttons (menu items) ---------- */
 
+/*
+ * Menu items carry only the own classes: UiElementUtility.BindItem removes "unity-button" of the default theme (its
+ * :enabled:hover/:active rules would win). There are no hover or pressed states: the mouse moves the focus (is-focused).
+ * flex-shrink 0 was set by "unity-button": items keep their height in lists.
+ */
 .af-button {
     position: relative;
+    flex-shrink: 0;
     height: 64px;
     margin: 0 0 12px 0;
     padding: 0 28px;
@@ -92,18 +98,8 @@
     transition-duration: 0.08s;
 }
 
-.af-button:hover {
-    background-color: var(--button-bg);
-    border-color: var(--button-border);
-}
-
-.af-button:active {
-    background-color: var(--button-bg);
-}
-
 /* GDD 05 1.4: 3 px frame in ui.focus, 104 % scale, lighter background. */
-.af-button.is-focused,
-.af-button.is-focused:hover {
+.af-button.is-focused {
     border-width: 3px;
     border-color: var(--ui-focus);
     background-color: var(--button-bg-focus);
@@ -120,12 +116,21 @@
     color: var(--text-secondary);
 }
 
+/* Second line of a two-line button ("Fortsetzen" with kind and date of the newest save). */
+.af-button--two-line {
+    height: 88px;
+    padding-top: 12px;
+    -unity-text-align: upper-left;
+}
+
 .af-button__info {
     position: absolute;
-    right: 24px;
-    font-size: var(--font-small);
+    left: 28px;
+    right: 28px;
+    bottom: 12px;
+    font-size: 18px;
     color: var(--text-secondary);
-    -unity-text-align: middle-right;
+    -unity-text-align: lower-left;
 }
 
 .af-button.is-focused .af-button__info {
@@ -212,12 +217,21 @@
     border-radius: 22px;
 }
 
+/* PlayStation face buttons are symbols (× ○ □ ▲): one size larger than letters, so they read as well. */
+.glyphs-playstation .af-glyph--face {
+    font-size: 22px;
+}
+
+.glyphs-playstation .af-glyph--large {
+    font-size: 26px;
+}
+
 /* ---------- Footer hints ---------- */
 
 .af-footer {
     position: absolute;
-    left: 160px;
-    right: 160px;
+    left: 8.33%;
+    right: 8.33%;
     bottom: 48px;
     flex-direction: row;
     align-items: center;
@@ -291,9 +305,20 @@
     white-space: normal;
 }
 
+/*
+ * Lists on pages take the width of the page up to their normal width, so they never stick out of a narrower page (main
+ * menu at a larger UI size). The narrowest page that still fits all texts decides UiScaleRules.MinLogicalWidth.
+ */
+.af-options .af-menu-list {
+    width: 100%;
+    max-width: 520px;
+}
+
 /* Save slot rows (GDD 05 5.5: kind, date and time, playtime). */
+/* Wider than the button lists: kind, date and playtime need room ("Autospeicherung – beschädigt"). */
 .af-slot-list {
-    flex-shrink: 1;
+    width: 100%;
+    max-width: 720px;
 }
 
 .af-slot-row {
@@ -317,9 +342,15 @@
 }
 
 .af-slot-row__playtime {
+    margin: 0 0 0 24px;
     font-size: 20px;
     color: var(--text-secondary);
     -unity-text-align: middle-right;
+}
+
+/* Damaged saves cannot be chosen: dimmed, the kind stays red. */
+.af-slot-row.is-disabled {
+    opacity: 0.7;
 }
 
 .af-slot-row.is-damaged .af-slot-row__kind {

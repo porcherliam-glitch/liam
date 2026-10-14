@@ -9,7 +9,8 @@
 }
 
 .af-hud .af-text {
-    text-shadow: 0px 2px 3px var(--text-shadow-color);
+    /* Literal colour: var() is used only for whole values (a variable inside the text-shadow list is not documented). */
+    text-shadow: 0px 2px 3px rgba(0, 0, 0, 0.85);
 }
 
 /* ---------- Top: compass and target ---------- */
@@ -71,10 +72,14 @@
     background-color: var(--ui-focus);
 }
 
+/* Dark plate behind name and bars: readable over a bright sky as well (GDD 05 1.6 contrast). */
 .af-target {
     margin: 18px 0 0 0;
     width: 640px;
+    padding: 10px 16px 12px 16px;
     align-items: center;
+    background-color: rgba(8, 10, 13, 0.55);
+    border-radius: 4px;
 }
 
 .af-target__name {
@@ -208,7 +213,7 @@
 .af-actions {
     position: absolute;
     right: 48px;
-    bottom: 40px;
+    bottom: 48px;
     align-items: flex-end;
 }
 
@@ -241,12 +246,12 @@
 
 .af-slot .af-glyph {
     position: absolute;
-    bottom: -14px;
-    min-width: 30px;
-    height: 28px;
+    bottom: -15px;
+    min-width: 32px;
+    height: 30px;
     margin: 0;
     padding: 0 6px;
-    font-size: 15px;
+    font-size: 17px;
 }
 
 .af-quickslots {
@@ -303,10 +308,10 @@
 }
 
 .af-slot--quick .af-glyph {
-    bottom: -12px;
-    min-width: 26px;
-    height: 24px;
-    font-size: 14px;
+    bottom: -13px;
+    min-width: 28px;
+    height: 26px;
+    font-size: 16px;
 }
 
 /* ---------- Interaction prompt ("[E] Aufheben: Wolfsfell", GDD 05 1.2) ---------- */

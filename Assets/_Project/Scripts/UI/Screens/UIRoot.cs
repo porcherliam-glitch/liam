@@ -19,8 +19,10 @@ namespace Aetherfall.UI.Screens
     /// scene, so the UI stays across scene changes.
     /// </summary>
     /// <remarks>
-    /// <para>GameObject: "UI" in <c>Boot.unity</c> with the child objects HUD, Screens, Toasts and Loading (each a UIDocument).
-    /// The menu "Aetherfall > Oberflaeche einrichten" creates it and sets all references.</para>
+    /// <para>GameObject: "UI" in <c>Boot.unity</c> with the child objects HUD, Screens, Toasts and Loading (each a UIDocument)
+    /// and MenuCamera. The menu "Aetherfall > Oberflaeche einrichten" creates it and sets all references.</para>
+    /// <para>The menu camera renders only in the boot, the main menu and while loading (<see cref="UiFlowRules.UsesMenuCamera"/>):
+    /// it clears the screen to the menu colour when no gameplay scene with its own camera is loaded.</para>
     /// <para>The panel settings asset is copied at start: the UI size option changes the copy, never the asset.</para>
     /// <para>Events are subscribed in OnEnable once the services are resolved and unsubscribed in OnDisable. While this
     /// component exists, the pause button belongs to the UI (the stand-in routing of the input service is switched off).</para>
@@ -66,6 +68,10 @@ namespace Aetherfall.UI.Screens
 
         [Tooltip("ToastEntry.uxml (eine Meldung)")]
         [SerializeField] private VisualTreeAsset toastEntryLayout = null;
+
+        [Tooltip("Kamera der Boot-Szene (Objekt MenuCamera): füllt im Hauptmenü und beim Laden das Bild mit der Menüfarbe, " +
+                 "solange keine Spielszene mit eigener Kamera geladen ist. Zeigt sonst nichts.")]
+        [SerializeField] private Camera menuCamera = null;
 
         [Header("Verhalten")]
         [Tooltip("Sekunden zwischen dem Tod und dem Todesbildschirm.")]
@@ -128,8 +134,28 @@ namespace Aetherfall.UI.Screens
             // async void is the documented exception for Unity event adapters (architecture 15.2, rule 10).
             try
             {
-                _ui = await Services.WaitForAsync<IUIManager>(destroyCancellationToken);
+                // Wait until the boot has registered and initialised all services (state leaves Boot). Waiting for IUIManager
+                // itself would never end if the UIInstaller is missing in the BootConfig, without any message.
+                IGameStateService gameState = await Services.WaitForAsync<IGameStateService>(destroyCancellationToken);
+                while (gameState.Current == GameState.Boot && Services.Locator != null)
+                {
+                    await Awaitable.NextFrameAsync(destroyCancellationToken);
+                }
+
                 IServiceLocator locator = Services.Locator;
+                if (locator == null)
+                {
+                    // The boot failed and shut the services down; the boot failure screen explains why.
+                    return;
+                }
+
+                if (!locator.TryGet(out _ui))
+                {
+                    Log.Error(LogCategory.UI, "UIRoot: no IUIManager is registered - the UIInstaller is missing in the BootConfig. " +
+                                              "Run Aetherfall > Oberflaeche einrichten.");
+                    return;
+                }
+
                 _eventBus = locator.Get<IEventBus>();
                 _gameState = locator.Get<IGameStateService>();
                 _input = locator.Get<IInputService>();
@@ -177,7 +203,8 @@ namespace Aetherfall.UI.Screens
                 _loadingProxy.Attach(loadingView);
             }
 
-            _director = new UiStateDirector(_ui, _gameState, _input.Gameplay, _flow, _mainMenu, _pauseMenu, _deathScreen, deathScreenDelay);
+            _director = new UiStateDirector(_ui, _gameState, _input.Gameplay, _input.WasPausePressedThisFrame, _flow, _mainMenu, _pauseMenu,
+                _deathScreen, deathScreenDelay);
             _ui.AttachLayerHost(this);
             _input.SetPauseButtonRouting(false);
             _glyphs.SetStyleOverride(_preferences.GlyphStyle);
@@ -185,6 +212,7 @@ namespace Aetherfall.UI.Screens
             Subscribe();
             ApplyUiScale(true);
             _director.Apply(_gameState.Current);
+            ApplyMenuCamera(_gameState.Current);
             HandOverPlayer();
             Log.Info(LogCategory.UI, "UIRoot: user interface ready (main menu, pause menu, death screen, HUD, messages, loading screen).");
         }
@@ -287,6 +315,15 @@ namespace Aetherfall.UI.Screens
         private void OnGameStateChanged(GameStateChanged evt)
         {
             _director.Apply(evt.Current);
+            ApplyMenuCamera(evt.Current);
+        }
+
+        private void ApplyMenuCamera(GameState state)
+        {
+            if (menuCamera != null)
+            {
+                menuCamera.enabled = UiFlowRules.UsesMenuCamera(state);
+            }
         }
 
         private void OnPlayerDied(PlayerDied evt)

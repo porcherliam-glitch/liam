@@ -57,22 +57,26 @@
     background-color: rgba(47, 230, 214, 0.22);
 }
 
+/* Side margins in percent (160 px at 1920): at larger UI sizes the logical screen gets narrower, so the page keeps room. */
 .af-mainmenu__layout {
     position: absolute;
-    left: 160px;
+    left: 8.33%;
     top: 0;
-    right: 160px;
+    right: 8.33%;
     bottom: 0;
     flex-direction: row;
     align-items: center;
 }
 
+/* The column keeps its width; the page takes the rest (basis 0, so long texts on the page never squeeze the column). */
 .af-mainmenu__column {
     width: 600px;
+    flex-shrink: 0;
 }
 
 .af-mainmenu__page {
     flex-grow: 1;
+    flex-basis: 0;
     margin: 0 0 0 80px;
     height: 640px;
     padding: 40px 48px;
@@ -82,8 +86,10 @@
     border-radius: 6px;
 }
 
+/* Wraps after "Chroniken von", so the title never runs into the page panel on the right. */
 .af-title {
     font-size: 76px;
+    white-space: normal;
     color: var(--text-title);
     -unity-font-style: bold;
     letter-spacing: 2px;
@@ -133,6 +139,7 @@
 }
 
 .af-tab {
+    flex-shrink: 0;
     height: 48px;
     margin: 0 4px;
     padding: 0 22px;
@@ -144,11 +151,6 @@
     font-size: 24px;
     color: var(--text-secondary);
     -unity-text-align: middle-center;
-}
-
-.af-tab:hover,
-.af-tab:active {
-    background-color: rgba(0, 0, 0, 0);
 }
 
 .af-tab.is-selected {
@@ -171,10 +173,24 @@
 
 .af-pause__info {
     flex-grow: 1;
+    flex-basis: 0;
     margin: 0 0 0 56px;
     padding: 0 0 0 40px;
     border-left-width: 1px;
     border-color: var(--ui-panel-border);
+}
+
+.af-pause__info-title {
+    font-size: 18px;
+    color: var(--text-muted);
+    letter-spacing: 1px;
+}
+
+.af-pause__last-save {
+    margin: 6px 0 28px 0;
+    font-size: var(--font-body);
+    color: var(--text-primary);
+    white-space: normal;
 }
 
 .af-pause__status {
@@ -195,16 +211,6 @@
 
 .af-death {
     background-color: rgba(14, 3, 5, 0.86);
-}
-
-.af-death__vignette {
-    position: absolute;
-    left: 0;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    border-width: 140px;
-    border-color: rgba(70, 8, 12, 0.45);
 }
 
 .af-death__content {

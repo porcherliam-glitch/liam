@@ -2,6 +2,8 @@
 
 > Kampfsystem, Lock-On, Gegner-KI (Wolf, Aether-Wolf), Trainingspuppe, Kampf-Overlay · Stand: 2026-10-13 · Bezug: [Architektur 4.1, 4.3, 4.4, 11.4, 11.10](../Technik/01_Architektur.md) · [GDD 03, Abschnitte 1–4, 8, 9](../GDD/03_Kampf_Charakter_Progression.md) · [GDD 01, 11.2 (Aether-verderbt)](../GDD/01_Welt_Story_Fraktionen.md)
 
+> **Hinweis seit [Anleitung 07](./07_Test_Oberflaeche.md) (Oberfläche):** Die Entwickler-Overlays starten ausgeblendet – **F3** blendet sie ein und aus. **Esc** öffnet jetzt das neue Pausemenü; zum Klicken auf Overlay-Knöpfe geht auch **Tab** (Debug-Inventar, der Mauszeiger erscheint). Stirbt die Figur, erscheint der Todesbildschirm statt des automatischen Wiederbelebens. Mit Hauptmenü startest du über die Boot-Szene, der direkte Start im Testgelände geht weiterhin.
+
 In diesem Schritt kann die Spielfigur zum ersten Mal **kämpfen**: mit einem Einhandschwert und einem Holzschild (beides vorerst graue Quader). Es gibt leichte Kombo-Angriffe, schwere Angriffe zum Aufladen, Blocken, Parieren mit Konter, Ausweichrolle, Lock-On und Finisher. Im Testgelände stehen jetzt eine **Trainingspuppe** zum Üben und eine **Arena mit zwei Grauwölfen und einem Aether-Wolf**. Die Wölfe bemerken dich, umkreisen dich, greifen abwechselnd an, fliehen bei wenig Lebenspunkten und kehren zurück, wenn du zu weit wegläufst. Stirbt die Figur, erscheint sie nach 3 Sekunden wieder am Startpunkt.
 
 Es gibt **noch keine Animationen**: Ein Angriff ist eine Abfolge von Zeitfenstern (Ausholen, Treffer, Erholung), das Schwert schwingt per Code. Achte beim Testen deshalb vor allem auf das **Timing und das Gefühl**, nicht auf das Aussehen.

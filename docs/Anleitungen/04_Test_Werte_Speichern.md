@@ -2,6 +2,8 @@
 
 > Werte-System, Lebenspunkte/Schaden, Ausdauer der Spielfigur, Speichersystem, Spieler-Overlay · Stand: 2026-10-13 · Bezug: [Architektur 4.1, 4.4, 9, 11.4](../Technik/01_Architektur.md) · [GDD 03, Abschnitte 3.1, 4.3, 8, 10](../GDD/03_Kampf_Charakter_Progression.md) · [GDD 05, Abschnitt 5](../GDD/05_UI_Audio_Grafik_Barrierefreiheit.md#5-speichern-aus-spielersicht-25)
 
+> **Hinweis seit [Anleitung 07](./07_Test_Oberflaeche.md) (Oberfläche):** Die Entwickler-Overlays starten ausgeblendet – **F3** blendet sie ein und aus. **Esc** öffnet jetzt das neue Pausemenü; zum Klicken auf Overlay-Knöpfe geht auch **Tab** (Debug-Inventar, der Mauszeiger erscheint). Stirbt die Figur, erscheint der Todesbildschirm statt des automatischen Wiederbelebens. Mit Hauptmenü startest du über die Boot-Szene, der direkte Start im Testgelände geht weiterhin.
+
 In diesem Schritt bekommt die Spielfigur **Werte**: Lebenspunkte (LP), Ausdauer und Mana. Sprinten und Springen kosten jetzt Ausdauer. Außerdem kann das Spiel zum ersten Mal **speichern und laden**: Position und Blickrichtung der Figur, LP, Ausdauer, Mana und die Spielzeit. Ein neues Fenster rechts oben im Spiel (das **Spieler-Overlay**) zeigt die Werte an und hat Knöpfe zum Testen: Schnellspeichern, Schnellladen, 10 Schaden, Heilen.
 
 Voraussetzung: [Anleitung 01](./01_Projekt-Setup.md), [Anleitung 02](./02_Test_Phase1_Fundament.md) und [Anleitung 03](./03_Test_Spielfigur.md) sind erledigt (Unity 6.3 LTS, Testgelände läuft, die Figur lässt sich steuern).

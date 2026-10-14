@@ -54,7 +54,7 @@ namespace Aetherfall.EditorTools.World
                 "• 3 Truhen (Holz, Eisen, versteckt) und Beute-Anzeige\n" +
                 "• Layer 6 „Player“, 7 „Enemy“, 9 „Hurtbox“, 10 „Interactable“, 11 „Environment“ und 16 „Pickup“, falls frei\n" +
                 "• Oberfläche: SceneLoaderInstaller und UIInstaller in der BootConfig, " + TestGroundUiBuilder.PanelSettingsPath +
-                ", Objekt „UI“ in der Boot-Szene (Hauptmenü, HUD, Pausemenü, Todesbildschirm, Ladebildschirm), Szenenliste Boot + Testgelände\n\n" +
+                ", Objekt „UI“ in der Boot-Szene (Hauptmenü, HUD, Pausemenü, Todesbildschirm, Ladebildschirm, Menükamera), Szenenliste Boot + Testgelände\n\n" +
                 (sceneExists
                     ? "Die Szene existiert bereits und wird NEU AUFGEBAUT. Eigene Änderungen in dieser Szene gehen verloren. " +
                       "Die Assets (Materialien, Einstellungen) bleiben erhalten."

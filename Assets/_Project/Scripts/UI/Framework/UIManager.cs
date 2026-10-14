@@ -13,7 +13,8 @@ namespace Aetherfall.UI.Framework
     /// <para>Per frame: read the UI input (only while the UI map is enabled and the top screen accepts input), apply it to the
     /// top screen with <see cref="UiNavigationController"/>, tick the open screens, update the message queue.</para>
     /// <para>In the frame a screen opens, its input is ignored, so the button press that opened it does not also confirm or
-    /// close it.</para>
+    /// close it. A direction that is still held when a screen opens or closes (walking with W or the stick, then Esc/Start)
+    /// moves the focus only after it was released once.</para>
     /// </remarks>
     public sealed class UIManager : IUIManager, IUnscaledTickable, IDisposable
     {
@@ -379,7 +380,7 @@ namespace Aetherfall.UI.Framework
 
         private void ResetInput()
         {
-            _navigation.Reset();
+            _navigation.ResetUntilNeutral();
             _pointerHoldIndex = -1;
             _pointerHoldScreen = null;
             _skipInput = true;

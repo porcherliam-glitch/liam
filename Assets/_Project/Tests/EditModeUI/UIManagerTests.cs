@@ -87,6 +87,37 @@ namespace Aetherfall.Tests.EditMode.UI
         }
 
         [Test]
+        public void ADirectionHeldWhileAScreenOpensOrCloses_MovesTheFocusOnlyAfterItWasReleased()
+        {
+            // Walking forward (W / stick up) and pressing Esc: UI/Navigate reports "up" from the first frame on.
+            _input.Sticky = true;
+            _input.Next.NavigateY = 1f;
+            _manager.Open(_menu);
+            for (int i = 0; i < 60; i++)
+            {
+                _manager.Tick(1f / 60f);
+            }
+
+            Assert.That(_menu.Focus.Current, Is.EqualTo(0), "the held direction must not move the focus (also not after 0.4 s)");
+
+            _input.Next.NavigateY = 0f;
+            _manager.Tick(0.016f);
+            _input.Next.NavigateY = -1f;
+            _manager.Tick(0.016f);
+            Assert.That(_menu.Focus.Current, Is.EqualTo(1), "after releasing, a new press moves the focus");
+
+            // Still holding "down" while a dialog opens and closes again: the menu below does not move either.
+            _manager.Open(_dialog);
+            _manager.Tick(0.016f);
+            _manager.Tick(0.016f);
+            Assert.That(_dialog.Focus.Current, Is.EqualTo(0));
+            _manager.Close(_dialog);
+            _manager.Tick(0.016f);
+            _manager.Tick(0.5f);
+            Assert.That(_menu.Focus.Current, Is.EqualTo(1));
+        }
+
+        [Test]
         public void BackWithCloseResult_ClosesTheTopScreen()
         {
             _manager.Open(_menu);

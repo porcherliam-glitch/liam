@@ -2,6 +2,8 @@
 
 > Bootstrapper, ServiceLocator, EventBus, GameStateManager · Stand: 2026-10-13 · Bezug: [Master-Prompt §31 Phase 1.1, §32.3, §32.10](../00_Master-Prompt.md) · [Architektur 4.1–4.4](../Technik/01_Architektur.md#4-kernsysteme-62) · [Systeme, Schritt 1.2](../Technik/02_Systeme_und_Abhaengigkeiten.md#phase-1--fundament)
 
+> **Hinweis seit [Anleitung 07](./07_Test_Oberflaeche.md) (Oberfläche):** Die Entwickler-Overlays starten ausgeblendet – **F3** blendet sie ein und aus. **Esc** öffnet jetzt das neue Pausemenü; zum Klicken auf Overlay-Knöpfe geht auch **Tab** (Debug-Inventar, der Mauszeiger erscheint). Stirbt die Figur, erscheint der Todesbildschirm statt des automatischen Wiederbelebens. Mit Hauptmenü startest du über die Boot-Szene, der direkte Start im Testgelände geht weiterhin.
+
 Diese Anleitung beschreibt, welche Dateien neu sind, was das Setup-Werkzeug im Editor anlegt und wie du das Fundament in Unity prüfst. Sie setzt voraus, dass das Projekt-Setup (Phase 0, Schritt 4) nach [Anleitung 01](./01_Projekt-Setup.md), Schritte 1–8, erledigt ist: Unity 6.3 LTS, im Fenster **Aetherfall > Projekt-Setup …** alle Schritte a) bis f) ✓ (damit sind Domain Reload aus und Test Framework installiert). Den kurzen Play-Test aus Anleitung 01, Schritt 7, beschreibt Abschnitt 5 hier ausführlich.
 
 ---

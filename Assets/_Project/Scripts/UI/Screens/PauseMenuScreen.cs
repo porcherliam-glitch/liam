@@ -16,7 +16,7 @@ namespace Aetherfall.UI.Screens
     /// <see cref="UiStateDirector"/>). B / Esc on a tab page returns to System, on System it resumes; Start / Esc / Tab
     /// resume from every tab.
     /// </remarks>
-    public sealed class PauseMenuScreen : MenuScreen
+    public sealed class PauseMenuScreen : MenuScreen, IErrorDisplay
     {
         /// <summary>Screen id (telemetry).</summary>
         public const string Id = "screen.pause";
@@ -44,6 +44,7 @@ namespace Aetherfall.UI.Screens
         private readonly VisualElement[] _pages = new VisualElement[TabCount];
         private readonly VisualElement[] _tabButtons = new VisualElement[TabCount];
         private readonly Label _status;
+        private readonly Label _lastSave;
         private int _tab;
         private int _systemIndex;
 
@@ -71,6 +72,7 @@ namespace Aetherfall.UI.Screens
             _systemList.Add(root.Q<VisualElement>("pause-main-menu"), true);
             _systemList.Add(root.Q<VisualElement>("pause-quit"), true);
             _status = root.Q<Label>("pause-status");
+            _lastSave = root.Q<Label>("pause-last-save");
 
             _pages[SystemTab] = root.Q<VisualElement>("pause-system-page");
             _pages[LoadTab] = root.Q<VisualElement>("pause-load-page");
@@ -105,6 +107,12 @@ namespace Aetherfall.UI.Screens
             UiElementUtility.SetText(_status, message);
             _status.EnableInClassList("is-error", isError && !string.IsNullOrEmpty(message));
             _status.EnableInClassList("is-ok", !isError && !string.IsNullOrEmpty(message));
+        }
+
+        /// <inheritdoc />
+        public void ShowError(string message)
+        {
+            ShowStatus(message, true);
         }
 
         /// <inheritdoc />
@@ -183,6 +191,7 @@ namespace Aetherfall.UI.Screens
             _systemList.Focus.FocusFirst();
             SelectTab(SystemTab, false);
             RefreshSaveState();
+            RefreshLastSave();
             base.OnOpen(args);
         }
 
@@ -214,7 +223,16 @@ namespace Aetherfall.UI.Screens
                     ? UiTexts.Format(UiTextKeys.SaveOk, SaveSlotText.KindName(SaveKind.Quick))
                     : UiTexts.Format(UiTextKeys.SaveFailed, SaveReasonKeys.ToGermanText(result.ReasonKey)), !result.Success);
                 RefreshSaveState();
+                RefreshLastSave();
             });
+        }
+
+        private void RefreshLastSave()
+        {
+            // Info column of the System tab: kind and date of the newest save (the one "Fortsetzen" would load).
+            UiElementUtility.SetText(_lastSave, _flow.TryGetLatestSave(out SaveSlotInfo latest)
+                ? UiTexts.Format(UiTextKeys.ContinueInfo, SaveSlotText.KindName(latest.Kind), SaveSlotText.DateTime(latest.CreatedUtc))
+                : UiTexts.Get(UiTextKeys.NoSave));
         }
 
         private void RefreshSaveState()

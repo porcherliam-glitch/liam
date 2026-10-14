@@ -14,8 +14,17 @@ namespace Aetherfall.UI.Screens
     /// </remarks>
     public interface IGameFlow
     {
-        /// <summary>True while a flow (new game, load, back to the main menu) runs; menus ignore further actions.</summary>
+        /// <summary>
+        /// True while a flow (new game, load, back to the main menu) runs or the save manager reads or writes; menus ignore
+        /// further actions.
+        /// </summary>
         bool IsBusy { get; }
+
+        /// <summary>
+        /// True only while a flow of this class or a scene operation runs, not for a save that is being written (autosave,
+        /// F5). The pause button checks this: pausing while a file is written is harmless.
+        /// </summary>
+        bool IsFlowRunning { get; }
 
         /// <summary>Raised with a German message when an action failed (shown by the menus).</summary>
         event Action<string> Failed;

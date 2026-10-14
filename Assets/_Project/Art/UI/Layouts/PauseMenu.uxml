@@ -33,6 +33,8 @@
                         </ui:Button>
                     </ui:VisualElement>
                     <ui:VisualElement class="af-pause__info">
+                        <ui:Label name="pause-info-title" class="af-text af-pause__info-title" />
+                        <ui:Label name="pause-last-save" class="af-text af-pause__last-save" />
                         <ui:Label name="pause-status" class="af-text af-pause__status" />
                     </ui:VisualElement>
                 </ui:VisualElement>

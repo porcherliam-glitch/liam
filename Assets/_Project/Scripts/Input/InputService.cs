@@ -105,6 +105,13 @@ namespace Aetherfall.Input
         }
 
         /// <inheritdoc />
+        public bool WasPausePressedThisFrame()
+        {
+            // Actions of disabled maps report nothing, so only the map of the current state counts.
+            return !_disposed && AnyPressed(_pauseActions);
+        }
+
+        /// <inheritdoc />
         public void PostInitialize()
         {
             if (_disposed || _subscribed)

@@ -9,7 +9,7 @@ namespace Aetherfall.UI.Screens
     /// Death screen: "Du bist gefallen" with "Letzten Stand laden" (newest save, disabled without one) and "Am Spawnpunkt
     /// wiederbeleben". B / Esc do nothing here. Opened by <see cref="UiStateDirector"/> a moment after <c>PlayerDied</c>.
     /// </summary>
-    public sealed class DeathScreen : MenuScreen
+    public sealed class DeathScreen : MenuScreen, IErrorDisplay
     {
         /// <summary>Screen id (telemetry).</summary>
         public const string Id = "screen.death";
@@ -50,6 +50,12 @@ namespace Aetherfall.UI.Screens
         {
             UiElementUtility.SetText(_status, message);
             UiElementUtility.SetDisplayed(_status, !string.IsNullOrEmpty(message));
+        }
+
+        /// <inheritdoc />
+        public void ShowError(string message)
+        {
+            ShowStatus(message);
         }
 
         /// <inheritdoc />

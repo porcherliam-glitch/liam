@@ -59,6 +59,34 @@ namespace Aetherfall.Tests.EditMode.UI
         }
 
         [Test]
+        public void BlockUntilNeutral_IgnoresADirectionHeldFromBefore_UntilItWasReleasedOnce()
+        {
+            var repeater = new NavigationRepeater();
+            repeater.BlockUntilNeutral();
+
+            // Held for 1 s: no step, also not after the repeat delay of 0.4 s.
+            for (int i = 0; i < 60; i++)
+            {
+                Assert.That(repeater.Update(0f, 1f, 1f / 60f), Is.EqualTo(NavDirection.None), "frame " + i);
+            }
+
+            Assert.That(repeater.WaitsForNeutral, Is.True);
+            Assert.That(repeater.Update(0.2f, 0.1f, 0.016f), Is.EqualTo(NavDirection.None), "below the threshold = neutral");
+            Assert.That(repeater.WaitsForNeutral, Is.False);
+            Assert.That(repeater.Update(0f, 1f, 0.016f), Is.EqualTo(NavDirection.Up), "a new press steps at once");
+        }
+
+        [Test]
+        public void Reset_DoesNotLiftTheBlock()
+        {
+            var repeater = new NavigationRepeater();
+            repeater.BlockUntilNeutral();
+            repeater.Reset();
+            Assert.That(repeater.Update(0f, -1f, 0.016f), Is.EqualTo(NavDirection.None));
+            Assert.That(repeater.WaitsForNeutral, Is.True);
+        }
+
+        [Test]
         public void Update_ChangingDirection_StepsAtOnce()
         {
             var repeater = new NavigationRepeater();

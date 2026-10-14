@@ -72,6 +72,17 @@ namespace Aetherfall.Tests.EditMode.UIScreens
         }
 
         [Test]
+        public void ASaveBeingWritten_MakesTheMenusWait_ButIsNoRunningFlow()
+        {
+            _saves.IsBusy = true;
+
+            Assert.That(_flow.IsBusy, Is.True, "menu actions wait for the save");
+            Assert.That(_flow.IsFlowRunning, Is.False, "the pause button does not wait for an autosave");
+            _saves.IsBusy = false;
+            Assert.That(_flow.IsBusy, Is.False);
+        }
+
+        [Test]
         public void NewGame_OutsideTheMainMenu_DoesNothing()
         {
             _state.SwitchBase(GameState.Loading, "test");

@@ -66,7 +66,10 @@ namespace Aetherfall.UI.Screens
         }
 
         /// <inheritdoc />
-        public bool IsBusy => _busy || _scenes.IsBusy || _saves.IsBusy;
+        public bool IsBusy => IsFlowRunning || _saves.IsBusy;
+
+        /// <inheritdoc />
+        public bool IsFlowRunning => _busy || _scenes.IsBusy;
 
         /// <inheritdoc />
         public event Action<string> Failed;

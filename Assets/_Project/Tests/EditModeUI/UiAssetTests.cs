@@ -136,6 +136,27 @@ namespace Aetherfall.Tests.EditMode.UI
         }
 
         [Test]
+        public void MenuItems_UseOnlyTheOwnStateClasses_NotUnityButtonStates()
+        {
+            // The default theme styles ".unity-button:enabled:hover" and ":active" (specificity 3, beats ".af-button:hover"
+            // and also hits items with is-disabled). BindItem removes the class; the look depends only on is-focused and
+            // is-disabled, so the own sheets need no hover/pressed rules either.
+            string code = File.ReadAllText(Path.Combine(ProjectFiles.ProjectFolder(), "Scripts", "UI", "Framework", "UiElementUtility.cs"));
+            StringAssert.Contains("RemoveFromClassList(Button.ussClassName)", code);
+            foreach (string file in Directory.GetFiles(ProjectFiles.Get(StylesFolder), "*.uss"))
+            {
+                string text = Regex.Replace(File.ReadAllText(file), @"/\*.*?\*/", string.Empty, RegexOptions.Singleline);
+                foreach (Match block in Regex.Matches(text, @"([^{}]+)\{"))
+                {
+                    string selector = block.Groups[1].Value.Trim();
+                    Assert.That(Regex.IsMatch(selector, @":(hover|active|focus)\b"), Is.False,
+                        Path.GetFileName(file) + ": '" + selector + "' styles a pointer state; menu items show the focus with is-focused");
+                    Assert.That(selector.Contains("unity-button"), Is.False, Path.GetFileName(file) + ": '" + selector + "' relies on the removed class unity-button");
+                }
+            }
+        }
+
+        [Test]
         public void ScreenCode_QueriesOnlyElementNamesThatExistInTheUxml()
         {
             HashSet<string> names = UxmlNames();
@@ -157,7 +178,7 @@ namespace Aetherfall.Tests.EditMode.UI
             {
                 "mainmenu-continue-info", "mainmenu-version", "mainmenu-status", "load-status", "slot-kind", "slot-date", "slot-playtime",
                 "options-ui-scale-value", "options-hud-mode-value", "options-glyphs-value", "options-ui-scale", "options-hud-mode", "options-glyphs",
-                "pause-status", "death-load-info", "death-status", "loading-percent", "hud-target-name", "hud-prompt-text", "toast-text"
+                "pause-status", "pause-last-save", "death-load-info", "death-status", "loading-percent", "hud-target-name", "hud-prompt-text", "toast-text"
             };
             foreach (string file in Directory.GetFiles(ProjectFiles.Get(LayoutsFolder), "*.uxml"))
             {

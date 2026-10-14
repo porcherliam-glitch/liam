@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Renders all preview images, videos and planning diagrams of the test ground (Blender rebuild, no Unity needed).
+# Renders all preview images, videos and planning diagrams of the test ground (Blender rebuild, no Unity needed)
+# and the HTML rebuild of the user interface (Tools/Preview/ui).
 # Usage: Tools/Preview/alles_rendern.sh [OUTPUT_DIR]
 # Environment: BLENDER (path to blender), STILL_SAMPLES (default 48), VIDEO_SAMPLES (default 16),
 #              MMDC and MMDC_PUPPETEER (mermaid-cli for the diagrams, optional).
@@ -48,5 +49,11 @@ if [[ -n "${MMDC:-}" ]] || command -v mmdc >/dev/null 2>&1; then
   python3 -I "$HERE/diagramme_rendern.py" --out "$OUT" ${MMDC_PUPPETEER:+--puppeteer "$MMDC_PUPPETEER"}
 else
   echo "mermaid-cli (mmdc) nicht gefunden - Diagramme übersprungen."
+fi
+echo "== Oberfläche (HTML-Nachbau) =="
+if command -v node >/dev/null 2>&1; then
+  node "$HERE/ui/vorschau_ui.cjs" --out "$OUT/ui" || echo "UI-Vorschau fehlgeschlagen (siehe Meldungen oben)."
+else
+  echo "Node.js nicht gefunden - UI-Vorschau übersprungen (siehe Tools/Preview/ui/README.md)."
 fi
 echo "Fertig: $OUT"

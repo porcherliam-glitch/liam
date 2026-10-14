@@ -4,13 +4,14 @@
     background-color: #090B0E;
 }
 
+/* A faint golden arc in the lower left corner (a circle: width = height = 2 x radius). */
 .af-loading__glow {
     position: absolute;
-    left: -320px;
-    bottom: -520px;
-    width: 1400px;
-    height: 1000px;
-    border-radius: 700px;
+    left: -420px;
+    bottom: -820px;
+    width: 1300px;
+    height: 1300px;
+    border-radius: 650px;
     background-color: rgba(201, 162, 77, 0.06);
 }
 

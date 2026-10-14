@@ -1,0 +1,227 @@
+/*
+ * Emulation of the UI Toolkit defaults for the HTML preview (values from UnityEngine.UIElements InitialStyle):
+ * every element is a flex column, position relative, border-box sizing (Yoga), no margin, padding or border, min size 0.
+ * Inherited text properties (colour, size, alignment, white-space) are set once on the panel and inherited, as in USS.
+ * :where() keeps the specificity at 0, so every converted USS rule wins.
+ * --panel-w / --panel-h: logical panel size (1920 x 1080 at 100 % UI size on 16:9; smaller at larger UI sizes), set by
+ * vorschau_ui.cjs per scene.
+ */
+
+:root {
+    --panel-w: 1920px;
+    --panel-h: 1080px;
+}
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+    width: var(--panel-w);
+    height: var(--panel-h);
+    overflow: hidden;
+    background: #000000;
+}
+
+/* Default runtime font of Unity (Arial metrics); Liberation Sans has the same metrics. */
+body {
+    font-family: "Liberation Sans", Arial, "DejaVu Sans", sans-serif;
+    -webkit-font-smoothing: antialiased;
+}
+
+.af-panel-preview {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: var(--panel-w);
+    height: var(--panel-h);
+    overflow: hidden;
+    /* USS initial values of the inherited properties. */
+    font-size: 14px;
+    color: #000000;
+    white-space: pre-wrap;
+    line-height: normal;
+    --uta: upper-left;
+}
+
+:where(.af-panel-preview div) {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    flex-grow: 0;
+    flex-shrink: 1;
+    flex-basis: auto;
+    min-width: 0;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    border-style: solid;
+    border-width: 0;
+    border-color: transparent;
+}
+
+/* The own text of a Label or Button (UI Toolkit draws it in the content box). */
+.u-text {
+    display: block;
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: break-word;
+}
+
+/* Text of an element that also has children: drawn over the content box, not laid out as a child (Yoga measures only leaves). */
+.u-text--overlay {
+    position: absolute;
+    display: flex;
+    flex-direction: row;
+    pointer-events: none;
+}
+
+/* ---------- Neutral game background (stand-in for the 3D scene) ---------- */
+
+/* Drawn for 1920 x 1080 and scaled to cover other panel sizes (seite.js sets the transform). */
+.sh {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 1920px;
+    height: 1080px;
+    transform-origin: 0 0;
+    overflow: hidden;
+    background: linear-gradient(180deg, #8DAACB 0%, #B9CBDD 34%, #D9E0E6 44%, #C9CED3 46%);
+}
+
+.sh--bild {
+    background-size: cover;
+    background-position: center;
+}
+
+.sh__boden {
+    position: absolute;
+    left: -600px;
+    right: -600px;
+    top: 470px;
+    bottom: -200px;
+    background: linear-gradient(180deg, #737B83 0%, #656C73 40%, #585E64 100%);
+}
+
+.sh__raster {
+    position: absolute;
+    left: -1400px;
+    right: -1400px;
+    top: 470px;
+    height: 1600px;
+    transform-origin: 50% 0%;
+    transform: perspective(520px) rotateX(78deg);
+    background-image:
+        repeating-linear-gradient(90deg, rgba(40, 44, 48, 0.55) 0 3px, transparent 3px 220px),
+        repeating-linear-gradient(0deg, rgba(40, 44, 48, 0.55) 0 3px, transparent 3px 220px);
+}
+
+.sh__dunst {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 440px;
+    height: 120px;
+    background: linear-gradient(180deg, rgba(217, 224, 230, 0) 0%, rgba(205, 212, 218, 0.75) 45%, rgba(110, 118, 126, 0) 100%);
+}
+
+.sh__block {
+    position: absolute;
+    background: #6F7880;
+    box-shadow: inset -26px 0 0 rgba(0, 0, 0, 0.18);
+}
+
+.sh__wolf {
+    position: absolute;
+    left: 1090px;
+    top: 452px;
+    width: 230px;
+    height: 120px;
+}
+
+.sh__wolf-koerper {
+    position: absolute;
+    left: 30px;
+    top: 30px;
+    width: 150px;
+    height: 56px;
+    border-radius: 30px 40px 26px 22px;
+    background: #4F4C49;
+}
+
+.sh__wolf-kopf {
+    position: absolute;
+    left: 158px;
+    top: 14px;
+    width: 64px;
+    height: 44px;
+    border-radius: 20px 30px 14px 24px;
+    background: #57534F;
+}
+
+.sh__wolf-bein {
+    position: absolute;
+    top: 78px;
+    width: 14px;
+    height: 40px;
+    border-radius: 4px;
+    background: #45423F;
+}
+
+.sh__schatten {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(20, 24, 28, 0.35);
+}
+
+.sh__beute {
+    position: absolute;
+    left: 868px;
+    top: 690px;
+    width: 46px;
+    height: 40px;
+    background: #8B5A33;
+    border-radius: 3px;
+    box-shadow: inset 0 10px 0 rgba(255, 255, 255, 0.12), inset -12px 0 0 rgba(0, 0, 0, 0.16);
+}
+
+.sh__spieler {
+    position: absolute;
+    left: 900px;
+    top: 560px;
+    width: 160px;
+    height: 360px;
+    border-radius: 80px;
+    background: radial-gradient(ellipse at 38% 30%, #F4F7FB 0%, #D9E2EC 45%, #A9B5C3 100%);
+}
+
+.sh__schild {
+    position: absolute;
+    left: 846px;
+    top: 650px;
+    width: 72px;
+    height: 150px;
+    background: #7A4F2E;
+    border-radius: 4px;
+}
+
+/* ---------- Preview bar (every image) ---------- */
+
+.af-preview-bar {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 29px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.74);
+    color: #FFFFFF;
+    font-family: "DejaVu Sans", "Liberation Sans", sans-serif;
+    font-size: 16px;
+    letter-spacing: 0.2px;
+    z-index: 1000;
+}

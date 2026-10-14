@@ -61,6 +61,9 @@ namespace Aetherfall.EditorTools.World
         /// <summary>Name of the UI root object in the boot scene.</summary>
         public const string UiObjectName = "UI";
 
+        /// <summary>Name of the menu camera (child of the UI root): clears the screen in the main menu and while loading.</summary>
+        public const string MenuCameraName = "MenuCamera";
+
         private const string DialogTitle = "Oberfläche einrichten";
 
         private static readonly KeyValuePair<string, string>[] Layouts =
@@ -88,7 +91,7 @@ namespace Aetherfall.EditorTools.World
                 "Eingerichtet bzw. ergänzt werden:\n\n" +
                 "• SceneLoaderInstaller und UIInstaller in der BootConfig\n" +
                 "• " + PanelSettingsPath + " mit dem Aetherfall-Theme\n" +
-                "• Objekt „UI“ in der Boot-Szene mit Hauptmenü, Pausemenü, Todesbildschirm, HUD, Meldungen und Ladebildschirm\n" +
+                "• Objekt „UI“ in der Boot-Szene mit Hauptmenü, Pausemenü, Todesbildschirm, HUD, Meldungen, Ladebildschirm und Menükamera\n" +
                 "• Szenenliste: Boot (Index 0), dahinter das Testgelände\n\n" +
                 "Vorhandenes wird nicht überschrieben. Die Boot-Szene wird dazu geöffnet und gespeichert.";
             if (!EditorUtility.DisplayDialog(DialogTitle, question, "Einrichten", "Abbrechen") ||
@@ -226,6 +229,7 @@ namespace Aetherfall.EditorTools.World
             }
 
             FillReference(root, "panelSettings", panel, report);
+            FillReference(root, "menuCamera", EnsureMenuCamera(root.transform, report), report);
             FillReference(root, "hudDocument", EnsureDocument(root.transform, "HUD", panel, UILayer.Hud, LoadLayout("Hud.uxml", report), report), report);
             FillReference(root, "screensDocument", EnsureDocument(root.transform, "Screens", panel, UILayer.Screens, null, report), report);
             FillReference(root, "toastsDocument", EnsureDocument(root.transform, "Toasts", panel, UILayer.Toasts, LoadLayout("Toasts.uxml", report), report), report);
@@ -245,7 +249,7 @@ namespace Aetherfall.EditorTools.World
                 return false;
             }
 
-            report.Info("Boot-Szene gespeichert: Oberfläche (UIRoot mit HUD, Screens, Toasts, Loading).");
+            report.Info("Boot-Szene gespeichert: Oberfläche (UIRoot mit HUD, Screens, Toasts, Loading und MenuCamera).");
             return complete;
         }
 
@@ -356,6 +360,40 @@ namespace Aetherfall.EditorTools.World
             document.sortingOrder = (int)layer;
             EditorUtility.SetDirty(document);
             return document;
+        }
+
+        /// <summary>
+        /// The camera of the boot scene for the main menu and the loading screen: clears to the menu colour, renders no layer,
+        /// lowest priority (a scene camera draws over it), no AudioListener, not tagged MainCamera. UIRoot switches it on only
+        /// in Boot, MainMenu and Loading. Without it the Game view shows "No cameras rendering" (macOS: garbage) in the menu.
+        /// </summary>
+        private static Camera EnsureMenuCamera(Transform parent, TestGroundReport report)
+        {
+            Transform child = parent.Find(MenuCameraName);
+            if (child != null && child.TryGetComponent(out Camera existing))
+            {
+                report.Info("Vorhanden (unverändert): Kamera „" + MenuCameraName + "“ in der Boot-Szene.");
+                return existing;
+            }
+
+            if (child == null)
+            {
+                var cameraObject = new GameObject(MenuCameraName);
+                cameraObject.transform.SetParent(parent, false);
+                child = cameraObject.transform;
+            }
+
+            Camera camera = child.gameObject.AddComponent<Camera>();
+            camera.clearFlags = CameraClearFlags.SolidColor;
+            // Background colour of the main menu (Menus.uss, .af-mainmenu): #0A0D11.
+            camera.backgroundColor = new Color32(0x0A, 0x0D, 0x11, 0xFF);
+            camera.cullingMask = 0;
+            camera.depth = -100f;
+            camera.allowHDR = false;
+            camera.allowMSAA = false;
+            EditorUtility.SetDirty(camera);
+            report.Info("Boot-Szene: Kamera „" + MenuCameraName + "“ angelegt (füllt im Hauptmenü und beim Laden das Bild mit der Menüfarbe).");
+            return camera;
         }
 
         private static VisualTreeAsset LoadLayout(string fileName, TestGroundReport report)

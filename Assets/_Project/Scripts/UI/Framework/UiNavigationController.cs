@@ -30,10 +30,20 @@ namespace Aetherfall.UI.Framework
         /// <summary>The hold timer (its duration is an option, GDD 05 1.4).</summary>
         public HoldToConfirm Hold => _hold;
 
-        /// <summary>Forgets held directions and running holds (a screen opened or closed).</summary>
+        /// <summary>Forgets held directions and running holds.</summary>
         public void Reset()
         {
             _repeater.Reset();
+            CancelHold();
+        }
+
+        /// <summary>
+        /// Like <see cref="Reset"/>, and a direction that is still held (e.g. W or the stick from walking) moves the focus only
+        /// after it was released once. Called when a screen opens or closes.
+        /// </summary>
+        public void ResetUntilNeutral()
+        {
+            _repeater.BlockUntilNeutral();
             CancelHold();
         }
 

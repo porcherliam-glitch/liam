@@ -7,6 +7,10 @@ namespace Aetherfall.UI.Framework
     /// architecture 4.9): one step when the direction is pressed, then auto-repeat after 0.4 s with 12 steps per second.
     /// Pure logic; the caller passes real (unscaled) time, so menus also navigate while the game is paused.
     /// </summary>
+    /// <remarks>
+    /// After <see cref="BlockUntilNeutral"/> a direction that is still held (the player was walking with W or the stick when a
+    /// screen opened; UI/Navigate is a value action and reports it at once) is ignored until the input was neutral once.
+    /// </remarks>
     public sealed class NavigationRepeater
     {
         /// <summary>Deflection from which a direction counts as pressed (GDD 05 1.5: stick above 50 %).</summary>
@@ -23,6 +27,7 @@ namespace Aetherfall.UI.Framework
         private readonly float _repeatInterval;
         private NavDirection _held = NavDirection.None;
         private float _timer;
+        private bool _waitForNeutral;
 
         /// <summary>Creates a repeater with the values of GDD 05 1.4 unless others are given.</summary>
         /// <param name="threshold">Deflection from which a direction counts (0..1, exclusive).</param>
@@ -53,6 +58,9 @@ namespace Aetherfall.UI.Framework
         /// <summary>Direction currently held (None if released).</summary>
         public NavDirection Held => _held;
 
+        /// <summary>True while a held direction is ignored until the input was neutral once (<see cref="BlockUntilNeutral"/>).</summary>
+        public bool WaitsForNeutral => _waitForNeutral;
+
         /// <summary>Returns the dominant direction of a navigation value, or None below the threshold.</summary>
         /// <param name="x">Horizontal value (-1 left .. 1 right).</param>
         /// <param name="y">Vertical value (-1 down .. 1 up).</param>
@@ -82,6 +90,16 @@ namespace Aetherfall.UI.Framework
         public NavDirection Update(float x, float y, float deltaTime)
         {
             NavDirection direction = DirectionOf(x, y, _threshold);
+            if (_waitForNeutral)
+            {
+                if (direction == NavDirection.None)
+                {
+                    _waitForNeutral = false;
+                }
+
+                return NavDirection.None;
+            }
+
             if (direction == NavDirection.None)
             {
                 Reset();
@@ -112,11 +130,21 @@ namespace Aetherfall.UI.Framework
             return direction;
         }
 
-        /// <summary>Forgets the held direction (e.g. when a screen opens).</summary>
+        /// <summary>Forgets the held direction. Does not lift a <see cref="BlockUntilNeutral"/> block.</summary>
         public void Reset()
         {
             _held = NavDirection.None;
             _timer = 0f;
+        }
+
+        /// <summary>
+        /// Forgets the held direction and ignores the navigation input until it was neutral once (a screen opened or closed:
+        /// a direction held from the game must not move the focus).
+        /// </summary>
+        public void BlockUntilNeutral()
+        {
+            Reset();
+            _waitForNeutral = true;
         }
     }
 }

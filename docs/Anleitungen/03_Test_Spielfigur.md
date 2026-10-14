@@ -2,6 +2,8 @@
 
 > Eingabe (Input System), Spielfigur, Third-Person-Kamera, Testgelände · Stand: 2026-10-13 · Bezug: [Master-Prompt §7, §8, §32.3, §32.10](../00_Master-Prompt.md) · [Architektur 4.3, 4.4, 11.1–11.3](../Technik/01_Architektur.md#11-systemarchitekturen) · [GDD 03, Abschnitte 1–3](../GDD/03_Kampf_Charakter_Progression.md#1-steuerung-7)
 
+> **Hinweis seit [Anleitung 07](./07_Test_Oberflaeche.md) (Oberfläche):** Die Entwickler-Overlays starten ausgeblendet – **F3** blendet sie ein und aus. **Esc** öffnet jetzt das neue Pausemenü; zum Klicken auf Overlay-Knöpfe geht auch **Tab** (Debug-Inventar, der Mauszeiger erscheint). Stirbt die Figur, erscheint der Todesbildschirm statt des automatischen Wiederbelebens. Mit Hauptmenü startest du über die Boot-Szene, der direkte Start im Testgelände geht weiterhin.
+
 In diesem Schritt bekommt das Spiel zum ersten Mal etwas zum Anfassen: eine Spielfigur (vorerst eine Kapsel mit „Nase“), die du mit **Tastatur und Maus oder mit einem Gamepad** durch ein Testgelände steuerst. Die Kamera folgt ihr, lässt sich drehen und weicht Wänden aus. **Esc** bzw. die **Menü-/Start-Taste** pausiert.
 
 Voraussetzung: [Anleitung 01](./01_Projekt-Setup.md) und [Anleitung 02](./02_Test_Phase1_Fundament.md) sind erledigt (Unity 6.3 LTS, Setup-Fenster überall ✓, Boot-Szene läuft).

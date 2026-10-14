@@ -46,6 +46,13 @@ namespace Aetherfall.Input
         /// <param name="enabled">True = the service pauses and resumes the game on Start/Esc.</param>
         void SetPauseButtonRouting(bool enabled);
 
+        /// <summary>
+        /// True if the pause button (Start / Esc) of the active player map was pressed this frame: <c>Pause</c> of the
+        /// Gameplay, Dialog or Riding map (architecture 4.4: "Playing → Paused: Start oder Esc", "Dialogue → Paused: Start").
+        /// For the UI pause menu, which takes over from <see cref="PauseRouting"/>.
+        /// </summary>
+        bool WasPausePressedThisFrame();
+
         /// <summary>Switches between on foot and mounted (called by the riding system) and updates the active map.</summary>
         /// <param name="mode">New control mode.</param>
         void SetControlMode(PlayerControlMode mode);

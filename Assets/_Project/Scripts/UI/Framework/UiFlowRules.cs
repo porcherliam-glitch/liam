@@ -36,5 +36,16 @@ namespace Aetherfall.UI.Framework
         {
             return state != GameState.Playing && state != GameState.Building;
         }
+
+        /// <summary>
+        /// True if the menu camera of the boot scene renders (it only clears the screen to the menu colour): in the boot, the
+        /// main menu and while loading, when no gameplay scene with its own camera may be loaded. Without any camera the editor
+        /// shows "No cameras rendering" and macOS draws garbage behind the fading menus. In the game the scene camera renders.
+        /// </summary>
+        /// <param name="state">Current game state.</param>
+        public static bool UsesMenuCamera(GameState state)
+        {
+            return state == GameState.Boot || state == GameState.MainMenu || state == GameState.Loading;
+        }
     }
 }

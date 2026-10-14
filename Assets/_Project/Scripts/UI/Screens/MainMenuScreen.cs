@@ -9,7 +9,7 @@ namespace Aetherfall.UI.Screens
     /// "Optionen" (placeholder page) and "Beenden"; title "Chroniken von Aetherfall". Load and options open as a page on the
     /// right; B / Esc returns to the button list.
     /// </summary>
-    public sealed class MainMenuScreen : MenuScreen
+    public sealed class MainMenuScreen : MenuScreen, IErrorDisplay
     {
         /// <summary>Screen id (telemetry).</summary>
         public const string Id = "screen.mainmenu";
@@ -75,6 +75,12 @@ namespace Aetherfall.UI.Screens
         {
             UiElementUtility.SetText(_status, message);
             UiElementUtility.SetDisplayed(_status, !string.IsNullOrEmpty(message));
+        }
+
+        /// <inheritdoc />
+        public void ShowError(string message)
+        {
+            ShowStatus(message);
         }
 
         /// <inheritdoc />

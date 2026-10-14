@@ -14,7 +14,7 @@
                 <ui:VisualElement class="af-divider" />
                 <ui:VisualElement name="mainmenu-buttons" class="af-menu-list">
                     <ui:Button name="mainmenu-new-game" class="af-text af-button" focusable="false" />
-                    <ui:Button name="mainmenu-continue" class="af-text af-button" focusable="false">
+                    <ui:Button name="mainmenu-continue" class="af-text af-button af-button--two-line" focusable="false">
                         <ui:Label name="mainmenu-continue-info" class="af-text af-button__info" picking-mode="Ignore" />
                     </ui:Button>
                     <ui:Button name="mainmenu-load" class="af-text af-button" focusable="false" />
