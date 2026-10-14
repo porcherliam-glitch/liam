@@ -96,12 +96,20 @@ Tests liegen unter `Assets/_Project/Tests/` (EditMode, getrennt nach Bereich). S
 
 ## Auf dem PC mit Unity: erste Aufgaben, in dieser Reihenfolge
 
-1. `git pull`, dann Projekt in Unity 6.3 LTS öffnen (beim ersten Mal über den Unity Hub, „Add project from disk“). Fehlende `ProjectSettings/` und `Packages/` legt Unity selbst an; danach Menü **Aetherfall > Projekt-Setup …** ausführen (installiert Pakete, setzt Einstellungen).
-2. Kompilierfehler beheben, bis die Konsole leer ist. Häufige Ursachen: API-Unterschiede zwischen Unity 2021 (Harness) und Unity 6.3, Paketversionen (Input System, Cinemachine 3, Newtonsoft).
-3. EditMode-Tests im Batchmode laufen lassen (Befehl unten) und rot gewordene Tests reparieren.
-4. Generatoren im Batchmode ausführen (Testgelände, Eichental), Szenen öffnen, Play Mode starten, Screenshots machen und prüfen.
-5. **Projekt-Setup** bekommt noch einen Batchmode-Einstiegspunkt (`RunBatch`), wie die anderen Menüs unten. `EditorUtility.DisplayDialog` darf im Batchmode nicht blockieren (`Application.isBatchMode` prüfen).
-6. Danach die Testanleitungen 02–12 selbst durchgehen und Ergebnisse in `docs/Status.md` eintragen.
+1. **Projektordner prüfen.** Der Auftraggeber bekommt das Projekt als ZIP aus der Cloud-Sitzung. Die ZIP enthält den Ordner `.git`, ist also ein vollständiges Git-Repository mit Remote `https://github.com/porcherliam-glitch/liam` und Branch `claude/new-session-2ye8ds`.
+   - `git status` und `git pull origin claude/new-session-2ye8ds` ausführen.
+   - Will der Auftraggeber GitHub Desktop nutzen, dort „Add an Existing Repository from your Local Drive“ auf diesen Ordner.
+   - Pushen braucht eine GitHub-Anmeldung auf dem PC (GitHub Desktop oder Git Credential Manager).
+2. **Unity-Projektdateien anlegen.** Im Repo fehlen `Packages/` und `ProjectSettings/` absichtlich. Sie werden aus der Unity-Vorlage „Universal 3D“ der installierten Version erzeugt ([Anleitung 01](docs/Anleitungen/01_Projekt-Setup.md), Abschnitte 3–5; die Anleitung ist für macOS geschrieben).
+   - Unter Windows legt der Auftraggeber im Unity Hub ein Projekt `AetherfallVorlage` aus „Universal 3D“ an, öffnet es einmal und schließt es wieder.
+   - Danach kopiert Claude die drei Ordner ins Repo, zum Beispiel mit `robocopy <Vorlage>\Assets Assets /E`, `robocopy <Vorlage>\Packages Packages /E` und `robocopy <Vorlage>\ProjectSettings ProjectSettings /E`. Nichts löschen, `Assets/_Project` bleibt unverändert.
+   - Dann das Repo im Unity Hub hinzufügen („Add project from disk“), öffnen und Menü **Aetherfall > Projekt-Setup …** ausführen (installiert Pakete, setzt Einstellungen, räumt Vorlagen-Inhalte auf).
+   - `Packages/` und `ProjectSettings/` danach committen.
+3. Kompilierfehler beheben, bis die Konsole leer ist. Häufige Ursachen: API-Unterschiede zwischen Unity 2021 (Harness) und Unity 6.3, Paketversionen (Input System, Cinemachine 3, Newtonsoft).
+4. EditMode-Tests im Batchmode laufen lassen (Befehl unten) und rot gewordene Tests reparieren.
+5. Generatoren im Batchmode ausführen (Testgelände, Eichental), Szenen öffnen, Play Mode starten, Screenshots machen und prüfen.
+6. **Projekt-Setup** bekommt noch einen Batchmode-Einstiegspunkt (`RunBatch`), wie die anderen Menüs unten. `EditorUtility.DisplayDialog` darf im Batchmode nicht blockieren (`Application.isBatchMode` prüfen).
+7. Danach die Testanleitungen 02–12 selbst durchgehen und Ergebnisse in `docs/Status.md` eintragen.
 
 ## Auf dem PC mit Unity: so testen
 
