@@ -78,6 +78,7 @@ namespace Aetherfall.EditorTools.World
             new KeyValuePair<string, string>("optionsPageLayout", "OptionsPage.uxml"),
             new KeyValuePair<string, string>("toastEntryLayout", "ToastEntry.uxml"),
             new KeyValuePair<string, string>("journalLayout", "Journal.uxml"),
+            new KeyValuePair<string, string>("tradeLayout", "Trade.uxml"),
             new KeyValuePair<string, string>("questRowLayout", "QuestRow.uxml"),
             new KeyValuePair<string, string>("objectiveRowLayout", "ObjectiveRow.uxml"),
             new KeyValuePair<string, string>("trackedQuestLayout", "TrackedQuest.uxml"),

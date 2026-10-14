@@ -237,8 +237,15 @@ namespace Aetherfall.EditorTools.Narrative
                 new BranchNode("n010", "n100").When(InLindenhain(), "n200"),
                 new LineNode("n100", "Du hast mich unter dem Balken hervorgeholt. Das vergess ich dir nicht.").To("n110"),
                 new LineNode("n110", "Edwin, mein Junge, ist mit den Ersten nach Lindenhain. Wenigstens er ist in Sicherheit.").EndWith("weiter"),
-                new LineNode("n200", "Die Esse hier ist klein, aber sie brennt. Sobald ich Eisen habe, schmiede ich dir etwas Ordentliches.").To("n210"),
-                new LineNode("n210", "Und Eichental bauen wir wieder auf. Stein für Stein, wie Hedda sagt.").EndWith("weiter"));
+                new LineNode("n200", "Die Esse hier ist klein, aber sie brennt. Was brauchst du?").To("n205"),
+                new ChoiceNode("n205")
+                    .Add(new DialogueOption("a", "Zeig mir deine Waren.", "n230"))
+                    .Add(new DialogueOption("b", "Wie geht es dir?", "n210"))
+                    .Add(new DialogueOption("c", "Bis später.", "n290")),
+                new LineNode("n210", "Eichental bauen wir wieder auf. Stein für Stein, wie Hedda sagt.").To("n205"),
+                // GDD 04 8.2: Tobold runs the smithy of Lindenhain (weaponsmith); "Handeln" opens the trade screen.
+                new LineNode("n230", "Schwerter, Schilde, ein paar Plattenteile. Alles ehrliches Eisen.").EndWith("handeln", DialogueFollowUp.Trade),
+                new LineNode("n290", "Pass auf dich auf da draußen.").EndWith("weiter"));
         }
 
         private static DialogueSpec WennaTalk()
@@ -297,6 +304,7 @@ namespace Aetherfall.EditorTools.Narrative
                 new ChoiceNode("n100")
                     .Add(new DialogueOption("a", "Was hört man so?", "n200"))
                     .Add(new DialogueOption("b", "Ein Bier, bitte.", "n300"))
+                    .Add(new DialogueOption("d", "Was verkaufst du?", "n400"))
                     .Add(new DialogueOption("c", "Mach's gut.", "n900")),
                 new BranchNode("n200", "n230")
                     .When(new AllOf(new QuestStatusIs(Q.Prologue, QuestStatus.Completed), wolvesOpen), "n210")
@@ -305,6 +313,8 @@ namespace Aetherfall.EditorTools.Narrative
                 new LineNode("n220", "Seit dem Riss summt es in der Senke unter dem Rabenfels. Der Gelehrte da hinten will unbedingt hin.").To("n100"),
                 new LineNode("n230", "Die Mühle steht still. Banditen sitzen am Wehr, heißt es. Brenner ist außer sich.").To("n100"),
                 new LineNode("n300", "Bier ist aus. Seit dem Riss trinken alle doppelt. Wasser hab ich noch, das ist umsonst.").To("n100"),
+                // GDD 04 8.2: general goods of Lindenhain (healing potions, light armour).
+                new LineNode("n400", "Heiltränke, Lederzeug, warme Sachen. Viel ist es nicht, aber es hält.").EndWith("handeln", DialogueFollowUp.Trade),
                 new LineNode("n900", "Komm wieder, wenn du was hörst.").EndWith("weiter"));
         }
 

@@ -22,21 +22,22 @@ MonoBehaviour:
   questId: 
   questExitIds: []
   nodes:
-  - rid: 8292696250621362335
-  - rid: 8292696250621362336
-  - rid: 8292696250621362337
-  - rid: 8292696250621362350
-  - rid: 8292696250621362351
-  - rid: 8292696250621362352
-  - rid: 8292696250621362353
-  - rid: 8292696250621362354
+  - rid: 8292696252282831010
+  - rid: 8292696252282831011
+  - rid: 8292696252282831012
+  - rid: 8292696252282831025
+  - rid: 8292696252282831026
+  - rid: 8292696252282831027
+  - rid: 8292696252282831028
+  - rid: 8292696252282831029
+  - rid: 8292696252282831030
   notes: 
   references:
     version: 2
     RefIds:
     - rid: -2
       type: {class: , ns: , asm: }
-    - rid: 8292696250621362335
+    - rid: 8292696252282831010
       type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n010
@@ -51,7 +52,7 @@ MonoBehaviour:
         camera: 0
         actions: []
         voiceClipId: 
-    - rid: 8292696250621362336
+    - rid: 8292696252282831011
       type: {class: ChoiceNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n100
@@ -84,6 +85,19 @@ MonoBehaviour:
           actions: []
           choiceId: 
           choiceOptionId: 
+        - id: d
+          text: Was verkaufst du?
+          targetNodeId: n400
+          visibleIf:
+            rid: -2
+          selectableIf:
+            rid: -2
+          lockedReason: 
+          once: 0
+          irreversible: 0
+          actions: []
+          choiceId: 
+          choiceOptionId: 
         - id: c
           text: Mach's gut.
           targetNodeId: n900
@@ -97,84 +111,84 @@ MonoBehaviour:
           actions: []
           choiceId: 
           choiceOptionId: 
-    - rid: 8292696250621362337
+    - rid: 8292696252282831012
       type: {class: BranchNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n200
         editorPosition: {x: 0, y: 0}
         branches:
         - condition:
-            rid: 8292696250621362338
+            rid: 8292696252282831013
           targetNodeId: n210
         - condition:
-            rid: 8292696250621362339
+            rid: 8292696252282831014
           targetNodeId: n220
         defaultNodeId: n230
-    - rid: 8292696250621362338
+    - rid: 8292696252282831013
       type: {class: AllOf, ns: Aetherfall.Conditions, asm: Aetherfall.Conditions}
       data:
         conditions:
-        - rid: 8292696250621362340
-        - rid: 8292696250621362341
-    - rid: 8292696250621362339
+        - rid: 8292696252282831015
+        - rid: 8292696252282831016
+    - rid: 8292696252282831014
       type: {class: AllOf, ns: Aetherfall.Conditions, asm: Aetherfall.Conditions}
       data:
         conditions:
-        - rid: 8292696250621362342
-        - rid: 8292696250621362343
-    - rid: 8292696250621362340
+        - rid: 8292696252282831017
+        - rid: 8292696252282831018
+    - rid: 8292696252282831015
       type: {class: QuestStatusIs, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         questId: quest.main.asche_ueber_eichental
         status: 3
-    - rid: 8292696250621362341
+    - rid: 8292696252282831016
       type: {class: Not, ns: Aetherfall.Conditions, asm: Aetherfall.Conditions}
       data:
         condition:
-          rid: 8292696250621362344
-    - rid: 8292696250621362342
+          rid: 8292696252282831019
+    - rid: 8292696252282831017
       type: {class: QuestStatusIs, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         questId: quest.main.asche_ueber_eichental
         status: 3
-    - rid: 8292696250621362343
+    - rid: 8292696252282831018
       type: {class: Not, ns: Aetherfall.Conditions, asm: Aetherfall.Conditions}
       data:
         condition:
-          rid: 8292696250621362345
-    - rid: 8292696250621362344
+          rid: 8292696252282831020
+    - rid: 8292696252282831019
       type: {class: AnyOf, ns: Aetherfall.Conditions, asm: Aetherfall.Conditions}
       data:
         conditions:
-        - rid: 8292696250621362346
-        - rid: 8292696250621362347
-    - rid: 8292696250621362345
+        - rid: 8292696252282831021
+        - rid: 8292696252282831022
+    - rid: 8292696252282831020
       type: {class: AnyOf, ns: Aetherfall.Conditions, asm: Aetherfall.Conditions}
       data:
         conditions:
-        - rid: 8292696250621362348
-        - rid: 8292696250621362349
-    - rid: 8292696250621362346
+        - rid: 8292696252282831023
+        - rid: 8292696252282831024
+    - rid: 8292696252282831021
       type: {class: QuestStatusIs, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         questId: quest.side.eichental.woelfe_vom_nordhang
         status: 2
-    - rid: 8292696250621362347
+    - rid: 8292696252282831022
       type: {class: QuestStatusIs, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         questId: quest.side.eichental.woelfe_vom_nordhang
         status: 3
-    - rid: 8292696250621362348
+    - rid: 8292696252282831023
       type: {class: QuestStatusIs, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         questId: quest.dungeon.eichental.vergessene_gruft
         status: 2
-    - rid: 8292696250621362349
+    - rid: 8292696252282831024
       type: {class: QuestStatusIs, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         questId: quest.dungeon.eichental.vergessene_gruft
         status: 3
-    - rid: 8292696250621362350
+    - rid: 8292696252282831025
       type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n210
@@ -189,7 +203,7 @@ MonoBehaviour:
         camera: 0
         actions: []
         voiceClipId: 
-    - rid: 8292696250621362351
+    - rid: 8292696252282831026
       type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n220
@@ -204,7 +218,7 @@ MonoBehaviour:
         camera: 0
         actions: []
         voiceClipId: 
-    - rid: 8292696250621362352
+    - rid: 8292696252282831027
       type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n230
@@ -219,7 +233,7 @@ MonoBehaviour:
         camera: 0
         actions: []
         voiceClipId: 
-    - rid: 8292696250621362353
+    - rid: 8292696252282831028
       type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n300
@@ -234,7 +248,22 @@ MonoBehaviour:
         camera: 0
         actions: []
         voiceClipId: 
-    - rid: 8292696250621362354
+    - rid: 8292696252282831029
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n400
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: 
+        exitId: handeln
+        followUp: 1
+        speakerId: 
+        text: "Heiltr\xE4nke, Lederzeug, warme Sachen. Viel ist es nicht, aber es h\xE4lt."
+        variants: []
+        emotion: 0
+        camera: 0
+        actions: []
+        voiceClipId: 
+    - rid: 8292696252282831030
       type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n900

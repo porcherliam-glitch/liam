@@ -233,6 +233,18 @@ namespace Aetherfall.EditorTools.World
             return content && inventory;
         }
 
+        /// <summary>
+        /// Merchant installer into the BootConfig, after inventory, progression and game time (gold, item level of the goods,
+        /// restock by playtime).
+        /// </summary>
+        /// <param name="report">Protocol.</param>
+        /// <returns>True if the BootConfig contains it afterwards.</returns>
+        public static bool EnsureMerchantInstallerInBootConfig(TestGroundReport report)
+        {
+            return EnsureInstallerInBootConfig<Aetherfall.Economy.MerchantInstaller>(TestGroundPaths.MerchantInstallerPath, report, typeof(InventoryInstaller),
+                typeof(ProgressionInstaller), typeof(GameTimeInstaller), typeof(SaveInstaller));
+        }
+
         /// <summary>Dialogue and NPC installers into the BootConfig: DialogueInstaller after InventoryInstaller, NpcInstaller after it.</summary>
         /// <param name="report">Protocol.</param>
         /// <returns>True if the BootConfig contains both installers afterwards.</returns>

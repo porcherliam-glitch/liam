@@ -13,6 +13,8 @@
         "Aetherfall.Stats",
         "Aetherfall.Items",
         "Aetherfall.Inventory",
+        "Aetherfall.GameTime",
+        "Aetherfall.Economy",
         "Aetherfall.Tests.Shared"
     ],
     "includePlatforms": [

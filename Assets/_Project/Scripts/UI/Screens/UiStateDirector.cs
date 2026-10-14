@@ -31,6 +31,7 @@ namespace Aetherfall.UI.Screens
         private const string PauseReason = "Pause menu";
         private const string DeathReason = "Death screen";
         private const string JournalReason = "Journal";
+        private const string TradeReason = "Trade";
 
         private readonly IUIManager _ui;
         private readonly IGameStateService _gameState;
@@ -46,6 +47,9 @@ namespace Aetherfall.UI.Screens
         private UIScreen _journal;
         private bool _journalRequested;
         private JournalPage _journalPage;
+        private UIScreen _trade;
+        private bool _tradeRequested;
+        private string _tradeMerchant = string.Empty;
 
         /// <summary>Creates the director.</summary>
         /// <param name="ui">UI manager.</param>
@@ -97,6 +101,8 @@ namespace Aetherfall.UI.Screens
                     Close(_pauseMenu);
                     Close(_deathScreen);
                     CloseIfOpen(_journal);
+                    _tradeRequested = false;
+                    CloseIfOpen(_trade);
                     _ui.Notifications.Clear();
                     if (!_mainMenu.IsOpen)
                     {
@@ -107,6 +113,7 @@ namespace Aetherfall.UI.Screens
                 case GameState.Paused:
                     Close(_mainMenu);
                     CloseIfOpen(_journal);
+                    CloseIfOpen(_trade);
                     if (_deathPending && _deathTimer <= 0f)
                     {
                         Close(_pauseMenu);
@@ -136,12 +143,22 @@ namespace Aetherfall.UI.Screens
                         }
                     }
 
+                    if (_tradeRequested && _trade != null)
+                    {
+                        _tradeRequested = false;
+                        if (!_trade.IsOpen)
+                        {
+                            _ui.Open(_trade, _tradeMerchant);
+                        }
+                    }
+
                     break;
                 default:
                     Close(_mainMenu);
                     Close(_pauseMenu);
                     Close(_deathScreen);
                     CloseIfOpen(_journal);
+                    CloseIfOpen(_trade);
                     break;
             }
         }
@@ -213,6 +230,56 @@ namespace Aetherfall.UI.Screens
             }
 
             CloseIfOpen(_journal);
+        }
+
+        /// <summary>Connects the trade screen (<see cref="TradeScreen"/>); null disconnects it.</summary>
+        /// <param name="trade">Trade screen.</param>
+        public void AttachTrade(UIScreen trade)
+        {
+            CloseIfOpen(_trade);
+            _trade = trade;
+            _tradeRequested = false;
+        }
+
+        /// <summary>
+        /// Opens the trade screen for a merchant: pushes <c>Menu</c> over <c>Playing</c> (after a conversation that ended with
+        /// "Handeln"). Refused in any other state, while a death screen is pending and while a flow runs.
+        /// </summary>
+        /// <param name="merchantId">Merchant id (argument of the screen).</param>
+        /// <returns>True if the trade screen opens.</returns>
+        public bool OpenTrade(string merchantId)
+        {
+            if (_trade == null || _deathPending || _flow.IsFlowRunning || string.IsNullOrEmpty(merchantId) || _gameState.Current != GameState.Playing ||
+                !GameStateTransitions.CanPush(GameState.Playing, GameState.Menu))
+            {
+                return false;
+            }
+
+            _tradeRequested = true;
+            _tradeMerchant = merchantId;
+            if (!_gameState.Push(GameState.Menu, TradeReason))
+            {
+                _tradeRequested = false;
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>Closes the trade screen (B / Esc on it): pops <c>Menu</c>, back to the game.</summary>
+        public void CloseTrade()
+        {
+            if (_trade == null || !_trade.IsOpen)
+            {
+                return;
+            }
+
+            if (_gameState.Current == GameState.Menu)
+            {
+                _gameState.Pop(GameState.Menu);
+            }
+
+            CloseIfOpen(_trade);
         }
 
         /// <summary>Per frame: pause button and the death screen (delay, then until it is open).</summary>

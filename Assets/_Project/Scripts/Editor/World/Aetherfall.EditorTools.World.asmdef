@@ -28,6 +28,7 @@
         "Aetherfall.DevTools",
         "Aetherfall.EditorTools.Core",
         "Aetherfall.EditorTools.Narrative",
+        "Aetherfall.Economy",
         "Unity.Cinemachine",
         "Unity.InputSystem"
     ],

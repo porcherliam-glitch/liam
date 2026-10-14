@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Aetherfall.Conditions;
 using Aetherfall.Data;
 using Aetherfall.Dialogue;
+using Aetherfall.Economy;
 using Aetherfall.EditorTools.Narrative;
 using Aetherfall.Items;
 using Aetherfall.NPC;
@@ -70,6 +71,14 @@ namespace Aetherfall.EditorTools.World
                 definitions.Add(DialogueAssetWriter.WriteNpc(npcs[i], NpcPath(npcs[i].Id)));
             }
 
+            foreach (GameDefinition merchant in CreateMerchants(report))
+            {
+                if (merchant != null)
+                {
+                    definitions.Add(merchant);
+                }
+            }
+
             DialogueSpec[] dialogues = MiniSliceDialogueLibrary.CreateDialogues();
             for (int i = 0; i < dialogues.Length; i++)
             {
@@ -116,6 +125,69 @@ namespace Aetherfall.EditorTools.World
             }
 
             return !result.Report.HasErrors;
+        }
+
+        /// <summary>Folder of the merchants.</summary>
+        public const string MerchantFolder = "Assets/_Project/Data/Merchants";
+
+        /// <summary>Tobold's smithy in Lindenhain (GDD 04 8.2: weaponsmith, gold base 800).</summary>
+        public const string SmithyMerchant = "merchant.eichental.schmiede_lindenhain";
+
+        /// <summary>Ulf's inn "Zum Krummen Kessel" (general goods, gold base 400).</summary>
+        public const string InnMerchant = "merchant.eichental.krummer_kessel";
+
+        /// <summary>
+        /// The two merchants of Lindenhain (Stufe A, GDD 00): Tobold sells one-handed weapons, shields and plate (weapon types of
+        /// the slice, GDD 03 5.3), Ulf healing potions and light armour. Eichental has plenty of food and lacks Aether crystals
+        /// (GDD 04 8.4, region factors).
+        /// </summary>
+        private static IEnumerable<GameDefinition> CreateMerchants(TestGroundReport report)
+        {
+            if (!TestGroundAssets.EnsureFolder(MerchantFolder, report))
+            {
+                yield break;
+            }
+
+            string[] surplus = { "item.material.wolfsfleisch" };
+            string[] scarce = { "item.material.wolfspelz_aether" };
+            yield return WriteMerchant("Merchant_schmiede_lindenhain", SmithyMerchant, MiniSliceDialogueLibrary.Tobold, "Tobolds Schmiede",
+                MerchantKind.Weaponsmith, 800, new[]
+                {
+                    new MerchantStockEntry("item.weapon.einhandschwert_eisen", 2), new MerchantStockEntry("item.weapon.streitkolben_eisen", 1),
+                    new MerchantStockEntry("item.weapon.holzschild", 2), new MerchantStockEntry("item.weapon.eisenschild", 1),
+                    new MerchantStockEntry("item.armor.eisenhelm", 1), new MerchantStockEntry("item.armor.panzerhandschuhe", 1),
+                    new MerchantStockEntry("item.armor.plattenharnisch", 1), new MerchantStockEntry("item.armor.plattenbeinschienen", 1),
+                    new MerchantStockEntry("item.armor.plattenstiefel", 1)
+                }, surplus, scarce, report);
+            yield return WriteMerchant("Merchant_krummer_kessel", InnMerchant, MiniSliceDialogueLibrary.Ulf, "Ulfs Waren",
+                MerchantKind.General, 400, new[]
+                {
+                    new MerchantStockEntry("item.potion.heiltrank_schwach", 10), new MerchantStockEntry("item.armor.lederkappe", 1),
+                    new MerchantStockEntry("item.armor.lederwams", 1), new MerchantStockEntry("item.armor.lederhose", 1),
+                    new MerchantStockEntry("item.armor.lederhandschuhe", 1), new MerchantStockEntry("item.armor.lederstiefel", 1),
+                    new MerchantStockEntry("item.armor.stoffkappe", 1), new MerchantStockEntry("item.armor.stoffhandschuhe", 1),
+                    new MerchantStockEntry("item.armor.stoffschuhe", 1), new MerchantStockEntry("item.armor.wollumhang", 1),
+                    new MerchantStockEntry("item.trinket.eisenring", 1)
+                }, surplus, scarce, report);
+        }
+
+        private static MerchantDefinition WriteMerchant(string file, string id, string npcId, string name, MerchantKind kind, int goldBase,
+            MerchantStockEntry[] stock, string[] surplus, string[] scarce, TestGroundReport report)
+        {
+            string path = MerchantFolder + "/" + file + ".asset";
+            MerchantDefinition merchant = TestGroundSerialized.EnsureAsset<MerchantDefinition>(path, report, null);
+            if (merchant == null)
+            {
+                return null;
+            }
+
+            merchant.EditorSetUp(npcId, name, kind, goldBase, 5, stock, surplus, scarce);
+            var serialized = new SerializedObject(merchant);
+            serialized.FindProperty("id").stringValue = id;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(merchant);
+            report.Info("Händler " + id + ": " + stock.Length + " Waren, Gold " + merchant.MaxGold + ".");
+            return merchant;
         }
 
         /// <summary>

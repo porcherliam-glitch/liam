@@ -90,6 +90,7 @@ namespace Aetherfall.EditorTools.World
             TestGroundNpcBuilder.CreateAssets(items.Catalog, report);
             MiniSliceAssets.CreateAll(items.Catalog, report);
             TestGroundAssets.EnsureNarrativeInstallersInBootConfig(report, applyTestGroundStartLevel);
+            TestGroundAssets.EnsureMerchantInstallerInBootConfig(report);
             if (applyTestGroundStartLevel)
             {
                 MiniSliceProfile.ApplyTestGround(items.StartingEquipment, report);

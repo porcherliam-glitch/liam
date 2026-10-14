@@ -3,6 +3,7 @@ using System.Threading;
 using Aetherfall.AI.Bosses;
 using Aetherfall.Core;
 using Aetherfall.Dialogue;
+using Aetherfall.Economy;
 using Aetherfall.Events;
 using Aetherfall.Input;
 using Aetherfall.Inventory;
@@ -84,6 +85,9 @@ namespace Aetherfall.UI.Screens
         [Tooltip("Journal.uxml (Questlog und Charakter-Seite, Taste J oder Pausemenü)")]
         [SerializeField] private VisualTreeAsset journalLayout = null;
 
+        [Tooltip("Trade.uxml (Handel mit einem Händler nach einem Gespräch mit Ende „Handeln“; Zeilen aus QuestRow.uxml)")]
+        [SerializeField] private VisualTreeAsset tradeLayout = null;
+
         [Tooltip("QuestRow.uxml (eine Quest in der Liste des Questlogs)")]
         [SerializeField] private VisualTreeAsset questRowLayout = null;
 
@@ -128,6 +132,10 @@ namespace Aetherfall.UI.Screens
         private BossBarView _bossBar;
         private QuestNotifier _notifier;
         private JournalScreen _journal;
+        private TradeScreen _trade;
+        private IMerchantService _merchants;
+        private IDialogueService _dialogues;
+        private string _pendingTrade = string.Empty;
         private LoadingScreenProxy _loadingProxy;
         private UiStateDirector _director;
         private HudView _hud;
@@ -210,6 +218,7 @@ namespace Aetherfall.UI.Screens
                 locator.TryGet(out _quests);
                 locator.TryGet(out _progression);
                 locator.TryGet(out _bosses);
+                locator.TryGet(out _merchants);
                 Build();
             }
             catch (OperationCanceledException)
@@ -252,6 +261,12 @@ namespace Aetherfall.UI.Screens
                                             "AttributeRow.uxml, ValueRow.uxml) are not set - no quest log. Run Aetherfall > Oberflaeche einrichten.");
             }
 
+            if (tradeLayout != null && questRowLayout != null && _merchants != null && _inventory != null)
+            {
+                _trade = new TradeScreen(CloneScreen(tradeLayout, screensRoot), questRowLayout, _glyphs, _merchants, _inventory, OnTradeCloseRequested);
+                _ui.RegisterScreen(_trade);
+            }
+
             _hud = new HudView(hudDocument.rootVisualElement, _players, _inventory, _glyphs, _preferences);
             VisualElement hudRoot = hudDocument.rootVisualElement;
             QuestTrackerView tracker = _quests != null && trackedQuestLayout != null && objectiveRowLayout != null && hudRoot.Q<VisualElement>("hud-quests") != null
@@ -274,6 +289,7 @@ namespace Aetherfall.UI.Screens
             _director = new UiStateDirector(_ui, _gameState, _input.Gameplay, _input.WasPausePressedThisFrame, _flow, _mainMenu, _pauseMenu,
                 _deathScreen, deathScreenDelay);
             _director.AttachJournal(_journal);
+            _director.AttachTrade(_trade);
             _ui.AttachLayerHost(this);
             _input.SetPauseButtonRouting(false);
             _glyphs.SetStyleOverride(_preferences.GlyphStyle);
@@ -317,6 +333,11 @@ namespace Aetherfall.UI.Screens
             _glyphs.Changed -= OnGlyphsChanged;
             _preferences.Changed -= OnPreferencesChanged;
             _flow.Failed -= OnFlowFailed;
+            if (_dialogues != null)
+            {
+                _dialogues.Ended -= OnDialogueEnded;
+            }
+
             _players.Changed -= HandOverPlayer;
             _ui.ScreenOpened -= OnScreenOpened;
             if (_bosses != null)
@@ -359,6 +380,13 @@ namespace Aetherfall.UI.Screens
 
             float dt = Time.unscaledDeltaTime;
             _director.Update(dt);
+            if (_pendingTrade.Length > 0 && _gameState.Current == GameState.Playing)
+            {
+                // The conversation that ended with "Handeln" has handed the game back: now the trade screen can open.
+                _director.OpenTrade(_pendingTrade);
+                _pendingTrade = string.Empty;
+            }
+
             if (_dialogueDirector != null)
             {
                 _dialogueDirector.Update();
@@ -408,6 +436,11 @@ namespace Aetherfall.UI.Screens
             _flow.Failed += OnFlowFailed;
             _players.Changed += HandOverPlayer;
             _ui.ScreenOpened += OnScreenOpened;
+            if (_dialogues != null)
+            {
+                _dialogues.Ended += OnDialogueEnded;
+            }
+
             if (_bosses != null)
             {
                 _bosses.Changed += OnBossBarChanged;
@@ -599,6 +632,19 @@ namespace Aetherfall.UI.Screens
             _hud.Rules.NotifyQuestActivity();
         }
 
+        private void OnTradeCloseRequested()
+        {
+            _director.CloseTrade();
+        }
+
+        private void OnDialogueEnded(DialogueEndInfo info)
+        {
+            if (!info.Cancelled && info.FollowUp == DialogueFollowUp.Trade && _merchants != null && _merchants.TryGetForNpc(info.NpcId, out MerchantDefinition merchant))
+            {
+                _pendingTrade = merchant.Id;
+            }
+        }
+
         private static bool NotifiesQuests(GameState state)
         {
             return state != GameState.Loading && state != GameState.MainMenu && state != GameState.Boot;
@@ -629,6 +675,11 @@ namespace Aetherfall.UI.Screens
             if (_journal != null)
             {
                 _journal.RefreshGlyphs();
+            }
+
+            if (_trade != null)
+            {
+                _trade.RefreshGlyphs();
             }
 
             _hud.RefreshGlyphs();
@@ -754,6 +805,7 @@ namespace Aetherfall.UI.Screens
                 return;
             }
 
+            _dialogues = dialogues;
             var source = new DialogueServiceScreenSource(dialogues);
             _dialogueScreen = new DialogueScreen(CloneScreen(dialogueLayout, screensRoot), _glyphs, source, new DialogMapScreenInput(_input),
                 _dialoguePreferences);

@@ -1,0 +1,56 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!-- Trading with a merchant (GDD 04 8.2): tabs "Kaufen", "Verkaufen", "Zurückkaufen" (LB/RB), goods on the left, details on the right. -->
+    <ui:VisualElement name="trade" class="af-root af-screen af-overlay af-journal">
+        <ui:VisualElement class="af-panel af-journal__panel">
+            <ui:VisualElement class="af-pause__header">
+                <ui:Label name="trade-title" class="af-text af-pause__title" />
+                <ui:VisualElement class="af-tabs">
+                    <ui:Label name="trade-tabs-glyph-tabprev" class="af-text af-glyph" picking-mode="Ignore" />
+                    <ui:Button name="trade-tab-buy" class="af-text af-tab" focusable="false" />
+                    <ui:Button name="trade-tab-sell" class="af-text af-tab" focusable="false" />
+                    <ui:Button name="trade-tab-buyback" class="af-text af-tab" focusable="false" />
+                    <ui:Label name="trade-tabs-glyph-tabnext" class="af-text af-glyph" picking-mode="Ignore" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement class="af-journal__body">
+                <ui:VisualElement class="af-journal__page">
+                    <ui:Label name="trade-gold" class="af-text af-questlog__meta" />
+                    <ui:VisualElement class="af-questlog">
+                        <ui:VisualElement class="af-questlog__list-column">
+                            <ui:Label name="trade-more-up" class="af-text af-questlog__more" picking-mode="Ignore" />
+                            <ui:VisualElement name="trade-list" class="af-questlog__list" />
+                            <ui:Label name="trade-more-down" class="af-text af-questlog__more" picking-mode="Ignore" />
+                            <ui:Label name="trade-empty" class="af-text af-page__empty" />
+                        </ui:VisualElement>
+                        <ui:VisualElement name="trade-details" class="af-questlog__details">
+                            <ui:Label name="trade-detail-title" class="af-text af-questlog__title" />
+                            <ui:Label name="trade-detail-meta" class="af-text af-questlog__meta" />
+                            <ui:Label name="trade-detail-price" class="af-text af-questlog__section" />
+                            <ui:Label name="trade-detail-note" class="af-text af-questlog__description" />
+                            <ui:Label name="trade-message" class="af-text af-questlog__stage" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement class="af-footer af-footer--panel" picking-mode="Ignore">
+                <ui:VisualElement class="af-hint" picking-mode="Ignore">
+                    <ui:Label name="trade-hint-glyph-confirm" class="af-text af-glyph af-glyph--face" picking-mode="Ignore" />
+                    <ui:Label name="trade-hint-confirm" class="af-text af-hint__text" picking-mode="Ignore" />
+                </ui:VisualElement>
+                <ui:VisualElement name="trade-hint-secondary-group" class="af-hint" picking-mode="Ignore">
+                    <ui:Label name="trade-hint-glyph-secondary" class="af-text af-glyph af-glyph--face" picking-mode="Ignore" />
+                    <ui:Label name="trade-hint-secondary" class="af-text af-hint__text" picking-mode="Ignore" />
+                </ui:VisualElement>
+                <ui:VisualElement class="af-hint" picking-mode="Ignore">
+                    <ui:Label name="trade-hint-glyph-back" class="af-text af-glyph af-glyph--face" picking-mode="Ignore" />
+                    <ui:Label name="trade-hint-back" class="af-text af-hint__text" picking-mode="Ignore" />
+                </ui:VisualElement>
+                <ui:VisualElement class="af-hint" picking-mode="Ignore">
+                    <ui:Label name="trade-hint-glyph-tabprev" class="af-text af-glyph" picking-mode="Ignore" />
+                    <ui:Label name="trade-hint-glyph-tabnext" class="af-text af-glyph" picking-mode="Ignore" />
+                    <ui:Label name="trade-hint-tabs" class="af-text af-hint__text" picking-mode="Ignore" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

@@ -182,7 +182,9 @@ namespace Aetherfall.Tests.EditMode.UI
                 "journal-title", "journal-hint-confirm", "journal-hint-secondary", "questlog-detail-title", "questlog-detail-meta", "questlog-detail-description",
                 "questlog-detail-stage-title", "questlog-detail-stage", "questlog-detail-history-title", "quest-row-title", "quest-row-info", "quest-row-badge",
                 "objective-text", "objective-count", "tracked-title", "journal-line", "attribute-name", "attribute-bonus", "attribute-value", "value-label",
-                "value-number", "character-level", "character-xp-text", "character-points", "hud-xp-level"
+                "value-number", "character-level", "character-xp-text", "character-points", "hud-xp-level",
+                "trade-title", "trade-gold", "trade-empty", "trade-detail-title", "trade-detail-meta", "trade-detail-price", "trade-detail-note", "trade-message",
+                "trade-hint-confirm", "trade-hint-secondary"
             };
             foreach (string file in Directory.GetFiles(ProjectFiles.Get(LayoutsFolder), "*.uxml"))
             {

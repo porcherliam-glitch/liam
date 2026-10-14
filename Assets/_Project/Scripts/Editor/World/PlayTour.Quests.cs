@@ -5,6 +5,7 @@ using Aetherfall.AI;
 using Aetherfall.AI.Bosses;
 using Aetherfall.Core;
 using Aetherfall.Dialogue;
+using Aetherfall.Economy;
 using Aetherfall.NPC;
 using Aetherfall.Player;
 using Aetherfall.Quests;
@@ -139,8 +140,69 @@ namespace Aetherfall.EditorTools.World
             {
                 string name = "q" + shot++ + "_" + villager.Substring(villager.LastIndexOf('.') + 1);
                 Steps.Enqueue(TalkTo(villager));
+                string merchant = villager == D.Tobold ? MiniSliceAssets.SmithyMerchant : villager == D.Ulf ? MiniSliceAssets.InnMerchant : null;
+                if (merchant != null)
+                {
+                    // "Zeig mir deine Waren." ends the talk with "Handeln": the trade screen opens, one purchase and one sale.
+                    Steps.Enqueue(TradeAt(merchant));
+                    Steps.Enqueue(() => Capture(name + "_handel", null));
+                    Steps.Enqueue(CloseMenu);
+                }
+
                 Steps.Enqueue(() => Capture(name, NpcView(villager)));
             }
+        }
+
+        /// <summary>Waits for the trade screen (game state Menu), buys the first affordable offer and sells one item of the bag.</summary>
+        private static Func<bool> TradeAt(string merchantId)
+        {
+            return () =>
+            {
+                if (_gameState.Current != GameState.Menu)
+                {
+                    return Fail(Elapsed > 5.0, "Handelsfenster für " + merchantId + " ist nicht aufgegangen (Zustand " + _gameState.Current + ").");
+                }
+
+                IMerchantService merchants = Services.Locator.Get<IMerchantService>();
+                Aetherfall.Inventory.IInventoryService inventory = Services.Locator.Get<Aetherfall.Inventory.IInventoryService>();
+                int gold = inventory.GetCurrency(MerchantService.PlayerId, Aetherfall.Items.CurrencyIds.Gold);
+                MerchantOffer offer = merchants.Offers(merchantId).OrderBy(o => o.Price).FirstOrDefault();
+                if (offer.ItemId == null || offer.Price > gold)
+                {
+                    return Fail(true, "Händler " + merchantId + ": nichts Bezahlbares (Gold " + gold + ").");
+                }
+
+                if (!merchants.TryBuy(merchantId, offer.Index, 1, out string reason))
+                {
+                    return Fail(true, "Kauf bei " + merchantId + " abgelehnt: " + reason);
+                }
+
+                Note("Gekauft bei " + merchantId + ": " + offer.Name + " für " + offer.Price + " Gold (vorher " + gold + ").");
+                foreach (Aetherfall.Items.ItemInstance item in inventory.PlayerContainer.Entries.ToList())
+                {
+                    int price = merchants.SellPrice(merchantId, item);
+                    if (price > 0 && item.ItemId != offer.ItemId)
+                    {
+                        bool sold = merchants.TrySell(merchantId, item.InstanceId, 1, out reason);
+                        Note((sold ? "Verkauft an " : "Verkauf abgelehnt an ") + merchantId + ": " + item.ItemId + " für " + price + " Gold" +
+                             (sold ? "." : " (" + reason + ")."));
+                        break;
+                    }
+                }
+
+                return true;
+            };
+        }
+
+        private static bool CloseMenu()
+        {
+            if (_gameState.Current == GameState.Menu)
+            {
+                _gameState.Pop(GameState.Menu);
+            }
+
+            return Fail(Elapsed > 3.0 && _gameState.Current != GameState.Playing, "Menü schließt nicht (Zustand " + _gameState.Current + ").") ||
+                   _gameState.Current == GameState.Playing;
         }
 
         private const string GruftBossId = "boss.eichental.wachender_ritter";

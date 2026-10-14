@@ -22,42 +22,47 @@ MonoBehaviour:
   questId: 
   questExitIds: []
   nodes:
-  - rid: 8292696250621362309
-  - rid: 8292696250621362313
-  - rid: 8292696250621362314
-  - rid: 8292696250621362315
-  - rid: 8292696250621362316
+  - rid: 8292696252282830981
+  - rid: 8292696252282830985
+  - rid: 8292696252282830986
+  - rid: 8292696252282830987
+  - rid: 8292696252282830988
+  - rid: 8292696252282830989
+  - rid: 8292696252282830990
+  - rid: 8292696252282830991
   notes: 
   references:
     version: 2
     RefIds:
-    - rid: 8292696250621362309
+    - rid: -2
+      type: {class: , ns: , asm: }
+    - rid: 8292696252282830981
       type: {class: BranchNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n010
         editorPosition: {x: 0, y: 0}
         branches:
         - condition:
-            rid: 8292696250621362310
+            rid: 8292696252282830982
           targetNodeId: n200
         defaultNodeId: n100
-    - rid: 8292696250621362310
+    - rid: 8292696252282830982
       type: {class: AnyOf, ns: Aetherfall.Conditions, asm: Aetherfall.Conditions}
       data:
         conditions:
-        - rid: 8292696250621362311
-        - rid: 8292696250621362312
-    - rid: 8292696250621362311
+        - rid: 8292696252282830983
+        - rid: 8292696252282830984
+    - rid: 8292696252282830983
       type: {class: QuestStageReached, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         questId: quest.main.asche_ueber_eichental
         stageId: s40
-    - rid: 8292696250621362312
+    - rid: 8292696252282830984
       type: {class: QuestStatusIs, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         questId: quest.main.asche_ueber_eichental
         status: 3
-    - rid: 8292696250621362313
+    - rid: 8292696252282830985
       type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n100
@@ -72,7 +77,7 @@ MonoBehaviour:
         camera: 0
         actions: []
         voiceClipId: 
-    - rid: 8292696250621362314
+    - rid: 8292696252282830986
       type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n110
@@ -87,31 +92,107 @@ MonoBehaviour:
         camera: 0
         actions: []
         voiceClipId: 
-    - rid: 8292696250621362315
+    - rid: 8292696252282830987
       type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n200
         editorPosition: {x: 0, y: 0}
-        nextNodeId: n210
+        nextNodeId: n205
         exitId: 
         followUp: 0
         speakerId: 
-        text: Die Esse hier ist klein, aber sie brennt. Sobald ich Eisen habe, schmiede ich dir etwas Ordentliches.
+        text: Die Esse hier ist klein, aber sie brennt. Was brauchst du?
         variants: []
         emotion: 0
         camera: 0
         actions: []
         voiceClipId: 
-    - rid: 8292696250621362316
+    - rid: 8292696252282830988
+      type: {class: ChoiceNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n205
+        editorPosition: {x: 0, y: 0}
+        hub: 0
+        options:
+        - id: a
+          text: Zeig mir deine Waren.
+          targetNodeId: n230
+          visibleIf:
+            rid: -2
+          selectableIf:
+            rid: -2
+          lockedReason: 
+          once: 0
+          irreversible: 0
+          actions: []
+          choiceId: 
+          choiceOptionId: 
+        - id: b
+          text: Wie geht es dir?
+          targetNodeId: n210
+          visibleIf:
+            rid: -2
+          selectableIf:
+            rid: -2
+          lockedReason: 
+          once: 0
+          irreversible: 0
+          actions: []
+          choiceId: 
+          choiceOptionId: 
+        - id: c
+          text: "Bis sp\xE4ter."
+          targetNodeId: n290
+          visibleIf:
+            rid: -2
+          selectableIf:
+            rid: -2
+          lockedReason: 
+          once: 0
+          irreversible: 0
+          actions: []
+          choiceId: 
+          choiceOptionId: 
+    - rid: 8292696252282830989
       type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         id: n210
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: n205
+        exitId: 
+        followUp: 0
+        speakerId: 
+        text: "Eichental bauen wir wieder auf. Stein f\xFCr Stein, wie Hedda sagt."
+        variants: []
+        emotion: 0
+        camera: 0
+        actions: []
+        voiceClipId: 
+    - rid: 8292696252282830990
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n230
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: 
+        exitId: handeln
+        followUp: 1
+        speakerId: 
+        text: Schwerter, Schilde, ein paar Plattenteile. Alles ehrliches Eisen.
+        variants: []
+        emotion: 0
+        camera: 0
+        actions: []
+        voiceClipId: 
+    - rid: 8292696252282830991
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n290
         editorPosition: {x: 0, y: 0}
         nextNodeId: 
         exitId: weiter
         followUp: 0
         speakerId: 
-        text: "Und Eichental bauen wir wieder auf. Stein f\xFCr Stein, wie Hedda sagt."
+        text: "Pass auf dich auf da drau\xDFen."
         variants: []
         emotion: 0
         camera: 0

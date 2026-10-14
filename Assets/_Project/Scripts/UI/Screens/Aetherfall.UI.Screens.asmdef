@@ -18,6 +18,7 @@
         "Aetherfall.Progression",
         "Aetherfall.Quests",
         "Aetherfall.Dialogue",
+        "Aetherfall.Economy",
         "Aetherfall.UI.Framework",
         "Unity.InputSystem"
     ],

@@ -1,0 +1,49 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6bef1503a193d4b468feabfe6a7d4139, type: 3}
+  m_Name: Merchant_krummer_kessel
+  m_EditorClassIdentifier: Aetherfall.Economy::Aetherfall.Economy.MerchantDefinition
+  id: merchant.eichental.krummer_kessel
+  status: 1
+  npcId: npc.eichental.wirt_ulf
+  displayName: Ulfs Waren
+  kind: 0
+  goldBase: 400
+  regionLevel: 5
+  restockDays: 3
+  stock:
+  - itemId: item.potion.heiltrank_schwach
+    count: 10
+  - itemId: item.armor.lederkappe
+    count: 1
+  - itemId: item.armor.lederwams
+    count: 1
+  - itemId: item.armor.lederhose
+    count: 1
+  - itemId: item.armor.lederhandschuhe
+    count: 1
+  - itemId: item.armor.lederstiefel
+    count: 1
+  - itemId: item.armor.stoffkappe
+    count: 1
+  - itemId: item.armor.stoffhandschuhe
+    count: 1
+  - itemId: item.armor.stoffschuhe
+    count: 1
+  - itemId: item.armor.wollumhang
+    count: 1
+  - itemId: item.trinket.eisenring
+    count: 1
+  surplusItems:
+  - item.material.wolfsfleisch
+  scarceItems:
+  - item.material.wolfspelz_aether

@@ -1,0 +1,45 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6bef1503a193d4b468feabfe6a7d4139, type: 3}
+  m_Name: Merchant_schmiede_lindenhain
+  m_EditorClassIdentifier: Aetherfall.Economy::Aetherfall.Economy.MerchantDefinition
+  id: merchant.eichental.schmiede_lindenhain
+  status: 1
+  npcId: npc.eichental.schmied_tobold
+  displayName: Tobolds Schmiede
+  kind: 1
+  goldBase: 800
+  regionLevel: 5
+  restockDays: 3
+  stock:
+  - itemId: item.weapon.einhandschwert_eisen
+    count: 2
+  - itemId: item.weapon.streitkolben_eisen
+    count: 1
+  - itemId: item.weapon.holzschild
+    count: 2
+  - itemId: item.weapon.eisenschild
+    count: 1
+  - itemId: item.armor.eisenhelm
+    count: 1
+  - itemId: item.armor.panzerhandschuhe
+    count: 1
+  - itemId: item.armor.plattenharnisch
+    count: 1
+  - itemId: item.armor.plattenbeinschienen
+    count: 1
+  - itemId: item.armor.plattenstiefel
+    count: 1
+  surplusItems:
+  - item.material.wolfsfleisch
+  scarceItems:
+  - item.material.wolfspelz_aether
