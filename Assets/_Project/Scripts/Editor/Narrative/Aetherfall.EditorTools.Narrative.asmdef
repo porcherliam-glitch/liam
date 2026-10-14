@@ -1,0 +1,31 @@
+{
+    "name": "Aetherfall.EditorTools.Narrative",
+    "rootNamespace": "Aetherfall.EditorTools.Narrative",
+    "references": [
+        "Aetherfall.Core",
+        "Aetherfall.Data",
+        "Aetherfall.Conditions",
+        "Aetherfall.WorldState",
+        "Aetherfall.Quests",
+        "Aetherfall.EditorTools.Core"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "AETHERFALL_NEWTONSOFT"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.unity.nuget.newtonsoft-json",
+            "expression": "3.0",
+            "define": "AETHERFALL_NEWTONSOFT"
+        }
+    ],
+    "noEngineReferences": false
+}
