@@ -1,0 +1,241 @@
+/*
+ * Dialogue screen (GDD 02 12.4/12.7, GDD 05 4.2): subtitle with speaker name, answers with quest symbols and tags, greyed
+ * and already chosen answers, hold progress for irreversible answers, button hints. Loaded by Dialogue.uxml (<Style>), the
+ * colour tokens come from Tokens.uss through the theme. The panel sits above the HUD bars (bottom 132 px) so health and
+ * quick slots stay readable.
+ */
+
+.af-dialogue {
+    justify-content: flex-end;
+    align-items: center;
+    padding: 0 0 132px 0;
+}
+
+.af-dialogue__panel {
+    width: 1120px;
+    max-width: 92%;
+    padding: 22px 32px 0 32px;
+    /* GDD 05 4.2: subtitle background half transparent, 60 % (default) - a little stronger behind the answers */
+    background-color: rgba(16, 20, 24, 0.72);
+}
+
+/* ---------- Subtitle ---------- */
+
+.af-dialogue__subtitle {
+    position: relative;
+    min-height: 96px;
+    padding: 0 40px 6px 0;
+}
+
+.af-dialogue__speaker {
+    font-size: 26px;
+    -unity-font-style: bold;
+    color: var(--text-title);
+    margin: 0 0 6px 0;
+}
+
+/* GDD 05 4.2: subtitle size M = 34 px at 1080p; at most 2 lines of 45 characters (the pager breaks the line). */
+.af-dialogue__text {
+    font-size: 34px;
+    color: var(--text-primary);
+    white-space: normal;
+    -unity-text-align: upper-left;
+}
+
+.af-dialogue__continue {
+    position: absolute;
+    right: 0;
+    bottom: 8px;
+    font-size: 22px;
+    color: var(--ui-focus);
+    -unity-text-align: middle-right;
+}
+
+/* During a choice the last line stays visible as context, a little smaller and dimmed. */
+.af-dialogue.is-choice .af-dialogue__subtitle {
+    min-height: 0;
+    padding-bottom: 4px;
+}
+
+.af-dialogue.is-choice .af-dialogue__speaker {
+    font-size: 22px;
+}
+
+.af-dialogue.is-choice .af-dialogue__text {
+    font-size: 26px;
+    color: var(--text-secondary);
+}
+
+/* ---------- Answers ---------- */
+
+.af-dialogue__options {
+    margin: 14px 0 0 0;
+}
+
+.af-dialogue__option {
+    position: relative;
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+    min-height: 52px;
+    margin: 0 0 6px 0;
+    padding: 6px 18px;
+    background-color: rgba(16, 20, 24, 0.55);
+    border-width: 1px;
+    border-color: var(--button-border);
+    border-radius: 4px;
+    font-size: 26px;
+    color: var(--text-primary);
+    scale: 1 1;
+    transition-property: scale, background-color, border-color;
+    transition-duration: 0.08s;
+}
+
+/* GDD 05 1.4: 3 px frame in ui.focus, 104 % scale, lighter background. */
+.af-dialogue__option.is-focused {
+    border-width: 3px;
+    border-color: var(--ui-focus);
+    background-color: var(--button-bg-focus);
+    scale: 1.04 1.04;
+}
+
+/* GDD 02 12.4: answers chosen before keep 60 % opacity and stay selectable. */
+.af-dialogue__option.is-chosen {
+    opacity: 0.6;
+}
+
+.af-dialogue__option.is-focused.is-chosen {
+    opacity: 0.8;
+}
+
+/* Greyed (condition, failed check, not enough gold, one-time answer used): not selectable, text and tag grey. */
+.af-dialogue__option.is-disabled {
+    background-color: rgba(16, 20, 24, 0.4);
+}
+
+.af-dialogue__option.is-disabled .af-dialogue__option-text,
+.af-dialogue__option.is-disabled .af-dialogue__tag,
+.af-dialogue__option.is-disabled .af-dialogue__symbol {
+    color: var(--text-muted);
+}
+
+.af-dialogue__option-text {
+    flex-grow: 1;
+    flex-shrink: 1;
+    font-size: 26px;
+    color: var(--text-primary);
+    white-space: normal;
+}
+
+.af-dialogue__option.is-focused .af-dialogue__option-text {
+    color: #FFFFFF;
+}
+
+/* Hold to confirm ("[Toeten]", GDD 05 1.4): red frame while held, the fill (Base.uss) runs along the bottom edge in red. */
+.af-dialogue__option.is-holding {
+    border-color: var(--ui-worse);
+}
+
+.af-dialogue__option.is-holding .af-button__hold-fill {
+    background-color: var(--ui-worse);
+}
+
+/* Quest symbols in the colour of the quest category (GDD 02 12.4; default: main quest gold). */
+.af-dialogue__symbol {
+    min-width: 26px;
+    margin: 0 8px 0 0;
+    font-size: 24px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    color: var(--quest-main);
+}
+
+.af-dialogue__symbol--progress {
+    color: var(--quest-main);
+}
+
+.af-dialogue__symbol--new {
+    color: var(--quest-main);
+}
+
+.af-dialogue__symbol--complete {
+    color: var(--quest-main);
+}
+
+.af-dialogue__tag {
+    flex-shrink: 0;
+    margin: 0 12px 0 0;
+    font-size: 24px;
+    -unity-font-style: bold;
+    color: var(--text-secondary);
+}
+
+/* Check tags in the attribute colour (GDD 05 1.1); the attribute name is always written, the colour is only extra. */
+.af-dialogue__tag--check {
+    color: var(--text-title);
+}
+
+.af-attr--strength {
+    color: var(--attr-strength);
+}
+
+.af-attr--dexterity {
+    color: var(--attr-dexterity);
+}
+
+.af-attr--intelligence {
+    color: var(--attr-intelligence);
+}
+
+.af-attr--wisdom {
+    color: var(--attr-wisdom);
+}
+
+.af-attr--constitution {
+    color: var(--attr-constitution);
+}
+
+.af-attr--charisma {
+    color: var(--attr-charisma);
+}
+
+.af-dialogue__tag--bribe {
+    color: var(--accent-gold);
+}
+
+.af-dialogue__tag--requirement {
+    color: var(--text-secondary);
+}
+
+/* Fight and kill in red (GDD 02 12.4). */
+.af-dialogue__tag--combat,
+.af-dialogue__tag--kill {
+    color: var(--ui-worse);
+}
+
+.af-dialogue__tag--trade {
+    color: var(--quest-treasure);
+}
+
+.af-dialogue__tag--end {
+    color: var(--text-secondary);
+}
+
+/* ---------- Footer ---------- */
+
+.af-dialogue__footer {
+    flex-direction: row;
+    align-items: center;
+    min-height: 64px;
+    margin: 12px 0 0 0;
+    padding: 12px 0;
+    border-top-width: 1px;
+    border-color: var(--ui-panel-border);
+}
+
+.af-dialogue__auto {
+    flex-grow: 1;
+    font-size: var(--font-small);
+    color: var(--ui-focus);
+    -unity-text-align: middle-right;
+}

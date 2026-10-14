@@ -1,0 +1,31 @@
+{
+    "name": "Aetherfall.Dialogue",
+    "rootNamespace": "Aetherfall.Dialogue",
+    "references": [
+        "Aetherfall.Utilities",
+        "Aetherfall.Core",
+        "Aetherfall.Events",
+        "Aetherfall.Data",
+        "Aetherfall.Conditions",
+        "Aetherfall.SaveSystem",
+        "Aetherfall.Stats",
+        "Aetherfall.Inventory"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "AETHERFALL_NEWTONSOFT"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.unity.nuget.newtonsoft-json",
+            "expression": "3.0",
+            "define": "AETHERFALL_NEWTONSOFT"
+        }
+    ],
+    "noEngineReferences": false
+}

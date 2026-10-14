@@ -1,0 +1,42 @@
+{
+    "name": "Aetherfall.Tests.EditMode.Dialogue",
+    "rootNamespace": "Aetherfall.Tests.EditMode.Dialogue",
+    "references": [
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner",
+        "Aetherfall.Utilities",
+        "Aetherfall.Core",
+        "Aetherfall.Events",
+        "Aetherfall.Data",
+        "Aetherfall.Conditions",
+        "Aetherfall.SaveSystem",
+        "Aetherfall.GameTime",
+        "Aetherfall.WorldState",
+        "Aetherfall.Stats",
+        "Aetherfall.Dialogue",
+        "Aetherfall.NPC",
+        "Aetherfall.Tests.Shared"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS",
+        "AETHERFALL_NEWTONSOFT"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.unity.nuget.newtonsoft-json",
+            "expression": "3.0",
+            "define": "AETHERFALL_NEWTONSOFT"
+        }
+    ],
+    "noEngineReferences": false
+}
