@@ -1,0 +1,109 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8e8dae9f016d99b4cb368684cefc2e46, type: 3}
+  m_Name: Dlg_pim_hollmann
+  m_EditorClassIdentifier: Aetherfall.Dialogue::Aetherfall.Dialogue.DialogueDefinition
+  id: dlg.eichental.pim_hollmann
+  status: 1
+  title: Pim Hollmann
+  mode: 1
+  speakerId: npc.eichental.pim_hollmann
+  startNodeId: n010
+  cancelable: 0
+  questId: 
+  questExitIds: []
+  nodes:
+  - rid: 8292696250621362328
+  - rid: 8292696250621362331
+  - rid: 8292696250621362332
+  - rid: 8292696250621362333
+  notes: 
+  references:
+    version: 2
+    RefIds:
+    - rid: 8292696250621362328
+      type: {class: BranchNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n010
+        editorPosition: {x: 0, y: 0}
+        branches:
+        - condition:
+            rid: 8292696250621362329
+          targetNodeId: n300
+        - condition:
+            rid: 8292696250621362330
+          targetNodeId: n200
+        defaultNodeId: n100
+    - rid: 8292696250621362329
+      type: {class: QuestStatusIs, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
+      data:
+        questId: quest.side.eichental.woelfe_vom_nordhang
+        status: 3
+    - rid: 8292696250621362330
+      type: {class: QuestStatusIs, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
+      data:
+        questId: quest.side.eichental.woelfe_vom_nordhang
+        status: 2
+    - rid: 8292696250621362331
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n100
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: 
+        exitId: weiter
+        followUp: 0
+        speakerId: 
+        text: "Bist du ein Ritter? \u2026 Nein? Papa sagt, nachts kommen W\xF6lfe. Mir ist so hei\xDF, und alles leuchtet ein bisschen."
+        variants: []
+        emotion: 0
+        camera: 0
+        actions: []
+        voiceClipId: 
+    - rid: 8292696250621362332
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n200
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: 
+        exitId: weiter
+        followUp: 0
+        speakerId: 
+        text: "Hast du die W\xF6lfe gesehen? Papa sagt, sie haben leuchtende Augen. Wie in meinen Fiebertr\xE4umen."
+        variants: []
+        emotion: 0
+        camera: 0
+        actions: []
+        voiceClipId: 
+    - rid: 8292696250621362333
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n300
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: 
+        exitId: weiter
+        followUp: 0
+        speakerId: 
+        text: "Papa ist nicht mehr so traurig. Nur mein Kopf ist immer noch hei\xDF."
+        variants:
+        - condition:
+            rid: 8292696250621362334
+          text: "Papa sagt, du hast einen Welpen gerettet! Darf ich ihn mal sehen? Mein Kopf ist immer noch hei\xDF."
+        emotion: 0
+        camera: 0
+        actions: []
+        voiceClipId: 
+    - rid: 8292696250621362334
+      type: {class: FlagIs, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
+      data:
+        flagId: flag.eichental.wolfswelpe_gerettet
+        comparison: 0
+        value: 1

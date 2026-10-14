@@ -1,0 +1,112 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8e8dae9f016d99b4cb368684cefc2e46, type: 3}
+  m_Name: Dlg_liese_brenner
+  m_EditorClassIdentifier: Aetherfall.Dialogue::Aetherfall.Dialogue.DialogueDefinition
+  id: dlg.eichental.liese_brenner
+  status: 1
+  title: Liese Brenner
+  mode: 1
+  speakerId: npc.eichental.liese_brenner
+  startNodeId: n010
+  cancelable: 0
+  questId: 
+  questExitIds: []
+  nodes:
+  - rid: 8292696250621362357
+  - rid: 8292696250621362358
+  - rid: 8292696250621362359
+  - rid: 8292696250621362360
+  notes: 
+  references:
+    version: 2
+    RefIds:
+    - rid: -2
+      type: {class: , ns: , asm: }
+    - rid: 8292696250621362357
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n010
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: n100
+        exitId: 
+        followUp: 0
+        speakerId: 
+        text: "Kommst du aus Lindenhain? Hat jemand \u2026 einen Brief f\xFCr mich abgegeben?"
+        variants: []
+        emotion: 0
+        camera: 0
+        actions: []
+        voiceClipId: 
+    - rid: 8292696250621362358
+      type: {class: ChoiceNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n100
+        editorPosition: {x: 0, y: 0}
+        hub: 0
+        options:
+        - id: a
+          text: Nein, tut mir leid.
+          targetNodeId: n110
+          visibleIf:
+            rid: -2
+          selectableIf:
+            rid: -2
+          lockedReason: 
+          once: 0
+          irreversible: 0
+          actions: []
+          choiceId: 
+          choiceOptionId: 
+        - id: b
+          text: Von wem denn?
+          targetNodeId: n120
+          visibleIf:
+            rid: -2
+          selectableIf:
+            rid: -2
+          lockedReason: 
+          once: 0
+          irreversible: 0
+          actions: []
+          choiceId: 
+          choiceOptionId: 
+    - rid: 8292696250621362359
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n110
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: 
+        exitId: weiter
+        followUp: 0
+        speakerId: 
+        text: Dachte ich mir. Er hat wohl Wichtigeres zu tun.
+        variants: []
+        emotion: 4
+        camera: 0
+        actions: []
+        voiceClipId: 
+    - rid: 8292696250621362360
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n120
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: 
+        exitId: weiter
+        followUp: 0
+        speakerId: 
+        text: "Ach \u2026 von niemandem. Vergiss es einfach."
+        variants: []
+        emotion: 0
+        camera: 0
+        actions: []
+        voiceClipId: 

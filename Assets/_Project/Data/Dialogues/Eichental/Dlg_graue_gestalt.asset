@@ -1,0 +1,60 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8e8dae9f016d99b4cb368684cefc2e46, type: 3}
+  m_Name: Dlg_graue_gestalt
+  m_EditorClassIdentifier: Aetherfall.Dialogue::Aetherfall.Dialogue.DialogueDefinition
+  id: dlg.eichental.graue_gestalt
+  status: 1
+  title: Gestalt im grauen Mantel
+  mode: 0
+  speakerId: npc.main.graue_gestalt
+  startNodeId: n010
+  cancelable: 0
+  questId: 
+  questExitIds: []
+  nodes:
+  - rid: 8292696250621362326
+  - rid: 8292696250621362327
+  notes: 
+  references:
+    version: 2
+    RefIds:
+    - rid: 8292696250621362326
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n010
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: n020
+        exitId: 
+        followUp: 0
+        speakerId: 
+        text: Du bist es also.
+        variants: []
+        emotion: 0
+        camera: 1
+        actions: []
+        voiceClipId: 
+    - rid: 8292696250621362327
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n020
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: 
+        exitId: weiter
+        followUp: 0
+        speakerId: 
+        text: "(Die Gestalt mustert dich, als w\xFCrde sie Ma\xDF nehmen. Ein Windsto\xDF aus dem Riss \u2013 und sie ist fort.)"
+        variants: []
+        emotion: 0
+        camera: 0
+        actions: []
+        voiceClipId: 

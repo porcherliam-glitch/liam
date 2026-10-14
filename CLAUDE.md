@@ -168,7 +168,7 @@ Batchmode-Einstiegspunkte (jeweils mit `-batchmode -nographics -projectPath . -q
 
 1. Erster echter Unity-Lauf, Fehler beheben, Projekt-Setup im Batchmode (siehe oben)
 2. Generatoren laufen lassen (Testgelände, Eichental, Gruft), die Szenen in Unity prüfen und die Testanleitungen 02–12 durchgehen
-3. ~~Dialoge ins Spiel einbinden (Anleitung 10, Abschnitt 12)~~ erledigt (12.1–12.6, Harrik im Testgelände); offen: echte NPCs statt Marker im Eichental, 12.7
+3. ~~Dialoge ins Spiel einbinden (Anleitung 10, Abschnitt 12)~~ erledigt (12.1–12.6, Harrik im Testgelände; Dorfbewohner im Eichental als Figuren mit Gesprächen); offen: 12.7
 4. ~~Gruft anbinden nach Anleitung 12, Abschnitt 11~~ erledigt (Portal, Laden über Welt-ID, Werte mitnehmen, Bossbalken im HUD)
 5. ~~Die 3 Quests als Daten nach GDD 02, Abschnitt 11~~ erledigt (Anleitung 14; ohne Zwischensequenzen, Aether-Stoß, Bogen)
 6. ~~Startstufe wieder auf 1 setzen, Neues Spiel/Laden aus dem Hauptmenü, Tod/Wiedereinstieg~~ erledigt (Eichental-Generator setzt Stufe 1, Rundgang prüft Tod und Fortsetzen)

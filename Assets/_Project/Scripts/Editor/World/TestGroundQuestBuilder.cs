@@ -158,7 +158,7 @@ namespace Aetherfall.EditorTools.World
             mesh.color = Color.white;
             if (label.TryGetComponent(out MeshRenderer renderer))
             {
-                renderer.sharedMaterial = font.material;
+                renderer.sharedMaterial = WorldTextMaterial.For(font);
                 renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             }
         }

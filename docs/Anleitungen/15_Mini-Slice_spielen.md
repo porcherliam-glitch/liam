@@ -43,11 +43,13 @@ Mit Gamepad geht es auch (Xbox-Belegung: A springen und benutzen, X/Y angreifen,
 2. **Die Wölfe vom Nordhang**: Hollmann am Hof im Nordwesten. Am Ende eine Entscheidung im Wolfsbau.
 3. **Die vergessene Gruft**: Corvin im Gasthaus in Lindenhain. Tor-Rätsel mit Grabplatten (die Wandreliefs verraten die Reihenfolge), Hallen mit Skeletten, Spiegel-Rätsel, der Wachende Ritter. Am Ende: Siegelstein nehmen oder liegen lassen.
 
+Sprich auch mit den anderen Leuten (**E**): Wirt Ulf im Gasthaus kennt Gerüchte, Tobold und Wenna (wenn du sie gerettet hast), Pim auf dem Hof, Hannes und Liese an der Mühle.
+
 Oben rechts steht immer dein aktuelles Ziel. Die Gruft ist auf Stufe 4 eingestellt; nach den ersten beiden Quests bist du ungefähr Stufe 3–4. Wenn es zu schwer ist: erst ein paar Wölfe besiegen.
 
 ## 4. Bekannte Lücken
 
-- Alle Figuren sind noch einfache Kapseln, Gegner und Häuser sind Platzhalter. Echte Modelle kommen später.
+- Die Dorfbewohner sind einfache Figuren aus Grundformen, du selbst bist noch eine Kapsel, Gegner und Häuser sind Platzhalter. Echte Modelle kommen später.
 - Keine Musik, keine Zwischensequenzen, kein Bogen, keine Aether-Fähigkeit.
 - Die Gruft ist dunkel. Das ist Absicht, kann aber nachgebessert werden.
 

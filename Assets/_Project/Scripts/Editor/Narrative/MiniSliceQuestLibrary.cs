@@ -1,6 +1,7 @@
 using Aetherfall.Conditions;
 using Aetherfall.Core;
 using Aetherfall.Data;
+using Aetherfall.Dialogue;
 using Aetherfall.Inventory;
 using Aetherfall.NPC;
 using Aetherfall.Progression;
@@ -178,7 +179,9 @@ namespace Aetherfall.EditorTools.Narrative
                 .Stage(new StageBuilder("s50")
                     .Text("Der Riss klafft am Waldrand. Die Gestalt wartet dort, als hätte sie dich erwartet.")
                     .Objective(new GoToObjective("o1", "loc.eichental.riss_eichental", 20f).WithJournalText("Zum Riss gehen"))
-                    .OnComplete(new SetFlag(FlagAetherPower, 1))
+                    // The figure's line "Du bist es also." stands in for the scene cs.prolog.aether_beruehrung (no cutscenes yet).
+                    .OnComplete(new SetFlag(FlagAetherPower, 1),
+                        new StartDialogue(MiniSliceDialogueLibrary.Dialogue(MiniSliceDialogueLibrary.GreyFigure), MiniSliceDialogueLibrary.GreyFigure))
                     .Next("s60"))
                 .Stage(new StageBuilder("s60")
                     .Text("Etwas Großes kriecht aus dem Riss. Nutze die neue Kraft.")

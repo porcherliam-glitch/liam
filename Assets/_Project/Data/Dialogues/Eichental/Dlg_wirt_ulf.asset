@@ -1,0 +1,251 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8e8dae9f016d99b4cb368684cefc2e46, type: 3}
+  m_Name: Dlg_wirt_ulf
+  m_EditorClassIdentifier: Aetherfall.Dialogue::Aetherfall.Dialogue.DialogueDefinition
+  id: dlg.eichental.wirt_ulf
+  status: 1
+  title: Ulf Krugmann
+  mode: 1
+  speakerId: npc.eichental.wirt_ulf
+  startNodeId: n010
+  cancelable: 0
+  questId: 
+  questExitIds: []
+  nodes:
+  - rid: 8292696250621362335
+  - rid: 8292696250621362336
+  - rid: 8292696250621362337
+  - rid: 8292696250621362350
+  - rid: 8292696250621362351
+  - rid: 8292696250621362352
+  - rid: 8292696250621362353
+  - rid: 8292696250621362354
+  notes: 
+  references:
+    version: 2
+    RefIds:
+    - rid: -2
+      type: {class: , ns: , asm: }
+    - rid: 8292696250621362335
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n010
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: n100
+        exitId: 
+        followUp: 0
+        speakerId: 
+        text: "Willkommen im Krummen Kessel. Viel ist nicht los \u2013 nur Fl\xFCchtlinge und Ger\xFCchte."
+        variants: []
+        emotion: 0
+        camera: 0
+        actions: []
+        voiceClipId: 
+    - rid: 8292696250621362336
+      type: {class: ChoiceNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n100
+        editorPosition: {x: 0, y: 0}
+        hub: 0
+        options:
+        - id: a
+          text: "Was h\xF6rt man so?"
+          targetNodeId: n200
+          visibleIf:
+            rid: -2
+          selectableIf:
+            rid: -2
+          lockedReason: 
+          once: 0
+          irreversible: 0
+          actions: []
+          choiceId: 
+          choiceOptionId: 
+        - id: b
+          text: Ein Bier, bitte.
+          targetNodeId: n300
+          visibleIf:
+            rid: -2
+          selectableIf:
+            rid: -2
+          lockedReason: 
+          once: 0
+          irreversible: 0
+          actions: []
+          choiceId: 
+          choiceOptionId: 
+        - id: c
+          text: Mach's gut.
+          targetNodeId: n900
+          visibleIf:
+            rid: -2
+          selectableIf:
+            rid: -2
+          lockedReason: 
+          once: 0
+          irreversible: 0
+          actions: []
+          choiceId: 
+          choiceOptionId: 
+    - rid: 8292696250621362337
+      type: {class: BranchNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n200
+        editorPosition: {x: 0, y: 0}
+        branches:
+        - condition:
+            rid: 8292696250621362338
+          targetNodeId: n210
+        - condition:
+            rid: 8292696250621362339
+          targetNodeId: n220
+        defaultNodeId: n230
+    - rid: 8292696250621362338
+      type: {class: AllOf, ns: Aetherfall.Conditions, asm: Aetherfall.Conditions}
+      data:
+        conditions:
+        - rid: 8292696250621362340
+        - rid: 8292696250621362341
+    - rid: 8292696250621362339
+      type: {class: AllOf, ns: Aetherfall.Conditions, asm: Aetherfall.Conditions}
+      data:
+        conditions:
+        - rid: 8292696250621362342
+        - rid: 8292696250621362343
+    - rid: 8292696250621362340
+      type: {class: QuestStatusIs, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
+      data:
+        questId: quest.main.asche_ueber_eichental
+        status: 3
+    - rid: 8292696250621362341
+      type: {class: Not, ns: Aetherfall.Conditions, asm: Aetherfall.Conditions}
+      data:
+        condition:
+          rid: 8292696250621362344
+    - rid: 8292696250621362342
+      type: {class: QuestStatusIs, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
+      data:
+        questId: quest.main.asche_ueber_eichental
+        status: 3
+    - rid: 8292696250621362343
+      type: {class: Not, ns: Aetherfall.Conditions, asm: Aetherfall.Conditions}
+      data:
+        condition:
+          rid: 8292696250621362345
+    - rid: 8292696250621362344
+      type: {class: AnyOf, ns: Aetherfall.Conditions, asm: Aetherfall.Conditions}
+      data:
+        conditions:
+        - rid: 8292696250621362346
+        - rid: 8292696250621362347
+    - rid: 8292696250621362345
+      type: {class: AnyOf, ns: Aetherfall.Conditions, asm: Aetherfall.Conditions}
+      data:
+        conditions:
+        - rid: 8292696250621362348
+        - rid: 8292696250621362349
+    - rid: 8292696250621362346
+      type: {class: QuestStatusIs, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
+      data:
+        questId: quest.side.eichental.woelfe_vom_nordhang
+        status: 2
+    - rid: 8292696250621362347
+      type: {class: QuestStatusIs, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
+      data:
+        questId: quest.side.eichental.woelfe_vom_nordhang
+        status: 3
+    - rid: 8292696250621362348
+      type: {class: QuestStatusIs, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
+      data:
+        questId: quest.dungeon.eichental.vergessene_gruft
+        status: 2
+    - rid: 8292696250621362349
+      type: {class: QuestStatusIs, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
+      data:
+        questId: quest.dungeon.eichental.vergessene_gruft
+        status: 3
+    - rid: 8292696250621362350
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n210
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: n100
+        exitId: 
+        followUp: 0
+        speakerId: 
+        text: "Hollmann flucht \xFCber W\xF6lfe am Nordhang. Jede Nacht ein Schaf weniger, sagt er. Sein Hof liegt im Nordwesten."
+        variants: []
+        emotion: 0
+        camera: 0
+        actions: []
+        voiceClipId: 
+    - rid: 8292696250621362351
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n220
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: n100
+        exitId: 
+        followUp: 0
+        speakerId: 
+        text: Seit dem Riss summt es in der Senke unter dem Rabenfels. Der Gelehrte da hinten will unbedingt hin.
+        variants: []
+        emotion: 0
+        camera: 0
+        actions: []
+        voiceClipId: 
+    - rid: 8292696250621362352
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n230
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: n100
+        exitId: 
+        followUp: 0
+        speakerId: 
+        text: "Die M\xFChle steht still. Banditen sitzen am Wehr, hei\xDFt es. Brenner ist au\xDFer sich."
+        variants: []
+        emotion: 0
+        camera: 0
+        actions: []
+        voiceClipId: 
+    - rid: 8292696250621362353
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n300
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: n100
+        exitId: 
+        followUp: 0
+        speakerId: 
+        text: Bier ist aus. Seit dem Riss trinken alle doppelt. Wasser hab ich noch, das ist umsonst.
+        variants: []
+        emotion: 0
+        camera: 0
+        actions: []
+        voiceClipId: 
+    - rid: 8292696250621362354
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n900
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: 
+        exitId: weiter
+        followUp: 0
+        speakerId: 
+        text: "Komm wieder, wenn du was h\xF6rst."
+        variants: []
+        emotion: 0
+        camera: 0
+        actions: []
+        voiceClipId: 

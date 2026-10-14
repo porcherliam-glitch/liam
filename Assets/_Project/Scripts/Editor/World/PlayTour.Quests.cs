@@ -14,6 +14,7 @@ using Aetherfall.World.Puzzles;
 using Aetherfall.WorldState;
 using UnityEngine;
 using Object = UnityEngine.Object;
+using D = Aetherfall.EditorTools.Narrative.MiniSliceDialogueLibrary;
 using Q = Aetherfall.EditorTools.Narrative.MiniSliceQuestLibrary;
 
 namespace Aetherfall.EditorTools.World
@@ -53,10 +54,12 @@ namespace Aetherfall.EditorTools.World
             Steps.Enqueue(() => WaitStage(Q.Prologue, "s40"));
             Steps.Enqueue(UseObject("clue.eichental.verbrannte_runen_1", QuestObjectAction.Inspect));
             Steps.Enqueue(UseObject("clue.eichental.verbrannte_runen_2", QuestObjectAction.Inspect));
+            Steps.Enqueue(TalkTo(D.Lina));
             Steps.Enqueue(FollowTrail("spur.eichental.graue_gestalt"));
             Steps.Enqueue(() => WaitStage(Q.Prologue, "s50"));
             Steps.Enqueue(GoToArea("loc.eichental.riss_eichental"));
             Steps.Enqueue(() => WaitStage(Q.Prologue, "s60"));
+            Steps.Enqueue(ExpectDialogue(D.Dialogue(D.GreyFigure)));
             Steps.Enqueue(() => Wait(1.0));
             Steps.Enqueue(() => Capture("q03_riss", null));
             Steps.Enqueue(KillGroup("spawn.eichental.rissbrut_prolog"));
@@ -129,6 +132,15 @@ namespace Aetherfall.EditorTools.World
             Steps.Enqueue(() => WaitQuest(Q.Crypt, QuestStatus.Completed));
             Steps.Enqueue(() => WaitFlag(Q.FlagSealStone, 1));
             Steps.Enqueue(() => Capture("q10_gruft_fertig", null));
+
+            // The villagers of Lindenhain, the mill and the farm (short talks).
+            int shot = 11;
+            foreach (string villager in new[] { D.Tobold, D.Wenna, D.Ulf, D.Brenner, D.Liese, D.Pim })
+            {
+                string name = "q" + shot++ + "_" + villager.Substring(villager.LastIndexOf('.') + 1);
+                Steps.Enqueue(TalkTo(villager));
+                Steps.Enqueue(() => Capture(name, NpcView(villager)));
+            }
         }
 
         private const string GruftBossId = "boss.eichental.wachender_ritter";
@@ -333,11 +345,14 @@ namespace Aetherfall.EditorTools.World
             };
         }
 
+        private static readonly HashSet<string> ChosenOptions = new HashSet<string>();
+
         private static bool DriveDialogue()
         {
             IDialogueService dialogues = Services.Locator.Get<IDialogueService>();
             if (!dialogues.IsRunning)
             {
+                ChosenOptions.Clear();
                 return true;
             }
 
@@ -349,17 +364,52 @@ namespace Aetherfall.EditorTools.World
             _stepStart = UnityEditor.EditorApplication.timeSinceStartup;
             if (dialogues.View.State == DialogueViewState.Choice)
             {
-                DialogueOptionView option = dialogues.View.Options.FirstOrDefault(o => o.IsEnabled);
-                int index = option != null ? dialogues.View.Options.ToList().IndexOf(option) : 0;
+                // The first answer not taken yet (hubs lead back to their choice), at last the final one ("Mach's gut").
+                List<DialogueOptionView> options = dialogues.View.Options.ToList();
+                DialogueOptionView option = options.FirstOrDefault(o => o.IsEnabled && !ChosenOptions.Contains(o.Text)) ??
+                                            options.LastOrDefault(o => o.IsEnabled);
+                int index = option != null ? options.IndexOf(option) : 0;
+                if (option != null)
+                {
+                    ChosenOptions.Add(option.Text);
+                }
+
                 Note("Antwort: " + (option != null ? option.Text : "?"));
                 dialogues.Choose(index);
             }
             else
             {
+                if (dialogues.View.Line != null)
+                {
+                    Note("„" + dialogues.View.Line.Text + "“");
+                }
+
                 dialogues.Continue();
             }
 
             return false;
+        }
+
+        /// <summary>Waits for a conversation that starts by itself (quest action) and clicks through it.</summary>
+        private static Func<bool> ExpectDialogue(string dialogueId)
+        {
+            bool seen = false;
+            return () =>
+            {
+                IDialogueService dialogues = Services.Locator.Get<IDialogueService>();
+                if (!seen)
+                {
+                    if (!dialogues.IsRunning || dialogues.View.DialogueId != dialogueId)
+                    {
+                        return Fail(Elapsed > 5.0, "Gespräch " + dialogueId + " hat nicht von selbst begonnen.");
+                    }
+
+                    seen = true;
+                    Note("Gespräch von selbst begonnen: " + dialogueId + ".");
+                }
+
+                return DriveDialogue();
+            };
         }
 
         /// <summary>Defeats the enemies of a quest group as soon as the quest switched it on.</summary>
@@ -606,6 +656,23 @@ namespace Aetherfall.EditorTools.World
                 }
 
                 return true;
+            };
+        }
+
+        /// <summary>Camera 2.6 m in front of a visible NPC at eye height, a little from the side (the figure, not the player).</summary>
+        private static Func<Transform, Pose> NpcView(string npcId)
+        {
+            return player =>
+            {
+                NpcInteractable npc = Object.FindObjectsByType<NpcInteractable>(FindObjectsInactive.Exclude).FirstOrDefault(n => n.NpcId == npcId);
+                if (npc == null)
+                {
+                    return ViewBehindPlayer(player);
+                }
+
+                Transform figure = npc.transform;
+                Vector3 front = Quaternion.Euler(0f, 35f, 0f) * figure.forward;
+                return Look(figure.position + front * 2.6f + Vector3.up * 1.5f, figure.position + Vector3.up * 1.0f);
             };
         }
 

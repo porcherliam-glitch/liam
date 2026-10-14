@@ -1,0 +1,119 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8e8dae9f016d99b4cb368684cefc2e46, type: 3}
+  m_Name: Dlg_schmied_tobold
+  m_EditorClassIdentifier: Aetherfall.Dialogue::Aetherfall.Dialogue.DialogueDefinition
+  id: dlg.eichental.schmied_tobold
+  status: 1
+  title: Tobold Kern
+  mode: 1
+  speakerId: npc.eichental.schmied_tobold
+  startNodeId: n010
+  cancelable: 0
+  questId: 
+  questExitIds: []
+  nodes:
+  - rid: 8292696250621362309
+  - rid: 8292696250621362313
+  - rid: 8292696250621362314
+  - rid: 8292696250621362315
+  - rid: 8292696250621362316
+  notes: 
+  references:
+    version: 2
+    RefIds:
+    - rid: 8292696250621362309
+      type: {class: BranchNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n010
+        editorPosition: {x: 0, y: 0}
+        branches:
+        - condition:
+            rid: 8292696250621362310
+          targetNodeId: n200
+        defaultNodeId: n100
+    - rid: 8292696250621362310
+      type: {class: AnyOf, ns: Aetherfall.Conditions, asm: Aetherfall.Conditions}
+      data:
+        conditions:
+        - rid: 8292696250621362311
+        - rid: 8292696250621362312
+    - rid: 8292696250621362311
+      type: {class: QuestStageReached, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
+      data:
+        questId: quest.main.asche_ueber_eichental
+        stageId: s40
+    - rid: 8292696250621362312
+      type: {class: QuestStatusIs, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
+      data:
+        questId: quest.main.asche_ueber_eichental
+        status: 3
+    - rid: 8292696250621362313
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n100
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: n110
+        exitId: 
+        followUp: 0
+        speakerId: 
+        text: Du hast mich unter dem Balken hervorgeholt. Das vergess ich dir nicht.
+        variants: []
+        emotion: 0
+        camera: 0
+        actions: []
+        voiceClipId: 
+    - rid: 8292696250621362314
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n110
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: 
+        exitId: weiter
+        followUp: 0
+        speakerId: 
+        text: Edwin, mein Junge, ist mit den Ersten nach Lindenhain. Wenigstens er ist in Sicherheit.
+        variants: []
+        emotion: 0
+        camera: 0
+        actions: []
+        voiceClipId: 
+    - rid: 8292696250621362315
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n200
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: n210
+        exitId: 
+        followUp: 0
+        speakerId: 
+        text: Die Esse hier ist klein, aber sie brennt. Sobald ich Eisen habe, schmiede ich dir etwas Ordentliches.
+        variants: []
+        emotion: 0
+        camera: 0
+        actions: []
+        voiceClipId: 
+    - rid: 8292696250621362316
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n210
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: 
+        exitId: weiter
+        followUp: 0
+        speakerId: 
+        text: "Und Eichental bauen wir wieder auf. Stein f\xFCr Stein, wie Hedda sagt."
+        variants: []
+        emotion: 0
+        camera: 0
+        actions: []
+        voiceClipId: 

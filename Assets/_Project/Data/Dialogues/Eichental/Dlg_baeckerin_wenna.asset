@@ -1,0 +1,119 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8e8dae9f016d99b4cb368684cefc2e46, type: 3}
+  m_Name: Dlg_baeckerin_wenna
+  m_EditorClassIdentifier: Aetherfall.Dialogue::Aetherfall.Dialogue.DialogueDefinition
+  id: dlg.eichental.baeckerin_wenna
+  status: 1
+  title: Wenna Holt
+  mode: 1
+  speakerId: npc.eichental.baeckerin_wenna
+  startNodeId: n010
+  cancelable: 0
+  questId: 
+  questExitIds: []
+  nodes:
+  - rid: 8292696250621362317
+  - rid: 8292696250621362321
+  - rid: 8292696250621362322
+  - rid: 8292696250621362323
+  - rid: 8292696250621362324
+  notes: 
+  references:
+    version: 2
+    RefIds:
+    - rid: 8292696250621362317
+      type: {class: BranchNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n010
+        editorPosition: {x: 0, y: 0}
+        branches:
+        - condition:
+            rid: 8292696250621362318
+          targetNodeId: n200
+        defaultNodeId: n100
+    - rid: 8292696250621362318
+      type: {class: AnyOf, ns: Aetherfall.Conditions, asm: Aetherfall.Conditions}
+      data:
+        conditions:
+        - rid: 8292696250621362319
+        - rid: 8292696250621362320
+    - rid: 8292696250621362319
+      type: {class: QuestStageReached, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
+      data:
+        questId: quest.main.asche_ueber_eichental
+        stageId: s40
+    - rid: 8292696250621362320
+      type: {class: QuestStatusIs, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
+      data:
+        questId: quest.main.asche_ueber_eichental
+        status: 3
+    - rid: 8292696250621362321
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n100
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: n110
+        exitId: 
+        followUp: 0
+        speakerId: 
+        text: "Ich dachte, ich verbrenne da drin \u2026 Danke. Danke!"
+        variants: []
+        emotion: 4
+        camera: 0
+        actions: []
+        voiceClipId: 
+    - rid: 8292696250621362322
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n110
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: 
+        exitId: weiter
+        followUp: 0
+        speakerId: 
+        text: "Meine B\xE4ckerei ist weg. Drei\xDFig Jahre Teig, und jetzt nur noch Asche."
+        variants: []
+        emotion: 0
+        camera: 0
+        actions: []
+        voiceClipId: 
+    - rid: 8292696250621362323
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n200
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: n210
+        exitId: 
+        followUp: 0
+        speakerId: 
+        text: "In Lindenhain gibt es einen Ofen, aber kein Mehl. Die M\xFChle am M\xFChlbach mahlt nicht mehr."
+        variants: []
+        emotion: 0
+        camera: 0
+        actions: []
+        voiceClipId: 
+    - rid: 8292696250621362324
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n210
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: 
+        exitId: weiter
+        followUp: 0
+        speakerId: 
+        text: "Sobald wieder Mehl kommt, backe ich. Das erste Brot ist f\xFCr dich."
+        variants: []
+        emotion: 0
+        camera: 0
+        actions: []
+        voiceClipId: 

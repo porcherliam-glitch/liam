@@ -256,7 +256,7 @@ namespace Aetherfall.EditorTools.World
                 renderer = label.AddComponent<MeshRenderer>();
             }
 
-            renderer.sharedMaterial = _labelFont.material;
+            renderer.sharedMaterial = WorldTextMaterial.For(_labelFont);
             renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         }
     }

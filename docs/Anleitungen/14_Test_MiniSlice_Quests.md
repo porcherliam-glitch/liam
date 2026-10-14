@@ -56,4 +56,4 @@ Ergebnis steht in `Logs/Tour/Boot_Quests/` (Bericht `bericht.txt` und 11 Bilder)
 | Bogen und Strohziele | Es gibt noch keinen Bogen. Die Strohziele werden nur geprüft (**E**). |
 | Risslinge, Rissbrut, Glutfang | Noch Wölfe als Platzhalter. |
 | Fraktionsruf (Konvent, Silberwacht) | Gibt es noch nicht. |
-| Figuren | Noch orange Kapseln. Echte Figuren mit mehr Gesprächen kommen im nächsten Schritt. |
+| Figuren | Einfache Figuren aus Grundformen, alle mit kurzen Gesprächen. Echte Modelle kommen aus Blender. |

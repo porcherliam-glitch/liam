@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Aetherfall.AI;
 using Aetherfall.Combat;
+using Aetherfall.EditorTools.Narrative;
 using Aetherfall.Items;
 using Aetherfall.Player;
 using Aetherfall.World;
@@ -20,7 +21,6 @@ namespace Aetherfall.EditorTools.World
     /// </summary>
     public sealed class EichentalGameplayBuilder
     {
-        private const float NpcHeight = 1.7f;
 
         private readonly RegionLayout _layout;
         private readonly LayoutHeightField _heights;
@@ -277,9 +277,10 @@ namespace Aetherfall.EditorTools.World
         }
 
         /// <summary>
-        /// NPC placeholders: capsules with nose and name sign, grouped by story phase. Each marker that belongs to a quest state
+        /// Villagers: simple figures (<see cref="VillagerFigures"/>) with name sign, grouped by story phase. Each marker of a quest state
         /// sits in its own <see cref="ConditionalObjectGroup"/> (<see cref="MiniSliceWorld.NpcVisibility"/>), and NPCs with an
-        /// NPC asset (<see cref="MiniSliceAssets"/>) can be talked to (<see cref="Aetherfall.NPC.NpcInteractable"/>).
+        /// NPC asset (<see cref="MiniSliceAssets"/>) can be talked to (<see cref="Aetherfall.NPC.NpcInteractable"/>), except while trapped
+        /// (<see cref="MiniSliceDialogueLibrary.TalkableAt"/>).
         /// </summary>
         /// <param name="parent">Parent.</param>
         /// <param name="player">Player object (the NPCs look at it).</param>
@@ -287,7 +288,6 @@ namespace Aetherfall.EditorTools.World
         public void BuildNpcMarkers(Transform parent, GameObject player, int interactableLayer)
         {
             var groups = new Dictionary<NpcMarkerPhase, Transform>();
-            Material body = _materials.Get("npcMarker", 0.3f);
             int talking = 0;
             foreach (LayoutNpcMarker npc in _layout.NpcMarkers)
             {
@@ -318,33 +318,21 @@ namespace Aetherfall.EditorTools.World
 
                 var root = new GameObject(npc.Name + " (" + npc.NpcId + ", " + phaseName + ")");
                 root.transform.SetParent(holder, false);
-                if (MiniSliceAssets.TryMakeTalkable(root, npc.NpcId, player, interactableLayer, _report))
+                if (MiniSliceDialogueLibrary.TalkableAt(npc.NpcId, npc.Stage) &&
+                    MiniSliceAssets.TryMakeTalkable(root, npc.NpcId, player, interactableLayer, _report))
                 {
                     talking++;
                 }
+
                 root.transform.SetPositionAndRotation(new Vector3((float)x, H(x, z), (float)z), Quaternion.Euler(0f, (float)npc.Yaw, 0f));
 
-                GameObject capsule = GameObject.CreatePrimitive(PrimitiveType.Capsule);
-                capsule.name = "Platzhalter";
-                capsule.transform.SetParent(root.transform, false);
-                capsule.transform.localPosition = new Vector3(0f, NpcHeight * 0.5f, 0f);
-                capsule.transform.localScale = new Vector3(0.6f, NpcHeight * 0.5f, 0.6f);
-                capsule.GetComponent<MeshRenderer>().sharedMaterial = body;
-                float signHeight = NpcHeight + 0.55f;
+                // Inside a building on purpose (e.g. trapped in the burning bakery): no collider in the walls, sign above the roof.
+                VillagerFigures.Build(root.transform, npc.NpcId, _materials, !npc.InsideBuilding);
+                float signHeight = VillagerFigures.Height(npc.NpcId) + 0.4f;
                 if (npc.InsideBuilding)
                 {
-                    // Inside a building on purpose (e.g. trapped in the burning bakery): no collider in the walls, sign above the roof.
-                    Object.DestroyImmediate(capsule.GetComponent<Collider>());
                     signHeight = Mathf.Max(signHeight, RoofTopAbove(x, z) + 1f);
                 }
-
-                GameObject nose = GameObject.CreatePrimitive(PrimitiveType.Cube);
-                nose.name = "Blickrichtung";
-                nose.transform.SetParent(root.transform, false);
-                nose.transform.localPosition = new Vector3(0f, 1.35f, 0.32f);
-                nose.transform.localScale = new Vector3(0.16f, 0.12f, 0.25f);
-                Object.DestroyImmediate(nose.GetComponent<Collider>());
-                nose.GetComponent<MeshRenderer>().sharedMaterial = _testMaterials.Nose;
 
                 NpcMarker marker = root.AddComponent<NpcMarker>();
                 TestGroundFields.SetString(marker, "npcId", npc.NpcId, _report);
@@ -352,15 +340,25 @@ namespace Aetherfall.EditorTools.World
                 TestGroundFields.SetString(marker, "locationId", npc.LocationId, _report);
                 TestGroundFields.SetInt(marker, "phase", (int)npc.Phase, _report);
                 TestGroundFields.SetString(marker, "stage", npc.Stage, _report);
-                string stage = npc.Stage.Length > 0 ? ", Stufe " + npc.Stage : string.Empty;
-                string phase = npc.Phase == NpcMarkerPhase.Prolog ? "\n(Prolog" + stage + ")" :
-                    npc.Phase == NpcMarkerPhase.AfterProlog ? "\n(nach dem Prolog" + stage + ")" : stage.Length > 0 ? "\n(" + stage.Substring(2) + ")" : string.Empty;
-                EichentalLabel.Create(root.transform, npc.Name + phase, new Vector3(0f, signHeight, 0f), 180f, _labelFont, 0.03f);
+                EichentalLabel.Create(root.transform, SignText(npc), new Vector3(0f, signHeight, 0f), 180f, _labelFont, 0.025f);
             }
 
-            _report.Info("NPC-Platzhalter: " + _layout.NpcMarkers.Count + " Kapseln mit NpcMarker (NPC-ID aus GDD 02, Ort, Phase, Stufe), " + talking +
-                         " davon ansprechbar, sichtbar je nach Stand von „Asche über Eichental“. Der NPC-Baustein " +
-                         "ersetzt sie durch echte Figuren mit Dialogen.");
+            _report.Info("Dorfbewohner: " + _layout.NpcMarkers.Count + " Figuren mit NpcMarker (NPC-ID aus GDD 02, Ort, Phase, Stufe), " + talking +
+                         " davon ansprechbar, sichtbar je nach Stand von „Asche über Eichental“. Echte Modelle kommen aus Blender (Mini-Slice 7).");
+        }
+
+        /// <summary>Name sign: name and role of the NPC asset (the grey figure only by its look), else the layout name.</summary>
+        private static string SignText(LayoutNpcMarker npc)
+        {
+            foreach (Aetherfall.NPC.NpcSpec spec in MiniSliceDialogueLibrary.CreateNpcs())
+            {
+                if (spec.Id == npc.NpcId)
+                {
+                    return spec.NameKnownFromStart ? spec.Name + "\n" + spec.Role : spec.Role;
+                }
+            }
+
+            return npc.Name;
         }
 
         private float RoofTopAbove(double x, double z)
