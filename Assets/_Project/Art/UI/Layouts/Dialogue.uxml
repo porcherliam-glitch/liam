@@ -1,0 +1,106 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!--
+        Dialogue screen (GDD 02 12.4/12.7, GDD 05 4.2). Styles: Dialogue.uss through the theme (AetherfallTheme.tss).
+        Named labels get their text from UiTexts (element name = key, e.g. dialogue-hint-hold -> hint-hold); labels whose text
+        the code sets (speaker, line, answers, hints that change) have no name and are found by their class (DialogueScreen).
+        The nine answer rows (hub up to 9, GDD 02 12.2) are found in document order by the class af-dialogue__option.
+    -->
+    <ui:VisualElement name="dialogue" class="af-root af-screen af-dialogue" picking-mode="Ignore">
+        <ui:VisualElement name="dialogue-panel" class="af-panel af-dialogue__panel">
+            <ui:VisualElement name="dialogue-subtitle" class="af-dialogue__subtitle" picking-mode="Ignore">
+                <ui:Label class="af-text af-dialogue__speaker" picking-mode="Ignore" />
+                <ui:Label class="af-text af-dialogue__text" picking-mode="Ignore" />
+                <ui:Label class="af-text af-dialogue__continue" picking-mode="Ignore" />
+            </ui:VisualElement>
+            <ui:VisualElement name="dialogue-options" class="af-dialogue__options">
+                <ui:Button class="af-text af-dialogue__option" focusable="false">
+                    <ui:Label class="af-text af-dialogue__symbol" picking-mode="Ignore" />
+                    <ui:Label class="af-text af-dialogue__tag" picking-mode="Ignore" />
+                    <ui:Label class="af-text af-dialogue__option-text" picking-mode="Ignore" />
+                    <ui:VisualElement class="af-button__hold" picking-mode="Ignore">
+                        <ui:VisualElement class="af-button__hold-fill" picking-mode="Ignore" />
+                    </ui:VisualElement>
+                </ui:Button>
+                <ui:Button class="af-text af-dialogue__option" focusable="false">
+                    <ui:Label class="af-text af-dialogue__symbol" picking-mode="Ignore" />
+                    <ui:Label class="af-text af-dialogue__tag" picking-mode="Ignore" />
+                    <ui:Label class="af-text af-dialogue__option-text" picking-mode="Ignore" />
+                    <ui:VisualElement class="af-button__hold" picking-mode="Ignore">
+                        <ui:VisualElement class="af-button__hold-fill" picking-mode="Ignore" />
+                    </ui:VisualElement>
+                </ui:Button>
+                <ui:Button class="af-text af-dialogue__option" focusable="false">
+                    <ui:Label class="af-text af-dialogue__symbol" picking-mode="Ignore" />
+                    <ui:Label class="af-text af-dialogue__tag" picking-mode="Ignore" />
+                    <ui:Label class="af-text af-dialogue__option-text" picking-mode="Ignore" />
+                    <ui:VisualElement class="af-button__hold" picking-mode="Ignore">
+                        <ui:VisualElement class="af-button__hold-fill" picking-mode="Ignore" />
+                    </ui:VisualElement>
+                </ui:Button>
+                <ui:Button class="af-text af-dialogue__option" focusable="false">
+                    <ui:Label class="af-text af-dialogue__symbol" picking-mode="Ignore" />
+                    <ui:Label class="af-text af-dialogue__tag" picking-mode="Ignore" />
+                    <ui:Label class="af-text af-dialogue__option-text" picking-mode="Ignore" />
+                    <ui:VisualElement class="af-button__hold" picking-mode="Ignore">
+                        <ui:VisualElement class="af-button__hold-fill" picking-mode="Ignore" />
+                    </ui:VisualElement>
+                </ui:Button>
+                <ui:Button class="af-text af-dialogue__option" focusable="false">
+                    <ui:Label class="af-text af-dialogue__symbol" picking-mode="Ignore" />
+                    <ui:Label class="af-text af-dialogue__tag" picking-mode="Ignore" />
+                    <ui:Label class="af-text af-dialogue__option-text" picking-mode="Ignore" />
+                    <ui:VisualElement class="af-button__hold" picking-mode="Ignore">
+                        <ui:VisualElement class="af-button__hold-fill" picking-mode="Ignore" />
+                    </ui:VisualElement>
+                </ui:Button>
+                <ui:Button class="af-text af-dialogue__option" focusable="false">
+                    <ui:Label class="af-text af-dialogue__symbol" picking-mode="Ignore" />
+                    <ui:Label class="af-text af-dialogue__tag" picking-mode="Ignore" />
+                    <ui:Label class="af-text af-dialogue__option-text" picking-mode="Ignore" />
+                    <ui:VisualElement class="af-button__hold" picking-mode="Ignore">
+                        <ui:VisualElement class="af-button__hold-fill" picking-mode="Ignore" />
+                    </ui:VisualElement>
+                </ui:Button>
+                <ui:Button class="af-text af-dialogue__option" focusable="false">
+                    <ui:Label class="af-text af-dialogue__symbol" picking-mode="Ignore" />
+                    <ui:Label class="af-text af-dialogue__tag" picking-mode="Ignore" />
+                    <ui:Label class="af-text af-dialogue__option-text" picking-mode="Ignore" />
+                    <ui:VisualElement class="af-button__hold" picking-mode="Ignore">
+                        <ui:VisualElement class="af-button__hold-fill" picking-mode="Ignore" />
+                    </ui:VisualElement>
+                </ui:Button>
+                <ui:Button class="af-text af-dialogue__option" focusable="false">
+                    <ui:Label class="af-text af-dialogue__symbol" picking-mode="Ignore" />
+                    <ui:Label class="af-text af-dialogue__tag" picking-mode="Ignore" />
+                    <ui:Label class="af-text af-dialogue__option-text" picking-mode="Ignore" />
+                    <ui:VisualElement class="af-button__hold" picking-mode="Ignore">
+                        <ui:VisualElement class="af-button__hold-fill" picking-mode="Ignore" />
+                    </ui:VisualElement>
+                </ui:Button>
+                <ui:Button class="af-text af-dialogue__option" focusable="false">
+                    <ui:Label class="af-text af-dialogue__symbol" picking-mode="Ignore" />
+                    <ui:Label class="af-text af-dialogue__tag" picking-mode="Ignore" />
+                    <ui:Label class="af-text af-dialogue__option-text" picking-mode="Ignore" />
+                    <ui:VisualElement class="af-button__hold" picking-mode="Ignore">
+                        <ui:VisualElement class="af-button__hold-fill" picking-mode="Ignore" />
+                    </ui:VisualElement>
+                </ui:Button>
+            </ui:VisualElement>
+            <ui:VisualElement name="dialogue-footer" class="af-dialogue__footer" picking-mode="Ignore">
+                <ui:VisualElement class="af-hint" picking-mode="Ignore">
+                    <ui:Label name="dialogue-hint-glyph-interact" class="af-text af-glyph af-glyph--face" picking-mode="Ignore" />
+                    <ui:Label class="af-text af-hint__text af-dialogue__hint-action" picking-mode="Ignore" />
+                </ui:VisualElement>
+                <ui:VisualElement name="dialogue-hint-back-group" class="af-hint" picking-mode="Ignore">
+                    <ui:Label name="dialogue-hint-glyph-back" class="af-text af-glyph af-glyph--face" picking-mode="Ignore" />
+                    <ui:Label class="af-text af-hint__text af-dialogue__hint-end" picking-mode="Ignore" />
+                </ui:VisualElement>
+                <ui:VisualElement name="dialogue-hint-hold-group" class="af-hint" picking-mode="Ignore">
+                    <ui:Label name="dialogue-hold-glyph-interact" class="af-text af-glyph af-glyph--face" picking-mode="Ignore" />
+                    <ui:Label name="dialogue-hint-hold" class="af-text af-hint__text" picking-mode="Ignore" />
+                </ui:VisualElement>
+                <ui:Label class="af-text af-dialogue__auto" picking-mode="Ignore" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>
