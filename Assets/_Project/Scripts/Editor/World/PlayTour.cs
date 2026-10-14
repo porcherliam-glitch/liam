@@ -55,6 +55,7 @@ namespace Aetherfall.EditorTools.World
         private static DungeonPortal _portal;
         private static bool _portalUsed;
         private static bool _quickSaveDone;
+        private static bool _bossShown;
         private static string _sceneBefore = string.Empty;
 
         /// <summary>Menu entry: runs the tour for the boot scene in the open editor.</summary>
@@ -169,6 +170,37 @@ namespace Aetherfall.EditorTools.World
             Steps.Enqueue(() => Wait(2.0));
             Steps.Enqueue(() => ReportTravel("nach dem Schnellladen"));
             Steps.Enqueue(() => !_portalUsed || Capture("12_schnellladen", null));
+
+            // Boss bar of the HUD (only in a scene with a boss): shown through the service, photographed, hidden again.
+            Steps.Enqueue(ShowBossBar);
+            Steps.Enqueue(() => Wait(1.0));
+            Steps.Enqueue(() => !_bossShown || Capture("13_bossbalken", null));
+            Steps.Enqueue(HideBossBar);
+        }
+
+        private static bool ShowBossBar()
+        {
+            var boss = UnityEngine.Object.FindAnyObjectByType<Aetherfall.AI.Bosses.BossController>(FindObjectsInactive.Include);
+            _bossShown = boss != null && Services.Locator.TryGet(out Aetherfall.AI.Bosses.IBossBarService bosses);
+            if (!_bossShown)
+            {
+                return true;
+            }
+
+            Services.Locator.Get<Aetherfall.AI.Bosses.IBossBarService>().Show(
+                new Aetherfall.AI.Bosses.BossBarState("tour.boss", "Der Wachende Ritter", "Test des Bossbalkens", 0.62f, 1, 2, true));
+            Note("Bossbalken eingeblendet (Boss in der Szene: " + boss.name + ").");
+            return true;
+        }
+
+        private static bool HideBossBar()
+        {
+            if (_bossShown)
+            {
+                Services.Locator.Get<Aetherfall.AI.Bosses.IBossBarService>().Hide("tour.boss");
+            }
+
+            return true;
         }
 
         private static bool HurtPlayer()

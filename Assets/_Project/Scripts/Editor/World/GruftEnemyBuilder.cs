@@ -13,8 +13,8 @@ namespace Aetherfall.EditorTools.World
     /// Enemies of the crypt (GDD 02 11.7): the skeleton warriors of the spawners (block figures of bone and rusty armor, the
     /// elite with tower shield and <see cref="EnemyShieldGuard"/>), switched on by <see cref="ActivateOnState"/> when the gate
     /// puzzle is solved; the boss "Der Wachende Ritter" with <see cref="BossController"/>, its two adds (off until phase 2),
-    /// <see cref="DefeatedObjectGate"/> ("besiegt bleibt besiegt"), the arena beam (<see cref="ArenaBeamEmitter"/>) and the
-    /// placeholder boss health bar (<see cref="BossBarOverlay"/>).
+    /// <see cref="DefeatedObjectGate"/> ("besiegt bleibt besiegt") and the arena beam (<see cref="ArenaBeamEmitter"/>). The boss bar is
+    /// shown by the HUD (<c>BossBarView</c>); the IMGUI <see cref="BossBarOverlay"/> is no longer placed.
     /// </summary>
     public static class GruftEnemyBuilder
     {
@@ -201,7 +201,6 @@ namespace Aetherfall.EditorTools.World
             int blocking = (1 << ctx.EnvironmentLayer) | (ctx.EnemyLayer >= 0 ? 1 << ctx.EnemyLayer : 0);
             TestGroundFields.SetInt(emitter, "blockingLayers", blocking, ctx.Report);
 
-            GruftParts.Empty(group, "Boss-Lebensbalken (Platzhalter)", Vector3.zero).gameObject.AddComponent<BossBarOverlay>();
             ctx.Register(arena.BossId, root);
             ctx.Report.Info("Boss „" + arena.Name + "“: Stufe " + (baseType != null ? baseType.Level : 0) + ", " +
                             (baseType != null ? baseType.MaxHealth.ToString("0") : "?") + " LP, Phase 2 ab 50 % mit " + arena.Adds.Count +

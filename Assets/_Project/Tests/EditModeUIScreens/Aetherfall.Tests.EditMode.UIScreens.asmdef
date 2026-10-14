@@ -18,6 +18,7 @@
         "Aetherfall.Inventory",
         "Aetherfall.Progression",
         "Aetherfall.Quests",
+        "Aetherfall.AI",
         "Aetherfall.EditorTools.Narrative",
         "Aetherfall.UI.Framework",
         "Aetherfall.UI.Screens",

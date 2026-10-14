@@ -1,5 +1,6 @@
 using System;
 using System.Threading;
+using Aetherfall.AI.Bosses;
 using Aetherfall.Core;
 using Aetherfall.Dialogue;
 using Aetherfall.Events;
@@ -123,6 +124,8 @@ namespace Aetherfall.UI.Screens
         private IInventoryService _inventory;
         private IQuestService _quests;
         private IProgressionService _progression;
+        private IBossBarService _bosses;
+        private BossBarView _bossBar;
         private QuestNotifier _notifier;
         private JournalScreen _journal;
         private LoadingScreenProxy _loadingProxy;
@@ -206,6 +209,7 @@ namespace Aetherfall.UI.Screens
                 locator.TryGet(out _inventory);
                 locator.TryGet(out _quests);
                 locator.TryGet(out _progression);
+                locator.TryGet(out _bosses);
                 Build();
             }
             catch (OperationCanceledException)
@@ -255,6 +259,7 @@ namespace Aetherfall.UI.Screens
                 : null;
             XpBarView xpBar = _progression != null && hudRoot.Q<VisualElement>("hud-xp") != null ? new XpBarView(hudRoot.Q<VisualElement>("hud-xp"), _progression) : null;
             _hud.AttachProgressViews(tracker, xpBar);
+            _bossBar = new BossBarView(hudRoot);
             if (_quests != null)
             {
                 _notifier = new QuestNotifier(_quests, ShowNotification) { Enabled = NotifiesQuests(_gameState.Current) };
@@ -313,6 +318,11 @@ namespace Aetherfall.UI.Screens
             _flow.Failed -= OnFlowFailed;
             _players.Changed -= HandOverPlayer;
             _ui.ScreenOpened -= OnScreenOpened;
+            if (_bosses != null)
+            {
+                _bosses.Changed -= OnBossBarChanged;
+            }
+
             _subscribed = false;
         }
 
@@ -352,12 +362,14 @@ namespace Aetherfall.UI.Screens
             {
                 _dialogueDirector.Update();
             }
+
             if (_director.PeekRequested)
             {
                 _hud.Peek();
             }
 
             _hud.Tick(dt);
+            _bossBar.Tick(dt);
             if (_notifier != null)
             {
                 _notifier.Update(Time.realtimeSinceStartupAsDouble);
@@ -394,7 +406,19 @@ namespace Aetherfall.UI.Screens
             _flow.Failed += OnFlowFailed;
             _players.Changed += HandOverPlayer;
             _ui.ScreenOpened += OnScreenOpened;
+            if (_bosses != null)
+            {
+                _bosses.Changed += OnBossBarChanged;
+                OnBossBarChanged(_bosses.Current);
+            }
+
             _subscribed = true;
+        }
+
+        private void OnBossBarChanged(BossBarState state)
+        {
+            _bossBar.Apply(state);
+            _hud.SetTargetHidden(state.Visible);
         }
 
         private void OnGameStateChanged(GameStateChanged evt)

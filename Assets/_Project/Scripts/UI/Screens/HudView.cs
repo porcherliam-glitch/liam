@@ -77,6 +77,7 @@ namespace Aetherfall.UI.Screens
         private XpBarView _xpBar;
         private bool _inCombat;
         private int _targetVersion = -1;
+        private bool _targetHidden;
         private float _blinkTimer;
         private bool _blinkOn = true;
         private float _shownHeading = float.NaN;
@@ -165,6 +166,13 @@ namespace Aetherfall.UI.Screens
         public void SetInCombat(bool inCombat)
         {
             _inCombat = inCombat;
+        }
+
+        /// <summary>Hides the lock-on target bar while the boss bar is shown (GDD 05 1.2, guide 12, 11.3).</summary>
+        /// <param name="hidden">True while a boss bar is visible.</param>
+        public void SetTargetHidden(bool hidden)
+        {
+            _targetHidden = hidden;
         }
 
         /// <summary>Shows all elements for 5 s (HUD peek: hold Select / M).</summary>
@@ -259,7 +267,7 @@ namespace Aetherfall.UI.Screens
             UiElementUtility.SetDisplayed(_quickSlots, _rules.ShowQuickSlots);
             UiElementUtility.SetDisplayed(_compass, _rules.ShowCompass);
             UpdateExhausted(exhausted, deltaTime);
-            UpdateTarget(hasTarget, target, deltaTime);
+            UpdateTarget(hasTarget && !_targetHidden, target, deltaTime);
             UpdatePrompt(source.InteractionPrompt);
             UpdateCompass(source.CameraYaw);
             UpdateQuickSlots();
