@@ -126,11 +126,13 @@ Batchmode-Einstiegspunkte (jeweils mit `-batchmode -nographics -projectPath . -q
 
 ## Blender (Modelle statt Platzhalter)
 
+- **Blender ist über Steam installiert.** Standardpfad unter Windows: `C:\Program Files (x86)\Steam\steamapps\common\Blender\blender.exe`. Liegt die Steam-Bibliothek woanders, mit `where /r C:\ blender.exe` oder in Steam über „Verwalten > Lokale Dateien durchsuchen“ suchen. Steam muss dafür nicht laufen; `blender.exe` lässt sich direkt aufrufen.
+- Steam aktualisiert Blender selbstständig. Die Vorschau-Skripte wurden mit Blender 4.0 geschrieben. Zuerst `blender.exe --version` prüfen. Bei API-Fehlern in einer neueren Version die Skripte anpassen; ein Downgrade ist nicht nötig.
 - Headless: `blender --background --python Tools/Blender/<skript>.py`. Modelle per `bpy` erzeugen und als `.fbx` nach `Assets/_Project/Art/Models/…` exportieren.
 - Quelldateien (`.blend`) gehören nach `ArtSource/` (Git LFS), **nie** nach `Assets/` (Architektur 2.9).
 - Konventionen: 1 Einheit = 1 m, Y-up beim Export, LOD-Suffixe `_LOD0…`, Pivot am Boden. Details in [GDD 05, Art Direction](docs/GDD/05_UI_Audio_Grafik_Barrierefreiheit.md).
 - Animationen: Mixamo (kostenlos) oder eigene einfache Rigs. Jede Quelle kommt ins Lizenzregister.
-- Die Vorschau-Skripte unter `Tools/Preview/` lesen dieselbe Layout-Datei wie der Unity-Generator. Sie sind Vorlagen für echte Modelle.
+- Die Vorschau-Skripte unter `Tools/Preview/` lesen dieselbe Layout-Datei wie der Unity-Generator. Sie sind Vorlagen für echte Modelle. Sie rendern mit Cycles auf der CPU ohne Denoiser, weil die Cloud keine GPU hat. Auf dem PC (16 GB VRAM) stattdessen Cycles mit GPU (CUDA/OptiX bzw. HIP) und Denoiser oder EEVEE verwenden.
 
 ## Nächste Bausteine bis zum Mini-Slice
 
