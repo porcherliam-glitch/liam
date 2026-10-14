@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Aetherfall.Core;
 using Aetherfall.Events;
 using Aetherfall.UI.Framework;
 using UnityEngine.UIElements;
@@ -15,7 +16,7 @@ namespace Aetherfall.UI.Screens.Dialogue
     /// DialogSubmit, so a click confirms through the same path).
     /// </summary>
     /// <remarks>
-    /// Built by the UI root from <c>Dialogue.uxml</c> (which loads <c>Dialogue.uss</c>) and registered with the UI manager;
+    /// Built by the UI root from <c>Dialogue.uxml</c> (styles: <c>Dialogue.uss</c> through the theme) and registered with the UI manager;
     /// <see cref="DialogueScreenDirector"/> opens it while a conversation runs. The UI manager ticks every open screen, also
     /// while the UI map is off (game state Dialogue). Back / Close of the UI map are ignored: the conversation decides.
     /// </remarks>
@@ -30,6 +31,36 @@ namespace Aetherfall.UI.Screens.Dialogue
         private const string TagClassPrefix = "af-dialogue__tag--";
         private const string SymbolClassPrefix = "af-dialogue__symbol--";
         private const string AttributeClassPrefix = "af-attr--";
+
+        /// <summary>Class of the speaker label (Dialogue.uxml).</summary>
+        public const string SpeakerClass = "af-dialogue__speaker";
+
+        /// <summary>Class of the subtitle text label.</summary>
+        public const string TextClass = "af-dialogue__text";
+
+        /// <summary>Class of the continue mark (▼).</summary>
+        public const string ContinueClass = "af-dialogue__continue";
+
+        /// <summary>Class of the label "Automatisch weiter".</summary>
+        public const string AutoClass = "af-dialogue__auto";
+
+        /// <summary>Class of the hint text next to the confirm glyph ("Weiter" / "Auswaehlen").</summary>
+        public const string ActionHintClass = "af-dialogue__hint-action";
+
+        /// <summary>Class of the hint text next to the back glyph ("Gespraech beenden").</summary>
+        public const string EndHintClass = "af-dialogue__hint-end";
+
+        /// <summary>Class of an answer row; the rows are taken in document order.</summary>
+        public const string OptionClass = "af-dialogue__option";
+
+        /// <summary>Class of the quest symbol in an answer row.</summary>
+        public const string SymbolClass = "af-dialogue__symbol";
+
+        /// <summary>Class of the tag in an answer row ("[Ueberzeugen 12]").</summary>
+        public const string TagClass = "af-dialogue__tag";
+
+        /// <summary>Class of the answer text in an answer row.</summary>
+        public const string OptionTextClass = "af-dialogue__option-text";
 
         private static readonly string[] TagClasses =
         {
@@ -55,6 +86,7 @@ namespace Aetherfall.UI.Screens.Dialogue
         private readonly Label[] _texts = new Label[DialogueScreenPresenter.MaxOptions];
         private readonly VisualElement[] _fills = new VisualElement[DialogueScreenPresenter.MaxOptions];
         private readonly Label _actionHint;
+        private readonly Label _endHint;
         private readonly VisualElement _backHint;
         private readonly VisualElement _holdHint;
         private readonly Label _backGlyph;
@@ -81,27 +113,40 @@ namespace Aetherfall.UI.Screens.Dialogue
             _presenter = new DialogueScreenPresenter(source, preferences, holdDuration);
             Focus = _presenter.Focus;
 
+            // Named labels (glyphs, "dialogue-hint-hold") get their texts from UiTexts; the rest is found by class (Dialogue.uxml).
             UiElementUtility.ApplyTexts(root);
-            ApplyOwnTexts(root);
-            _speaker = root.Q<Label>("dialogue-speaker");
-            _text = root.Q<Label>("dialogue-text");
-            _continueMark = root.Q<Label>("dialogue-continue");
-            _autoLabel = root.Q<Label>("dialogue-auto-on");
+            _speaker = root.Q<Label>(className: SpeakerClass);
+            _text = root.Q<Label>(className: TextClass);
+            _continueMark = root.Q<Label>(className: ContinueClass);
+            _autoLabel = root.Q<Label>(className: AutoClass);
+            _actionHint = root.Q<Label>(className: ActionHintClass);
+            _endHint = root.Q<Label>(className: EndHintClass);
             _optionsBox = root.Q<VisualElement>("dialogue-options");
-            _actionHint = root.Q<Label>("dialogue-hint-action");
             _backHint = root.Q<VisualElement>("dialogue-hint-back-group");
             _holdHint = root.Q<VisualElement>("dialogue-hint-hold-group");
             _backGlyph = root.Q<Label>("dialogue-hint-glyph-back");
+            UiElementUtility.SetText(_continueMark, DialogueScreenTexts.Get(DialogueScreenTexts.ContinueMark));
+            UiElementUtility.SetText(_autoLabel, DialogueScreenTexts.Get(DialogueScreenTexts.AutoOn));
+            UiElementUtility.SetText(_endHint, DialogueScreenTexts.Get(DialogueScreenTexts.HintEnd));
+
+            List<VisualElement> rows = _optionsBox != null ? _optionsBox.Query<VisualElement>(className: OptionClass).ToList() : new List<VisualElement>();
+            if (rows.Count < DialogueScreenPresenter.MaxOptions)
+            {
+                Log.Error(LogCategory.UI, "Dialogue.uxml has " + rows.Count + " answer rows, the screen needs " + DialogueScreenPresenter.MaxOptions + ".");
+            }
+
             for (int i = 0; i < DialogueScreenPresenter.MaxOptions; i++)
             {
-                string prefix = "dialogue-option-" + i;
-                _rows[i] = root.Q<VisualElement>(prefix);
-                _symbols[i] = root.Q<Label>(prefix + "-symbol");
-                _tags[i] = root.Q<Label>(prefix + "-tag");
-                _texts[i] = root.Q<Label>(prefix + "-text");
-                _fills[i] = _rows[i] != null ? _rows[i].Q<VisualElement>(className: "af-button__hold-fill") : null;
+                VisualElement row = i < rows.Count ? rows[i] : null;
+                _rows[i] = row;
+                _symbols[i] = row != null ? row.Q<Label>(className: SymbolClass) : null;
+                _tags[i] = row != null ? row.Q<Label>(className: TagClass) : null;
+                _texts[i] = row != null ? row.Q<Label>(className: OptionTextClass) : null;
+                _fills[i] = row != null ? row.Q<VisualElement>(className: "af-button__hold-fill") : null;
                 int index = i;
-                UiElementUtility.BindItem(_rows[i], () => _presenter.PointerEnter(index), held => { }, () => { });
+                // The left mouse button is part of DialogSubmit: a click confirms through the input path, so the click itself
+                // and the button hold do nothing here (otherwise an answer would be chosen twice).
+                UiElementUtility.BindItem(row, () => _presenter.PointerEnter(index), held => { }, () => { });
             }
 
             UiElementUtility.CollectGlyphLabels(root, _glyphLabels);
@@ -252,17 +297,6 @@ namespace Aetherfall.UI.Screens.Dialogue
             {
                 tag.EnableInClassList(AttributeClasses[i], option.Tag == DialogueScreenTag.Check && AttributeClasses[i] == AttributeClassPrefix + option.AttributeKey);
             }
-        }
-
-        private static void ApplyOwnTexts(VisualElement root)
-        {
-            root.Query<TextElement>().ForEach(element =>
-            {
-                if (DialogueScreenTexts.TryGet(element.name, out string text))
-                {
-                    element.text = text;
-                }
-            });
         }
     }
 }

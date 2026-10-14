@@ -8,6 +8,7 @@ using Aetherfall.Tests.Shared;
 using Aetherfall.UI.Framework;
 using Aetherfall.UI.Screens.Dialogue;
 using NUnit.Framework;
+using DialogueScreenView = Aetherfall.UI.Screens.Dialogue.DialogueScreen;
 
 namespace Aetherfall.Tests.EditMode.DialogueScreen
 {
@@ -20,12 +21,6 @@ namespace Aetherfall.Tests.EditMode.DialogueScreen
     public sealed class DialogueScreenPartsTests
     {
         private static readonly Regex QueryRegex = new Regex(@"Q<\w+>\(""([^""]+)""\)", RegexOptions.Compiled);
-
-        /// <summary>Labels whose text is set by the code.</summary>
-        private static readonly HashSet<string> DynamicNames = new HashSet<string>(StringComparer.Ordinal)
-        {
-            "dialogue-speaker", "dialogue-text", "dialogue-hint-action"
-        };
 
         [Test]
         public void Director_OpensTheScreenWhileTheSourceShowsSomething()
@@ -123,36 +118,71 @@ namespace Aetherfall.Tests.EditMode.DialogueScreen
                 Assert.That(names, Does.Contain(match.Groups[1].Value));
             }
 
-            for (int i = 0; i < DialogueScreenPresenter.MaxOptions; i++)
+            foreach (string single in new[]
+                     {
+                         DialogueScreenView.SpeakerClass, DialogueScreenView.TextClass, DialogueScreenView.ContinueClass, DialogueScreenView.AutoClass,
+                         DialogueScreenView.ActionHintClass, DialogueScreenView.EndHintClass
+                     })
             {
-                foreach (string suffix in new[] { string.Empty, "-symbol", "-tag", "-text" })
+                Assert.That(WithClass(layout.DocumentElement, single).Count, Is.EqualTo(1), "exactly one element with class " + single);
+            }
+
+            List<XmlElement> rows = WithClass(layout.DocumentElement, DialogueScreenView.OptionClass);
+            Assert.That(rows.Count, Is.EqualTo(DialogueScreenPresenter.MaxOptions), "one answer row per possible answer (hub: 9)");
+            foreach (XmlElement row in rows)
+            {
+                Assert.That(row.Name, Is.EqualTo("ui:Button"));
+                Assert.That(row.GetAttribute("name"), Is.Empty, "answer rows are found by class, their texts are set by code");
+                foreach (string part in new[] { DialogueScreenView.SymbolClass, DialogueScreenView.TagClass, DialogueScreenView.OptionTextClass, "af-button__hold-fill" })
                 {
-                    Assert.That(names, Does.Contain("dialogue-option-" + i + suffix));
+                    Assert.That(WithClass(row, part).Count, Is.EqualTo(1), "answer row part " + part);
                 }
             }
         }
 
         [Test]
-        public void Layout_StaticLabelsHaveATextEntry()
+        public void Layout_NamedLabelsHaveAUiText_UnnamedOnesAreFilledByTheCode()
         {
+            // Same rule as UiAssetTests.StaticLabels_HaveATextEntry (EditModeUI) plus: every unnamed label is one the screen fills.
+            var filledByCode = new HashSet<string>(StringComparer.Ordinal)
+            {
+                DialogueScreenView.SpeakerClass, DialogueScreenView.TextClass, DialogueScreenView.ContinueClass, DialogueScreenView.AutoClass,
+                DialogueScreenView.ActionHintClass, DialogueScreenView.EndHintClass, DialogueScreenView.SymbolClass, DialogueScreenView.TagClass,
+                DialogueScreenView.OptionTextClass
+            };
             foreach (XmlElement element in LoadLayout().GetElementsByTagName("*"))
             {
-                if (element.Name != "ui:Label")
+                if (element.Name != "ui:Label" && element.Name != "ui:Button")
                 {
                     continue;
                 }
 
+                Assert.That(element.HasAttribute("text"), Is.False, "texts belong into UiTexts / DialogueScreenTexts, not into the UXML");
                 string name = element.GetAttribute("name");
-                if (name.Length == 0 || DynamicNames.Contains(name) || name.StartsWith("dialogue-option-", StringComparison.Ordinal) ||
-                    GlyphNames.TryParseElementName(name, out _))
+                if (element.Name == "ui:Button" || GlyphNames.TryParseElementName(name, out _))
                 {
                     continue;
                 }
 
-                Assert.That(DialogueScreenTexts.TryGet(name, out string text), Is.True, "no text for '" + name + "'");
-                Assert.That(text, Is.Not.Empty);
-                Assert.That(element.HasAttribute("text"), Is.False, "'" + name + "' has a text in the UXML");
+                if (name.Length > 0)
+                {
+                    Assert.That(UiTexts.ForElement(name, out string text), Is.True, "no UiTexts entry for '" + name + "'");
+                    Assert.That(text, Is.Not.Empty);
+                    continue;
+                }
+
+                bool filled = false;
+                foreach (string cls in element.GetAttribute("class").Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries))
+                {
+                    filled |= filledByCode.Contains(cls);
+                }
+
+                Assert.That(filled, Is.True, "unnamed label with class '" + element.GetAttribute("class") + "' gets no text");
             }
+
+            Assert.That(UiTexts.ForElement("dialogue-hint-hold", out string hold), Is.True);
+            Assert.That(hold, Is.EqualTo("Halten = bestätigen"), "shared text hint-hold");
+            Assert.That(DialogueScreenTexts.Get(DialogueScreenTexts.HintEnd), Is.EqualTo("Gespräch beenden"));
         }
 
         [Test]
@@ -181,6 +211,20 @@ namespace Aetherfall.Tests.EditMode.DialogueScreen
             {
                 Assert.That(sheet, Does.Contain("." + cls), "state class used by DialogueScreen");
             }
+        }
+
+        private static List<XmlElement> WithClass(XmlElement root, string cls)
+        {
+            var result = new List<XmlElement>();
+            foreach (XmlElement element in root.GetElementsByTagName("*"))
+            {
+                if (Array.IndexOf(element.GetAttribute("class").Split(' '), cls) >= 0)
+                {
+                    result.Add(element);
+                }
+            }
+
+            return result;
         }
 
         private static XmlDocument LoadLayout()

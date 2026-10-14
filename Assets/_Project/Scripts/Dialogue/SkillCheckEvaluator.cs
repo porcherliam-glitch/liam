@@ -1,4 +1,5 @@
 using Aetherfall.Conditions;
+using Aetherfall.Events;
 using Aetherfall.Stats;
 using Aetherfall.Utilities;
 
@@ -6,7 +7,8 @@ namespace Aetherfall.Dialogue
 {
     /// <summary>
     /// Evaluates a <see cref="CheckNode"/> for the current player (GDD 02, 12.3): attribute, rank, situation modifiers whose
-    /// condition holds, level advantage over the conversation partner, then <see cref="SkillCheckRules"/>. A remembered result
+    /// condition holds, level advantage over the conversation partner, for persuasion the relationship of the partner (friendly +2,
+    /// trusted +4, dislike -2, enemy -4), then <see cref="SkillCheckRules"/>. A remembered result
     /// (node option "Ergebnis merken") is returned unchanged. Used for the preview on options and for the check itself, so both
     /// always agree. Stateless; does not store anything.
     /// </summary>
@@ -38,10 +40,15 @@ namespace Aetherfall.Dialogue
                 }
             }
 
+            bool knownSpeaker = context.TryGetSpeaker(npcId, out DialogueSpeakerInfo info);
             if (node.LevelAdvantage)
             {
-                int npcLevel = context.TryGetSpeaker(npcId, out DialogueSpeakerInfo info) ? info.Level : 0;
-                situation += SkillCheckRules.LevelBonus(stats != null ? stats.PlayerLevel : 1, npcLevel);
+                situation += SkillCheckRules.LevelBonus(stats != null ? stats.PlayerLevel : 1, knownSpeaker ? info.Level : 0);
+            }
+
+            if (node.CheckType == SkillCheckType.Persuade && knownSpeaker)
+            {
+                situation += SkillCheckRules.RelationshipBonus(info.Relationship);
             }
 
             int clamped = SkillCheckRules.ClampSituation(situation);

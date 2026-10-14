@@ -1,5 +1,6 @@
 using Aetherfall.Dialogue;
 using Aetherfall.Events;
+using Aetherfall.NPC;
 using Aetherfall.Stats;
 using NUnit.Framework;
 
@@ -7,7 +8,8 @@ namespace Aetherfall.Tests.EditMode.Dialogue
 {
     /// <summary>
     /// The rules of dialogue checks (GDD 02, 12.3): thresholds of the difficulty tiers, the attribute of each check, value =
-    /// attribute + 2 × rank + situation (at most ±6), level advantage, dice mode, bribe prices and the deterministic seeds.
+    /// attribute + 2 × rank + situation (at most ±6), level advantage, relationship bonus, dice mode, bribe prices and the
+    /// deterministic seeds.
     /// </summary>
     [TestFixture]
     public sealed class SkillCheckRulesTests
@@ -54,6 +56,41 @@ namespace Aetherfall.Tests.EditMode.Dialogue
         public void LevelBonus_IsTwoPerThreeLevels_AtMostSix(int player, int npc, int bonus)
         {
             Assert.That(SkillCheckRules.LevelBonus(player, npc), Is.EqualTo(bonus));
+        }
+
+        [TestCase(-100, -4)]
+        [TestCase(-50, -4)]
+        [TestCase(-49, -2)]
+        [TestCase(-10, -2)]
+        [TestCase(-9, 0)]
+        [TestCase(9, 0)]
+        [TestCase(10, 2)]
+        [TestCase(49, 2)]
+        [TestCase(50, 4)]
+        [TestCase(100, 4)]
+        public void RelationshipBonus_FollowsTheTiers(int relationship, int bonus)
+        {
+            Assert.That(SkillCheckRules.RelationshipBonus(relationship), Is.EqualTo(bonus));
+        }
+
+        [Test]
+        public void RelationshipBonus_UsesTheSameTiersAsTheNpcSystem()
+        {
+            // The tier limits live twice (Dialogue may not reference NPC, architecture 3.3): both must agree for every value.
+            for (int value = RelationshipRules.Min; value <= RelationshipRules.Max; value++)
+            {
+                int expected;
+                switch (RelationshipRules.TierOf(value))
+                {
+                    case RelationshipTier.Enemy: expected = -4; break;
+                    case RelationshipTier.Dislike: expected = -2; break;
+                    case RelationshipTier.Friendly: expected = 2; break;
+                    case RelationshipTier.Trusted: expected = 4; break;
+                    default: expected = 0; break;
+                }
+
+                Assert.That(SkillCheckRules.RelationshipBonus(value), Is.EqualTo(expected), "relationship " + value);
+            }
         }
 
         [Test]

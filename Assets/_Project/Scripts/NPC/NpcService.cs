@@ -39,7 +39,8 @@ namespace Aetherfall.NPC
         {
             if (Catalog.TryGet(speakerId, out NpcSpec spec))
             {
-                info = new DialogueSpeakerInfo(spec.Name, spec.Role, spec.NameKnownFromStart, spec.Level, spec.Greed, spec.Unbribable);
+                info = new DialogueSpeakerInfo(spec.Name, spec.Role, spec.NameKnownFromStart, spec.Level, spec.Greed, spec.Unbribable,
+                    GetRelationship(speakerId));
                 return true;
             }
 

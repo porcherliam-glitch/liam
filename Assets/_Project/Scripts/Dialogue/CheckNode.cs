@@ -8,7 +8,8 @@ namespace Aetherfall.Dialogue
 {
     /// <summary>
     /// Skill check (GDD 02, 12.2 "Probe" and 12.3): kind (persuade, intimidate, lie), difficulty tier, situation modifiers,
-    /// optional level advantage (+2 per 3 levels above the NPC, at most +6), "remember the result", a success and an optional
+    /// optional level advantage (+2 per 3 levels above the NPC, at most +6; persuasion also counts the relationship of the
+    /// partner automatically, <see cref="SkillCheckRules.RelationshipBonus"/>), "remember the result", a success and an optional
     /// failure exit. Deterministic by default: value = attribute + 2 × rank + situation bonus (at most ±6), success if the value
     /// reaches the threshold (<see cref="SkillCheckRules"/>).
     /// </summary>

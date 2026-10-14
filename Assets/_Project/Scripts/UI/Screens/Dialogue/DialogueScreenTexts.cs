@@ -4,9 +4,10 @@ using Aetherfall.UI.Framework;
 namespace Aetherfall.UI.Screens.Dialogue
 {
     /// <summary>
-    /// German texts of the dialogue screen (same rules as <see cref="UiTexts"/>: the element name is the key; shared texts such
-    /// as <c>hint-select</c> come from <see cref="UiTexts"/>). Kept apart from the central table so this step adds no lines to
-    /// an existing file; the integration step may move the entries into <see cref="UiTexts"/>.
+    /// German texts that the dialogue screen sets by code (labels without a name in <c>Dialogue.uxml</c>: continue mark, hints
+    /// that change, "Automatisch weiter"). Named labels take their text from <see cref="UiTexts"/> as everywhere (e.g.
+    /// <c>dialogue-hint-hold</c> → <c>hint-hold</c>). Kept apart from the central table so this step adds no lines to an
+    /// existing file; the localization step moves the entries into the UI String Table (same keys).
     /// </summary>
     /// <remarks>The HTML preview (Tools/Preview/ui) reads these entries too: keep the form <c>new UiTextEntry("key", "text")</c> on one line.</remarks>
     public static class DialogueScreenTexts
@@ -16,6 +17,9 @@ namespace Aetherfall.UI.Screens.Dialogue
 
         /// <summary>Key of the hint "Auswaehlen" (choice mode).</summary>
         public const string HintSelect = "dialogue-hint-select";
+
+        /// <summary>Key of the hint "Gespraech beenden" next to the back glyph.</summary>
+        public const string HintEnd = "dialogue-hint-end";
 
         /// <summary>Key of the continue mark.</summary>
         public const string ContinueMark = "dialogue-continue";
@@ -31,7 +35,6 @@ namespace Aetherfall.UI.Screens.Dialogue
             new UiTextEntry("dialogue-hint-continue", "Weiter"),
             new UiTextEntry("dialogue-hint-select", "Auswählen"),
             new UiTextEntry("dialogue-hint-end", "Gespräch beenden"),
-            new UiTextEntry("dialogue-hint-hold", "Halten = bestätigen"),
             new UiTextEntry("dialogue-continue", "▼"),
             new UiTextEntry("dialogue-auto-on", "Automatisch weiter"),
             new UiTextEntry("dialogue-glyph-back-keyboard", "RMT")

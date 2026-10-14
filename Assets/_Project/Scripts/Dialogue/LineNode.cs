@@ -13,9 +13,9 @@ namespace Aetherfall.Dialogue
     /// continuation (next node or end with exit id).
     /// </summary>
     /// <remarks>
-    /// Text key <c>&lt;dialogue&gt;.&lt;node&gt;</c> and voice clip id <c>VO_&lt;npc&gt;_&lt;dialogue&gt;.&lt;node&gt;</c> are
-    /// generated (<see cref="DialogueIds"/>), authors never type them. TODO (localization step): LocalizedString instead of the
-    /// German text field.
+    /// Text key <c>&lt;dialogue&gt;.&lt;node&gt;</c> (variants <c>.v1</c> …) and voice clip id <c>VO_&lt;npc&gt;_&lt;text key&gt;</c>
+    /// are generated (<see cref="DialogueIds"/>), authors normally never type them; the optional clip field overrides the clip
+    /// id. TODO (localization step): LocalizedString instead of the German text field.
     /// </remarks>
     [Serializable]
     [TypeMenu("Knoten/NPC-Zeile", 0)]
@@ -41,6 +41,10 @@ namespace Aetherfall.Dialogue
 
         [Tooltip("Aktionen, wenn die Zeile erscheint (z. B. Dialog/Name bekannt, Dialog/Thema freischalten, Welt/Flag setzen).")]
         [SerializeReference] private List<GameAction> actions = new List<GameAction>();
+
+        [Tooltip("Sprachausgabe-Clip-ID (optional). Leer = automatisch VO_<Sprecher>_<Dialog>.<Knoten> (GDD 02, 12.8). Nur ausfüllen, " +
+                 "wenn mehrere Zeilen denselben Clip nutzen sollen.")]
+        [SerializeField] private string voiceClipId = string.Empty;
 
         /// <summary>Creates an empty line (inspector).</summary>
         public LineNode()
@@ -78,6 +82,9 @@ namespace Aetherfall.Dialogue
         /// <summary>Actions that run when the line is shown.</summary>
         public IReadOnlyList<GameAction> Actions => actions;
 
+        /// <summary>Voice clip id set by the author; empty = generated (<see cref="DialogueIds.VoiceClipId(string, string)"/>).</summary>
+        public string VoiceClipOverride => voiceClipId ?? string.Empty;
+
         /// <summary>Continues with a node (chainable).</summary>
         /// <param name="nodeId">Next node.</param>
         public LineNode To(string nodeId)
@@ -113,6 +120,14 @@ namespace Aetherfall.Dialogue
         public LineNode Variant(Condition condition, string variantText)
         {
             variants.Add(new LineVariant(condition, variantText));
+            return this;
+        }
+
+        /// <summary>Uses a fixed voice clip instead of the generated id (chainable).</summary>
+        /// <param name="clipId">Clip id, e.g. <c>VO_npc.eichental.wirt_ulf_gruss_kurz</c>.</param>
+        public LineNode Voice(string clipId)
+        {
+            voiceClipId = clipId ?? string.Empty;
             return this;
         }
 

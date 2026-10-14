@@ -471,8 +471,9 @@ namespace Aetherfall.Dialogue
                 }
             }
 
-            var view = new DialogueLineView(line.Id, speakerId, _context.SpeakerName(speakerId), text, key,
-                DialogueIds.VoiceClipId(speakerId, _spec.Id, line.Id), line.Emotion, line.Camera, SubtitlePager.Paginate(text),
+            string clip = line.VoiceClipOverride.Length > 0 ? line.VoiceClipOverride : DialogueIds.VoiceClipId(speakerId, key);
+            var view = new DialogueLineView(line.Id, speakerId, _context.SpeakerName(speakerId), text, key, clip, line.Emotion, line.Camera,
+                SubtitlePager.Paginate(text),
                 SubtitleTiming.DisplaySeconds(text.Length), line.EndsAfter && _returns.Count == 0);
             _view.ShowLine(_spec.Id, view, _root.Cancelable);
             Changed?.Invoke();

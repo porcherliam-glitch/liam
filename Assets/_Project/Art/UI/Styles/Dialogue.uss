@@ -1,8 +1,8 @@
 /*
  * Dialogue screen (GDD 02 12.4/12.7, GDD 05 4.2): subtitle with speaker name, answers with quest symbols and tags, greyed
- * and already chosen answers, hold progress for irreversible answers, button hints. Loaded by Dialogue.uxml (<Style>), the
- * colour tokens come from Tokens.uss through the theme. The panel sits above the HUD bars (bottom 132 px) so health and
- * quick slots stay readable.
+ * and already chosen answers, hold progress for irreversible answers, button hints. Imported by the theme
+ * (AetherfallTheme.tss) after Tokens.uss and Base.uss, whose colour tokens and button parts (af-button__hold) it uses. The
+ * panel sits above the HUD bars (bottom 132 px) so health and quick slots stay readable.
  */
 
 .af-dialogue {
@@ -231,6 +231,12 @@
     padding: 12px 0;
     border-top-width: 1px;
     border-color: var(--ui-panel-border);
+}
+
+/* The two hints whose text changes (Weiter / Auswaehlen, Gespraech beenden) never wrap. */
+.af-dialogue__hint-action,
+.af-dialogue__hint-end {
+    white-space: nowrap;
 }
 
 .af-dialogue__auto {

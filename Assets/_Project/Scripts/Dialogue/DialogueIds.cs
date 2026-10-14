@@ -56,7 +56,18 @@ namespace Aetherfall.Dialogue
         /// <param name="nodeId">Node id.</param>
         public static string VoiceClipId(string speakerId, string dialogueId, string nodeId)
         {
-            return VoicePrefix + (speakerId ?? string.Empty) + "_" + NodeKey(dialogueId, nodeId);
+            return VoiceClipId(speakerId, NodeKey(dialogueId, nodeId));
+        }
+
+        /// <summary>
+        /// Voice clip id of a line or a line variant: <c>VO_&lt;speaker&gt;_&lt;line key&gt;</c>, e.g.
+        /// <c>VO_npc.eichental.bauer_hollmann_dlg.eichental.hollmann_begruessung.n010.v2</c> (every variant is its own recording).
+        /// </summary>
+        /// <param name="speakerId">Speaker (NPC id).</param>
+        /// <param name="lineKey">Text key of the line (<see cref="NodeKey"/> or <see cref="VariantKey"/>).</param>
+        public static string VoiceClipId(string speakerId, string lineKey)
+        {
+            return VoicePrefix + (speakerId ?? string.Empty) + "_" + (lineKey ?? string.Empty);
         }
 
         /// <summary>Default choice id of the <c>ChoiceMade</c> event of an option: the node key.</summary>

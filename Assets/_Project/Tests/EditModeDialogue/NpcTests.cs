@@ -38,6 +38,10 @@ namespace Aetherfall.Tests.EditMode.Dialogue
             Assert.That(info.Level, Is.EqualTo(6));
             Assert.That(info.Greed, Is.EqualTo(1.5f));
             Assert.That(info.Unbribable, Is.True);
+            Assert.That(info.Relationship, Is.EqualTo(-20), "start relationship (persuasion bonus, GDD 02 12.3)");
+            _env.Npcs.ChangeRelationship(TestDialogues.Stranger, 45, "test");
+            Assert.That(_env.Npcs.TryGetSpeaker(TestDialogues.Stranger, out info), Is.True);
+            Assert.That(info.Relationship, Is.EqualTo(25), "always the current value");
             Assert.That(_env.Npcs.TryGetSpeaker("npc.test.niemand", out _), Is.False);
         }
 

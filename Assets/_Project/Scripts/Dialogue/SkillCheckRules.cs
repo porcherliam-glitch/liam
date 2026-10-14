@@ -57,6 +57,31 @@ namespace Aetherfall.Dialogue
             return type == SkillCheckType.Intimidate && strength > charisma ? StatId.Strength : StatId.Charisma;
         }
 
+        /// <summary>
+        /// Relationship bonus of a persuasion (GDD 02 12.3, tiers of GDD 01 7.5): enemy (-100 .. -50) -4, dislike (-49 .. -10) -2,
+        /// neutral 0, friendly (+10 .. +49) +2, trusted (+50 .. +100) +4. Counts towards the situation bonus (at most ±6).
+        /// </summary>
+        /// <param name="relationship">Relationship of the NPC to the player.</param>
+        public static int RelationshipBonus(int relationship)
+        {
+            if (relationship <= -50)
+            {
+                return -4;
+            }
+
+            if (relationship <= -10)
+            {
+                return -2;
+            }
+
+            if (relationship < 10)
+            {
+                return 0;
+            }
+
+            return relationship < 50 ? 2 : 4;
+        }
+
         /// <summary>Level advantage: +2 per 3 levels above the NPC, at most +6; 0 if the NPC level is unknown (0).</summary>
         /// <param name="playerLevel">Player level.</param>
         /// <param name="npcLevel">NPC level (0 = unknown).</param>

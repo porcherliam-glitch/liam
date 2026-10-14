@@ -120,6 +120,33 @@ namespace Aetherfall.Tests.EditMode.Dialogue
         }
 
         [Test]
+        public void Relationship_CountsForPersuasion_FriendlyHelps_EnemyHurts()
+        {
+            // GDD 02 12.3: persuasion + relationship (friendly +2, trusted +4, dislike -2, enemy -4), situation at most +-6.
+            _env.Stats.Charisma = 10;
+            _env.Npcs.ChangeRelationship(Harrik, 10, "test");
+            OpenMainChoice();
+            Assert.That(_env.Option("b").Check.Situation, Is.EqualTo(2), "friendly");
+            Assert.That(_env.Option("b").IsEnabled, Is.True, "10 + 2 reaches 12");
+            Assert.That(_env.Option("d").Check.Situation, Is.EqualTo(0), "the relationship only counts for persuasion");
+            Assert.That(_env.Dialogues.ForceEnd("test"), Is.True);
+
+            _env.Npcs.ChangeRelationship(Harrik, 60, "test");
+            _env.World.SetBool(MuehlbachDialogueFixture.FlagWennaSaved, true, "test");
+            OpenMainChoice();
+            Assert.That(_env.Option("b").Check.Situation, Is.EqualTo(6), "trusted 4 + Wenna 2");
+            Assert.That(_env.Dialogues.ForceEnd("test"), Is.True);
+
+            _env.Npcs.ChangeRelationship(Harrik, -170, "test");
+            _env.World.SetBool(MuehlbachDialogueFixture.FlagWennaSaved, false, "test");
+            _env.Stats.Charisma = 14;
+            OpenMainChoice();
+            Assert.That(_env.Option("b").Check.Situation, Is.EqualTo(-4), "enemy");
+            Assert.That(_env.Option("b").IsEnabled, Is.False);
+            Assert.That(_env.Option("b").DisplayText, Does.StartWith("[Überzeugen 12 · dein Wert 10]"));
+        }
+
+        [Test]
         public void Persuade_ThenMillGuard_EndsWithMuehlenwache()
         {
             _env.Stats.Charisma = 12;

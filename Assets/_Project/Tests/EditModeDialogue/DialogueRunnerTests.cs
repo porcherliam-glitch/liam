@@ -191,6 +191,27 @@ namespace Aetherfall.Tests.EditMode.Dialogue
         }
 
         [Test]
+        public void VoiceClip_FollowsTheLineKey_AndCanBeSetByTheAuthor()
+        {
+            // GDD 02 12.8: VO_<speaker>_<line id>; a variant is its own recording, the optional field overrides the id.
+            _env.World.SetInt(TestDialogues.FlagCounter, 5, "test");
+            _env.Start(TestDialogues.Switch, TestDialogues.Ulf);
+            Assert.That(_env.View.Line.VoiceClipId, Is.EqualTo("VO_" + TestDialogues.Ulf + "_" + TestDialogues.Switch + ".n030.v1"));
+            _env.Continue();
+
+            DialogueSpec spec = new DialogueSpecBuilder("dlg.test.ulf_prost")
+                .Speaker(TestDialogues.Ulf)
+                .Nodes(new LineNode("n010", "Prost!").Voice("VO_npc.test.wirt_ulf_prost").EndWith("prost"))
+                .Build();
+            using (var env = new DialogueTestEnvironment(null, TestDialogues.Npcs(), TestDialogues.Flags(), spec))
+            {
+                Assert.That(env.Start(spec.Id, TestDialogues.Ulf), Is.True);
+                Assert.That(env.View.Line.VoiceClipId, Is.EqualTo("VO_npc.test.wirt_ulf_prost"));
+                Assert.That(env.View.Line.TextKey, Is.EqualTo("dlg.test.ulf_prost.n010"), "the text key stays generated");
+            }
+        }
+
+        [Test]
         public void Random_IsTheSameForTheSameNpcAndDay_AndCoversAllOutcomesOverDays()
         {
             var exits = new HashSet<string>();

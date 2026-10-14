@@ -3,16 +3,17 @@
  * Preview of the dialogue screen without Unity (same approach as vorschau_ui.cjs, which this script reuses):
  *
  *   - Layout:  Assets/_Project/Art/UI/Layouts/Dialogue.uxml (and Hud.uxml for the HUD below the dialogue)
- *   - Styles:  the theme (AetherfallTheme.tss and its imports) plus Art/UI/Styles/Dialogue.uss, which Dialogue.uxml loads
- *              with <Style> as long as the theme does not import it
- *   - Texts:   UiTexts.cs plus Assets/_Project/Scripts/UI/Screens/Dialogue/DialogueScreenTexts.cs (the screen's own texts
- *              win, like DialogueScreen.ApplyOwnTexts)
+ *   - Styles:  the theme (AetherfallTheme.tss and its imports); Art/UI/Styles/Dialogue.uss is added here as long as the
+ *              theme does not import it yet (the import is an integration step, guide 10)
+ *   - Texts:   UiTexts.cs (named labels) plus Assets/_Project/Scripts/UI/Screens/Dialogue/DialogueScreenTexts.cs (the texts
+ *              DialogueScreen sets by code)
  *   - State:   szenen_dialog.js mirrors DialogueScreen, DialogueScreenPresenter and SubtitlePager; the example lines and
  *              answers are the Muehlbach dialogue (GDD 02, 12.10) with the markings the dialogue system computes for them.
  *
  * Usage (from the repository root):
  *   node Tools/Preview/ui/vorschau_dialog.cjs [--out DIR] [--szene NAME ...] [--nur-html] [--hintergrund BILD.png] [--streng]
- * Scenes: dialog (choice, keyboard), dialog_zeile (line with typewriter end), dialog_gamepad (PlayStation, hold on "[Toeten]").
+ * Scenes: dialog (choice, keyboard), dialog_zeile (line with typewriter end), dialog_gamepad (PlayStation, hold on "[Toeten]"),
+ * dialog_markierungen (Xbox, every marking of GDD 02 12.4: !, ◆, ★, requirement, trade, chosen before, end).
  */
 'use strict';
 
@@ -28,7 +29,8 @@ const DIALOGUE_TEXTS = path.join(REPO, 'Assets', '_Project', 'Scripts', 'UI', 'S
 const SCENES = [
   { name: 'dialog', title: 'Dialog: Auswahl am Mühlbach (Tastatur)' },
   { name: 'dialog_zeile', title: 'Dialog: Zeile mit Sprecher (Tastatur)' },
-  { name: 'dialog_gamepad', title: 'Dialog: Auswahl mit [Töten] gehalten (PlayStation-Glyphen)' }
+  { name: 'dialog_gamepad', title: 'Dialog: Auswahl mit [Töten] gehalten (PlayStation-Glyphen)' },
+  { name: 'dialog_markierungen', title: 'Dialog: alle Markierungen aus GDD 02, 12.4 (Xbox-Glyphen)' }
 ];
 
 /** Loads vorschau_ui.cjs as a library: its functions without running its main(). */
@@ -56,18 +58,16 @@ function main() {
   fs.mkdirSync(options.out, { recursive: true });
 
   const css = ui.buildCss();
-  // Until the theme imports Dialogue.uss, Dialogue.uxml loads it itself (<Style>): add it here unless the theme has it.
+  // Until the theme imports Dialogue.uss (integration step), add it here.
   const themeHasSheet = css.files.some((file) => path.resolve(file) === DIALOGUE_USS);
   const cssText = themeHasSheet ? css.text : css.text +
-    '\n/* ===== Assets/_Project/Art/UI/Styles/Dialogue.uss (converted from USS, loaded by Dialogue.uxml) ===== */\n' +
+    '\n/* ===== Assets/_Project/Art/UI/Styles/Dialogue.uss (converted from USS, not yet imported by the theme) ===== */\n' +
     ui.convertUss(fs.readFileSync(DIALOGUE_USS, 'utf8'), new Set()) + '\n';
   const layouts = ui.readLayouts();
   if (!layouts['Dialogue.uxml']) {
     fail('Dialogue.uxml fehlt in Assets/_Project/Art/UI/Layouts.');
   }
 
-  // <Style src="..."/> is loaded above as CSS; the HTML rebuild only knows visual elements.
-  layouts['Dialogue.uxml'] = layouts['Dialogue.uxml'].replace(/<Style\b[^>]*\/>\s*/g, '');
   const texts = Object.assign(ui.readTexts(), readDialogueTexts(ui));
   const scale = ui.readScaleRules();
   const panel = { width: scale.referenceWidth, height: scale.referenceHeight, scale: 1 };

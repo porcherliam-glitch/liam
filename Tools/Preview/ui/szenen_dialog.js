@@ -1,6 +1,7 @@
 /*
  * Scenes of the dialogue screen preview (loaded by vorschau_dialog.cjs after seite.js). The builders mirror the C# code in
- * Assets/_Project/Scripts/UI/Screens/Dialogue: DialogueScreen (constructor, OnOpen, Render, RenderOption, RefreshGlyphs),
+ * Assets/_Project/Scripts/UI/Screens/Dialogue: DialogueScreen (constructor with the class queries, OnOpen, Render, RenderOption,
+ * RefreshGlyphs),
  * DialogueScreenPresenter (focus on the first selectable answer, context line during a choice, continue mark, hold) and
  * Assets/_Project/Scripts/Dialogue/SubtitlePager.cs (45 characters per line, 2 lines per page). Behind the dialogue: the HUD
  * as HudView shows it out of combat (game state Dialogue shows the HUD, notifications are suppressed).
@@ -90,27 +91,40 @@
     const root = AF.cloneScreen('Dialogue.uxml', screensRoot);
     AF.applyTexts(root);
     const q = (name) => AF.q(root, name);
-    const speaker = q('dialogue-speaker');
-    const text = q('dialogue-text');
-    const continueMark = q('dialogue-continue');
-    const autoLabel = q('dialogue-auto-on');
+    // Labels whose text the code sets have no name in Dialogue.uxml: DialogueScreen finds them by class.
+    const byClass = (cls) => {
+      const found = AF.qClass(root, cls);
+      if (!found) {
+        AF.fail('Element mit Klasse „' + cls + '“ nicht gefunden (Dialogue.uxml geändert?)');
+      }
+
+      return found;
+    };
+    const speaker = byClass('af-dialogue__speaker');
+    const text = byClass('af-dialogue__text');
+    const continueMark = byClass('af-dialogue__continue');
+    const autoLabel = byClass('af-dialogue__auto');
+    const actionHint = byClass('af-dialogue__hint-action');
+    const endHint = byClass('af-dialogue__hint-end');
     const optionsBox = q('dialogue-options');
-    const actionHint = q('dialogue-hint-action');
     const backHint = q('dialogue-hint-back-group');
     const holdHint = q('dialogue-hint-hold-group');
     const backGlyph = q('dialogue-hint-glyph-back');
-    const rows = [];
-    for (let i = 0; i < MAX_OPTIONS; i++) {
-      const prefix = 'dialogue-option-' + i;
-      const row = q(prefix);
-      rows.push({
-        row,
-        symbol: q(prefix + '-symbol'),
-        tag: q(prefix + '-tag'),
-        text: q(prefix + '-text'),
-        fill: AF.qClass(row, 'af-button__hold-fill')
-      });
+    AF.setText(continueMark, AF.text('dialogue-continue'));
+    AF.setText(autoLabel, AF.text('dialogue-auto-on'));
+    AF.setText(endHint, AF.text('dialogue-hint-end'));
+    const rowElements = Array.from(optionsBox.querySelectorAll('.af-dialogue__option'));
+    if (rowElements.length < MAX_OPTIONS) {
+      AF.fail('Dialogue.uxml hat ' + rowElements.length + ' Antwortzeilen, gebraucht werden ' + MAX_OPTIONS + '.');
     }
+
+    const rows = rowElements.slice(0, MAX_OPTIONS).map((row) => ({
+      row,
+      symbol: AF.qClass(row, 'af-dialogue__symbol'),
+      tag: AF.qClass(row, 'af-dialogue__tag'),
+      text: AF.qClass(row, 'af-dialogue__option-text'),
+      fill: AF.qClass(row, 'af-button__hold-fill')
+    }));
 
     const glyphLabels = AF.collectGlyphLabels(root);
     AF.refreshGlyphs(root, glyphLabels, state.family);
@@ -280,6 +294,26 @@
     ];
   }
 
+  const HOLLMANN = 'Hollmann';
+  const GREETING = 'Na, Rissgeborener? Was gibt\'s?';
+
+  /**
+   * A hub with every kind of marking of GDD 02, 12.4 (the examples of its table): new quest "!", quest progress ◆, quest
+   * completion ★ (StartQuest / SetQuestStage / CompleteQuest behind the answer), a requirement that is not met ("[Tributbuch]",
+   * greyed), trade, an answer chosen before (60 % opacity, still selectable) and the end.
+   */
+  function markingsHub() {
+    return [
+      answer('Was ist mit dem Steinbruch?', '', 'none', { symbolText: '!' }),
+      answer('Ich kümmere mich um Grimmbart.', '', 'none', { symbolText: '◆' }),
+      answer('Hier ist Grimmbarts Bart.', '', 'none', { symbolText: '★' }),
+      answer('Hier steht, was ihr Grimmbart zahlt.', '[Tributbuch]', 'requirement', { enabled: false }),
+      answer('Zeig mir deine Waren.', '[Handel]', 'trade'),
+      answer('Ihr seid aus Eichental?', '', 'none', { alreadyChosen: true }),
+      answer('Ich komme wieder.', '[Ende]', 'end')
+    ];
+  }
+
   const SCENES = {
     dialog(layers) {
       AF.addBackground('ruhe');
@@ -294,6 +328,14 @@
       dialogueLayers(layers);
       calmHud(layers.hud, 'KeyboardMouse', 0.72);
       dialogueScreen(layers.screens, { family: 'KeyboardMouse', mode: 'line', speaker: HARRIK_ROLE, pages: paginate(N020), page: 0 });
+    },
+    dialog_markierungen(layers) {
+      AF.addBackground('ruhe');
+      dialogueLayers(layers);
+      calmHud(layers.hud, 'Xbox', 1);
+      dialogueScreen(layers.screens, {
+        family: 'Xbox', mode: 'choice', speaker: HOLLMANN, pages: paginate(GREETING), options: markingsHub(), focus: 2
+      });
     },
     dialog_gamepad(layers) {
       AF.addBackground('ruhe');
