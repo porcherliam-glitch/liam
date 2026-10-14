@@ -49,7 +49,7 @@ Oben rechts steht immer dein aktuelles Ziel. Die Gruft ist auf Stufe 4 eingestel
 
 ## 4. Bekannte Lücken
 
-- Die Dorfbewohner sind einfache Figuren aus Grundformen, du selbst bist noch eine Kapsel, Gegner und Häuser sind Platzhalter. Echte Modelle kommen später.
+- Du selbst bist jetzt ein Krieger aus Blender (Arme, Beine und Schwert bewegen sich per Code, noch ohne fertige Animationen). Dorfbewohner sind einfache Figuren aus Grundformen, Gegner und Häuser noch Platzhalter. Weitere Modelle kommen.
 - Keine Musik, keine Zwischensequenzen, kein Bogen, keine Aether-Fähigkeit.
 - Die Gruft ist dunkel. Das ist Absicht, kann aber nachgebessert werden.
 

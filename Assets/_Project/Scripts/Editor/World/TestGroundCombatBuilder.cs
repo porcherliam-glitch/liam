@@ -56,9 +56,17 @@ namespace Aetherfall.EditorTools.World
                 TestGroundFields.SetFloat(stats, "constitution", 18f, report);
             }
 
+            // The warrior model from Blender replaces the capsule and its "nose" (the capsule stays if the model is missing).
             Transform body = player.transform.Find("Body");
+            Transform model = CharacterModels.Instantiate(CharacterModels.Warrior, player.transform, "Modell", player.layer, report);
             HitFlash flash = player.AddComponent<HitFlash>();
-            if (body != null && body.TryGetComponent(out Renderer bodyRenderer))
+            if (model != null)
+            {
+                TestGroundFields.SetReferences(flash, "renderers", model.GetComponentsInChildren<Renderer>(), report);
+                RemoveChild(player.transform, "Body");
+                RemoveChild(player.transform, "Nose");
+            }
+            else if (body != null && body.TryGetComponent(out Renderer bodyRenderer))
             {
                 TestGroundFields.SetReferences(flash, "renderers", new Object[] { bodyRenderer }, report);
             }
@@ -97,14 +105,41 @@ namespace Aetherfall.EditorTools.World
             TestGroundFields.SetReference(combat, "shield", assets.Shield, report);
             TestGroundFields.SetReference(combat, "settings", assets.Settings, report);
 
-            Transform swordHand = CreateChild(player.transform, "SwordHand", new Vector3(0.42f, 1.15f, 0.15f));
-            CreateVisual(swordHand, "Sword Blade", PrimitiveType.Cube, new Vector3(0f, 0f, 0.6f), new Vector3(0.06f, 0.12f, 1.0f), materials.Sword,
-                player.layer);
-            CreateVisual(swordHand, "Sword Guard", PrimitiveType.Cube, new Vector3(0f, 0f, 0.07f), new Vector3(0.28f, 0.05f, 0.06f), materials.Sword,
-                player.layer);
+            // With the model the sword pivot sits in the right shoulder and the grip one arm length in front of it: the weapon pose
+            // turns the pivot, so a swing moves the whole arm (HumanoidPuppet reaches for the grip and the shield handle).
+            Transform shoulder = model != null ? CharacterModels.Find(model, "UpperArm.R") : null;
+            Transform swordHand = CreateChild(player.transform, "SwordHand",
+                shoulder != null ? player.transform.InverseTransformPoint(shoulder.position) : new Vector3(0.42f, 1.15f, 0.15f));
+            Transform swordModel = model != null ? CharacterModels.Instantiate(CharacterModels.Sword, swordHand, "Schwert", player.layer, report) : null;
+            Transform grip = null;
+            if (swordModel != null)
+            {
+                swordModel.localPosition = new Vector3(0f, 0f, SwordGripReach);
+                // The blade points a little higher than the arm, like a sword held ready.
+                swordModel.localRotation = Quaternion.Euler(-35f, 0f, 0f);
+                grip = CreateChild(swordHand, "Griff", new Vector3(0f, 0f, SwordGripReach));
+            }
+            else
+            {
+                CreateVisual(swordHand, "Sword Blade", PrimitiveType.Cube, new Vector3(0f, 0f, 0.6f), new Vector3(0.06f, 0.12f, 1.0f), materials.Sword,
+                    player.layer);
+                CreateVisual(swordHand, "Sword Guard", PrimitiveType.Cube, new Vector3(0f, 0f, 0.07f), new Vector3(0.28f, 0.05f, 0.06f), materials.Sword,
+                    player.layer);
+            }
+
             Transform shieldHand = CreateChild(player.transform, "ShieldHand", new Vector3(-0.45f, 1.1f, 0.12f));
-            GameObject shield = CreateVisual(shieldHand, "Shield", PrimitiveType.Cube, new Vector3(0f, 0f, 0.1f), new Vector3(0.55f, 0.7f, 0.08f),
-                materials.Shield, player.layer);
+            Transform shieldModel = model != null ? CharacterModels.Instantiate(CharacterModels.WoodenShield, shieldHand, "Holzschild", player.layer, report) : null;
+            GameObject shield = shieldModel != null
+                ? shieldModel.GetComponentInChildren<Renderer>().gameObject
+                : CreateVisual(shieldHand, "Shield", PrimitiveType.Cube, new Vector3(0f, 0f, 0.1f), new Vector3(0.55f, 0.7f, 0.08f), materials.Shield,
+                    player.layer);
+            if (model != null)
+            {
+                HumanoidPuppet puppet = model.gameObject.AddComponent<HumanoidPuppet>();
+                puppet.BindByName(model);
+                puppet.SetHandTargets(grip, shieldHand);
+                TestGroundFields.SetReference(puppet, "combatant", combatant, report);
+            }
             // HitFlash is [DisallowMultipleComponent] and the player root already has the body flash.
             HitFlash shieldFlash = shield.AddComponent<HitFlash>();
             if (shield.TryGetComponent(out Renderer shieldRenderer))
@@ -122,7 +157,8 @@ namespace Aetherfall.EditorTools.World
             TestGroundFields.SetReference(respawn, "combatant", combatant, report);
             TestGroundFields.SetReference(respawn, "combat", combat, report);
             TestGroundFields.SetReference(respawn, "stats", stats, report);
-            report.Info("Spieler-Kampf: Combatant, Trefferzonen (Körper, Kopf), Hitbox, Lock-On, Kampfsteuerung, Schwert und Schild (Quader), " +
+            report.Info("Spieler-Kampf: Combatant, Trefferzonen (Körper, Kopf), Hitbox, Lock-On, Kampfsteuerung, " +
+                        (model != null ? "Krieger-Modell mit Schwert und Holzschild (Blender, HumanoidPuppet), " : "Schwert und Schild (Quader), ") +
                         "Wiederbeleben nach 3 s. Werte: Krieger Stufe 10 aus GDD 03, 8.3 (Stärke 20, Geschick 10, Konstitution 18; Rüstung und " +
                         "Waffenschaden aus der angelegten Ausrüstung).");
             return combatant;
@@ -456,6 +492,18 @@ namespace Aetherfall.EditorTools.World
             rock.transform.localRotation = Quaternion.Euler(0f, 25f, 0f);
             rock.transform.localScale = size;
             SetMaterial(rock, materials.Wall);
+        }
+
+        /// <summary>Distance from the shoulder to the sword grip in metres (arm length of the warrior model 0.6 m, elbow a little bent).</summary>
+        private const float SwordGripReach = 0.5f;
+
+        private static void RemoveChild(Transform parent, string name)
+        {
+            Transform child = parent.Find(name);
+            if (child != null)
+            {
+                Object.DestroyImmediate(child.gameObject);
+            }
         }
 
         private static Transform CreateChild(Transform parent, string name, Vector3 localPosition)

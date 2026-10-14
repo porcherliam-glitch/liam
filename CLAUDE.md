@@ -148,6 +148,7 @@ Batchmode-Einstiegspunkte (jeweils mit `-batchmode -nographics -projectPath . -q
 | Projekt-Setup (ohne `-quit`, beendet sich selbst; nach Paketänderungen ein zweites Mal ausführen) | `Aetherfall.EditorTools.Core.ProjectSetupBatch.RunBatch` |
 | Quests prüfen | `Aetherfall.EditorTools.Narrative.QuestValidationMenu.RunBatch` |
 | Dialoge prüfen | `Aetherfall.Dialogue.DialogueValidationMenu.RunBatch` |
+| Figuren aus Blender prüfen (Achsen, Gelenke; vorher `Tools/Blender/build_characters.py` mit Blender 5.2 aus Steam, siehe `Tools/Blender/README.md`) | `Aetherfall.EditorTools.World.CharacterModels.CheckBatch` |
 
 - Kompilierfehler stehen in der Logdatei (nach `error CS` suchen).
 - Ein Projekt, das gerade im Editor offen ist, kann nicht zusätzlich im Batchmode geöffnet werden.
