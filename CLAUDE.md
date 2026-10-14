@@ -77,24 +77,32 @@ Der Rest ist Platzhalter: einfache Formen, später Blender-Modelle oder kostenlo
 | `World` | Layout-Leser, Eichental-Daten, `AreaTrigger`, NPC-Marker |
 | `DevTools` | IMGUI-Debug-Overlays |
 | `EditorTools.Core` | Menü **Aetherfall > Projekt-Setup …** (Pakete, Einstellungen, Ordner, Boot-Szene) |
-| `EditorTools.World` | **Testgelände erstellen**, **Eichental erstellen**, **Oberfläche einrichten**, **Neues Spiel startet in …**, **Szene öffnen …** |
+| `World` (Ordner `World/Dungeons`, `World/Puzzles`), `World.Gameplay` | Dungeon-Layout und -Prüfung, Rätsel-Logik, Weltobjekt-Zustände, Portale, Checkpoints, Speicher-Anbindung der Gruft |
+| `AI` (Ordner `AI/Bosses`) | Mini-Boss „Der Wachende Ritter“ (Phasen, Bossbalken-Dienst), Skelett-Krieger mit Turmschild |
+| `EditorTools.World` | **Testgelände erstellen**, **Eichental erstellen**, **Gruft erstellen**, **Oberfläche einrichten**, **Neues Spiel startet in …**, **Szene öffnen …** |
 | `EditorTools.Narrative` | **Quests prüfen** (Dialoge prüfen liegt in `Dialogue`) |
 
 Tests liegen unter `Assets/_Project/Tests/` (EditMode, getrennt nach Bereich). Stand 2026-10-14: **2066 Tests grün im Harness**.
 
-**In Arbeit (Cloud-Sitzung, Stand 2026-10-14):**
-- **Dorf Eichental:** Nachbesserung nach Prüfung läuft, Zwischenstand ist als `WIP`-Commit gepusht.
-- **Die vergessene Gruft** (Rätsel, Gruftwächter, Anleitung 12): wird in einer eigenen Arbeitskopie gebaut und danach in den Arbeits-Branch zusammengeführt.
+**Zuletzt fertig (Cloud-Sitzung, 2026-10-14):**
+- **Dorf Eichental:** Generator und Layout fertig, alle 11 Prüfbefunde eingearbeitet ([Anleitung 11](docs/Anleitungen/11_Test_Eichental.md)).
+- **Die vergessene Gruft:** eigene Szene mit 2 Rätseln, Skelett-Kriegern und dem Mini-Boss „Der Wachende Ritter“, alle 11 Prüfbefunde eingearbeitet ([Anleitung 12](docs/Anleitungen/12_Test_Gruft.md)).
+  - Sie wurde parallel gebaut, ohne bestehende Dateien zu ändern. Deshalb fehlt noch die **Integration nach Anleitung 12, Abschnitt 11**: Portal im Dorf, Laden und Szenenwechsel über die Welt-ID, Lebenspunkte über den Portalwechsel mitnehmen, echter Bossbalken im HUD.
+- **Dialog-Integration** ist ebenfalls noch offen. Die genaue Arbeitsanweisung steht in [Anleitung 10, Abschnitt 12](docs/Anleitungen/10_Test_Dialoge.md); sie wurde gegen einen älteren Stand geprüft. Mit den Eichental-Änderungen an `TestGroundMenu`, `TestGroundUiBuilder` und der World-Editor-asmdef abgleichen.
 
 **Wichtig:** Bis 2026-10-14 ist **nichts davon jemals in Unity gelaufen**. Geprüft wurde nur mit dem Harness (Kompilieren gegen Unity-2021-Referenzen + Stubs) und mit Vorschaubildern aus Blender bzw. HTML (keine Unity-Screenshots). Die erste Aufgabe auf einem Rechner mit Unity ist deshalb, es wirklich in Unity zu öffnen und Fehler zu beheben.
 
 ## Cloud-Sitzung und PC-Sitzung: wer arbeitet wann
 
-- **Immer nur eine Sitzung schreibt.** Sobald die PC-Sitzung läuft, sagt der Auftraggeber in der Cloud-Sitzung „stopp“. Die Cloud-Sitzung pusht dann nichts mehr.
+- **Immer nur eine Sitzung schreibt.** Die Cloud-Sitzung hat am 2026-10-14 mit der ZIP-Übergabe aufgehört. Ab jetzt arbeitet nur die PC-Sitzung.
 - **Vor jeder Arbeit:** `git pull origin claude/new-session-2ye8ds`. **Vor jedem Push:** noch einmal pullen.
 - Kein `--force`, kein Rebase auf gepushter Historie. Bei Konflikten zusammenführen (Merge-Commit).
 
 ## Auf dem PC mit Unity: erste Aufgaben, in dieser Reihenfolge
+
+**Unity-Version auf dem PC (2026-10-14):** Installiert war zuerst **Unity 6.0 (6000.0.84f1)**. Geplant ist **6.3 LTS (6000.3.x)**, weil die Unterstützung für 6.0 ausläuft; der Auftraggeber soll 6.3 LTS im Unity Hub dazu installieren.
+- Mit `Unity Hub > Installs` prüfen, welche Version da ist, und das Projekt mit der neuesten 6000.3.x öffnen.
+- Gibt es nur 6.0, geht es zur Not auch damit. Das Projekt-Setup warnt dann (`ProjectChecksStep`). Kompilierfehler wegen fehlender 6.1–6.3-APIs beheben, ohne die 6.3-Planung zu ändern.
 
 1. **Projektordner prüfen.** Der Auftraggeber bekommt das Projekt als ZIP aus der Cloud-Sitzung. Die ZIP enthält den Ordner `.git`, ist also ein vollständiges Git-Repository mit Remote `https://github.com/porcherliam-glitch/liam` und Branch `claude/new-session-2ye8ds`.
    - `git status` und `git pull origin claude/new-session-2ye8ds` ausführen.
@@ -125,6 +133,7 @@ Batchmode-Einstiegspunkte (jeweils mit `-batchmode -nographics -projectPath . -q
 |---|---|
 | Testgelände erzeugen | `Aetherfall.EditorTools.World.TestGroundMenu.RunBatch` |
 | Eichental erzeugen | `Aetherfall.EditorTools.World.EichentalMenu.RunBatch` |
+| Gruft erzeugen | `Aetherfall.EditorTools.World.GruftMenu.RunBatch` |
 | Quests prüfen | `Aetherfall.EditorTools.Narrative.QuestValidationMenu.RunBatch` |
 | Dialoge prüfen | `Aetherfall.Dialogue.DialogueValidationMenu.RunBatch` |
 
@@ -146,9 +155,9 @@ Batchmode-Einstiegspunkte (jeweils mit `-batchmode -nographics -projectPath . -q
 ## Nächste Bausteine bis zum Mini-Slice
 
 1. Erster echter Unity-Lauf, Fehler beheben, Projekt-Setup im Batchmode (siehe oben)
-2. Dorf Eichental und Die vergessene Gruft fertigstellen (Cloud-Sitzung, siehe „In Arbeit“) und in Unity prüfen
-3. Dialoge ins Spiel einbinden (Anleitung 10, Abschnitt „Integration“), echte NPCs statt Marker im Eichental
-4. Gruft-Eingang im Eichental ↔ Gruft-Szene verbinden (Anleitung 12)
+2. Generatoren laufen lassen (Testgelände, Eichental, Gruft), die Szenen in Unity prüfen und die Testanleitungen 02–12 durchgehen
+3. Dialoge ins Spiel einbinden (Anleitung 10, Abschnitt 12), echte NPCs statt Marker im Eichental
+4. Gruft anbinden nach Anleitung 12, Abschnitt 11 (Portal ↔ Dorf, Laden über Welt-ID, Werte mitnehmen, Bossbalken im HUD)
 5. Die 3 Quests als Daten nach GDD 02, Abschnitt 11 („Asche über Eichental“, „Die Wölfe vom Nordhang“, „Die vergessene Gruft“)
 6. Startstufe wieder auf 1 setzen, Neues Spiel/Laden aus dem Hauptmenü, Tod/Wiedereinstieg
 7. Platzhalter durch Blender-Modelle ersetzen (Häuser, Gruft, Wolf), Animationen
