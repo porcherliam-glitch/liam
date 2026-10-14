@@ -9,6 +9,8 @@ Stand: 2026-10-14.
 | `Krieger.fbx` | Spielfigur (Krieger mit Wams, Gürtel, Stiefeln) |
 | `Schwert.fbx` | Schwert der Startausrüstung, Griff im Ursprung, Klinge nach vorne |
 | `Holzschild.fbx` | Runder Holzschild mit Eisenrand, Griff im Ursprung |
+| `Wolf.fbx` | Grauwolf (Gelenke `Torso`, `Head`, `Tail`, `FrontUpper/FrontLower`, `HindUpper/HindLower` je `.L/.R`), bewegt von `QuadrupedPuppet` |
+| `AetherWolf.fbx` | Aether-Wolf: dunkles Fell, leuchtende Augen, Kristalle auf dem Rücken (Materialien mit „_Leuchten“ bekommen in Unity das Kristall-Material) |
 
 ## Aufbau der Figuren
 

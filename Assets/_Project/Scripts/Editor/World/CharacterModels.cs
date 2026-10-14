@@ -22,6 +22,12 @@ namespace Aetherfall.EditorTools.World
         /// <summary>Wooden shield of the starting kit.</summary>
         public const string WoodenShield = Folder + "/Holzschild.fbx";
 
+        /// <summary>Grey wolf.</summary>
+        public const string Wolf = Folder + "/Wolf.fbx";
+
+        /// <summary>Aether wolf (dark fur, glowing eyes and crystals; materials "…_Leuchten" glow in Unity).</summary>
+        public const string AetherWolf = Folder + "/AetherWolf.fbx";
+
         /// <summary>Loads a model (the FBX root object), or null with a warning.</summary>
         /// <param name="path">Asset path.</param>
         /// <param name="report">Protocol.</param>
@@ -44,7 +50,7 @@ namespace Aetherfall.EditorTools.World
         {
             AssetDatabase.ImportAsset(Folder, ImportAssetOptions.ImportRecursive | ImportAssetOptions.ForceUpdate);
             bool ok = true;
-            foreach (string path in new[] { Warrior, Sword, WoodenShield })
+            foreach (string path in new[] { Warrior, Sword, WoodenShield, Wolf, AetherWolf })
             {
                 var model = AssetDatabase.LoadAssetAtPath<GameObject>(path);
                 if (model == null)
@@ -86,11 +92,17 @@ namespace Aetherfall.EditorTools.World
             EditorApplication.Exit(ok ? 0 : 1);
         }
 
-        /// <summary>Joint chain of the humanoid models: part → parent part (the FBX parts are flat, see build_characters.py).</summary>
+        /// <summary>
+        /// Joint chains of the models: part → parent part (the FBX parts are flat, see build_characters.py). Humanoids and four-legged
+        /// animals share the list ("Head" hangs on "Torso" in both); parts a model does not have are skipped.
+        /// </summary>
         private static readonly string[,] HumanoidChain =
         {
             { "Torso", "Pelvis" }, { "Head", "Torso" }, { "UpperArm.R", "Torso" }, { "Forearm.R", "UpperArm.R" }, { "UpperArm.L", "Torso" },
-            { "Forearm.L", "UpperArm.L" }, { "Thigh.R", "Pelvis" }, { "Shin.R", "Thigh.R" }, { "Thigh.L", "Pelvis" }, { "Shin.L", "Thigh.L" }
+            { "Forearm.L", "UpperArm.L" }, { "Thigh.R", "Pelvis" }, { "Shin.R", "Thigh.R" }, { "Thigh.L", "Pelvis" }, { "Shin.L", "Thigh.L" },
+            { "Tail", "Torso" }, { "FrontUpper.L", "Torso" }, { "FrontLower.L", "FrontUpper.L" }, { "FrontUpper.R", "Torso" },
+            { "FrontLower.R", "FrontUpper.R" }, { "HindUpper.L", "Torso" }, { "HindLower.L", "HindUpper.L" }, { "HindUpper.R", "Torso" },
+            { "HindLower.R", "HindUpper.R" }
         };
 
         /// <summary>

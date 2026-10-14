@@ -329,8 +329,88 @@ def holzschild():
     shield.build(root, (0, 0, 0))
 
 
+def u(x, y, z):
+    """Position in Unity axes (x right, y up, z forward) as build coordinates (before TURN: forward is -Y, right is -X)."""
+    return (-x, -z, y)
+
+
+def us(x, y, z):
+    """Size in Unity axes as build size."""
+    return (x, z, y)
+
+
+def build_wolf(prefix, fur, belly, dark, eye, eye_rough=0.4, crystals=None):
+    """Wolf (Grauwolf / Aether-Wolf) in Unity axes: about 1.35 m long, shoulder 0.72 m, looking along +Z.
+
+    Joints: Torso (0, 0.62, 0), Head at the neck, Tail at the rump, legs FrontUpper/FrontLower and HindUpper/HindLower (.L/.R).
+    """
+    m = lambda part, colour, rough=0.9, metal=0.0: material(prefix + "_" + part, colour, rough, metal)
+    fur_m = m("Fell", fur)
+    belly_m = m("Bauch", belly)
+    dark_m = m("Dunkel", dark)
+    eye_m = m("Augen" if crystals is None else "Augen_Leuchten", eye, eye_rough)
+    nose_m = m("Nase", "1A1614", 0.4)
+    root = empty(prefix)
+
+    torso = PartBuilder("Torso")
+    torso.box(us(0.36, 0.36, 0.5), u(0, 0.06, 0.3), fur_m, top_scale=(0.88, 1.0))
+    torso.box(us(0.3, 0.3, 0.6), u(0, 0.05, -0.24), fur_m, top_scale=(0.9, 1.0))
+    torso.box(us(0.22, 0.08, 0.72), u(0, -0.1, 0.02), belly_m)
+    torso.box(us(0.38, 0.22, 0.14), u(0, 0.13, 0.5), dark_m, top_scale=(0.8, 0.9))
+    if crystals is not None:
+        for i, (x, z, h) in enumerate(((0.0, 0.25, 0.22), (0.06, 0.02, 0.16), (-0.05, -0.2, 0.18))):
+            torso.box(us(0.08, h, 0.08), u(x, 0.27 + h * 0.5, z), crystals, top_scale=(0.2, 0.2),
+                      rotate=Matrix.Rotation(math.radians(12 * (i - 1)), 3, 'Y'))
+    parts = {"Torso": torso.build(root, u(0, 0.62, 0))}
+
+    head = PartBuilder("Head")
+    head.box(us(0.26, 0.24, 0.28), u(0, 0.04, 0.1), fur_m, top_scale=(0.9, 0.9))
+    head.box(us(0.12, 0.1, 0.27), u(0, -0.03, 0.36), fur_m, top_scale=(0.85, 0.8))
+    head.box(us(0.06, 0.05, 0.05), u(0, -0.01, 0.5), nose_m)
+    head.box(us(0.1, 0.04, 0.22), u(0, -0.08, 0.34), belly_m)
+    for side in (-1, 1):
+        head.box(us(0.07, 0.12, 0.05), u(side * 0.08, 0.2, 0.04), fur_m, top_scale=(0.2, 0.4))
+        head.box(us(0.04, 0.03, 0.02), u(side * 0.075, 0.08, 0.24), eye_m)
+    parts["Head"] = head.build(parts["Torso"], u(0, 0.22, 0.56))
+
+    tail = PartBuilder("Tail")
+    tail.box(us(0.1, 0.1, 0.48), u(0, -0.1, -0.2), fur_m, top_scale=(0.6, 0.6),
+             rotate=Matrix.Rotation(math.radians(-25), 3, 'X'))
+    parts["Tail"] = tail.build(parts["Torso"], u(0, 0.12, -0.56))
+
+    for side, tag in ((1, "R"), (-1, "L")):
+        upper = PartBuilder("FrontUpper." + tag)
+        upper.box(us(0.11, 0.34, 0.13), u(0, -0.15, 0), fur_m, top_scale=(1.2, 1.3))
+        parts["FrontUpper." + tag] = upper.build(parts["Torso"], u(side * 0.13, -0.04, 0.4))
+        lower = PartBuilder("FrontLower." + tag)
+        lower.box(us(0.08, 0.26, 0.09), u(0, -0.13, 0), fur_m)
+        lower.box(us(0.1, 0.05, 0.14), u(0, -0.27, 0.03), dark_m)
+        parts["FrontLower." + tag] = lower.build(parts["FrontUpper." + tag], u(0, -0.3, 0))
+
+        hind = PartBuilder("HindUpper." + tag)
+        hind.box(us(0.13, 0.32, 0.18), u(0, -0.13, 0.02), fur_m, top_scale=(1.15, 1.35))
+        parts["HindUpper." + tag] = hind.build(parts["Torso"], u(side * 0.13, -0.02, -0.42))
+        shin = PartBuilder("HindLower." + tag)
+        shin.box(us(0.08, 0.28, 0.09), u(0, -0.13, -0.03), fur_m)
+        shin.box(us(0.1, 0.05, 0.14), u(0, -0.28, 0.02), dark_m)
+        parts["HindLower." + tag] = shin.build(parts["HindUpper." + tag], u(0, -0.3, 0.02))
+
+
+def wolf():
+    """Grey wolf (Grauwolf)."""
+    build_wolf("Wolf", fur="7A7670", belly="B8B0A2", dark="4A4642", eye="C8962E")
+
+
+def aetherwolf():
+    """Aether-touched wolf: dark fur, glowing eyes and crystals on the back (Unity gives "_Leuchten" materials a glow)."""
+    crystals = material("AetherWolf_Kristall_Leuchten", "5FE0E8", 0.2)
+    build_wolf("AetherWolf", fur="3E4250", belly="6A6E7A", dark="23252E", eye="7FF4FF", eye_rough=0.2, crystals=crystals)
+
+
 MODELS = {
     "krieger": ("Krieger.fbx", krieger),
+    "wolf": ("Wolf.fbx", wolf),
+    "aetherwolf": ("AetherWolf.fbx", aetherwolf),
     "schwert": ("Schwert.fbx", schwert),
     "holzschild": ("Holzschild.fbx", holzschild),
 }
@@ -363,6 +443,9 @@ def render_preview(path, height):
     print("Vorschau:", path)
 
 
+PREVIEW_HEIGHT = {"schwert": 1.0, "holzschild": 1.0, "wolf": 1.1, "aetherwolf": 1.1}
+
+
 def main():
     argv = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
     parser = argparse.ArgumentParser()
@@ -376,7 +459,7 @@ def main():
         reset_scene()
         build()
         if args.preview:
-            render_preview(os.path.join(args.preview, name + ".png"), 1.9 if name not in ("schwert", "holzschild") else 1.0)
+            render_preview(os.path.join(args.preview, name + ".png"), PREVIEW_HEIGHT.get(name, 1.9))
         else:
             export_fbx(os.path.join(args.out, file_name))
 

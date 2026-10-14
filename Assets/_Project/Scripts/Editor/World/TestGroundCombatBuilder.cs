@@ -383,22 +383,46 @@ namespace Aetherfall.EditorTools.World
 
             // Body pivot at hip height: rotating it around X makes the wolf rear up (telegraph) or fall over (death).
             Transform body = CreateChild(wolf.transform, "Body", new Vector3(0f, 0.35f, -0.3f));
-            GameObject torso = CreateVisual(body, "Torso", PrimitiveType.Cube, new Vector3(0f, 0.25f, 0.3f), new Vector3(0.5f, 0.55f, 1.25f), furMaterial,
-                wolf.layer);
-            GameObject head = CreateVisual(body, "Head", PrimitiveType.Cube, new Vector3(0f, 0.5f, 1.05f), new Vector3(0.38f, 0.36f, 0.42f), furMaterial,
-                wolf.layer);
-            CreateVisual(body, "Snout", PrimitiveType.Cube, new Vector3(0f, 0.42f, 1.35f), new Vector3(0.2f, 0.18f, 0.25f), materials.Nose, wolf.layer);
-            CreateVisual(body, "Tail", PrimitiveType.Cube, new Vector3(0f, 0.35f, -0.45f), new Vector3(0.1f, 0.1f, 0.45f), furMaterial, wolf.layer);
-            for (int i = 0; i < 4; i++)
+            Renderer[] flashRenderers;
+            bool aether = furMaterial == materials.AetherWolf;
+            Transform model = CharacterModels.Instantiate(aether ? CharacterModels.AetherWolf : CharacterModels.Wolf, body, "Modell", wolf.layer, report);
+            if (model != null)
             {
-                float x = i % 2 == 0 ? -0.18f : 0.18f;
-                float z = i < 2 ? 0.75f : -0.15f;
-                CreateVisual(body, "Leg " + (i + 1), PrimitiveType.Cube, new Vector3(x, -0.12f, z), new Vector3(0.12f, 0.5f, 0.12f), furMaterial, wolf.layer);
+                // The model hangs under the body pivot (rear up, fall over) with its feet on the wolf's ground.
+                model.localPosition = -body.localPosition;
+                foreach (Renderer part in model.GetComponentsInChildren<Renderer>())
+                {
+                    if (part.sharedMaterial != null && part.sharedMaterial.name.Contains("Leuchten"))
+                    {
+                        part.sharedMaterial = materials.Crystal;
+                    }
+                }
+
+                QuadrupedPuppet puppet = model.gameObject.AddComponent<QuadrupedPuppet>();
+                puppet.BindByName(model);
+                flashRenderers = model.GetComponentsInChildren<Renderer>();
+            }
+            else
+            {
+                GameObject torso = CreateVisual(body, "Torso", PrimitiveType.Cube, new Vector3(0f, 0.25f, 0.3f), new Vector3(0.5f, 0.55f, 1.25f), furMaterial,
+                    wolf.layer);
+                GameObject head = CreateVisual(body, "Head", PrimitiveType.Cube, new Vector3(0f, 0.5f, 1.05f), new Vector3(0.38f, 0.36f, 0.42f), furMaterial,
+                    wolf.layer);
+                CreateVisual(body, "Snout", PrimitiveType.Cube, new Vector3(0f, 0.42f, 1.35f), new Vector3(0.2f, 0.18f, 0.25f), materials.Nose, wolf.layer);
+                CreateVisual(body, "Tail", PrimitiveType.Cube, new Vector3(0f, 0.35f, -0.45f), new Vector3(0.1f, 0.1f, 0.45f), furMaterial, wolf.layer);
+                for (int i = 0; i < 4; i++)
+                {
+                    float x = i % 2 == 0 ? -0.18f : 0.18f;
+                    float z = i < 2 ? 0.75f : -0.15f;
+                    CreateVisual(body, "Leg " + (i + 1), PrimitiveType.Cube, new Vector3(x, -0.12f, z), new Vector3(0.12f, 0.5f, 0.12f), furMaterial, wolf.layer);
+                }
+
+                flashRenderers = new[] { torso.GetComponent<Renderer>(), head.GetComponent<Renderer>() };
             }
 
             Transform targetPoint = CreateChild(wolf.transform, "TargetPoint", new Vector3(0f, 0.7f, 0.2f));
             HitFlash flash = wolf.AddComponent<HitFlash>();
-            TestGroundFields.SetReferences(flash, "renderers", new Object[] { torso.GetComponent<Renderer>(), head.GetComponent<Renderer>() }, report);
+            TestGroundFields.SetReferences(flash, "renderers", flashRenderers, report);
 
             DamageableComponent damageable = wolf.AddComponent<DamageableComponent>();
             TestGroundFields.SetFloat(damageable, "maxHealth", definition != null ? definition.MaxHealth : 144f, report);
