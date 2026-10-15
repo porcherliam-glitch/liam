@@ -182,8 +182,9 @@ namespace Aetherfall.UI.Screens
                 return false;
             }
 
-            ability = new HudAbilityInfo(runner.Spec.DisplayName, runner.Cooldown01, runner.CooldownRemaining, abilities.Mana >= runner.ManaCost,
-                ElementKey(runner.Spec.Element));
+            // Grey: too little mana, or the equipment does not fit (Schildschlag without shield, GDD 03 11.8).
+            bool usable = abilities.Mana >= runner.ManaCost && abilities.IsUsableWithEquipment(id);
+            ability = new HudAbilityInfo(runner.Spec.DisplayName, runner.Cooldown01, runner.CooldownRemaining, usable, ElementKey(runner.Spec.Element));
             return true;
         }
 

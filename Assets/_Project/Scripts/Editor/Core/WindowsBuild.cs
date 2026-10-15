@@ -109,7 +109,7 @@ namespace Aetherfall.EditorTools.Core
                    "  Krieger – Schwert und Schild, viel Leben, Nahkampf.\r\n" +
                    "  Magier  – Lehrlingsstab: linke Maus Feuergeschosse (25 m), rechte Maus Feuerball; wenig Leben, viel Mana.\r\n" +
                    "           Zauber auf den Tasten 1–3: Feuerball (explodiert, Brennen), Eislanze (durchbohrt, Frieren),\r\n" +
-                   "           Kettenblitz (springt auf 3 Gegner). Die übrigen 6 Zauber kommen mit dem Skill-Baum.\r\n" +
+                   "           Kettenblitz (springt auf 3 Gegner). Die übrigen 6 Zauber lernst du im Skill-Baum (K).\r\n" +
                    "Beenden: Esc, dann \"Spiel beenden\" gedrückt halten (oder Alt+F4).\r\n" +
                    "Dauer: etwa 45–60 Minuten (3 Quests: Asche über Eichental, Die Wölfe vom Nordhang, Die vergessene Gruft).\r\n\r\n" +
                    "Tasten:\r\n" +
@@ -127,11 +127,15 @@ namespace Aetherfall.EditorTools.Core
                    "  4              Aether-Stoß (ab dem Riss im Prolog; 15 Mana, 8 s warten)\r\n" +
                    "  X              zweite Fähigkeitenleiste (2 × 4 Plätze)\r\n" +
                    "  Tab            Inventar        J              Questlog\r\n" +
+                   "  K              Skill-Baum: je Stufe 1 Skillpunkt. Enter lernt, F nimmt zurück (solange die Seite offen ist),\r\n" +
+                   "                 Z / C legt eine gelernte Fähigkeit auf einen anderen Platz der Leiste\r\n" +
                    "  F5 / F9        schnell speichern / laden\r\n" +
                    "  Esc            Pause und Menü\r\n" +
                    "  Im Gespräch: 1–9 oder Maus wählen, E oder Leertaste weiter.\r\n\r\n" +
                    "Händler: Tobold (Schmied) und Ulf (Wirt) in Lindenhain – im Gespräch nach den Waren fragen.\r\n" +
                    "Waffen: Tobold verkauft Streitkolben (3 wuchtige Schläge, Schild erlaubt), Jagdbögen und Pfeile.\r\n" +
+                   "Krieger-Techniken (Skill-Baum): Wirbelklinge, Schildschlag (nur mit Schild), Spott, Kriegsschrei, Fußfeger –" +
+                   " sie kosten Ausdauer statt Mana.\r\n" +
                    "Bogen: In \"Die Wölfe vom Nordhang\" leiht dir Hollmann seinen Jagdbogen und 30 Pfeile – triff die Strohziele.\r\n" +
                    "Feuer: Drei Feuertreffer setzen ein Ziel in Brand (2 % Leben je Sekunde, er flieht). Die Ölfässer an Tobolds Schmiede\r\n" +
                    "  explodieren bei Feuer (3 m) und reißen das nächste Fass mit; ein Schlag zerbricht sie zu einer Ölpfütze.\r\n" +

@@ -47,3 +47,13 @@ MonoBehaviour:
   buffKind: 2
   buffSeconds: 12
   buffValue: 0.3
+  staminaCost: 0
+  requiresShield: 0
+  repeats: 1
+  repeatInterval: 0.35
+  pullDistance: 0
+  knockdownSeconds: 0
+  staggerSeconds: 0
+  tauntSeconds: 0
+  weakenFraction: 0
+  weakenSeconds: 0

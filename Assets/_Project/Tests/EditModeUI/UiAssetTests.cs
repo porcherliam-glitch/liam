@@ -188,7 +188,8 @@ namespace Aetherfall.Tests.EditMode.UI
                 "dice-title", "dice-scores", "dice-turn", "dice-die-0", "dice-die-1", "dice-die-2", "dice-die-3", "dice-die-4", "dice-action-0",
                 "dice-action-1", "dice-event", "hud-ability-1-time", "hud-ability-2-time", "hud-ability-3-time", "hud-ability-4-time",
                 "mainmenu-class-0", "mainmenu-class-1", "mainmenu-class-motto", "mainmenu-class-description", "mainmenu-class-values",
-                "hud-arrows", "hud-status", "hud-abilities-bar", "hud-ability-1-name", "hud-ability-2-name", "hud-ability-3-name", "hud-ability-4-name"
+                "hud-arrows", "hud-status", "hud-abilities-bar", "hud-ability-1-name", "hud-ability-2-name", "hud-ability-3-name", "hud-ability-4-name",
+                "skills-points", "skills-detail-title", "skills-detail-meta", "skills-detail-description", "skills-detail-state", "skills-detail-bar"
             };
             foreach (string file in Directory.GetFiles(ProjectFiles.Get(LayoutsFolder), "*.uxml"))
             {

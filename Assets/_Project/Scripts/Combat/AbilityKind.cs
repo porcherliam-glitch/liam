@@ -19,7 +19,10 @@ namespace Aetherfall.Combat
         Strikes = 4,
 
         /// <summary>A timed buff on the caster (Glutmantel, Eispanzer, Sturmschritt).</summary>
-        SelfBuff = 5
+        SelfBuff = 5,
+
+        /// <summary>A shout around the caster without damage: taunt, weaken, stagger (Spott, Kriegsschrei).</summary>
+        Shout = 6
     }
 
     /// <summary>Timed buffs of <see cref="AbilityKind.SelfBuff"/> abilities (GDD 03 6.4, column "Selbstverstärkung").</summary>
@@ -35,6 +38,9 @@ namespace Aetherfall.Combat
         IceArmor = 2,
 
         /// <summary>Sturmschritt: movement speed +value; a roll leaves a shock pulse.</summary>
-        StormStep = 3
+        StormStep = 3,
+
+        /// <summary>Spott: armor +value while the enemies are taunted.</summary>
+        Guard = 4
     }
 }

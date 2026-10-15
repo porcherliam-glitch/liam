@@ -2,18 +2,22 @@ using System;
 using System.Collections.Generic;
 using Aetherfall.Progression;
 using Aetherfall.Quests;
+using Aetherfall.Skills;
 using Aetherfall.UI.Framework;
 using UnityEngine.UIElements;
 
 namespace Aetherfall.UI.Screens
 {
     /// <summary>
-    /// The journal (Journal.uxml): hub tabs "Questlog" and "Charakter" (GDD 05 1.3), switched with LB/RB (Q/E).
+    /// The journal (Journal.uxml): hub tabs "Questlog", "Charakter" and "Fähigkeiten" (GDD 05 1.3), switched with LB/RB (Q/E).
     /// <para><b>Questlog</b> (GDD 02 7): categories with LT/RT (Z/C), the quest list on the left (5 rows visible, "▲/▼ weitere"),
     /// the details of the focused quest on the right (description, current stage text, objectives with counters, earlier
     /// stages and decisions). A / Enter / click: track on or off (at most 3); X / F: make it the focus quest.</para>
     /// <para><b>Charakter</b> (GDD 03 11.3, 12): level, experience bar, free points, the six attributes and derived values.
     /// A / ► / click: place a point; X / F / ◄: take back a point placed while the menu is open (closing locks them).</para>
+    /// <para><b>Fähigkeiten</b> (GDD 03 11, key K): the nodes of the class tree, branch by branch, with the details of the focused
+    /// node. A / ► / click: learn a rank; X / F / ◄: take back a rank learned while the page is open; LT/RT (Z/C): move a
+    /// learned ability along the slots of the ability bar (GDD 03 11.8).</para>
     /// </summary>
     /// <remarks>
     /// <para>The screen follows the game state like the pause menu: <see cref="UiStateDirector"/> opens it when it pushed
@@ -29,10 +33,29 @@ namespace Aetherfall.UI.Screens
         /// <summary>Quest rows that fit into the list column.</summary>
         public const int VisibleQuestRows = 5;
 
-        private const int PageCount = 2;
+        /// <summary>Skill rows that fit into the list column.</summary>
+        public const int VisibleSkillRows = 6;
+
+        private const int PageCount = 3;
 
         private readonly IQuestService _quests;
         private readonly IProgressionService _progression;
+        private readonly ISkillService _skills;
+        private readonly MenuItemList _skillList;
+        private readonly ListWindow _skillWindow = new ListWindow(VisibleSkillRows);
+        private readonly List<SkillNode> _skillNodes = new List<SkillNode>();
+        private readonly VisualElement _skillRows;
+        private readonly Label _skillPoints;
+        private readonly Label _skillMoreUp;
+        private readonly Label _skillMoreDown;
+        private readonly Label _skillEmpty;
+        private readonly VisualElement _skillDetails;
+        private readonly Label _skillTitle;
+        private readonly Label _skillMeta;
+        private readonly Label _skillDescription;
+        private readonly Label _skillState;
+        private readonly Label _skillBar;
+        private int _skillRevision = -1;
         private readonly Action _closeRequested;
         private readonly VisualTreeAsset _questRowAsset;
         private readonly VisualTreeAsset _objectiveRowAsset;
@@ -66,6 +89,7 @@ namespace Aetherfall.UI.Screens
         private readonly Label _hintSecondary;
         private readonly VisualElement _hintSecondaryGroup;
         private readonly VisualElement _hintSubtabs;
+        private readonly Label _hintSubtabText;
         private readonly List<QuestLogEntry> _entries = new List<QuestLogEntry>();
         private readonly QuestDetails _shown = new QuestDetails();
         private readonly ListWindow _window = new ListWindow(VisibleQuestRows);
@@ -89,9 +113,10 @@ namespace Aetherfall.UI.Screens
         /// <param name="closeRequested">
         /// Called for B / Esc / J (the director pops <c>Menu</c>); null: the screen closes itself.
         /// </param>
+        /// <param name="skills">Skill trees (null: the skill page stays empty).</param>
         public JournalScreen(VisualElement root, VisualTreeAsset questRowAsset, VisualTreeAsset objectiveRowAsset, VisualTreeAsset lineAsset,
             VisualTreeAsset attributeRowAsset, VisualTreeAsset valueRowAsset, IGlyphService glyphs, IQuestService quests, IProgressionService progression,
-            Action closeRequested) : base(Id, root, glyphs)
+            Action closeRequested, ISkillService skills = null) : base(Id, root, glyphs)
         {
             if (questRowAsset == null || objectiveRowAsset == null || lineAsset == null || attributeRowAsset == null || valueRowAsset == null)
             {
@@ -108,6 +133,7 @@ namespace Aetherfall.UI.Screens
 
             _quests = quests;
             _progression = progression;
+            _skills = skills;
             _closeRequested = closeRequested;
 
             _title = root.Q<Label>("journal-title");
@@ -115,6 +141,8 @@ namespace Aetherfall.UI.Screens
             _pages[(int)JournalPage.Character] = root.Q<VisualElement>("journal-character-page");
             _pageTabs[(int)JournalPage.Quests] = root.Q<VisualElement>("journal-tab-quests");
             _pageTabs[(int)JournalPage.Character] = root.Q<VisualElement>("journal-tab-character");
+            _pages[(int)JournalPage.Skills] = root.Q<VisualElement>("journal-skills-page");
+            _pageTabs[(int)JournalPage.Skills] = root.Q<VisualElement>("journal-tab-skills");
             for (int i = 0; i < PageCount; i++)
             {
                 var page = (JournalPage)i;
@@ -151,9 +179,23 @@ namespace Aetherfall.UI.Screens
             _hintSecondary = root.Q<Label>("journal-hint-secondary");
             _hintSecondaryGroup = root.Q<VisualElement>("journal-hint-secondary-group");
             _hintSubtabs = root.Q<VisualElement>("journal-hint-subtabs-group");
+            _hintSubtabText = root.Q<Label>("journal-hint-subtabs");
+
+            _skillRows = root.Q<VisualElement>("skills-list");
+            _skillPoints = root.Q<Label>("skills-points");
+            _skillMoreUp = root.Q<Label>("skills-more-up");
+            _skillMoreDown = root.Q<Label>("skills-more-down");
+            _skillEmpty = root.Q<Label>("skills-empty");
+            _skillDetails = root.Q<VisualElement>("skills-details");
+            _skillTitle = root.Q<Label>("skills-detail-title");
+            _skillMeta = root.Q<Label>("skills-detail-meta");
+            _skillDescription = root.Q<Label>("skills-detail-description");
+            _skillState = root.Q<Label>("skills-detail-state");
+            _skillBar = root.Q<Label>("skills-detail-bar");
 
             _questList = CreateList("quests");
             _attributeList = CreateList("attributes");
+            _skillList = CreateList("skills");
             BuildCharacterRows(root.Q<VisualElement>("character-attributes"), attributeRowAsset, valueRowAsset);
             BindGlyphs();
             SelectPage(JournalPage.Quests);
@@ -185,7 +227,15 @@ namespace Aetherfall.UI.Screens
             {
                 RefreshCharacter();
             }
+
+            if (_skills != null && _skills.Revision != _skillRevision)
+            {
+                RebuildSkills();
+            }
         }
+
+        /// <summary>Nodes shown on the skill page (tests and tools).</summary>
+        public IReadOnlyList<SkillNode> SkillNodes => _skillNodes;
 
         /// <inheritdoc />
         public override void Submit(int index)
@@ -193,6 +243,12 @@ namespace Aetherfall.UI.Screens
             if (_page == JournalPage.Character)
             {
                 Spend(index);
+                return;
+            }
+
+            if (_page == JournalPage.Skills)
+            {
+                Learn(index);
                 return;
             }
 
@@ -214,6 +270,12 @@ namespace Aetherfall.UI.Screens
                 return;
             }
 
+            if (_page == JournalPage.Skills)
+            {
+                Unlearn(index);
+                return;
+            }
+
             if (_quests != null && index >= 0 && index < _entries.Count && !_entries[index].Finished)
             {
                 _quests.TrySetFocus(_entries[index].QuestId);
@@ -223,6 +285,20 @@ namespace Aetherfall.UI.Screens
         /// <inheritdoc />
         public override bool TryAdjust(int index, int delta)
         {
+            if (_page == JournalPage.Skills)
+            {
+                if (delta > 0)
+                {
+                    Learn(index);
+                }
+                else
+                {
+                    Unlearn(index);
+                }
+
+                return true;
+            }
+
             if (_page != JournalPage.Character)
             {
                 return false;
@@ -249,6 +325,12 @@ namespace Aetherfall.UI.Screens
         /// <inheritdoc />
         public override void SubTab(int delta)
         {
+            if (_page == JournalPage.Skills)
+            {
+                MoveOnBar(delta);
+                return;
+            }
+
             if (_page == JournalPage.Quests)
             {
                 SelectCategory((QuestLogTab)((((int)_tab + delta) % QuestLogRules.TabCount + QuestLogRules.TabCount) % QuestLogRules.TabCount));
@@ -280,6 +362,16 @@ namespace Aetherfall.UI.Screens
 
                 ShowDetails();
             }
+
+            if (_page == JournalPage.Skills && ReferenceEquals(ActiveList, _skillList))
+            {
+                if (_skillWindow.EnsureVisible(current))
+                {
+                    ApplySkillWindow();
+                }
+
+                ShowSkillDetails();
+            }
         }
 
         /// <inheritdoc />
@@ -290,8 +382,11 @@ namespace Aetherfall.UI.Screens
             _window.Reset();
             _questList.Focus.FocusFirst();
             _attributeList.Focus.FocusFirst();
+            _skillList.Focus.FocusFirst();
+            _skillWindow.Reset();
             RebuildQuests(string.Empty);
             RefreshCharacter();
+            RebuildSkills();
             SelectPage(_page);
             base.OnOpen(args);
         }
@@ -303,6 +398,11 @@ namespace Aetherfall.UI.Screens
             if (_progression != null)
             {
                 _progression.LockAllocation();
+            }
+
+            if (_skills != null)
+            {
+                _skills.LockSession();
             }
 
             base.OnClose();
@@ -321,16 +421,24 @@ namespace Aetherfall.UI.Screens
             }
 
             bool quests = page == JournalPage.Quests;
-            UiElementUtility.SetText(_title, UiTexts.Get(quests ? UiTextKeys.JournalQuests : UiTextKeys.JournalCharacter));
-            UiElementUtility.SetText(_hintConfirm, UiTexts.Get(quests ? UiTextKeys.HintTrack : UiTextKeys.HintSpend));
+            bool skills = page == JournalPage.Skills;
+            UiElementUtility.SetText(_title, UiTexts.Get(quests ? UiTextKeys.JournalQuests : skills ? UiTextKeys.JournalSkills : UiTextKeys.JournalCharacter));
+            UiElementUtility.SetText(_hintConfirm, UiTexts.Get(quests ? UiTextKeys.HintTrack : skills ? UiTextKeys.HintLearn : UiTextKeys.HintSpend));
             UiElementUtility.SetText(_hintSecondary, UiTexts.Get(quests ? UiTextKeys.HintFocus : UiTextKeys.HintRefund));
-            UiElementUtility.SetDisplayed(_hintSubtabs, quests);
+            UiElementUtility.SetText(_hintSubtabText, UiTexts.Get(skills ? UiTextKeys.HintBar : UiTextKeys.HintSubtabs));
+            UiElementUtility.SetDisplayed(_hintSubtabs, quests || skills);
             UpdateActionHints();
             if (quests)
             {
                 Activate(_questList, _questList.Focus.HasFocus ? _questList.Focus.Current : 0);
                 ApplyWindow();
                 ShowDetails();
+            }
+            else if (skills)
+            {
+                Activate(_skillList, _skillList.Focus.HasFocus ? _skillList.Focus.Current : 0);
+                ApplySkillWindow();
+                ShowSkillDetails();
             }
             else
             {
@@ -354,7 +462,7 @@ namespace Aetherfall.UI.Screens
         private void UpdateActionHints()
         {
             // Finished quests cannot be tracked or focused: the hints for A and X are hidden on the tab "Abgeschlossen".
-            bool actions = _page == JournalPage.Character || _tab != QuestLogTab.Completed;
+            bool actions = _page != JournalPage.Quests || _tab != QuestLogTab.Completed;
             UiElementUtility.SetDisplayed(_hintConfirm != null ? _hintConfirm.parent : null, actions);
             UiElementUtility.SetDisplayed(_hintSecondaryGroup, actions);
         }
@@ -550,6 +658,147 @@ namespace Aetherfall.UI.Screens
             {
                 _progression.TryRefundAttributePoint(_attributes[index].Stat);
             }
+        }
+
+        private void RebuildSkills()
+        {
+            int previous = _skillList.Focus.HasFocus ? _skillList.Focus.Current : 0;
+            _skillRevision = _skills != null ? _skills.Revision : 0;
+            SkillTree tree = _skills != null ? _skills.CurrentTree : null;
+            _skillNodes.Clear();
+            if (tree != null)
+            {
+                for (int i = 0; i < tree.Nodes.Count; i++)
+                {
+                    _skillNodes.Add(tree.Nodes[i]);
+                }
+            }
+
+            // Rows are reused: the tree only changes with the class, the texts with every learned rank.
+            if (_skillRows != null && _skillList.Count != _skillNodes.Count)
+            {
+                _skillList.Clear();
+                _skillRows.Clear();
+                for (int i = 0; i < _skillNodes.Count; i++)
+                {
+                    _questRowAsset.CloneTree(_skillRows);
+                    _skillList.Add(_skillRows[_skillRows.childCount - 1]);
+                }
+            }
+
+            for (int i = 0; i < _skillNodes.Count && i < _skillList.Count; i++)
+            {
+                SkillNode node = _skillNodes[i];
+                int rank = _skills.Rank(node.Id);
+                SkillCheck check = _skills.Check(node.Id);
+                VisualElement row = _skillList[i];
+                UiElementUtility.SetText(row.Q<Label>("quest-row-title"), node.DisplayName);
+                UiElementUtility.SetText(row.Q<Label>("quest-row-info"), SkillPageModel.RowInfo(tree, node, rank));
+                UiElementUtility.SetText(row.Q<Label>("quest-row-badge"), SkillPageModel.Badge(node, rank, check));
+                row.EnableInClassList("is-learned", rank > 0);
+                row.EnableInClassList("is-available", check == SkillCheck.Ok);
+                row.EnableInClassList("is-finished", rank == 0 && check != SkillCheck.Ok);
+                VisualElement stripe = row.Q<VisualElement>("quest-row-stripe");
+                if (stripe != null)
+                {
+                    for (int b = 0; b < 4; b++)
+                    {
+                        stripe.EnableInClassList("af-skill-branch-" + b, b == node.Branch);
+                    }
+                }
+            }
+
+            UiElementUtility.SetText(_skillPoints, _skills != null ? SkillPageModel.PointsText(_skills.FreePoints, _skills.Level) : string.Empty);
+            if (_skillPoints != null)
+            {
+                _skillPoints.EnableInClassList("has-points", _skills != null && _skills.FreePoints > 0);
+            }
+
+            _skillWindow.SetCount(_skillNodes.Count);
+            if (_skillNodes.Count > 0)
+            {
+                _skillList.Focus.Restore(Math.Min(previous, _skillNodes.Count - 1));
+                _skillWindow.EnsureVisible(_skillList.Focus.Current);
+            }
+
+            UiElementUtility.SetDisplayed(_skillEmpty, _skillNodes.Count == 0);
+            UiElementUtility.SetDisplayed(_skillDetails, _skillNodes.Count > 0);
+            _skillList.RefreshFocus(_page == JournalPage.Skills && IsOpen);
+            ApplySkillWindow();
+            ShowSkillDetails();
+        }
+
+        private void ApplySkillWindow()
+        {
+            for (int i = 0; i < _skillList.Count; i++)
+            {
+                UiElementUtility.SetDisplayed(_skillList[i], _skillWindow.IsVisible(i));
+            }
+
+            if (_skillMoreUp != null)
+            {
+                _skillMoreUp.EnableInClassList("is-off", !_skillWindow.HasMoreAbove);
+            }
+
+            if (_skillMoreDown != null)
+            {
+                _skillMoreDown.EnableInClassList("is-off", !_skillWindow.HasMoreBelow);
+            }
+        }
+
+        private SkillNode FocusedNode()
+        {
+            int index = _skillList.Focus.HasFocus ? _skillList.Focus.Current : -1;
+            return index >= 0 && index < _skillNodes.Count ? _skillNodes[index] : null;
+        }
+
+        private void ShowSkillDetails()
+        {
+            SkillNode node = FocusedNode();
+            if (node == null || _skills == null)
+            {
+                return;
+            }
+
+            SkillTree tree = _skills.CurrentTree;
+            SetLine(_skillTitle, node.DisplayName);
+            SetLine(_skillMeta, SkillPageModel.Meta(tree, node));
+            SetLine(_skillDescription, node.Description);
+            SetLine(_skillState, SkillPageModel.StateText(tree, node, _skills.Check(node.Id), _skills.CanRefund(node.Id)));
+            string abilityId = node.AbilityId;
+            bool onBar = node.Kind == SkillNodeKind.Active && abilityId.Length > 0 && _skills.Rank(node.Id) > 0 && _skills.Loadout != null;
+            SetLine(_skillBar, onBar ? SkillPageModel.BarText(_skills.Loadout.SlotOf(abilityId)) : string.Empty);
+        }
+
+        private void Learn(int index)
+        {
+            if (_skills != null && index >= 0 && index < _skillNodes.Count)
+            {
+                _skills.TryLearn(_skillNodes[index].Id);
+                RebuildSkills();
+            }
+        }
+
+        private void Unlearn(int index)
+        {
+            if (_skills != null && index >= 0 && index < _skillNodes.Count)
+            {
+                _skills.TryRefund(_skillNodes[index].Id);
+                RebuildSkills();
+            }
+        }
+
+        private void MoveOnBar(int delta)
+        {
+            SkillNode node = FocusedNode();
+            if (_skills == null || node == null || node.Kind != SkillNodeKind.Active || node.AbilityId.Length == 0 || _skills.Loadout == null ||
+                _skills.Rank(node.Id) == 0)
+            {
+                return;
+            }
+
+            _skills.Loadout.MoveToNextSlot(node.AbilityId, delta);
+            ShowSkillDetails();
         }
 
         private static void SetLine(Label label, string text)

@@ -10,7 +10,7 @@ namespace Aetherfall.Combat
     /// </summary>
     public sealed class AbilityBuffs
     {
-        private const int KindCount = 4;
+        private const int KindCount = 5;
         private readonly float[] _remaining = new float[KindCount];
         private readonly float[] _value = new float[KindCount];
         private readonly float[] _buildup = new float[KindCount];

@@ -92,8 +92,11 @@ namespace Aetherfall.Player
         private IAbilityGrants _grants;
         private StatModifier _armorBuff;
         private StatModifier _speedBuff;
+        private StatModifier _guardBuff;
         private bool _armorApplied;
         private bool _speedApplied;
+        private bool _guardApplied;
+        private AbilityModifiers _modifiers;
         private float _yaw;
         private float _learnTimer;
         private float _auraTimer;
@@ -226,6 +229,15 @@ namespace Aetherfall.Player
 
             bool free = (combat == null || combat.IsFreeForAbility) && _casting == null && combatant.IsAlive;
             AbilityRefusal refusal = slot.Runner.Check(true, free, Mana);
+            if (refusal == AbilityRefusal.None && slot.Spec.RequiresShield && !HasShield())
+            {
+                refusal = AbilityRefusal.NeedsShield;
+            }
+
+            if (refusal == AbilityRefusal.None && slot.Spec.StaminaCost > 0f && Stamina < slot.Spec.StaminaCost)
+            {
+                refusal = AbilityRefusal.NotEnoughStamina;
+            }
             Combatant target = null;
             if (refusal == AbilityRefusal.None)
             {
@@ -552,6 +564,13 @@ namespace Aetherfall.Player
                 mana.Spend(slot.Runner.ManaCost);
             }
 
+            ResourcePool stamina = stats != null ? stats.Stamina : null;
+            if (stamina != null && slot.Spec.StaminaCost > 0f)
+            {
+                // Warrior techniques cost stamina (GDD 03 11.4).
+                stamina.Spend(slot.Spec.StaminaCost);
+            }
+
             AbilitySpec spec = slot.Spec;
             if (spec.Corruption > 0f)
             {
@@ -586,6 +605,9 @@ namespace Aetherfall.Player
                 case AbilityKind.SelfBuff:
                     hits = ReleaseBuff(slot);
                     break;
+                case AbilityKind.Shout:
+                    hits = ReleaseShout(slot);
+                    break;
                 default:
                     hits = ReleaseCone(slot);
                     break;
@@ -604,8 +626,16 @@ namespace Aetherfall.Player
             for (int i = 0; i < _hits.Count; i++)
             {
                 Combatant target = _hits[i];
+                Pull(target, spec.PullDistance);
                 Strike(slot.Attack, profile, target, position);
+                Control(spec, target);
                 Publish(spec.Id, target.CombatantId, target.transform.position);
+            }
+
+            // Further hits (Wirbelklinge: second rotation) around the caster where he stands then.
+            for (int repeat = 1; repeat < spec.Repeats; repeat++)
+            {
+                _strikes.Add(new PendingStrike(slot, position, repeat * spec.RepeatInterval, true));
             }
 
             if (_hits.Count == 0)
@@ -804,6 +834,141 @@ namespace Aetherfall.Player
             return 0;
         }
 
+        private void PulseCone(Slot slot)
+        {
+            AbilitySpec spec = slot.Spec;
+            Vector3 position = transform.position;
+            AttackProfile profile = Profile(slot, 1f);
+            CombatantQueries.FindInCone(_service != null ? _service.Combatants : null, combatant, _yaw, spec.Range, spec.HalfAngle, _hits);
+            for (int i = 0; i < _hits.Count; i++)
+            {
+                Strike(slot.Attack, profile, _hits[i], position);
+                Control(spec, _hits[i]);
+            }
+
+            if (slot.Visual != null)
+            {
+                slot.Visual.PlayCast(_yaw);
+            }
+
+            CountHits(spec.Id, _hits.Count);
+            LastHitCount += _hits.Count;
+            _hits.Clear();
+        }
+
+        private int ReleaseShout(Slot slot)
+        {
+            // Spott and Kriegsschrei (GDD 03 11.4): everyone hostile in the radius is taunted, weakened or staggers.
+            AbilitySpec spec = slot.Spec;
+            Vector3 position = transform.position;
+            int affected = 0;
+            if (_service != null)
+            {
+                IReadOnlyList<Combatant> all = _service.Combatants;
+                for (int i = 0; i < all.Count; i++)
+                {
+                    Combatant target = all[i];
+                    if (!IsHostile(target) || !IsInside(target, position, spec.AreaRadius))
+                    {
+                        continue;
+                    }
+
+                    target.TryGetComponent(out ICrowdControlTarget control);
+                    if (spec.TauntSeconds > 0f && control != null)
+                    {
+                        control.Taunt(combatant, spec.TauntSeconds);
+                    }
+
+                    if (spec.WeakenFraction > 0f)
+                    {
+                        target.Weaken(spec.WeakenFraction, spec.WeakenSeconds);
+                    }
+
+                    if (spec.StaggerSeconds > 0f && control != null && control.IsNormalRank && !control.IsLarge)
+                    {
+                        control.Stagger(spec.StaggerSeconds);
+                    }
+
+                    Publish(spec.Id, target.CombatantId, target.transform.position);
+                    affected++;
+                }
+            }
+
+            if (spec.BuffKind != AbilityBuffKind.None)
+            {
+                _buffs.Start(spec.BuffKind, spec.BuffSeconds, spec.BuffValue, spec.Buildup);
+            }
+
+            if (slot.Visual != null)
+            {
+                slot.Visual.PlayCast(_yaw);
+                slot.Visual.PlayImpact(position);
+            }
+
+            if (affected == 0)
+            {
+                Publish(spec.Id, string.Empty, position);
+            }
+
+            CountHits(spec.Id, affected);
+            return affected;
+        }
+
+        private void Control(AbilitySpec spec, Combatant target)
+        {
+            if ((spec.KnockdownSeconds <= 0f && spec.StaggerSeconds <= 0f) || target == null || !target.IsAlive ||
+                !target.TryGetComponent(out ICrowdControlTarget control) || control.IsLarge)
+            {
+                return;
+            }
+
+            // Fußfeger knocks down (not bosses); Schildschlag interrupts normal enemies.
+            if (spec.KnockdownSeconds > 0f)
+            {
+                control.KnockDown(spec.KnockdownSeconds);
+            }
+            else if (control.IsNormalRank)
+            {
+                control.Stagger(spec.StaggerSeconds);
+            }
+        }
+
+        private void Pull(Combatant target, float distance)
+        {
+            // Wirbelklinge: Sog – the enemy slides towards the caster (a metre short of him); bosses are too heavy.
+            if (distance > 0f && target != null && target.TryGetComponent(out ICrowdControlTarget control) && !control.IsLarge)
+            {
+                control.Pull(transform.position, distance);
+            }
+        }
+
+        private float Stamina => stats != null && stats.Stamina != null ? stats.Stamina.Current : 0f;
+
+        private bool HasShield()
+        {
+            return combat == null || combat.HasShield;
+        }
+
+        /// <summary>True if the ability could be used with the current equipment (Schildschlag needs a shield; HUD greys it out).</summary>
+        /// <param name="abilityId">Ability id.</param>
+        public bool IsUsableWithEquipment(string abilityId)
+        {
+            Slot slot = Find(abilityId);
+            return slot != null && (!slot.Spec.RequiresShield || HasShield());
+        }
+
+        /// <summary>Applies what the skill tree changes on the abilities (damage per element, build-up, upgrades).</summary>
+        /// <param name="modifiers">Bonuses; null removes all.</param>
+        public void ApplyModifiers(AbilityModifiers modifiers)
+        {
+            _modifiers = modifiers;
+            for (int i = 0; i < _slots.Length; i++)
+            {
+                Slot slot = _slots[i];
+                slot.Use(modifiers != null ? modifiers.Apply(slot.BaseSpec) : slot.BaseSpec);
+            }
+        }
+
         private int ReleaseBuff(Slot slot)
         {
             AbilitySpec spec = slot.Spec;
@@ -884,7 +1049,14 @@ namespace Aetherfall.Player
                 }
 
                 _strikes.RemoveAt(i);
-                Land(strike.Slot, strike.Point);
+                if (strike.AroundCaster)
+                {
+                    PulseCone(strike.Slot);
+                }
+                else
+                {
+                    Land(strike.Slot, strike.Point);
+                }
             }
         }
 
@@ -986,6 +1158,15 @@ namespace Aetherfall.Player
                     }
 
                     break;
+                case AbilityBuffKind.Guard:
+                    if (stats != null && stats.Stats != null && !_guardApplied)
+                    {
+                        _guardBuff = StatModifier.PercentAdd(StatId.Armor, value, BuffSource + ".spott");
+                        stats.Stats.AddModifier(_guardBuff);
+                        _guardApplied = true;
+                    }
+
+                    break;
             }
         }
 
@@ -1015,6 +1196,14 @@ namespace Aetherfall.Player
                     }
 
                     _speedApplied = false;
+                    break;
+                case AbilityBuffKind.Guard:
+                    if (_guardApplied && stats != null && stats.Stats != null)
+                    {
+                        stats.Stats.RemoveModifier(_guardBuff);
+                    }
+
+                    _guardApplied = false;
                     break;
             }
 
@@ -1112,7 +1301,12 @@ namespace Aetherfall.Player
             float reference;
             if (spec.ScalesWithWeapon)
             {
-                reference = Mathf.Max(weaponDamage, SpellPower());
+                float spellPower = SpellPower();
+                reference = Mathf.Max(weaponDamage, spellPower);
+                if (combat != null && weaponDamage >= spellPower)
+                {
+                    scaling = combat.WeaponScaling;
+                }
             }
             else if (HasMagicWeapon())
             {
@@ -1124,7 +1318,8 @@ namespace Aetherfall.Player
                 reference = SpellPower();
             }
 
-            return new AttackProfile(spec.Split(reference * factor), scaling, spec.PoiseDamage * factor);
+            float bonus = _modifiers != null ? _modifiers.DamageFactor(spec.Element) : 1f;
+            return new AttackProfile(spec.Split(reference * factor * bonus), scaling, spec.PoiseDamage * factor);
         }
 
         private float Reference(AbilitySpec spec)
@@ -1400,22 +1595,32 @@ namespace Aetherfall.Player
             public Slot(AbilityLoadoutEntry entry, AbilitySpec spec)
             {
                 Entry = entry;
-                Spec = spec;
+                BaseSpec = spec;
                 Runner = new AbilityRunner(spec);
-                Attack = spec.CreateAttack();
-                Explosion = spec.CreateExplosionAttack();
                 Visual = entry.Visual;
+                Use(spec);
             }
 
             public AbilityLoadoutEntry Entry { get; }
 
-            public AbilitySpec Spec { get; }
+            /// <summary>Data of the asset.</summary>
+            public AbilitySpec BaseSpec { get; }
+
+            /// <summary>Data with the skill tree upgrades (times and mana stay those of the base data).</summary>
+            public AbilitySpec Spec { get; private set; }
 
             public AbilityRunner Runner { get; }
 
-            public AttackSpec Attack { get; }
+            public AttackSpec Attack { get; private set; }
 
-            public AttackSpec Explosion { get; }
+            public AttackSpec Explosion { get; private set; }
+
+            public void Use(AbilitySpec spec)
+            {
+                Spec = spec;
+                Attack = spec.CreateAttack();
+                Explosion = spec.CreateExplosionAttack();
+            }
 
             public AbilityVisual Visual { get; }
         }
@@ -1440,19 +1645,22 @@ namespace Aetherfall.Player
             public float NextTick { get; set; }
         }
 
-        /// <summary>A lightning strike waiting for its moment.</summary>
+        /// <summary>A lightning strike, or a further hit of a cone around the caster (Wirbelklinge), waiting for its moment.</summary>
         private sealed class PendingStrike
         {
-            public PendingStrike(Slot slot, Vector3 point, float delay)
+            public PendingStrike(Slot slot, Vector3 point, float delay, bool aroundCaster = false)
             {
                 Slot = slot;
                 Point = point;
                 Delay = delay;
+                AroundCaster = aroundCaster;
             }
 
             public Slot Slot { get; }
 
             public Vector3 Point { get; }
+
+            public bool AroundCaster { get; }
 
             public float Delay { get; set; }
         }

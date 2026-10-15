@@ -38,6 +38,9 @@ namespace Aetherfall.EditorTools.World
         /// <summary>Installer of the classes in the BootConfig.</summary>
         public const string ClassInstallerPath = SetupPaths.BootSettingsFolder + "/ClassInstaller.asset";
 
+        /// <summary>Installer of the skill trees.</summary>
+        public const string SkillInstallerPath = SetupPaths.BootSettingsFolder + "/SkillInstaller.asset";
+
         /// <summary>Sets start level, kits and the classes (warrior, mage) of the mini slice.</summary>
         /// <param name="report">Protocol.</param>
         public static void Apply(TestGroundReport report)
@@ -90,7 +93,31 @@ namespace Aetherfall.EditorTools.World
 
             so.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(installer);
+            EnsureSkills(report);
             report.Info("ClassInstaller: " + (classes.Count > 0 ? classes.Count + " Klassen (Krieger, Magier), Klassenwahl bei „Neues Spiel“" : "ohne Klassen (Testgelände)") + ".");
+        }
+
+        private static void EnsureSkills(TestGroundReport report)
+        {
+            // GDD 03 11: one skill tree per class; the installer needs the classes, the progression (skill points) and the saves.
+            List<Aetherfall.Skills.SkillTreeDefinition> trees = SkillTreeAssets.EnsureAll(report);
+            if (!TestGroundAssets.EnsureInstallerInBootConfig<Aetherfall.Skills.SkillInstaller>(SkillInstallerPath, report,
+                    typeof(Aetherfall.Classes.ClassInstaller), typeof(Aetherfall.Progression.ProgressionInstaller), typeof(Aetherfall.SaveSystem.SaveInstaller)))
+            {
+                return;
+            }
+
+            var installer = AssetDatabase.LoadAssetAtPath<Aetherfall.Skills.SkillInstaller>(SkillInstallerPath);
+            var so = new SerializedObject(installer);
+            SerializedProperty list = so.FindProperty("trees");
+            list.arraySize = trees.Count;
+            for (int i = 0; i < trees.Count; i++)
+            {
+                list.GetArrayElementAtIndex(i).objectReferenceValue = trees[i];
+            }
+
+            so.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(installer);
         }
 
         private static Aetherfall.Classes.ClassDefinition EnsureClass(string file, string id, string name, string motto, string description, float[] attributes,

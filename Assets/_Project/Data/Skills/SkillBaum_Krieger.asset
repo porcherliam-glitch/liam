@@ -1,0 +1,305 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 83773d8aa1e11e1429088ee9824daf18, type: 3}
+  m_Name: SkillBaum_Krieger
+  m_EditorClassIdentifier: Aetherfall.Skills::Aetherfall.Skills.SkillTreeDefinition
+  classId: class.krieger
+  displayName: Krieger
+  branchNames:
+  - Waffenmeister
+  - Bollwerk
+  - Kriegsherr
+  nodes:
+  - id: skill.krieger.kern.kampfgeist
+    displayName: Kampfgeist
+    description: Nahkampfschaden +5 %, maximale Ausdauer +10.
+    kind: 0
+    branch: 0
+    tier: 1
+    maxRank: 1
+    cost: 0
+    requires: []
+    forkWith: 
+    minLevel: 1
+    effects:
+    - kind: 1
+      value: 0.05
+      stat: 35
+      percent: 0
+      element: 3
+      abilityId: 
+    - kind: 1
+      value: 10
+      stat: 21
+      percent: 0
+      element: 3
+      abilityId: 
+  - id: skill.krieger.waffenmeister.klingenzucht
+    displayName: Klingenzucht
+    description: Leichte Angriffe +4 % Schaden je Rang.
+    kind: 1
+    branch: 1
+    tier: 1
+    maxRank: 3
+    cost: 1
+    requires: []
+    forkWith: 
+    minLevel: 1
+    effects:
+    - kind: 11
+      value: 0.04
+      stat: 0
+      percent: 0
+      element: 3
+      abilityId: 
+  - id: skill.krieger.waffenmeister.wuchtiger_hieb
+    displayName: Wuchtiger Hieb
+    description: Haltungsschaden schwerer Angriffe +10 % je Rang.
+    kind: 1
+    branch: 1
+    tier: 1
+    maxRank: 2
+    cost: 1
+    requires: []
+    forkWith: 
+    minLevel: 1
+    effects:
+    - kind: 12
+      value: 0.1
+      stat: 0
+      percent: 0
+      element: 3
+      abilityId: 
+  - id: skill.krieger.waffenmeister.wirbelklinge
+    displayName: Wirbelklinge
+    description: "360\xB0-Wirbel, 2 Umdrehungen, je 140 % Waffenschaden \xB7 30 Ausdauer \xB7 Abklingzeit 8 s."
+    kind: 2
+    branch: 1
+    tier: 1
+    maxRank: 1
+    cost: 1
+    requires: []
+    forkWith: 
+    minLevel: 1
+    effects:
+    - kind: 2
+      value: 1
+      stat: 0
+      percent: 0
+      element: 3
+      abilityId: ability.krieger.wirbelklinge
+  - id: skill.krieger.waffenmeister.kombofluss
+    displayName: Kombo-Fluss
+    description: "Ein Kombo-Abschluss, der trifft, gibt 8 Ausdauer zur\xFCck."
+    kind: 1
+    branch: 1
+    tier: 2
+    maxRank: 1
+    cost: 1
+    requires: []
+    forkWith: 
+    minLevel: 1
+    effects:
+    - kind: 14
+      value: 8
+      stat: 0
+      percent: 0
+      element: 3
+      abilityId: 
+  - id: skill.krieger.waffenmeister.wirbelklinge_sog
+    displayName: 'Wirbelklinge: Sog'
+    description: Zieht die Gegner im Wirbel bis zu 2 m heran. Gabelung mit Klingensturm.
+    kind: 3
+    branch: 1
+    tier: 2
+    maxRank: 1
+    cost: 1
+    requires:
+    - skill.krieger.waffenmeister.wirbelklinge
+    forkWith: skill.krieger.waffenmeister.wirbelklinge_sturm
+    minLevel: 1
+    effects:
+    - kind: 9
+      value: 2
+      stat: 0
+      percent: 0
+      element: 3
+      abilityId: ability.krieger.wirbelklinge
+  - id: skill.krieger.waffenmeister.wirbelklinge_sturm
+    displayName: 'Wirbelklinge: Klingensturm'
+    description: 3 Umdrehungen statt 2, kostet 10 Ausdauer mehr. Gabelung mit Sog.
+    kind: 3
+    branch: 1
+    tier: 2
+    maxRank: 1
+    cost: 1
+    requires:
+    - skill.krieger.waffenmeister.wirbelklinge
+    forkWith: skill.krieger.waffenmeister.wirbelklinge_sog
+    minLevel: 1
+    effects:
+    - kind: 8
+      value: 1
+      stat: 0
+      percent: 0
+      element: 3
+      abilityId: ability.krieger.wirbelklinge
+    - kind: 10
+      value: 10
+      stat: 0
+      percent: 0
+      element: 3
+      abilityId: ability.krieger.wirbelklinge
+  - id: skill.krieger.bollwerk.schildmauer
+    displayName: Schildmauer
+    description: "Block-Stabilit\xE4t +5 Prozentpunkte je Rang (weniger Ausdauer beim Blocken)."
+    kind: 1
+    branch: 2
+    tier: 1
+    maxRank: 3
+    cost: 1
+    requires: []
+    forkWith: 
+    minLevel: 1
+    effects:
+    - kind: 13
+      value: 0.05
+      stat: 0
+      percent: 0
+      element: 3
+      abilityId: 
+  - id: skill.krieger.bollwerk.eiserne_haut
+    displayName: Eiserne Haut
+    description: "R\xFCstung +5 % je Rang."
+    kind: 1
+    branch: 2
+    tier: 1
+    maxRank: 3
+    cost: 1
+    requires: []
+    forkWith: 
+    minLevel: 1
+    effects:
+    - kind: 1
+      value: 0.05
+      stat: 40
+      percent: 1
+      element: 3
+      abilityId: 
+  - id: skill.krieger.bollwerk.schildschlag
+    displayName: Schildschlag
+    description: "Sto\xDF mit dem Schild: Haltung 40, Bet\xE4ubung 50, unterbricht Normalgegner \xB7 15 Ausdauer \xB7 Abklingzeit 6 s. Nur mit Schild."
+    kind: 2
+    branch: 2
+    tier: 1
+    maxRank: 1
+    cost: 1
+    requires: []
+    forkWith: 
+    minLevel: 1
+    effects:
+    - kind: 2
+      value: 1
+      stat: 0
+      percent: 0
+      element: 3
+      abilityId: ability.krieger.schildschlag
+  - id: skill.krieger.bollwerk.gegenwehr
+    displayName: Gegenwehr
+    description: "Eine perfekte Parade gibt 20 Ausdauer zur\xFCck."
+    kind: 1
+    branch: 2
+    tier: 2
+    maxRank: 1
+    cost: 1
+    requires: []
+    forkWith: 
+    minLevel: 1
+    effects:
+    - kind: 15
+      value: 20
+      stat: 0
+      percent: 0
+      element: 3
+      abilityId: 
+  - id: skill.krieger.bollwerk.spott
+    displayName: Spott
+    description: "Kampfschrei 10 m: Gegner greifen 6 s lang dich an, R\xFCstung +20 % f\xFCr diese Zeit \xB7 Abklingzeit 15 s."
+    kind: 2
+    branch: 2
+    tier: 2
+    maxRank: 1
+    cost: 1
+    requires: []
+    forkWith: 
+    minLevel: 1
+    effects:
+    - kind: 2
+      value: 1
+      stat: 0
+      percent: 0
+      element: 3
+      abilityId: ability.krieger.spott
+  - id: skill.krieger.kriegsherr.kommandostimme
+    displayName: Kommandostimme
+    description: Begleiter +5 % Schaden je Rang.
+    kind: 1
+    branch: 3
+    tier: 1
+    maxRank: 2
+    cost: 1
+    requires: []
+    forkWith: 
+    minLevel: 1
+    effects:
+    - kind: 16
+      value: 0.05
+      stat: 0
+      percent: 0
+      element: 3
+      abilityId: 
+  - id: skill.krieger.kriegsherr.kriegsschrei
+    displayName: Kriegsschrei
+    description: "8 m: Gegnerschaden \u221220 % f\xFCr 8 s, Normalgegner taumeln 1 s \xB7 20 Ausdauer \xB7 Abklingzeit 20 s."
+    kind: 2
+    branch: 3
+    tier: 1
+    maxRank: 1
+    cost: 1
+    requires: []
+    forkWith: 
+    minLevel: 1
+    effects:
+    - kind: 2
+      value: 1
+      stat: 0
+      percent: 0
+      element: 3
+      abilityId: ability.krieger.kriegsschrei
+  - id: skill.krieger.kriegsherr.fussfeger
+    displayName: "Fu\xDFfeger"
+    description: "Tiefer Kreishieb 3 m: wirft Gegner 1,2 s um (nicht Bosse), 90 % Waffenschaden \xB7 25 Ausdauer \xB7 Abklingzeit 12 s."
+    kind: 2
+    branch: 3
+    tier: 2
+    maxRank: 1
+    cost: 1
+    requires: []
+    forkWith: 
+    minLevel: 1
+    effects:
+    - kind: 2
+      value: 1
+      stat: 0
+      percent: 0
+      element: 3
+      abilityId: ability.krieger.fussfeger

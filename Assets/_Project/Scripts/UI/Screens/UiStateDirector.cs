@@ -335,6 +335,14 @@ namespace Aetherfall.UI.Screens
                 return;
             }
 
+            // Key K (GDD 03 1.5, hub tab "Skill-Baum"): the skill page of the journal.
+            if (_journal != null && _gameplay != null && _gameplay.IsActive && _gameState.Current == GameState.Playing &&
+                _gameplay.WasPressedThisFrame(GameplayButton.SkillTree))
+            {
+                OpenJournal(JournalPage.Skills);
+                return;
+            }
+
             // Same rule as the stand-in routing of the input service (PauseRouting): Playing and Dialogue may push Paused.
             // A save that is being written does not block it (IsFlowRunning, not IsBusy).
             bool pressed = _pausePressed != null && _pausePressed();

@@ -1,5 +1,5 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
-    <!-- Journal (GDD 05 1.3 hub tabs "Questlog" and "Charakter", LB/RB; quest categories with LT/RT, GDD 02 7.1). -->
+    <!-- Journal (GDD 05 1.3 hub tabs "Questlog", "Charakter" and "Fähigkeiten", LB/RB; quest categories with LT/RT, GDD 02 7.1). -->
     <ui:VisualElement name="journal" class="af-root af-screen af-overlay af-journal">
         <ui:VisualElement class="af-panel af-journal__panel">
             <ui:VisualElement class="af-pause__header">
@@ -8,6 +8,7 @@
                     <ui:Label name="journal-tabs-glyph-tabprev" class="af-text af-glyph" picking-mode="Ignore" />
                     <ui:Button name="journal-tab-quests" class="af-text af-tab" focusable="false" />
                     <ui:Button name="journal-tab-character" class="af-text af-tab" focusable="false" />
+                    <ui:Button name="journal-tab-skills" class="af-text af-tab" focusable="false" />
                     <ui:Label name="journal-tabs-glyph-tabnext" class="af-text af-glyph" picking-mode="Ignore" />
                 </ui:VisualElement>
             </ui:VisualElement>
@@ -58,6 +59,24 @@
                     <ui:VisualElement class="af-character__right">
                         <ui:Label name="character-derived-title" class="af-text af-questlog__section" />
                         <ui:VisualElement name="character-derived" class="af-character__derived" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+                <ui:VisualElement name="journal-skills-page" class="af-journal__page af-skills">
+                    <ui:Label name="skills-points" class="af-text af-character__points" />
+                    <ui:VisualElement class="af-questlog">
+                        <ui:VisualElement class="af-questlog__list-column">
+                            <ui:Label name="skills-more-up" class="af-text af-questlog__more" picking-mode="Ignore" />
+                            <ui:VisualElement name="skills-list" class="af-questlog__list" />
+                            <ui:Label name="skills-more-down" class="af-text af-questlog__more" picking-mode="Ignore" />
+                            <ui:Label name="skills-empty" class="af-text af-page__empty" />
+                        </ui:VisualElement>
+                        <ui:VisualElement name="skills-details" class="af-questlog__details">
+                            <ui:Label name="skills-detail-title" class="af-text af-questlog__title" />
+                            <ui:Label name="skills-detail-meta" class="af-text af-questlog__meta" />
+                            <ui:Label name="skills-detail-description" class="af-text af-questlog__description" />
+                            <ui:Label name="skills-detail-state" class="af-text af-questlog__stage" />
+                            <ui:Label name="skills-detail-bar" class="af-text af-questlog__stage" />
+                        </ui:VisualElement>
                     </ui:VisualElement>
                 </ui:VisualElement>
             </ui:VisualElement>

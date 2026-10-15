@@ -239,7 +239,7 @@ namespace Aetherfall.EditorTools.World
             TestGroundFields.SetInt(caster, "groundLayers", 1 << environmentLayer, report);
             var casterSerialized = new SerializedObject(caster);
             SerializedProperty loadout = casterSerialized.FindProperty("abilities");
-            loadout.arraySize = 1 + assets.Spells.Count;
+            loadout.arraySize = 1 + assets.Spells.Count + assets.Techniques.Count;
             SetAbility(loadout.GetArrayElementAtIndex(0), assets.AetherPush, abilityUnlockFlag ?? string.Empty, testGround, 4,
                 AetherPushEffect.Build(player.transform, report));
             for (int i = 0; i < assets.Spells.Count; i++)
@@ -249,7 +249,21 @@ namespace Aetherfall.EditorTools.World
                 SetAbility(loadout.GetArrayElementAtIndex(1 + i), spell, string.Empty, testGround, 0, look);
             }
 
+            for (int i = 0; i < assets.Techniques.Count; i++)
+            {
+                AbilityDefinition technique = assets.Techniques[i];
+                AbilityVisual look = TechniqueVisualsBuilder.Build(player.transform, technique.AbilityId, report);
+                SetAbility(loadout.GetArrayElementAtIndex(1 + assets.Spells.Count + i), technique, string.Empty, testGround, 0, look);
+            }
+
             casterSerialized.ApplyModifiedPropertiesWithoutUndo();
+
+            // GDD 03 11: the skill tree of the class gives bonuses and teaches spells and techniques.
+            Aetherfall.Skills.PlayerSkills skills = player.AddComponent<Aetherfall.Skills.PlayerSkills>();
+            TestGroundFields.SetReference(skills, "caster", caster, report);
+            TestGroundFields.SetReference(skills, "combat", combat, report);
+            TestGroundFields.SetReference(skills, "stats", stats, report);
+            TestGroundFields.SetReference(skills, "combatant", combatant, report);
             TestGroundFields.SetReference(combat, "projectiles", launcher, report);
             var combatSerialized = new SerializedObject(combat);
             SerializedProperty movesets = combatSerialized.FindProperty("movesets");

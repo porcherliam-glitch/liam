@@ -49,7 +49,7 @@ namespace Aetherfall.Progression
         /// <summary>Attribute points that can be distributed.</summary>
         int UnspentAttributePoints { get; }
 
-        /// <summary>Skill points that can be spent in the skill trees (the trees follow later).</summary>
+        /// <summary>Skill points that can be spent in the skill trees (GDD 03 11.3).</summary>
         int UnspentSkillPoints { get; }
 
         /// <summary>The player's stats bound by <see cref="AttachPlayerStats"/>, or null.</summary>
@@ -83,6 +83,15 @@ namespace Aetherfall.Progression
         /// <param name="amount">Points (0 or less = nothing).</param>
         /// <param name="sourceId">Source for logs.</param>
         void AddSkillPoints(int amount, string sourceId);
+
+        /// <summary>Spends free skill points (a node of a skill tree).</summary>
+        /// <param name="amount">Points (0 is allowed and always succeeds).</param>
+        /// <returns>False if not enough points are free.</returns>
+        bool TrySpendSkillPoints(int amount);
+
+        /// <summary>Gives spent skill points back (a node taken back while the skill page is open, or a respec).</summary>
+        /// <param name="amount">Points (0 or less = nothing).</param>
+        void RefundSkillPoints(int amount);
 
         /// <summary>True if one more point can go to the attribute now.</summary>
         /// <param name="attribute">One of the six attributes.</param>

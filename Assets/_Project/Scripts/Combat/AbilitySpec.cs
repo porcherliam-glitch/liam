@@ -128,14 +128,50 @@ namespace Aetherfall.Combat
         /// <summary>Self-buff: strength (Glutmantel 0.2 = +20 % as fire, Eispanzer 0.3 = armor +30 %, Sturmschritt 0.2 = +20 % speed).</summary>
         public float BuffValue { get; set; } = 0.2f;
 
+        /// <summary>Stamina paid when the ability takes effect (warrior techniques, GDD 03 11.4: Wirbelklinge 30).</summary>
+        public float StaminaCost { get; set; }
+
+        /// <summary>Only usable with a shield in the off hand (Schildschlag; greyed out without one, GDD 03 11.8).</summary>
+        public bool RequiresShield { get; set; }
+
+        /// <summary>Cone: number of hits one after the other (Wirbelklinge: 2 rotations).</summary>
+        public int Repeats { get; set; } = 1;
+
+        /// <summary>Cone: seconds between two hits.</summary>
+        public float RepeatInterval { get; set; } = 0.35f;
+
+        /// <summary>Cone: enemies within the range are pulled this many metres towards the caster first (Wirbelklinge: Sog 2).</summary>
+        public float PullDistance { get; set; }
+
+        /// <summary>Seconds a hit knocks an enemy down (Fußfeger 1.2; never bosses).</summary>
+        public float KnockdownSeconds { get; set; }
+
+        /// <summary>Seconds a hit or shout makes normal enemies stagger (Schildschlag interrupts, Kriegsschrei 1).</summary>
+        public float StaggerSeconds { get; set; }
+
+        /// <summary>Shout: seconds the enemies in the radius attack the caster (Spott 6).</summary>
+        public float TauntSeconds { get; set; }
+
+        /// <summary>Shout: share of damage the enemies in the radius lose (Kriegsschrei 0.2 = −20 %).</summary>
+        public float WeakenFraction { get; set; }
+
+        /// <summary>Shout: seconds the weakening lasts (Kriegsschrei 8).</summary>
+        public float WeakenSeconds { get; set; }
+
         /// <summary>Half of the cone angle in degrees.</summary>
         public float HalfAngle => ConeAngle * 0.5f;
 
         /// <summary>True for abilities that need a target to start (the chain).</summary>
         public bool NeedsTarget => Kind == AbilityKind.Chain;
 
-        /// <summary>True for abilities that deal damage when they take effect (all but self-buffs).</summary>
-        public bool DealsDamage => Kind != AbilityKind.SelfBuff;
+        /// <summary>True for abilities that deal damage when they take effect (all but self-buffs and shouts).</summary>
+        public bool DealsDamage => Kind != AbilityKind.SelfBuff && Kind != AbilityKind.Shout;
+
+        /// <summary>A copy (skill upgrades change the copy, the base data stays).</summary>
+        public AbilitySpec Clone()
+        {
+            return (AbilitySpec)MemberwiseClone();
+        }
 
         /// <summary>Mana cost at a character level (GDD 03 6.3: × (1 + 0.02 × (level − 1))).</summary>
         /// <param name="level">Character level (values below 1 count as 1).</param>
@@ -226,7 +262,8 @@ namespace Aetherfall.Combat
                 return "Ability '" + Id + "': the id must start with 'ability.'.";
             }
 
-            if (!(ManaCost >= 0f && CooldownSeconds >= 0f && WindupSeconds >= 0f && RecoverySeconds >= 0f && Buildup >= 0f))
+            if (!(ManaCost >= 0f && StaminaCost >= 0f && CooldownSeconds >= 0f && WindupSeconds >= 0f && RecoverySeconds >= 0f && Buildup >= 0f &&
+                  Repeats >= 1 && RepeatInterval >= 0f && PullDistance >= 0f && KnockdownSeconds >= 0f && StaggerSeconds >= 0f))
             {
                 return "Ability '" + Id + "': costs, times and build-up must be 0 or more.";
             }
@@ -260,6 +297,10 @@ namespace Aetherfall.Combat
                     return BuffKind != AbilityBuffKind.None && BuffSeconds > 0f && BuffValue >= 0f
                         ? string.Empty
                         : "Ability '" + Id + "': a self-buff needs a buff kind and a duration above 0.";
+                case AbilityKind.Shout:
+                    return AreaRadius > 0f && TauntSeconds >= 0f && WeakenFraction >= 0f && WeakenFraction < 1f && WeakenSeconds >= 0f
+                        ? string.Empty
+                        : "Ability '" + Id + "': a shout needs a radius above 0 and a weakening from 0 to below 1.";
                 default:
                     return "Ability '" + Id + "': unknown kind " + Kind + ".";
             }

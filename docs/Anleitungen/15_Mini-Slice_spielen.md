@@ -47,6 +47,7 @@ Tipp: Im Game-Fenster oben in der Leiste **Play Maximized** wählen, dann ist da
 | Manatrank trinken (Magier, 3 Stück zu Beginn): +40 % Mana | **6** |
 | Inventar und Charakter | **Tab** |
 | Questlog | **J** |
+| Skill-Baum (Fähigkeiten lernen) | **K** |
 | Schnell speichern / laden | **F5** / **F9** |
 | Pause, Menü, Spiel speichern | **Esc** |
 | Im Gespräch: Antwort wählen | **1–9** oder Maus, weiter mit **E** oder **Leertaste** |
@@ -59,7 +60,11 @@ Mit Gamepad geht es auch (Xbox-Belegung: A springen und benutzen, X/Y angreifen,
 
 **Streitkolben:** Bei Tobold zu kaufen, im Inventar (**Tab**) anlegen. Drei langsamere, wuchtige Schläge statt vier Schwerthieben, der dritte von oben; dafür bricht er die Deckung schneller. Den Schild behältst du.
 
-**Zauber (Magier):** Der Magier kann von Anfang an drei Zauber, je einen pro Schule, auf den Tasten **1–3**: **Feuerball** (fliegt, explodiert in 2 m und setzt in Brand), **Eislanze** (durchbohrt den ersten Gegner und trifft noch einen zweiten, lässt erfrieren) und **Kettenblitz** (springt von deinem Ziel auf bis zu zwei weitere Gegner, jeder Sprung 20 % schwächer). Gezielt wird auf den anvisierten Gegner (**T**), sonst auf den nächsten. Zauber kosten Mana (etwas mehr mit jeder Stufe) und haben eine Wartezeit. Die sechs anderen Zauber kommen mit dem Skill-Baum: Flammenteppich (Boden brennt 6 s), Glutmantel (Feuer-Aura), Frostnova (Frost-Ring um dich), Eispanzer (mehr Rüstung, Angreifer frieren), Gewitterruf (drei Blitze aus dem Himmel) und Sturmschritt (20 % schneller, eine Rolle hinterlässt einen Schock). Mit **X** wechselst du zur zweiten Leiste.
+**Zauber (Magier):** Der Magier kann von Anfang an drei Zauber, je einen pro Schule, auf den Tasten **1–3**: **Feuerball** (fliegt, explodiert in 2 m und setzt in Brand), **Eislanze** (durchbohrt den ersten Gegner und trifft noch einen zweiten, lässt erfrieren) und **Kettenblitz** (springt von deinem Ziel auf bis zu zwei weitere Gegner, jeder Sprung 20 % schwächer). Gezielt wird auf den anvisierten Gegner (**T**), sonst auf den nächsten. Zauber kosten Mana (etwas mehr mit jeder Stufe) und haben eine Wartezeit. Die sechs anderen Zauber lernst du im Skill-Baum (**K**): Flammenteppich (Boden brennt 6 s), Glutmantel (Feuer-Aura), Frostnova (Frost-Ring um dich), Eispanzer (mehr Rüstung, Angreifer frieren), Gewitterruf (drei Blitze aus dem Himmel) und Sturmschritt (20 % schneller, eine Rolle hinterlässt einen Schock). Mit **X** wechselst du zur zweiten Leiste.
+
+**Skill-Baum (K):** Mit jeder Stufe bekommst du einen Skillpunkt (bis Stufe 8 also 7). Taste **K** öffnet im Tagebuch die Seite „Fähigkeiten“ mit dem Baum deiner Klasse: oben der Kern (von Anfang an gelernt), darunter die drei Äste. **Enter** (oder ►) lernt den markierten Knoten, **F** (oder ◄) nimmt ihn zurück, solange die Seite offen ist. Stufe II eines Asts öffnet sich mit 3 Punkten in seinen unteren Knoten; bei einer Gabelung geht nur eine Seite. Gelernte Fähigkeiten kommen von selbst auf die Leiste; mit **Z / C** schiebst du die markierte Fähigkeit auf einen anderen Platz (nach Platz 8 nimmt sie es von der Leiste). Mit **Q / E** wechselst du zwischen Questlog, Charakter und Fähigkeiten.
+
+**Krieger-Techniken (Skill-Baum):** **Wirbelklinge** (zwei Drehungen, trifft alles um dich), **Schildschlag** (nur mit Schild: betäubt und unterbricht), **Spott** (Gegner in 10 m greifen dich an, du hältst mehr aus), **Kriegsschrei** (Gegner machen 8 s weniger Schaden, normale Gegner taumeln) und **Fußfeger** (wirft Gegner um, nicht Bosse). Sie kosten Ausdauer statt Mana. Dazu passive Knoten: stärkere leichte Angriffe, mehr Rüstung, stabileres Blocken, Ausdauer zurück nach Kombo-Abschluss oder perfekter Parade, mehr Schaden für Ser Maren.
 
 Unten rechts im HUD stehen die vier Felder der aktiven Leiste, darüber „Leiste 1 von 2“. Ein Feld leuchtet in der Farbe seines Elements (Feuer orange, Eis hellblau, Blitz gelb, Aether violett), sobald du die Fähigkeit kannst; Feld 4 von Leiste 1 ist für den Aether-Stoß frei. Nach dem Einsatz läuft dort die Wartezeit in Sekunden ab; grau heißt: zu wenig Mana.
 
@@ -87,7 +92,7 @@ Oben rechts steht immer dein aktuelles Ziel. Die Gruft ist auf Stufe 4 eingestel
 
 - Du selbst bist jetzt ein Krieger aus Blender (Arme, Beine und Schwert bewegen sich per Code, noch ohne fertige Animationen). Dorfbewohner, Wölfe, Skelette, der Wachende Ritter sowie Fenster, Türen, Schornsteine und Brücken sind ebenfalls aus Blender.
 - Keine Musik, keine Zwischensequenzen.
-- Noch kein Skill-Baum: Der Magier hat nur seine drei Startzauber, der Krieger noch keine eigenen Kampftechniken (kommt als Nächstes). Die Leiste lässt sich noch nicht selbst umsortieren.
+- Der Skill-Baum zeigt die Knoten als Liste je Ast (noch kein grafischer Baum). Respec beim Lehrmeister gibt es noch nicht.
 - Die Gruft ist dunkel. Das ist Absicht, kann aber nachgebessert werden.
 
 ## 5. Rückmeldung an Claude

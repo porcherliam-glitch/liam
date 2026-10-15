@@ -26,7 +26,7 @@ namespace Aetherfall.AI.Bosses
     [RequireComponent(typeof(CharacterController))]
     [RequireComponent(typeof(Combatant))]
     [DisallowMultipleComponent]
-    public sealed class BossController : MonoBehaviour, ICombatantController, IHitWindowReceiver, ICombatDebugSource
+    public sealed class BossController : MonoBehaviour, ICombatantController, IHitWindowReceiver, ICombatDebugSource, ICrowdControlTarget
     {
         private const string InvulnerableSource = "boss.phase";
         private const float TargetSearchInterval = 0.5f;
@@ -121,6 +121,36 @@ namespace Aetherfall.AI.Bosses
 
         /// <summary>Boss id.</summary>
         public string BossId => definition != null ? definition.BossId : string.Empty;
+
+        /// <inheritdoc />
+        public bool IsLarge => true;
+
+        /// <inheritdoc />
+        public bool IsNormalRank => false;
+
+        /// <inheritdoc />
+        public void Stagger(float seconds)
+        {
+            // Bosses do not stagger from warrior techniques (GDD 03 11.4: "unterbricht Normalgegner").
+        }
+
+        /// <inheritdoc />
+        public void KnockDown(float seconds)
+        {
+            // Fußfeger: "nicht Bosse und große Gegner".
+        }
+
+        /// <inheritdoc />
+        public void Pull(Vector3 towards, float distance)
+        {
+            // Too heavy to be pulled.
+        }
+
+        /// <inheritdoc />
+        public void Taunt(Combatant source, float seconds)
+        {
+            // A boss always fights the player.
+        }
 
         /// <inheritdoc />
         public BlockSpec ActiveBlock => _brain != null && _brain.IsGuardUp && definition != null

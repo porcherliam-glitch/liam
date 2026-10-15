@@ -205,6 +205,9 @@ namespace Aetherfall.AI
         /// <summary>Maximum health at the level (GDD 03 10.6).</summary>
         public float MaxHealth => EnemyScaling.Health(baseHealth, healthVariantFactor, level);
 
+        /// <summary>True for normal enemies (health variant factor 1; elite 2, champion 4): a war cry staggers them (GDD 03 11.4).</summary>
+        public bool IsNormalRank => healthVariantFactor <= 1.01f;
+
         /// <summary>Damage per attack at the level (GDD 03 10.6).</summary>
         public float Damage => EnemyScaling.Damage(baseDamage, damageVariantFactor, level);
 

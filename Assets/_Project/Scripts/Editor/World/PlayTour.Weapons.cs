@@ -61,6 +61,27 @@ namespace Aetherfall.EditorTools.World
             Steps.Enqueue(LeaveBowStance);
             Steps.Enqueue(() => Wait(0.5));
             Steps.Enqueue(() => Capture("w05_bogen_ruecken", ViewBehindPlayer));
+
+            // GDD 03 11.4: the warrior learns his techniques on the skill page (9 points) and uses them on the wolves.
+            string wm = "skill.krieger.waffenmeister.";
+            string bw = "skill.krieger.bollwerk.";
+            string kh = "skill.krieger.kriegsherr.";
+            Steps.Enqueue(LearnInSkillPage(new[]
+            {
+                wm + "wirbelklinge", bw + "schildschlag", bw + "eiserne_haut", bw + "schildmauer", bw + "spott", kh + "kommandostimme", kh + "kommandostimme",
+                kh + "kriegsschrei", kh + "fussfeger"
+            }, 9, "w06_skillbaum"));
+            _spellTarget = null;
+            Steps.Enqueue(CastSpell(TechniqueAssets.Whirl, 1.6f, 0.45f));
+            Steps.Enqueue(() => Capture("w07_wirbelklinge", ViewSpell));
+            Steps.Enqueue(CastSpell(TechniqueAssets.ShieldBash, 1.5f, 0.1f));
+            Steps.Enqueue(() => Capture("w08_schildschlag", ViewSpell));
+            Steps.Enqueue(CastSpell(TechniqueAssets.WarCry, 4f, 0.15f));
+            Steps.Enqueue(() => Capture("w09_kriegsschrei", ViewSpell));
+            Steps.Enqueue(CastSpell(TechniqueAssets.Sweep, 1.6f, 0.15f));
+            Steps.Enqueue(() => Capture("w10_fussfeger", ViewSpell));
+            Steps.Enqueue(CastSpell(TechniqueAssets.Taunt, 5f, 0.2f));
+            Steps.Enqueue(() => Capture("w11_leiste", null));
         }
 
         private static Pose ViewBesidePlayer(Transform player)

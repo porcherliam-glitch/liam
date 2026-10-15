@@ -132,6 +132,18 @@ namespace Aetherfall.UI.Framework
         /// <summary>Tab name "Charakter" (journal title).</summary>
         public const string JournalCharacter = "journal-tab-character";
 
+        /// <summary>Tab name "Fähigkeiten" (journal title).</summary>
+        public const string JournalSkills = "journal-tab-skills";
+
+        /// <summary>Footer hint "Lernen".</summary>
+        public const string HintLearn = "hint-learn";
+
+        /// <summary>Footer hint "Auf die Leiste".</summary>
+        public const string HintBar = "hint-bar";
+
+        /// <summary>Footer hint "Kategorie".</summary>
+        public const string HintSubtabs = "hint-subtabs";
+
         /// <summary>Footer hint "Verfolgen an/aus".</summary>
         public const string HintTrack = "hint-track";
 

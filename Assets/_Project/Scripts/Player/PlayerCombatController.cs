@@ -117,6 +117,18 @@ namespace Aetherfall.Player
         /// <summary>Share of the weapon damage added as fire to melee hits (Glutmantel 0.2, GDD 03 6.4); set by the ability caster.</summary>
         public float MeleeFireShare { get; set; }
 
+        /// <summary>Skill tree (GDD 03 11.4 Klingenzucht): damage bonus of light attacks and combo finishers (0.04 = +4 %).</summary>
+        public float LightAttackBonus { get; set; }
+
+        /// <summary>Skill tree (Wuchtiger Hieb): poise bonus of heavy attacks (0.1 = +10 %).</summary>
+        public float HeavyPoiseBonus { get; set; }
+
+        /// <summary>Skill tree (Schildmauer): extra block stability in percentage points (0.05 = +5).</summary>
+        public float BlockStabilityBonus { get; set; }
+
+        /// <summary>True if a shield is in the off hand (Schildschlag needs one); without equipment the moveset's shield counts.</summary>
+        public bool HasShield { get; private set; } = true;
+
         /// <summary>Raised when a dodge starts: true for a roll, false for a back step (Sturmschritt leaves a shock pulse).</summary>
         public event Action<bool> Dodged;
 
@@ -146,7 +158,16 @@ namespace Aetherfall.Player
         public string LastAttackerTypeId { get; private set; } = string.Empty;
 
         /// <inheritdoc />
-        public BlockSpec ActiveBlock => _weapon != null ? _weapon.Block : BlockSpec.WoodenShield;
+        public BlockSpec ActiveBlock
+        {
+            get
+            {
+                BlockSpec block = _weapon != null ? _weapon.Block : BlockSpec.WoodenShield;
+                return BlockStabilityBonus > 0f
+                    ? new BlockSpec(block.Angle, block.PhysicalReduction, block.ElementalReduction, Mathf.Clamp01(block.Stability + BlockStabilityBonus))
+                    : block;
+            }
+        }
 
         /// <inheritdoc />
         public Combatant FocusTarget => lockOn != null ? lockOn.Target : null;
@@ -181,7 +202,18 @@ namespace Aetherfall.Player
                 packet = packet.With(DamageType.Fire, _weapon.BaseDamage * MeleeFireShare);
             }
 
-            return new AttackProfile(packet, _weapon.Scaling, _weapon.WeaponPoise);
+            float poise = _weapon.WeaponPoise;
+            if (attack != null && LightAttackBonus > 0f && (attack.Kind == AttackKind.Light || attack.Kind == AttackKind.ComboFinisher))
+            {
+                packet = packet.Scaled(1f + LightAttackBonus);
+            }
+
+            if (attack != null && HeavyPoiseBonus > 0f && attack.Kind == AttackKind.Heavy)
+            {
+                poise *= 1f + HeavyPoiseBonus;
+            }
+
+            return new AttackProfile(packet, _weapon.Scaling, poise);
         }
 
         /// <inheritdoc />
@@ -284,6 +316,7 @@ namespace Aetherfall.Player
 
             _weapon.BaseDamage = Mathf.Max(0f, weaponDamage);
             _weapon.Block = hasShield ? shieldBlock : _weaponBlock;
+            HasShield = hasShield;
         }
 
         /// <summary>

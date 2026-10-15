@@ -207,7 +207,7 @@ namespace Aetherfall.EditorTools.World
             return visual;
         }
 
-        private static AbilityVisual Root(Transform player, string name, out GameObject root)
+        internal static AbilityVisual Root(Transform player, string name, out GameObject root)
         {
             root = new GameObject(name);
             root.transform.SetParent(player, false);
@@ -271,7 +271,7 @@ namespace Aetherfall.EditorTools.World
         }
 
         /// <summary>A one-shot burst (count 1 = only emitted by code with <c>Emit</c>).</summary>
-        private static ParticleSystem Burst(Transform parent, string name, Color bright, Color deep, float lifeMin, float lifeMax, float speedMin, float speedMax,
+        internal static ParticleSystem Burst(Transform parent, string name, Color bright, Color deep, float lifeMin, float lifeMax, float speedMin, float speedMax,
             float sizeMin, float sizeMax, int count, ParticleSystemShapeType shapeType, float radius, TestGroundReport report)
         {
             var go = new GameObject(name);
@@ -355,7 +355,7 @@ namespace Aetherfall.EditorTools.World
             return system;
         }
 
-        private static Light Flash(Transform parent, Color color, float range, float intensity)
+        internal static Light Flash(Transform parent, Color color, float range, float intensity)
         {
             var go = new GameObject("Lichtblitz");
             go.transform.SetParent(parent, false);

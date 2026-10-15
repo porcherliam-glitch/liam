@@ -16,6 +16,7 @@
         "Aetherfall.GameTime",
         "Aetherfall.Economy",
         "Aetherfall.Classes",
+        "Aetherfall.Skills",
         "Aetherfall.Combat",
         "Aetherfall.Tests.Shared"
     ],

@@ -496,3 +496,38 @@
     margin: 10px 0 0 0;
     font-size: 18px;
 }
+
+/* Skill page (GDD 03 11): rows reuse the quest row; the stripe shows the branch, the badge whether a node can be learned. */
+.af-skills .af-quest-row {
+    height: 62px;
+    margin: 0 0 6px 0;
+}
+
+.af-skills .af-quest-row__title {
+    font-size: 21px;
+}
+
+.af-skill-branch-0 {
+    background-color: rgba(232, 210, 160, 0.9);
+}
+
+.af-skill-branch-1 {
+    background-color: rgba(222, 110, 70, 0.95);
+}
+
+.af-skill-branch-2 {
+    background-color: rgba(110, 170, 235, 0.95);
+}
+
+.af-skill-branch-3 {
+    background-color: rgba(200, 185, 90, 0.95);
+}
+
+.af-quest-row.is-available .af-quest-row__badge {
+    color: var(--ui-focus);
+    -unity-font-style: bold;
+}
+
+.af-quest-row.is-learned .af-quest-row__badge {
+    color: var(--text-secondary);
+}

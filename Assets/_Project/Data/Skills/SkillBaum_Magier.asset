@@ -1,0 +1,309 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 83773d8aa1e11e1429088ee9824daf18, type: 3}
+  m_Name: SkillBaum_Magier
+  m_EditorClassIdentifier: Aetherfall.Skills::Aetherfall.Skills.SkillTreeDefinition
+  classId: class.magier
+  displayName: Magier
+  branchNames:
+  - Pyromant
+  - Frostweber
+  - Blitzbinder
+  nodes:
+  - id: skill.magier.kern.elementarkunde
+    displayName: Elementarkunde
+    description: Feuerball, Eislanze und Kettenblitz; maximales Mana +10.
+    kind: 0
+    branch: 0
+    tier: 1
+    maxRank: 1
+    cost: 0
+    requires: []
+    forkWith: 
+    minLevel: 1
+    effects:
+    - kind: 2
+      value: 1
+      stat: 0
+      percent: 0
+      element: 3
+      abilityId: ability.feuer.feuerball
+    - kind: 2
+      value: 1
+      stat: 0
+      percent: 0
+      element: 3
+      abilityId: ability.eis.eislanze
+    - kind: 2
+      value: 1
+      stat: 0
+      percent: 0
+      element: 3
+      abilityId: ability.blitz.kettenblitz
+    - kind: 1
+      value: 10
+      stat: 22
+      percent: 0
+      element: 3
+      abilityId: 
+  - id: skill.magier.pyromant.glut_im_blut
+    displayName: Glut im Blut
+    description: Feuerzauber +6 % Schaden je Rang.
+    kind: 1
+    branch: 1
+    tier: 1
+    maxRank: 2
+    cost: 1
+    requires: []
+    forkWith: 
+    minLevel: 1
+    effects:
+    - kind: 3
+      value: 0.06
+      stat: 0
+      percent: 0
+      element: 3
+      abilityId: 
+  - id: skill.magier.pyromant.flammenteppich
+    displayName: Flammenteppich
+    description: "Der Boden brennt 6 s im Umkreis von 4 m (Brennen 20 je s, z\xFCndet \xD6l) \xB7 25 Mana \xB7 Abklingzeit 12 s."
+    kind: 2
+    branch: 1
+    tier: 1
+    maxRank: 1
+    cost: 1
+    requires: []
+    forkWith: 
+    minLevel: 1
+    effects:
+    - kind: 2
+      value: 1
+      stat: 0
+      percent: 0
+      element: 3
+      abilityId: ability.feuer.flammenteppich
+  - id: skill.magier.pyromant.glutmantel
+    displayName: Glutmantel
+    description: "10 s Feuer-Aura: Nahkampf +20 % als Feuer, Gegner in 2,5 m beginnen zu brennen \xB7 25 Mana \xB7 Abklingzeit 20 s."
+    kind: 2
+    branch: 1
+    tier: 2
+    maxRank: 1
+    cost: 1
+    requires: []
+    forkWith: 
+    minLevel: 1
+    effects:
+    - kind: 2
+      value: 1
+      stat: 0
+      percent: 0
+      element: 3
+      abilityId: ability.feuer.glutmantel
+  - id: skill.magier.pyromant.zuendfunke
+    displayName: "Z\xFCndfunke"
+    description: Feuerzauber bauen 25 % mehr Brennen auf.
+    kind: 1
+    branch: 1
+    tier: 2
+    maxRank: 1
+    cost: 1
+    requires: []
+    forkWith: 
+    minLevel: 1
+    effects:
+    - kind: 4
+      value: 0.25
+      stat: 0
+      percent: 0
+      element: 3
+      abilityId: 
+  - id: skill.magier.pyromant.feuerball_grossbrand
+    displayName: "Feuerball: Gro\xDFbrand"
+    description: "Die Explosion des Feuerballs wird 1 m gr\xF6\xDFer (3 m)."
+    kind: 3
+    branch: 1
+    tier: 2
+    maxRank: 1
+    cost: 1
+    requires: []
+    forkWith: 
+    minLevel: 1
+    effects:
+    - kind: 7
+      value: 1
+      stat: 0
+      percent: 0
+      element: 3
+      abilityId: ability.feuer.feuerball
+  - id: skill.magier.frostweber.kaelteschliff
+    displayName: "K\xE4lteschliff"
+    description: Eiszauber +6 % Schaden je Rang.
+    kind: 1
+    branch: 2
+    tier: 1
+    maxRank: 2
+    cost: 1
+    requires: []
+    forkWith: 
+    minLevel: 1
+    effects:
+    - kind: 3
+      value: 0.06
+      stat: 0
+      percent: 0
+      element: 4
+      abilityId: 
+  - id: skill.magier.frostweber.frostnova
+    displayName: Frostnova
+    description: "Frost-Ring 5 m um dich: Frieren 50 \xB7 25 Mana \xB7 Abklingzeit 12 s."
+    kind: 2
+    branch: 2
+    tier: 1
+    maxRank: 1
+    cost: 1
+    requires: []
+    forkWith: 
+    minLevel: 1
+    effects:
+    - kind: 2
+      value: 1
+      stat: 0
+      percent: 0
+      element: 3
+      abilityId: ability.eis.frostnova
+  - id: skill.magier.frostweber.eispanzer
+    displayName: Eispanzer
+    description: "R\xFCstung +30 % f\xFCr 12 s, wer dich im Nahkampf trifft, baut Frieren 10 auf \xB7 25 Mana \xB7 Abklingzeit 25 s."
+    kind: 2
+    branch: 2
+    tier: 2
+    maxRank: 1
+    cost: 1
+    requires: []
+    forkWith: 
+    minLevel: 1
+    effects:
+    - kind: 2
+      value: 1
+      stat: 0
+      percent: 0
+      element: 3
+      abilityId: ability.eis.eispanzer
+  - id: skill.magier.frostweber.eisige_ruhe
+    displayName: Eisige Ruhe
+    description: Mana-Regeneration +10 %.
+    kind: 1
+    branch: 2
+    tier: 2
+    maxRank: 1
+    cost: 1
+    requires: []
+    forkWith: 
+    minLevel: 1
+    effects:
+    - kind: 1
+      value: 0.1
+      stat: 24
+      percent: 1
+      element: 3
+      abilityId: 
+  - id: skill.magier.frostweber.eislanze_splitter
+    displayName: 'Eislanze: Splitterlanze'
+    description: Die Eislanze durchbohrt einen Gegner mehr (3 Ziele).
+    kind: 3
+    branch: 2
+    tier: 2
+    maxRank: 1
+    cost: 1
+    requires: []
+    forkWith: 
+    minLevel: 1
+    effects:
+    - kind: 6
+      value: 1
+      stat: 0
+      percent: 0
+      element: 3
+      abilityId: ability.eis.eislanze
+  - id: skill.magier.blitzbinder.leitfaehig
+    displayName: "Leitf\xE4hig"
+    description: Blitzzauber +6 % Schaden je Rang.
+    kind: 1
+    branch: 3
+    tier: 1
+    maxRank: 2
+    cost: 1
+    requires: []
+    forkWith: 
+    minLevel: 1
+    effects:
+    - kind: 3
+      value: 0.06
+      stat: 0
+      percent: 0
+      element: 5
+      abilityId: 
+  - id: skill.magier.blitzbinder.gewitterruf
+    displayName: Gewitterruf
+    description: "3 Blitzeinschl\xE4ge im Umkreis von 6 m: Schock 40 \xB7 30 Mana \xB7 Abklingzeit 14 s."
+    kind: 2
+    branch: 3
+    tier: 1
+    maxRank: 1
+    cost: 1
+    requires: []
+    forkWith: 
+    minLevel: 1
+    effects:
+    - kind: 2
+      value: 1
+      stat: 0
+      percent: 0
+      element: 3
+      abilityId: ability.blitz.gewitterruf
+  - id: skill.magier.blitzbinder.sturmschritt
+    displayName: Sturmschritt
+    description: "Tempo +20 % f\xFCr 8 s, eine Rolle hinterl\xE4sst einen Schock \xB7 20 Mana \xB7 Abklingzeit 20 s."
+    kind: 2
+    branch: 3
+    tier: 2
+    maxRank: 1
+    cost: 1
+    requires: []
+    forkWith: 
+    minLevel: 1
+    effects:
+    - kind: 2
+      value: 1
+      stat: 0
+      percent: 0
+      element: 3
+      abilityId: ability.blitz.sturmschritt
+  - id: skill.magier.blitzbinder.kettenblitz_weiter
+    displayName: 'Kettenblitz: Weiter Sprung'
+    description: Der Kettenblitz springt auf einen Gegner mehr (4 Ziele).
+    kind: 3
+    branch: 3
+    tier: 2
+    maxRank: 1
+    cost: 1
+    requires: []
+    forkWith: 
+    minLevel: 1
+    effects:
+    - kind: 6
+      value: 1
+      stat: 0
+      percent: 0
+      element: 3
+      abilityId: ability.blitz.kettenblitz

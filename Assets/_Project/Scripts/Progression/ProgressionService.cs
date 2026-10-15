@@ -226,6 +226,37 @@ namespace Aetherfall.Progression
         }
 
         /// <inheritdoc />
+        public bool TrySpendSkillPoints(int amount)
+        {
+            if (amount < 0 || amount > _unspentSkillPoints)
+            {
+                return false;
+            }
+
+            if (amount > 0)
+            {
+                _unspentSkillPoints -= amount;
+                MarkChanged();
+                RaiseChanged();
+            }
+
+            return true;
+        }
+
+        /// <inheritdoc />
+        public void RefundSkillPoints(int amount)
+        {
+            if (amount <= 0)
+            {
+                return;
+            }
+
+            _unspentSkillPoints += amount;
+            MarkChanged();
+            RaiseChanged();
+        }
+
+        /// <inheritdoc />
         public bool CanSpendAttributePoint(StatId attribute, out string reason)
         {
             if (!StatIds.IsAttribute(attribute))

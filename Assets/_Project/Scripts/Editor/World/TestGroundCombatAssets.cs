@@ -43,6 +43,7 @@ namespace Aetherfall.EditorTools.World
             Settings = EnsureAsset<CombatSettings>(TestGroundPaths.CombatSettingsPath, report, null);
             AetherPush = EnsureAetherPush(report);
             Spells = SpellAssets.EnsureAll(report);
+            Techniques = TechniqueAssets.EnsureAll(report);
             Wolf = EnsureEnemy("Grauwolf", false, bite, snap, pounce, report);
             AetherWolf = EnsureEnemy("AetherWolf", true, bite, snap, pounce, report);
             Staff = EnsureStaff(finisher, report);
@@ -73,6 +74,9 @@ namespace Aetherfall.EditorTools.World
 
         /// <summary>The nine spells of the mage (GDD 03 6.4), the first spell of each school first.</summary>
         public System.Collections.Generic.List<AbilityDefinition> Spells { get; }
+
+        /// <summary>The five techniques of the warrior (GDD 03 11.4).</summary>
+        public System.Collections.Generic.List<AbilityDefinition> Techniques { get; }
 
         /// <summary>Grey wolf (enemy.wolf.grauwolf, normal, level 8).</summary>
         public EnemyTypeDefinition Wolf { get; }

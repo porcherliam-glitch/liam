@@ -99,6 +99,24 @@ namespace Aetherfall.AI
             _knockRemaining = KnockbackSeconds;
         }
 
+        /// <summary>Slides the enemy towards a point like a knockback the other way (Wirbelklinge: Sog), a metre short of it.</summary>
+        /// <param name="to">Point to slide to.</param>
+        /// <param name="distance">Metres at most.</param>
+        public void StartPull(Vector3 to, float distance)
+        {
+            Vector3 towards = to - _transform.position;
+            towards.y = 0f;
+            float length = towards.magnitude;
+            float move = Mathf.Min(distance, length - 1.2f);
+            if (!(move > 0.05f))
+            {
+                return;
+            }
+
+            _knockVelocity = towards / length * (move / KnockbackSeconds);
+            _knockRemaining = KnockbackSeconds;
+        }
+
         /// <summary>Clears knockback and falling speed (respawn).</summary>
         public void Reset()
         {

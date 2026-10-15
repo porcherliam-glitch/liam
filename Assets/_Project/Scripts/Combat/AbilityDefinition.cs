@@ -25,7 +25,7 @@ namespace Aetherfall.Combat
         [Tooltip("Name im HUD.")]
         [SerializeField] private string displayName = "Neue Fähigkeit";
 
-        [Tooltip("Wie die Fähigkeit wirkt: Kegel, Geschoss, Kette, Bodenfläche, Einschläge, Selbstverstärkung.")]
+        [Tooltip("Wie die Fähigkeit wirkt: Kegel, Geschoss, Kette, Bodenfläche, Einschläge, Selbstverstärkung, Kampfschrei.")]
         [SerializeField] private AbilityKind kind = AbilityKind.Cone;
 
         [Header("Kosten und Zeiten")]
@@ -122,7 +122,7 @@ namespace Aetherfall.Combat
         [Min(0.2f)] [SerializeField] private float strikeRadius = 2f;
 
         [Header("Selbstverstärkung")]
-        [Tooltip("Art der Verstärkung (Glutmantel, Eispanzer, Sturmschritt).")]
+        [Tooltip("Art der Verstärkung (Glutmantel, Eispanzer, Sturmschritt, Spott-Rüstung).")]
         [SerializeField] private AbilityBuffKind buffKind = AbilityBuffKind.None;
 
         [Tooltip("Dauer in Sekunden (Glutmantel 10, Eispanzer 12, Sturmschritt 8).")]
@@ -130,6 +130,37 @@ namespace Aetherfall.Combat
 
         [Tooltip("Stärke (Glutmantel 0,2 = +20 % als Feuer, Eispanzer 0,3 = Rüstung +30 %, Sturmschritt 0,2 = +20 % Tempo).")]
         [Min(0f)] [SerializeField] private float buffValue = 0.2f;
+
+        [Header("Krieger-Technik und Kampfschrei")]
+        [Tooltip("Ausdauer-Kosten (Wirbelklinge 30, Schildschlag 15, Kriegsschrei 20, Fußfeger 25).")]
+        [Min(0f)] [SerializeField] private float staminaCost = 0f;
+
+        [Tooltip("Nur mit Schild in der Nebenhand (Schildschlag).")]
+        [SerializeField] private bool requiresShield = false;
+
+        [Tooltip("Kegel: so viele Treffer nacheinander (Wirbelklinge: 2 Umdrehungen).")]
+        [Min(1)] [SerializeField] private int repeats = 1;
+
+        [Tooltip("Kegel: Sekunden zwischen zwei Treffern.")]
+        [Min(0f)] [SerializeField] private float repeatInterval = 0.35f;
+
+        [Tooltip("Kegel: Gegner werden vorher so viele Meter herangezogen (Wirbelklinge: Sog 2).")]
+        [Min(0f)] [SerializeField] private float pullDistance = 0f;
+
+        [Tooltip("Sekunden am Boden nach dem Treffer (Fußfeger 1,2; nie Bosse).")]
+        [Min(0f)] [SerializeField] private float knockdownSeconds = 0f;
+
+        [Tooltip("Sekunden Taumeln für Normalgegner (Schildschlag unterbricht, Kriegsschrei 1).")]
+        [Min(0f)] [SerializeField] private float staggerSeconds = 0f;
+
+        [Tooltip("Kampfschrei: Sekunden, in denen die Gegner im Radius den Krieger angreifen (Spott 6).")]
+        [Min(0f)] [SerializeField] private float tauntSeconds = 0f;
+
+        [Tooltip("Kampfschrei: Schadensverlust der Gegner (Kriegsschrei 0,2 = −20 %).")]
+        [Range(0f, 0.9f)] [SerializeField] private float weakenFraction = 0f;
+
+        [Tooltip("Kampfschrei: Dauer der Schwächung in Sekunden (Kriegsschrei 8).")]
+        [Min(0f)] [SerializeField] private float weakenSeconds = 0f;
 
         /// <summary>Ability id.</summary>
         public string AbilityId => abilityId ?? string.Empty;
@@ -184,7 +215,17 @@ namespace Aetherfall.Combat
                 StrikeRadius = strikeRadius,
                 BuffKind = buffKind,
                 BuffSeconds = buffSeconds,
-                BuffValue = buffValue
+                BuffValue = buffValue,
+                StaminaCost = staminaCost,
+                RequiresShield = requiresShield,
+                Repeats = repeats,
+                RepeatInterval = repeatInterval,
+                PullDistance = pullDistance,
+                KnockdownSeconds = knockdownSeconds,
+                StaggerSeconds = staggerSeconds,
+                TauntSeconds = tauntSeconds,
+                WeakenFraction = weakenFraction,
+                WeakenSeconds = weakenSeconds
             };
             problem = spec.Validate();
             return problem.Length == 0 ? spec : null;

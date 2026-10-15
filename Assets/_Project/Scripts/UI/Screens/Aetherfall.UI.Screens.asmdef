@@ -21,6 +21,7 @@
         "Aetherfall.Economy",
         "Aetherfall.Minigames",
         "Aetherfall.Classes",
+        "Aetherfall.Skills",
         "Aetherfall.UI.Framework",
         "Unity.InputSystem"
     ],

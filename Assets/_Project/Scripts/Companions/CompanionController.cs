@@ -81,6 +81,7 @@ namespace Aetherfall.Companions
         private EnemyLocomotion _locomotion;
         private AttackRunner _runner;
         private ICombatService _combat;
+        private Aetherfall.Skills.ISkillService _skills;
         private IWorldState _world;
         private IEventBus _bus;
         private Combatant _player;
@@ -135,7 +136,9 @@ namespace Aetherfall.Companions
         public AttackProfile GetAttackProfile(AttackSpec attack)
         {
             float weapon = _playerCombat != null ? _playerCombat.WeaponDamage : 20f;
-            return new AttackProfile(DamagePacket.Single(DamageType.Slash, Mathf.Max(5f, weapon * damageShare)), AttributeScaling.None, 12f);
+            // Kommandostimme (GDD 03 11.4 KH01): the player's skill tree raises the companion's damage.
+            float bonus = _skills != null ? 1f + _skills.Bonuses.CompanionDamage : 1f;
+            return new AttackProfile(DamagePacket.Single(DamageType.Slash, Mathf.Max(5f, weapon * damageShare) * bonus), AttributeScaling.None, 12f);
         }
 
         /// <inheritdoc />
@@ -228,6 +231,7 @@ namespace Aetherfall.Companions
                 IServiceLocator locator = Services.Locator;
                 locator.TryGet(out _combat);
                 locator.TryGet(out _world);
+                locator.TryGet(out _skills);
                 if (locator.TryGet(out _bus))
                 {
                     _bus.Subscribe<PlayerSpawned>(OnPlayerSpawned);

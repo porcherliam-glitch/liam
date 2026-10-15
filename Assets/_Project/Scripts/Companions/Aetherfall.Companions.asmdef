@@ -9,6 +9,7 @@
         "Aetherfall.Combat",
         "Aetherfall.AI",
         "Aetherfall.Player",
+        "Aetherfall.Skills",
         "Aetherfall.WorldState"
     ],
     "includePlatforms": [],

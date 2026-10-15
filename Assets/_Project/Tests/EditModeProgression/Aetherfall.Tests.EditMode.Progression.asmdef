@@ -16,6 +16,9 @@
         "Aetherfall.Items",
         "Aetherfall.Inventory",
         "Aetherfall.Progression",
+        "Aetherfall.Combat",
+        "Aetherfall.Classes",
+        "Aetherfall.Skills",
         "Aetherfall.Quests",
         "Aetherfall.EditorTools.Narrative",
         "Aetherfall.Tests.Shared"

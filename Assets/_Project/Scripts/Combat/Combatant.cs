@@ -81,6 +81,8 @@ namespace Aetherfall.Combat
         private float _burnCarry;
         private float _poisonCarry;
         private float _corruptionCarry;
+        private float _weakenFraction;
+        private float _weakenUntil;
         private readonly HitStopTimer _hitStop = new HitStopTimer();
         private ResistanceProfile _resistances;
         private DamageCalculator _fallbackCalculator;
@@ -331,10 +333,34 @@ namespace Aetherfall.Combat
             }
         }
 
-        /// <summary>Attacker values at this moment (stats, or level only).</summary>
+        /// <summary>Share of damage this fighter loses right now (Kriegsschrei, GDD 03 11.4); 0 when not weakened.</summary>
+        public float Weakness => Time.time < _weakenUntil ? _weakenFraction : 0f;
+
+        /// <summary>Lowers the damage of this fighter for a while (the stronger weakening counts while both run).</summary>
+        /// <param name="fraction">Share of damage lost (0.2 = −20 %).</param>
+        /// <param name="seconds">Duration.</param>
+        public void Weaken(float fraction, float seconds)
+        {
+            if (!(fraction > 0f) || !(seconds > 0f))
+            {
+                return;
+            }
+
+            _weakenFraction = Weakness > fraction ? _weakenFraction : Mathf.Clamp01(fraction);
+            _weakenUntil = Mathf.Max(_weakenUntil, Time.time + seconds);
+        }
+
+        /// <summary>Attacker values at this moment (stats, or level only), less a weakening.</summary>
         public AttackerSnapshot CreateAttackerSnapshot()
         {
-            return stats != null ? AttackerSnapshot.FromStats(stats.Stats) : AttackerSnapshot.ForEnemy(level);
+            AttackerSnapshot snapshot = stats != null ? AttackerSnapshot.FromStats(stats.Stats) : AttackerSnapshot.ForEnemy(level);
+            float weakness = Weakness;
+            if (weakness > 0f)
+            {
+                snapshot.DamageBonus -= weakness;
+            }
+
+            return snapshot;
         }
 
         /// <summary>Defender values at this moment, with the block values if the hit is blocked.</summary>
@@ -521,6 +547,7 @@ namespace Aetherfall.Combat
             _burnCarry = 0f;
             _poisonCarry = 0f;
             _corruptionCarry = 0f;
+            _weakenUntil = 0f;
         }
 
         /// <summary>Full health, full poise, no hitstop (respawn).</summary>

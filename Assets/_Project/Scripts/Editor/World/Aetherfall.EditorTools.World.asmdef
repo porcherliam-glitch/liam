@@ -32,6 +32,7 @@
         "Aetherfall.Minigames",
         "Aetherfall.Companions",
         "Aetherfall.Classes",
+        "Aetherfall.Skills",
         "Unity.Cinemachine",
         "Unity.InputSystem"
     ],

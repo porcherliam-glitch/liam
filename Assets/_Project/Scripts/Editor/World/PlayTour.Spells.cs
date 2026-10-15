@@ -11,7 +11,7 @@ namespace Aetherfall.EditorTools.World
 {
     /// <summary>
     /// Spell part of the mage tour (GDD 03 6.4, 11.8): the class gives Feuerball, Eislanze and Kettenblitz on bar 1; the other six
-    /// spells are learned with the tool call a skill tree will use; then every spell is cast at a wolf the way keys 1–4 do and
+    /// spells and three upgrades are learned on the skill page (PlayTour.Skills); then every spell is cast at a wolf the way keys 1–4 do and
     /// its effect is checked (hits, burning ground, buffs on armor and speed), with a picture of each, and bar 2 is shown.
     /// </summary>
     public static partial class PlayTour
@@ -21,6 +21,17 @@ namespace Aetherfall.EditorTools.World
         private static void BuildSpellPlan()
         {
             Steps.Enqueue(CheckClassSpells);
+            // GDD 03 11.5: the six other spells and three upgrades come from the skill tree (15 points, as from level 16).
+            string py = "skill.magier.pyromant.";
+            string fw = "skill.magier.frostweber.";
+            string bb = "skill.magier.blitzbinder.";
+            Steps.Enqueue(LearnInSkillPage(new[]
+            {
+                py + "glut_im_blut", py + "glut_im_blut", py + "flammenteppich", py + "glutmantel", py + "feuerball_grossbrand",
+                fw + "kaelteschliff", fw + "kaelteschliff", fw + "frostnova", fw + "eispanzer", fw + "eislanze_splitter",
+                bb + "leitfaehig", bb + "leitfaehig", bb + "gewitterruf", bb + "sturmschritt", bb + "kettenblitz_weiter"
+            }, 15, "m03b_skillbaum"));
+            Steps.Enqueue(ReportUpgrades);
             Steps.Enqueue(CastSpell(SpellAssets.Fireball, 9f, 0f));
             Steps.Enqueue(() => Capture("m04a_feuerball", ViewSpell));
             Steps.Enqueue(CastSpell(SpellAssets.IceLance, 9f, 0f));
@@ -94,8 +105,7 @@ namespace Aetherfall.EditorTools.World
                     case 0:
                         if (!caster.IsLearned(abilityId))
                         {
-                            // What the skill tree will do once it exists (Stufe A, next step).
-                            caster.Learn(abilityId);
+                            return Fail(true, spec.DisplayName + " ist nicht gelernt (Skill-Baum).");
                         }
 
                         if (!PlaceBeforeWolf(player, distance))
@@ -104,6 +114,7 @@ namespace Aetherfall.EditorTools.World
                         }
 
                         stats.Mana.Refill();
+                        stats.Stamina.Refill();
                         runner.Reset();
                         hitsBefore = caster.HitsOf(abilityId);
                         armorBefore = stats.Stats.Get(StatId.Armor);
@@ -175,7 +186,8 @@ namespace Aetherfall.EditorTools.World
 
         private static bool Report(PlayerAbilityCaster caster, CharacterStatsComponent stats, AbilitySpec spec, int hits, float armorBefore, float speedBefore)
         {
-            string cost = "Mana " + caster.GetRunner(spec.Id).ManaCost.ToString("0.#") + ", Abklingzeit " + spec.CooldownSeconds.ToString("0") + " s";
+            string cost = (spec.StaminaCost > 0f ? "Ausdauer " + spec.StaminaCost.ToString("0.#") : "Mana " + caster.GetRunner(spec.Id).ManaCost.ToString("0.#")) +
+                          ", Abklingzeit " + spec.CooldownSeconds.ToString("0") + " s";
             string target = _spellTarget != null ? ", Ziel-LP " + (_spellTarget.IsAlive ? _spellTarget.Health.Current.ToString("0") : "tot") +
                                                    ", Aufbau Brennen/Frieren/Schock " + _spellTarget.Status.Buildup(StatusEffectId.Burning).ToString("0") + "/" +
                                                    _spellTarget.Status.Buildup(StatusEffectId.Freezing).ToString("0") + "/" +

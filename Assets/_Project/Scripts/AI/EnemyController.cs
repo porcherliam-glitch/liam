@@ -30,7 +30,7 @@ namespace Aetherfall.AI
     [RequireComponent(typeof(CharacterController))]
     [RequireComponent(typeof(Combatant))]
     [DisallowMultipleComponent]
-    public sealed class EnemyController : MonoBehaviour, IAIAgent, ICombatantController, IHitWindowReceiver, ICombatDebugSource
+    public sealed class EnemyController : MonoBehaviour, IAIAgent, ICombatantController, IHitWindowReceiver, ICombatDebugSource, ICrowdControlTarget
     {
         private const float SenseInterval = 0.1f;
         private const float TargetSearchInterval = 0.5f;
@@ -88,6 +88,8 @@ namespace Aetherfall.AI
         private IAIManager _manager;
         private ICombatService _combat;
         private Combatant _target;
+        private Combatant _tauntSource;
+        private float _tauntUntil;
         private Vector3 _anchorPosition;
         private Quaternion _anchorRotation;
         private EnemyLocomotion _locomotion;
@@ -111,6 +113,12 @@ namespace Aetherfall.AI
 
         /// <summary>The combatant of this enemy.</summary>
         public Combatant Combatant => _combatant;
+
+        /// <inheritdoc />
+        public bool IsLarge => false;
+
+        /// <inheritdoc />
+        public bool IsNormalRank => definition == null || definition.IsNormalRank;
 
         /// <inheritdoc />
         public BlockSpec ActiveBlock => default;
@@ -482,6 +490,48 @@ namespace Aetherfall.AI
             _registered = true;
         }
 
+        /// <inheritdoc />
+        public void Stagger(float seconds)
+        {
+            // Warrior techniques (GDD 03 11.4): Schildschlag interrupts, Kriegsschrei makes normal enemies stagger.
+            if (_brain != null && _combatant != null && _combatant.IsAlive && seconds > 0f)
+            {
+                _brain.NotifyStunned(seconds, false);
+            }
+        }
+
+        /// <inheritdoc />
+        public void KnockDown(float seconds)
+        {
+            // Fußfeger: down on the ground, helpless like a stagger (no finisher window).
+            Stagger(seconds);
+        }
+
+        /// <inheritdoc />
+        public void Pull(Vector3 towards, float distance)
+        {
+            if (_locomotion != null && _combatant != null && _combatant.IsAlive && distance > 0f)
+            {
+                _locomotion.StartPull(towards, distance);
+            }
+        }
+
+        /// <inheritdoc />
+        public void Taunt(Combatant source, float seconds)
+        {
+            if (source == null || !source.IsAlive || !(seconds > 0f) || _brain == null)
+            {
+                return;
+            }
+
+            // Spott: attacks the one who taunted for a while, even if someone else stands closer.
+            _tauntSource = source;
+            _tauntUntil = Time.time + seconds;
+            _target = source;
+            _brain.TargetId = source.CombatantId;
+            _wasHit = true;
+        }
+
         private void FindTarget()
         {
             _target = null;
@@ -489,6 +539,15 @@ namespace Aetherfall.AI
             {
                 return;
             }
+
+            if (_tauntSource != null && _tauntSource.IsAlive && Time.time < _tauntUntil)
+            {
+                _target = _tauntSource;
+                _brain.TargetId = _target.CombatantId;
+                return;
+            }
+
+            _tauntSource = null;
 
             Vector3 position = transform.position;
             float best = float.MaxValue;

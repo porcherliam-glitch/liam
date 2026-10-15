@@ -64,9 +64,15 @@ namespace Aetherfall.UI.Framework
             new UiTextEntry("death-respawn", "Am Spawnpunkt wiederbeleben"),
 
             // Journal: quest log and character page (GDD 05 1.3, GDD 02 7), quest tracker and XP bar of the HUD (GDD 05 1.2)
-            new UiTextEntry("pause-journal", "Questlog & Charakter"),
+            new UiTextEntry("pause-journal", "Questlog, Charakter & Fähigkeiten"),
             new UiTextEntry("journal-tab-quests", "Questlog"),
             new UiTextEntry("journal-tab-character", "Charakter"),
+            new UiTextEntry("journal-tab-skills", "Fähigkeiten"),
+            new UiTextEntry("skills-empty", "Diese Klasse hat noch keinen Skill-Baum."),
+            new UiTextEntry("skills-more-up", "▲ weitere"),
+            new UiTextEntry("skills-more-down", "▼ weitere"),
+            new UiTextEntry("hint-learn", "Lernen"),
+            new UiTextEntry("hint-bar", "Auf die Leiste"),
             new UiTextEntry("questlog-cat-main", "Haupt"),
             new UiTextEntry("questlog-cat-faction", "Fraktion"),
             new UiTextEntry("questlog-cat-region", "Region"),

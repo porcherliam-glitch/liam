@@ -1,0 +1,39 @@
+{
+    "name": "Aetherfall.Skills",
+    "rootNamespace": "Aetherfall.Skills",
+    "references": [
+        "Aetherfall.Utilities",
+        "Aetherfall.Core",
+        "Aetherfall.Events",
+        "Aetherfall.Data",
+        "Aetherfall.SaveSystem",
+        "Aetherfall.Stats",
+        "Aetherfall.Progression",
+        "Aetherfall.Classes",
+        "Aetherfall.Combat",
+        "Aetherfall.Player"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "AETHERFALL_INPUTSYSTEM",
+        "AETHERFALL_NEWTONSOFT"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.unity.inputsystem",
+            "expression": "1.0",
+            "define": "AETHERFALL_INPUTSYSTEM"
+        },
+        {
+            "name": "com.unity.nuget.newtonsoft-json",
+            "expression": "3.0",
+            "define": "AETHERFALL_NEWTONSOFT"
+        }
+    ],
+    "noEngineReferences": false
+}

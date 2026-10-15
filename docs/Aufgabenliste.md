@@ -50,7 +50,7 @@ Ziel: ein Teil des Eichentals (~1,1 km²), alle 8 Beispiel-Quests, etwa 3,5–4 
 - [x] **Bogen voll ausbauen (S27):** Schulterzielen, Spannen, Kopftreffer mit Zusatzschaden, Pfeiltypen, Munition – 2026-10-15
   - Stufe A: Holz- und Feuerpfeil, Wechsel per Mausrad/Steuerkreuz, 50 % der Holzpfeile wieder aufsammelbar
   - Offen für Stufe B: Breitkopf-, Eis-, Gift-, Explosiv-, Betäubungspfeil, Dreifachschuss
-- [x] **Magie (S28):** – 2026-10-15
+- [x] **Magie (S28):** – 2026-10-15, Commit 5426c64
   - 3 Schulen Feuer, Eis und Blitz mit je 3 Knoten in Stufe A, nach GDD 03, 11.5
   - Fähigkeitenleiste (2 × 4 Slots), Mana
   - Erledigt: 9 Zauber, Leiste mit X, Mana je Stufe; der Magier kann die 3 Startzauber. Die übrigen 6 lernt man mit dem Skill-Baum (nächster Punkt)
@@ -62,7 +62,9 @@ Ziel: ein Teil des Eichentals (~1,1 km²), alle 8 Beispiel-Quests, etwa 3,5–4 
   - Grimmbart mit 3 Phasen und Arena (Kopfgeld)
   - Glutfang, Prolog-Rissbrut
   - Bossbalken für alle
-- [ ] **Skill-Baum** mit etwa 15 Knoten je Klasse (Krieger, Magier), Stufen 1–8, Skill-Baum-Oberfläche mit Gamepad (S21, S61)
+- [x] **Skill-Baum** mit etwa 15 Knoten je Klasse (Krieger, Magier), Stufen 1–8, Skill-Baum-Oberfläche mit Gamepad (S21, S61) – 2026-10-15
+  - Erledigt: je 15 Knoten, Seite „Fähigkeiten“ (K) im Tagebuch, 5 Krieger-Techniken, Zauber und Verbesserungen über den Baum
+  - Offen: grafischer Baum, Respec beim Lehrmeister, Stufen III–V (Stufe B)
 - [ ] **NPC-Tagesabläufe (S43) und Barks (S44):**
   - Hollmann von 7 bis 18 Uhr bei der Herde, Ole von 10 bis 24 Uhr, usw.
   - Kurze Sprüche im Vorbeigehen

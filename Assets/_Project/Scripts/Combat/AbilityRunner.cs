@@ -34,7 +34,13 @@ namespace Aetherfall.Combat
         NotEnoughMana = 4,
 
         /// <summary>No target in range (the chain lightning needs one).</summary>
-        NoTarget = 5
+        NoTarget = 5,
+
+        /// <summary>Too little stamina (warrior techniques).</summary>
+        NotEnoughStamina = 6,
+
+        /// <summary>Needs a shield in the off hand (Schildschlag).</summary>
+        NeedsShield = 7
     }
 
     /// <summary>
@@ -157,6 +163,13 @@ namespace Aetherfall.Combat
             {
                 Phase = AbilityPhase.Ready;
             }
+        }
+
+        /// <summary>Sets the remaining cooldown (a rebuilt runner keeps the cooldown of the old one).</summary>
+        /// <param name="seconds">Seconds left.</param>
+        public void SetCooldown(float seconds)
+        {
+            CooldownRemaining = Math.Max(0f, seconds);
         }
 
         /// <summary>Back to ready without cooldown (respawn, loaded game).</summary>

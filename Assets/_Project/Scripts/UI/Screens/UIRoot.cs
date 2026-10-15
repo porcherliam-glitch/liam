@@ -142,6 +142,7 @@ namespace Aetherfall.UI.Screens
         private IDialogueService _dialogues;
         private IDialogueSpeakerDirectory _speakers;
         private Aetherfall.Classes.IClassService _classes;
+        private Aetherfall.Skills.ISkillService _skills;
         private UIScreen _pendingMenu;
         private object _pendingMenuArgs;
         private string _pendingMenuReason = string.Empty;
@@ -230,6 +231,7 @@ namespace Aetherfall.UI.Screens
                 locator.TryGet(out _merchants);
                 locator.TryGet(out _speakers);
                 locator.TryGet(out _classes);
+                locator.TryGet(out _skills);
                 Build();
             }
             catch (OperationCanceledException)
@@ -263,7 +265,7 @@ namespace Aetherfall.UI.Screens
             if (HasJournalLayouts())
             {
                 _journal = new JournalScreen(CloneScreen(journalLayout, screensRoot), questRowLayout, objectiveRowLayout, journalLineLayout,
-                    attributeRowLayout, valueRowLayout, _glyphs, _quests, _progression, OnJournalCloseRequested);
+                    attributeRowLayout, valueRowLayout, _glyphs, _quests, _progression, OnJournalCloseRequested, _skills);
                 _ui.RegisterScreen(_journal);
             }
             else
@@ -637,6 +639,14 @@ namespace Aetherfall.UI.Screens
         private void ShowNotification(Notification notification)
         {
             _ui.ShowToast(notification);
+        }
+
+        /// <summary>Opens the journal on a page like its keys do (J, K; tools and check runs use it too).</summary>
+        /// <param name="page">Page.</param>
+        /// <returns>False if the journal cannot open now (no layouts, wrong game state).</returns>
+        public bool OpenJournal(JournalPage page)
+        {
+            return _director != null && _director.OpenJournal(page);
         }
 
         private bool OpenJournalFromPause()
