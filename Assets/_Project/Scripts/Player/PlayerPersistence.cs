@@ -141,7 +141,7 @@ namespace Aetherfall.Player
         {
             if (_airborneLock != null)
             {
-                _airborneLock.Update(motor.IsAirborne);
+                _airborneLock.Update(motor.IsAirborne || motor.IsClimbing);
             }
         }
 

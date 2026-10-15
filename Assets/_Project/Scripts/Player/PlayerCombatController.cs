@@ -138,9 +138,12 @@ namespace Aetherfall.Player
         /// <summary>The combat state machine (read-only use: weapon pose, overlays); null if the setup is invalid.</summary>
         public CombatStateMachine StateMachine => _machine;
 
-        /// <summary>True if an ability may start now: no attack, dodge, block or stagger, on the ground, alive.</summary>
+        /// <summary>True if an ability may start now: no attack, dodge, block or stagger, on the ground, not climbing, alive.</summary>
         public bool IsFreeForAbility => isActiveAndEnabled && _machine != null && _machine.State == CombatStateId.Idle && !motor.IsAirborne &&
-                                        combatant.IsAlive && !_blockHeld;
+                                        !motor.ClimbBlocksActions && combatant.IsAlive && !_blockHeld;
+
+        /// <summary>True while the character climbs (or let go this frame): no attacks, blocks, dodges or bow (GDD 03 1.4 K4).</summary>
+        public bool IsClimbing => motor != null && motor.ClimbBlocksActions;
 
         /// <summary>Lock-on target, or null.</summary>
         public Combatant LockedTarget => lockOn != null ? lockOn.Target : null;
@@ -734,8 +737,9 @@ namespace Aetherfall.Player
         private CombatInput ReadInput()
         {
             var input = new CombatInput();
-            if (_gameplay == null || !_gameplay.IsActive)
+            if (_gameplay == null || !_gameplay.IsActive || motor.ClimbBlocksActions)
             {
+                // While climbing the dodge button lets go (the motor reads it) and the hands are on the wall.
                 return input;
             }
 

@@ -202,6 +202,9 @@ namespace Aetherfall.EditorTools.World
 
             // S46: Ser Maren in full (combat modes, campfire talks, warning and leaving).
             EnqueueMaren();
+
+            // S48: climbing at the Wachturm Grauwacht (ladder, rest point, rock, vines, crow's nest).
+            EnqueueClimbing();
         }
 
         /// <summary>Waits for the trade screen (game state Menu), buys the first affordable offer and sells one item of the bag.</summary>

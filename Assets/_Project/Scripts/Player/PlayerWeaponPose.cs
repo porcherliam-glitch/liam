@@ -8,7 +8,8 @@ namespace Aetherfall.Player
     /// Procedural pose of the placeholder sword and shield while there are no animations: the sword swings along the
     /// attack time line (wind-up, hit, recovery; each combo step from another side, heavy from above, the 4th step as a
     /// thrust), is raised and trembles while charging, the shield comes up in front of the body while blocking (gold in the
-    /// parry window via its renderer colour), both tuck in during a dodge, and wobble while staggered.
+    /// parry window via its renderer colour), both tuck in during a dodge, wobble while staggered and reach up the wall while
+    /// climbing.
     /// </summary>
     /// <remarks>
     /// GameObject: the player root; <c>weaponPivot</c> is the "hand" holding the sword cube, <c>shieldPivot</c> the off hand
@@ -33,6 +34,9 @@ namespace Aetherfall.Player
         [Tooltip("Bogen (Fernkampf-Haltung: Bogenarm vorn, Sehnenhand an der Wange). Leer = PlayerBow am selben GameObject.")]
         [SerializeField] private PlayerBow bow = null;
 
+        [Tooltip("Bewegung des Spielers (Klettern: beide Hände greifen abwechselnd nach oben). Leer = PlayerMotor am selben GameObject.")]
+        [SerializeField] private PlayerMotor motor = null;
+
         [Tooltip("Wie schnell die Pose der Ziel-Pose folgt (größer = härter).")]
         [Range(5f, 60f)] [SerializeField] private float followSharpness = 25f;
 
@@ -52,6 +56,11 @@ namespace Aetherfall.Player
             if (bow == null)
             {
                 TryGetComponent(out bow);
+            }
+
+            if (motor == null)
+            {
+                TryGetComponent(out motor);
             }
 
             if (weaponPivot != null)
@@ -81,6 +90,10 @@ namespace Aetherfall.Player
 
             switch (machine.State)
             {
+                case CombatStateId.Idle when motor != null && motor.IsClimbing:
+                    PoseClimb(ref weaponEuler, ref weaponOffset, ref shieldEuler, ref shieldOffset);
+                    sharpness = 18f;
+                    break;
                 case CombatStateId.Idle when bow != null && bow.InStance:
                     PoseBow(ref weaponEuler, ref weaponOffset, ref shieldEuler, ref shieldOffset);
                     sharpness = 30f;
@@ -130,6 +143,18 @@ namespace Aetherfall.Player
                 _parryGlow = glow;
                 shieldFlash.SetTint(new Color(1f, 0.91f, 0.64f), glow ? 0.9f : 0f);
             }
+        }
+
+        private void PoseClimb(ref Vector3 weaponEuler, ref Vector3 weaponOffset, ref Vector3 shieldEuler, ref Vector3 shieldOffset)
+        {
+            // Both hands reach up the wall and take turns every 0.6 m (no climbing animation yet); with empty stamina they
+            // shake (GDD 03 3.3: 1 s warning before the fall).
+            float reach = Mathf.Sin(motor.ClimbDistance * Mathf.PI / 0.6f);
+            float shake = motor.IsClimbShaking ? Mathf.Sin(Time.time * 70f) * 8f : 0f;
+            weaponEuler = new Vector3(-150f + 20f * reach + shake, 0f, 0f);
+            weaponOffset = new Vector3(0f, 0.25f + 0.12f * reach, 0.15f);
+            shieldEuler = new Vector3(-70f - 20f * reach + shake, -20f, 0f);
+            shieldOffset = new Vector3(0f, 0.35f - 0.12f * reach, 0.1f);
         }
 
         private void PoseBow(ref Vector3 weaponEuler, ref Vector3 weaponOffset, ref Vector3 shieldEuler, ref Vector3 shieldOffset)

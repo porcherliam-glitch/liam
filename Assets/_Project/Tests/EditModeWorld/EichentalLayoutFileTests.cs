@@ -27,7 +27,8 @@ namespace Aetherfall.Tests.EditMode.World
             "loc.eichental.dorf_eichental", "loc.eichental.dorfplatz", "loc.eichental.dorfrand", "loc.eichental.riss_eichental",
             "loc.eichental.lindenhain", "loc.eichental.gasthaus_krummer_kessel", "loc.eichental.wachposten_lindenhain",
             "loc.eichental.hof_hollmann", "loc.eichental.nordhang", "loc.eichental.wolfsbau_nordhang", "loc.eichental.vergessene_gruft",
-            "loc.eichental.muehle_muehlbach", "loc.eichental.rabenfels_spitze", "loc.eichental.steinbruch_grimmbart", "loc.eichental.steinbruch_arena"
+            "loc.eichental.muehle_muehlbach", "loc.eichental.rabenfels_spitze", "loc.eichental.steinbruch_grimmbart", "loc.eichental.steinbruch_arena",
+            "loc.eichental.wachturm_grauwacht"
         };
 
         // GDD 01 4.1.3 and GDD 02 11.0 "Verwendete NPCs" (region Eichental and the grey figure).
@@ -308,25 +309,27 @@ namespace Aetherfall.Tests.EditMode.World
         }
 
         [Test]
-        public void ViewpointHasAChest()
+        public void EveryViewpointHasAChest()
         {
-            LayoutLocation viewpoint = null;
-            foreach (LayoutLocation location in _layout.Locations)
+            int viewpoints = 0;
+            foreach (LayoutLocation viewpoint in _layout.Locations)
             {
-                if (location.Kind == LocationKind.Viewpoint)
+                if (viewpoint.Kind != LocationKind.Viewpoint)
                 {
-                    viewpoint = location;
+                    continue;
                 }
+
+                viewpoints++;
+                bool chest = false;
+                foreach (LayoutChest c in _layout.Chests)
+                {
+                    chest |= c.LocationId == viewpoint.Id;
+                }
+
+                Assert.That(chest, Is.True, viewpoint.Id + ": GDD 00 pillar 1: exploration always rewards");
             }
 
-            Assert.That(viewpoint, Is.Not.Null);
-            bool chest = false;
-            foreach (LayoutChest c in _layout.Chests)
-            {
-                chest |= c.LocationId == viewpoint.Id;
-            }
-
-            Assert.That(chest, Is.True, "GDD 00 pillar 1: exploration always rewards");
+            Assert.That(viewpoints, Is.GreaterThanOrEqualTo(2), "Rabenfels-Spitze and the crow's nest of the Wachturm Grauwacht");
         }
 
         private static IEnumerable<string> RationaleLines()

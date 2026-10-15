@@ -22,7 +22,8 @@ namespace Aetherfall.World
         {
             Pair("house", BuildingKind.House), Pair("smithy", BuildingKind.Smithy), Pair("tavern", BuildingKind.Tavern),
             Pair("mill", BuildingKind.Mill), Pair("barn", BuildingKind.Barn), Pair("chapel", BuildingKind.Chapel),
-            Pair("ruin", BuildingKind.Ruin), Pair("guardpost", BuildingKind.Guardpost)
+            Pair("ruin", BuildingKind.Ruin), Pair("guardpost", BuildingKind.Guardpost),
+            Pair("watchtower", BuildingKind.Watchtower)
         };
 
         internal static readonly KeyValuePair<string, BuildingState>[] BuildingStates =

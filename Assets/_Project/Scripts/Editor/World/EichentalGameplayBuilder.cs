@@ -54,6 +54,26 @@ namespace Aetherfall.EditorTools.World
             return (float)_heights.Height(x, z);
         }
 
+        /// <summary>Floor under a chest: the deck of a watchtower if it stands on one (the crow's nest), otherwise the terrain.</summary>
+        private float ChestFloor(double x, double z)
+        {
+            foreach (LayoutBuilding b in _layout.Buildings)
+            {
+                if (b.Kind != BuildingKind.Watchtower)
+                {
+                    continue;
+                }
+
+                LayoutPoint local = LayoutGeometry.ToLocal(x - b.Position.X, z - b.Position.Z, b.Yaw);
+                if (System.Math.Abs(local.X) < b.Width * 0.5 && System.Math.Abs(local.Z) < b.Depth * 0.5)
+                {
+                    return EichentalBuildingBuilder.BaseHeight(b, _heights) + (float)b.WallHeight + WatchtowerBuilder.DeckThickness;
+                }
+            }
+
+            return H(x, z);
+        }
+
         /// <summary>Location zones: one trigger per location, tall enough for the terrain inside it.</summary>
         /// <param name="parent">Parent.</param>
         /// <param name="triggerVolumeLayer">TriggerVolume layer or −1.</param>
@@ -321,11 +341,11 @@ namespace Aetherfall.EditorTools.World
 
                 double x = chest.Position.X;
                 double z = chest.Position.Z;
-                TestGroundItemBuilder.BuildChest(parent, chest.Name, chest.Id, table, tier, new Vector3((float)x, H(x, z), (float)z), (float)chest.Yaw,
+                TestGroundItemBuilder.BuildChest(parent, chest.Name, chest.Id, table, tier, new Vector3((float)x, ChestFloor(x, z), (float)z), (float)chest.Yaw,
                     chest.AreaLevel, material, interactableLayer, environmentLayer, _labelFont, _report);
             }
 
-            _report.Info("Truhen: " + _layout.Chests.Count + " (Schmiede, Kapelle, Mühle, Wolfsbau, versteckt auf dem Rabenfels), Gebietslevel aus dem Layout.");
+            _report.Info("Truhen: " + _layout.Chests.Count + " (Schmiede, Kapelle, Mühle, Wolfsbau, versteckt auf dem Rabenfels und im Krähennest), Gebietslevel aus dem Layout.");
         }
 
         /// <summary>

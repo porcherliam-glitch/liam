@@ -20,7 +20,7 @@ namespace Aetherfall.Player
     /// Combat (dodge roll, attack lunge, blocking speed, lock-on strafing) comes in through <see cref="PlayerMovementOverride"/>.
     /// The stat <c>MoveSpeed</c> scales the ground speeds (<see cref="SpeedMultiplier"/>); overload limits (max. speed, no
     /// sprint, no jump) arrive as limits from the motor.
-    /// TODO (later steps): climbing, swimming, gliding, fall damage.</para>
+    /// TODO (later steps): swimming, gliding, fall damage (climbing: ClimbModel and the motor).</para>
     /// </remarks>
     public sealed class PlayerMovementModel
     {

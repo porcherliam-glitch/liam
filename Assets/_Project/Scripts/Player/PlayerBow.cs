@@ -446,7 +446,8 @@ namespace Aetherfall.Player
         private void Update()
         {
             bool alive = combatant == null || combatant.IsAlive;
-            if (_stance && (!alive || !HasBow))
+            bool climbing = combat != null && combat.IsClimbing;
+            if (_stance && (!alive || !HasBow || climbing))
             {
                 LeaveStance();
             }
@@ -463,7 +464,7 @@ namespace Aetherfall.Player
 
             bool playing = _gameState != null && _gameState.Current == GameState.Playing;
             _firePressed = false;
-            if (playing && _gameplay != null && _gameplay.IsActive)
+            if (playing && !climbing && _gameplay != null && _gameplay.IsActive)
             {
                 ReadButtons();
             }

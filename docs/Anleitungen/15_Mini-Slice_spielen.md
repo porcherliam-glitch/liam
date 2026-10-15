@@ -36,6 +36,7 @@ Tipp: Im Game-Fenster oben in der Leiste **Play Maximized** wählen, dann ist da
 | Leichter Angriff / schwerer Angriff | **linke / rechte Maustaste** |
 | Blocken (kurz vor dem Treffer: Parieren) | **Q** (halten) |
 | Ausweichen | **Strg links** |
+| Klettern: an der Wand hoch, runter, zur Seite / schneller / Klettersprung / loslassen | **W A S D** / **Umschalt links** / **Leertaste** / **Strg links** |
 | Gegner anvisieren / wechseln | **T** oder mittlere Maustaste / Mausrad |
 | Bogen ziehen / wegstecken (Fernkampf-Haltung) | **F** |
 | Mit Bogen: zielen (Fadenkreuz) / spannen und schießen | **rechte Maustaste** halten / **linke Maustaste** halten und loslassen |
@@ -91,6 +92,8 @@ Die Kopfgeld-Quest von Hauptmann Dorn dazu fehlt noch. Den Kampf kannst du aber 
 3. **Die vergessene Gruft**: Corvin im Gasthaus in Lindenhain. Tor-Rätsel mit Grabplatten (die Wandreliefs verraten die Reihenfolge), Hallen mit Skeletten, Spiegel-Rätsel, der Wachende Ritter. Am Ende: Siegelstein nehmen oder liegen lassen.
 
 **Begleiterin Ser Maren Falkenried:** Wenn „Die Wölfe vom Nordhang“ erledigt ist, wartet am Wachposten von Lindenhain (neben Hauptmann Dorn) eine Ritterin der Silberwacht. Sie will dich als „Rissgeborenen“ prüfen. Ob du die Prüfung annimmst oder ablehnst, sie kommt in jedem Fall mit (nach der Ablehnung „auf Befehl“, dann mag sie dich weniger). Sie läuft hinter dir her, kämpft gegen alles, was dich oder sie angreift, und hält dir den Rücken frei. Fällt sie im Kampf, steht sie nach 12 Sekunden wieder auf. Sprich sie an, wenn sie stehen bleiben („Warte hier.“) oder wieder mitkommen soll („Komm mit.“). In die Gruft kommt sie mit.
+
+**Klettern:** Helle Felsen, Ranken und Leitern kannst du hinaufklettern – lauf einfach dagegen. Klettern kostet Ausdauer (auf Leitern und an hellen Rastpunkten nicht). Geht sie aus, zittern die Hände kurz, dann fällst du. Mit **Leertaste** machst du einen Klettersprung, mit **Strg links** lässt du los. Probier es am **Wachturm Grauwacht** am Westrand (westlich vom Weg zum Hollmann-Hof, jenseits des Birkenbachs): Über Leiter, Fels und Ranken kommst du hinauf ins Krähennest.
 
 **Mehr mit Maren:** Frag sie „Wie willst du kämpfen?“: **Aggressiv** (greift dein Ziel und alles in der Nähe an), **Defensiv** (Standard: schützt dich), **Unterstützend** (bleibt hinten und wehrt nur ab, was ihr zu nahe kommt) oder **Passiv** (kämpft nicht, Gegner lassen sie in Ruhe). „Wie stehen wir zueinander?“ verrät, was sie von dir hält. Deine Entscheidungen gefallen ihr oder nicht (oben steht dann „Maren gefällt das.“ oder „Maren missbilligt das.“). Sinkt ihre Loyalität stark, warnt sie dich einmal – danach geht sie zurück zum Wachposten. **Lagerfeuer:** Am Feuer bei den Zelten in Lindenhain kannst du **rasten** (**E**): abends und nachts bis 8 Uhr morgens, tagsüber drei Stunden. Ist Maren dabei, erzählt sie dir beim ersten Rasten von ihrem Bruder und nach der Gruft vom Wachenden Ritter.
 

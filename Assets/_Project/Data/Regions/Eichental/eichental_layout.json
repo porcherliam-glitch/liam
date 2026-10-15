@@ -152,7 +152,8 @@
     { "id": "obj.eichental.haus_lindenhain_3", "name": "Wohnhaus in Lindenhain", "kind": "house", "state": "intact", "position": [-142, -74], "yaw": 10, "size": [8, 4.2, 9], "roof": "gable", "roofPitch": 48, "glow": false },
     { "id": "obj.eichental.haus_hollmann", "name": "Wohnhaus der Hollmanns", "kind": "house", "state": "intact", "position": [-168, 100], "yaw": 90, "size": [8, 4.2, 10], "roof": "gable", "roofPitch": 50, "glow": false },
     { "id": "obj.eichental.scheune_hollmann", "name": "Scheune der Hollmanns", "kind": "barn", "state": "intact", "position": [-146, 116], "yaw": 180, "size": [10, 5, 14], "roof": "gable", "roofPitch": 42, "glow": false },
-    { "id": "obj.eichental.muehle_brenner", "name": "Mühle der Familie Brenner", "kind": "mill", "state": "intact", "position": [-128, -130], "yaw": 90, "size": [11, 6, 9], "roof": "gable", "roofPitch": 45, "glow": false }
+    { "id": "obj.eichental.muehle_brenner", "name": "Mühle der Familie Brenner", "kind": "mill", "state": "intact", "position": [-128, -130], "yaw": 90, "size": [11, 6, 9], "roof": "gable", "roofPitch": 45, "glow": false },
+    { "id": "obj.eichental.wachturm_grauwacht", "name": "Wachturm Grauwacht", "kind": "watchtower", "state": "collapsed", "position": [-186, 78], "yaw": 90, "size": [6, 16, 6], "roof": "none", "roofPitch": 0, "glow": false }
   ],
   "fences": [
     { "id": "zaun.weide_hollmann", "name": "Obere Weide der Hollmanns", "height": 1.1, "closed": true,
@@ -332,6 +333,7 @@
     { "id": "loc.eichental.vergessene_gruft", "name": "Senke unter dem Rabenfels (Gruft-Eingang)", "kind": "dungeon_entrance", "shape": "circle", "center": [2, 150], "radius": 12, "quests": ["quest.dungeon.eichental.vergessene_gruft"] },
     { "id": "loc.eichental.muehle_muehlbach", "name": "Mühle am Mühlbach", "kind": "settlement", "shape": "circle", "center": [-128, -124], "radius": 22, "quests": [] },
     { "id": "loc.eichental.rabenfels_spitze", "name": "Rabenfels-Spitze (Aussichtspunkt, Vorschlag)", "kind": "viewpoint", "shape": "circle", "center": [12, 184], "radius": 7, "quests": [] },
+    { "id": "loc.eichental.wachturm_grauwacht", "name": "Wachturm Grauwacht (Krähennest, Aussichtspunkt)", "kind": "viewpoint", "shape": "circle", "center": [-186, 78], "radius": 14, "quests": [] },
     { "id": "loc.eichental.steinbruch_grimmbart", "name": "Grimmbarts Steinbruch", "kind": "poi", "shape": "circle", "center": [150, -168], "radius": 34, "quests": [] },
     { "id": "loc.eichental.steinbruch_arena", "name": "Kessel des Steinbruchs", "kind": "poi", "shape": "circle", "center": [150, -176], "radius": 14, "quests": [] }
   ],
@@ -374,7 +376,8 @@
     { "id": "obj.eichental.truhe_kapelle", "name": "Eisentruhe hinter der Kapelle", "tier": "iron", "position": [44, 13], "yaw": 0, "areaLevel": 1, "locationId": "loc.eichental.dorf_eichental" },
     { "id": "obj.eichental.truhe_muehle", "name": "Holztruhe an der Mühle", "tier": "wooden", "position": [-116, -132], "yaw": 270, "areaLevel": 2, "locationId": "loc.eichental.muehle_muehlbach" },
     { "id": "obj.eichental.truhe_wolfsbau", "name": "Eisentruhe im Wolfsbau", "tier": "iron", "position": [-87, 190], "yaw": 160, "areaLevel": 3, "locationId": "loc.eichental.wolfsbau_nordhang" },
-    { "id": "obj.eichental.truhe_rabenfels", "name": "Versteckte Truhe auf dem Rabenfels", "tier": "hidden", "position": [16, 188], "yaw": 200, "areaLevel": 3, "locationId": "loc.eichental.rabenfels_spitze" }
+    { "id": "obj.eichental.truhe_rabenfels", "name": "Versteckte Truhe auf dem Rabenfels", "tier": "hidden", "position": [16, 188], "yaw": 200, "areaLevel": 3, "locationId": "loc.eichental.rabenfels_spitze" },
+    { "id": "obj.eichental.truhe_kraehennest", "name": "Versteckte Truhe im Krähennest", "tier": "hidden", "position": [-187, 78], "yaw": 90, "areaLevel": 2, "locationId": "loc.eichental.wachturm_grauwacht" }
   ],
   "npcMarkers": [
     { "npcId": "npc.eichental.dorfvorsteherin_hedda", "name": "Hedda Eichholz", "phase": "prolog", "stage": "s20", "locationId": "loc.eichental.dorfplatz", "position": [34, -24], "yaw": 120 },

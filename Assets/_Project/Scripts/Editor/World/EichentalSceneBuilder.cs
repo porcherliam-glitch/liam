@@ -75,8 +75,16 @@ namespace Aetherfall.EditorTools.World
             var buildings = new EichentalBuildingBuilder(materials, meshes, heights, smoke, env) { Kit = kit };
             Transform buildingGroup = Group(village.transform, "Gebäude");
             Transform fireGroup = EichentalBuildingBuilder.CreateFireGroup(village.transform, report);
+            var towers = new WatchtowerBuilder(materials, meshes, heights, env, labelFont, report);
             for (int i = 0; i < layout.Buildings.Count; i++)
             {
+                if (layout.Buildings[i].Kind == BuildingKind.Watchtower)
+                {
+                    // GDD 01: the Wachturm Grauwacht with the climbing route to the crow's nest (task list S48).
+                    towers.Build(layout.Buildings[i], buildingGroup);
+                    continue;
+                }
+
                 buildings.Build(layout.Buildings[i], i, buildingGroup, fireGroup);
             }
 

@@ -51,7 +51,8 @@ UNITY_COLORS = {
 
 # Roof material per building kind (EichentalBuildingBuilder.RoofColorName).
 ROOF_COLOR = {"house": "thatch", "barn": "thatch", "smithy": "shingle", "tavern": "shingle", "mill": "shingle",
-              "chapel": "shingle", "guardpost": "shingle", "ruin": "shingle"}
+              "chapel": "shingle", "guardpost": "shingle", "ruin": "shingle",
+              "watchtower": "shingle"}
 
 ROOF_OVERHANG = 0.45
 FAST = {"on": False, "ambient": (0.3, 0.32, 0.36)}  # video: cheaper shading, sky light faked as emission
@@ -209,6 +210,15 @@ class Builder:
 
 def ground_y(builder, x, z):
     return builder.h.height(x, z)
+
+
+def chest_floor(builder, lay, x, z):
+    """Floor under a chest: the deck of a watchtower if it stands on one (the crow's nest), otherwise the terrain."""
+    for bd in lay.get("buildings", []):
+        if bd["kind"] == "watchtower" and L.rect_excess(x, z, bd["position"], bd["size"][0], bd["size"][2], bd["yaw"]) < 0:
+            base = min(ground_y(builder, cx, cz) for cx, cz in L.building_corners(bd))
+            return base + bd["size"][1] + TOWER_DECK
+    return ground_y(builder, x, z)
 
 
 def unity_mesh(name, verts, faces, smooth=False):
@@ -521,6 +531,82 @@ def jagged(seed, i):
     return L.Pcg32(seed + 17 * i).next_float()
 
 
+# Climbing route of the watchtower (WatchtowerBuilder in Unity): ladder, rest point, pale rock, vines.
+TOWER_PLINTH_TOP = 0.2
+TOWER_LADDER_TOP = 5.2
+TOWER_REST_TOP = 6.6
+TOWER_ROCK_TOP = 11.0
+TOWER_ROUTE_WIDTH = 2.2
+TOWER_DECK = 0.1
+
+
+def build_watchtower(b, root, w, d, h):
+    """Wachturm Grauwacht: stone shaft, deck with broken battlements and the crow's nest, climbing route on the front."""
+    col = "Buildings"
+    stone = b.mat("towerStone", (0.5, 0.48, 0.45))
+    dark = b.mat("towerStoneDark", (0.33, 0.31, 0.3))
+    wood = b.mat("wood")
+    dark_wood = b.mat("woodDark")
+    pale = b.mat("climbRock", (0.86, 0.84, 0.78))
+    vine = b.mat("vine", (0.22, 0.36, 0.14))
+    leaf = b.mat("vineLeaf", (0.36, 0.56, 0.2))
+    face = d * 0.5
+    b.box("Sockel", col, (w + 0.6, d + 0.6, 0.8), (0, 0, TOWER_PLINTH_TOP - 0.8), dark, parent=root)
+    b.box("Schaft", col, (w, d, h), (0, 0, 0), stone, parent=root)
+    b.box("Gesims", col, (w + 0.16, d + 0.16, 0.25), (0, 0, 5.8), dark, parent=root)
+    b.box("Gesims oben", col, (w + 0.2, d + 0.2, 0.3), (0, 0, h - 0.5), dark, parent=root)
+    b.box("Tür", col, (1.4, 0.12, 2.4), (0, -face - 0.03, TOWER_PLINTH_TOP), dark_wood, parent=root)
+    b.box("Sturz", col, (1.8, 0.16, 0.3), (0, -face - 0.05, TOWER_PLINTH_TOP + 2.4), dark, parent=root)
+    for i in range(3):
+        zz = 3.5 + i * 4.0
+        b.box("Scharte", col, (0.06, 0.25, 1.1), (-w * 0.5 - 0.02, 0, zz), dark, parent=root)
+        b.box("Scharte", col, (0.06, 0.25, 1.1), (w * 0.5 + 0.02, 0, zz), dark, parent=root)
+    b.box("Plattform", col, (w - 0.1, d - 0.1, TOWER_DECK), (0, 0, h), wood, parent=root)
+    top = h + TOWER_DECK
+    for i in range(5):
+        xx = -w * 0.5 + 0.5 + i * (w - 1.0) / 4.0
+        b.box("Zinne", col, (0.8, 0.5, 0.6 if i == 2 else 1.1), (xx, -face + 0.25, top), stone, parent=root)
+    for i in range(4):
+        yy = -face + 0.6 + i * (d - 1.2) / 3.0
+        b.box("Zinne", col, (0.5, 0.8, 0.5 if i == 3 else 1.0), (-w * 0.5 + 0.25, yy, top), stone, parent=root)
+        b.box("Zinne", col, (0.5, 0.8, 0.4 if i == 1 else 1.0), (w * 0.5 - 0.25, yy, top), stone, parent=root)
+    b.box("Zinne", col, (0.8, 0.8, 0.7), (-w * 0.5 + 0.4, face - 0.4, top), stone, parent=root)
+    b.box("Zinne", col, (0.8, 0.8, 0.5), (w * 0.5 - 0.4, face - 0.4, top), stone, parent=root)
+    nest_back = -face + 0.9
+    nest_front = -face + 3.2
+    for xx in (-1.4, 1.4):
+        b.box("Pfosten", col, (0.18, 0.18, 2.5), (xx, nest_back, top), dark_wood, parent=root)
+        b.box("Pfosten", col, (0.18, 0.18, 2.5 if xx < 0 else 1.6), (xx, nest_front, top), dark_wood, parent=root)
+    b.box("Krähennest-Dach", col, (2.6, 2.8, 0.12), (-0.3, (nest_back + nest_front) * 0.5, top + 2.49), wood, parent=root,
+          rot=(math.radians(-6), math.radians(-9), 0))
+    b.box("Brett", col, (1.6, 0.3, 0.1), (1.0, nest_front + 0.4, top), wood, parent=root, rot=(0, 0, math.radians(-25)))
+    ladder = TOWER_LADDER_TOP - TOWER_PLINTH_TOP
+    for xx in (-0.38, 0.38):
+        b.box("Leiter", col, (0.08, 0.08, ladder), (xx, face + 0.13, TOWER_PLINTH_TOP), dark_wood, parent=root)
+    yy = TOWER_PLINTH_TOP + 0.3
+    while yy < TOWER_LADDER_TOP - 0.1:
+        b.box("Sprosse", col, (0.84, 0.06, 0.06), (0, face + 0.13, yy), wood, parent=root)
+        yy += 0.35
+    b.box("Rastpunkt", col, (TOWER_ROUTE_WIDTH + 0.2, 0.16, 0.25), (0, face + 0.08, TOWER_LADDER_TOP - 0.25), pale, parent=root)
+    b.box("Heller Fels", col, (TOWER_ROUTE_WIDTH, 0.06, TOWER_ROCK_TOP - TOWER_LADDER_TOP), (0, face + 0.02, TOWER_LADDER_TOP), pale,
+          parent=root)
+    seed = 48
+    yy = TOWER_REST_TOP + 0.3
+    while yy < TOWER_ROCK_TOP - 0.2:
+        seed = (seed * 6364136223846793005 + 1442695040888963407) & 0xFFFFFFFFFFFFFFFF
+        xx = ((seed >> 40) % 1000) / 1000.0 * (TOWER_ROUTE_WIDTH - 0.5) - (TOWER_ROUTE_WIDTH - 0.5) * 0.5
+        b.box("Griff", col, (0.3, 0.08, 0.14), (xx, face + 0.07, yy), pale, parent=root)
+        yy += 0.55
+    for i in range(7):
+        xx = -TOWER_ROUTE_WIDTH * 0.5 + 0.15 + i * (TOWER_ROUTE_WIDTH - 0.3) / 6.0
+        start = TOWER_ROCK_TOP - (i % 3) * 0.4
+        b.box("Ranke", col, (0.07, 0.06, h + 0.25 - start), (xx, face + 0.05, start), vine, parent=root)
+        yy = start + 0.4
+        while yy < h:
+            b.box("Blatt", col, (0.3, 0.07, 0.24), (xx + (0.08 if i % 2 == 0 else -0.08), face + 0.08, yy), leaf, parent=root)
+            yy += 0.9
+
+
 def build_building(b, bd, index):
     col = "Buildings"
     x, z = bd["position"]
@@ -528,6 +614,9 @@ def build_building(b, bd, index):
     kind, state = bd["kind"], bd["state"]
     base = min(ground_y(b, cx, cz) for cx, cz in L.building_corners(bd))
     root = b.empty(bd["id"], col, x, z, base, bd["yaw"])
+    if kind == "watchtower":
+        build_watchtower(b, root, w, d, wall_h)
+        return
     stone = b.mat("stone")
     plaster = b.mat("plaster") if state == "intact" else b.mat("plasterBurned")
     timber = b.mat("woodDark") if state == "intact" else b.mat("burnedWood")
@@ -1184,7 +1273,7 @@ def build_gameplay(b, with_markers=True):
             build_wolf(b, col, x, z, yaw, aether)
     for chest in lay.get("chests", []):
         x, z = chest["position"]
-        root = b.empty(chest["id"], col, x, z, ground_y(b, x, z), chest.get("yaw", 0))
+        root = b.empty(chest["id"], col, x, z, chest_floor(b, lay, x, z), chest.get("yaw", 0))
         m = b.mat("chest_" + chest["tier"], UNITY_COLORS["chest_" + chest["tier"]], roughness=0.5)
         b.box("Korpus", col, (1.0, 0.6, 0.6), (0, 0, 0), m, parent=root)
         b.box("Deckel", col, (1.04, 0.64, 0.14), (0, 0, 0.6), m, parent=root)

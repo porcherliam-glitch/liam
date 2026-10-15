@@ -25,6 +25,9 @@ namespace Aetherfall.World
         Ruin = 6,
 
         /// <summary><c>guardpost</c>: Guard post (Wachposten).</summary>
-        Guardpost = 7
+        Guardpost = 7,
+
+        /// <summary><c>watchtower</c>: Watchtower ruin with a climbing route up to the crow's nest (Wachturm).</summary>
+        Watchtower = 8
     }
 }

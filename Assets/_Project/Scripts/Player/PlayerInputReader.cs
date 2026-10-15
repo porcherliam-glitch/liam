@@ -108,7 +108,8 @@ namespace Aetherfall.Player
                 // Both actions in the same frame = the shared L3 button (default binding): the context rule decides.
                 SprintSneakShared = sprintPressed && sneakPressed,
                 // Caps Lock: on macOS the second press arrives as a release (lock state), see KeyboardPlatformRules.
-                WalkTogglePressed = _gameplay.WasToggledThisFrame(GameplayButton.WalkToggle)
+                WalkTogglePressed = _gameplay.WasToggledThisFrame(GameplayButton.WalkToggle),
+                LetGoPressed = _gameplay.WasPressedThisFrame(GameplayButton.Dodge)
             };
             motor.SubmitInput(in input);
         }

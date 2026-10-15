@@ -41,5 +41,8 @@ namespace Aetherfall.Player
 
         /// <summary>Walk/run toggle switched this frame (Caps Lock; on macOS press or release, see IGameplayInput.WasToggledThisFrame).</summary>
         public bool WalkTogglePressed { get; set; }
+
+        /// <summary>Dodge was pressed this frame: lets go of a wall while climbing (GDD 03 1.4 K4).</summary>
+        public bool LetGoPressed { get; set; }
     }
 }

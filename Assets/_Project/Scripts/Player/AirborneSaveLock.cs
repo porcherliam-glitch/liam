@@ -5,7 +5,7 @@ namespace Aetherfall.Player
 {
     /// <summary>
     /// Save lock "falling, jumping" of the player (architecture 9.8: set by the Player; GDD 05 5.2: nobody saves right before
-    /// a deadly fall): while the character is in the air, <see cref="ISaveManager.IsSaveAllowed"/> is false with the reason
+    /// a deadly fall): while the character is in the air or climbs, <see cref="ISaveManager.IsSaveAllowed"/> is false with the reason
     /// <see cref="SaveReasonKeys.Falling"/>. Covers F5, the autosave (deferred until landing) and the save menu.
     /// </summary>
     /// <remarks>

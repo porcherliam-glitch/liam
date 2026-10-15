@@ -21,11 +21,12 @@ namespace Aetherfall.Player
     /// <para>Combat limits (attacks, blocking, dodge roll, lock-on strafing, local hitstop) arrive through
     /// <see cref="SetMovementOverride"/> from the player combat controller; load limits through <see cref="SetLoadLimits"/>
     /// and the stat MoveSpeed (equipment, overload) from the stats.</para>
-    /// <para>TODO: animation parameters (Animator step), climbing, swimming, gliding.</para>
+    /// <para>Climbing on marked surfaces (<see cref="ClimbSurface"/>) lives in PlayerMotor.Climbing.cs.</para>
+    /// <para>TODO: animation parameters (Animator step), swimming, gliding.</para>
     /// </remarks>
     [RequireComponent(typeof(CharacterController))]
     [DisallowMultipleComponent]
-    public sealed class PlayerMotor : MonoBehaviour
+    public sealed partial class PlayerMotor : MonoBehaviour
     {
         private const float ProbeLift = 0.1f;
         private const float ProbeRadiusFactor = 0.9f;
@@ -65,7 +66,7 @@ namespace Aetherfall.Player
         public bool IsActive => _model != null && _gameState != null && _gameState.Current == GameState.Playing;
 
         /// <summary>True while the character jumps or falls (see <see cref="PlayerMovementModel.IsAirborne"/>); false without model.</summary>
-        public bool IsAirborne => _model != null && _model.IsAirborne;
+        public bool IsAirborne => !IsClimbing && _model != null && _model.IsAirborne;
 
         /// <summary>Passes this frame's movement commands. Presses (jump, sprint, sneak, walk toggle) accumulate until consumed.</summary>
         /// <param name="input">Commands from the input reader (camera yaw is filled in by the motor).</param>
@@ -76,6 +77,7 @@ namespace Aetherfall.Player
             merged.SprintPressed |= _pendingInput.SprintPressed;
             merged.SneakPressed |= _pendingInput.SneakPressed;
             merged.WalkTogglePressed |= _pendingInput.WalkTogglePressed;
+            merged.LetGoPressed |= _pendingInput.LetGoPressed;
             merged.SprintSneakShared |= _pendingInput.SprintSneakShared;
             _pendingInput = merged;
         }
@@ -152,6 +154,7 @@ namespace Aetherfall.Player
                 _model.Reset(yaw);
             }
 
+            CancelClimb();
             _pendingInput = default;
         }
 
@@ -244,6 +247,13 @@ namespace Aetherfall.Player
                 _model.SpeedMultiplier = stats.Stats.Get(StatId.MoveSpeed);
             }
 
+            TickClimbTimers(deltaTime);
+            if (IsClimbing)
+            {
+                StepClimb(input, deltaTime);
+                return;
+            }
+
             GroundContact ground = ProbeGround();
             bool wasGrounded = _model.IsGrounded;
             MotionVector velocity = _model.Step(input, ground, deltaTime, limits);
@@ -260,6 +270,7 @@ namespace Aetherfall.Player
             }
 
             transform.rotation = Quaternion.Euler(0f, _model.Yaw, 0f);
+            TryStartClimb(input);
         }
 
         private void ApplyLoadLimits(ref PlayerMovementOverride limits)
