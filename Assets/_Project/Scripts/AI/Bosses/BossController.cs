@@ -88,6 +88,13 @@ namespace Aetherfall.AI.Bosses
         [Tooltip("Farbe, solange der Boss betäubt oder offen ist.")]
         [SerializeField] private Color stunnedColor = new Color(0.2f, 0.95f, 0.9f);
 
+        [Header("Sturmangriff")]
+        [Tooltip("Ebenen der Hindernisse, an denen ein Sturmangriff endet (Steinblöcke mit BossChargeStopper).")]
+        [SerializeField] private LayerMask chargeStopLayers = 1 << 11;
+
+        [Tooltip("So lange ist der Boss betäubt, wenn er in einen Steinblock rennt (GDD 02, 11.6: 4 s, Finisher möglich).")]
+        [Range(0.5f, 8f)] [SerializeField] private float chargeStunSeconds = 4f;
+
         private CharacterController _controller;
         private Combatant _combatant;
         private EnemyTypeDefinition _type;
@@ -110,6 +117,75 @@ namespace Aetherfall.AI.Bosses
         private bool _busSubscribed;
         private bool _wasDisabled;
         private bool _healthSubscribed;
+        private readonly Collider[] _chargeHits = new Collider[8];
+
+        /// <summary>Raised when the wind-up of a special attack starts (key, e.g. horn, kran, brandtopf).</summary>
+        public event Action<string> SpecialStarted;
+
+        /// <summary>Raised when a special attack fires (key); the boss mechanics do the work.</summary>
+        public event Action<string> SpecialFired;
+
+        /// <summary>Raised when a phase begins (also phase 1).</summary>
+        public event Action<int> PhaseStarted;
+
+        /// <summary>Raised after every resolved hit on the boss.</summary>
+        public event Action<HitReport> HitTaken;
+
+        /// <summary>Raised when the boss kneels and can be bound.</summary>
+        public event Action Yielded;
+
+        /// <summary>Raised when the kneeling boss gets up again.</summary>
+        public event Action YieldEnded;
+
+        /// <summary>Raised once when the boss was bound alive.</summary>
+        public event Action Subdued;
+
+        /// <summary>Raised when a charge ended at an obstacle (the boss is stunned).</summary>
+        public event Action ChargeStopped;
+
+        /// <summary>Raised when the boss was put back to the start (player died, fight abandoned, switched on again).</summary>
+        public event Action BossReset;
+
+        /// <summary>True while the boss kneels and can be bound.</summary>
+        public bool IsYielding => _brain != null && _brain.IsYielding;
+
+        /// <summary>True once the boss was bound alive.</summary>
+        public bool IsSubdued => _brain != null && _brain.State == BossStateId.Subdued;
+
+        /// <summary>Binds the kneeling boss (GDD 02 11.6 "Fesseln").</summary>
+        /// <returns>True if he is bound now.</returns>
+        public bool Bind()
+        {
+            return _brain != null && _brain.Bind();
+        }
+
+        /// <summary>Interrupts the running attack (horn call) and staggers the boss.</summary>
+        /// <param name="seconds">Stagger seconds.</param>
+        /// <returns>True if interrupted.</returns>
+        public bool Interrupt(float seconds)
+        {
+            if (_brain == null || !_brain.Interrupt(seconds))
+            {
+                return false;
+            }
+
+            if (hitFlash != null)
+            {
+                hitFlash.Flash(stunnedColor);
+            }
+
+            return true;
+        }
+
+        /// <summary>Switches a special attack off for good (the horn was stolen or shot off).</summary>
+        /// <param name="special">Key.</param>
+        public void DisableSpecial(string special)
+        {
+            _brain?.DisableSpecial(special);
+        }
+
+        /// <summary>True if the boss has a guard at all (Grimmbart fights without a shield).</summary>
+        private bool HasGuard => definition != null && definition.GuardReduction > 0f;
 
         /// <summary>The brain (null until started).</summary>
         public BossBrain Brain => _brain;
@@ -154,7 +230,7 @@ namespace Aetherfall.AI.Bosses
         }
 
         /// <inheritdoc />
-        public BlockSpec ActiveBlock => _brain != null && _brain.IsGuardUp && definition != null
+        public BlockSpec ActiveBlock => _brain != null && _brain.IsGuardUp && HasGuard
             ? new BlockSpec(definition.GuardAngle, definition.GuardReduction, definition.GuardReduction * 0.5f, 0.9f)
             : default;
 
@@ -175,7 +251,7 @@ namespace Aetherfall.AI.Bosses
                 return DefenseOutcome.Ignored;
             }
 
-            if (_brain.IsGuardUp && definition != null && ShieldGuardRules.Covers(bearing, definition.GuardAngle))
+            if (_brain.IsGuardUp && HasGuard && ShieldGuardRules.Covers(bearing, definition.GuardAngle))
             {
                 return DefenseOutcome.Blocked;
             }
@@ -194,6 +270,7 @@ namespace Aetherfall.AI.Bosses
         /// <inheritdoc />
         public StaggerKind OnHitResolved(in HitReport report)
         {
+            HitTaken?.Invoke(report);
             if (report.Killed || _brain == null)
             {
                 return StaggerKind.None;
@@ -228,6 +305,15 @@ namespace Aetherfall.AI.Bosses
         /// <inheritdoc />
         public void OpenHitWindow(AttackSpec attack)
         {
+            BossAttackOption chosen = _brain != null ? _brain.ChosenAttack : null;
+            if (chosen != null && chosen.IsSpecial)
+            {
+                // A special attack (war horn, crane, fire pot): the boss mechanics act instead of the hitbox.
+                Log.Info(LogCategory.AI, "Boss '" + BossId + "': special '" + chosen.Special + "'.");
+                SpecialFired?.Invoke(chosen.Special);
+                return;
+            }
+
             if (hitbox != null)
             {
                 hitbox.OpenHitWindow(attack);
@@ -293,6 +379,7 @@ namespace Aetherfall.AI.Bosses
             }
 
             Log.Info(LogCategory.AI, "Boss '" + BossId + "' reset.");
+            BossReset?.Invoke();
         }
 
         private void Awake()
@@ -395,6 +482,10 @@ namespace Aetherfall.AI.Bosses
                 _brain.Stunned += OnStunned;
                 _brain.Died += OnBrainDied;
                 _brain.EncounterAbandoned += OnEncounterAbandoned;
+                _brain.SpecialStarted += key => SpecialStarted?.Invoke(key);
+                _brain.Yielded += OnYielded;
+                _brain.YieldEnded += () => YieldEnded?.Invoke();
+                _brain.Subdued += OnSubdued;
                 SetAddsActive(false);
                 SetInvulnerable(true);
                 SubscribeBus();
@@ -481,6 +572,7 @@ namespace Aetherfall.AI.Bosses
             SetInvulnerable(_brain.IsInvulnerable);
             float turnRate = _type.TurnRate * (_brain.IsTelegraphing ? 0.5f : 1f);
             _locomotion.Move(_brain.Intent, local, _brain.State == BossStateId.Dormant ? 0.01f : turnRate);
+            CheckCharge();
             CheckBeam();
             UpdateVisuals(deltaTime);
             if (_bar != null && _brain.IsEncounterRunning)
@@ -593,7 +685,7 @@ namespace Aetherfall.AI.Bosses
                 hitFlash.SetTint(unblockableColor, 0.7f + 0.3f * Mathf.Sin(Time.time * 30f));
             }
 
-            float kneelTarget = _brain.State == BossStateId.Dormant ? 1f : 0f;
+            float kneelTarget = _brain.State == BossStateId.Dormant || _brain.State == BossStateId.Yielding || _brain.State == BossStateId.Subdued ? 1f : 0f;
             _kneel = Mathf.MoveTowards(_kneel, kneelTarget, deltaTime / Mathf.Max(0.1f, _brain.Settings.AwakenSeconds));
             if (body != null)
             {
@@ -644,6 +736,7 @@ namespace Aetherfall.AI.Bosses
             }
 
             Log.Info(LogCategory.AI, "Boss '" + BossId + "': phase " + phase + ".");
+            PhaseStarted?.Invoke(phase);
             if (_eventBus != null)
             {
                 var changed = new BossPhaseChanged(BossId, phase);
@@ -739,6 +832,80 @@ namespace Aetherfall.AI.Bosses
             }
 
             PublishEncounterEnded(true);
+        }
+
+        private void CheckCharge()
+        {
+            // GDD 02 11.6: a charge that runs into a stone block breaks the poise - 4 s stunned, finisher possible.
+            if (_brain.Intent.Mode != EnemyMoveMode.Lunge || chargeStopLayers.value == 0)
+            {
+                return;
+            }
+
+            Vector3 chest = transform.position + Vector3.up * 1.1f + transform.forward * 0.9f;
+            int count = Physics.OverlapSphereNonAlloc(chest, 0.7f, _chargeHits, chargeStopLayers, QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < count; i++)
+            {
+                if (_chargeHits[i] == null || _chargeHits[i].GetComponentInParent<BossChargeStopper>() == null)
+                {
+                    continue;
+                }
+
+                if (_combatant.Poise != null)
+                {
+                    _combatant.Poise.Stun(chargeStunSeconds, true);
+                }
+
+                if (_brain.NotifyPoiseBroken(chargeStunSeconds))
+                {
+                    CloseHitWindow();
+                    if (hitFlash != null)
+                    {
+                        hitFlash.Flash(stunnedColor);
+                    }
+
+                    Log.Info(LogCategory.AI, "Boss '" + BossId + "' ran into '" + _chargeHits[i].name + "': stunned " + chargeStunSeconds.ToString("0") + " s.");
+                    ChargeStopped?.Invoke();
+                }
+
+                return;
+            }
+        }
+
+        private void OnYielded()
+        {
+            CloseHitWindow();
+            Log.Info(LogCategory.AI, "Boss '" + BossId + "' kneels: he can be bound now.");
+            Yielded?.Invoke();
+        }
+
+        private void OnSubdued()
+        {
+            if (_defeatReported)
+            {
+                return;
+            }
+
+            _defeatReported = true;
+            SetInvulnerable(true);
+            CloseHitWindow();
+            Log.Info(LogCategory.AI, "Boss '" + BossId + "' bound alive.");
+            if (_bar != null)
+            {
+                _bar.Hide(BossId);
+            }
+
+            SetAddsActive(false);
+            if (_eventBus != null)
+            {
+                var subdued = new BossSubdued(BossId);
+                _eventBus.Publish(in subdued);
+                var defeated = new BossDefeated(BossId);
+                _eventBus.Publish(in defeated);
+            }
+
+            PublishEncounterEnded(true);
+            Subdued?.Invoke();
         }
 
         private void OnPlayerDied(PlayerDied evt)

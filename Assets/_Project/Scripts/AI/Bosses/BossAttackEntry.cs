@@ -32,6 +32,12 @@ namespace Aetherfall.AI.Bosses
         [Tooltip("Schild unten, solange der Angriff läuft (Öffnung für den Spieler).")]
         [SerializeField] private bool dropsGuard = false;
 
+        [Tooltip("Bis zu dieser Phase (0 = bis zum Ende), z. B. das Kriegshorn nur in Phase 1.")]
+        [Range(0, 5)] [SerializeField] private int maxPhase = 0;
+
+        [Tooltip("Sonderangriff (leer = normaler Schlag): horn, kran, brandtopf … Die Boss-Mechanik führt ihn aus, keine Hitbox.")]
+        [SerializeField] private string special = string.Empty;
+
         /// <summary>Creates an empty entry (inspector).</summary>
         public BossAttackEntry()
         {
@@ -47,8 +53,26 @@ namespace Aetherfall.AI.Bosses
         /// <param name="minPhase">First phase.</param>
         /// <param name="dropsGuard">Guard down while running.</param>
         public BossAttackEntry(AttackDefinition attack, float minRange, float maxRange, float maxAngle, float cooldown, float weight, int minPhase,
-            bool dropsGuard)
+            bool dropsGuard) : this(attack, minRange, maxRange, maxAngle, cooldown, weight, minPhase, dropsGuard, 0, string.Empty)
         {
+        }
+
+        /// <summary>Creates an entry with a last phase and a special key (generator).</summary>
+        /// <param name="attack">Attack asset.</param>
+        /// <param name="minRange">Minimum range.</param>
+        /// <param name="maxRange">Maximum range.</param>
+        /// <param name="maxAngle">Maximum start angle.</param>
+        /// <param name="cooldown">Cooldown.</param>
+        /// <param name="weight">Weight.</param>
+        /// <param name="minPhase">First phase.</param>
+        /// <param name="dropsGuard">Guard down while running.</param>
+        /// <param name="maxPhase">Last phase (0 = to the end).</param>
+        /// <param name="special">Special key or empty.</param>
+        public BossAttackEntry(AttackDefinition attack, float minRange, float maxRange, float maxAngle, float cooldown, float weight, int minPhase,
+            bool dropsGuard, int maxPhase, string special)
+        {
+            this.maxPhase = maxPhase;
+            this.special = special ?? string.Empty;
             this.attack = attack;
             this.minRange = minRange;
             this.maxRange = maxRange;
@@ -85,7 +109,9 @@ namespace Aetherfall.AI.Bosses
                     Weight = weight
                 },
                 MinPhase = Mathf.Max(1, minPhase),
-                DropsGuard = dropsGuard
+                MaxPhase = maxPhase > 0 ? maxPhase : int.MaxValue,
+                DropsGuard = dropsGuard,
+                Special = special ?? string.Empty
             };
         }
     }

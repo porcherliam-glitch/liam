@@ -73,6 +73,18 @@ namespace Aetherfall.EditorTools.World
         /// <summary>Rissling (small creature of the rift, same joints as the wolf).</summary>
         public const string Rissling = Folder + "/Rissling.fbx";
 
+        /// <summary>Grimmbart, the bandit king (armour parts "Ruestung_*", war horn "Kriegshorn").</summary>
+        public const string Grimmbart = Folder + "/Grimmbart.fbx";
+
+        /// <summary>Grimmbart's stone hammer (grip at the origin, head along -Z).</summary>
+        public const string StoneHammer = Folder + "/Steinhammer.fbx";
+
+        /// <summary>Fire pot of phase 3.</summary>
+        public const string FirePot = Folder + "/Brandtopf.fbx";
+
+        /// <summary>Wooden jib crane of the quarry (origin at the foot, jib along +Z after import).</summary>
+        public const string Crane = "Assets/_Project/Art/Models/Buildings/Kran.fbx";
+
         /// <summary>Loads a model (the FBX root object), or null with a warning.</summary>
         /// <param name="path">Asset path.</param>
         /// <param name="report">Protocol.</param>

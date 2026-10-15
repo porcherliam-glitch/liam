@@ -19,6 +19,10 @@ namespace Aetherfall.AI.Bosses
         Stunned = 4,
 
         /// <summary>Beaten.</summary>
-        Dead = 5
+        Dead = 5,
+        /// <summary>Kneels at low health and can be bound for a few seconds (GDD 02 11.6 Grimmbart: "Fesseln").</summary>
+        Yielding = 6,
+        /// <summary>Bound alive: the fight is won without a kill.</summary>
+        Subdued = 7
     }
 }

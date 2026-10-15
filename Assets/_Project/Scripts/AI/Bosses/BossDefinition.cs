@@ -65,6 +65,13 @@ namespace Aetherfall.AI.Bosses
         [Tooltip("Wartezeit nach einer Strahl-Betäubung (Sekunden).")]
         [Range(0f, 30f)] [SerializeField] private float beamCooldownSeconds = 8f;
 
+        [Header("Aufgeben")]
+        [Tooltip("Bei diesem Lebensanteil kniet der Boss und lässt sich fesseln (GDD 02, 11.6: 0,1); 0 = nie.")]
+        [Range(0f, 0.45f)] [SerializeField] private float yieldFraction = 0f;
+
+        [Tooltip("So lange kniet er, bevor er weiterkämpft (Sekunden).")]
+        [Range(1f, 15f)] [SerializeField] private float yieldSeconds = 5f;
+
         [Header("Angriffe")]
         [SerializeField] private List<BossAttackEntry> attacks = new List<BossAttackEntry>();
 
@@ -137,6 +144,8 @@ namespace Aetherfall.AI.Bosses
                 BeamCooldownSeconds = beamCooldownSeconds,
                 BeamFromPhase = beamFromPhase,
                 RecoverSeconds = recoverSeconds,
+                YieldFraction = yieldFraction,
+                YieldSeconds = yieldSeconds,
                 WalkSpeed = defaults.WalkSpeed,
                 RunSpeed = defaults.RunSpeed,
                 RunDistance = defaults.RunDistance

@@ -217,10 +217,8 @@ namespace Aetherfall.EditorTools.World
         {
             if (_spellTarget == null || !_spellTarget.IsAlive)
             {
-                EnemyController enemy = Object.FindObjectsByType<EnemyController>(FindObjectsInactive.Exclude)
-                    .Where(e => e.GetComponent<Combatant>().IsAlive)
-                    .OrderBy(e => Vector3.Distance(e.transform.position, player.transform.position))
-                    .FirstOrDefault();
+                // A wolf that stands still: not the one the burning check set on fire (it flees).
+                EnemyController enemy = NearestLivingWolf(player.transform.position, _burnedWolf);
                 if (enemy == null)
                 {
                     return false;

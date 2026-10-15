@@ -117,6 +117,8 @@ namespace Aetherfall.EditorTools.World
 
             var game = new GameObject("Spiel");
             EnemySpawner firstSpawner = gameplay.BuildSpawners(Group(game.transform, "Gegner"), combat, layers.Enemy, layers.Hurtbox, env, solidMask);
+            // GDD 02 11.6: Grimmbart's quarry with the boss fight.
+            gameplay.BuildGrimmbart(Group(game.transform, "Grimmbart"), layers.Enemy, layers.Hurtbox, env, layers.Interactable, solidMask);
             TestGroundCombatBuilder.CreateOverlays(playerCombatant, firstSpawner, mainCamera, labelFont, report);
 
             TestGroundItemBuilder.BuildLootRoot(items, layers.Pickup, report);

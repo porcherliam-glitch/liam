@@ -235,7 +235,7 @@ namespace Aetherfall.EditorTools.World
             return enemy;
         }
 
-        private static Combatant AddCombatant(GameObject root, EnemyTypeDefinition definition, string number, Transform targetPoint, HitFlash flash,
+        internal static Combatant AddCombatant(GameObject root, EnemyTypeDefinition definition, string number, Transform targetPoint, HitFlash flash,
             TestGroundReport report)
         {
             DamageableComponent damageable = root.AddComponent<DamageableComponent>();
@@ -250,7 +250,7 @@ namespace Aetherfall.EditorTools.World
             return combatant;
         }
 
-        private static Hitbox AddHitbox(GameObject root, Combatant combatant, int hurtboxLayer, TestGroundReport report)
+        internal static Hitbox AddHitbox(GameObject root, Combatant combatant, int hurtboxLayer, TestGroundReport report)
         {
             Hitbox hitbox = root.AddComponent<Hitbox>();
             TestGroundFields.SetReference(hitbox, "owner", combatant, report);
@@ -275,14 +275,14 @@ namespace Aetherfall.EditorTools.World
             return enemy;
         }
 
-        private static void AddReporter(GameObject root, Combatant combatant, EnemyTypeDefinition definition, TestGroundReport report)
+        internal static void AddReporter(GameObject root, Combatant combatant, EnemyTypeDefinition definition, TestGroundReport report)
         {
             EnemyDeathReporter reporter = root.AddComponent<EnemyDeathReporter>();
             TestGroundFields.SetReference(reporter, "combatant", combatant, report);
             TestGroundFields.SetReference(reporter, "definition", definition, report);
         }
 
-        private static Transform Child(Transform parent, string name, Vector3 localPosition)
+        internal static Transform Child(Transform parent, string name, Vector3 localPosition)
         {
             var child = new GameObject(name);
             child.transform.SetParent(parent, false);

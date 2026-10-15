@@ -30,4 +30,6 @@ MonoBehaviour:
   beamFromPhase: 2
   beamStunSeconds: 5
   beamCooldownSeconds: 8
+  yieldFraction: 0
+  yieldSeconds: 5
   attacks: []

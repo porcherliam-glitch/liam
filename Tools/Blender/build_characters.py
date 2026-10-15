@@ -980,6 +980,149 @@ def rissling():
         parts["HindLower." + tag] = shin.build(parts["HindUpper." + tag], u(0, -0.2, 0.02))
 
 
+# ---- Grimmbart and his quarry (GDD 02 11.6) -----------------------------------------------------------------------------
+
+def grimmbart():
+    """Grimmbart (Hagen Grimm, boss.eichental.grimmbart, GDD 02 11.6): the bandit king, a huge former horn bearer of the militia.
+    Leather and a fur mantle under an iron chest plate, shoulder plates and bracers (objects "Ruestung_*": Unity takes them off
+    in phase 3 "Eisenbart"), a long dark beard with a braid, the militia war horn on his left hip (object "Kriegshorn")."""
+    look = HumanLook("Grimmbart", skin="C08A66", hair="3A322C", top="4A3828", sleeve="3E2E20", trousers="2E2822", boots="221A12",
+                     gloves="2A2018", belt="1E1610", height=1.98, bulk=1.32)
+
+    def extras(parts, m, s, w):
+        iron = m("Ruestung_Eisen", "5C5E64", 0.45, 0.85)
+        rivet = m("Nieten", "9A9AA0", 0.35, 0.9)
+        fur = m("Fell", "4A3C2E", 0.95)
+        beard = m("Bart", "4A3E34", 0.9)
+        ring = m("Bartring", "8A6A2A", 0.4, 0.7)
+        scar = m("Narbe", "9A5E4A", 0.7)
+
+        # Full beard on the jaw and the braid (the "Bartzopf" Dorn wants as proof).
+        b = PartBuilder("Bart")
+        b.box((0.21, 0.09, 0.15), (0, -0.095, 0.1 * s), beard, top_scale=(1.08, 1.0))
+        b.box((0.17, 0.08, 0.08), (0, -0.11, 0.02 * s), beard, top_scale=(1.2, 1.1))
+        for i in range(5):
+            b.box((0.055 - i * 0.004, 0.05, 0.065), (0, -0.125, (-0.035 - i * 0.062) * s), ring if i in (1, 3) else beard)
+        b.box((0.03, 0.012, 0.09), (0.05, -0.112, 0.21 * s), scar)
+        b.build(parts["Head"], (0, 0, 0))
+
+        # Fur mantle over the shoulders (stays on in phase 3).
+        mantle = PartBuilder("Fellmantel")
+        mantle.box((0.5 * w, 0.3 * w, 0.1 * s), (0, 0.03, 0.47 * s), fur, top_scale=(0.7, 0.72))
+        mantle.box((0.44 * w, 0.06, 0.58 * s), (0, 0.14 * w, 0.17 * s), fur, top_scale=(0.86, 1.0))
+        mantle.build(parts["Torso"], (0, 0, 0))
+
+        # Iron armour (taken off in phase 3).
+        chest = PartBuilder("Ruestung_Brust")
+        chest.box((0.43 * w, 0.28 * w, 0.4 * s), (0, -0.005, 0.27 * s), iron, top_scale=(1.12, 1.05))
+        chest.box((0.45 * w, 0.3 * w, 0.05 * s), (0, -0.005, 0.07 * s), iron)
+        for x in (-0.13, 0.13):
+            for z in (0.16, 0.4):
+                chest.box((0.028, 0.02, 0.028), (x * w, -0.15 * w, z * s), rivet)
+        chest.build(parts["Torso"], (0, 0, 0))
+        for side, tag in ((-1, "R"), (1, "L")):
+            plate = PartBuilder("Ruestung_Schulter." + tag)
+            plate.sphere(0.135, (0, 0, 0.03), iron, scale=(1.2, 1.2, 0.75), segments=8, rings=5)
+            plate.box((0.21, 0.21, 0.04), (0, 0, -0.06), iron, top_scale=(0.9, 0.9))
+            plate.build(parts["UpperArm." + tag], (0, 0, 0))
+            bracer = PartBuilder("Ruestung_Arm." + tag)
+            bracer.box((0.125, 0.135, 0.15), (0, 0, -0.14 * s), iron, top_scale=(1.06, 1.06))
+            bracer.build(parts["Forearm." + tag], (0, 0, 0))
+
+        # The militia war horn on the left hip: a curved ox horn with brass bands.
+        horn_mat = m("Horn", "D8C8A0", 0.5)
+        band = m("Hornband", "A8822A", 0.35, 0.8)
+        horn = PartBuilder("Kriegshorn")
+        steps = 6
+        for i in range(steps):
+            t0 = i / steps
+            t1 = (i + 1) / steps
+            a0 = math.radians(-70 + 140 * t0)
+            a1 = math.radians(-70 + 140 * t1)
+            r = 0.14
+            p0 = Vector((math.cos(a0) * r * 0.4, -0.02, math.sin(a0) * r))
+            p1 = Vector((math.cos(a1) * r * 0.4, -0.02, math.sin(a1) * r))
+            thick0 = 0.075 * (1.0 - 0.8 * t0)
+            direction = p1 - p0
+            turn = Vector((0.0, 0.0, 1.0)).rotation_difference(direction.normalized()).to_matrix()
+            horn.box((thick0, thick0, direction.length * 1.05), tuple((p0 + p1) * 0.5), horn_mat if i % 3 else band,
+                     top_scale=(0.82, 0.82), rotate=turn)
+        horn.box((0.02, 0.09, 0.02), (0, 0.02, 0.0), m("Hornriemen", "3A2A1A", 0.8))
+        horn.build(parts["Pelvis"], (0.24 * w, -0.03, -0.02 * s))
+
+    build_humanoid(look, extras)
+
+
+def steinhammer():
+    """Grimmbart's stone hammer (two hands): grip at the origin, the shaft along the look direction (-Y), a dressed quarry
+    stone bound with iron bands as the head."""
+    wood = material("Steinhammer_Holz", "5A3E24", 0.85)
+    leather = material("Steinhammer_Leder", "3A2A1A", 0.8)
+    stone = material("Steinhammer_Stein", "8C8478", 0.95)
+    iron = material("Steinhammer_Eisen", "4E4E54", 0.45, 0.8)
+    root = empty("Steinhammer")
+    hammer = PartBuilder("Steinhammer")
+    hammer.cylinder(0.03, 0.34, (0, 0.05, 0), leather, segments=8, axis='Y')
+    hammer.cylinder(0.034, 0.9, (0, -0.55, 0), wood, segments=8, radius_top=0.04, axis='Y')
+    hammer.box((0.46, 0.28, 0.28), (0, -1.04, 0), stone, top_scale=(0.92, 0.94))
+    hammer.box((0.06, 0.3, 0.3), (0.14, -1.04, 0), iron)
+    hammer.box((0.06, 0.3, 0.3), (-0.14, -1.04, 0), iron)
+    hammer.box((0.1, 0.12, 0.12), (0, -0.86, 0), iron)
+    hammer.build(root, (0, 0, 0))
+
+
+def brandtopf():
+    """Fire pot (Brandtopf) of phase 3: a clay pot with oil, plugged with a burning rag; origin in the middle."""
+    clay = material("Brandtopf_Ton", "9A5A34", 0.9)
+    dark = material("Brandtopf_Ton_Dunkel", "6A3A22", 0.9)
+    rag = material("Brandtopf_Lappen_Leuchten", "FF8A2A", 0.6)
+    root = empty("Brandtopf")
+    pot = PartBuilder("Brandtopf")
+    pot.sphere(0.11, (0, 0, 0), clay, scale=(1.0, 1.0, 0.9), segments=10, rings=7)
+    pot.cylinder(0.045, 0.06, (0, 0, 0.11), dark, segments=8)
+    pot.box((0.05, 0.05, 0.08), (0.01, 0, 0.17), rag, top_scale=(0.5, 0.5))
+    pot.build(root, (0, 0, 0))
+
+
+def kran():
+    """Wooden jib crane of the quarry (GDD 02 11.6 phase 2 "Lasst fallen!"): a braced mast on a stone foot, a jib reaching out
+    along the look direction (-Y), rope and hook with a hanging stone. Origin at the foot; about 7 m high, jib 5 m."""
+    wood = material("Kran_Holz", "6A4A2C", 0.9)
+    dark = material("Kran_Holz_Dunkel", "4A3220", 0.9)
+    rope = material("Kran_Seil", "B8A27A", 0.95)
+    iron = material("Kran_Eisen", "4E4E54", 0.45, 0.8)
+    stone = material("Kran_Stein", "8C8478", 0.95)
+    root = empty("Kran")
+    crane = PartBuilder("Kran")
+    crane.box((1.8, 1.8, 0.5), (0, 0, 0.25), stone, top_scale=(0.9, 0.9))
+    crane.box((0.32, 0.32, 7.0), (0, 0, 3.75), wood)
+    for sx, sy in ((1, 1), (1, -1), (-1, 1), (-1, -1)):
+        brace = Vector((sx * 0.9, sy * 0.9, 0.5))
+        top = Vector((0, 0, 3.0))
+        direction = top - brace
+        turn = Vector((0.0, 0.0, 1.0)).rotation_difference(direction.normalized()).to_matrix()
+        crane.box((0.16, 0.16, direction.length), tuple((brace + top) * 0.5), dark, rotate=turn)
+    jib_start = Vector((0, 0.3, 6.6))
+    jib_end = Vector((0, -5.2, 6.9))
+    direction = jib_end - jib_start
+    turn = Vector((0.0, 0.0, 1.0)).rotation_difference(direction.normalized()).to_matrix()
+    crane.box((0.24, 0.24, direction.length), tuple((jib_start + jib_end) * 0.5), wood, rotate=turn)
+    stay_start = Vector((0, 0, 7.2))
+    direction = jib_end - stay_start
+    turn = Vector((0.0, 0.0, 1.0)).rotation_difference(direction.normalized()).to_matrix()
+    crane.box((0.05, 0.05, direction.length), tuple((stay_start + jib_end) * 0.5), rope, rotate=turn)
+    crane.cylinder(0.18, 0.12, (0, -5.1, 6.75), iron, segments=10, axis='X')
+    hook_top = Vector((0, -5.1, 6.75))
+    hook_low = Vector((0, -5.1, 3.45))
+    direction = hook_low - hook_top
+    turn = Vector((0.0, 0.0, 1.0)).rotation_difference(direction.normalized()).to_matrix()
+    crane.box((0.05, 0.05, direction.length), tuple((hook_top + hook_low) * 0.5), rope, rotate=turn)
+    crane.box((0.12, 0.05, 0.16), (0, -5.1, 3.5), iron)
+    crane.box((0.9, 0.7, 0.6), (0, -5.1, 3.05), stone, top_scale=(0.95, 0.95))
+    crane.cylinder(0.45, 0.3, (0.0, 0.75, 1.3), dark, segments=12, axis='X')
+    crane.build(root, (0, 0, 0))
+
+
 MODELS = {
     "krieger": ("Characters/Krieger.fbx", krieger),
     "dorfbewohner": ("Characters/Dorfbewohner.fbx", dorfbewohner),
@@ -1002,6 +1145,10 @@ MODELS = {
     "armbrust": ("Characters/Armbrust.fbx", armbrust),
     "bolzen": ("Characters/Bolzen.fbx", bolzen),
     "rissling": ("Characters/Rissling.fbx", rissling),
+    "grimmbart": ("Characters/Grimmbart.fbx", grimmbart),
+    "steinhammer": ("Characters/Steinhammer.fbx", steinhammer),
+    "brandtopf": ("Characters/Brandtopf.fbx", brandtopf),
+    "kran": ("Buildings/Kran.fbx", kran),
 }
 
 
@@ -1032,7 +1179,7 @@ def render_preview(path, height):
     print("Vorschau:", path)
 
 
-PREVIEW_HEIGHT = {"schwert": 1.0, "holzschild": 1.0, "zauberstab": 1.6, "streitkolben": 1.0, "jagdbogen": 1.4, "pfeil": 1.0, "wolf": 1.1, "aetherwolf": 1.1, "turmschild": 1.5, "hausteile": 2.5, "knueppel": 1.0, "armbrust": 1.0, "bolzen": 0.6, "rissling": 0.8}
+PREVIEW_HEIGHT = {"schwert": 1.0, "holzschild": 1.0, "zauberstab": 1.6, "streitkolben": 1.0, "jagdbogen": 1.4, "pfeil": 1.0, "wolf": 1.1, "aetherwolf": 1.1, "turmschild": 1.5, "hausteile": 2.5, "knueppel": 1.0, "armbrust": 1.0, "bolzen": 0.6, "rissling": 0.8, "grimmbart": 2.1, "steinhammer": 1.4, "brandtopf": 0.4, "kran": 7.5}
 
 
 def main():

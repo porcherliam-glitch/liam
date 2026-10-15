@@ -67,6 +67,9 @@ namespace Aetherfall.Combat
         /// <summary>True once an oil barrel was broken into a puddle (it can still explode through the puddle).</summary>
         public bool IsBroken { get; private set; }
 
+        /// <summary>The oil puddle of a barrel (null for a powder keg).</summary>
+        public ElementArea Area => area;
+
         /// <summary>Raised when it explodes (who set it off, or null).</summary>
         public event Action<ExplosiveObject, Combatant> Detonated;
 
@@ -222,8 +225,14 @@ namespace Aetherfall.Combat
             _combatant.Health.Heal(damage.Applied);
         }
 
-        private void Break()
+        /// <summary>Breaks an oil barrel into its puddle (a physical hit, or a boss kicks it over, GDD 02 11.6).</summary>
+        public void Break()
         {
+            if (IsBroken || HasDetonated || kind != ExplosiveKind.OilBarrel)
+            {
+                return;
+            }
+
             IsBroken = true;
             if (visuals != null)
             {

@@ -45,6 +45,14 @@ namespace Aetherfall.AI.Bosses
         /// </summary>
         public float LeaveArenaResetSeconds { get; set; } = 2f;
 
+        /// <summary>
+        /// Health share at which the boss kneels and can be bound (GDD 02 11.6: 10 %); 0 = never. Only in the last phase.
+        /// </summary>
+        public float YieldFraction { get; set; }
+
+        /// <summary>How long the boss kneels before it fights on (GDD 02 11.6: 5 s).</summary>
+        public float YieldSeconds { get; set; } = 5f;
+
         /// <summary>Walking speed (m/s).</summary>
         public float WalkSpeed { get; set; } = 1.6f;
 
@@ -112,6 +120,11 @@ namespace Aetherfall.AI.Bosses
             if (!(WalkSpeed > 0f && RunSpeed >= WalkSpeed))
             {
                 return "Boss speeds must be greater than 0 (run at least as fast as walk).";
+            }
+
+            if (!(YieldFraction >= 0f && YieldFraction < 0.5f) || (YieldFraction > 0f && !(YieldSeconds > 0f)))
+            {
+                return "Yield fraction must be 0 to 0.5 (with yield seconds above 0).";
             }
 
             return string.Empty;

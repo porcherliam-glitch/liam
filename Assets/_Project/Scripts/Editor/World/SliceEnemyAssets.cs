@@ -182,7 +182,7 @@ namespace Aetherfall.EditorTools.World
             }
         }
 
-        private static EnemyTypeDefinition Ensure(string file, string typeId, string variant, string name, TestGroundReport report,
+        internal static EnemyTypeDefinition Ensure(string file, string typeId, string variant, string name, TestGroundReport report,
             System.Action<SerializedObject> fill)
         {
             var type = TestGroundSerialized.EnsureAsset<EnemyTypeDefinition>(TestGroundPaths.EnemyFolder + "/" + file + ".asset", report, null);
@@ -212,7 +212,7 @@ namespace Aetherfall.EditorTools.World
             return type;
         }
 
-        private static void Body(SerializedObject so, EnemyKind kind, DamageType damageType, float health, float damage, float armor, float poise,
+        internal static void Body(SerializedObject so, EnemyKind kind, DamageType damageType, float health, float damage, float armor, float poise,
             float attackPoise, TestGroundReport report)
         {
             TestGroundSerialized.Set(so, "kind", (int)kind, report);
@@ -224,7 +224,7 @@ namespace Aetherfall.EditorTools.World
             TestGroundSerialized.Set(so, "attackPoise", attackPoise, report);
         }
 
-        private static void Elite(SerializedObject so, float health, float damage, float poise, float statusResistance, TestGroundReport report)
+        internal static void Elite(SerializedObject so, float health, float damage, float poise, float statusResistance, TestGroundReport report)
         {
             // GDD 01 11.2: elite ×2 / ×1.3 / ×1.5, champion ×4 / ×1.5 / ×2; they counter sooner after a parry (opening 0.7 s).
             TestGroundSerialized.Set(so, "healthVariantFactor", health, report);
@@ -235,7 +235,7 @@ namespace Aetherfall.EditorTools.World
             TestGroundSerialized.Set(so, "parryOpenSeconds", 0.7f, report);
         }
 
-        private static void Moves(SerializedObject so, float walk, float run, float circle, float ringMin, float ringMax, float flee, float perception,
+        internal static void Moves(SerializedObject so, float walk, float run, float circle, float ringMin, float ringMax, float flee, float perception,
             TestGroundReport report)
         {
             TestGroundSerialized.Set(so, "walkSpeed", walk, report);
@@ -264,7 +264,7 @@ namespace Aetherfall.EditorTools.World
             }
         }
 
-        private static void Resist(SerializedObject so, TestGroundReport report, params (DamageType type, float value)[] entries)
+        internal static void Resist(SerializedObject so, TestGroundReport report, params (DamageType type, float value)[] entries)
         {
             SerializedProperty resistances = TestGroundSerialized.Property(so, "resistances", report);
             if (resistances == null)
@@ -279,7 +279,7 @@ namespace Aetherfall.EditorTools.World
             }
         }
 
-        private static AttackSpec Melee(string id, float windup, float damage, float poise, float knockback, float lunge, float offsetY = 1.1f,
+        internal static AttackSpec Melee(string id, float windup, float damage, float poise, float knockback, float lunge, float offsetY = 1.1f,
             float reach = 1.3f)
         {
             AttackSpec spec = AttackSpec.Create(id, windup, 0.15f, 0.55f);

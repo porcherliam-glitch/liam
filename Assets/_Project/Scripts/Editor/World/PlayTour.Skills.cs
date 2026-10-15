@@ -39,7 +39,7 @@ namespace Aetherfall.EditorTools.World
                         }
 
                         progression.AddSkillPoints(points, "rundgang");
-                        UIRoot root = Object.FindFirstObjectByType<UIRoot>();
+                        UIRoot root = Object.FindAnyObjectByType<UIRoot>();
                         if (root == null || !root.OpenJournal(JournalPage.Skills))
                         {
                             return Fail(Elapsed > 3.0, "Die Skill-Seite öffnet sich nicht.");

@@ -146,6 +146,12 @@ namespace Aetherfall.EditorTools.World
             int questGroups = 0;
             foreach (LayoutSpawner spawner in _layout.Spawners)
             {
+                if (spawner.BossId == GrimmbartAssets.BossId)
+                {
+                    // Grimmbart and his arena are built by BuildGrimmbart (boss controller, crane, horn bandits).
+                    continue;
+                }
+
                 bool standIn = spawner.StandInTypeId.Length > 0;
                 // GDD 03 9.7: the area level of the group; elite +2 and champion +3 on top (GDD 01 11.2).
                 int areaLevel = spawner.Level > 0 ? spawner.Level : MiniSliceWorld.EnemyLevel(spawner.Id);
@@ -250,6 +256,36 @@ namespace Aetherfall.EditorTools.World
             _report.Info("Gegner: " + active + " immer aktiv (Grauwölfe mit Rudelführer am Nordhang, Aether-Wolf beim Riss, Mühlbach-Banditen), " +
                          questGroups + " Quest-Gruppen (Kind „Gruppe“ aus, bis die Quest-Aktion „Gegner spawnen“ sie einschaltet; Risslinge im Hinterhalt).");
             return first;
+        }
+
+        /// <summary>
+        /// Grimmbart's quarry (GDD 02 11.6): the boss spawner of the layout marks the middle of the kettle; the arena, the boss and
+        /// his mechanics come from <see cref="GrimmbartBuilder"/>.
+        /// </summary>
+        /// <param name="parent">Parent at the origin.</param>
+        /// <param name="enemyLayer">Enemy layer or −1.</param>
+        /// <param name="hurtboxLayer">Hurtbox layer or −1.</param>
+        /// <param name="environmentLayer">Environment layer.</param>
+        /// <param name="interactableLayer">Interaction layer or −1.</param>
+        /// <param name="solidMask">Ground and sight blockers.</param>
+        /// <returns>The boss, or null if the layout has no Grimmbart.</returns>
+        public Aetherfall.AI.Bosses.BossController BuildGrimmbart(Transform parent, int enemyLayer, int hurtboxLayer, int environmentLayer,
+            int interactableLayer, int solidMask)
+        {
+            foreach (LayoutSpawner spawner in _layout.Spawners)
+            {
+                if (spawner.BossId != GrimmbartAssets.BossId)
+                {
+                    continue;
+                }
+
+                float cx = (float)spawner.Center.X;
+                float cz = (float)spawner.Center.Z;
+                return GrimmbartBuilder.Build(parent, new Vector3(cx, H(cx, cz), cz), (x, z) => H(x, z), _layout.RegionId, enemyLayer, hurtboxLayer,
+                    environmentLayer, interactableLayer, solidMask, _testMaterials, _report);
+            }
+
+            return null;
         }
 
         /// <summary>Chests of the layout (loot tables of the test ground: wooden, iron, hidden).</summary>

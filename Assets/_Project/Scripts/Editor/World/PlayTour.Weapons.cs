@@ -87,6 +87,8 @@ namespace Aetherfall.EditorTools.World
             Steps.Enqueue(VisitBandits());
             Steps.Enqueue(() => Wait(0.15));
             Steps.Enqueue(() => Capture("w12_banditen", ViewSpell));
+            // GDD 02 11.6 / S42: the boss fight against Grimmbart in his quarry.
+            EnqueueGrimmbart();
         }
 
         private static Pose ViewBesidePlayer(Transform player)

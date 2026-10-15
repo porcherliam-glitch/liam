@@ -45,7 +45,8 @@
       { "id": "gelaende.hof_ebene", "name": "Hofplatz Hollmann", "kind": "flatten", "center": [-157, 106], "innerRadius": 24, "outerRadius": 40 },
       { "id": "gelaende.muehle_ebene", "name": "Mühlenplatz", "kind": "flatten", "center": [-128, -126], "innerRadius": 15, "outerRadius": 26 },
       { "id": "gelaende.senke_boden", "name": "Vorplatz der Gruft", "kind": "flatten", "center": [-2, 150], "innerRadius": 9, "outerRadius": 16 },
-      { "id": "gelaende.rabenfels_gipfel", "name": "Gipfel des Rabenfels", "kind": "flatten", "center": [12, 184], "innerRadius": 6, "outerRadius": 12 }
+      { "id": "gelaende.rabenfels_gipfel", "name": "Gipfel des Rabenfels", "kind": "flatten", "center": [12, 184], "innerRadius": 6, "outerRadius": 12 },
+      { "id": "gelaende.steinbruch_kessel", "name": "Kessel von Grimmbarts Steinbruch", "kind": "flatten", "center": [150, -176], "innerRadius": 15, "outerRadius": 21, "height": 8 }
     ]
   },
   "palette": {
@@ -122,12 +123,14 @@
     { "id": "weg.nordhang", "name": "Wildpfad zum Wolfsbau", "width": 1.8,
       "points": [[-140, 130], [-132, 146], [-118, 160], [-100, 172], [-86, 180]] },
     { "id": "weg.feldweg", "name": "Feldweg", "width": 2.5,
-      "points": [[14, -40], [13, -80], [14, -118]] }
+      "points": [[14, -40], [13, -80], [14, -118]] },
+    { "id": "weg.steinbruch", "name": "Weg zu Grimmbarts Steinbruch", "width": 2.5, "points": [[120, -22], [124, -52], [130, -82], [136, -108], [140, -124], [141, -133], [143, -142], [147, -152], [150, -160]] }
   ],
   "bridges": [
     { "id": "obj.eichental.steinbruecke", "name": "Steinbrücke über den Birkenbach", "kind": "stone", "position": [-152, 56], "yaw": 4, "length": 12, "width": 3.6 },
     { "id": "obj.eichental.steg_nordhang", "name": "Holzsteg über den Birkenbach (Wildpfad)", "kind": "wood", "position": [-112.4, 163.7], "yaw": 56, "length": 7, "width": 1.8 },
-    { "id": "obj.eichental.bruecke_lindenhain_west", "name": "Brücke am Westrand von Lindenhain (Kulisse)", "kind": "wood", "position": [-217, -33], "yaw": 86, "length": 10, "width": 4.5 }
+    { "id": "obj.eichental.bruecke_lindenhain_west", "name": "Brücke am Westrand von Lindenhain (Kulisse)", "kind": "wood", "position": [-217, -33], "yaw": 86, "length": 10, "width": 4.5 },
+    { "id": "obj.eichental.bruecke_steinbruch", "name": "Holzbrücke über den Mühlbach (Steinbruch)", "kind": "wood", "position": [141, -133], "yaw": 6, "length": 9, "width": 3 }
   ],
   "buildings": [
     { "id": "obj.eichental.kapelle", "name": "Kapelle von Eichental", "kind": "chapel", "state": "burned", "position": [44, 4], "yaw": 180, "size": [7, 5.5, 12], "roof": "gable", "roofPitch": 52, "glow": false },
@@ -176,7 +179,9 @@
     { "id": "boden.lindenhain_platz", "ground": "dirt", "center": [-150, -38], "radius": 14, "falloff": 5, "strength": 1.0 },
     { "id": "boden.hofplatz", "ground": "dirt", "center": [-154, 106], "radius": 12, "falloff": 6, "strength": 0.9 },
     { "id": "boden.senke", "ground": "dirt", "center": [-2, 150], "radius": 10, "falloff": 6, "strength": 0.9 },
-    { "id": "boden.rabenfels_gipfel", "ground": "rock", "center": [12, 184], "radius": 8, "falloff": 6, "strength": 0.8 }
+    { "id": "boden.rabenfels_gipfel", "ground": "rock", "center": [12, 184], "radius": 8, "falloff": 6, "strength": 0.8 },
+    { "id": "boden.steinbruch_fels", "ground": "rock", "center": [150, -176], "radius": 23, "falloff": 5, "strength": 1 },
+    { "id": "boden.steinbruch_kessel", "ground": "dirt", "center": [150, -176], "radius": 12, "falloff": 3, "strength": 0.55 }
   ],
   "vegetation": {
     "clearance": { "paths": 1.5, "rivers": 1.0, "buildings": 3.0, "fields": 1.0, "rift": 10.0, "fences": 1.5 },
@@ -189,7 +194,8 @@
       { "id": "frei.lindenhain", "center": [-160, -30], "radius": 30 },
       { "id": "frei.hof", "center": [-156, 108], "radius": 22 },
       { "id": "frei.muehle", "center": [-128, -126], "radius": 14 },
-      { "id": "frei.dorfrand", "center": [-16, -46], "radius": 12 }
+      { "id": "frei.dorfrand", "center": [-16, -46], "radius": 12 },
+      { "id": "frei.steinbruch", "center": [150, -170], "radius": 30 }
     ],
     "groups": [
       { "id": "wald.rand_nord", "name": "Waldrand im Norden", "seed": 101, "spacing": 6.5, "density": 0.85, "jitter": 0.9, "scale": [0.9, 1.35],
@@ -256,7 +262,12 @@
     { "id": "fels.wolfskopf_links", "name": "Wolfskopf-Felsen, links", "position": [-90, 192], "size": [7, 8, 7], "yaw": 10, "variant": 0, "lift": 0 },
     { "id": "fels.wolfskopf_rechts", "name": "Wolfskopf-Felsen, rechts", "position": [-74, 192], "size": [7, 9, 7], "yaw": -15, "variant": 1, "lift": 0 },
     { "id": "fels.wolfskopf_oben", "name": "Wolfskopf-Felsen, Stirn", "position": [-82, 194], "size": [16, 6, 9], "yaw": 0, "variant": 2, "lift": 6 },
-    { "id": "fels.wolfskopf_kopf", "name": "Wolfskopf-Felsen, Kopf", "position": [-82, 202], "size": [11, 13, 10], "yaw": 5, "variant": 0, "lift": 0 }
+    { "id": "fels.wolfskopf_kopf", "name": "Wolfskopf-Felsen, Kopf", "position": [-82, 202], "size": [11, 13, 10], "yaw": 5, "variant": 0, "lift": 0 },
+    { "id": "fels.steinbruch_wand_1", "name": "Felswand des Steinbruchs", "position": [150, -199], "size": [12, 9, 6], "yaw": 0, "variant": 0, "lift": 0 },
+    { "id": "fels.steinbruch_wand_2", "name": "Felswand des Steinbruchs", "position": [133, -194], "size": [12, 9, 6], "yaw": -35, "variant": 1, "lift": 0 },
+    { "id": "fels.steinbruch_wand_3", "name": "Felswand des Steinbruchs", "position": [167, -194], "size": [12, 9, 6], "yaw": 35, "variant": 2, "lift": 0 },
+    { "id": "fels.steinbruch_wand_4", "name": "Felswand des Steinbruchs", "position": [124, -178], "size": [12, 9, 6], "yaw": -80, "variant": 0, "lift": 0 },
+    { "id": "fels.steinbruch_wand_5", "name": "Felswand des Steinbruchs", "position": [176, -178], "size": [12, 9, 6], "yaw": 80, "variant": 1, "lift": 0 }
   ],
   "props": [
     { "id": "obj.eichental.brunnen_dorfplatz", "name": "Brunnen am Dorfplatz", "kind": "well", "position": [40, -30], "yaw": 0 },
@@ -284,7 +295,11 @@
     { "id": "obj.eichental.oelfass_schmiede_1", "name": "Ölfass der Schmiede", "kind": "oil_barrel", "position": [19, -53], "yaw": 0 },
     { "id": "obj.eichental.oelfass_schmiede_2", "name": "Ölfass der Schmiede", "kind": "oil_barrel", "position": [20.5, -55], "yaw": 0 },
     { "id": "obj.eichental.oelfass_schmiede_3", "name": "Ölfass der Schmiede", "kind": "oil_barrel", "position": [18, -56.5], "yaw": 0 },
-    { "id": "obj.eichental.pulverfass_scheune", "name": "Pulverfass hinter der Scheune", "kind": "powder_keg", "position": [96, -36], "yaw": 0 }
+    { "id": "obj.eichental.pulverfass_scheune", "name": "Pulverfass hinter der Scheune", "kind": "powder_keg", "position": [96, -36], "yaw": 0 },
+    { "id": "obj.eichental.zelt_steinbruch_1", "name": "Zelt der Banditen am Steinbruch", "kind": "tent", "position": [137, -151], "yaw": 160 },
+    { "id": "obj.eichental.zelt_steinbruch_2", "name": "Zelt der Banditen am Steinbruch", "kind": "tent", "position": [163, -150], "yaw": 200 },
+    { "id": "obj.eichental.kisten_steinbruch", "name": "Kisten der Banditen", "kind": "crate_stack", "position": [158, -156], "yaw": 15 },
+    { "id": "obj.eichental.barrikade_steinbruch", "name": "Barrikade am Steinbruch", "kind": "barricade", "position": [143, -147], "yaw": 70 }
   ],
   "rift": {
     "id": "obj.eichental.riss",
@@ -315,7 +330,9 @@
     { "id": "loc.eichental.wolfsbau_nordhang", "name": "Wolfsbau unter dem Wolfskopf-Felsen", "kind": "poi", "shape": "circle", "center": [-82, 186], "radius": 10, "quests": ["quest.side.eichental.woelfe_vom_nordhang"] },
     { "id": "loc.eichental.vergessene_gruft", "name": "Senke unter dem Rabenfels (Gruft-Eingang)", "kind": "dungeon_entrance", "shape": "circle", "center": [2, 150], "radius": 12, "quests": ["quest.dungeon.eichental.vergessene_gruft"] },
     { "id": "loc.eichental.muehle_muehlbach", "name": "Mühle am Mühlbach", "kind": "settlement", "shape": "circle", "center": [-128, -124], "radius": 22, "quests": [] },
-    { "id": "loc.eichental.rabenfels_spitze", "name": "Rabenfels-Spitze (Aussichtspunkt, Vorschlag)", "kind": "viewpoint", "shape": "circle", "center": [12, 184], "radius": 7, "quests": [] }
+    { "id": "loc.eichental.rabenfels_spitze", "name": "Rabenfels-Spitze (Aussichtspunkt, Vorschlag)", "kind": "viewpoint", "shape": "circle", "center": [12, 184], "radius": 7, "quests": [] },
+    { "id": "loc.eichental.steinbruch_grimmbart", "name": "Grimmbarts Steinbruch", "kind": "poi", "shape": "circle", "center": [150, -168], "radius": 34, "quests": [] },
+    { "id": "loc.eichental.steinbruch_arena", "name": "Kessel des Steinbruchs", "kind": "poi", "shape": "circle", "center": [150, -176], "radius": 14, "quests": [] }
   ],
   "spawners": [
     { "id": "spawn.eichental.nordhang_woelfe", "name": "Wölfe am Nordhang mit Rudelführer", "enemyTypeId": "enemy.wolf.grauwolf", "variant": "normal", "count": 3,
@@ -347,7 +364,9 @@
                    { "enemyTypeId": "enemy.bandit.schlaeger", "variant": "elite", "count": 1 } ],
       "level": 4, "center": [-142, -166], "radius": 7, "activation": "always", "respawnSeconds": 300, "locationId": "loc.eichental.muehle_muehlbach",
       "patrol": [[-150, -160], [-128, -172]],
-      "note": "GDD 01, 11.1: gemischte Gruppe – 2 Schläger, 1 Armbrustschütze, ein Elite-Anführer (Stufe 4, Anführer 6). Südlich der Mühle, abseits des Wegs nach Lindenhain." }
+      "note": "GDD 01, 11.1: gemischte Gruppe – 2 Schläger, 1 Armbrustschütze, ein Elite-Anführer (Stufe 4, Anführer 6). Südlich der Mühle, abseits des Wegs nach Lindenhain." },
+    { "id": "spawn.eichental.steinbruch_wache", "name": "Wachen am Steinbruch", "enemyTypeId": "enemy.bandit.schlaeger", "variant": "normal", "count": 4, "level": 6, "center": [150, -152], "radius": 6, "activation": "always", "respawnSeconds": 600, "locationId": "loc.eichental.steinbruch_grimmbart", "patrol": [[142, -150], [158, -153]], "note": "GDD 02, 11.6, s20 o3: group.steinbruch_wache - vier Schläger am Eingang des Kessels." },
+    { "id": "spawn.eichental.grimmbart", "name": "Grimmbart", "enemyTypeId": "enemy.bandit.grimmbart", "variant": "champion", "count": 1, "bossId": "boss.eichental.grimmbart", "level": 7, "center": [150, -176], "radius": 1, "activation": "always", "respawnSeconds": 0, "locationId": "loc.eichental.steinbruch_arena", "note": "GDD 02, 11.6: Bosskampf im Kessel (eigener Aufbau: GrimmbartBuilder), Kopfgeld-Quest folgt mit den Quests 11.3-11.8." }
   ],
   "chests": [
     { "id": "obj.eichental.truhe_schmiede", "name": "Holztruhe in der Schmiede", "tier": "wooden", "position": [6, -64], "yaw": 210, "areaLevel": 1, "locationId": "loc.eichental.dorf_eichental" },

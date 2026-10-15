@@ -27,7 +27,7 @@ namespace Aetherfall.Tests.EditMode.World
             "loc.eichental.dorf_eichental", "loc.eichental.dorfplatz", "loc.eichental.dorfrand", "loc.eichental.riss_eichental",
             "loc.eichental.lindenhain", "loc.eichental.gasthaus_krummer_kessel", "loc.eichental.wachposten_lindenhain",
             "loc.eichental.hof_hollmann", "loc.eichental.nordhang", "loc.eichental.wolfsbau_nordhang", "loc.eichental.vergessene_gruft",
-            "loc.eichental.muehle_muehlbach", "loc.eichental.rabenfels_spitze"
+            "loc.eichental.muehle_muehlbach", "loc.eichental.rabenfels_spitze", "loc.eichental.steinbruch_grimmbart", "loc.eichental.steinbruch_arena"
         };
 
         // GDD 01 4.1.3 and GDD 02 11.0 "Verwendete NPCs" (region Eichental and the grey figure).
@@ -146,7 +146,7 @@ namespace Aetherfall.Tests.EditMode.World
         /// <summary>Enemy types the slice builds (GDD 01 11.4): wolves, the Rissbrut and the bandits.</summary>
         private static readonly string[] BuiltEnemyTypes =
         {
-            "enemy.wolf.grauwolf", "enemy.rissbrut.rissling", "enemy.bandit.schlaeger", "enemy.bandit.armbrustschuetze",
+            "enemy.wolf.grauwolf", "enemy.rissbrut.rissling", "enemy.bandit.schlaeger", "enemy.bandit.armbrustschuetze", "enemy.bandit.grimmbart",
         };
 
         [Test]

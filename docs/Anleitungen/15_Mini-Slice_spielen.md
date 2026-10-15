@@ -72,7 +72,15 @@ Unten rechts im HUD stehen die vier Felder der aktiven Leiste, darüber „Leist
 
 **Gegner:** Im Eichental gibt es jetzt fünf Gegnertypen. **Grauwölfe** jagen im Rudel; am Nordhang führt ein größerer **Rudelführer** (Elite) zwei Wölfe an. **Risslinge** (violette Kreaturen mit leuchtenden Kristallen) liegen am Dorfrand im Boden versteckt und springen hervor, wenn du auf etwa 8 m herankommst oder sie triffst; vorher kannst du sie nicht anvisieren. Am Riss wartet die **Rissbrut**, ein Champion-Rissling. Südlich der Mühle am Mühlbach lagert eine **Banditengruppe**: zwei Schläger mit Knüppeln, ein **Armbrustschütze**, der Abstand hält und Bolzen schießt (Deckung suchen oder schnell herangehen), und ein gepanzerter **Anführer** (Elite). Die **Skelett-Krieger** stehen in der Gruft. Jede Gruppe hat eine eigene Stufe; Elite-Gegner sind 2 Stufen höher, Champions 3.
 
-**Bosse:** Bei der **Rissbrut** und bei **Glutfang** erscheint oben ein Bossbalken mit Name und Titel. Die Rissbrut steckt in einer violett schimmernden Schale, die fast allen Schaden schluckt. Triff sie mit dem **Aether-Stoß (4)**: Die Schale zerbricht, die Rissbrut taumelt und nimmt 12 Sekunden lang vollen Schaden, dann wächst die Schale nach. Bei halbem Leben ruft sie zwei Risslinge aus dem Boden. **Glutfang** ist größer und stärker als die anderen Wölfe. Ein Pfeil in den Kopf lässt ihn kurz taumeln, und der leuchtende Kristall auf seinem Rücken ist sein Schwachpunkt. Bei halbem Leben heult er zwei Aether-Wölfe herbei. Ist der Boss besiegt, verschwinden seine Helfer. Visierst du einen Gegner an (**T**), steht über dem Lebensbalken sein Name und seine Stufe. Ist er 6 oder mehr Stufen über dir, steht dort „sehr gefährlich“.
+**Bosse:** Bei der **Rissbrut** und bei **Glutfang** erscheint oben ein Bossbalken mit Name und Titel. Die Rissbrut steckt in einer violett schimmernden Schale, die fast allen Schaden schluckt. Triff sie mit dem **Aether-Stoß (4)**: Die Schale zerbricht, die Rissbrut taumelt und nimmt 12 Sekunden lang vollen Schaden, dann wächst die Schale nach. Bei halbem Leben ruft sie zwei Risslinge aus dem Boden. **Glutfang** ist größer und stärker als die anderen Wölfe. Ein Pfeil in den Kopf lässt ihn kurz taumeln, und der leuchtende Kristall auf seinem Rücken ist sein Schwachpunkt. Bei halbem Leben heult er zwei Aether-Wölfe herbei. Ist der Boss besiegt, verschwinden seine Helfer.
+
+**Grimmbart im Steinbruch:** Folge vom Dorf aus dem Weg nach Süden über die Holzbrücke am Mühlbach. Im Hügel liegt Grimmbarts Steinbruch, am Eingang wachen vier Banditen. Unten im Kessel wartet Grimmbart (Stufe 7). Geh besser erst ab Stufe 6–7 hin.
+- **Phase 1:** Er schlägt mit dem Steinhammer; die ersten beiden Schläge kannst du parieren, dem dritten und dem Stampfer weichst du aus. Greift er zum **Kriegshorn**, kommen zwei Banditen. Ein Kopftreffer (z. B. ein Pfeil) unterbricht den Hornruf. Drei Pfeile auf das Horn am Gürtel schießen es ab.
+- **Phase 2:** Er tritt die Ölfässer um und ruft „Lasst fallen!“: Wo ein dunkler Schatten wächst, fällt gleich ein Stein vom Kran. Bei seinem **Sturmangriff** stell dich hinter einen der großen Steinblöcke: Rennt er hinein, ist er 4 Sekunden betäubt.
+- **Phase 3:** Er reißt die Rüstung ab, wird schneller, nimmt aber mehr Schaden, und wirft **Brandtöpfe**. Steht er in einer Öllache, zünde sie an (Feuerpfeil, Feuerball): Sie explodiert. Brennst du, lauf in die Wasserrinne am Rand.
+- **Am Ende** kniet er nieder. Drück dann **E**, um ihn zu **fesseln**. Schlägst du weiter zu, stirbt er.
+
+Die Kopfgeld-Quest von Hauptmann Dorn dazu fehlt noch. Den Kampf kannst du aber schon jetzt bestreiten. Visierst du einen Gegner an (**T**), steht über dem Lebensbalken sein Name und seine Stufe. Ist er 6 oder mehr Stufen über dir, steht dort „sehr gefährlich“.
 
 ## 3. Was dich erwartet
 
@@ -98,7 +106,7 @@ Oben rechts steht immer dein aktuelles Ziel. Die Gruft ist auf Stufe 4 eingestel
 
 - Du selbst bist jetzt ein Krieger aus Blender (Arme, Beine und Schwert bewegen sich per Code, noch ohne fertige Animationen). Dorfbewohner, Wölfe, Risslinge, Banditen, Skelette, der Wachende Ritter sowie Fenster, Türen, Schornsteine und Brücken sind ebenfalls aus Blender.
 - Keine Musik, keine Zwischensequenzen.
-- Glutfang schläft noch nicht tagsüber (kommt mit Tag und Nacht). Champions haben noch keine Zusatzeigenschaften wie „schnell“ oder „Feuer-Aura“. Grimmbart und sein Steinbruch fehlen noch.
+- Glutfang schläft noch nicht tagsüber (kommt mit Tag und Nacht). Champions haben noch keine Zusatzeigenschaften wie „schnell“ oder „Feuer-Aura“. Die Kopfgeld-Quest zu Grimmbart fehlt noch (der Kampf geht schon).
 - Der Skill-Baum zeigt die Knoten als Liste je Ast (noch kein grafischer Baum). Respec beim Lehrmeister gibt es noch nicht.
 - Die Gruft ist dunkel. Das ist Absicht, kann aber nachgebessert werden.
 

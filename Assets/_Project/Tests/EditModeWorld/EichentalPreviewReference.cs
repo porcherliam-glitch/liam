@@ -26,19 +26,19 @@ namespace Aetherfall.Tests.EditMode.World
         };
 
         /// <summary>Total number of plants (groups and landmark trees).</summary>
-        public const int PlantCount = 2456;
+        public const int PlantCount = 2425;
 
         /// <summary>Plants per scatter group: id, count.</summary>
         public static readonly object[] GroupCounts =
         {
             new object[] { "wald.rand_nord", 490 },
-            new object[] { "wald.rand_sued", 535 },
+            new object[] { "wald.rand_sued", 534 },
             new object[] { "wald.rand_west", 360 },
             new object[] { "wald.rand_ost", 400 },
             new object[] { "wald.nordhang_birken", 44 },
             new object[] { "wald.nordost", 233 },
             new object[] { "wald.ost", 80 },
-            new object[] { "wald.sued", 184 },
+            new object[] { "wald.sued", 154 },
             new object[] { "baeume.dorf_verbrannt", 24 },
             new object[] { "baeume.hain_nord", 43 },
             new object[] { "baeume.wiese_west", 23 },
@@ -91,6 +91,11 @@ namespace Aetherfall.Tests.EditMode.World
             new object[] { "spawn.eichental.muehlbach_banditen", 1, -138.31415324006042, -168.01358726213766, 118.64788975654116 },
             new object[] { "spawn.eichental.muehlbach_banditen", 2, -144.01358726213766, -169.68584675993958, 208.64788975654116 },
             new object[] { "spawn.eichental.muehlbach_banditen", 3, -145.68584675993958, -163.98641273786234, 298.64788975654113 },
+            new object[] { "spawn.eichental.steinbruch_wache", 0, 151.72593193897512, -148.84070277719465, 28.64788975654116 },
+            new object[] { "spawn.eichental.steinbruch_wache", 1, 153.15929722280535, -153.72593193897512, 118.64788975654116 },
+            new object[] { "spawn.eichental.steinbruch_wache", 2, 148.27406806102488, -155.15929722280535, 208.64788975654116 },
+            new object[] { "spawn.eichental.steinbruch_wache", 3, 146.84070277719465, -150.27406806102488, 298.64788975654113 },
+            new object[] { "spawn.eichental.grimmbart", 0, 150.0, -176.0, 28.64788975654116 },
         };
 
         /// <summary>Rift crystals: x, z, height, tilt x, tilt z, yaw.</summary>

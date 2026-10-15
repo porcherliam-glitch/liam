@@ -1,0 +1,116 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2b04f2e4d7abd7441b9f404574a8ca56, type: 3}
+  m_Name: Boss_Grimmbart
+  m_EditorClassIdentifier: Aetherfall.AI::Aetherfall.AI.Bosses.BossDefinition
+  bossId: boss.eichental.grimmbart
+  displayName: Grimmbart
+  title: "Banditenk\xF6nig des Eichentals"
+  baseType: {fileID: 11400000, guid: 3f55498bd87ffc94d93612fc56653547, type: 2}
+  musicId: mus.boss_grimmbart
+  phaseThresholds:
+  - 1
+  - 0.6
+  - 0.3
+  addsPerPhase: 000000000000000000000000i
+  transitionSeconds: 2
+  awakenSeconds: 1.5
+  guardAngle: 170
+  guardReduction: 0
+  parryOpenSeconds: 1.4
+  recoverSeconds: 0.7
+  beamFromPhase: 5
+  beamStunSeconds: 5
+  beamCooldownSeconds: 8
+  yieldFraction: 0.1
+  yieldSeconds: 5
+  attacks:
+  - attack: {fileID: 11400000, guid: 0de0e31d077c8004a8d74d17b8063d0d, type: 2}
+    minRange: 0
+    maxRange: 2.8
+    maxAngle: 30
+    cooldown: 2.5
+    weight: 3
+    minPhase: 1
+    dropsGuard: 0
+    maxPhase: 0
+    special: 
+  - attack: {fileID: 11400000, guid: 665b75fe7cc368140900feec77f1e0b3, type: 2}
+    minRange: 0
+    maxRange: 3
+    maxAngle: 40
+    cooldown: 3.5
+    weight: 2
+    minPhase: 1
+    dropsGuard: 0
+    maxPhase: 0
+    special: 
+  - attack: {fileID: 11400000, guid: 635b5f2ddaa12544e99761420d1b232f, type: 2}
+    minRange: 0
+    maxRange: 2.8
+    maxAngle: 25
+    cooldown: 5
+    weight: 1.5
+    minPhase: 1
+    dropsGuard: 0
+    maxPhase: 0
+    special: 
+  - attack: {fileID: 11400000, guid: 0de962c1fa0691643beb2635996b75df, type: 2}
+    minRange: 0
+    maxRange: 3.5
+    maxAngle: 180
+    cooldown: 8
+    weight: 1.5
+    minPhase: 1
+    dropsGuard: 0
+    maxPhase: 0
+    special: 
+  - attack: {fileID: 11400000, guid: f786cacc3c3d8c74ea5a923de6721b01, type: 2}
+    minRange: 0
+    maxRange: 40
+    maxAngle: 180
+    cooldown: 30
+    weight: 6
+    minPhase: 1
+    dropsGuard: 0
+    maxPhase: 1
+    special: horn
+  - attack: {fileID: 11400000, guid: 163a1301249025845a6c51323f84b9e9, type: 2}
+    minRange: 6
+    maxRange: 15
+    maxAngle: 20
+    cooldown: 9
+    weight: 4
+    minPhase: 2
+    dropsGuard: 0
+    maxPhase: 0
+    special: 
+  - attack: {fileID: 11400000, guid: d7c1f302b3fb60a42941a6fd9a1bcd18, type: 2}
+    minRange: 0
+    maxRange: 40
+    maxAngle: 180
+    cooldown: 14
+    weight: 4
+    minPhase: 2
+    dropsGuard: 0
+    maxPhase: 2
+    special: kran
+  - attack: {fileID: 11400000, guid: 175b9ba0c1153604f9c18fb2d523fd5e, type: 2}
+    minRange: 4
+    maxRange: 18
+    maxAngle: 40
+    cooldown: 7
+    weight: 4
+    minPhase: 3
+    dropsGuard: 0
+    maxPhase: 0
+    special: brandtopf

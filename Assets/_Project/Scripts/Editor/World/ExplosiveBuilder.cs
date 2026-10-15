@@ -143,7 +143,7 @@ namespace Aetherfall.EditorTools.World
             GameObject oil = Visual(root.transform, "Öl", PrimitiveType.Cylinder, new Vector3(0f, 0.02f, 0f), new Vector3(radius * 2f, 0.01f, radius * 2f),
                 TestGroundAssets.EnsureMaterial("Oel", new Color(0.08f, 0.07f, 0.05f), report));
             Renderer oilRenderer = oil.GetComponent<Renderer>();
-            oilRenderer.sharedMaterial.SetFloat("_Smoothness", 0.9f);
+            oilRenderer.sharedMaterial.SetFloat("_Smoothness", 0.55f);
             oilRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
 
             var fire = new GameObject("Feuer");

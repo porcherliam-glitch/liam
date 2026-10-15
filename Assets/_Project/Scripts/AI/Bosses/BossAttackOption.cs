@@ -12,6 +12,18 @@ namespace Aetherfall.AI.Bosses
         /// <summary>First phase (1-based) in which the boss uses the attack.</summary>
         public int MinPhase { get; set; } = 1;
 
+        /// <summary>Last phase in which the attack is used (e.g. the war horn only in phase 1).</summary>
+        public int MaxPhase { get; set; } = int.MaxValue;
+
+        /// <summary>
+        /// Key of a special attack (empty = a normal hit): the controller tells the boss mechanics when its wind-up starts and
+        /// when it fires (war horn, crane, fire pot) instead of opening the hitbox.
+        /// </summary>
+        public string Special { get; set; } = string.Empty;
+
+        /// <summary>True for a special attack.</summary>
+        public bool IsSpecial => !string.IsNullOrEmpty(Special);
+
         /// <summary>True: the guard is down while the attack runs (charge, spin).</summary>
         public bool DropsGuard { get; set; }
 
@@ -19,7 +31,7 @@ namespace Aetherfall.AI.Bosses
         /// <param name="phase">Current phase (1-based).</param>
         public bool AvailableIn(int phase)
         {
-            return Option != null && Option.Attack != null && phase >= MinPhase;
+            return Option != null && Option.Attack != null && phase >= MinPhase && phase <= MaxPhase;
         }
     }
 }

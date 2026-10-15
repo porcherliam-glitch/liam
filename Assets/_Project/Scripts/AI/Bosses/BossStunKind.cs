@@ -13,6 +13,8 @@ namespace Aetherfall.AI.Bosses
         Parried = 2,
 
         /// <summary>Hit by the Aether beam of the arena mirror (GDD 02 11.7: 5 s).</summary>
-        Beam = 3
+        Beam = 3,
+        /// <summary>A special attack was interrupted (GDD 02 11.6: horn call broken by a stun or a head hit).</summary>
+        Interrupted = 4
     }
 }

@@ -85,6 +85,22 @@ namespace Aetherfall.EditorTools.World
             return true;
         }
 
+        /// <summary>The wolf set on fire by the burning check (it flees; the spell checks take another one).</summary>
+        private static Combatant _burnedWolf;
+
+        /// <summary>
+        /// The nearest living grey wolf: the mage checks need a wolf in the open (other enemies may stand on slopes, like the
+        /// guards of the quarry).
+        /// </summary>
+        private static EnemyController NearestLivingWolf(Vector3 from, Combatant except = null)
+        {
+            return Object.FindObjectsByType<EnemyController>(FindObjectsInactive.Exclude)
+                .Where(e => e.Combatant != null && e.Combatant.IsAlive && e.Combatant != except && e.Definition != null &&
+                            e.Definition.EnemyTypeId == SliceEnemyAssets.WolfType)
+                .OrderBy(e => (e.transform.position - from).sqrMagnitude)
+                .FirstOrDefault();
+        }
+
         /// <summary>Stands 9 m in front of a wolf and fires up to three bolts (light attack, like the left mouse button).</summary>
         private static Func<bool> ShootAtWolf()
         {
@@ -103,8 +119,7 @@ namespace Aetherfall.EditorTools.World
                 switch (phase)
                 {
                     case 0:
-                        EnemyController wolf = Object.FindObjectsByType<EnemyController>(FindObjectsInactive.Exclude)
-                            .FirstOrDefault(e => e.GetComponent<Combatant>().IsAlive);
+                        EnemyController wolf = NearestLivingWolf(player.transform.position);
                         if (wolf == null)
                         {
                             return Fail(Elapsed > 5.0, "Kein lebender Gegner in der Szene.");
@@ -234,14 +249,14 @@ namespace Aetherfall.EditorTools.World
                 switch (phase)
                 {
                     case 0:
-                        EnemyController enemy = Object.FindObjectsByType<EnemyController>(FindObjectsInactive.Exclude)
-                            .FirstOrDefault(e => e.GetComponent<Combatant>().IsAlive);
+                        EnemyController enemy = NearestLivingWolf(player.transform.position);
                         if (enemy == null)
                         {
                             return Fail(Elapsed > 5.0, "Kein lebender Wolf zum Anzünden.");
                         }
 
                         wolf = enemy.GetComponent<Combatant>();
+                        _burnedWolf = wolf;
                         // A grey wolf dies after two bolts: for the check it gets 1000 health, so the burning shows
                         // (2 % per second = 20).
                         wolf.Health.Pool.SetFixedMax(1000f);

@@ -27,6 +27,8 @@ namespace Aetherfall.AI.Bosses
         private float _stunRemaining;
         private float _beamCooldown;
         private float _outsideArena;
+        private bool _yielded;
+        private readonly System.Collections.Generic.HashSet<string> _disabledSpecials = new System.Collections.Generic.HashSet<string>();
 
         /// <summary>Creates the brain.</summary>
         /// <param name="settings">Values (validated).</param>
@@ -87,11 +89,79 @@ namespace Aetherfall.AI.Bosses
             }
         }
 
-        /// <summary>True while hits are ignored (dormant, rising, phase change).</summary>
-        public bool IsInvulnerable => State == BossStateId.Dormant || State == BossStateId.Awakening || State == BossStateId.Transition;
+        /// <summary>True while hits are ignored (dormant, rising, phase change, bound).</summary>
+        public bool IsInvulnerable => State == BossStateId.Dormant || State == BossStateId.Awakening || State == BossStateId.Transition ||
+                                      State == BossStateId.Subdued;
 
-        /// <summary>True from the start of the encounter until death or reset.</summary>
-        public bool IsEncounterRunning => State != BossStateId.Dormant && State != BossStateId.Dead;
+        /// <summary>True from the start of the encounter until death, binding or reset.</summary>
+        public bool IsEncounterRunning => State != BossStateId.Dormant && State != BossStateId.Dead && State != BossStateId.Subdued;
+
+        /// <summary>Speed of the attack animations (1 = normal; GDD 02 11.6 phase 3 "Eisenbart": 1.25).</summary>
+        public float AttackSpeed { get; set; } = 1f;
+
+        /// <summary>True while the boss kneels and can be bound.</summary>
+        public bool IsYielding => State == BossStateId.Yielding;
+
+        /// <summary>Raised when the boss kneels (can be bound now).</summary>
+        public event Action Yielded;
+
+        /// <summary>Raised when the boss gets up again without being bound.</summary>
+        public event Action YieldEnded;
+
+        /// <summary>Raised once when the boss is bound alive.</summary>
+        public event Action Subdued;
+
+        /// <summary>Raised when the wind-up of a special attack starts (key).</summary>
+        public event Action<string> SpecialStarted;
+
+        /// <summary>Switches a special attack off for good (the war horn was stolen or shot off).</summary>
+        /// <param name="special">Key of the special attack.</param>
+        public void DisableSpecial(string special)
+        {
+            if (string.IsNullOrEmpty(special))
+            {
+                return;
+            }
+
+            _disabledSpecials.Add(special);
+            if (_option >= 0 && _settings.Attacks[_option].Special == special)
+            {
+                _runner.Cancel();
+                _option = -1;
+            }
+        }
+
+        /// <summary>True if a special attack was switched off.</summary>
+        /// <param name="special">Key.</param>
+        public bool IsSpecialDisabled(string special)
+        {
+            return _disabledSpecials.Contains(special);
+        }
+
+        /// <summary>Breaks off the running attack and staggers the boss (GDD 02 11.6: horn call interrupted).</summary>
+        /// <param name="seconds">Stagger seconds.</param>
+        /// <returns>True if the boss is now staggered.</returns>
+        public bool Interrupt(float seconds)
+        {
+            return Stun(BossStunKind.Interrupted, seconds);
+        }
+
+        /// <summary>Binds the kneeling boss (GDD 02 11.6 "Fesseln"): the fight is won, the boss lives.</summary>
+        /// <returns>True if the boss is bound now.</returns>
+        public bool Bind()
+        {
+            if (State != BossStateId.Yielding)
+            {
+                return false;
+            }
+
+            _runner.Cancel();
+            _option = -1;
+            Intent = default;
+            ChangeState(BossStateId.Subdued);
+            Raise(Subdued);
+            return true;
+        }
 
         /// <summary>Why the boss is stunned (None otherwise).</summary>
         public BossStunKind StunKind { get; private set; }
@@ -181,8 +251,27 @@ namespace Aetherfall.AI.Bosses
                     }
 
                     break;
+                case BossStateId.Yielding:
+                    Intent = default;
+                    if (StateTime >= _settings.YieldSeconds)
+                    {
+                        // Not bound in time: he gets up and fights on (only once; from now on only death ends the fight).
+                        _recover = _settings.RecoverSeconds;
+                        ChangeState(BossStateId.Fighting);
+                        Raise(YieldEnded);
+                    }
+
+                    break;
                 case BossStateId.Stunned:
                     Intent = default;
+                    if (ShouldYield(senses.HealthFraction))
+                    {
+                        _stunRemaining = 0f;
+                        StunKind = BossStunKind.None;
+                        EnterYield();
+                        break;
+                    }
+
                     if (_phases.TryAdvance(senses.HealthFraction, out int stunnedPhase))
                     {
                         // GDD 03 9.6: the phase starts at its health threshold, also during a stun (a poise break or parry
@@ -248,7 +337,20 @@ namespace Aetherfall.AI.Bosses
         /// <param name="maxHealth">Maximum health of the boss.</param>
         public float HealthFloor(float maxHealth)
         {
-            return IsEncounterRunning ? _phases.HealthFloor(maxHealth) : 0f;
+            if (!IsEncounterRunning)
+            {
+                return 0f;
+            }
+
+            float floor = _phases.HealthFloor(maxHealth);
+            if (floor <= 0f && _settings.YieldFraction > 0f && !_yielded && Phase >= _phases.PhaseCount)
+            {
+                // GDD 02 11.6: he kneels at 10 % - a big hit must not kill him before he could be bound.
+                float start = _settings.YieldFraction * maxHealth;
+                floor = Math.Max(start - 1f, start * 0.5f);
+            }
+
+            return floor;
         }
 
         /// <summary>The boss died (raises <see cref="Died"/> once).</summary>
@@ -278,6 +380,8 @@ namespace Aetherfall.AI.Bosses
             _stunRemaining = 0f;
             _beamCooldown = 0f;
             _outsideArena = 0f;
+            _yielded = false;
+            AttackSpeed = 1f;
             StunKind = BossStunKind.None;
             Intent = default;
             ChangeState(BossStateId.Dormant);
@@ -309,6 +413,12 @@ namespace Aetherfall.AI.Bosses
             if (_phases.TryAdvance(senses.HealthFraction, out int phase))
             {
                 EnterTransition(phase);
+                return;
+            }
+
+            if (ShouldYield(senses.HealthFraction))
+            {
+                EnterYield();
                 return;
             }
 
@@ -369,13 +479,22 @@ namespace Aetherfall.AI.Bosses
             if (Math.Abs(bearing) <= option.MaxAngle)
             {
                 _runner.Start(option.Attack);
+                string special = _settings.Attacks[_option].Special;
+                if (!string.IsNullOrEmpty(special))
+                {
+                    Action<string> started = SpecialStarted;
+                    if (started != null)
+                    {
+                        started(special);
+                    }
+                }
             }
         }
 
         private void TickAttack(float dt, in BossSenses senses)
         {
             AttackSpec attack = _runner.Current;
-            if (!_runner.Tick(dt))
+            if (!_runner.Tick(dt * Math.Max(0.1f, AttackSpeed)))
             {
                 FinishAttack();
                 return;
@@ -457,7 +576,24 @@ namespace Aetherfall.AI.Bosses
 
         private bool IsReady(int index)
         {
-            return _cooldowns[index] <= 0f && _settings.Attacks[index].AvailableIn(Phase);
+            BossAttackOption attack = _settings.Attacks[index];
+            return _cooldowns[index] <= 0f && attack.AvailableIn(Phase) && !(attack.IsSpecial && _disabledSpecials.Contains(attack.Special));
+        }
+
+        private bool ShouldYield(float healthFraction)
+        {
+            return _settings.YieldFraction > 0f && !_yielded && Phase >= _phases.PhaseCount && healthFraction <= _settings.YieldFraction;
+        }
+
+        private void EnterYield()
+        {
+            _yielded = true;
+            _runner.Cancel();
+            _option = -1;
+            _recover = 0f;
+            Intent = default;
+            ChangeState(BossStateId.Yielding);
+            Raise(Yielded);
         }
 
         private void TickCooldowns(float dt)

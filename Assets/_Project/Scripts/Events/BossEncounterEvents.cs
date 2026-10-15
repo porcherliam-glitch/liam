@@ -85,4 +85,27 @@ namespace Aetherfall.Events
             return "BossPhaseChanged(" + BossId + ", phase " + Phase + ")";
         }
     }
+
+    /// <summary>
+    /// A boss was bound alive instead of killed (GDD 02 11.6 Grimmbart: "Fesseln" at 10 % health). Published right before
+    /// <c>BossDefeated</c>. Receivers: quests (branch "lebend"), world.
+    /// </summary>
+    public readonly struct BossSubdued : IGameEvent
+    {
+        /// <summary>Boss id, e.g. <c>boss.eichental.grimmbart</c>.</summary>
+        public readonly string BossId;
+
+        /// <summary>Creates the event.</summary>
+        /// <param name="bossId">Boss id.</param>
+        public BossSubdued(string bossId)
+        {
+            BossId = bossId ?? string.Empty;
+        }
+
+        /// <inheritdoc />
+        public override string ToString()
+        {
+            return "BossSubdued(" + BossId + ")";
+        }
+    }
 }
