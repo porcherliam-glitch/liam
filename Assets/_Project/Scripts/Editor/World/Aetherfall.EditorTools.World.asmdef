@@ -33,6 +33,7 @@
         "Aetherfall.Companions",
         "Aetherfall.Classes",
         "Aetherfall.Skills",
+        "Aetherfall.Difficulty",
         "Unity.Cinemachine",
         "Unity.InputSystem"
     ],

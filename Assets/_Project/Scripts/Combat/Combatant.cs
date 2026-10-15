@@ -82,6 +82,7 @@ namespace Aetherfall.Combat
         private float _poisonCarry;
         private float _corruptionCarry;
         private float _weakenFraction;
+        private IDifficultyService _difficulty;
         private float _weakenUntil;
         private readonly HitStopTimer _hitStop = new HitStopTimer();
         private ResistanceProfile _resistances;
@@ -360,6 +361,12 @@ namespace Aetherfall.Combat
                 snapshot.DamageBonus -= weakness;
             }
 
+            if (team == CombatTeam.Enemy && _difficulty != null)
+            {
+                // GDD 03 9.7: enemy damage × G of the difficulty (0.5 / 1 / 1.35 / 1.8).
+                snapshot.DamageBonus = (1f + snapshot.DamageBonus) * _difficulty.Settings.EnemyDamage - 1f;
+            }
+
             return snapshot;
         }
 
@@ -495,6 +502,11 @@ namespace Aetherfall.Combat
         {
             StatusEffectController status = Status;
             StatusBuildup applied = blocked ? buildup.Scaled(0.5f) : buildup;
+            if (team == CombatTeam.Player && _difficulty != null && _difficulty.Settings.StatusOnPlayer != 1f)
+            {
+                // GDD 03 9.7: status build-up on the player × 0.5 / 1 / 1.25 / 1.5.
+                applied = applied.Scaled(_difficulty.Settings.StatusOnPlayer);
+            }
             if (status.Settings.IsBoss && _poise != null)
             {
                 float stun = applied.Get(StatusEffectId.Stun);
@@ -596,6 +608,7 @@ namespace Aetherfall.Combat
             try
             {
                 await Services.WaitForAsync<IGameStateService>(destroyCancellationToken);
+                Services.Locator.TryGet(out _difficulty);
                 if (Services.Locator.TryGet(out ICombatService service))
                 {
                     _service = service;

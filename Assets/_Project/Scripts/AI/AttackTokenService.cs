@@ -38,6 +38,15 @@ namespace Aetherfall.AI
         /// <summary>Minimum time between two attack starts on the same target (GDD 03 9.3: 0.6 s).</summary>
         public float MinStartInterval { get; set; }
 
+        /// <summary>Sets the token budgets (GDD 03 9.7: the difficulty decides how many enemies attack at once).</summary>
+        /// <param name="meleeBudget">Melee tokens per target.</param>
+        /// <param name="rangedBudget">Ranged tokens per target.</param>
+        public void SetBudgets(int meleeBudget, int rangedBudget)
+        {
+            _budget[(int)TokenKind.Melee] = Math.Max(0, meleeBudget);
+            _budget[(int)TokenKind.Ranged] = Math.Max(0, rangedBudget);
+        }
+
         /// <summary>Budget of a kind per target.</summary>
         /// <param name="kind">Kind.</param>
         public int BudgetOf(TokenKind kind)

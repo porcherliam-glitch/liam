@@ -20,6 +20,7 @@ namespace Aetherfall.EditorTools.World
     public static partial class PlayTour
     {
         private static int _boltsBefore;
+        private static Combatant _boltWolf;
 
         private static void BuildMagePlan()
         {
@@ -112,6 +113,7 @@ namespace Aetherfall.EditorTools.World
                         Vector3 front = wolf.transform.forward;
                         front.y = 0f;
                         PlaceOnGround(wolf.transform.position + front.normalized * 9f, -front);
+                        _boltWolf = wolf.GetComponent<Combatant>();
                         _boltsBefore = launcher.FiredCount;
                         Note("Ziel: " + wolf.GetComponent<Combatant>().CombatantId + " in 9 m.");
                         phase = 1;
@@ -123,6 +125,8 @@ namespace Aetherfall.EditorTools.World
                             return false;
                         }
 
+                        // Aim at this wolf (lock-on): the staff otherwise takes whatever is nearest in the camera cone.
+                        player.GetComponent<PlayerLockOn>().Lock(_boltWolf);
                         combat.QueueLightAttack();
                         shots++;
                         phase = 2;

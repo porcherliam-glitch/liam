@@ -373,15 +373,20 @@ namespace Aetherfall.AI
             }
 
             _combatant.SetController(this);
+            ConfigureFromDefinition(1f, 1f);
+        }
+
+        private void ConfigureFromDefinition(float healthFactor, float poiseFactor)
+        {
             string id = !string.IsNullOrEmpty(uniqueId) ? uniqueId : definition.EnemyTypeId + "#" + instanceNumber;
-            _combatant.Configure(definition.Level, definition.Armor, definition.CreateResistances(), definition.MaxPoise, PoiseSettings.Normal, id,
+            _combatant.Configure(definition.Level, definition.Armor, definition.CreateResistances(), definition.MaxPoise * poiseFactor, PoiseSettings.Normal, id,
                 definition.EnemyTypeId, definition.ParryPoiseLoss);
             ConfigureStatus();
             Health health = _combatant.Health;
             if (health != null)
             {
-                health.Pool.SetFixedMax(definition.MaxHealth);
-                health.RestoreState(definition.MaxHealth);
+                health.Pool.SetFixedMax(definition.MaxHealth * healthFactor);
+                health.RestoreState(definition.MaxHealth * healthFactor);
             }
         }
 
@@ -406,7 +411,15 @@ namespace Aetherfall.AI
                                                 "Using a local token service: enemies do not coordinate their attacks.");
                 }
 
-                EnemyBrainSettings settings = definition.CreateBrainSettings(guard || patrolPoints.Length == 0, out string problem);
+                // GDD 03 9.7: health, poise, telegraph and cooldowns follow the difficulty (enemies that spawn later get the new level).
+                DifficultySettings difficulty = locator.TryGet(out IDifficultyService difficultyService) ? difficultyService.Settings : null;
+                if (difficulty != null && (difficulty.EnemyHealth != 1f || difficulty.EnemyPoise != 1f) && _combatant.Health != null &&
+                    _combatant.Health.Current >= _combatant.Health.Max)
+                {
+                    ConfigureFromDefinition(difficulty.EnemyHealth, difficulty.EnemyPoise);
+                }
+
+                EnemyBrainSettings settings = definition.CreateBrainSettings(guard || patrolPoints.Length == 0, out string problem, difficulty);
                 if (settings == null)
                 {
                     Log.Error(LogCategory.AI, "EnemyController '" + name + "': " + problem);

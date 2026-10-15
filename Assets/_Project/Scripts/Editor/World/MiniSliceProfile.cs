@@ -38,6 +38,9 @@ namespace Aetherfall.EditorTools.World
         /// <summary>Installer of the classes in the BootConfig.</summary>
         public const string ClassInstallerPath = SetupPaths.BootSettingsFolder + "/ClassInstaller.asset";
 
+        /// <summary>Installer of the difficulty.</summary>
+        public const string DifficultyInstallerPath = SetupPaths.BootSettingsFolder + "/DifficultyInstaller.asset";
+
         /// <summary>Installer of the skill trees.</summary>
         public const string SkillInstallerPath = SetupPaths.BootSettingsFolder + "/SkillInstaller.asset";
 
@@ -94,6 +97,13 @@ namespace Aetherfall.EditorTools.World
             so.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(installer);
             EnsureSkills(report);
+            // GDD 03 9.7: difficulty levels; right after the saves, so the AI and the enemies find it.
+            if (TestGroundAssets.EnsureInstallerInBootConfig<Aetherfall.Difficulty.DifficultyInstaller>(DifficultyInstallerPath, report,
+                    typeof(Aetherfall.SaveSystem.SaveInstaller)))
+            {
+                report.Info("DifficultyInstaller: Geschichte / Normal / Schwer / Albtraum (Optionen), Start Normal.");
+            }
+
             report.Info("ClassInstaller: " + (classes.Count > 0 ? classes.Count + " Klassen (Krieger, Magier), Klassenwahl bei „Neues Spiel“" : "ohne Klassen (Testgelände)") + ".");
         }
 

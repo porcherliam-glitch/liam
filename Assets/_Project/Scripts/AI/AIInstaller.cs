@@ -31,7 +31,15 @@ namespace Aetherfall.AI
         /// <inheritdoc />
         public override void Install(IServiceRegistry registry, IServiceLocator locator)
         {
-            registry.Register<IAttackTokenService>(new AttackTokenService(meleeTokens, rangedTokens, reacquireDelay, minStartInterval));
+            var tokens = new AttackTokenService(meleeTokens, rangedTokens, reacquireDelay, minStartInterval);
+            if (locator.TryGet(out IDifficultyService difficulty))
+            {
+                // GDD 03 9.7: tokens melee / ranged 1/1 Geschichte, 2/2 Normal, 3/2 Schwer, 3/3 Albtraum.
+                tokens.SetBudgets(difficulty.Settings.MeleeTokens, difficulty.Settings.RangedTokens);
+                difficulty.Changed += level => tokens.SetBudgets(difficulty.Settings.MeleeTokens, difficulty.Settings.RangedTokens);
+            }
+
+            registry.Register<IAttackTokenService>(tokens);
             registry.Register<IAIManager>(new AIManager());
         }
     }

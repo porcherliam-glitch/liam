@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Aetherfall.Combat;
+using Aetherfall.Core;
 using Aetherfall.Data;
 using Aetherfall.Events;
 using UnityEngine;
@@ -87,6 +88,9 @@ namespace Aetherfall.AI
         [Header("Kampf")]
         [Tooltip("Kosten an Angriffs-Token (GDD 03, 9.3: Schwarm/Normal 1, Elite 2, Champion 3).")]
         [Range(1, 3)] [SerializeField] private int tokenCost = 1;
+
+        [Tooltip("Art des Angriffs-Tokens (GDD 03, 9.3): Nahkampf oder Fernkampf (Armbrustschützen).")]
+        [SerializeField] private TokenKind tokenKind = TokenKind.Melee;
 
         [Tooltip("Haltungsverlust bei perfekter Parade, Anteil der max. Haltung (Normal 0,35).")]
         [Range(0f, 1f)] [SerializeField] private float parryPoiseLoss = 0.35f;
@@ -242,7 +246,8 @@ namespace Aetherfall.AI
         /// <summary>Behaviour values for the brain; null (and an error text) if no attack is set.</summary>
         /// <param name="guard">Guard instead of patrol.</param>
         /// <param name="problem">Error text, empty on success.</param>
-        public EnemyBrainSettings CreateBrainSettings(bool guard, out string problem)
+        /// <param name="difficulty">Difficulty (GDD 03 9.7: telegraph and cooldown factors); null = Normal.</param>
+        public EnemyBrainSettings CreateBrainSettings(bool guard, out string problem, DifficultySettings difficulty = null)
         {
             var options = new List<EnemyAttackOption>(attacks.Count);
             for (int i = 0; i < attacks.Count; i++)
@@ -250,6 +255,12 @@ namespace Aetherfall.AI
                 EnemyAttackOption option = attacks[i] != null ? attacks[i].CreateOption() : null;
                 if (option != null)
                 {
+                    if (difficulty != null)
+                    {
+                        option.Attack.WindupSeconds *= difficulty.TelegraphFactor;
+                        option.Cooldown *= difficulty.EnemyCooldownFactor;
+                    }
+
                     options.Add(option);
                 }
             }
@@ -268,6 +279,7 @@ namespace Aetherfall.AI
                 FleeHealthFraction = fleeHealthFraction,
                 FleeSeconds = fleeSeconds,
                 TokenCost = tokenCost,
+                TokenKind = tokenKind,
                 Guard = guard,
                 Attacks = options.ToArray()
             };

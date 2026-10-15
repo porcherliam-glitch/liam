@@ -95,6 +95,7 @@ namespace Aetherfall.AI.Bosses
         private EnemyLocomotion _locomotion;
         private EnemyVisuals _visuals;
         private ICombatService _combat;
+        private IDifficultyService _difficulty;
         private IEventBus _eventBus;
         private IBossBarService _bar;
         private Combatant _target;
@@ -256,6 +257,7 @@ namespace Aetherfall.AI.Bosses
             bool running = _brain.IsEncounterRunning;
             _brain.Reset();
             PutBack(running);
+            ApplyDifficulty();
         }
 
         private void PutBack(bool endEncounter)
@@ -325,7 +327,12 @@ namespace Aetherfall.AI.Bosses
             }
 
             _combatant.SetController(this);
-            _combatant.Configure(_type.Level, _type.Armor, _type.CreateResistances(), _type.MaxPoise, PoiseSettings.Boss, definition.BossId,
+            ConfigureFromType(1f, 1f);
+        }
+
+        private void ConfigureFromType(float healthFactor, float poiseFactor)
+        {
+            _combatant.Configure(_type.Level, _type.Armor, _type.CreateResistances(), _type.MaxPoise * poiseFactor, PoiseSettings.Boss, definition.BossId,
                 _type.EnemyTypeId, _type.ParryPoiseLoss);
             // GDD 03 7.1–7.2: bosses resist 200+, never freeze or get stunned by effects, burn for smaller shares.
             _combatant.ConfigureStatus(StatusSettings.Boss.WithResistance(Mathf.Max(StatusSettings.Boss.BaseResistance, _type.StatusResistance)),
@@ -336,8 +343,18 @@ namespace Aetherfall.AI.Bosses
             Health health = _combatant.Health;
             if (health != null)
             {
-                health.Pool.SetFixedMax(_type.MaxHealth);
-                health.RestoreState(_type.MaxHealth);
+                health.Pool.SetFixedMax(_type.MaxHealth * healthFactor);
+                health.RestoreState(_type.MaxHealth * healthFactor);
+            }
+        }
+
+        private void ApplyDifficulty()
+        {
+            // GDD 03 9.7: health and poise follow the difficulty; in a boss fight a change counts from the next attempt.
+            DifficultySettings settings = _difficulty != null ? _difficulty.Settings : null;
+            if (settings != null)
+            {
+                ConfigureFromType(settings.EnemyHealth, settings.EnemyPoise);
             }
         }
 
@@ -355,6 +372,8 @@ namespace Aetherfall.AI.Bosses
                 IServiceLocator locator = Services.Locator;
                 locator.TryGet(out _combat);
                 locator.TryGet(out _eventBus);
+                locator.TryGet(out _difficulty);
+                ApplyDifficulty();
                 if (!locator.TryGet(out _bar))
                 {
                     Log.Warning(LogCategory.AI, "BossController '" + name + "': no IBossBarService (BossInstaller missing in the BootConfig), no health bar.");

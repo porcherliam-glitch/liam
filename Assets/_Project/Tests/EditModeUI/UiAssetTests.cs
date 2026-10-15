@@ -177,7 +177,7 @@ namespace Aetherfall.Tests.EditMode.UI
             var dynamicNames = new HashSet<string>(StringComparer.Ordinal)
             {
                 "mainmenu-continue-info", "mainmenu-version", "mainmenu-status", "load-status", "slot-kind", "slot-date", "slot-playtime",
-                "options-ui-scale-value", "options-hud-mode-value", "options-glyphs-value", "options-ui-scale", "options-hud-mode", "options-glyphs",
+                "options-ui-scale-value", "options-hud-mode-value", "options-glyphs-value", "options-ui-scale", "options-hud-mode", "options-glyphs", "options-difficulty", "options-difficulty-value",
                 "pause-status", "pause-last-save", "death-load-info", "death-status", "loading-percent", "hud-target-name", "hud-prompt-text", "toast-text",
                 "journal-title", "journal-hint-confirm", "journal-hint-secondary", "questlog-detail-title", "questlog-detail-meta", "questlog-detail-description",
                 "questlog-detail-stage-title", "questlog-detail-stage", "questlog-detail-history-title", "quest-row-title", "quest-row-info", "quest-row-badge",

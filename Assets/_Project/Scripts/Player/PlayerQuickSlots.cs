@@ -189,7 +189,9 @@ namespace Aetherfall.Player
 
             if (spec.RestoreHealth > 0f && health != null && health.Health != null)
             {
-                health.Heal(health.Health.Max * spec.RestoreHealth);
+                // GDD 03 9.7: healing ×1.5 on Geschichte, ×0.8 on Albtraum.
+                float factor = Services.Locator != null && Services.Locator.TryGet(out IDifficultyService difficulty) ? difficulty.Settings.HealingFactor : 1f;
+                health.Heal(health.Health.Max * spec.RestoreHealth * factor);
             }
 
             ResourcePool mana = stats != null ? stats.Mana : null;

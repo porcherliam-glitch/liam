@@ -1,0 +1,26 @@
+{
+    "name": "Aetherfall.Difficulty",
+    "rootNamespace": "Aetherfall.Difficulty",
+    "references": [
+        "Aetherfall.Core",
+        "Aetherfall.Events",
+        "Aetherfall.SaveSystem"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "AETHERFALL_NEWTONSOFT"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.unity.nuget.newtonsoft-json",
+            "expression": "3.0",
+            "define": "AETHERFALL_NEWTONSOFT"
+        }
+    ],
+    "noEngineReferences": false
+}

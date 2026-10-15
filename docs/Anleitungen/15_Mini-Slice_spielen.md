@@ -68,6 +68,8 @@ Mit Gamepad geht es auch (Xbox-Belegung: A springen und benutzen, X/Y angreifen,
 
 Unten rechts im HUD stehen die vier Felder der aktiven Leiste, darüber „Leiste 1 von 2“. Ein Feld leuchtet in der Farbe seines Elements (Feuer orange, Eis hellblau, Blitz gelb, Aether violett), sobald du die Fähigkeit kannst; Feld 4 von Leiste 1 ist für den Aether-Stoß frei. Nach dem Einsatz läuft dort die Wartezeit in Sekunden ab; grau heißt: zu wenig Mana.
 
+**Schwierigkeit:** Im Hauptmenü und im Pausemenü unter „Optionen“ wählst du mit ◄ ► **Geschichte**, **Normal**, **Schwer** oder **Albtraum** – jederzeit. Geschichte: Gegner machen halb so viel Schaden, haben weniger Leben, greifen seltener zu zweit an, das Parierfenster ist größer und Tränke heilen mehr. Albtraum: fast doppelter Schaden, mehr Leben, kürzere Vorwarnung. Erfahrung gibt es überall gleich viel. Gegner, die schon stehen, behalten ihr Leben, bis sie neu erscheinen; ein Boss ändert sich ab dem nächsten Versuch.
+
 ## 3. Was dich erwartet
 
 1. **Asche über Eichental** (startet sofort): Hedda am Brunnen, das brennende Dorf, Tobold und Wenna retten, Kreaturen aus dem Riss, der Spur folgen. Am Riss bekommst du die Aether-Kraft: Triff die Rissbrut mit dem Aether-Stoß (**4**). Zum Schluss Hedda in Lindenhain.

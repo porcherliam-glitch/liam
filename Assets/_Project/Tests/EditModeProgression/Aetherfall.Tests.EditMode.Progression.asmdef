@@ -19,6 +19,7 @@
         "Aetherfall.Combat",
         "Aetherfall.Classes",
         "Aetherfall.Skills",
+        "Aetherfall.Difficulty",
         "Aetherfall.Quests",
         "Aetherfall.EditorTools.Narrative",
         "Aetherfall.Tests.Shared"

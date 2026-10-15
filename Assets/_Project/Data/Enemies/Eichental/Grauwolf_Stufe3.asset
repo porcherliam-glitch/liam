@@ -36,6 +36,7 @@ MonoBehaviour:
   hasCrystalCore: 0
   crystalCoreBreakFraction: 0.25
   tokenCost: 1
+  tokenKind: 0
   parryPoiseLoss: 0.35
   parryOpenSeconds: 1.2
   attacks:

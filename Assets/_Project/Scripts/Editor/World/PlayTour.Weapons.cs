@@ -29,6 +29,7 @@ namespace Aetherfall.EditorTools.World
         private static void BuildWeaponsPlan()
         {
             Steps.Enqueue(MakePlayerInvulnerable);
+            Steps.Enqueue(CheckDifficulty);
             Steps.Enqueue(EquipMace());
             Steps.Enqueue(() => Capture("w01_streitkolben", ViewBesidePlayer));
             Steps.Enqueue(StandBeforeWolf(1.7f));
@@ -524,6 +525,26 @@ namespace Aetherfall.EditorTools.World
             Vector3 to = point - player.transform.position;
             orbit.HorizontalAxis.Value = orbit.HorizontalAxis.ClampValue(Mathf.Atan2(to.x, to.z) * Mathf.Rad2Deg);
             orbit.VerticalAxis.Value = orbit.VerticalAxis.ClampValue(15f);
+        }
+
+        /// <summary>GDD 03 9.7: switching the difficulty changes the attack tokens at once (Schwer: 3 melee), then back to Normal.</summary>
+        private static bool CheckDifficulty()
+        {
+            IServiceLocator locator = Services.Locator;
+            if (!locator.TryGet(out IDifficultyService difficulty) || !locator.TryGet(out IAttackTokenService tokens) || !(tokens is AttackTokenService service))
+            {
+                return Fail(true, "Kein Schwierigkeits- oder Token-Dienst (DifficultyInstaller fehlt?).");
+            }
+
+            int normal = service.BudgetOf(TokenKind.Melee);
+            difficulty.SetLevel(DifficultyLevel.Hard);
+            int hard = service.BudgetOf(TokenKind.Melee);
+            difficulty.SetLevel(DifficultyLevel.Story);
+            int story = service.BudgetOf(TokenKind.Melee);
+            difficulty.SetLevel(DifficultyLevel.Normal);
+            Note("Schwierigkeit: Nahkampf-Token Normal " + normal + ", Schwer " + hard + ", Geschichte " + story + "; Gegnerschaden Albtraum ×" +
+                 DifficultySettings.For(DifficultyLevel.Nightmare).EnemyDamage.ToString("0.##") + ".");
+            return (normal == 2 && hard == 3 && story == 1) || Fail(true, "Die Schwierigkeit ändert die Angriffs-Token nicht.");
         }
     }
 }

@@ -91,6 +91,9 @@ namespace Aetherfall.Player
 
         private CombatStateMachine _machine;
         private CombatTuning _tuning;
+        private IDifficultyService _difficulty;
+        private DodgeProfile _baseRoll;
+        private bool _hasBaseRoll;
         private WeaponSpec _weapon;
         private BlockSpec _weaponBlock = BlockSpec.OneHandedWeapon;
         private IGameplayInput _gameplay;
@@ -421,8 +424,36 @@ namespace Aetherfall.Player
         {
             if (_tuning != null && profile.Duration > 0f)
             {
-                _tuning.Roll = profile;
+                _baseRoll = profile;
+                _hasBaseRoll = true;
+                ApplyDifficulty();
             }
+        }
+
+        private void ApplyDifficulty()
+        {
+            if (_tuning == null)
+            {
+                return;
+            }
+
+            // GDD 03 9.7: parry window 250 / 150 / 120 / 100 ms, roll i-frames +100 ms on Geschichte, −50 ms on Albtraum.
+            DifficultySettings settings = _difficulty != null ? _difficulty.Settings : DifficultySettings.For(DifficultyLevel.Normal);
+            _tuning.ParryWindowSeconds = settings.ParryWindowSeconds;
+            if (!_hasBaseRoll)
+            {
+                _baseRoll = _tuning.Roll;
+                _hasBaseRoll = true;
+            }
+
+            DodgeProfile roll = _baseRoll;
+            float end = Mathf.Clamp(roll.IFrameEnd + settings.RollIFrameBonus, roll.IFrameStart, roll.Duration);
+            _tuning.Roll = new DodgeProfile(roll.Distance, roll.Duration, roll.IFrameStart, end, roll.CancelFrom, roll.StaminaCost);
+        }
+
+        private void OnDifficultyChanged(DifficultyLevel level)
+        {
+            ApplyDifficulty();
         }
 
         /// <summary>Back to ready after a respawn: state machine, knockback, combatant (health, poise) and lock-on reset.</summary>
@@ -551,6 +582,12 @@ namespace Aetherfall.Player
                 _gameState = await Services.WaitForAsync<IGameStateService>(destroyCancellationToken);
                 IServiceLocator locator = Services.Locator;
                 locator.TryGet(out _service);
+                if (locator.TryGet(out _difficulty))
+                {
+                    _difficulty.Changed += OnDifficultyChanged;
+                }
+
+                ApplyDifficulty();
                 if (locator.TryGet(out IInputService input))
                 {
                     _gameplay = input.Gameplay;
@@ -625,6 +662,11 @@ namespace Aetherfall.Player
             {
                 _machine.AttackStarted -= OnAttackStarted;
                 _machine.DodgeStarted -= OnDodgeStarted;
+            }
+
+            if (_difficulty != null)
+            {
+                _difficulty.Changed -= OnDifficultyChanged;
             }
         }
 
