@@ -15,7 +15,7 @@ MonoBehaviour:
   bossId: boss.eichental.glutfang
   displayName: Glutfang
   title: Leitwolf vom Nordhang
-  baseType: {fileID: 11400000, guid: a672eef150b6f4d4b860056424064bda, type: 2}
+  baseType: {fileID: 11400000, guid: fe1ead935fe13134d9364d01b8bd7b4e, type: 2}
   musicId: 
   phaseThresholds:
   - 1

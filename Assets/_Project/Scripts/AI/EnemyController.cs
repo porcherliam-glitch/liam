@@ -204,6 +204,15 @@ namespace Aetherfall.AI
             }
         }
 
+        /// <summary>Raised after every resolved hit on this enemy (boss mechanics: head hits, weak points).</summary>
+        public event Action<HitReport> HitTaken;
+
+        /// <summary>True while the AI fights (has a target and is not back home).</summary>
+        public bool IsEngaged => _reportedEngaged;
+
+        /// <summary>True once the crystal core is broken.</summary>
+        public bool IsCoreBroken => _coreBroken;
+
         /// <inheritdoc />
         public StaggerKind OnHitResolved(in HitReport report)
         {
@@ -211,6 +220,8 @@ namespace Aetherfall.AI
             {
                 _wasHit = true;
             }
+
+            HitTaken?.Invoke(report);
 
             if (report.Killed || _brain == null)
             {

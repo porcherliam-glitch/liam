@@ -1,7 +1,9 @@
 using System;
 using System.Linq;
 using Aetherfall.AI;
+using Aetherfall.AI.Bosses;
 using Aetherfall.Combat;
+using Aetherfall.Core;
 using Aetherfall.World;
 using UnityEngine;
 using Object = UnityEngine.Object;
@@ -65,6 +67,99 @@ namespace Aetherfall.EditorTools.World
                         Note("Ein Rissling bricht aus dem Boden hervor (Spieler stand 5 m entfernt, Auslöser 8 m; jetzt " +
                              Vector3.Distance(FindPlayer().transform.position, first.transform.position).ToString("0.0") + " m).");
                         return true;
+                }
+            };
+        }
+
+        /// <summary>Finds the boss fight of a spawn group (active group only).</summary>
+        private static NamedBossEncounter FindNamedBoss(string spawnId)
+        {
+            SpawnGroupMarker marker = Object.FindObjectsByType<SpawnGroupMarker>(FindObjectsInactive.Exclude).FirstOrDefault(m => m.SpawnId == spawnId);
+            return marker != null && marker.Group != null && marker.Group.activeInHierarchy ? marker.Group.GetComponentInChildren<NamedBossEncounter>() : null;
+        }
+
+        /// <summary>S42: the Aether-Stoß broke the shell of the Rissbrut – it takes full damage now.</summary>
+        private static Func<bool> CheckShellBroken(string spawnId)
+        {
+            return () =>
+            {
+                NamedBossEncounter boss = FindNamedBoss(spawnId);
+                AetherShell shell = boss != null ? boss.GetComponent<AetherShell>() : null;
+                if (shell == null)
+                {
+                    return Fail(Elapsed > 5.0, "Die Rissbrut hat keine Aether-Schale.");
+                }
+
+                if (shell.BreakCount < 1)
+                {
+                    return Fail(Elapsed > 3.0, "Der Aether-Stoß hat die Schale der Rissbrut nicht gebrochen.");
+                }
+
+                Combatant combatant = boss.GetComponent<Combatant>();
+                Note("Aether-Schale gebrochen (" + shell.BreakCount + "×), Schadensfaktor jetzt " + combatant.DamageTakenFactor.ToString("0.00") + ".");
+                return Fail(combatant.DamageTakenFactor < 0.99f, "Nach dem Bruch nimmt die Rissbrut noch immer weniger Schaden.") || true;
+            };
+        }
+
+        /// <summary>
+        /// S42: starts the boss fight of a group (boss bar), brings the boss to 45 % health and checks that phase 2 calls its
+        /// helpers.
+        /// </summary>
+        private static Func<bool> BossPhaseTwo(string spawnId)
+        {
+            int phase = 0;
+            return () =>
+            {
+                NamedBossEncounter boss = FindNamedBoss(spawnId);
+                if (boss == null)
+                {
+                    return Fail(Elapsed > 10.0, "Kein Boss in " + spawnId + ".");
+                }
+
+                Combatant combatant = boss.GetComponent<Combatant>();
+                switch (phase)
+                {
+                    case 0:
+                        if (!boss.IsBarShown)
+                        {
+                            Vector3 toward = boss.transform.forward;
+                            toward.y = 0f;
+                            PlaceOnGround(boss.transform.position + toward.normalized * 6f, -toward);
+                            boss.GetComponent<EnemyController>().Alert();
+                        }
+
+                        _stepStart = UnityEditor.EditorApplication.timeSinceStartup;
+                        phase = 1;
+                        return false;
+                    case 1:
+                        if (!boss.IsBarShown)
+                        {
+                            return Fail(Elapsed > 8.0, "Der Bossbalken von " + boss.BossId + " erscheint nicht.");
+                        }
+
+                        BossBarState bar = Services.Locator.Get<IBossBarService>().Current;
+                        Note("Bossbalken: " + bar.DisplayName + " – " + bar.Title + ", Phase " + bar.Phase + " von " + bar.PhaseCount + ".");
+                        combatant.Health.RestoreState(combatant.Health.Max * 0.45f);
+                        _stepStart = UnityEditor.EditorApplication.timeSinceStartup;
+                        phase = 2;
+                        return false;
+                    default:
+                        GameObject helpers = boss.PhaseHelpers.Count > 0 ? boss.PhaseHelpers[0] : null;
+                        if (boss.Phase < 2 || helpers == null || !helpers.activeSelf)
+                        {
+                            return Fail(Elapsed > 3.0, "Bei 45 % beginnt keine Phase 2 mit Helfern (" + boss.BossId + ").");
+                        }
+
+                        if (Elapsed < 1.0)
+                        {
+                            return false;
+                        }
+
+                        int awake = helpers.GetComponentsInChildren<EnemyController>().Count(e => !e.Dormant);
+                        Note("Phase 2 von " + boss.BossId + ": " + awake + " Helfer im Kampf (" + string.Join(", ",
+                            helpers.GetComponentsInChildren<EnemyController>().Select(e => e.Definition.DisplayName)) + ").");
+                        _spellTarget = combatant;
+                        return Fail(awake < 2, "Nicht alle Helfer greifen an.") || true;
                 }
             };
         }

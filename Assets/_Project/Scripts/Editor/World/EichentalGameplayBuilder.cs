@@ -189,6 +189,12 @@ namespace Aetherfall.EditorTools.World
                     }
 
                     EnemyTypeDefinition baseType = SliceEnemyAssets.Get(typeId, variant) ?? (variant == "aether_verderbt" ? combat.AetherWolf : combat.Wolf);
+                    if (spawner.BossId.Length > 0 && i == 0)
+                    {
+                        // S42: Glutfang has its own elite type; the Rissbrut is the champion Rissling of the layout.
+                        baseType = SliceBossBuilder.BossType(spawner.BossId, baseType);
+                    }
+
                     EnemyTypeDefinition definition = MiniSliceProfile.EnemyAtLevel(baseType, areaLevel > 0 ? areaLevel + SliceEnemyAssets.LevelOffset(variant) : 0,
                         _report);
                     string name = (spawner.BossId.Length > 0 && i == 0 ? spawner.Name : baseType.DisplayName + " " + (i + 1)) +
@@ -203,6 +209,9 @@ namespace Aetherfall.EditorTools.World
                     {
                         // Named enemy (Glutfang, prologue Rissbrut): quest objectives "Töte bestimmten Gegner" count this id.
                         TestGroundFields.SetString(enemy, "uniqueId", spawner.BossId, _report);
+                        // S42: boss bar, phases, helpers and the boss mechanics (Aether shell, head hits).
+                        SliceBossBuilder.Equip(enemy, spawner.BossId, groupObject.transform, _testMaterials, combat.AetherWolf, enemyLayer, hurtboxLayer,
+                            environmentLayer, sightBlockers, _report);
                     }
 
                     enemies[i] = enemy;

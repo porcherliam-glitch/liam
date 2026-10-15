@@ -341,6 +341,12 @@ namespace Aetherfall.Combat
             }
         }
 
+        /// <summary>
+        /// Factor on all damage this fighter takes (1 = normal). Boss mechanics use it, e.g. the Aether shell of the Rissbrut
+        /// (0.25 while the shell holds).
+        /// </summary>
+        public float DamageTakenFactor { get; set; } = 1f;
+
         /// <summary>Share of damage this fighter loses right now (Kriegsschrei, GDD 03 11.4); 0 when not weakened.</summary>
         public float Weakness => Time.time < _weakenUntil ? _weakenFraction : 0f;
 
@@ -394,6 +400,8 @@ namespace Aetherfall.Combat
                 // GDD 03 7.2: a stunned target takes +20 % damage.
                 snapshot.IncomingDamageMultiplier *= _status.IncomingDamageMultiplier;
             }
+
+            snapshot.IncomingDamageMultiplier *= Mathf.Max(0f, DamageTakenFactor);
 
             snapshot.Block = block;
             if (block == BlockState.Blocking)

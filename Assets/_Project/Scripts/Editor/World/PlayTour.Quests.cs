@@ -72,6 +72,11 @@ namespace Aetherfall.EditorTools.World
             Steps.Enqueue(() => Capture("q03_riss", null));
             Steps.Enqueue(AetherPushAt("spawn.eichental.rissbrut_prolog"));
             Steps.Enqueue(() => WaitObjective(Q.Prologue, "s60", "o2"));
+            // S42: the push broke the Aether shell; at half health two Risslinge break out of the ground.
+            Steps.Enqueue(CheckShellBroken("spawn.eichental.rissbrut_prolog"));
+            Steps.Enqueue(BossPhaseTwo("spawn.eichental.rissbrut_prolog"));
+            Steps.Enqueue(() => Capture("q03c_rissbrut_bossbalken", null));
+            Steps.Enqueue(() => Capture("q03d_rissbrut_phase2", ViewAtTarget));
             Steps.Enqueue(KillGroup("spawn.eichental.rissbrut_prolog"));
             // The push started a fight: nobody talks in combat (ends 5 s after the last hit).
             Steps.Enqueue(WaitOutOfCombat);
@@ -108,6 +113,10 @@ namespace Aetherfall.EditorTools.World
             Steps.Enqueue(() => WaitFlag(Q.FlagPup, 1));
             Steps.Enqueue(UseObject(MiniSliceWorld.SplinterId, QuestObjectAction.PickUp));
             Steps.Enqueue(() => WaitStage(Q.Wolves, "s45_geborgen"));
+            // S42: Glutfang's boss bar; at half health he howls for two Aether wolves.
+            Steps.Enqueue(BossPhaseTwo("spawn.eichental.glutfang"));
+            Steps.Enqueue(() => Capture("q05b_glutfang_bossbalken", null));
+            Steps.Enqueue(() => Capture("q05c_glutfang_phase2", ViewAtTarget));
             Steps.Enqueue(KillGroup("spawn.eichental.glutfang"));
             Steps.Enqueue(KillGroup("spawn.eichental.bau_wut"));
             Steps.Enqueue(() => WaitStage(Q.Wolves, "s50_geborgen"));

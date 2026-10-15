@@ -15,7 +15,7 @@ MonoBehaviour:
   bossId: boss.eichental.rissbrut_prolog
   displayName: Rissbrut
   title: Aus dem Riss von Eichental
-  baseType: {fileID: 11400000, guid: a672eef150b6f4d4b860056424064bda, type: 2}
+  baseType: {fileID: 11400000, guid: 01b8f9641995c7f46abb65f4854a5fe6, type: 2}
   musicId: 
   phaseThresholds:
   - 1

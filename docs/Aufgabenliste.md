@@ -65,6 +65,7 @@ Ziel: ein Teil des Eichentals (~1,1 km²), alle 8 Beispiel-Quests, etwa 3,5–4 
   - Grimmbart mit 3 Phasen und Arena (Kopfgeld)
   - Glutfang, Prolog-Rissbrut
   - Bossbalken für alle
+  - Teil 1 erledigt (2026-10-15): Bossbalken und Phasen für Rissbrut und Glutfang; Aether-Schale der Rissbrut (nur der Aether-Stoß bricht sie), Glutfang als Elite-Typ mit Kopftreffer-Schwäche; Helfer in Phase 2
 - [x] **Skill-Baum** mit etwa 15 Knoten je Klasse (Krieger, Magier), Stufen 1–8, Skill-Baum-Oberfläche mit Gamepad (S21, S61) – 2026-10-15, Commit 3312593
   - Erledigt: je 15 Knoten, Seite „Fähigkeiten“ (K) im Tagebuch, 5 Krieger-Techniken, Zauber und Verbesserungen über den Baum
   - Offen: grafischer Baum, Respec beim Lehrmeister, Stufen III–V (Stufe B)

@@ -95,6 +95,12 @@ namespace Aetherfall.AI.Bosses
         /// <summary>Number of phases.</summary>
         public int PhaseCount => phaseThresholds.Count;
 
+        /// <summary>Health share at which each phase begins (phase 1 = 1.0, then falling).</summary>
+        public IReadOnlyList<float> PhaseThresholds => phaseThresholds;
+
+        /// <summary>Helpers called at the start of each phase.</summary>
+        public IReadOnlyList<int> AddsPerPhase => addsPerPhase;
+
         /// <summary>The attacks.</summary>
         public IReadOnlyList<BossAttackEntry> Attacks => attacks;
 

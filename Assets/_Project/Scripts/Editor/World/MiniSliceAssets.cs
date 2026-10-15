@@ -63,8 +63,8 @@ namespace Aetherfall.EditorTools.World
             }
 
             definitions.Add(EnsureSplinterItem(report));
-            EnsureNamedEnemy("Boss_Glutfang", "boss.eichental.glutfang", "Glutfang", "Leitwolf vom Nordhang", report);
-            EnsureNamedEnemy("Boss_Rissbrut_Prolog", "boss.eichental.rissbrut_prolog", "Rissbrut", "Aus dem Riss von Eichental", report);
+            EnsureNamedEnemy("Boss_Glutfang", "boss.eichental.glutfang", "Glutfang", "Leitwolf vom Nordhang", "Grauwolf_Glutfang", report);
+            EnsureNamedEnemy("Boss_Rissbrut_Prolog", "boss.eichental.rissbrut_prolog", "Rissbrut", "Aus dem Riss von Eichental", "Rissling_Champion", report);
             NpcSpec[] npcs = MiniSliceDialogueLibrary.CreateNpcs();
             for (int i = 0; i < npcs.Length; i++)
             {
@@ -243,17 +243,19 @@ namespace Aetherfall.EditorTools.World
 
         /// <summary>
         /// Named enemy of the layout (spawner with a boss id) as <see cref="Aetherfall.AI.Bosses.BossDefinition"/>: gives the
-        /// quest objective "Töte bestimmten Gegner" a known id. Built on the Aether wolf until the own enemy types exist.
+        /// quest objective "Töte bestimmten Gegner" a known id; base type = the enemy type it is built on (S42: Glutfang's own
+        /// elite type, the champion Rissling). Falls back to the Aether wolf if that type is missing.
         /// </summary>
-        private static void EnsureNamedEnemy(string file, string bossId, string displayName, string title, TestGroundReport report)
+        private static void EnsureNamedEnemy(string file, string bossId, string displayName, string title, string baseTypeFile, TestGroundReport report)
         {
-            var aetherWolf = AssetDatabase.LoadAssetAtPath<Aetherfall.AI.EnemyTypeDefinition>(TestGroundPaths.EnemyFolder + "/AetherWolf.asset");
+            var baseType = AssetDatabase.LoadAssetAtPath<Aetherfall.AI.EnemyTypeDefinition>(TestGroundPaths.EnemyFolder + "/" + baseTypeFile + ".asset") ??
+                           AssetDatabase.LoadAssetAtPath<Aetherfall.AI.EnemyTypeDefinition>(TestGroundPaths.EnemyFolder + "/AetherWolf.asset");
             TestGroundSerialized.EnsureAsset<Aetherfall.AI.Bosses.BossDefinition>(TestGroundPaths.EnemyFolder + "/" + file + ".asset", report, so =>
             {
                 TestGroundSerialized.Set(so, "bossId", bossId, report);
                 TestGroundSerialized.Set(so, "displayName", displayName, report);
                 TestGroundSerialized.Set(so, "title", title, report);
-                TestGroundSerialized.Set(so, "baseType", aetherWolf, report);
+                TestGroundSerialized.Set(so, "baseType", baseType, report);
             });
         }
 

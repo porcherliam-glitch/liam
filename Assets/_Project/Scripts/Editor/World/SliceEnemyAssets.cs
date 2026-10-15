@@ -39,6 +39,9 @@ namespace Aetherfall.EditorTools.World
             return Types.TryGetValue(typeId + "|" + variant, out EnemyTypeDefinition type) ? type : null;
         }
 
+        /// <summary>Key of Glutfang's own type in <see cref="Get"/> (an elite Aether wolf, not a layout variant).</summary>
+        public const string GlutfangVariant = "glutfang";
+
         /// <summary>Level offset of a variant (GDD 01 11.2: elite +2, champion +3).</summary>
         /// <param name="variant">Variant id.</param>
         public static int LevelOffset(string variant)
@@ -150,6 +153,21 @@ namespace Aetherfall.EditorTools.World
                     Resist(so, report, (DamageType.Fire, -0.5f));
                 });
                 Register(WolfType, "elite", packLeader);
+
+                // Glutfang (GDD 01 11.4 / GDD 02 11.2): elite grey wolf, Aether-corrupted and grown into the splinter – crystal core,
+                // a third more Aether in its bite, no fear of fire. Named boss: health ×3 instead of the elite ×2.
+                EnemyTypeDefinition glutfang = Ensure("Grauwolf_Glutfang", WolfType, "elite", "Glutfang", report, so =>
+                {
+                    Body(so, EnemyKind.Beast, DamageType.Stab, 70f, 25f, 15f, 30f, 14f, report);
+                    Elite(so, 3f, 1.3f, 1.6f, 60f, report);
+                    Moves(so, 1.8f, 6.8f, 2.8f, 4f, 7f, 0f, 1.6f, report);
+                    TestGroundSerialized.Set(so, "aetherDamageShare", 0.35f, report);
+                    TestGroundSerialized.Set(so, "hasCrystalCore", true, report);
+                    TestGroundSerialized.Set(so, "fleeHealthFraction", 0f, report);
+                    Attacks(so, report, (bite, 0f, 2.4f, 30f, 1.3f, 3f), (snap, 0f, 1.9f, 30f, 0.9f, 2f), (pounce, 3f, 7f, 25f, 2.6f, 3f));
+                    Resist(so, report, (DamageType.Aether, 0.5f), (DamageType.Fire, 0.25f));
+                });
+                Register(WolfType, GlutfangVariant, glutfang);
             }
 
             report.Info("Gegnertypen (GDD 01, 11.4): Grauwolf (normal, Rudelführer, Aether), Bandit-Schläger (normal, Anführer), Bandit-Armbrustschütze, " +
