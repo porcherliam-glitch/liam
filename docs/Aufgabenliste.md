@@ -61,7 +61,7 @@ Ziel: ein Teil des Eichentals (~1,1 km²), alle 8 Beispiel-Quests, etwa 3,5–4 
   - Teil 1 erledigt (2026-10-15): Schwierigkeitsgrade Geschichte/Normal/Schwer/Albtraum mit allen Faktoren aus GDD 03, 9.7, in den Optionen
   - Teil 2 erledigt (2026-10-15): Bandit-Schläger und Anführer, Armbrustschütze, Rissling (Normal, Elite, Champion) im Hinterhalt, Rudelführer; gemischte Gruppen und Gebietsstufe je Spawner; Mühlbach-Banditen; Name und Stufe am Ziel
   - Offen (Stufe B): Champion-Zusatzeigenschaften (Schnell, Feuer-Aura …); Skelette nachts um die Gruft kommen mit Tag und Nacht
-- [ ] **Bosse (S42):**
+- [x] **Bosse (S42):** – 2026-10-15, Commits b2d716c und b066835
   - Grimmbart mit 3 Phasen und Arena (Kopfgeld)
   - Glutfang, Prolog-Rissbrut
   - Bossbalken für alle
