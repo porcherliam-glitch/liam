@@ -79,7 +79,7 @@ Ziel: ein Teil des Eichentals (~1,1 km²), alle 8 Beispiel-Quests, etwa 3,5–4 
   - Erledigt: Loyalität mit Warnung/Verlassen, Reaktionen (Gruft), 4 KI-Modi, Rasten am Lagerfeuer, 2 Lagerfeuer-Gespräche; offen: Kommentare zu den Quests 3–6 und 8 (kommen mit den Quests), Schildwall, Befehlsrad
   - Loyalität (Warnung bei 20, Verlassen bei 10), Kommentare zu allen 8 Quests
   - 4 KI-Modi, 2 Lagerfeuer-Gespräche, nach GDD 01, 10.6
-- [x] **Klettern (S48):** – 2026-10-15
+- [x] **Klettern (S48):** – 2026-10-15, Commit 09a57d5
   - Erledigt: Fels, Ranken, Leitern, Rastpunkte, Ausdauer, Klettersprung, Zittern und Absturz, Wachturm Grauwacht mit Kletterpfad (vorläufig am Westrand); offen: Kletter-Kamera, Animation, Aussichtspunkt-Funktion Fels, Ranken, Leitern, Ausdauer, Klettersprung. Krähennest der Grauwacht als Kletterpassage.
 - [ ] **Untersuchen, Aether-Sicht, Spuren (S37):** Detektiv-Modus nach GDD 02, für Quest 2 und 3
 - [ ] **Weltkarte und Erkundung (S34, S63, S60):**
