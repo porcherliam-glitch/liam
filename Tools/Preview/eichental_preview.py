@@ -1390,8 +1390,53 @@ def setup_world(b, fog=True):
     scene.collection.objects.link(sun)
 
 
+def setup_compositor_v5(b, fog):
+    """Blender 5: the compositor is a node group (scene.compositing_node_group) with a group output; Math and Mix are the
+    shared nodes (ShaderNodeMath, ShaderNodeMix). Same fog as below."""
+    scene = b.scene
+    if not fog:
+        scene.compositing_node_group = None
+        return
+    tree = bpy.data.node_groups.new("Eichental Nebel", "CompositorNodeTree")
+    tree.interface.new_socket("Image", in_out="OUTPUT", socket_type="NodeSocketColor")
+    scene.compositing_node_group = tree
+    rl = tree.nodes.new("CompositorNodeRLayers")
+    out = tree.nodes.new("NodeGroupOutput")
+    bpy.context.view_layer.use_pass_mist = True
+    lighting = b.layout["lighting"]
+    fog_rgb = lin(L.hex_rgb(lighting["fogColor"]))
+    mix = tree.nodes.new("ShaderNodeMix")
+    mix.data_type = "RGBA"
+    mix.blend_type = "MIX"
+    # RGBA sockets of the Mix node: inputs 0 = factor, 6 = A, 7 = B; output 2 = colour result.
+    mix.inputs[7].default_value = (*fog_rgb, 1)
+    geometry = tree.nodes.new("ShaderNodeMath")
+    geometry.operation = "LESS_THAN"
+    geometry.inputs[1].default_value = 0.9999
+    tree.links.new(rl.outputs["Mist"], geometry.inputs[0])
+    keep = tree.nodes.new("ShaderNodeMath")
+    keep.operation = "MULTIPLY_ADD"
+    keep.inputs[1].default_value = 0.75
+    keep.inputs[2].default_value = 0.25
+    tree.links.new(geometry.outputs[0], keep.inputs[0])
+    scale = tree.nodes.new("ShaderNodeMath")
+    scale.operation = "MULTIPLY"
+    tree.links.new(rl.outputs["Mist"], scale.inputs[0])
+    tree.links.new(keep.outputs[0], scale.inputs[1])
+    scale2 = tree.nodes.new("ShaderNodeMath")
+    scale2.operation = "MULTIPLY"
+    scale2.inputs[1].default_value = 0.6
+    tree.links.new(scale.outputs[0], scale2.inputs[0])
+    tree.links.new(scale2.outputs[0], mix.inputs[0])
+    tree.links.new(rl.outputs["Image"], mix.inputs[6])
+    tree.links.new(mix.outputs[2], out.inputs[0])
+
+
 def setup_compositor(b, fog):
     scene = b.scene
+    if bpy.app.version >= (5, 0, 0):
+        setup_compositor_v5(b, fog)
+        return
     scene.use_nodes = True
     tree = scene.node_tree
     tree.nodes.clear()

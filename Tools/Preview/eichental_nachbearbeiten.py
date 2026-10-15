@@ -47,6 +47,8 @@ MAP_LABEL_OFFSETS = {
     "loc.eichental.vergessene_gruft": (275, 55),
     "loc.eichental.muehle_muehlbach": (270, 200),
     "loc.eichental.rabenfels_spitze": (330, -95),
+    "loc.eichental.wachturm_grauwacht": (205, -120),
+    "loc.eichental.steinbruch_grimmbart": (-265, 10),
 }
 
 TRAIL_COLOR = (186, 120, 255)
