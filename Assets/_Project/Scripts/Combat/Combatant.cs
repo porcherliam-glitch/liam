@@ -141,6 +141,13 @@ namespace Aetherfall.Combat
         /// <summary>How noticeable the combatant is right now (set by its brain; read by enemy perception).</summary>
         public PerceptionStance Stance { get; set; } = PerceptionStance.Still;
 
+        /// <summary>Switches whether lock-on and AI may pick it (an enemy hidden in an ambush is not targetable).</summary>
+        /// <param name="value">True: targetable.</param>
+        public void SetTargetable(bool value)
+        {
+            targetable = value;
+        }
+
         /// <summary>True if lock-on and AI may pick it now (targetable, alive, active).</summary>
         public bool IsTargetable => targetable && IsAlive && isActiveAndEnabled;
 

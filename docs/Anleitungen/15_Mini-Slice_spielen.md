@@ -70,6 +70,8 @@ Unten rechts im HUD stehen die vier Felder der aktiven Leiste, darüber „Leist
 
 **Schwierigkeit:** Im Hauptmenü und im Pausemenü unter „Optionen“ wählst du mit ◄ ► **Geschichte**, **Normal**, **Schwer** oder **Albtraum** – jederzeit. Geschichte: Gegner machen halb so viel Schaden, haben weniger Leben, greifen seltener zu zweit an, das Parierfenster ist größer und Tränke heilen mehr. Albtraum: fast doppelter Schaden, mehr Leben, kürzere Vorwarnung. Erfahrung gibt es überall gleich viel. Gegner, die schon stehen, behalten ihr Leben, bis sie neu erscheinen; ein Boss ändert sich ab dem nächsten Versuch.
 
+**Gegner:** Im Eichental gibt es jetzt fünf Gegnertypen. **Grauwölfe** jagen im Rudel; am Nordhang führt ein größerer **Rudelführer** (Elite) zwei Wölfe an. **Risslinge** (violette Kreaturen mit leuchtenden Kristallen) liegen am Dorfrand im Boden versteckt und springen hervor, wenn du auf etwa 8 m herankommst oder sie triffst; vorher kannst du sie nicht anvisieren. Am Riss wartet die **Rissbrut**, ein Champion-Rissling. Südlich der Mühle am Mühlbach lagert eine **Banditengruppe**: zwei Schläger mit Knüppeln, ein **Armbrustschütze**, der Abstand hält und Bolzen schießt (Deckung suchen oder schnell herangehen), und ein gepanzerter **Anführer** (Elite). Die **Skelett-Krieger** stehen in der Gruft. Jede Gruppe hat eine eigene Stufe; Elite-Gegner sind 2 Stufen höher, Champions 3. Visierst du einen Gegner an (**T**), steht über dem Lebensbalken sein Name und seine Stufe. Ist er 6 oder mehr Stufen über dir, steht dort „sehr gefährlich“.
+
 ## 3. Was dich erwartet
 
 1. **Asche über Eichental** (startet sofort): Hedda am Brunnen, das brennende Dorf, Tobold und Wenna retten, Kreaturen aus dem Riss, der Spur folgen. Am Riss bekommst du die Aether-Kraft: Triff die Rissbrut mit dem Aether-Stoß (**4**). Zum Schluss Hedda in Lindenhain.
@@ -92,8 +94,9 @@ Oben rechts steht immer dein aktuelles Ziel. Die Gruft ist auf Stufe 4 eingestel
 
 ## 4. Bekannte Lücken
 
-- Du selbst bist jetzt ein Krieger aus Blender (Arme, Beine und Schwert bewegen sich per Code, noch ohne fertige Animationen). Dorfbewohner, Wölfe, Skelette, der Wachende Ritter sowie Fenster, Türen, Schornsteine und Brücken sind ebenfalls aus Blender.
+- Du selbst bist jetzt ein Krieger aus Blender (Arme, Beine und Schwert bewegen sich per Code, noch ohne fertige Animationen). Dorfbewohner, Wölfe, Risslinge, Banditen, Skelette, der Wachende Ritter sowie Fenster, Türen, Schornsteine und Brücken sind ebenfalls aus Blender.
 - Keine Musik, keine Zwischensequenzen.
+- Die Rissbrut und Glutfang kämpfen noch wie normale Gegner (eigene Boss-Mechaniken und Bossbalken folgen). Champions haben noch keine Zusatzeigenschaften wie „schnell“ oder „Feuer-Aura“.
 - Der Skill-Baum zeigt die Knoten als Liste je Ast (noch kein grafischer Baum). Respec beim Lehrmeister gibt es noch nicht.
 - Die Gruft ist dunkel. Das ist Absicht, kann aber nachgebessert werden.
 

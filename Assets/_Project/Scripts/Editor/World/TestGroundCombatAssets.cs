@@ -49,6 +49,8 @@ namespace Aetherfall.EditorTools.World
             Staff = EnsureStaff(finisher, report);
             Mace = EnsureMace(finisher, report);
             Arrow = EnsureAttack("Bogen_Pfeil", BowArrow(), report);
+            // GDD 01 11.4: the other enemy types of the vertical slice (bandits, crossbowman, Risslinge, pack leader).
+            SliceEnemyAssets.EnsureAll(Wolf, AetherWolf, report);
         }
 
         /// <summary>Wooden arrow of the bow (projectile values; PlayerBow sets damage and speed from the draw, GDD 03 6.1).</summary>
@@ -487,7 +489,7 @@ namespace Aetherfall.EditorTools.World
             return spec;
         }
 
-        private static AttackDefinition EnsureAttack(string fileName, AttackSpec spec, TestGroundReport report)
+        internal static AttackDefinition EnsureAttack(string fileName, AttackSpec spec, TestGroundReport report)
         {
             AttackDefinition attack = EnsureAttackAsset(fileName, spec, report);
             if (attack != null)
@@ -662,14 +664,14 @@ namespace Aetherfall.EditorTools.World
             });
         }
 
-        private static void SetResistance(SerializedProperty element, DamageType type, float value)
+        internal static void SetResistance(SerializedProperty element, DamageType type, float value)
         {
             element.FindPropertyRelative("damageType").intValue = (int)type;
             element.FindPropertyRelative("value").floatValue = value;
             element.FindPropertyRelative("immune").boolValue = false;
         }
 
-        private static void SetEnemyAttack(SerializedProperty element, AttackDefinition attack, float minRange, float maxRange, float maxAngle,
+        internal static void SetEnemyAttack(SerializedProperty element, AttackDefinition attack, float minRange, float maxRange, float maxAngle,
             float cooldown, float weight)
         {
             element.FindPropertyRelative("attack").objectReferenceValue = attack;

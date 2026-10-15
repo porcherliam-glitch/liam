@@ -467,6 +467,30 @@ namespace Aetherfall.World
                     report.Error(s.Id, "Spawner: mindestens 1 Gegner, Radius und Respawn ≥ 0.");
                 }
 
+                if (s.Members.Count > 0)
+                {
+                    int sum = 0;
+                    foreach (LayoutSpawnMember member in s.Members)
+                    {
+                        RequireId(member.EnemyTypeId, "enemy.", s.Id + ".members", report);
+                        sum += member.Count;
+                        if (member.Count < 1)
+                        {
+                            report.Error(s.Id, "Spawner-Teil " + member.EnemyTypeId + ": mindestens 1 Gegner.");
+                        }
+                    }
+
+                    if (sum != s.Count)
+                    {
+                        report.Error(s.Id, "Spawner: die Teile ergeben " + sum + " Gegner, „count“ sagt " + s.Count + ".");
+                    }
+                }
+
+                if (s.Level < 0 || s.Level > 80)
+                {
+                    report.Error(s.Id, "Spawner: Gebietsstufe 0 (Region) bis 80.");
+                }
+
                 if (s.Activation == SpawnActivation.Quest)
                 {
                     RequireId(s.QuestId, "quest.", s.Id + ".quest", report);

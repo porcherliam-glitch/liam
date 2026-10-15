@@ -815,6 +815,171 @@ def hausteile():
           lambda p: p.box((0.41, 0.02, 0.6), (0, 0.49, 0.3), soot))
 
 
+# ---- Enemies of the vertical slice (GDD 01 11.4) ------------------------------------------------------------------------
+
+def bandit_extras(cloth_hex, scarf_hex, fur=True, plates=False):
+    """Hood, face scarf, fur collar and a leather pauldron for the bandits (all on the humanoid joints)."""
+    def extras(parts, m, s, w):
+        cloth = m("Kapuze", cloth_hex)
+        scarf = m("Tuch", scarf_hex)
+        shadow = m("Schatten", "151517", 0.9)
+        leather = m("Leder", "4A3422", 0.7)
+        head = PartBuilder("Kapuze")
+        head.sphere(0.16, (0, 0.03, 0.18 * s), cloth, scale=(1.0, 1.05, 1.1), segments=10, rings=7)
+        head.box((0.2, 0.04, 0.2), (0, -0.12, 0.17 * s), shadow)
+        head.box((0.2, 0.05, 0.08), (0, -0.1, 0.1 * s), scarf, top_scale=(1.1, 1.0))
+        head.build(parts["Head"], (0, 0, 0))
+        collar = PartBuilder("Kragen")
+        if fur:
+            collar.box((0.46 * w, 0.3 * w, 0.1 * s), (0, 0, 0.46 * s), m("Fell", "5A4A38", 0.95), top_scale=(0.8, 0.85))
+        collar.box((0.38 * w, 0.24 * w, 0.03 * s), (0, 0, 0.12 * s), leather)
+        collar.build(parts["Torso"], (0, 0, 0))
+        pauldron = PartBuilder("Schulter")
+        pauldron.sphere(0.11, (0, 0, 0.02), m("Metall", "6A6A70", 0.4, 0.8) if plates else leather, scale=(1.15, 1.15, 0.8), segments=8, rings=5)
+        pauldron.build(parts["UpperArm.R"], (0, 0, 0))
+        if plates:
+            other = PartBuilder("Schulter2")
+            other.sphere(0.11, (0, 0, 0.02), m("Metall", "6A6A70", 0.4, 0.8), scale=(1.15, 1.15, 0.8), segments=8, rings=5)
+            other.build(parts["UpperArm.L"], (0, 0, 0))
+            sash = PartBuilder("Schaerpe")
+            sash.box((0.4 * w, 0.26 * w, 0.07 * s), (0, 0, 0.02 * s), m("Schaerpe", "8A2A22"), top_scale=(1.02, 1.02))
+            sash.build(parts["Pelvis"], (0, 0, 0))
+    return extras
+
+
+def bandit():
+    """Bandit-Schläger (enemy.bandit.schlaeger, GDD 01 11.4): leather jerkin, hood with a face scarf, fur collar."""
+    look = HumanLook("Bandit", skin="D2A07E", hair="2E2218", top="5A4630", sleeve="4A3A28", trousers="3A342C", boots="2E2218",
+                     gloves="3A2A1C", belt="2A1E14", bulk=1.05)
+    build_humanoid(look, bandit_extras("3E3A34", "7A3A2A"))
+
+
+def bandit_anfuehrer():
+    """Banditenanführer (Elite-Schläger): broader, iron shoulder plates, red sash."""
+    look = HumanLook("BanditAnfuehrer", skin="C8946E", hair="1E1A16", top="3E3226", sleeve="342A20", trousers="2A2622", boots="221A12",
+                     gloves="2A2018", belt="1E1610", height=1.88, bulk=1.15)
+    build_humanoid(look, bandit_extras("2A2622", "8A2A22", fur=True, plates=True))
+
+
+def armbrustschuetze():
+    """Bandit-Armbrustschütze (enemy.bandit.armbrustschuetze): green-grey hood, a quiver of bolts on the back."""
+    look = HumanLook("Armbrustschuetze", skin="D9A88A", hair="4A3A28", top="4E5440", sleeve="434838", trousers="3A3A30", boots="2E2A20",
+                     gloves="3A2E20", belt="2A2018", bulk=0.95)
+
+    def extras(parts, m, s, w):
+        bandit_extras("3A4034", "4E5440", fur=False)(parts, m, s, w)
+        quiver = PartBuilder("Koecher")
+        quiver.cylinder(0.06, 0.42, (0.08, 0.14, 0.26 * s), m("Koecher", "5A3A22", 0.7), segments=8)
+        for i in range(4):
+            quiver.box((0.012, 0.012, 0.14), (0.06 + (i % 2) * 0.03, 0.12 + (i // 2) * 0.03, 0.52 * s), m("Bolzen", "B08A5A", 0.7))
+        quiver.build(parts["Torso"], (0, 0, 0))
+
+    build_humanoid(look, extras)
+
+
+def knueppel():
+    """Bandit club (Knüppel): grip at the origin, the knotted head along the look direction (-Y), iron studs."""
+    wood = material("Knueppel_Holz", "6A4A2A", 0.85)
+    dark = material("Knueppel_Holz_Dunkel", "4A321C", 0.9)
+    iron = material("Knueppel_Eisen", "5E5E62", 0.45, 0.8)
+    root = empty("Knueppel")
+    club = PartBuilder("Knueppel")
+    club.cylinder(0.022, 0.22, (0, 0.03, 0), dark, segments=8, axis='Y')
+    club.cylinder(0.026, 0.5, (0, -0.33, 0), wood, segments=8, radius_top=0.045, axis='Y')
+    club.sphere(0.055, (0, -0.6, 0), wood, scale=(1.0, 1.3, 1.0), segments=8, rings=5)
+    for i in range(6):
+        a = math.radians(i * 60 + 15)
+        club.box((0.02, 0.02, 0.02), (math.cos(a) * 0.05, -0.55 - (i % 2) * 0.07, math.sin(a) * 0.05), iron)
+    club.build(root, (0, 0, 0))
+
+
+def armbrust():
+    """Crossbow (Armbrust) in Unity axes: grip at the origin, the stock along +Z (the bolt flies there), the prod across x at the
+    front, the string drawn back to the nut."""
+    wood = material("Armbrust_Holz", "6A4A2A", 0.8)
+    iron = material("Armbrust_Eisen", "5E5E62", 0.45, 0.8)
+    string = material("Armbrust_Sehne", "D8CFB8", 0.9)
+    root = empty("Armbrust")
+    bow = PartBuilder("Armbrust")
+    segment(bow, (0, -0.02, -0.25), (0, 0.0, 0.42), 0.05, 0.06, wood)
+    segment(bow, (0, -0.07, -0.05), (0, 0.0, 0.0), 0.04, 0.05, wood)
+    for sign in (1, -1):
+        segment(bow, (0, 0.02, 0.4), (0.3 * sign, 0.02, 0.32), 0.03, 0.025, iron)
+        segment(bow, (0.3 * sign, 0.02, 0.32), (0, 0.03, 0.1), 0.004, 0.004, string)
+    bow.box(us(0.06, 0.03, 0.04), u(0, 0.03, 0.1), iron)
+    bow.build(root, (0, 0, 0))
+
+
+def bolzen():
+    """Crossbow bolt (Bolzen) in Unity axes: tip at +Z, 0.4 m, short dark fletchings."""
+    shaft = material("Bolzen_Schaft", "8A6A42", 0.7)
+    head = material("Bolzen_Spitze", "4E4E52", 0.4, 0.8)
+    feather = material("Bolzen_Feder", "4A4038", 0.9)
+    root = empty("Bolzen")
+    bolt = PartBuilder("Bolzen")
+    segment(bolt, (0, 0, -0.36), (0, 0, 0.03), 0.014, 0.014, shaft)
+    segment(bolt, (0, 0, 0.02), (0, 0, 0.08), 0.028, 0.028, head)
+    for angle in (0, 90, 180, 270):
+        a = math.radians(angle)
+        x, y = math.cos(a) * 0.014, math.sin(a) * 0.014
+        segment(bolt, (x, y, -0.35), (x, y, -0.27), 0.004 if abs(x) < 0.01 else 0.018, 0.018 if abs(x) < 0.01 else 0.004, feather)
+    bolt.build(root, (0, 0, 0))
+
+
+def rissling():
+    """Rissling (enemy.rissbrut.rissling, GDD 01 11.4: Rissbrut, Hinterhalt): a hunched creature of the rift, about 0.9 m long,
+    dark violet skin, long front limbs with claws, glowing crystals on the back and glowing eyes. Same joints as the wolf
+    (QuadrupedPuppet): Torso, Head, Tail, FrontUpper/FrontLower, HindUpper/HindLower."""
+    m = lambda part, colour, rough=0.8, metal=0.0: material("Rissling_" + part, colour, rough, metal)
+    skin = m("Haut", "3A2E48")
+    belly = m("Bauch", "5A4A68")
+    claw = m("Klauen", "1E1824", 0.5)
+    eye = m("Augen_Leuchten", "C9A2FF", 0.2)
+    crystal = m("Kristall_Leuchten", "8F6CFF", 0.2)
+    root = empty("Rissling")
+
+    torso = PartBuilder("Torso")
+    torso.box(us(0.3, 0.26, 0.34), u(0, 0.05, 0.12), skin, top_scale=(0.85, 1.0))
+    torso.box(us(0.24, 0.22, 0.3), u(0, 0.0, -0.18), skin, top_scale=(0.9, 1.0))
+    torso.box(us(0.18, 0.06, 0.5), u(0, -0.1, -0.02), belly)
+    for i, (x, z, h) in enumerate(((0.0, 0.16, 0.24), (0.07, 0.02, 0.18), (-0.06, -0.12, 0.2), (0.02, -0.26, 0.14))):
+        torso.box(us(0.07, h, 0.07), u(x, 0.18 + h * 0.5, z), crystal, top_scale=(0.15, 0.15),
+                  rotate=Matrix.Rotation(math.radians(15 * (i - 1.5)), 3, 'Y'))
+    parts = {"Torso": torso.build(root, u(0, 0.5, 0))}
+
+    head = PartBuilder("Head")
+    head.box(us(0.2, 0.17, 0.2), u(0, 0.02, 0.08), skin, top_scale=(0.9, 0.85))
+    head.box(us(0.14, 0.07, 0.16), u(0, -0.06, 0.2), skin, top_scale=(0.8, 0.9))
+    for side in (-1, 1):
+        head.box(us(0.05, 0.03, 0.02), u(side * 0.055, 0.04, 0.18), eye)
+        head.box(us(0.03, 0.1, 0.03), u(side * 0.08, 0.13, 0.0), crystal, top_scale=(0.2, 0.2))
+        head.box(us(0.02, 0.05, 0.02), u(side * 0.04, -0.1, 0.26), claw, top_scale=(0.3, 0.3))
+    parts["Head"] = head.build(parts["Torso"], u(0, 0.12, 0.3))
+
+    tail = PartBuilder("Tail")
+    tail.box(us(0.08, 0.08, 0.42), u(0, -0.06, -0.2), skin, top_scale=(0.4, 0.4), rotate=Matrix.Rotation(math.radians(-15), 3, 'X'))
+    tail.box(us(0.05, 0.1, 0.05), u(0, 0.02, -0.4), crystal, top_scale=(0.2, 0.2))
+    parts["Tail"] = tail.build(parts["Torso"], u(0, 0.04, -0.34))
+
+    for side, tag in ((1, "R"), (-1, "L")):
+        upper = PartBuilder("FrontUpper." + tag)
+        upper.box(us(0.09, 0.26, 0.1), u(0, -0.12, 0), skin, top_scale=(1.25, 1.3))
+        parts["FrontUpper." + tag] = upper.build(parts["Torso"], u(side * 0.15, -0.02, 0.24))
+        lower = PartBuilder("FrontLower." + tag)
+        lower.box(us(0.07, 0.22, 0.08), u(0, -0.1, 0), skin)
+        for i in (-1, 0, 1):
+            lower.box(us(0.015, 0.03, 0.09), u(i * 0.025, -0.22, 0.05), claw, top_scale=(0.3, 0.3))
+        parts["FrontLower." + tag] = lower.build(parts["FrontUpper." + tag], u(0, -0.24, 0))
+
+        hind = PartBuilder("HindUpper." + tag)
+        hind.box(us(0.1, 0.2, 0.14), u(0, -0.09, 0.02), skin, top_scale=(1.15, 1.35))
+        parts["HindUpper." + tag] = hind.build(parts["Torso"], u(side * 0.11, -0.04, -0.28))
+        shin = PartBuilder("HindLower." + tag)
+        shin.box(us(0.07, 0.18, 0.08), u(0, -0.08, -0.02), skin)
+        shin.box(us(0.09, 0.04, 0.12), u(0, -0.18, 0.02), claw)
+        parts["HindLower." + tag] = shin.build(parts["HindUpper." + tag], u(0, -0.2, 0.02))
+
+
 MODELS = {
     "krieger": ("Characters/Krieger.fbx", krieger),
     "dorfbewohner": ("Characters/Dorfbewohner.fbx", dorfbewohner),
@@ -830,6 +995,13 @@ MODELS = {
     "jagdbogen": ("Characters/Jagdbogen.fbx", jagdbogen),
     "pfeil": ("Characters/Pfeil.fbx", pfeil),
     "hausteile": ("Buildings/Hausteile.fbx", hausteile),
+    "bandit": ("Characters/Bandit.fbx", bandit),
+    "bandit_anfuehrer": ("Characters/BanditAnfuehrer.fbx", bandit_anfuehrer),
+    "armbrustschuetze": ("Characters/Armbrustschuetze.fbx", armbrustschuetze),
+    "knueppel": ("Characters/Knueppel.fbx", knueppel),
+    "armbrust": ("Characters/Armbrust.fbx", armbrust),
+    "bolzen": ("Characters/Bolzen.fbx", bolzen),
+    "rissling": ("Characters/Rissling.fbx", rissling),
 }
 
 
@@ -860,7 +1032,7 @@ def render_preview(path, height):
     print("Vorschau:", path)
 
 
-PREVIEW_HEIGHT = {"schwert": 1.0, "holzschild": 1.0, "zauberstab": 1.6, "streitkolben": 1.0, "jagdbogen": 1.4, "pfeil": 1.0, "wolf": 1.1, "aetherwolf": 1.1, "turmschild": 1.5, "hausteile": 2.5}
+PREVIEW_HEIGHT = {"schwert": 1.0, "holzschild": 1.0, "zauberstab": 1.6, "streitkolben": 1.0, "jagdbogen": 1.4, "pfeil": 1.0, "wolf": 1.1, "aetherwolf": 1.1, "turmschild": 1.5, "hausteile": 2.5, "knueppel": 1.0, "armbrust": 1.0, "bolzen": 0.6, "rissling": 0.8}
 
 
 def main():

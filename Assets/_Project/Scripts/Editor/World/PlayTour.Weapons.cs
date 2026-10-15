@@ -83,6 +83,10 @@ namespace Aetherfall.EditorTools.World
             Steps.Enqueue(() => Capture("w10_fussfeger", ViewSpell));
             Steps.Enqueue(CastSpell(TechniqueAssets.Taunt, 5f, 0.2f));
             Steps.Enqueue(() => Capture("w11_leiste", null));
+            // GDD 01 11.4: a mixed bandit group; the crossbowman keeps his distance and shoots.
+            Steps.Enqueue(VisitBandits());
+            Steps.Enqueue(() => Wait(0.15));
+            Steps.Enqueue(() => Capture("w12_banditen", ViewSpell));
         }
 
         private static Pose ViewBesidePlayer(Transform player)

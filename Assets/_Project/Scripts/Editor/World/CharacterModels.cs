@@ -52,6 +52,27 @@ namespace Aetherfall.EditorTools.World
         /// <summary>Tower shield of the elite skeletons and the knight.</summary>
         public const string TowerShield = Folder + "/Turmschild.fbx";
 
+        /// <summary>Bandit-Schläger (hood, leather, fur collar).</summary>
+        public const string Bandit = Folder + "/Bandit.fbx";
+
+        /// <summary>Banditenanführer (elite: iron shoulder plates, red sash).</summary>
+        public const string BanditLeader = Folder + "/BanditAnfuehrer.fbx";
+
+        /// <summary>Bandit-Armbrustschütze (green-grey hood, quiver).</summary>
+        public const string Crossbowman = Folder + "/Armbrustschuetze.fbx";
+
+        /// <summary>Wooden club of the bandits.</summary>
+        public const string Club = Folder + "/Knueppel.fbx";
+
+        /// <summary>Crossbow.</summary>
+        public const string Crossbow = Folder + "/Armbrust.fbx";
+
+        /// <summary>Crossbow bolt.</summary>
+        public const string Bolt = Folder + "/Bolzen.fbx";
+
+        /// <summary>Rissling (small creature of the rift, same joints as the wolf).</summary>
+        public const string Rissling = Folder + "/Rissling.fbx";
+
         /// <summary>Loads a model (the FBX root object), or null with a warning.</summary>
         /// <param name="path">Asset path.</param>
         /// <param name="report">Protocol.</param>

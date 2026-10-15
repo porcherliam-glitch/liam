@@ -35,12 +35,12 @@ MonoBehaviour:
     journalText: Eichental brennt. Lina ist fort. Irgendwo ruft jemand um Hilfe.
     explorationHint: Der Dorfplatz liegt westlich, beim Brunnen.
     objectives:
-    - rid: 8292696253073457342
+    - rid: 8292696268253167832
     completionMode: 0
     requiredCount: 1
     actionOnly: 0
     onStart:
-    - rid: 8292696253073457343
+    - rid: 8292696268253167833
     onComplete: []
     branches: []
     defaultNextStageId: s20
@@ -54,7 +54,7 @@ MonoBehaviour:
     journalText: Hedda, die Dorfvorsteherin, lebt.
     explorationHint: Hedda steht am Brunnen auf dem Dorfplatz.
     objectives:
-    - rid: 8292696253073457344
+    - rid: 8292696268253167834
     completionMode: 0
     requiredCount: 1
     actionOnly: 0
@@ -72,9 +72,9 @@ MonoBehaviour:
     journalText: "Hedda sammelt die \xDCberlebenden am Dorfrand. Tobold liegt unter einem Balken, Wennas Haus steht in Flammen."
     explorationHint: "Der Dorfrand liegt im S\xFCdwesten. Die B\xE4ckerei steht n\xF6rdlich des Dorfplatzes."
     objectives:
-    - rid: 8292696253073457345
-    - rid: 8292696253073457346
-    - rid: 8292696253073457348
+    - rid: 8292696268253167835
+    - rid: 8292696268253167836
+    - rid: 8292696268253167838
     completionMode: 0
     requiredCount: 1
     actionOnly: 0
@@ -92,12 +92,12 @@ MonoBehaviour:
     journalText: "Kreaturen aus dem Riss greifen an. Halte sie von den \xDCberlebenden fern."
     explorationHint: 
     objectives:
-    - rid: 8292696253073457350
+    - rid: 8292696268253167840
     completionMode: 0
     requiredCount: 1
     actionOnly: 0
     onStart:
-    - rid: 8292696253073457351
+    - rid: 8292696268253167841
     onComplete: []
     branches: []
     defaultNextStageId: s40
@@ -111,8 +111,8 @@ MonoBehaviour:
     journalText: "Eine Gestalt in grauem Mantel geht ruhig durch die Flammen zum Wald. Hedda f\xFChrt die anderen nach Lindenhain. Du folgst der Gestalt."
     explorationHint: "Die Spur f\xFChrt nach Osten durch das Dorf zum Waldrand."
     objectives:
-    - rid: 8292696253073457352
-    - rid: 8292696253073457353
+    - rid: 8292696268253167842
+    - rid: 8292696268253167843
     completionMode: 0
     requiredCount: 1
     actionOnly: 0
@@ -130,14 +130,14 @@ MonoBehaviour:
     journalText: "Der Riss klafft am Waldrand. Die Gestalt wartet dort, als h\xE4tte sie dich erwartet."
     explorationHint: 
     objectives:
-    - rid: 8292696253073457354
+    - rid: 8292696268253167844
     completionMode: 0
     requiredCount: 1
     actionOnly: 0
     onStart: []
     onComplete:
-    - rid: 8292696253073457355
-    - rid: 8292696253073457356
+    - rid: 8292696268253167845
+    - rid: 8292696268253167846
     branches: []
     defaultNextStageId: s60
     failRules: []
@@ -150,13 +150,13 @@ MonoBehaviour:
     journalText: "Etwas Gro\xDFes kriecht aus dem Riss. Nutze die neue Kraft."
     explorationHint: 
     objectives:
-    - rid: 8292696253073457357
-    - rid: 8292696253073457358
+    - rid: 8292696268253167847
+    - rid: 8292696268253167848
     completionMode: 0
     requiredCount: 1
     actionOnly: 0
     onStart:
-    - rid: 8292696253073457359
+    - rid: 8292696268253167849
     onComplete: []
     branches: []
     defaultNextStageId: s70
@@ -170,14 +170,14 @@ MonoBehaviour:
     journalText: "Der Riss ist still, die Gestalt verschwunden. Die \xDCberlebenden warten in Lindenhain."
     explorationHint: "Lindenhain liegt im Westen, hinter der M\xFChle."
     objectives:
-    - rid: 8292696253073457360
-    - rid: 8292696253073457361
+    - rid: 8292696268253167850
+    - rid: 8292696268253167851
     completionMode: 0
     requiredCount: 1
     actionOnly: 0
     onStart: []
     onComplete:
-    - rid: 8292696253073457362
+    - rid: 8292696268253167852
     branches: []
     defaultNextStageId: 
     failRules: []
@@ -187,8 +187,8 @@ MonoBehaviour:
     markerIds: []
     searchRadius: 50
   rewards:
-  - rid: 8292696253073457363
-  - rid: 8292696253073457364
+  - rid: 8292696268253167853
+  - rid: 8292696268253167854
   followUps: []
   repeatMode: 0
   cooldownHours: 0
@@ -202,12 +202,12 @@ MonoBehaviour:
     text: Du hast Wenna aus dem brennenden Haus geholt.
     isConsequence: 0
     visibleCondition:
-      rid: 8292696253073457365
+      rid: 8292696268253167855
   - id: ledger.c2
     text: "F\xFCr Wenna kam jede Hilfe zu sp\xE4t."
     isConsequence: 0
     visibleCondition:
-      rid: 8292696253073457366
+      rid: 8292696268253167856
   - id: ledger.c3
     text: Eine graue Gestalt hat am Riss auf dich gewartet.
     isConsequence: 0
@@ -218,13 +218,13 @@ MonoBehaviour:
   scopeTier: 0
   author: claude
   wordBudget: 40
-  notes: "Mini-Slice: ohne Zwischensequenzen und Musik; Risslinge und Rissbrut sind Aether-W\xF6lfe (Platzhalter)."
+  notes: 'Mini-Slice: ohne Zwischensequenzen und Musik; Risslinge im Hinterhalt, die Rissbrut ist ein Champion-Rissling.'
   references:
     version: 2
     RefIds:
     - rid: -2
       type: {class: , ns: , asm: }
-    - rid: 8292696253073457342
+    - rid: 8292696268253167832
       type: {class: GoToObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         id: o1
@@ -236,12 +236,12 @@ MonoBehaviour:
         onCompleted: []
         locationId: loc.eichental.dorfplatz
         radius: 15
-    - rid: 8292696253073457343
+    - rid: 8292696268253167833
       type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: flag.eichental.dorf_zerstoert
         value: 1
-    - rid: 8292696253073457344
+    - rid: 8292696268253167834
       type: {class: TalkToObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         id: o1
@@ -253,7 +253,7 @@ MonoBehaviour:
         onCompleted: []
         npcId: npc.eichental.dorfvorsteherin_hedda
         dialogueId: 
-    - rid: 8292696253073457345
+    - rid: 8292696268253167835
       type: {class: GoToObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         id: o1
@@ -265,7 +265,7 @@ MonoBehaviour:
         onCompleted: []
         locationId: loc.eichental.dorfrand
         radius: 10
-    - rid: 8292696253073457346
+    - rid: 8292696268253167836
       type: {class: InteractObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         id: o2
@@ -275,17 +275,17 @@ MonoBehaviour:
           rid: -2
         markerIds: []
         onCompleted:
-        - rid: 8292696253073457347
+        - rid: 8292696268253167837
         objectIds:
         - obj.eichental.balken_tobold
         count: 1
         verb: use
-    - rid: 8292696253073457347
+    - rid: 8292696268253167837
       type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: flag.eichental.tobold_gerettet
         value: 1
-    - rid: 8292696253073457348
+    - rid: 8292696268253167838
       type: {class: ReachInTimeObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         id: o3
@@ -295,15 +295,15 @@ MonoBehaviour:
           rid: -2
         markerIds: []
         onCompleted:
-        - rid: 8292696253073457349
+        - rid: 8292696268253167839
         locationId: obj.eichental.tuer_haus_wenna
         seconds: 120
-    - rid: 8292696253073457349
+    - rid: 8292696268253167839
       type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: flag.eichental.wenna_gerettet
         value: 1
-    - rid: 8292696253073457350
+    - rid: 8292696268253167840
       type: {class: KillObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         id: o1
@@ -313,15 +313,15 @@ MonoBehaviour:
           rid: -2
         markerIds: []
         onCompleted: []
-        enemyTypeId: enemy.wolf.grauwolf
-        variantId: aether_verderbt
+        enemyTypeId: enemy.rissbrut.rissling
+        variantId: normal
         count: 4
         regionId: 
-    - rid: 8292696253073457351
+    - rid: 8292696268253167841
       type: {class: SpawnEncounter, ns: Aetherfall.World, asm: Aetherfall.World}
       data:
         spawnId: spawn.eichental.dorfrand_risslinge
-    - rid: 8292696253073457352
+    - rid: 8292696268253167842
       type: {class: FollowTrailObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         id: o1
@@ -333,7 +333,7 @@ MonoBehaviour:
         onCompleted: []
         trailId: spur.eichental.graue_gestalt
         nodeCount: 7
-    - rid: 8292696253073457353
+    - rid: 8292696268253167843
       type: {class: InspectCluesObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         id: o2
@@ -347,7 +347,7 @@ MonoBehaviour:
         - clue.eichental.verbrannte_runen_1
         - clue.eichental.verbrannte_runen_2
         count: 2
-    - rid: 8292696253073457354
+    - rid: 8292696268253167844
       type: {class: GoToObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         id: o1
@@ -359,17 +359,17 @@ MonoBehaviour:
         onCompleted: []
         locationId: loc.eichental.riss_eichental
         radius: 20
-    - rid: 8292696253073457355
+    - rid: 8292696268253167845
       type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: flag.main.aether_kraft_erhalten
         value: 1
-    - rid: 8292696253073457356
+    - rid: 8292696268253167846
       type: {class: StartDialogue, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
       data:
         dialogueId: dlg.eichental.graue_gestalt
         npcId: npc.main.graue_gestalt
-    - rid: 8292696253073457357
+    - rid: 8292696268253167847
       type: {class: KillSpecificObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         id: o1
@@ -381,7 +381,7 @@ MonoBehaviour:
         onCompleted: []
         targetId: boss.eichental.rissbrut_prolog
         allowDefeat: 0
-    - rid: 8292696253073457358
+    - rid: 8292696268253167848
       type: {class: UseAbilityObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         id: o2
@@ -393,11 +393,11 @@ MonoBehaviour:
         onCompleted: []
         abilityId: ability.aether.aether_stoss
         targetId: boss.eichental.rissbrut_prolog
-    - rid: 8292696253073457359
+    - rid: 8292696268253167849
       type: {class: SpawnEncounter, ns: Aetherfall.World, asm: Aetherfall.World}
       data:
         spawnId: spawn.eichental.rissbrut_prolog
-    - rid: 8292696253073457360
+    - rid: 8292696268253167850
       type: {class: GoToObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         id: o1
@@ -409,7 +409,7 @@ MonoBehaviour:
         onCompleted: []
         locationId: loc.eichental.lindenhain
         radius: 40
-    - rid: 8292696253073457361
+    - rid: 8292696268253167851
       type: {class: TalkToObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         id: o2
@@ -421,35 +421,35 @@ MonoBehaviour:
         onCompleted: []
         npcId: npc.eichental.dorfvorsteherin_hedda
         dialogueId: 
-    - rid: 8292696253073457362
+    - rid: 8292696268253167852
       type: {class: GiveCurrency, ns: Aetherfall.Inventory, asm: Aetherfall.Inventory}
       data:
         currencyId: currency.gold
         amount: 20
-    - rid: 8292696253073457363
+    - rid: 8292696268253167853
       type: {class: GiveXp, ns: Aetherfall.Progression, asm: Aetherfall.Progression}
       data:
         mode: 0
         amount: 500
         levelShare: 0.5
         referenceLevel: 0
-    - rid: 8292696253073457364
+    - rid: 8292696268253167854
       type: {class: GiveItem, ns: Aetherfall.Inventory, asm: Aetherfall.Inventory}
       data:
         itemId: item.potion.heiltrank_schwach
         amount: 3
-    - rid: 8292696253073457365
+    - rid: 8292696268253167855
       type: {class: FlagIs, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: flag.eichental.wenna_gerettet
         comparison: 0
         value: 1
-    - rid: 8292696253073457366
+    - rid: 8292696268253167856
       type: {class: Not, ns: Aetherfall.Conditions, asm: Aetherfall.Conditions}
       data:
         condition:
-          rid: 8292696253073457367
-    - rid: 8292696253073457367
+          rid: 8292696268253167857
+    - rid: 8292696268253167857
       type: {class: FlagIs, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: flag.eichental.wenna_gerettet

@@ -147,11 +147,8 @@ namespace Aetherfall.EditorTools.World
             foreach (LayoutSpawner spawner in _layout.Spawners)
             {
                 bool standIn = spawner.StandInTypeId.Length > 0;
-                string variant = standIn ? spawner.StandInVariant : spawner.Variant;
-                bool aether = variant == "aether_verderbt";
-                EnemyTypeDefinition definition = MiniSliceProfile.EnemyAtLevel(aether ? combat.AetherWolf : combat.Wolf, MiniSliceWorld.EnemyLevel(spawner.Id),
-                    _report);
-                Material fur = aether ? _testMaterials.AetherWolf : _testMaterials.Wolf;
+                // GDD 03 9.7: the area level of the group; elite +2 and champion +3 on top (GDD 01 11.2).
+                int areaLevel = spawner.Level > 0 ? spawner.Level : MiniSliceWorld.EnemyLevel(spawner.Id);
 
                 float cx = (float)spawner.Center.X;
                 float cz = (float)spawner.Center.Z;
@@ -184,12 +181,22 @@ namespace Aetherfall.EditorTools.World
                     PlacedPoint p = positions[i];
                     _enemyNumber++;
                     bool patrols = patrol != null && i == 0;
-                    string name = (spawner.BossId.Length > 0 ? spawner.Name : (aether ? "Aether-Wolf" : "Grauwolf") + " " + (i + 1)) +
+                    string typeId = spawner.MemberAt(i, out string variant);
+                    if (standIn)
+                    {
+                        typeId = spawner.StandInTypeId;
+                        variant = spawner.StandInVariant;
+                    }
+
+                    EnemyTypeDefinition baseType = SliceEnemyAssets.Get(typeId, variant) ?? (variant == "aether_verderbt" ? combat.AetherWolf : combat.Wolf);
+                    EnemyTypeDefinition definition = MiniSliceProfile.EnemyAtLevel(baseType, areaLevel > 0 ? areaLevel + SliceEnemyAssets.LevelOffset(variant) : 0,
+                        _report);
+                    string name = (spawner.BossId.Length > 0 && i == 0 ? spawner.Name : baseType.DisplayName + " " + (i + 1)) +
                                   (standIn ? " (Platzhalter)" : string.Empty);
                     Vector3 local = new Vector3((float)p.X, H(p.X, p.Z), (float)p.Z) - root.transform.position;
-                    EnemyController enemy = TestGroundCombatBuilder.BuildWolf(groupObject.transform, name, _enemyNumber.ToString(), definition, fur, _testMaterials,
-                        local + new Vector3(0f, 0.05f, 0f), (float)p.Yaw, !patrols, patrols ? patrol : null, enemyLayer, hurtboxLayer, environmentLayer,
-                        _report);
+                    EnemyController enemy = SliceEnemyBuilder.Build(groupObject.transform, typeId, variant, definition, name, _enemyNumber.ToString(),
+                        local + new Vector3(0f, 0.05f, 0f), (float)p.Yaw, !patrols, patrols ? patrol : null, _testMaterials, enemyLayer, hurtboxLayer,
+                        environmentLayer, _report);
                     // Hills hide the player as well as walls do.
                     TestGroundFields.SetInt(enemy, "sightBlockers", sightBlockers, _report);
                     if (spawner.BossId.Length > 0 && i == 0)
@@ -231,9 +238,8 @@ namespace Aetherfall.EditorTools.World
                 }
             }
 
-            _report.Info("Gegner: " + active + " immer aktiv (Grauwölfe am Nordhang, Aether-Wolf im Wald nordöstlich des Risses), " + questGroups +
-                         " Quest-Gruppen (Kind „Gruppe“ aus, bis die Quest-Aktion „Gegner spawnen“ sie einschaltet; Risslinge vertreten durch " +
-                         "Aether-Wölfe).");
+            _report.Info("Gegner: " + active + " immer aktiv (Grauwölfe mit Rudelführer am Nordhang, Aether-Wolf beim Riss, Mühlbach-Banditen), " +
+                         questGroups + " Quest-Gruppen (Kind „Gruppe“ aus, bis die Quest-Aktion „Gegner spawnen“ sie einschaltet; Risslinge im Hinterhalt).");
             return first;
         }
 

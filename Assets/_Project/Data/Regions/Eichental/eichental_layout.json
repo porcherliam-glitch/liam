@@ -318,9 +318,10 @@
     { "id": "loc.eichental.rabenfels_spitze", "name": "Rabenfels-Spitze (Aussichtspunkt, Vorschlag)", "kind": "viewpoint", "shape": "circle", "center": [12, 184], "radius": 7, "quests": [] }
   ],
   "spawners": [
-    { "id": "spawn.eichental.nordhang_woelfe", "name": "Wölfe am Nordhang (Vorschlag)", "enemyTypeId": "enemy.wolf.grauwolf", "variant": "normal", "count": 2,
-      "center": [-176, 190], "radius": 6, "activation": "always", "respawnSeconds": 180, "locationId": "loc.eichental.nordhang",
-      "patrol": [[-190, 186], [-150, 194]], "note": "Wildtiere am Nordhang (GDD 01, 11.4: Grauwolf in der Wildnis)." },
+    { "id": "spawn.eichental.nordhang_woelfe", "name": "Wölfe am Nordhang mit Rudelführer", "enemyTypeId": "enemy.wolf.grauwolf", "variant": "normal", "count": 3,
+      "members": [ { "enemyTypeId": "enemy.wolf.grauwolf", "variant": "normal", "count": 2 }, { "enemyTypeId": "enemy.wolf.grauwolf", "variant": "elite", "count": 1 } ],
+      "level": 3, "center": [-176, 190], "radius": 6, "activation": "always", "respawnSeconds": 180, "locationId": "loc.eichental.nordhang",
+      "patrol": [[-190, 186], [-150, 194]], "note": "Wildtiere am Nordhang (GDD 01, 11.4: Grauwolf in der Wildnis, Elite = Rudelführer, Stufe 3 + 2)." },
     { "id": "spawn.eichental.riss_streuner", "name": "Aether-Wolf im Wald nordöstlich des Risses (Vorschlag)", "enemyTypeId": "enemy.wolf.grauwolf", "variant": "aether_verderbt", "count": 1,
       "center": [176, 104], "radius": 4, "activation": "always", "respawnSeconds": 240, "locationId": "loc.eichental.riss_eichental",
       "note": "Ein vom Riss verdorbener Wolf, der in den Wald gestreunt ist (GDD 01, 2.3: Tiere verderben am Riss). 62 m vom Kraterrand, weit außerhalb seiner Sichtweite von 22 m: Er greift nicht in den Prolog am Riss ein (GDD 02, 11.1, s40–s60). Am Riss selbst gehören laut GDD 01, 11.4 Risslinge hin." },
@@ -335,12 +336,18 @@
       "quest": "quest.side.eichental.woelfe_vom_nordhang", "note": "GDD 02, 11.2, s45_geborgen." },
     { "id": "spawn.eichental.dorfrand_risslinge", "name": "Risslinge am Dorfrand", "enemyTypeId": "enemy.rissbrut.rissling", "variant": "normal", "count": 4,
       "center": [-4, -26], "radius": 9, "activation": "quest", "respawnSeconds": 0, "locationId": "loc.eichental.dorfrand",
-      "quest": "quest.main.asche_ueber_eichental", "standIn": { "enemyTypeId": "enemy.wolf.grauwolf", "variant": "aether_verderbt" },
-      "note": "GDD 02, 11.1, s30. Im Mini-Slice gibt es noch keine Risslinge: Platzhalter sind Aether-Wölfe." },
+      "level": 1, "quest": "quest.main.asche_ueber_eichental",
+      "note": "GDD 02, 11.1, s30; GDD 01, 11.4: Risslinge im Hinterhalt – sie liegen in Spalten und springen hervor, wenn man auf 8 m herankommt." },
     { "id": "spawn.eichental.rissbrut_prolog", "name": "Prolog-Rissbrut", "enemyTypeId": "enemy.rissbrut.rissling", "variant": "champion", "count": 1, "bossId": "boss.eichental.rissbrut_prolog",
       "center": [112, 38], "radius": 1, "activation": "quest", "respawnSeconds": 0, "locationId": "loc.eichental.riss_eichental",
-      "quest": "quest.main.asche_ueber_eichental", "standIn": { "enemyTypeId": "enemy.wolf.grauwolf", "variant": "aether_verderbt" },
-      "note": "GDD 02, 11.1, s60. Platzhalter: Aether-Wolf." }
+      "level": 1, "quest": "quest.main.asche_ueber_eichental",
+      "note": "GDD 02, 11.1, s60; GDD 01, 11.4: Champion-Rissling (Stufe 1 + 3). Eigene Boss-Mechanik folgt mit den Bossen (S42)." },
+    { "id": "spawn.eichental.muehlbach_banditen", "name": "Mühlbach-Banditen", "enemyTypeId": "enemy.bandit.schlaeger", "variant": "normal", "count": 4,
+      "members": [ { "enemyTypeId": "enemy.bandit.schlaeger", "variant": "normal", "count": 2 }, { "enemyTypeId": "enemy.bandit.armbrustschuetze", "variant": "normal", "count": 1 },
+                   { "enemyTypeId": "enemy.bandit.schlaeger", "variant": "elite", "count": 1 } ],
+      "level": 4, "center": [-142, -166], "radius": 7, "activation": "always", "respawnSeconds": 300, "locationId": "loc.eichental.muehle_muehlbach",
+      "patrol": [[-150, -160], [-128, -172]],
+      "note": "GDD 01, 11.1: gemischte Gruppe – 2 Schläger, 1 Armbrustschütze, ein Elite-Anführer (Stufe 4, Anführer 6). Südlich der Mühle, abseits des Wegs nach Lindenhain." }
   ],
   "chests": [
     { "id": "obj.eichental.truhe_schmiede", "name": "Holztruhe in der Schmiede", "tier": "wooden", "position": [6, -64], "yaw": 210, "areaLevel": 1, "locationId": "loc.eichental.dorf_eichental" },

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Aetherfall.World;
 using NUnit.Framework;
 
@@ -142,14 +143,31 @@ namespace Aetherfall.Tests.EditMode.World
             }
         }
 
+        /// <summary>Enemy types the slice builds (GDD 01 11.4): wolves, the Rissbrut and the bandits.</summary>
+        private static readonly string[] BuiltEnemyTypes =
+        {
+            "enemy.wolf.grauwolf", "enemy.rissbrut.rissling", "enemy.bandit.schlaeger", "enemy.bandit.armbrustschuetze",
+        };
+
         [Test]
-        public void MiniSliceEnemiesAreWolves()
+        public void SliceEnemiesHaveBuiltTypes()
         {
             foreach (LayoutSpawner spawner in _layout.Spawners)
             {
                 string used = string.IsNullOrEmpty(spawner.StandInTypeId) ? spawner.EnemyTypeId : spawner.StandInTypeId;
-                Assert.That(used, Is.EqualTo("enemy.wolf.grauwolf"), spawner.Id + ": the mini slice only has wolves and Aether wolves");
+                Assert.That(BuiltEnemyTypes, Does.Contain(used), spawner.Id + ": no enemy of this type is built yet");
+                foreach (LayoutSpawnMember member in spawner.Members)
+                {
+                    Assert.That(BuiltEnemyTypes, Does.Contain(member.EnemyTypeId), spawner.Id + ": no enemy of this type is built yet");
+                }
             }
+        }
+
+        [Test]
+        public void RisslingeNoLongerUseStandIns()
+        {
+            Assert.That(_layout.Spawners.First(s => s.Id == "spawn.eichental.dorfrand_risslinge").StandInTypeId, Is.Empty);
+            Assert.That(_layout.Spawners.First(s => s.Id == "spawn.eichental.rissbrut_prolog").StandInTypeId, Is.Empty);
         }
 
         [Test]

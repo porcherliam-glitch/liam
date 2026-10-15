@@ -662,7 +662,7 @@ namespace Aetherfall.World
         private static LayoutSpawner ReadSpawner(LayoutJsonContext ctx, JsonNode node, string path)
         {
             ctx.Known(node, path, "id", "name", "enemyTypeId", "variant", "count", "bossId", "center", "radius", "activation", "respawnSeconds",
-                "locationId", "quest", "patrol", "standIn", "note");
+                "locationId", "quest", "patrol", "standIn", "note", "level", "members");
             var spawner = new LayoutSpawner
             {
                 Id = ctx.String(node, "id", path),
@@ -678,8 +678,33 @@ namespace Aetherfall.World
                 LocationId = ctx.String(node, "locationId", path, string.Empty),
                 QuestId = ctx.String(node, "quest", path, string.Empty),
                 Patrol = ctx.Points(node, "patrol", path, 0, false),
-                Note = ctx.String(node, "note", path, string.Empty)
+                Note = ctx.String(node, "note", path, string.Empty),
+                Level = ctx.Integer(node, "level", path, 0)
             };
+            IReadOnlyList<JsonNode> members = ctx.Array(node, "members", path, false);
+            if (members.Count > 0)
+            {
+                var list = new List<LayoutSpawnMember>(members.Count);
+                for (int i = 0; i < members.Count; i++)
+                {
+                    string p = LayoutJsonContext.Index(LayoutJsonContext.Join(path, "members"), i);
+                    if (!ctx.IsObject(members[i], p))
+                    {
+                        continue;
+                    }
+
+                    ctx.Known(members[i], p, "enemyTypeId", "variant", "count");
+                    list.Add(new LayoutSpawnMember
+                    {
+                        EnemyTypeId = ctx.String(members[i], "enemyTypeId", p),
+                        Variant = ctx.String(members[i], "variant", p, "normal"),
+                        Count = ctx.Integer(members[i], "count", p, 1)
+                    });
+                }
+
+                spawner.Members = list;
+            }
+
             JsonNode standIn = ctx.Object(node, "standIn", path, false);
             if (standIn != null)
             {

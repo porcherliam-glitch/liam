@@ -60,6 +60,9 @@ namespace Aetherfall.EditorTools.Narrative
         /// <summary>Variant of the glowing wolves.</summary>
         public const string AetherVariant = "aether_verderbt";
 
+        /// <summary>Rissling (GDD 01 11.4, the creatures of the rift in quest 1).</summary>
+        public const string RisslingType = "enemy.rissbrut.rissling";
+
         /// <summary>Quest item of outcome 3 of quest 2.</summary>
         public const string SplinterItem = "item.quest.aethersplitter_nordhang";
 
@@ -188,7 +191,7 @@ namespace Aetherfall.EditorTools.Narrative
                 .Stage(new StageBuilder("s30")
                     .Text("Kreaturen aus dem Riss greifen an. Halte sie von den Überlebenden fern.")
                     .OnStart(new SpawnEncounter("spawn.eichental.dorfrand_risslinge"))
-                    .Objective(new KillObjective("o1", WolfType, 4, AetherVariant).WithJournalText("Kreaturen aus dem Riss besiegen"))
+                    .Objective(new KillObjective("o1", RisslingType, 4, "normal").WithJournalText("Kreaturen aus dem Riss besiegen"))
                     .Ledger("ledger.c2")
                     .Next("s40"))
                 .Stage(new StageBuilder("s40")
@@ -226,7 +229,7 @@ namespace Aetherfall.EditorTools.Narrative
                 .LedgerEntry("ledger.c3", "Eine graue Gestalt hat am Riss auf dich gewartet.")
                 .Rewards(new GiveXp(500), new GiveItem("item.potion.heiltrank_schwach", 3))
                 .Production(ContentStatus.Draft, QuestScopeTier.A, 0, "claude", 40,
-                    "Mini-Slice: ohne Zwischensequenzen und Musik; Risslinge und Rissbrut sind Aether-Wölfe (Platzhalter).")
+                    "Mini-Slice: ohne Zwischensequenzen und Musik; Risslinge im Hinterhalt, die Rissbrut ist ein Champion-Rissling.")
                 .Build();
         }
 

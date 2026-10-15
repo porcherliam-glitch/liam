@@ -55,6 +55,9 @@ namespace Aetherfall.EditorTools.World
             Steps.Enqueue(() => WaitStage(Q.Prologue, "s30"));
             Steps.Enqueue(() => Wait(1.0));
             Steps.Enqueue(() => Capture("q02_dorfrand", null));
+            // GDD 01 11.4: the Risslinge lie in ambush and break out when the player comes close.
+            Steps.Enqueue(CheckAmbush("spawn.eichental.dorfrand_risslinge"));
+            Steps.Enqueue(() => Capture("q02b_rissling", ViewAtTarget));
             Steps.Enqueue(KillGroup("spawn.eichental.dorfrand_risslinge"));
             Steps.Enqueue(() => WaitStage(Q.Prologue, "s40"));
             Steps.Enqueue(UseObject("clue.eichental.verbrannte_runen_1", QuestObjectAction.Inspect));

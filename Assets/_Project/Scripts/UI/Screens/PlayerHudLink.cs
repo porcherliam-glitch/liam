@@ -331,7 +331,23 @@ namespace Aetherfall.UI.Screens
         {
             _target = target;
             _targetVersion++;
-            _targetName = target != null ? DisplayNameOf(target) : string.Empty;
+            _targetName = target != null ? TargetLabel(target) : string.Empty;
+        }
+
+        private string TargetLabel(Combatant target)
+        {
+            // GDD 03 9.7: "Stufe 3"; enemies 6 or more levels above the player are marked as very dangerous (the skull of the GDD).
+            string name = DisplayNameOf(target);
+            if (target.Team == CombatTeam.Neutral)
+            {
+                return name;
+            }
+
+            int level = target.Level;
+            int playerLevel = combatant != null ? combatant.Level : 1;
+            string label = name + " · Stufe " + level.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            // The UI font has no skull glyph: the warning is spelled out.
+            return level >= playerLevel + 6 ? label + " – sehr gefährlich" : label;
         }
 
         private static string DisplayNameOf(Combatant target)

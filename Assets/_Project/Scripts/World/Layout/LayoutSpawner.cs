@@ -51,6 +51,35 @@ namespace Aetherfall.World
         /// <summary>Variant of the stand-in type.</summary>
         public string StandInVariant { get; internal set; } = string.Empty;
 
+        /// <summary>Area level of the group (GDD 03 9.7; elite +2, champion +3 on top); 0 = the area level of the region.</summary>
+        public int Level { get; internal set; }
+
+        /// <summary>Parts of a mixed group in order (empty: all of <see cref="EnemyTypeId"/> and <see cref="Variant"/>).</summary>
+        public IReadOnlyList<LayoutSpawnMember> Members { get; internal set; } = Array.Empty<LayoutSpawnMember>();
+
+        /// <summary>Type and variant of the enemy at a position of the group (members in order, then the main type).</summary>
+        /// <param name="index">Position 0 … <see cref="Count"/> − 1.</param>
+        /// <param name="variant">Variant at that position.</param>
+        /// <returns>Enemy type id.</returns>
+        public string MemberAt(int index, out string variant)
+        {
+            int start = 0;
+            for (int i = 0; i < Members.Count; i++)
+            {
+                LayoutSpawnMember member = Members[i];
+                if (index < start + member.Count)
+                {
+                    variant = member.Variant;
+                    return member.EnemyTypeId;
+                }
+
+                start += member.Count;
+            }
+
+            variant = Variant;
+            return EnemyTypeId;
+        }
+
         /// <summary>Note (German).</summary>
         public string Note { get; internal set; } = string.Empty;
     }

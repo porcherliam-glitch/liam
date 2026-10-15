@@ -56,6 +56,9 @@ namespace Aetherfall.AI
         [Tooltip("Hitbox der Angriffe. Leer = Hitbox am selben GameObject.")]
         [SerializeField] private Hitbox hitbox = null;
 
+        [Tooltip("Geschoss-Werfer für Fernangriffe (Armbrustschütze). Leer = keine Fernangriffe.")]
+        [SerializeField] private ProjectileLauncher projectiles = null;
+
         [Tooltip("Treffer-Blitz und Einfärbung (Telegrafie rot, betäubt orange). Optional.")]
         [SerializeField] private HitFlash hitFlash = null;
 
@@ -89,6 +92,7 @@ namespace Aetherfall.AI
         private ICombatService _combat;
         private Combatant _target;
         private Combatant _tauntSource;
+        private bool _warnedNoLauncher;
         private float _tauntUntil;
         private Vector3 _anchorPosition;
         private Quaternion _anchorRotation;
@@ -259,10 +263,47 @@ namespace Aetherfall.AI
         /// <inheritdoc />
         public void OpenHitWindow(AttackSpec attack)
         {
+            if (attack != null && attack.IsProjectile)
+            {
+                // Ranged attack (crossbow bolt, GDD 01 11.4 Armbrustschütze): fires at the target instead of opening the hitbox.
+                FireProjectile(attack);
+                return;
+            }
+
             if (hitbox != null)
             {
                 hitbox.OpenHitWindow(attack);
             }
+        }
+
+        /// <summary>True while the enemy waits hidden in an ambush (<see cref="EnemyAmbush"/>): the AI does not run.</summary>
+        public bool Dormant { get; set; }
+
+        /// <summary>
+        /// Puts the enemy into combat at once, as if it had been hit (an ambush: the Rissling leaps out of its crevice).
+        /// </summary>
+        public void Alert()
+        {
+            _wasHit = true;
+            _targetSearchTimer = 0f;
+        }
+
+        private void FireProjectile(AttackSpec attack)
+        {
+            if (projectiles == null)
+            {
+                if (!_warnedNoLauncher)
+                {
+                    _warnedNoLauncher = true;
+                    Log.Warning(LogCategory.AI, "EnemyController '" + name + "': ranged attack '" + attack.Id + "' without ProjectileLauncher.");
+                }
+
+                return;
+            }
+
+            Combatant target = _target != null && _target.IsAlive ? _target : null;
+            Vector3 aim = target != null ? target.TargetPosition : transform.position + transform.forward * 15f + Vector3.up * 1.2f;
+            projectiles.FireAt(_combatant, attack, GetAttackProfile(attack), aim);
         }
 
         /// <inheritdoc />
@@ -316,6 +357,13 @@ namespace Aetherfall.AI
         {
             if (_brain == null)
             {
+                return;
+            }
+
+            if (Dormant)
+            {
+                // Hidden in an ambush: no perception, no movement until it wakes.
+                _combatant.Tick(deltaTime);
                 return;
             }
 

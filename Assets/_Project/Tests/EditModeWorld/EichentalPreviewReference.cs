@@ -72,7 +72,8 @@ namespace Aetherfall.Tests.EditMode.World
         public static readonly object[] SpawnerPositions =
         {
             new object[] { "spawn.eichental.nordhang_woelfe", 0, -174.27406806102488, 193.15929722280535, 28.64788975654116 },
-            new object[] { "spawn.eichental.nordhang_woelfe", 1, -177.72593193897512, 186.84070277719465, 208.64788975654116 },
+            new object[] { "spawn.eichental.nordhang_woelfe", 1, -174.1269343164325, 186.92565048424194, 148.64788975654116 },
+            new object[] { "spawn.eichental.nordhang_woelfe", 2, -179.5989976225426, 189.91505229295274, 268.64788975654113 },
             new object[] { "spawn.eichental.riss_streuner", 0, 176.0, 104.0, 28.64788975654116 },
             new object[] { "spawn.eichental.nordhang_rudel", 0, -94.69875741469983, 164.21239629707378, 28.64788975654116 },
             new object[] { "spawn.eichental.nordhang_rudel", 1, -94.50257908857668, 155.9008673123226, 148.64788975654116 },
@@ -86,6 +87,10 @@ namespace Aetherfall.Tests.EditMode.World
             new object[] { "spawn.eichental.dorfrand_risslinge", 2, -6.5888979084626955, -30.73894583420801, 208.64788975654116 },
             new object[] { "spawn.eichental.dorfrand_risslinge", 3, -8.738945834208012, -23.411102091537305, 298.64788975654113 },
             new object[] { "spawn.eichental.rissbrut_prolog", 0, 112.0, 38.0, 28.64788975654116 },
+            new object[] { "spawn.eichental.muehlbach_banditen", 0, -139.98641273786234, -162.31415324006042, 28.64788975654116 },
+            new object[] { "spawn.eichental.muehlbach_banditen", 1, -138.31415324006042, -168.01358726213766, 118.64788975654116 },
+            new object[] { "spawn.eichental.muehlbach_banditen", 2, -144.01358726213766, -169.68584675993958, 208.64788975654116 },
+            new object[] { "spawn.eichental.muehlbach_banditen", 3, -145.68584675993958, -163.98641273786234, 298.64788975654113 },
         };
 
         /// <summary>Rift crystals: x, z, height, tilt x, tilt z, yaw.</summary>

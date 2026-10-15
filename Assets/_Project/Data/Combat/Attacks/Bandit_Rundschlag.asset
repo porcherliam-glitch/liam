@@ -1,0 +1,45 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 723ddc38fb428bc499f79f79ad10f2c0, type: 3}
+  m_Name: Bandit_Rundschlag
+  m_EditorClassIdentifier: Aetherfall.Combat::Aetherfall.Combat.AttackDefinition
+  attackId: attack.bandit.rundschlag
+  kind: 7
+  windupSeconds: 0.85
+  activeSeconds: 0.15
+  recoverySeconds: 0.55
+  comboWindowStartSeconds: 1
+  cancelOnlyInRecovery: 0
+  damageMultiplier: 1.5
+  poiseMultiplier: 1.8
+  staminaCost: 0
+  staminaDamage: 45
+  overrideDamageType: 0
+  damageType: 0
+  statusEffect: 0
+  statusBuildup: 0
+  unblockable: 0
+  unparryable: 0
+  shape: 0
+  offset: {x: 0, y: 1.1, z: 1.3}
+  size: {x: 1.4, y: 1.2, z: 1.6999999}
+  radius: 0.8
+  lungeDistance: 0.4
+  knockbackDistance: 1.2
+  maxTurnDegrees: 45
+  projectileSpeed: 0
+  projectileRange: 25
+  projectileRadius: 0.2
+  projectileGravity: 0
+  hitStopSeconds: 0
+  shakeAmplitude: 0
+  shakeDuration: 0
