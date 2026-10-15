@@ -152,7 +152,7 @@ export default async function () {
         assert(ammoBefore > 0, 'inventory has 9mm ammo');
         await g.eval(() => { window.DZ.player().weaponInst.mag = 0; });
         await g.tap('KeyR');
-        const reloadTime = await g.eval(() => window.DZ.player().weaponInst && window.DZ.world() && Object.values(window.ITEMS || {}).length, null);
+        const reloadTime = await g.eval(() => window.DZ.player().weaponInst && true, null);
         await g.step(5 * 60);
         const magReloaded = await g.eval(() => window.DZ.player().weaponInst.mag);
         const ammoAfter = await g.eval(() => window.DZ.player().inventory.count('ammo_9mm'));
@@ -225,7 +225,7 @@ export default async function () {
         const opened = await g.eval(() => window.DZ.player().interactTarget && window.DZ.player().interactTarget.ref.opened);
         assert(opened, 'container marked opened');
         // make sure there is something to take
-        await g.eval(() => { const c = window.DZ.player().interactTarget.ref; if (!c.items || !c.items.length) { c.items = [Items.create('med_bandage', 2)]; } window.DZ.ui.refresh(); });
+        await g.eval(() => { const c = window.DZ.player().interactTarget.ref; if (!c.items || !c.items.length) { c.items = [window.DZ.Items.create('med_bandage', 2)]; } window.DZ.ui.refresh(); });
         const before = await g.eval(() => window.DZ.player().inventory.all().reduce((a, i) => a + i.count, 0));
         await g.dz('click', '[data-action="take-all"]');
         await g.step(2);
@@ -235,10 +235,10 @@ export default async function () {
         assert(await g.screen() === null || await g.screen() === 'pause' || await g.screen() === undefined, 'loot screen closed');
         await g.eval(() => { if (window.DZ.screen() === 'pause') window.DZ.game.resumeRaid(); });
         // Full inventory
-        await g.eval(() => { const inv = window.DZ.player().inventory; for (let i = 0; i < 60 && !inv.isFull(); i++) inv.add(Items.create('tool_wrench', 1)); });
+        await g.eval(() => { const inv = window.DZ.player().inventory; for (let i = 0; i < 60 && !inv.isFull(); i++) inv.add(window.DZ.Items.create('tool_wrench', 1)); });
         const full = await g.eval(() => window.DZ.player().inventory.isFull());
         assert(full, 'inventory full');
-        const res = await g.eval(() => { const p = window.DZ.player(); const fl = window.DZ.raid().dropItem(Items.create('col_coin', 1), p.x + 10, p.y); const n0 = p.inventory.all().length; const r = window.DZ.raid().pickFloorLoot(fl); return { n0, n1: p.inventory.all().length, stillOnFloor: window.DZ.world().floorLoot.includes(fl) }; });
+        const res = await g.eval(() => { const p = window.DZ.player(); const fl = window.DZ.raid().dropItem(window.DZ.Items.create('col_coin', 1), p.x + 10, p.y); const n0 = p.inventory.all().length; const r = window.DZ.raid().pickFloorLoot(fl); return { n0, n1: p.inventory.all().length, stillOnFloor: window.DZ.world().floorLoot.includes(fl) }; });
         assertEq(res.n1, res.n0, 'no new slot used when full');
         assert(res.stillOnFloor, 'item stays on the floor');
         g.assertNoErrors();
@@ -279,7 +279,7 @@ export default async function () {
       try {
         await g.dz('newGame');
         await startRaid(g, 'city', 5);
-        await g.eval(() => { const p = window.DZ.player(); p.secure.add(Items.create('col_coin', 1)); p.inventory.add(Items.create('col_watch', 1)); });
+        await g.eval(() => { const p = window.DZ.player(); p.secure.add(window.DZ.Items.create('col_coin', 1)); p.inventory.add(window.DZ.Items.create('col_watch', 1)); });
         await g.eval(() => window.DZ.die());
         await g.step(5);
         assertEq(await g.state(), 'result', 'state result after death');
@@ -313,13 +313,13 @@ export default async function () {
         assert(r3.n1 === r3.n0 + 1 && r3.n2 === r3.n0, 'stash ↔ loadout transfer');
         const r4 = await g.eval(() => { const pm = window.DZ.game.profileMgr; pm.profile.hp = 40; const cost = pm.healCost(); pm.heal(); return { cost, hp: pm.profile.hp, hpMax: pm.hpMax() }; });
         assert(r4.cost > 0 && r4.hp === r4.hpMax, 'medbay heals to max for credits');
-        const r5 = await g.eval(() => { const pm = window.DZ.game.profileMgr; for (const it of (UPGRADES.stash[0].cost.items || [])) pm.stash.add(Items.create(it.id, it.count)); const slots0 = pm.stash.slots; const r = pm.upgrade('stash'); return { ok: r.ok, reason: r.reason, slots0, slots1: pm.stash.slots, level: pm.profile.upgrades.stash }; });
+        const r5 = await g.eval(() => { const pm = window.DZ.game.profileMgr; for (const it of (window.DZ.data.UPGRADES.stash[0].cost.items || [])) pm.stash.add(window.DZ.Items.create(it.id, it.count)); const slots0 = pm.stash.slots; const r = pm.upgrade('stash'); return { ok: r.ok, reason: r.reason, slots0, slots1: pm.stash.slots, level: pm.profile.upgrades.stash }; });
         assert(r5.ok, `stash upgrade ok (${r5.reason})`);
         assert(r5.slots1 > r5.slots0 && r5.level === 1, 'stash grew');
         const r6 = await g.eval(() => { const ms = window.DZ.game.missions; const pm = window.DZ.game.profileMgr; const avail = ms.availableFor(pm.profile); const r = ms.accept(pm.profile, avail[0].id); return { n: avail.length, ok: r.ok, active: ms.active(pm.profile).length }; });
         assert(r6.n >= 1 && r6.ok && r6.active === 1, 'mission accepted');
-        const r7 = await g.eval(() => { const ms = window.DZ.game.missions; const pm = window.DZ.game.profileMgr; const m = MISSIONS.find(m => m.objectives.some(o => o.type === 'collect') && m.mapId === 'city'); if (!m) return { skip: true };
-          pm.profile.missions.active = [m.id]; const o = m.objectives.find(o => o.type === 'collect'); pm.stash.add(Items.create(o.target, o.count)); const can = ms.canHandIn(pm.profile, m.id, o.id); const r = ms.handIn(pm.profile, m.id, o.id); const prog = ms.progressOf(pm.profile, m.id); return { can, r, done: prog.objectives.find(x => x.def.id === o.id).done, left: pm.stash.count(o.target) }; });
+        const r7 = await g.eval(() => { const ms = window.DZ.game.missions; const pm = window.DZ.game.profileMgr; const m = window.DZ.data.MISSIONS.find(m => m.objectives.some(o => o.type === 'collect') && m.mapId === 'city'); if (!m) return { skip: true };
+          pm.profile.missions.active = [m.id]; const o = m.objectives.find(o => o.type === 'collect'); pm.stash.add(window.DZ.Items.create(o.target, o.count)); const can = ms.canHandIn(pm.profile, m.id, o.id); const r = ms.handIn(pm.profile, m.id, o.id); const prog = ms.progressOf(pm.profile, m.id); return { can, r, done: prog.objectives.find(x => x.def.id === o.id).done, left: pm.stash.count(o.target) }; });
         if (!r7.skip) { assert(r7.can && r7.done, 'collect objective handed in'); assertEq(r7.left, 0, 'items removed from stash'); }
         g.assertNoErrors();
       } finally { await g.close(); }
