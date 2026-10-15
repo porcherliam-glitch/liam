@@ -30,6 +30,8 @@ MonoBehaviour:
   - damageType: 3
     value: -0.5
     immune: 0
+  kind: 0
+  statusResistance: 0
   aetherDamageShare: 0
   hasCrystalCore: 0
   crystalCoreBreakFraction: 0.25

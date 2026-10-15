@@ -47,6 +47,10 @@ namespace Aetherfall.EditorTools.World
             SetLevel(Skeleton, GruftPaths.SkeletonLevel);
             SetLevel(SkeletonElite, GruftPaths.EliteLevel);
             SetLevel(SkeletonChampion, GruftPaths.BossLevel);
+            // GDD 03 7.1–7.2: undead are immune to poison and bleeding; elite 50 and champion 100 status resistance.
+            SetFamily(Skeleton, EnemyKind.Undead, 0f);
+            SetFamily(SkeletonElite, EnemyKind.Undead, 50f);
+            SetFamily(SkeletonChampion, EnemyKind.Undead, 100f);
             Boss = EnsureBoss(SkeletonChampion, bash, sword, charge, spin);
 
             EnsureLootTable("Loot_Skelett", GruftPaths.SkeletonLootTableId, 1, 1, -1, new[]
@@ -240,6 +244,21 @@ namespace Aetherfall.EditorTools.World
                 TestGroundSerialized.Set(so, "shakeAmplitude", spec.ShakeAmplitude, report);
                 TestGroundSerialized.Set(so, "shakeDuration", spec.ShakeDuration, report);
             });
+        }
+
+        private void SetFamily(EnemyTypeDefinition type, EnemyKind kind, float statusResistance)
+        {
+            if (type == null || (type.Kind == kind && Mathf.Approximately(type.StatusResistance, statusResistance)))
+            {
+                return;
+            }
+
+            var serialized = new SerializedObject(type);
+            TestGroundSerialized.Set(serialized, "kind", (int)kind, _report);
+            TestGroundSerialized.Set(serialized, "statusResistance", statusResistance, _report);
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(type);
+            _report.Info(type.name + ": Familie " + kind + ", Statusresistenz " + statusResistance.ToString("0") + ".");
         }
 
         private void SetLevel(EnemyTypeDefinition type, int level)

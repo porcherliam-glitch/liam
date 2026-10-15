@@ -123,6 +123,12 @@ namespace Aetherfall.Combat
         /// <summary>Downward acceleration of the projectile in m/s² (0 = straight; arrows 0.5 g, GDD 03 6.1).</summary>
         public float ProjectileGravity { get; set; }
 
+        /// <summary>Status build-up the attack carries (GDD 03 7.1: fire arrow burning 35, fireball 30, explosion burning 60 and stun 30).</summary>
+        public StatusBuildup Buildup { get; set; } = StatusBuildup.None;
+
+        /// <summary>True for explosions (poise factor 1.5, GDD 03 8.2; barrels, powder kegs, the corruption burst).</summary>
+        public bool IsExplosion { get; set; }
+
         /// <summary>True if the attack fires a projectile in its hit window instead of opening the hitbox.</summary>
         public bool IsProjectile => ProjectileSpeed > 0f;
 

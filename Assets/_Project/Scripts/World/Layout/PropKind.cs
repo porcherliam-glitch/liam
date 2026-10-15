@@ -46,6 +46,12 @@ namespace Aetherfall.World
         CaveMouth = 13,
 
         /// <summary><c>cairn</c>: Stone cairn (Steinmann).</summary>
-        Cairn = 14
+        Cairn = 14,
+
+        /// <summary><c>oil_barrel</c>: Oil barrel (Ölfass): explodes on fire, spills oil when struck (GDD 03 6.7).</summary>
+        OilBarrel = 15,
+
+        /// <summary><c>powder_keg</c>: Powder keg (Pulverfass): explodes on fire, 5 m (GDD 03 6.6 #16).</summary>
+        PowderKeg = 16
     }
 }

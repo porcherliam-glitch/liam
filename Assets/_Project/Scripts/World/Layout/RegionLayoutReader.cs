@@ -65,7 +65,7 @@ namespace Aetherfall.World
             Pair("wayside_cross", PropKind.WaysideCross), Pair("barricade", PropKind.Barricade), Pair("notice_board", PropKind.NoticeBoard),
             Pair("tent", PropKind.Tent), Pair("hay_bale", PropKind.HayBale), Pair("sheep", PropKind.Sheep), Pair("crate_stack", PropKind.CrateStack),
             Pair("barrel", PropKind.Barrel), Pair("crypt_entrance", PropKind.CryptEntrance), Pair("cave_mouth", PropKind.CaveMouth),
-            Pair("cairn", PropKind.Cairn)
+            Pair("cairn", PropKind.Cairn), Pair("oil_barrel", PropKind.OilBarrel), Pair("powder_keg", PropKind.PowderKeg)
         };
 
         internal static readonly KeyValuePair<string, LocationKind>[] LocationKinds =

@@ -247,6 +247,13 @@
     opacity: 0.25;
 }
 
+/* Running status effects and the corruption stage (GDD 03 7, GDD 01 A3): "Brennen 4 s · Verderbnis 35 (Berührt)". */
+.af-vitals__status {
+    margin: 6px 0 0 0;
+    font-size: var(--font-small);
+    color: rgba(255, 200, 120, 1);
+}
+
 /* ---------- Bottom right: abilities and quick slots ---------- */
 
 .af-actions {

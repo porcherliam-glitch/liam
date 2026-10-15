@@ -280,7 +280,11 @@
     { "id": "obj.eichental.kisten_gasthaus", "name": "Kisten am Gasthaus", "kind": "crate_stack", "position": [-151, -18], "yaw": 0 },
     { "id": "obj.eichental.gruft_eingang", "name": "Eingang der vergessenen Gruft", "kind": "crypt_entrance", "position": [2, 157], "yaw": 180 },
     { "id": "obj.eichental.wolfsbau_eingang", "name": "Eingang des Wolfsbaus", "kind": "cave_mouth", "position": [-82, 190], "yaw": 180 },
-    { "id": "obj.eichental.steinmann_rabenfels", "name": "Steinmann auf dem Rabenfels", "kind": "cairn", "position": [9, 186], "yaw": 0 }
+    { "id": "obj.eichental.steinmann_rabenfels", "name": "Steinmann auf dem Rabenfels", "kind": "cairn", "position": [9, 186], "yaw": 0 },
+    { "id": "obj.eichental.oelfass_schmiede_1", "name": "Ölfass der Schmiede", "kind": "oil_barrel", "position": [19, -53], "yaw": 0 },
+    { "id": "obj.eichental.oelfass_schmiede_2", "name": "Ölfass der Schmiede", "kind": "oil_barrel", "position": [20.5, -55], "yaw": 0 },
+    { "id": "obj.eichental.oelfass_schmiede_3", "name": "Ölfass der Schmiede", "kind": "oil_barrel", "position": [18, -56.5], "yaw": 0 },
+    { "id": "obj.eichental.pulverfass_scheune", "name": "Pulverfass hinter der Scheune", "kind": "powder_keg", "position": [96, -36], "yaw": 0 }
   ],
   "rift": {
     "id": "obj.eichental.riss",

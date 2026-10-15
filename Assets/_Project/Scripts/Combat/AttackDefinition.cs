@@ -56,6 +56,12 @@ namespace Aetherfall.Combat
         [Tooltip("Schadensart, wenn „Override Damage Type“ an ist.")]
         [SerializeField] private DamageType damageType = DamageType.Slash;
 
+        [Tooltip("Statuseffekt, den der Angriff aufbaut (GDD 03, 7.1), z. B. Brennen beim Feuergeschoss. Nur mit „Status Buildup“ > 0.")]
+        [SerializeField] private StatusEffectId statusEffect = StatusEffectId.Burning;
+
+        [Tooltip("Statusaufbau je Treffer (Feuerpfeil 35, Feuerball 30, Explosion 60; Schwelle 100). 0 = kein Aufbau.")]
+        [Min(0f)] [SerializeField] private float statusBuildup = 0f;
+
         [Tooltip("Nicht blockbar (rote Angriffe, Greifangriffe; GDD 03, 4.7).")]
         [SerializeField] private bool unblockable = false;
 
@@ -132,6 +138,7 @@ namespace Aetherfall.Combat
                 StaminaDamage = staminaDamage,
                 OverrideDamageType = overrideDamageType,
                 DamageType = damageType,
+                Buildup = statusBuildup > 0f ? StatusBuildup.None.With(statusEffect, statusBuildup) : StatusBuildup.None,
                 Unblockable = unblockable,
                 Unparryable = unparryable,
                 Shape = shape,

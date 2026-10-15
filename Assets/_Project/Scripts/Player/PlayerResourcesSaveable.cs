@@ -26,17 +26,20 @@ namespace Aetherfall.Player
         private readonly Health _health;
         private readonly ResourcePool _stamina;
         private readonly ResourcePool _mana;
+        private readonly StatusEffectController _status;
         private PlayerResourcesDto _loaded;
 
         /// <summary>Creates the saveable.</summary>
         /// <param name="health">Health of the player.</param>
         /// <param name="stamina">Stamina pool (null = not saved).</param>
         /// <param name="mana">Mana pool (null = not saved).</param>
-        public PlayerResourcesSaveable(Health health, ResourcePool stamina, ResourcePool mana) : base(Key, Order)
+        /// <param name="status">Status effects (the corruption bar is saved; null = not saved).</param>
+        public PlayerResourcesSaveable(Health health, ResourcePool stamina, ResourcePool mana, StatusEffectController status = null) : base(Key, Order)
         {
             _health = health ?? throw new ArgumentNullException(nameof(health));
             _stamina = stamina;
             _mana = mana;
+            _status = status;
         }
 
         /// <inheritdoc />
@@ -46,7 +49,8 @@ namespace Aetherfall.Player
             {
                 Health = _health.Current,
                 Stamina = _stamina != null ? _stamina.Current : 0f,
-                Mana = _mana != null ? _mana.Current : 0f
+                Mana = _mana != null ? _mana.Current : 0f,
+                Corruption = _status != null ? _status.Corruption : 0f
             };
         }
 
@@ -78,6 +82,12 @@ namespace Aetherfall.Player
                     _mana.Refill();
                 }
 
+                if (_status != null)
+                {
+                    _status.ClearEffects();
+                    _status.SetCorruption(0f);
+                }
+
                 return;
             }
 
@@ -87,6 +97,13 @@ namespace Aetherfall.Player
         private void Apply(PlayerResourcesDto data)
         {
             _health.RestoreState(Math.Max(1f, data.Health));
+            if (_status != null)
+            {
+                // Running effects are not saved (GDD 03 7: they are seconds long); the corruption bar stays.
+                _status.ClearEffects();
+                _status.SetCorruption(data.Corruption);
+            }
+
             if (_stamina != null)
             {
                 _stamina.SetCurrent(data.Stamina);

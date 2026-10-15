@@ -21,8 +21,8 @@ namespace Aetherfall.Player
     /// cast pose is set in the same frame). The menus "Testgelände/Eichental/Gruft erstellen" add it.</para>
     /// <para>Learned: from the world flag <c>unlockFlag</c> (Eichental: the Aether power from the rift in "Asche über
     /// Eichental"); empty = from the start (test ground). The flag lives in the world state and is saved with it.</para>
-    /// <para>Aim: the lock-on target, else the nearest enemy within the range plus one metre, else straight ahead. Corruption
-    /// (+2 per use) waits for the corruption system.</para>
+    /// <para>Aim: the lock-on target, else the nearest enemy within the range plus one metre, else straight ahead. Every use
+    /// adds +2 to the player's corruption bar (<see cref="Combatant.Status"/>, GDD 01 A3).</para>
     /// </remarks>
     [DefaultExecutionOrder(-45)]
     [DisallowMultipleComponent]
@@ -250,6 +250,9 @@ namespace Aetherfall.Player
             {
                 mana.Spend(_spec.ManaCost);
             }
+
+            // GDD 01 A3 / GDD 03 6.5: every use of an Aether ability adds +2 corruption.
+            combatant.Status.AddCorruption(_spec.Corruption);
 
             // The lock-on target may have moved during the wind-up.
             Combatant locked = combat != null ? combat.LockedTarget : null;

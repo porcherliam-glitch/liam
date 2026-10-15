@@ -32,6 +32,14 @@ namespace Aetherfall.EditorTools.World
             Steps.Enqueue(FireOnce());
             Steps.Enqueue(() => Capture("m02_feuergeschoss", ViewBehindPlayer));
             Steps.Enqueue(ReportBolt);
+            // GDD 03 7.2: three fire hits set a wolf alight (bolt 35 each); it burns 2 % per second and flees.
+            Steps.Enqueue(BurnWolf());
+            Steps.Enqueue(() => Capture("m02b_brennen", ViewBehindPlayer));
+            // GDD 03 6.6 #2: a fire bolt into the smithy's oil barrels - explosion, chain to the next barrel, burning puddle.
+            Steps.Enqueue(ExplodeBarrel("obj.eichental.oelfass_schmiede_1"));
+            Steps.Enqueue(() => Wait(0.35));
+            Steps.Enqueue(() => Capture("m02c_explosion", ViewBehindPlayer));
+            Steps.Enqueue(ReportExplosion);
             // The wolves fight back; drinking needs a calm moment (a stagger breaks it off).
             Steps.Enqueue(KillEnemiesInScene());
             Steps.Enqueue(WaitOutOfCombat);
@@ -195,6 +203,159 @@ namespace Aetherfall.EditorTools.World
             }
 
             return true;
+        }
+
+        private static ExplosiveObject _barrel;
+        private static ExplosiveObject _secondBarrel;
+
+        /// <summary>Fires bolts at a living wolf until it burns (at most 8), then checks the burning damage and the flight.</summary>
+        private static Func<bool> BurnWolf()
+        {
+            int phase = 0;
+            int shots = 0;
+            Combatant wolf = null;
+            float healthWhenLit = 0f;
+            return () =>
+            {
+                PlayerMotor player = FindPlayer();
+                PlayerCombatController combat = player != null ? player.GetComponent<PlayerCombatController>() : null;
+                if (combat == null)
+                {
+                    return Fail(true, "Keine Spielfigur.");
+                }
+
+                switch (phase)
+                {
+                    case 0:
+                        EnemyController enemy = Object.FindObjectsByType<EnemyController>(FindObjectsInactive.Exclude)
+                            .FirstOrDefault(e => e.GetComponent<Combatant>().IsAlive);
+                        if (enemy == null)
+                        {
+                            return Fail(Elapsed > 5.0, "Kein lebender Wolf zum Anzünden.");
+                        }
+
+                        wolf = enemy.GetComponent<Combatant>();
+                        // A grey wolf dies after two bolts: for the check it gets 1000 health, so the burning shows
+                        // (2 % per second = 20).
+                        wolf.Health.Pool.SetFixedMax(1000f);
+                        wolf.Health.RestoreState(1000f);
+                        Vector3 front = enemy.transform.forward;
+                        front.y = 0f;
+                        PlaceOnGround(enemy.transform.position + front.normalized * 8f, -front);
+                        phase = 1;
+                        _stepStart = UnityEditor.EditorApplication.timeSinceStartup;
+                        return false;
+                    case 1:
+                        if (!wolf.IsAlive)
+                        {
+                            return Fail(true, "Der Wolf starb, bevor er brannte (" + shots + " Geschosse).");
+                        }
+
+                        if (wolf.Status.IsBurning)
+                        {
+                            healthWhenLit = wolf.Health.Current;
+                            Note("Wolf (für die Prüfung 1000 LP) brennt nach " + shots + " Feuergeschossen (Aufbau 35 je Treffer): LP " + healthWhenLit.ToString("0") + ", Zustand: " +
+                                 wolf.GetComponent<EnemyController>().DebugStateText + ".");
+                            phase = 2;
+                            _stepStart = UnityEditor.EditorApplication.timeSinceStartup;
+                            return false;
+                        }
+
+                        if (shots >= 8)
+                        {
+                            return Fail(true, "Der Wolf brennt nach 8 Geschossen nicht (Brennen-Balken " + wolf.Status.Buildup(StatusEffectId.Burning).ToString("0") + ").");
+                        }
+
+                        if (Elapsed >= 0.65)
+                        {
+                            // Keep facing the wolf: it moves (and flees once it burns).
+                            Vector3 toWolf = wolf.transform.position - player.transform.position;
+                            toWolf.y = 0f;
+                            if (toWolf.magnitude > 12f)
+                            {
+                                PlaceOnGround(wolf.transform.position - toWolf.normalized * 8f, toWolf);
+                            }
+
+                            combat.QueueLightAttack();
+                            shots++;
+                            _stepStart = UnityEditor.EditorApplication.timeSinceStartup;
+                        }
+
+                        return false;
+                    default:
+                        if (Elapsed < 1.5)
+                        {
+                            return false;
+                        }
+
+                        float now = wolf.IsAlive ? wolf.Health.Current : 0f;
+                        Note("Brennen nach 1,5 s: LP " + healthWhenLit.ToString("0") + " → " + now.ToString("0") + " (2 % je s), noch " +
+                             wolf.Status.Remaining(StatusEffectId.Burning).ToString("0.0") + " s, Zustand: " + wolf.GetComponent<EnemyController>().DebugStateText + ".");
+                        return now < healthWhenLit || Fail(true, "Das Brennen macht keinen Schaden.");
+                }
+            };
+        }
+
+        /// <summary>Stands 7 m from the oil barrel and fires one bolt at it (the staff aims at the nearest combatant in the cone).</summary>
+        private static Func<bool> ExplodeBarrel(string objectId)
+        {
+            int phase = 0;
+            return () =>
+            {
+                PlayerMotor player = FindPlayer();
+                PlayerCombatController combat = player != null ? player.GetComponent<PlayerCombatController>() : null;
+                switch (phase)
+                {
+                    case 0:
+                        ExplosiveObject[] barrels = Object.FindObjectsByType<ExplosiveObject>(FindObjectsInactive.Exclude);
+                        _barrel = barrels.FirstOrDefault(b => b.ObjectId == objectId);
+                        if (_barrel == null || combat == null)
+                        {
+                            return Fail(Elapsed > 5.0, "Ölfass " + objectId + " nicht gefunden.");
+                        }
+
+                        _secondBarrel = barrels.Where(b => b != _barrel && b.Kind == ExplosiveKind.OilBarrel)
+                            .OrderBy(b => Vector3.Distance(b.transform.position, _barrel.transform.position)).FirstOrDefault();
+                        Vector3 side = Vector3.right;
+                        PlaceOnGround(_barrel.transform.position + side * 7f, -side);
+                        phase = 1;
+                        _stepStart = UnityEditor.EditorApplication.timeSinceStartup;
+                        return false;
+                    case 1:
+                        if (Elapsed < 0.5)
+                        {
+                            return false;
+                        }
+
+                        combat.QueueLightAttack();
+                        phase = 2;
+                        _stepStart = UnityEditor.EditorApplication.timeSinceStartup;
+                        return false;
+                    default:
+                        if (_barrel.HasDetonated)
+                        {
+                            Note("Ölfass " + objectId + " explodiert nach dem Feuergeschoss.");
+                            return true;
+                        }
+
+                        return Fail(Elapsed > 3.0, "Das Ölfass explodiert nicht (Geschoss daneben?).");
+                }
+            };
+        }
+
+        private static bool ReportExplosion()
+        {
+            if (_barrel == null)
+            {
+                return true;
+            }
+
+            ElementArea area = _barrel.GetComponentInChildren<ElementArea>(true);
+            bool chained = _secondBarrel != null && _secondBarrel.HasDetonated;
+            Note("Explosion: brennende Pfütze " + (area != null && area.Kind == ElementAreaKind.Fire ? "ja (" + area.Remaining.ToString("0.0") + " s)" : "nein") +
+                 ", zweites Fass mitgerissen: " + chained + (_secondBarrel != null ? " (" + Vector3.Distance(_barrel.transform.position, _secondBarrel.transform.position).ToString("0.0") + " m)" : string.Empty) + ".");
+            return (area != null && area.Kind == ElementAreaKind.Fire && (chained || _secondBarrel == null)) ||
+                   Fail(true, "Nach der Explosion fehlt die brennende Pfütze oder die Kettenreaktion.");
         }
 
         /// <summary>Spends mana, then drinks the mana potion of quick slot 6 and checks mana and bag.</summary>

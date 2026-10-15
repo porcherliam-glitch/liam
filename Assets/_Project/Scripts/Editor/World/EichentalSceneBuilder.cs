@@ -85,7 +85,8 @@ namespace Aetherfall.EditorTools.World
             nature.BuildFences(Group(village.transform, "Zäune"));
             nature.BuildFields(Group(village.transform, "Felder"));
             nature.BuildBridges(Group(village.transform, "Brücken"));
-            new EichentalPropBuilder(materials, meshes, heights, env, layers.Interactable, labelFont, report).BuildAll(layout, Group(village.transform, "Requisiten"));
+            new EichentalPropBuilder(materials, meshes, heights, env, layers.Interactable, layers.Hurtbox, labelFont, report)
+                .BuildAll(layout, Group(village.transform, "Requisiten"));
             nature.BuildRift(null);
 
             // Player and cameras (like the test ground, but on the layout's start point and with terrain as an obstacle).

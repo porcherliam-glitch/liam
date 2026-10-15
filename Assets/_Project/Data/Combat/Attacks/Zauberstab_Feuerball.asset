@@ -25,6 +25,8 @@ MonoBehaviour:
   staminaDamage: 30
   overrideDamageType: 0
   damageType: 0
+  statusEffect: 0
+  statusBuildup: 30
   unblockable: 0
   unparryable: 0
   shape: 0

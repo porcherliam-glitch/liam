@@ -86,6 +86,7 @@ namespace Aetherfall.EditorTools.World
 
             AddHurtbox(player.transform, "Hurtbox_Body", HitZone.Body, new Vector3(0f, 0.85f, 0f), new Vector3(0.6f, 1.3f, 0.6f), hurtboxLayer, report);
             AddHurtbox(player.transform, "Hurtbox_Head", HitZone.Head, new Vector3(0f, 1.62f, 0f), new Vector3(0.32f, 0.32f, 0.32f), hurtboxLayer, report);
+            StatusVisualsBuilder.Add(player, 1.8f, 0.4f, report);
 
             Hitbox hitbox = player.AddComponent<Hitbox>();
             TestGroundFields.SetReference(hitbox, "owner", combatant, report);
@@ -434,6 +435,21 @@ namespace Aetherfall.EditorTools.World
 
             BuildDummy(materials, hurtboxLayer, environmentLayer, labelFont, report);
 
+            // GDD 03 6.6: two oil barrels and a powder keg beside the dummy (fire bolt or torch → explosion, blow → oil puddle).
+            Material barrelWood = TestGroundAssets.EnsureMaterial("Fassholz", new Color(0.45f, 0.3f, 0.16f), report);
+            Material kegWood = TestGroundAssets.EnsureMaterial("Pulverfass", new Color(0.22f, 0.18f, 0.14f), report);
+            Material iron = TestGroundAssets.EnsureMaterial("Fasseisen", new Color(0.35f, 0.36f, 0.38f), report);
+            var explosives = new GameObject("Fässer");
+            explosives.transform.position = DummyPosition;
+            ExplosiveBuilder.BuildOilBarrel(explosives.transform, "Ölfass 1", "obj.test.oelfass_1", new Vector3(4f, 0f, 1.5f), barrelWood, iron, hurtboxLayer,
+                environmentLayer, report);
+            ExplosiveBuilder.BuildOilBarrel(explosives.transform, "Ölfass 2", "obj.test.oelfass_2", new Vector3(5.2f, 0f, 2.6f), barrelWood, iron, hurtboxLayer,
+                environmentLayer, report);
+            ExplosiveBuilder.BuildPowderKeg(explosives.transform, "Pulverfass", "obj.test.pulverfass", new Vector3(-4.5f, 0f, 2.5f), kegWood, iron, hurtboxLayer,
+                environmentLayer, report);
+            CreateLabel(explosives.transform, "Ölfässer: Schlag = Ölpfütze, Feuer = Explosion", new Vector3(4.5f, 2f, 2f), labelFont);
+            report.Info("Fässer neben der Puppe: 2 Ölfässer (Schlag → Ölpfütze 3 m, Feuer → Explosion 3 m, brennt 8 s) und 1 Pulverfass (Feuer → 5 m, Haltung 100).");
+
             EnemyController wolf1 = BuildWolf(arena.transform, "Grauwolf 1", "1", assets.Wolf, materials.Wolf, materials, new Vector3(-2f, 0f, 2f),
                 160f, true, null, enemyLayer, hurtboxLayer, environmentLayer, report);
             var patrolA = CreateChild(arena.transform, "Patrouille A", new Vector3(6f, 0f, 2f));
@@ -596,6 +612,7 @@ namespace Aetherfall.EditorTools.World
 
             AddHurtbox(body, "Hurtbox_Body", HitZone.Body, new Vector3(0f, 0.25f, 0.3f), new Vector3(0.6f, 0.65f, 1.35f), hurtboxLayer, report);
             AddHurtbox(body, "Hurtbox_Head", HitZone.Head, new Vector3(0f, 0.5f, 1.12f), new Vector3(0.42f, 0.42f, 0.55f), hurtboxLayer, report);
+            StatusVisualsBuilder.Add(wolf, 0.9f, 1.3f, report);
             GameObject core = null;
             if (definition != null && definition.HasCrystalCore)
             {

@@ -103,6 +103,7 @@ namespace Aetherfall.EditorTools.World
             TestGroundFields.SetString(damageable, "ownerId", GruftPaths.SkeletonTypeId + "#" + number, ctx.Report);
             Combatant combatant = AddCombatant(ctx, root, damageable, flash, 1f);
             AddHurtboxes(ctx, root.transform, body, 1f);
+            StatusVisualsBuilder.Add(root, 1.8f, 0.4f, ctx.Report);
             Hitbox hitbox = AddHitbox(ctx, root, combatant);
 
             EnemyController enemy = root.AddComponent<EnemyController>();
@@ -151,6 +152,7 @@ namespace Aetherfall.EditorTools.World
             TestGroundFields.SetString(combatant, "combatantId", arena.BossId, ctx.Report);
             TestGroundFields.SetString(combatant, "typeId", arena.EnemyType, ctx.Report);
             AddHurtboxes(ctx, root.transform, body, scale);
+            StatusVisualsBuilder.Add(root, 1.8f * scale, 0.4f * scale, ctx.Report);
             Hitbox hitbox = AddHitbox(ctx, root, combatant);
 
             Transform adds = GruftParts.Empty(group, "Ruf des Ritters", Vector3.zero);

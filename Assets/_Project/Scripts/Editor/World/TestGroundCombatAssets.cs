@@ -247,6 +247,9 @@ namespace Aetherfall.EditorTools.World
             spec.ProjectileSpeed = 30f;
             spec.ProjectileRange = 25f;
             spec.ProjectileRadius = 0.25f;
+            // GDD 03 7.2: fire sources build up burning (Vorschlag for the bolt: 35 like the fire arrow, so the third fire hit sets
+            // a target alight; 25 needed four, and a grey wolf dies after two bolts).
+            spec.Buildup = StatusBuildup.None.With(StatusEffectId.Burning, 35f);
             return spec;
         }
 
@@ -265,6 +268,8 @@ namespace Aetherfall.EditorTools.World
             spec.ProjectileSpeed = 22f;
             spec.ProjectileRange = 25f;
             spec.ProjectileRadius = 0.45f;
+            // GDD 03 7.2: fireball burning 30.
+            spec.Buildup = StatusBuildup.None.With(StatusEffectId.Burning, 30f);
             return spec;
         }
 
@@ -475,6 +480,53 @@ namespace Aetherfall.EditorTools.World
         }
 
         private static AttackDefinition EnsureAttack(string fileName, AttackSpec spec, TestGroundReport report)
+        {
+            AttackDefinition attack = EnsureAttackAsset(fileName, spec, report);
+            if (attack != null)
+            {
+                SetStatusBuildup(attack, spec, report);
+            }
+
+            return attack;
+        }
+
+        /// <summary>
+        /// Status build-up of an attack (GDD 03 7.1), written on every run, also to attacks created by an earlier run (the staff
+        /// bolts got their burning after the status effects existed).
+        /// </summary>
+        private static void SetStatusBuildup(AttackDefinition attack, AttackSpec spec, TestGroundReport report)
+        {
+            StatusEffectId effect = StatusEffectId.Burning;
+            float amount = 0f;
+            for (int i = 0; i < 8; i++)
+            {
+                float value = spec.Buildup.Get((StatusEffectId)i);
+                if (value > amount)
+                {
+                    effect = (StatusEffectId)i;
+                    amount = value;
+                }
+            }
+
+            var so = new SerializedObject(attack);
+            SerializedProperty current = so.FindProperty("statusBuildup");
+            SerializedProperty currentEffect = so.FindProperty("statusEffect");
+            if (current == null || currentEffect == null || (Mathf.Approximately(current.floatValue, amount) && currentEffect.intValue == (int)effect))
+            {
+                return;
+            }
+
+            Set(so, "statusEffect", (int)effect, report);
+            Set(so, "statusBuildup", amount, report);
+            so.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(attack);
+            if (amount > 0f)
+            {
+                report.Info(attack.name + ": Statusaufbau " + effect + " " + amount.ToString("0") + ".");
+            }
+        }
+
+        private static AttackDefinition EnsureAttackAsset(string fileName, AttackSpec spec, TestGroundReport report)
         {
             string path = TestGroundPaths.AttackFolder + "/" + fileName + ".asset";
             return EnsureAsset<AttackDefinition>(path, report, asset =>

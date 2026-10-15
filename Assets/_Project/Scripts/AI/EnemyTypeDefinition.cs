@@ -68,6 +68,12 @@ namespace Aetherfall.AI
         [Tooltip("Resistenzen und Schwächen (Grauwolf: Feuer −0,5).")]
         [SerializeField] private List<ResistanceEntry> resistances = new List<ResistanceEntry>();
 
+        [Tooltip("Familie (GDD 03, 7.2): Tiere und Schwärme fliehen 2 s vor Brennen; Untote und Konstrukte sind immun gegen Gift und Blutung.")]
+        [SerializeField] private EnemyKind kind = EnemyKind.Beast;
+
+        [Tooltip("Statusresistenz (GDD 03, 7.1): Normal 0, Elite 50, Champion 100, Boss 200–400. Schwelle = 100 × (1 + Res/100).")]
+        [Min(0f)] [SerializeField] private float statusResistance = 0f;
+
         [Header("Aether-verderbt (GDD 01, 11.2)")]
         [Tooltip("Zusätzlicher Schaden als Aether-Anteil (Aether-verderbt: 0,25 = +25 %).")]
         [Range(0f, 1f)] [SerializeField] private float aetherDamageShare = 0f;
@@ -168,6 +174,15 @@ namespace Aetherfall.AI
 
         /// <summary>Additional damage share as Aether (Aether-corrupted: 0.25).</summary>
         public float AetherDamageShare => aetherDamageShare;
+
+        /// <summary>Family of the enemy (status reactions and immunities).</summary>
+        public EnemyKind Kind => kind;
+
+        /// <summary>Status resistance (threshold = 100 × (1 + Res/100)).</summary>
+        public float StatusResistance => statusResistance;
+
+        /// <summary>True for Aether-corrupted variants (immune to the corruption bar, hits add +5 corruption).</summary>
+        public bool IsAetherCorrupted => aetherDamageShare > 0f || variantId == "aether_verderbt";
 
         /// <summary>Poise value of the own attacks.</summary>
         public float AttackPoise => attackPoise;

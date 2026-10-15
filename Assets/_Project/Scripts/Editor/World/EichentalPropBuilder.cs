@@ -18,6 +18,7 @@ namespace Aetherfall.EditorTools.World
         private readonly LayoutHeightField _heights;
         private readonly int _environmentLayer;
         private readonly int _interactableLayer;
+        private readonly int _hurtboxLayer;
         private readonly Font _labelFont;
         private readonly TestGroundReport _report;
 
@@ -27,16 +28,18 @@ namespace Aetherfall.EditorTools.World
         /// <param name="heights">Terrain heights.</param>
         /// <param name="environmentLayer">Environment layer (colliders).</param>
         /// <param name="interactableLayer">Interactable layer or −1 (notice board).</param>
+        /// <param name="hurtboxLayer">Hurtbox layer or −1 (oil barrels and powder kegs).</param>
         /// <param name="labelFont">Font of the signs (may be null).</param>
         /// <param name="report">Protocol.</param>
         public EichentalPropBuilder(EichentalMaterials materials, EichentalMeshLibrary meshes, LayoutHeightField heights, int environmentLayer,
-            int interactableLayer, Font labelFont, TestGroundReport report)
+            int interactableLayer, int hurtboxLayer, Font labelFont, TestGroundReport report)
         {
             _materials = materials;
             _meshes = meshes;
             _heights = heights;
             _environmentLayer = environmentLayer;
             _interactableLayer = interactableLayer;
+            _hurtboxLayer = hurtboxLayer;
             _labelFont = labelFont;
             _report = report;
         }
@@ -47,8 +50,16 @@ namespace Aetherfall.EditorTools.World
         public void BuildAll(RegionLayout layout, Transform parent)
         {
             int boards = 0;
+            int explosives = 0;
             foreach (LayoutProp prop in layout.Props)
             {
+                if (prop.Kind == PropKind.OilBarrel || prop.Kind == PropKind.PowderKeg)
+                {
+                    BuildExplosive(prop, parent);
+                    explosives++;
+                    continue;
+                }
+
                 GameObject go = Build(prop, parent);
                 if (prop.Kind == PropKind.NoticeBoard)
                 {
@@ -58,7 +69,26 @@ namespace Aetherfall.EditorTools.World
             }
 
             _report.Info("Requisiten: " + layout.Props.Count + " (Brunnen, Lagerfeuer, Karren, Zelte, Sperren an den Wegen aus der Karte, " +
-                         boards + " Anschlagbrett, Gruft-Eingang mit Portal).");
+                         boards + " Anschlagbrett, Gruft-Eingang mit Portal, " + explosives + " Öl- und Pulverfässer).");
+        }
+
+        private void BuildExplosive(LayoutProp prop, Transform parent)
+        {
+            float x = (float)prop.Position.X;
+            float z = (float)prop.Position.Z;
+            Material wood = _materials.Fixed("barrelWood", new Color(0.45f, 0.3f, 0.16f), 0.25f);
+            Material keg = _materials.Fixed("powderKeg", new Color(0.22f, 0.18f, 0.14f), 0.2f);
+            Material iron = _materials.Fixed("barrelIron", new Color(0.35f, 0.36f, 0.38f), 0.4f, 0.6f);
+            string name = prop.Name.Length > 0 ? prop.Name + " (" + prop.Id + ")" : prop.Id;
+            Vector3 position = new Vector3(x, (float)_heights.Height(x, z), z);
+            if (prop.Kind == PropKind.PowderKeg)
+            {
+                ExplosiveBuilder.BuildPowderKeg(parent, name, prop.Id, position, keg, iron, _hurtboxLayer, _environmentLayer, _report);
+            }
+            else
+            {
+                ExplosiveBuilder.BuildOilBarrel(parent, name, prop.Id, position, wood, iron, _hurtboxLayer, _environmentLayer, _report);
+            }
         }
 
         private GameObject Build(LayoutProp prop, Transform parent)

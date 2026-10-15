@@ -194,6 +194,7 @@ namespace Aetherfall.EditorTools.World
             int arrowsBefore = 0;
             float staminaBefore = 0f;
             int shotsBefore = 0;
+            int attempts = 0;
             return () =>
             {
                 PlayerMotor player = FindPlayer();
@@ -254,7 +255,23 @@ namespace Aetherfall.EditorTools.World
                             return Fail(true, "Der Schuss hat keinen Pfeil verbraucht.");
                         }
 
-                        return hit != null || Fail(true, "Der Pfeil hat den Wolf verfehlt.");
+                        if (hit != null)
+                        {
+                            return true;
+                        }
+
+                        // A wounded wolf flees and runs about a metre during the flight: stand in front of it again and retry.
+                        attempts++;
+                        if (attempts >= MaxShotsPerTarget)
+                        {
+                            return Fail(true, "Der Pfeil hat den Wolf " + attempts + " Mal verfehlt.");
+                        }
+
+                        Vector3 front = wolf.transform.forward;
+                        front.y = 0f;
+                        PlaceOnGround(wolf.transform.position + front.normalized * 10f, -front);
+                        phase = 0;
+                        return false;
                     default:
                         return true;
                 }

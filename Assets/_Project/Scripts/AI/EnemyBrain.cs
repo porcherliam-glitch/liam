@@ -44,6 +44,7 @@ namespace Aetherfall.AI
         private float _circleFlipTimer;
         private bool _hasFled;
         private bool _stunAllowsFinisher;
+        private float _forcedFleeSeconds;
 
         /// <summary>Creates the brain in its base state (patrol, or guard).</summary>
         /// <param name="settings">Behaviour values (validated).</param>
@@ -218,6 +219,24 @@ namespace Aetherfall.AI
             _stunAllowsFinisher = allowsFinisher;
             _detection.Set(100f);
             ChangeState(EnemyStateId.Stunned);
+        }
+
+        /// <summary>
+        /// Makes the enemy run from its target for a while (burning animals, GDD 03 7.2). A running attack is cancelled; a
+        /// stunned or dead enemy ignores it.
+        /// </summary>
+        /// <param name="seconds">How long it flees.</param>
+        public void NotifyFlee(float seconds)
+        {
+            if (State == EnemyStateId.Dead || State == EnemyStateId.Stunned || !(seconds > 0f))
+            {
+                return;
+            }
+
+            _forcedFleeSeconds = seconds;
+            _runner.Cancel();
+            ReleaseToken();
+            ChangeState(EnemyStateId.Flee);
         }
 
         /// <summary>The enemy died.</summary>
@@ -557,8 +576,10 @@ namespace Aetherfall.AI
 
         private void TickFlee(in EnemySenses senses)
         {
-            if (StateTime >= _settings.FleeSeconds)
+            float limit = _forcedFleeSeconds > 0f ? _forcedFleeSeconds : _settings.FleeSeconds;
+            if (StateTime >= limit)
             {
+                _forcedFleeSeconds = 0f;
                 bool cornered = senses.HasTarget && senses.Self.DistanceTo(senses.Target) <= StandOffDistance;
                 if (cornered)
                 {

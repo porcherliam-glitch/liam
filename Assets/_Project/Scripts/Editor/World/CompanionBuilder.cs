@@ -89,6 +89,7 @@ namespace Aetherfall.EditorTools.World
                 hurtboxLayer, report);
             TestGroundCombatBuilder.AddHurtbox(root.transform, "Hurtbox_Head", HitZone.Head, new Vector3(0f, 1.65f, 0f), new Vector3(0.32f, 0.32f, 0.32f),
                 hurtboxLayer, report);
+            StatusVisualsBuilder.Add(root, 1.8f, 0.4f, report);
 
             Hitbox hitbox = root.AddComponent<Hitbox>();
             TestGroundFields.SetReference(hitbox, "owner", combatant, report);

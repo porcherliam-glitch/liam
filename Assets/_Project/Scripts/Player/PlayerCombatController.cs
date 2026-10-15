@@ -528,6 +528,11 @@ namespace Aetherfall.Player
             {
                 health.Died += OnDied;
             }
+
+            if (combatant != null)
+            {
+                combatant.Status.Triggered += OnStatusTriggered;
+            }
         }
 
         private void OnDisable()
@@ -536,6 +541,32 @@ namespace Aetherfall.Player
             if (health != null)
             {
                 health.Died -= OnDied;
+            }
+
+            if (combatant != null)
+            {
+                combatant.Status.Triggered -= OnStatusTriggered;
+            }
+        }
+
+        private void OnStatusTriggered(StatusEffectId effect)
+        {
+            if (_machine == null)
+            {
+                return;
+            }
+
+            switch (effect)
+            {
+                case StatusEffectId.Stun:
+                case StatusEffectId.Freezing:
+                    // GDD 03 7.2: helpless for 1.2 s (stun) or 1.5 s (frozen); the knockdown is the longest stagger (1.2 s).
+                    _machine.ForceStagger(StaggerKind.Knockdown);
+                    break;
+                case StatusEffectId.Shock:
+                    // Interrupts the running attack or charge, 0.8 s stagger (the stagger state lasts 0.5 s).
+                    _machine.ForceStagger(StaggerKind.Stagger);
+                    break;
             }
         }
 
@@ -775,6 +806,12 @@ namespace Aetherfall.Player
 
         private void OnDodgeStarted(bool roll)
         {
+            if (roll)
+            {
+                // GDD 03 7.2: a roll shortens burning by 1.5 s.
+                combatant.Status.ShortenBurning(1.5f);
+            }
+
             float yaw = motor.Model != null ? motor.Model.Yaw : transform.eulerAngles.y;
             MotionVector direction = MotionVector.Zero;
             if (roll && _gameplay != null)

@@ -109,7 +109,9 @@ namespace Aetherfall.Player
 
                 locator.TryGet(out IEventBus eventBus);
                 _location = new PlayerLocationSaveable(this, eventBus);
-                _resources = new PlayerResourcesSaveable(health.Health, stats != null ? stats.Stamina : null, stats != null ? stats.Mana : null);
+                TryGetComponent(out Combatant combatant);
+                _resources = new PlayerResourcesSaveable(health.Health, stats != null ? stats.Stamina : null, stats != null ? stats.Mana : null,
+                    combatant != null ? combatant.Status : null);
                 saves.Register(_resources);
                 saves.Register(_location);
                 saves.RegisterHeaderContributor(_location);

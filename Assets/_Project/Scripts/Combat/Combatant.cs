@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Aetherfall.Core;
 using Aetherfall.Events;
 using Aetherfall.Stats;
@@ -68,9 +69,18 @@ namespace Aetherfall.Combat
         [Tooltip("Treffer-Blitz (Farbe) an den Körper-Renderern. Optional.")]
         [SerializeField] private HitFlash hitFlash = null;
 
+        private const string BurnSourceId = "effect.brennen";
+        private const string PoisonSourceId = "effect.gift";
+        private const string CorruptionSourceId = "effect.aether_verderbnis";
+
         private ICombatService _service;
         private ICombatantController _controller;
         private PoiseMeter _poise;
+        private StatusEffectController _status;
+        private AttackSpec _burstAttack;
+        private float _burnCarry;
+        private float _poisonCarry;
+        private float _corruptionCarry;
         private readonly HitStopTimer _hitStop = new HitStopTimer();
         private ResistanceProfile _resistances;
         private DamageCalculator _fallbackCalculator;
@@ -101,6 +111,20 @@ namespace Aetherfall.Combat
 
         /// <summary>Poise meter (null if <c>usePoiseMeter</c> is off).</summary>
         public PoiseMeter Poise => _poise;
+
+        /// <summary>Status effects of this combatant (burning, stun, corruption …; GDD 03 7). Created on first use.</summary>
+        public StatusEffectController Status
+        {
+            get
+            {
+                if (_status == null)
+                {
+                    _status = new StatusEffectController(team == CombatTeam.Player ? StatusSettings.Player : StatusSettings.Enemy);
+                }
+
+                return _status;
+            }
+        }
 
         /// <summary>Local hitstop of this combatant.</summary>
         public HitStopTimer HitStop => _hitStop;
@@ -177,9 +201,18 @@ namespace Aetherfall.Combat
             }
         }
 
+        /// <summary>Sets the status rules of an enemy type or boss (resistance, boss immunities; GDD 03 7.1).</summary>
+        /// <param name="settings">Rules.</param>
+        /// <param name="corruptionImmune">True for Aether-corrupted variants (no corruption bar).</param>
+        public void ConfigureStatus(in StatusSettings settings, bool corruptionImmune)
+        {
+            Status.Configure(settings);
+            Status.CorruptionImmune = corruptionImmune;
+        }
+
         /// <summary>
-        /// Advances hitstop and poise and returns the local combat time of this frame (0 while frozen). Call once per frame
-        /// from the owner's update.
+        /// Advances hitstop, poise and status effects (burning and poison damage, corruption) and returns the local combat
+        /// time of this frame (0 while frozen). Call once per frame from the owner's update.
         /// </summary>
         /// <param name="deltaTime">Frame time.</param>
         public float Tick(float deltaTime)
@@ -190,7 +223,112 @@ namespace Aetherfall.Combat
                 _poise.Tick(local);
             }
 
+            if (_status != null && local > 0f)
+            {
+                TickStatus(local);
+            }
+
             return local;
+        }
+
+        private void TickStatus(float local)
+        {
+            Health health = Health;
+            if (stats != null)
+            {
+                _status.ExternalResistance = stats.Stats.Get(StatId.StatusResistance);
+            }
+
+            StatusTick tick = _status.Tick(local, health != null ? health.Max : 0f);
+            if (health == null || !health.IsAlive)
+            {
+                return;
+            }
+
+            // Whole points only, so the damage numbers do not show fractions every frame.
+            ApplyStatusDamage(ref _burnCarry, tick.BurnDamage, BurnSourceId, DamageType.Fire);
+            ApplyStatusDamage(ref _poisonCarry, tick.PoisonDamage, PoisonSourceId, DamageType.Poison);
+            ApplyStatusDamage(ref _corruptionCarry, tick.CorruptionDamage, CorruptionSourceId, DamageType.Aether);
+            if (tick.CorruptionBurst)
+            {
+                BurstCorruption();
+            }
+        }
+
+        private void ApplyStatusDamage(ref float carry, float amount, string sourceId, DamageType type)
+        {
+            carry += amount;
+            if (carry < 1f)
+            {
+                return;
+            }
+
+            int whole = (int)carry;
+            carry -= whole;
+            damageable.ApplyDamage(new DamageInfo(whole, sourceId, type));
+        }
+
+        /// <summary>
+        /// Aether-Ausbruch of an enemy whose corruption bar reached 100 (GDD 03 7.2): 10 % of its max health as Aether damage to
+        /// itself and to everyone within 3 m, 2 s stunned.
+        /// </summary>
+        private void BurstCorruption()
+        {
+            Health health = Health;
+            if (health == null)
+            {
+                return;
+            }
+
+            float amount = health.Max * StatusEffectController.BurstFraction;
+            damageable.ApplyDamage(new DamageInfo(amount, CorruptionSourceId, DamageType.Aether));
+            if (_poise != null)
+            {
+                _poise.Stun(StatusEffectController.BurstStunSeconds, false);
+            }
+
+            if (_service == null)
+            {
+                return;
+            }
+
+            if (_burstAttack == null)
+            {
+                _burstAttack = AttackSpec.Create("attack.status.aether_ausbruch", 0.01f, 0.05f, 0.1f);
+                _burstAttack.Kind = AttackKind.Enemy;
+                _burstAttack.IsExplosion = true;
+                _burstAttack.StaminaCost = 0f;
+                _burstAttack.KnockbackDistance = 1f;
+                _burstAttack.Buildup = StatusBuildup.None.With(StatusEffectId.Stun, 30f);
+            }
+
+            var profile = new AttackProfile(DamagePacket.Single(DamageType.Aether, amount), AttributeScaling.None, 30f);
+            Vector3 origin = transform.position;
+            IReadOnlyList<Combatant> all = _service.Combatants;
+            for (int i = 0; i < all.Count; i++)
+            {
+                Combatant other = all[i];
+                if (other == null || other == this || !other.IsAlive || !CombatTeams.CanDamage(team, other.Team))
+                {
+                    continue;
+                }
+
+                Vector3 point = other.transform.position;
+                if (CombatMath.PlanarDistance(origin.x, origin.z, point.x, point.z) > StatusEffectController.BurstRadius + 0.5f)
+                {
+                    continue;
+                }
+
+                other.ReceiveHit(new IncomingHit
+                {
+                    Attacker = this,
+                    Attack = _burstAttack,
+                    Profile = profile,
+                    Zone = HitZone.Body,
+                    Point = other.TargetPosition,
+                    AttackerPosition = origin
+                });
+            }
         }
 
         /// <summary>Attacker values at this moment (stats, or level only).</summary>
@@ -209,6 +347,12 @@ namespace Aetherfall.Combat
             if (stats == null)
             {
                 snapshot.Resistances = _resistances;
+            }
+
+            if (_status != null)
+            {
+                // GDD 03 7.2: a stunned target takes +20 % damage.
+                snapshot.IncomingDamageMultiplier *= _status.IncomingDamageMultiplier;
             }
 
             snapshot.Block = block;
@@ -257,6 +401,8 @@ namespace Aetherfall.Combat
             request.Zone = hit.Zone;
             // GDD 03 8.2: head hits of projectiles count ×1.75 instead of ×1.5.
             request.IsRanged = hit.Attack.IsProjectile;
+            request.IsExplosion = hit.Attack.IsExplosion;
+            request.Buildup = hit.Attack.Buildup.Plus(hit.Profile.Buildup);
             request.WeaponPoise = hit.Profile.WeaponPoise;
             request.PoiseMultiplier = hit.Attack.PoiseMultiplier;
             request.StaminaDamage = hit.Attack.StaminaDamage;
@@ -299,6 +445,11 @@ namespace Aetherfall.Combat
                 report.Poise = _poise.ApplyDamage(result.PoiseDamage);
             }
 
+            if (!result.Buildup.IsEmpty && !report.Killed && defense != DefenseOutcome.Parried && !damageable.IsInvulnerable)
+            {
+                ApplyStatus(result.Buildup, defense == DefenseOutcome.Blocked);
+            }
+
             report.Stagger = _controller != null ? _controller.OnHitResolved(report) : StaggerKind.None;
             if (report.Poise == PoiseOutcome.Broken)
             {
@@ -311,6 +462,23 @@ namespace Aetherfall.Combat
 
             Finish(ref report);
             return report;
+        }
+
+        /// <summary>Status build-up of a hit (GDD 03 7.1): half through a block; a boss turns stun build-up into poise damage.</summary>
+        private void ApplyStatus(in StatusBuildup buildup, bool blocked)
+        {
+            StatusEffectController status = Status;
+            StatusBuildup applied = blocked ? buildup.Scaled(0.5f) : buildup;
+            if (status.Settings.IsBoss && _poise != null)
+            {
+                float stun = applied.Get(StatusEffectId.Stun);
+                if (stun > 0f)
+                {
+                    _poise.ApplyDamage(stun);
+                }
+            }
+
+            status.Apply(applied);
         }
 
         /// <summary>Applies poise damage from a parry (GDD 03 4.8) and opens this combatant for a counter.</summary>
@@ -344,6 +512,15 @@ namespace Aetherfall.Combat
             {
                 _poise.Reset();
             }
+
+            if (_status != null)
+            {
+                _status.ClearEffects();
+            }
+
+            _burnCarry = 0f;
+            _poisonCarry = 0f;
+            _corruptionCarry = 0f;
         }
 
         /// <summary>Full health, full poise, no hitstop (respawn).</summary>

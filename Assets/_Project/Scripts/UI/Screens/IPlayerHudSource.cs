@@ -26,6 +26,9 @@ namespace Aetherfall.UI.Screens
         /// <summary>Yaw of the camera in degrees (compass heading).</summary>
         float CameraYaw { get; }
 
+        /// <summary>Running status effects and the corruption stage as one line ("Brennen 4 s · Verderbnis 35 (Berührt)"); empty if none.</summary>
+        string StatusText { get; }
+
         /// <summary>True if the player can be respawned at the spawn point.</summary>
         bool CanRespawn { get; }
 

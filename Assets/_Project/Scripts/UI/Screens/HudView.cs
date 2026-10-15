@@ -57,6 +57,7 @@ namespace Aetherfall.UI.Screens
         private readonly VisualElement _manaFill;
         private readonly VisualElement _manaTrail;
         private readonly Label _exhausted;
+        private readonly Label _status;
         private readonly VisualElement _targetPanel;
         private readonly Label _targetName;
         private readonly VisualElement _targetFill;
@@ -118,6 +119,7 @@ namespace Aetherfall.UI.Screens
             _manaFill = root.Q<VisualElement>("hud-mana-fill");
             _manaTrail = root.Q<VisualElement>("hud-mana-trail");
             _exhausted = root.Q<Label>("hud-stamina-exhausted");
+            _status = root.Q<Label>("hud-status");
             _targetPanel = root.Q<VisualElement>("hud-target");
             _targetName = root.Q<Label>("hud-target-name");
             _targetFill = root.Q<VisualElement>("hud-target-health-fill");
@@ -150,6 +152,7 @@ namespace Aetherfall.UI.Screens
             _crosshairDraw = root.Q<VisualElement>("hud-crosshair-draw");
             _arrows = root.Q<Label>("hud-arrows");
             UiElementUtility.SetDisplayed(_exhausted, false);
+            UiElementUtility.SetDisplayed(_status, false);
             UiElementUtility.SetDisplayed(_targetPanel, false);
             UiElementUtility.SetDisplayed(_prompt, false);
             UiElementUtility.SetDisplayed(_crosshair, false);
@@ -287,6 +290,7 @@ namespace Aetherfall.UI.Screens
             UiElementUtility.SetDisplayed(_quickSlots, _rules.ShowQuickSlots);
             UiElementUtility.SetDisplayed(_compass, _rules.ShowCompass);
             UpdateExhausted(exhausted, deltaTime);
+            UpdateStatus(source.StatusText, _rules.ShowHealth);
             UpdateTarget(hasTarget && !_targetHidden, target, deltaTime);
             UpdatePrompt(source.InteractionPrompt);
             UpdateCompass(source.CameraYaw);
@@ -372,12 +376,23 @@ namespace Aetherfall.UI.Screens
             }
         }
 
+        private void UpdateStatus(string text, bool show)
+        {
+            bool visible = show && !string.IsNullOrEmpty(text);
+            UiElementUtility.SetDisplayed(_status, visible);
+            if (visible)
+            {
+                UiElementUtility.SetText(_status, text);
+            }
+        }
+
         private void SetPlayerElementsVisible(bool visible)
         {
             UiElementUtility.SetDisplayed(_healthBar, visible);
             UiElementUtility.SetDisplayed(_staminaBar, visible);
             UiElementUtility.SetDisplayed(_manaBar, visible);
             UiElementUtility.SetDisplayed(_exhausted, visible);
+            UiElementUtility.SetDisplayed(_status, visible);
             UiElementUtility.SetDisplayed(_abilities, visible);
             UiElementUtility.SetDisplayed(_quickSlots, visible);
         }

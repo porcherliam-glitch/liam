@@ -133,13 +133,63 @@ namespace Aetherfall.AI
             float damage = definition != null ? definition.Damage : 10f;
             DamageType type = attack != null && attack.OverrideDamageType ? attack.DamageType : definition != null ? definition.DamageType : DamageType.Stab;
             DamagePacket packet = DamagePacket.Single(type, damage);
+            StatusBuildup buildup = StatusBuildup.None;
             if (definition != null && definition.AetherDamageShare > 0f && !_coreBroken)
             {
-                // Aether-corrupted (GDD 01 11.2): +25 % damage as Aether damage.
+                // Aether-corrupted (GDD 01 11.2): +25 % damage as Aether damage; every hit +5 corruption (GDD 01 A3).
                 packet = packet.With(DamageType.Aether, damage * definition.AetherDamageShare);
+                buildup = buildup.With(StatusEffectId.AetherCorruption, 5f);
             }
 
-            return new AttackProfile(packet, AttributeScaling.None, definition != null ? definition.AttackPoise : 10f);
+            return new AttackProfile(packet, AttributeScaling.None, definition != null ? definition.AttackPoise : 10f, buildup);
+        }
+
+        /// <summary>
+        /// Status rules of the type (GDD 03 7.1–7.2): resistance from the data, immunities of the family, no corruption bar
+        /// for Aether-corrupted variants.
+        /// </summary>
+        private void ConfigureStatus()
+        {
+            StatusEffectController status = _combatant.Status;
+            _combatant.ConfigureStatus(StatusSettings.Enemy.WithResistance(definition.StatusResistance), definition.IsAetherCorrupted);
+            bool noBlood = definition.Kind == EnemyKind.Undead || definition.Kind == EnemyKind.Construct || definition.Kind == EnemyKind.Spirit;
+            status.SetImmune(StatusEffectId.Bleeding, noBlood);
+            status.SetImmune(StatusEffectId.Poison, definition.Kind == EnemyKind.Undead || definition.Kind == EnemyKind.Construct);
+        }
+
+        private void OnStatusTriggered(StatusEffectId effect)
+        {
+            if (_brain == null || !_combatant.IsAlive)
+            {
+                return;
+            }
+
+            switch (effect)
+            {
+                case StatusEffectId.Stun:
+                    // GDD 03 7.2: helpless, no finisher (that stays with the poise break).
+                    _combatant.Poise?.Stun(_combatant.Status.Settings.StunSeconds, false);
+                    _brain.NotifyStunned(_combatant.Status.Settings.StunSeconds, false);
+                    break;
+                case StatusEffectId.Shock:
+                    // Interrupts the running attack, 0.8 s stagger.
+                    _brain.NotifyStunned(StatusEffectController.ShockStaggerSeconds, false);
+                    break;
+                case StatusEffectId.Burning:
+                    if (definition.Kind == EnemyKind.Beast || definition.Kind == EnemyKind.Swarm)
+                    {
+                        _brain.NotifyFlee(2f);
+                    }
+
+                    break;
+                case StatusEffectId.Freezing:
+                    if (!_combatant.Status.Settings.IsBoss)
+                    {
+                        _brain.NotifyStunned(_combatant.Status.Settings.FreezeSeconds, false);
+                    }
+
+                    break;
+            }
         }
 
         /// <inheritdoc />
@@ -318,6 +368,7 @@ namespace Aetherfall.AI
             string id = !string.IsNullOrEmpty(uniqueId) ? uniqueId : definition.EnemyTypeId + "#" + instanceNumber;
             _combatant.Configure(definition.Level, definition.Armor, definition.CreateResistances(), definition.MaxPoise, PoiseSettings.Normal, id,
                 definition.EnemyTypeId, definition.ParryPoiseLoss);
+            ConfigureStatus();
             Health health = _combatant.Health;
             if (health != null)
             {
@@ -383,6 +434,11 @@ namespace Aetherfall.AI
             {
                 health.Died += OnDied;
             }
+
+            if (_combatant != null)
+            {
+                _combatant.Status.Triggered += OnStatusTriggered;
+            }
         }
 
         private void OnDisable()
@@ -397,6 +453,11 @@ namespace Aetherfall.AI
             if (health != null)
             {
                 health.Died -= OnDied;
+            }
+
+            if (_combatant != null)
+            {
+                _combatant.Status.Triggered -= OnStatusTriggered;
             }
 
             ReportEngagement(false);

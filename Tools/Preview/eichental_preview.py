@@ -1029,6 +1029,10 @@ def build_prop(b, p):
     elif k == "barrel":
         for i in range(3):
             b.cyl("Fass", col, 0.4, 1.0, ((i - 1) * 0.85, 0, 0), wd, parent=root, segments=12)
+    elif k == "oil_barrel":
+        b.cyl("Ölfass", col, 0.4, 1.0, (0, 0, 0), b.mat("barrelWood", (0.45, 0.3, 0.16)), parent=root, segments=12)
+    elif k == "powder_keg":
+        b.cyl("Pulverfass", col, 0.35, 0.7, (0, 0, 0), b.mat("powderKeg", (0.22, 0.18, 0.14)), parent=root, segments=12)
     elif k == "crypt_entrance":
         st2 = b.mat("crypt_stone", (0.55, 0.53, 0.5))
         for sx in (-1, 1):

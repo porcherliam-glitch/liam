@@ -297,6 +297,12 @@ namespace Aetherfall.AI.Bosses
             _combatant.SetController(this);
             _combatant.Configure(_type.Level, _type.Armor, _type.CreateResistances(), _type.MaxPoise, PoiseSettings.Boss, definition.BossId,
                 _type.EnemyTypeId, _type.ParryPoiseLoss);
+            // GDD 03 7.1–7.2: bosses resist 200+, never freeze or get stunned by effects, burn for smaller shares.
+            _combatant.ConfigureStatus(StatusSettings.Boss.WithResistance(Mathf.Max(StatusSettings.Boss.BaseResistance, _type.StatusResistance)),
+                _type.IsAetherCorrupted);
+            bool noBlood = _type.Kind == EnemyKind.Undead || _type.Kind == EnemyKind.Construct || _type.Kind == EnemyKind.Spirit;
+            _combatant.Status.SetImmune(StatusEffectId.Bleeding, noBlood);
+            _combatant.Status.SetImmune(StatusEffectId.Poison, _type.Kind == EnemyKind.Undead || _type.Kind == EnemyKind.Construct);
             Health health = _combatant.Health;
             if (health != null)
             {

@@ -74,6 +74,14 @@ namespace Aetherfall.Combat
             return new StatusBuildup(_burning * f, _freezing * f, _shock * f, _poison * f, _bleeding * f, _stun * f, _curse * f, _aetherCorruption * f);
         }
 
+        /// <summary>Sum of both build-ups per effect.</summary>
+        /// <param name="other">Other build-up.</param>
+        public StatusBuildup Plus(in StatusBuildup other)
+        {
+            return new StatusBuildup(_burning + other._burning, _freezing + other._freezing, _shock + other._shock, _poison + other._poison,
+                _bleeding + other._bleeding, _stun + other._stun, _curse + other._curse, _aetherCorruption + other._aetherCorruption);
+        }
+
         /// <summary>True if no effect builds up.</summary>
         public bool IsEmpty => !(_burning + _freezing + _shock + _poison + _bleeding + _stun + _curse + _aetherCorruption > 0f);
     }

@@ -42,6 +42,9 @@ namespace Aetherfall.Tests.EditMode.UIScreens
         public bool CanRespawn => true;
 
         /// <inheritdoc />
+        public string StatusText => string.Empty;
+
+        /// <inheritdoc />
         public bool TryGetTarget(out HudTargetInfo target)
         {
             target = default;

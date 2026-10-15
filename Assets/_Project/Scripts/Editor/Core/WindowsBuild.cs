@@ -128,6 +128,9 @@ namespace Aetherfall.EditorTools.Core
                    "Händler: Tobold (Schmied) und Ulf (Wirt) in Lindenhain – im Gespräch nach den Waren fragen.\r\n" +
                    "Waffen: Tobold verkauft Streitkolben (3 wuchtige Schläge, Schild erlaubt), Jagdbögen und Pfeile.\r\n" +
                    "Bogen: In \"Die Wölfe vom Nordhang\" leiht dir Hollmann seinen Jagdbogen und 30 Pfeile – triff die Strohziele.\r\n" +
+                   "Feuer: Drei Feuertreffer setzen ein Ziel in Brand (2 % Leben je Sekunde, er flieht). Die Ölfässer an Tobolds Schmiede\r\n" +
+                   "  explodieren bei Feuer (3 m) und reißen das nächste Fass mit; ein Schlag zerbricht sie zu einer Ölpfütze.\r\n" +
+                   "  Unten links steht, was dich gerade plagt (Brennen, Betäubt) und wie viel Aether-Verderbnis du trägst.\r\n" +
                    "Würfeln: Ulf fragen \"Würfeln wir eine Runde?\" (Krähenwurf, die Regeln stehen im Fenster).\r\n" +
                    "Begleiterin: Nach \"Die Wölfe vom Nordhang\" wartet Ser Maren am Wachposten von Lindenhain und kommt mit.\r\n\r\n" +
                    "Gamepad (Xbox): A springen und benutzen, X/Y angreifen, B ausweichen, LB blocken, LT/RT mit Bogen zielen/schießen, Start Pause.\r\n\r\n" +

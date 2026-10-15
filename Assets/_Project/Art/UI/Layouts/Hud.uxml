@@ -55,6 +55,7 @@
                 </ui:VisualElement>
             </ui:VisualElement>
             <ui:Label name="hud-stamina-exhausted" class="af-text af-vitals__exhausted" picking-mode="Ignore" />
+            <ui:Label name="hud-status" class="af-text af-vitals__status" picking-mode="Ignore" />
         </ui:VisualElement>
         <ui:VisualElement name="hud-xp" class="af-xp" picking-mode="Ignore">
             <ui:Label name="hud-xp-level" class="af-text af-xp__level" picking-mode="Ignore" />

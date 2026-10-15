@@ -48,6 +48,18 @@ namespace Aetherfall.UI.Screens
         [Tooltip("Bogen (Fadenkreuz und Pfeile in der Fernkampf-Haltung). Leer = PlayerBow am selben GameObject.")]
         [SerializeField] private PlayerBow bow = null;
 
+        [Tooltip("Kampf-Wurzel (Statuseffekte, Verderbnis). Leer = Combatant am selben GameObject.")]
+        [SerializeField] private Combatant combatant = null;
+
+        private static readonly StatusEffectId[] ShownEffects =
+        {
+            StatusEffectId.Burning, StatusEffectId.Stun, StatusEffectId.Freezing, StatusEffectId.Shock, StatusEffectId.Poison, StatusEffectId.Bleeding,
+            StatusEffectId.Curse
+        };
+
+        private readonly System.Text.StringBuilder _statusBuilder = new System.Text.StringBuilder(64);
+        private string _statusText = string.Empty;
+        private long _statusSignature = -1;
         private IPlayerHudRegistry _registry;
         private Combatant _target;
         private string _targetName = string.Empty;
@@ -74,6 +86,71 @@ namespace Aetherfall.UI.Screens
 
         /// <inheritdoc />
         public bool CanRespawn => respawn != null;
+
+        /// <inheritdoc />
+        public string StatusText
+        {
+            get
+            {
+                StatusEffectController status = combatant != null ? combatant.Status : null;
+                if (status == null)
+                {
+                    return string.Empty;
+                }
+
+                // The text is rebuilt only when something it shows changes (whole seconds, corruption points, stage).
+                long signature = (long)status.Corruption * 16 + (int)status.Stage;
+                for (int i = 0; i < ShownEffects.Length; i++)
+                {
+                    signature = signature * 64 + Mathf.CeilToInt(status.Remaining(ShownEffects[i]));
+                }
+
+                if (signature == _statusSignature)
+                {
+                    return _statusText;
+                }
+
+                _statusSignature = signature;
+                _statusBuilder.Clear();
+                for (int i = 0; i < ShownEffects.Length; i++)
+                {
+                    StatusEffectId effect = ShownEffects[i];
+                    if (!status.IsActive(effect))
+                    {
+                        continue;
+                    }
+
+                    Append(StatusEffectNames.German(effect));
+                    if (effect != StatusEffectId.Stun)
+                    {
+                        _statusBuilder.Append(' ').Append(Mathf.CeilToInt(status.Remaining(effect))).Append(" s");
+                    }
+                }
+
+                if (status.Corruption >= 1f)
+                {
+                    Append(StatusEffectNames.German(StatusEffectId.AetherCorruption));
+                    _statusBuilder.Append(' ').Append((int)status.Corruption);
+                    if (status.Stage != CorruptionStage.Pure)
+                    {
+                        _statusBuilder.Append(" (").Append(StatusEffectNames.German(status.Stage)).Append(')');
+                    }
+                }
+
+                _statusText = _statusBuilder.ToString();
+                return _statusText;
+            }
+        }
+
+        private void Append(string name)
+        {
+            if (_statusBuilder.Length > 0)
+            {
+                _statusBuilder.Append(" · ");
+            }
+
+            _statusBuilder.Append(name);
+        }
 
         /// <inheritdoc />
         public bool TryGetTarget(out HudTargetInfo target)
@@ -173,6 +250,11 @@ namespace Aetherfall.UI.Screens
             if (bow == null)
             {
                 TryGetComponent(out bow);
+            }
+
+            if (combatant == null)
+            {
+                TryGetComponent(out combatant);
             }
         }
 
