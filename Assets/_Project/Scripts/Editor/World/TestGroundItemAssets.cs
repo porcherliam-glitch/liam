@@ -51,6 +51,9 @@ namespace Aetherfall.EditorTools.World
         /// <summary>Wooden arrow (GDD 03 6.2: stack 99, 0.05 kg).</summary>
         public const string ArrowId = "item.ammo.pfeil_holz";
 
+        /// <summary>Fire arrow (GDD 03 6.2: 60 % stab + 40 % fire, burning 35; Stufe A).</summary>
+        public const string FireArrowId = "item.ammo.pfeil_feuer";
+
         /// <summary>Wolf fur.</summary>
         public const string WolfFurId = "item.material.wolfsfell";
 
@@ -225,6 +228,8 @@ namespace Aetherfall.EditorTools.World
             SetUse(Consumables + "/Manatrank_Schwach", 0f, 0.4f);
             // GDD 03 6.2 wooden arrow: stack 99, 0.05 kg; value Vorschlag 1 gold (GDD 04 has no price yet).
             Simple(Consumables, "Pfeil_Holz", ArrowId, "Holzpfeil", ItemCategory.Consumable, EquipKind.None, 99, 0.05f, 1f, ItemRarity.Common);
+            // Fire arrow: value Vorschlag 4 gold (wooden arrow + lamp oil).
+            Simple(Consumables, "Pfeil_Feuer", FireArrowId, "Feuerpfeil", ItemCategory.Consumable, EquipKind.None, 99, 0.05f, 4f, ItemRarity.Common);
             Simple(Materials, "Wolfsfell", WolfFurId, "Wolfsfell", ItemCategory.Material, EquipKind.None, 99, 1f, 4f, ItemRarity.Common);
             Simple(Materials, "Wolfsfleisch", WolfMeatId, "Wolfsfleisch", ItemCategory.Material, EquipKind.None, 99, 0.5f, 2f, ItemRarity.Common);
             Simple(Materials, "Wolfspelz_Aether", AetherPeltId, "Aether-Wolfspelz", ItemCategory.Material, EquipKind.None, 99, 1f, 15f,

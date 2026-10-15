@@ -60,6 +60,17 @@ namespace Aetherfall.Inventory
         /// <param name="reason">German reason on failure.</param>
         bool DropFromInventory(string instanceId, int count, Vector3 position, out string reason);
 
+        /// <summary>
+        /// Puts new pieces of an item into the world as a pickup (arrows that can be gathered again, GDD 03 6.1). Without a
+        /// spawner they go straight into the bag.
+        /// </summary>
+        /// <param name="itemId">Item id.</param>
+        /// <param name="count">Pieces.</param>
+        /// <param name="position">World position.</param>
+        /// <param name="sourceId">Source for the events.</param>
+        /// <returns>False for an unknown item or a count below 1.</returns>
+        bool DropNew(string itemId, int count, Vector3 position, string sourceId);
+
         /// <summary>Developer cheat: drops one random piece of equipment per rarity (common to legendary) at a position.</summary>
         /// <param name="position">World position.</param>
         /// <returns>Number of dropped items.</returns>

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -36,6 +37,9 @@ namespace Aetherfall.Combat
 
         /// <summary>The projectile fired last, or null.</summary>
         public Projectile LastFired { get; private set; }
+
+        /// <summary>Raised when one of its projectiles stops (hit, wall or end of range; arrows that can be picked up again).</summary>
+        public event Action<Projectile> Impacted;
 
         /// <summary>Launch point: the muzzle, or in front of the chest.</summary>
         public Vector3 MuzzlePosition => muzzle != null ? muzzle.position : transform.position + Vector3.up * 1.4f + transform.forward * 0.6f;
@@ -117,8 +121,18 @@ namespace Aetherfall.Combat
                 Projectile copy = Instantiate(template);
                 copy.name = template.name + " " + (i + 1);
                 copy.gameObject.SetActive(false);
+                copy.Impacted += OnImpacted;
                 SceneManager.MoveGameObjectToScene(copy.gameObject, gameObject.scene);
                 _free.Push(copy);
+            }
+        }
+
+        private void OnImpacted(Projectile projectile)
+        {
+            Action<Projectile> impacted = Impacted;
+            if (impacted != null)
+            {
+                impacted(projectile);
             }
         }
 

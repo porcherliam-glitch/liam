@@ -81,6 +81,7 @@ namespace Aetherfall.UI.Screens
         private readonly VisualElement _crosshairDraw;
         private readonly Label _arrows;
         private int _shownArrows = -1;
+        private string _shownAmmo;
         private int _shownDrawSize = -1;
         private IPlayerHudSource _source;
         private QuestTrackerView _questTracker;
@@ -310,10 +311,12 @@ namespace Aetherfall.UI.Screens
                 return;
             }
 
-            if (ranged.Arrows != _shownArrows)
+            if (ranged.Arrows != _shownArrows || !ReferenceEquals(ranged.AmmoName, _shownAmmo))
             {
                 _shownArrows = ranged.Arrows;
-                UiElementUtility.SetText(_arrows, UiTexts.Format("fmt-hud-arrows", ranged.Arrows));
+                _shownAmmo = ranged.AmmoName;
+                string name = string.IsNullOrEmpty(ranged.AmmoName) ? UiTexts.Get("hud-arrows-default") : ranged.AmmoName;
+                UiElementUtility.SetText(_arrows, UiTexts.Format("fmt-hud-arrows", name, ranged.Arrows));
                 _arrows.EnableInClassList("is-empty", ranged.Arrows == 0);
             }
 

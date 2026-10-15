@@ -223,7 +223,14 @@ namespace Aetherfall.EditorTools.World
             TestGroundFields.SetReference(bow, "cameraTransform", mainCamera.transform, report);
             TestGroundFields.SetReference(bow, "launcher", arrowLauncher, report);
             TestGroundFields.SetReference(bow, "arrow", assets.Arrow, report);
-            TestGroundFields.SetString(bow, "ammoItemId", TestGroundItemAssets.ArrowId, report);
+            // GDD 03 6.2 (Stufe A): wooden arrow (100 % stab, 50 % can be gathered again) and fire arrow (60 % stab + 40 % fire,
+            // burning 35, sets oil alight, never gathered again).
+            var bowSerialized = new SerializedObject(bow);
+            SerializedProperty ammo = bowSerialized.FindProperty("ammoTypes");
+            ammo.arraySize = 2;
+            SetAmmo(ammo.GetArrayElementAtIndex(0), TestGroundItemAssets.ArrowId, "Holzpfeil", 0f, 0f, true);
+            SetAmmo(ammo.GetArrayElementAtIndex(1), TestGroundItemAssets.FireArrowId, "Feuerpfeil", 0.4f, 35f, false);
+            bowSerialized.ApplyModifiedPropertiesWithoutUndo();
             TestGroundFields.SetInt(bow, "aimLayers", (1 << environmentLayer) | (hurtboxLayer >= 0 ? 1 << hurtboxLayer : 0), report);
             TestGroundFields.SetReference(pose, "bow", bow, report);
 
@@ -356,6 +363,15 @@ namespace Aetherfall.EditorTools.World
             TestGroundFields.SetReference(shake, "impulseSource", source, report);
             report.Info("Lock-On-Kamera CM_LockOn (Third Person Follow 4,5–7 m, Blick auf Zielgruppe Spieler + Ziel, Priorität 20) und " +
                         "Kamera-Wackeln per Cinemachine Impulse (Quelle „CameraShake“, Listener an beiden Kameras).");
+        }
+
+        private static void SetAmmo(SerializedProperty element, string itemId, string name, float fireShare, float burning, bool recoverable)
+        {
+            element.FindPropertyRelative("itemId").stringValue = itemId;
+            element.FindPropertyRelative("displayName").stringValue = name;
+            element.FindPropertyRelative("fireShare").floatValue = fireShare;
+            element.FindPropertyRelative("burningBuildup").floatValue = burning;
+            element.FindPropertyRelative("recoverable").boolValue = recoverable;
         }
 
         private static void SetUpAimCamera(GameObject player, CinemachineOrbitalFollow exploreOrbital, int collisionMask, TestGroundReport report)

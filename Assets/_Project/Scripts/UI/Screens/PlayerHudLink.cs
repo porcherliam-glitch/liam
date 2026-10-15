@@ -193,7 +193,7 @@ namespace Aetherfall.UI.Screens
                 return false;
             }
 
-            ranged = new HudRangedInfo(bow.IsAiming, bow.Draw01, bow.Arrows);
+            ranged = new HudRangedInfo(bow.IsAiming, bow.Draw01, bow.Arrows, bow.AmmoName);
             return true;
         }
 

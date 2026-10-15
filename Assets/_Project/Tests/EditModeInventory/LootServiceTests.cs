@@ -296,6 +296,25 @@ namespace Aetherfall.Tests.EditMode.Inventory
         }
 
         [Test]
+        public void DropNew_PutsNewPiecesIntoTheWorld_OrTheBagWithoutSpawner()
+        {
+            int before = _env.Inventory.CountOf(InventoryOwners.Player, InventoryTestItems.Potion);
+            Assert.That(_env.Loot.DropNew(InventoryTestItems.Potion, 2, default(Vector3), "bow"), Is.True);
+            Assert.That(_env.Inventory.CountOf(InventoryOwners.Player, InventoryTestItems.Potion), Is.EqualTo(before + 2), "no spawner: straight into the bag");
+
+            var spawner = new RecordingLootSpawner();
+            _env.Loot.RegisterSpawner(spawner);
+            Assert.That(_env.Loot.DropNew(InventoryTestItems.Potion, 1, new Vector3(1f, 0f, 2f), "bow"), Is.True);
+            Assert.That(spawner.Drops.Count, Is.EqualTo(1));
+            Assert.That(spawner.Drops[0].Item.ItemId, Is.EqualTo(InventoryTestItems.Potion));
+            Assert.That(spawner.Drops[0].Item.Count, Is.EqualTo(1));
+            Assert.That(spawner.LastSourceId, Is.EqualTo("bow"));
+
+            Assert.That(_env.Loot.DropNew("item.unbekannt", 1, default(Vector3), "bow"), Is.False);
+            Assert.That(_env.Loot.DropNew(InventoryTestItems.Potion, 0, default(Vector3), "bow"), Is.False);
+        }
+
+        [Test]
         public void EnemyLoot_UsesTheLevelOfTheEvent_ForEveryVariant()
         {
             // EnemyKilled.EnemyLevel already contains the variant bonus (GDD 03 9.7): the loot must not add it a second time.

@@ -43,11 +43,13 @@ Ziel: ein Teil des Eichentals (~1,1 km²), alle 8 Beispiel-Quests, etwa 3,5–4 
 
 ### 1a. Systeme für den Slice (Technik/02, 4.1–4.7)
 
-- [x] **Statuseffekte und Element-Reaktionen (S25):** 2026-10-15, Commit siehe Status.md („Stufe A, 1a: Statuseffekte“)
+- [x] **Statuseffekte und Element-Reaktionen (S25):** 2026-10-15, Commit 92cec17
   - Brennen, Betäubung, Aether-Verderbnis (alle 8 Balken, Nass/Ölig, Bosse, Immunitäten)
   - Reaktion „Explosion“ (Ölfass + Feuer, 3 m) und „Kettenexplosion“ (Pulverfass 5 m), nach GDD 03, 6.6; Ölpfütze
   - Offen (später mit den Zauberschulen): Schock-Fläche, Flächenbrand, Eis-Reaktionen; Blutung je Meter; Fässer im Spielstand
-- [ ] **Bogen voll ausbauen (S27):** Schulterzielen, Spannen, Kopftreffer mit Zusatzschaden, Pfeiltypen, Munition
+- [x] **Bogen voll ausbauen (S27):** Schulterzielen, Spannen, Kopftreffer mit Zusatzschaden, Pfeiltypen, Munition – 2026-10-15
+  - Stufe A: Holz- und Feuerpfeil, Wechsel per Mausrad/Steuerkreuz, 50 % der Holzpfeile wieder aufsammelbar
+  - Offen für Stufe B: Breitkopf-, Eis-, Gift-, Explosiv-, Betäubungspfeil, Dreifachschuss
 - [ ] **Magie (S28):**
   - 3 Schulen Feuer, Eis und Blitz mit je 3 Knoten in Stufe A, nach GDD 03, 11.5
   - Fähigkeitenleiste (2 × 4 Slots), Mana

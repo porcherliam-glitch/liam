@@ -51,7 +51,7 @@ Tipp: Im Game-Fenster oben in der Leiste **Play Maximized** wählen, dann ist da
 
 Mit Gamepad geht es auch (Xbox-Belegung: A springen und benutzen, X/Y angreifen, B ausweichen, LB blocken, RB + A Aether-Stoß, mit Bogen LT zielen und RT schießen).
 
-**Bogen:** Je länger du die linke Maustaste hältst (bis knapp eine Sekunde), desto stärker und schneller fliegt der Pfeil; das Kästchen im Fadenkreuz wird dabei kleiner. Pfeile fallen auf weite Strecken etwas ab, also bei 40 m etwas höher zielen. Ein Kopftreffer macht 75 % mehr Schaden. Jeder Schuss kostet einen Pfeil (Anzeige neben dem Fadenkreuz) und etwas Ausdauer; hältst du lange voll gespannt, zittert der Arm. Mit **F** steckst du den Bogen wieder auf den Rücken und hast Schwert und Schild zurück.
+**Bogen:** Je länger du die linke Maustaste hältst (bis knapp eine Sekunde), desto stärker und schneller fliegt der Pfeil; das Kästchen im Fadenkreuz wird dabei kleiner. Pfeile fallen auf weite Strecken etwas ab, also bei 40 m etwas höher zielen. Ein Kopftreffer macht 75 % mehr Schaden. Jeder Schuss kostet einen Pfeil (Anzeige neben dem Fadenkreuz) und etwas Ausdauer; hältst du lange voll gespannt, zittert der Arm. Mit **F** steckst du den Bogen wieder auf den Rücken und hast Schwert und Schild zurück. Mit dem **Mausrad** wechselst du in der Bogen-Haltung die Pfeilart: **Feuerpfeile** (bei Tobold) setzen Ziele in Brand und lassen Ölfässer explodieren. Etwa jeder zweite Holzpfeil bleibt liegen – im Boden oder im besiegten Gegner – und kann mit **E** wieder aufgehoben werden.
 
 **Feuer und Fässer:** Drei Feuertreffer des Magiers setzen ein Ziel in Brand (ein Wolf ist meist vorher schon tot, Skelette und Bosse halten länger): Es verliert 6 Sekunden lang 2 % seines Lebens je Sekunde und flieht. Brennst du selbst, hilft eine Rolle (−1,5 s) oder Wasser. An Tobolds verbrannter Schmiede stehen **Ölfässer**: Ein Feuergeschoss lässt sie explodieren (3 m, das Nachbarfass fliegt mit, die Pfütze brennt 8 s), ein Schwerthieb zerbricht sie nur zu einer Ölpfütze – wer darin steht, ist „ölig“ und brennt doppelt so schnell; Feuer in die Pfütze zündet sie. Das **Pulverfass** hinter der Scheune sprengt 5 m. Unten links im HUD steht, was dich gerade plagt (Brennen, Betäubt …) und wie viel **Aether-Verderbnis** du trägst: Jeder Aether-Stoß gibt +2, jeder Treffer eines leuchtenden Wolfs +5; ab 25 bist du „Berührt“ (mehr Aether-Schaden, weniger Heilung), bei 100 „Überflutet“ (20 s lang 2 % Leben je Sekunde). Ohne neue Quelle sinkt der Balken um 2 je Sekunde.
 
@@ -83,7 +83,6 @@ Oben rechts steht immer dein aktuelles Ziel. Die Gruft ist auf Stufe 4 eingestel
 
 - Du selbst bist jetzt ein Krieger aus Blender (Arme, Beine und Schwert bewegen sich per Code, noch ohne fertige Animationen). Dorfbewohner, Wölfe, Skelette, der Wachende Ritter sowie Fenster, Türen, Schornsteine und Brücken sind ebenfalls aus Blender.
 - Keine Musik, keine Zwischensequenzen. Der Aether-Stoß erhöht noch keine Verderbnis (die gibt es noch nicht).
-- Verschossene Pfeile kann man noch nicht wieder aufsammeln.
 - Die Gruft ist dunkel. Das ist Absicht, kann aber nachgebessert werden.
 
 ## 5. Rückmeldung an Claude

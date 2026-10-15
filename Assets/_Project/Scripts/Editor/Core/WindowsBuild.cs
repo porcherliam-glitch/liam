@@ -118,7 +118,8 @@ namespace Aetherfall.EditorTools.Core
                    "  Q (halten)     blocken         Strg           ausweichen\r\n" +
                    "  T              Gegner anvisieren\r\n" +
                    "  F              Bogen ziehen / wegstecken. Mit Bogen: rechte Maus zielen, linke Maus halten = spannen,\r\n" +
-                   "                 loslassen = schießen; linke Maus ohne Zielen = schneller Hüftschuss\r\n" +
+                   "                 loslassen = schießen; linke Maus ohne Zielen = schneller Hüftschuss;\r\n" +
+                   "                 Mausrad = Pfeilart wechseln (Holzpfeil, Feuerpfeil). Jeder 2. Holzpfeil bleibt liegen (E)\r\n" +
                    "  5 / 6          Heiltrank / Manatrank trinken (knapp 1 s, ein harter Treffer bricht ab)\r\n" +
                    "  4              Aether-Stoß (ab dem Riss im Prolog; 15 Mana, 8 s warten)\r\n" +
                    "  Tab            Inventar        J              Questlog\r\n" +

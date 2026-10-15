@@ -27,6 +27,9 @@ namespace Aetherfall.Tests.EditMode.UIScreens
         public float SwitchTarget => 0f;
 
         /// <inheritdoc />
+        public float CycleAmmo => 0f;
+
+        /// <inheritdoc />
         public bool WasPressedThisFrame(GameplayButton button)
         {
             return PressedThisFrame.Contains(button);

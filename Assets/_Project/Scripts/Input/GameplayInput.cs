@@ -17,6 +17,7 @@ namespace Aetherfall.Input
         private readonly InputAction _move;
         private readonly InputAction _look;
         private readonly InputAction _switchTarget;
+        private readonly InputAction _cycleAmmo;
         private readonly InputAction[] _buttons;
 
         /// <summary>Resolves all Gameplay actions (throws if one is missing).</summary>
@@ -32,6 +33,7 @@ namespace Aetherfall.Input
             _move = _map.FindAction(InputActionNames.Gameplay.Move, true);
             _look = _map.FindAction(InputActionNames.Gameplay.Look, true);
             _switchTarget = _map.FindAction(InputActionNames.Gameplay.SwitchTarget, true);
+            _cycleAmmo = _map.FindAction(InputActionNames.Gameplay.CycleAmmo, true);
 
             Array values = Enum.GetValues(typeof(GameplayButton));
             int count = 0;
@@ -69,6 +71,9 @@ namespace Aetherfall.Input
 
         /// <inheritdoc />
         public float SwitchTarget => _switchTarget.ReadValue<float>();
+
+        /// <inheritdoc />
+        public float CycleAmmo => _cycleAmmo.ReadValue<float>();
 
         /// <inheritdoc />
         public bool WasPressedThisFrame(GameplayButton button)

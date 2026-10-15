@@ -31,6 +31,8 @@ MonoBehaviour:
     count: 1
   - itemId: item.ammo.pfeil_holz
     count: 99
+  - itemId: item.ammo.pfeil_feuer
+    count: 30
   - itemId: item.weapon.holzschild
     count: 2
   - itemId: item.weapon.eisenschild

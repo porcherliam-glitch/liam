@@ -44,6 +44,15 @@ namespace Aetherfall.Combat
         /// <summary>The combatant it hit last (null if it hit a wall or nothing).</summary>
         public Combatant LastHit { get; private set; }
 
+        /// <summary>The attack it carries (null before the first launch).</summary>
+        public AttackSpec Attack => _attack;
+
+        /// <summary>Where it stopped last (a hit, a wall, or the end of its range).</summary>
+        public Vector3 LastImpactPoint { get; private set; }
+
+        /// <summary>Raised when it stops: hit a combatant (<see cref="LastHit"/>), a wall, or reached its range.</summary>
+        public event Action<Projectile> Impacted;
+
         /// <summary>Starts the flight.</summary>
         /// <param name="owner">Attacker.</param>
         /// <param name="attack">Attack with the projectile values.</param>
@@ -213,6 +222,13 @@ namespace Aetherfall.Combat
             if (impact != null)
             {
                 impact.Play(true);
+            }
+
+            LastImpactPoint = point;
+            Action<Projectile> impacted = Impacted;
+            if (impacted != null)
+            {
+                impacted(this);
             }
         }
 

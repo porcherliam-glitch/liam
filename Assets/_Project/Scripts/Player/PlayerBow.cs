@@ -16,8 +16,9 @@ namespace Aetherfall.Player
     /// itself). In the stance the right mouse button aims over the shoulder (crosshair, the body follows the camera), holding
     /// the left mouse button draws the string (0–0.8 s: 40–100 % damage, 35–70 m/s) and releasing it shoots towards the
     /// crosshair; without aiming the left button is a hip shot (0.45 s, 50 %, at the lock-on target or the nearest one in a 15°
-    /// cone up to 20 m). Every shot takes one wooden arrow from the bag and 4 stamina; a dodge or a stagger takes the arrow off
-    /// the string. The draw rules live in <see cref="BowDraw"/>.
+    /// cone up to 20 m). Every shot takes one arrow of the selected type from the bag and 4 stamina; a dodge or a stagger takes
+    /// the arrow off the string. The mouse wheel (D-pad left/right) switches between the arrow types the bag holds (GDD 03 6.2:
+    /// wooden arrow, fire arrow with 40 % fire and burning 35). The draw rules live in <see cref="BowDraw"/>.
     /// </summary>
     /// <remarks>
     /// <para>GameObject: the player root. Runs before <see cref="PlayerCombatController"/> (order -45), which ignores the
@@ -25,7 +26,8 @@ namespace Aetherfall.Player
     /// <see cref="PlayerEquipment"/> shows the bow in the hand or on the back; the camera zooms in while aiming (AimCamera).</para>
     /// <para>The arrow flies from its own <see cref="ProjectileLauncher"/> (a child at the bow hand) with the values of the
     /// "Pfeil" attack, copied per shot with the draw's damage and speed; damage W comes from the equipped bow, type stab,
-    /// dexterity 1.0 (GDD 03 5.3). Arrows are not picked up again yet (GDD 03 6.1 "50 % aufsammelbar": later step).</para>
+    /// dexterity 1.0 (GDD 03 5.3). GDD 03 6.1 "50 % aufsammelbar": half of the wooden arrows fall to the ground where they hit a
+    /// wall, or from the body once the enemy they stuck in dies (<see cref="ILootService.DropNew"/>); special arrows never.</para>
     /// </remarks>
     [DefaultExecutionOrder(-45)]
     [DisallowMultipleComponent]
@@ -60,8 +62,11 @@ namespace Aetherfall.Player
         [Tooltip("Werte des Pfeils (Geschoss: Fall 4,9 m/s², Reichweite, Radius; Schaden und Tempo setzt das Spannen).")]
         [SerializeField] private AttackDefinition arrow = null;
 
-        [Tooltip("Munition, die jeder Schuss aus der Tasche nimmt.")]
-        [SerializeField] private string ammoItemId = "item.ammo.pfeil_holz";
+        [Tooltip("Pfeilarten (GDD 03 6.2): Holzpfeil, Feuerpfeil … Das Mausrad bzw. das Steuerkreuz wechselt in der Haltung.")]
+        [SerializeField] private ArrowAmmo[] ammoTypes = { new ArrowAmmo("item.ammo.pfeil_holz", "Holzpfeil", 0f, 0f, true) };
+
+        [Tooltip("Anteil der Holzpfeile, die nach dem Schuss wieder aufgesammelt werden können (GDD 03 6.1: 50 %).")]
+        [Range(0f, 1f)] [SerializeField] private float recoverChance = 0.5f;
 
         [Tooltip("Woran das Fadenkreuz hängen bleibt: Boden, Wände und Trefferzonen.")]
         [SerializeField] private LayerMask aimLayers = (1 << 11) | (1 << 9);
@@ -89,6 +94,12 @@ namespace Aetherfall.Player
         private Vector3 _hipPoint;
         private float _hipYaw;
         private bool _warnedNoArrows;
+        private int _ammoIndex;
+        private bool _wheelLatched;
+        private ILootService _loot;
+        private readonly Dictionary<Projectile, int> _arrowAmmo = new Dictionary<Projectile, int>();
+        private readonly List<Combatant> _stuckIn = new List<Combatant>(8);
+        private readonly List<int> _stuckCounts = new List<int>(8);
 
         /// <summary>True while the ranged stance is on.</summary>
         public bool InStance => _stance;
@@ -105,18 +116,90 @@ namespace Aetherfall.Player
         /// <summary>True if a bow is equipped.</summary>
         public bool HasBow => equipment != null && equipment.HasBow;
 
-        /// <summary>Arrows in the bag.</summary>
-        public int Arrows
+        /// <summary>Arrows of the selected type in the bag.</summary>
+        public int Arrows => CountOf(CurrentAmmo);
+
+        /// <summary>Selected arrow type (null if none is configured).</summary>
+        public ArrowAmmo CurrentAmmo => ammoTypes != null && ammoTypes.Length > 0 ? ammoTypes[Mathf.Clamp(_ammoIndex, 0, ammoTypes.Length - 1)] : null;
+
+        /// <summary>Item id of the selected arrows.</summary>
+        public string AmmoItemId => CurrentAmmo != null ? CurrentAmmo.ItemId : string.Empty;
+
+        /// <summary>Name of the selected arrows.</summary>
+        public string AmmoName => CurrentAmmo != null ? CurrentAmmo.DisplayName : string.Empty;
+
+        /// <summary>Arrows that will drop where they stuck once the enemy dies (tests, tools).</summary>
+        public int PendingRecoveredArrows
         {
             get
             {
-                IInventoryService inventory = equipment != null ? equipment.Inventory : null;
-                return inventory != null ? inventory.CountInBag(InventoryOwners.Player, ammoItemId) : 0;
+                int sum = 0;
+                for (int i = 0; i < _stuckCounts.Count; i++)
+                {
+                    sum += _stuckCounts[i];
+                }
+
+                return sum;
             }
         }
 
-        /// <summary>Item id of the arrows.</summary>
-        public string AmmoItemId => ammoItemId ?? string.Empty;
+        /// <summary>Arrows dropped into the world to be gathered again so far (tests, tools).</summary>
+        public int RecoveredArrowsDropped { get; private set; }
+
+        /// <summary>Share of recoverable arrows that can be gathered again (0.5; tools set 1 for a sure check).</summary>
+        public float RecoverChance
+        {
+            get => recoverChance;
+            set => recoverChance = Mathf.Clamp01(value);
+        }
+
+        /// <summary>Selects the next arrow type the bag has (mouse wheel, D-pad; also tools).</summary>
+        /// <param name="direction">+1 next, −1 previous.</param>
+        /// <returns>True if the selection changed.</returns>
+        public bool CycleAmmo(int direction)
+        {
+            if (ammoTypes == null || ammoTypes.Length < 2)
+            {
+                return false;
+            }
+
+            int count = ammoTypes.Length;
+            for (int step = 1; step < count; step++)
+            {
+                int index = ((_ammoIndex + direction * step) % count + count) % count;
+                if (CountOf(ammoTypes[index]) > 0)
+                {
+                    _ammoIndex = index;
+                    Log.Info(LogCategory.Player, "PlayerBow: " + ammoTypes[index].DisplayName + " selected (" + CountOf(ammoTypes[index]) + ").");
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>Selects an arrow type by item id (tools).</summary>
+        /// <param name="itemId">Item id.</param>
+        /// <returns>False if the bow has no such type.</returns>
+        public bool SelectAmmo(string itemId)
+        {
+            for (int i = 0; ammoTypes != null && i < ammoTypes.Length; i++)
+            {
+                if (ammoTypes[i] != null && ammoTypes[i].ItemId == itemId)
+                {
+                    _ammoIndex = i;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private int CountOf(ArrowAmmo ammo)
+        {
+            IInventoryService inventory = equipment != null ? equipment.Inventory : null;
+            return ammo != null && inventory != null ? inventory.CountInBag(InventoryOwners.Player, ammo.ItemId) : 0;
+        }
 
         /// <summary>Arrows shot so far (tests, tools).</summary>
         public int ShotsFired { get; private set; }
@@ -177,9 +260,9 @@ namespace Aetherfall.Player
                 return false;
             }
 
-            if (Arrows <= 0)
+            if (Arrows <= 0 && !CycleAmmo(1))
             {
-                reason = "Keine Pfeile in der Tasche (" + ammoItemId + ").";
+                reason = "Keine Pfeile in der Tasche (" + AmmoItemId + ").";
                 return false;
             }
 
@@ -240,6 +323,7 @@ namespace Aetherfall.Player
                 _gameState = await Services.WaitForAsync<IGameStateService>(destroyCancellationToken);
                 IServiceLocator locator = Services.Locator;
                 locator.TryGet(out _service);
+                locator.TryGet(out _loot);
                 if (locator.TryGet(out IInputService input))
                 {
                     _gameplay = input.Gameplay;
@@ -255,12 +339,108 @@ namespace Aetherfall.Player
             }
         }
 
+        private void OnEnable()
+        {
+            if (launcher != null)
+            {
+                launcher.Impacted += OnArrowImpacted;
+            }
+        }
+
         private void OnDisable()
         {
+            if (launcher != null)
+            {
+                launcher.Impacted -= OnArrowImpacted;
+            }
+
             if (_stance)
             {
                 LeaveStance();
             }
+        }
+
+        /// <summary>
+        /// GDD 03 6.1: wooden arrows can be gathered again (50 %): from the ground where they hit a wall, from the body once the
+        /// enemy it stuck in dies; special arrows never.
+        /// </summary>
+        private void OnArrowImpacted(Projectile projectile)
+        {
+            if (!_arrowAmmo.TryGetValue(projectile, out int index))
+            {
+                return;
+            }
+
+            _arrowAmmo.Remove(projectile);
+            ArrowAmmo ammo = ammoTypes != null && index >= 0 && index < ammoTypes.Length ? ammoTypes[index] : null;
+            if (ammo == null || !ammo.Recoverable || _random.NextDouble() >= recoverChance)
+            {
+                return;
+            }
+
+            Combatant hit = projectile.LastHit;
+            if (hit != null && hit.Team != CombatTeam.Neutral && hit.IsAlive)
+            {
+                int at = _stuckIn.IndexOf(hit);
+                if (at < 0)
+                {
+                    _stuckIn.Add(hit);
+                    _stuckCounts.Add(1);
+                }
+                else
+                {
+                    _stuckCounts[at]++;
+                }
+
+                return;
+            }
+
+            DropArrows(ammo.ItemId, 1, GroundBelow(hit != null && hit.IsAlive ? projectile.LastImpactPoint : hit != null ? hit.transform.position + Vector3.up : projectile.LastImpactPoint));
+        }
+
+        private void DropStuckArrows()
+        {
+            for (int i = _stuckIn.Count - 1; i >= 0; i--)
+            {
+                Combatant target = _stuckIn[i];
+                if (target != null && target.IsAlive)
+                {
+                    continue;
+                }
+
+                if (target != null)
+                {
+                    DropArrows(ammoTypes[0].ItemId, _stuckCounts[i], GroundBelow(target.transform.position + Vector3.up));
+                }
+
+                _stuckIn.RemoveAt(i);
+                _stuckCounts.RemoveAt(i);
+            }
+        }
+
+        private void DropArrows(string itemId, int count, Vector3 position)
+        {
+            if (_loot != null && count > 0 && _loot.DropNew(itemId, count, position, "bow"))
+            {
+                RecoveredArrowsDropped += count;
+            }
+        }
+
+        private Vector3 GroundBelow(Vector3 point)
+        {
+            int count = Physics.RaycastNonAlloc(point + Vector3.up * 0.5f, Vector3.down, _hits, 30f, aimLayers, QueryTriggerInteraction.Ignore);
+            float best = float.MaxValue;
+            Vector3 ground = point;
+            for (int i = 0; i < count; i++)
+            {
+                if (_hits[i].collider != null && !_hits[i].collider.transform.IsChildOf(transform) && _hits[i].distance < best)
+                {
+                    best = _hits[i].distance;
+                    ground = _hits[i].point;
+                }
+            }
+
+            return ground + Vector3.up * 0.1f;
         }
 
         private void Update()
@@ -269,6 +449,11 @@ namespace Aetherfall.Player
             if (_stance && (!alive || !HasBow))
             {
                 LeaveStance();
+            }
+
+            if (_stuckIn.Count > 0)
+            {
+                DropStuckArrows();
             }
 
             if (!alive)
@@ -320,6 +505,22 @@ namespace Aetherfall.Player
             _aimHeld = _stance && aimHeld;
             _firePressed = _stance && _gameplay.WasPressedThisFrame(GameplayButton.Fire);
             _fireHeld = _stance && _gameplay.IsPressed(GameplayButton.Fire);
+
+            // Mouse wheel or D-pad left/right: next arrow type (GDD 03 1.5 "CycleAmmo"). One step per scroll or press.
+            float wheel = _stance ? _gameplay.CycleAmmo : 0f;
+            if (Mathf.Abs(wheel) > 0.01f)
+            {
+                if (!_wheelLatched && !_draw.IsBusy)
+                {
+                    CycleAmmo(wheel > 0f ? 1 : -1);
+                }
+
+                _wheelLatched = true;
+            }
+            else
+            {
+                _wheelLatched = false;
+            }
         }
 
         private void TickStance(float deltaTime, bool playing)
@@ -381,12 +582,12 @@ namespace Aetherfall.Player
 
         private void BeginShot()
         {
-            if (Arrows <= 0)
+            if (Arrows <= 0 && !CycleAmmo(1))
             {
                 if (!_warnedNoArrows)
                 {
                     _warnedNoArrows = true;
-                    Log.Info(LogCategory.Player, "PlayerBow: no arrows (" + ammoItemId + ") in the bag.");
+                    Log.Info(LogCategory.Player, "PlayerBow: no arrows (" + AmmoItemId + ") in the bag.");
                 }
 
                 return;
@@ -412,8 +613,9 @@ namespace Aetherfall.Player
         private void Shoot(Vector3 point)
         {
             BowShot shot = _draw.Release();
+            ArrowAmmo ammo = CurrentAmmo;
             IInventoryService inventory = equipment != null ? equipment.Inventory : null;
-            if (inventory == null || !inventory.TryRemove(InventoryOwners.Player, ammoItemId, 1, "bow"))
+            if (ammo == null || inventory == null || !inventory.TryRemove(InventoryOwners.Player, ammo.ItemId, 1, "bow"))
             {
                 return;
             }
@@ -426,7 +628,17 @@ namespace Aetherfall.Player
             AttackSpec spec = _arrowSpec.Clone();
             spec.DamageMultiplier *= shot.DamageMultiplier;
             spec.ProjectileSpeed = shot.Speed;
-            var profile = new AttackProfile(DamagePacket.Single(DamageType.Stab, equipment.BowDamage), AttributeScaling.Bow, BowPoise);
+            if (ammo.BurningBuildup > 0f)
+            {
+                // GDD 03 6.2: the fire arrow builds up burning 35 and sets oil alight.
+                spec.Buildup = spec.Buildup.Plus(StatusBuildup.None.With(StatusEffectId.Burning, ammo.BurningBuildup));
+            }
+
+            float damage = equipment.BowDamage;
+            DamagePacket packet = ammo.FireShare > 0f
+                ? DamagePacket.Single(DamageType.Stab, damage * (1f - ammo.FireShare)).With(DamageType.Fire, damage * ammo.FireShare)
+                : DamagePacket.Single(DamageType.Stab, damage);
+            var profile = new AttackProfile(packet, AttributeScaling.Bow, BowPoise);
             Vector3 direction = ProjectileFlight.AimDirection(launcher.MuzzlePosition, point, spec.ProjectileSpeed, spec.ProjectileGravity);
             if (shot.SpreadDegrees > 0f)
             {
@@ -440,6 +652,16 @@ namespace Aetherfall.Player
             {
                 ShotsFired++;
                 LastShot = shot;
+                if (launcher.LastFired != null)
+                {
+                    _arrowAmmo[launcher.LastFired] = _ammoIndex;
+                }
+            }
+
+            if (CountOf(ammo) <= 0)
+            {
+                // The quiver of this type is empty: take the next type the bag still has.
+                CycleAmmo(1);
             }
         }
 

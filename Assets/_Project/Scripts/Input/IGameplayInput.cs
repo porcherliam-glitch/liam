@@ -34,6 +34,12 @@ namespace Aetherfall.Input
         float SwitchTarget { get; }
 
         /// <summary>
+        /// Change the arrow type this frame (GDD 03 1.5 "CycleAmmo"): mouse wheel or D-pad left/right; only the sign matters.
+        /// The bow reads it only in the ranged stance (outside it the wheel switches lock-on targets).
+        /// </summary>
+        float CycleAmmo { get; }
+
+        /// <summary>
         /// True in the frame a button action was pressed, i.e. its control crossed the press threshold. Also true for
         /// actions with a tap or hold interaction before the interaction decided (both actions of a shared tap/hold button
         /// report the press); read those with <see cref="WasPerformedThisFrame"/>.

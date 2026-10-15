@@ -135,6 +135,20 @@ namespace Aetherfall.Player
             SetTarget(null);
         }
 
+        /// <summary>Locks a given target (tools, scripted sequences); ignored if it cannot be targeted.</summary>
+        /// <param name="target">Target.</param>
+        /// <returns>True if it is locked afterwards.</returns>
+        public bool Lock(Combatant target)
+        {
+            if (target == null || !target.IsTargetable || target == self)
+            {
+                return false;
+            }
+
+            SetTarget(target);
+            return true;
+        }
+
         private void Awake()
         {
             if (self == null)

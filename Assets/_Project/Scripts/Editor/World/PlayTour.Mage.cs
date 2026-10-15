@@ -276,6 +276,8 @@ namespace Aetherfall.EditorTools.World
                                 PlaceOnGround(wolf.transform.position - toWolf.normalized * 8f, toWolf);
                             }
 
+                            // Lock on this wolf: the aim help would otherwise pick whichever wolf of the pack is nearest.
+                            player.GetComponent<PlayerLockOn>().Lock(wolf);
                             combat.QueueLightAttack();
                             shots++;
                             _stepStart = UnityEditor.EditorApplication.timeSinceStartup;
@@ -287,6 +289,8 @@ namespace Aetherfall.EditorTools.World
                         {
                             return false;
                         }
+
+                        player.GetComponent<PlayerLockOn>().Release();
 
                         float now = wolf.IsAlive ? wolf.Health.Current : 0f;
                         Note("Brennen nach 1,5 s: LP " + healthWhenLit.ToString("0") + " → " + now.ToString("0") + " (2 % je s), noch " +

@@ -53,6 +53,11 @@ namespace Aetherfall.EditorTools.World
             Steps.Enqueue(ShootWolf(true));
             Steps.Enqueue(() => Capture("w04_bogen_zielen", null));
             Steps.Enqueue(() => Wait(2.0));
+            // GDD 03 6.2: a fire arrow into the oil barrel at the smithy explodes it; GDD 03 6.1: wooden arrows can be gathered again.
+            Steps.Enqueue(FireArrowAtBarrel("obj.eichental.oelfass_schmiede_3"));
+            Steps.Enqueue(() => Wait(0.3));
+            Steps.Enqueue(() => Capture("w04b_feuerpfeil", ViewBehindPlayer));
+            Steps.Enqueue(RecoverArrow());
             Steps.Enqueue(LeaveBowStance);
             Steps.Enqueue(() => Wait(0.5));
             Steps.Enqueue(() => Capture("w05_bogen_ruecken", ViewBehindPlayer));
@@ -274,6 +279,113 @@ namespace Aetherfall.EditorTools.World
                         return false;
                     default:
                         return true;
+                }
+            };
+        }
+
+        /// <summary>Selects fire arrows (5 from the bag) and shoots the oil barrel; it must explode.</summary>
+        private static Func<bool> FireArrowAtBarrel(string objectId)
+        {
+            int phase = 0;
+            ExplosiveObject barrel = null;
+            int fireBefore = 0;
+            return () =>
+            {
+                PlayerMotor player = FindPlayer();
+                PlayerBow bow = player.GetComponent<PlayerBow>();
+                switch (phase)
+                {
+                    case 0:
+                        barrel = Object.FindObjectsByType<ExplosiveObject>(FindObjectsInactive.Exclude).FirstOrDefault(b => b.ObjectId == objectId);
+                        if (barrel == null)
+                        {
+                            return Fail(Elapsed > 5.0, "Ölfass " + objectId + " nicht gefunden.");
+                        }
+
+                        IInventoryService inventory = Services.Locator.Get<IInventoryService>();
+                        inventory.TryAddNew(InventoryOwners.Player, TestGroundItemAssets.FireArrowId, 5, "rundgang");
+                        if (!bow.SelectAmmo(TestGroundItemAssets.FireArrowId))
+                        {
+                            return Fail(true, "Der Bogen kennt keine Feuerpfeile.");
+                        }
+
+                        fireBefore = bow.Arrows;
+                        // East of the barrels: the collapsed smithy lies to the west.
+                        Vector3 side = Vector3.right;
+                        PlaceOnGround(barrel.transform.position + side * 9f, -side);
+                        phase = 1;
+                        _stepStart = UnityEditor.EditorApplication.timeSinceStartup;
+                        return false;
+                    case 1:
+                        if (Elapsed < 0.5)
+                        {
+                            return false;
+                        }
+
+                        Vector3 target = barrel.transform.position + Vector3.up * 0.5f;
+                        PointCamera(target);
+                        if (!bow.ShootAt(target, BowDraw.FullDrawSeconds, out string reason))
+                        {
+                            return Fail(true, "Feuerpfeil nicht möglich: " + reason);
+                        }
+
+                        phase = 2;
+                        _stepStart = UnityEditor.EditorApplication.timeSinceStartup;
+                        return false;
+                    default:
+                        if (barrel.HasDetonated)
+                        {
+                            Note("Feuerpfeil (" + bow.AmmoName + ", " + fireBefore + " → " + bow.Arrows + "): Ölfass " + objectId + " explodiert.");
+                            return true;
+                        }
+
+                        return Fail(Elapsed > 3.0, "Der Feuerpfeil hat das Ölfass nicht gezündet (Pfeile " + fireBefore + " → " + bow.Arrows + ").");
+                }
+            };
+        }
+
+        /// <summary>Shoots a wooden arrow into the ground 8 m ahead with a sure recovery chance; one arrow must fall there.</summary>
+        private static Func<bool> RecoverArrow()
+        {
+            int phase = 0;
+            int droppedBefore = 0;
+            float chance = 0.5f;
+            return () =>
+            {
+                PlayerMotor player = FindPlayer();
+                PlayerBow bow = player.GetComponent<PlayerBow>();
+                switch (phase)
+                {
+                    case 0:
+                        bow.SelectAmmo(TestGroundItemAssets.ArrowId);
+                        chance = bow.RecoverChance;
+                        bow.RecoverChance = 1f;
+                        droppedBefore = bow.RecoveredArrowsDropped;
+                        Vector3 ground = player.transform.position + player.transform.forward * 8f;
+                        if (!bow.ShootAt(ground, BowDraw.FullDrawSeconds, out string reason))
+                        {
+                            return Fail(true, "Holzpfeil nicht möglich: " + reason);
+                        }
+
+                        phase = 1;
+                        _stepStart = UnityEditor.EditorApplication.timeSinceStartup;
+                        return false;
+                    default:
+                        if (bow.RecoveredArrowsDropped > droppedBefore)
+                        {
+                            bow.RecoverChance = chance;
+                            int lying = Object.FindObjectsByType<Pickup>(FindObjectsInactive.Exclude).Count(p => Vector3.Distance(p.transform.position, player.transform.position) < 15f);
+                            Note("Holzpfeil im Boden: zum Aufsammeln abgelegt (" + bow.RecoveredArrowsDropped + " insgesamt, " + lying + " Beute in der Nähe; sonst " +
+                                 (chance * 100f).ToString("0") + " %).");
+                            return true;
+                        }
+
+                        if (Elapsed > 3.0)
+                        {
+                            bow.RecoverChance = chance;
+                        }
+
+                        return Fail(Elapsed > 3.0, "Der Holzpfeil wurde nicht zum Aufsammeln abgelegt.");
                 }
             };
         }

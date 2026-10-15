@@ -233,6 +233,21 @@ namespace Aetherfall.Inventory
         }
 
         /// <inheritdoc />
+        public bool DropNew(string itemId, int count, Vector3 position, string sourceId)
+        {
+            if (count < 1 || string.IsNullOrEmpty(itemId) || !_inventory.Catalog.TryGetItem(itemId, out ItemSpec spec))
+            {
+                return false;
+            }
+
+            ItemInstance item = _inventory.Generator.CreateFixed(spec, 1, spec.BaseRarity, count, _debugRandom);
+            _single.Clear();
+            _single.Add(LootDrop.ForItem(item));
+            Deliver(_single, position, sourceId);
+            return true;
+        }
+
+        /// <inheritdoc />
         public int SpawnDebugLoot(Vector3 position)
         {
             int level = 1;
