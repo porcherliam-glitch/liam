@@ -631,7 +631,8 @@ namespace Aetherfall.EditorTools.World
             {
                 PlayerMotor player = FindPlayer();
                 PlayerAbilityCaster caster = player != null ? player.GetComponent<PlayerAbilityCaster>() : null;
-                if (caster == null || caster.Runner == null)
+                Aetherfall.Combat.AbilityRunner runner = caster != null ? caster.GetRunner(PlayerAbilityCaster.AetherPushId) : null;
+                if (runner == null)
                 {
                     return Fail(true, "Die Spielfigur hat keinen Aether-Stoß (PlayerAbilityCaster fehlt).");
                 }
@@ -651,7 +652,8 @@ namespace Aetherfall.EditorTools.World
                         Vector3 front = enemy.transform.forward;
                         front.y = 0f;
                         PlaceOnGround(enemy.transform.position + front.normalized * 3f, -front);
-                        Note("Aether-Stoß gelernt: " + caster.IsUnlocked + ", Mana " + caster.Mana.ToString("0") + ".");
+                        Note("Aether-Stoß gelernt: " + caster.IsLearned(PlayerAbilityCaster.AetherPushId) + " (Leiste 1, Platz " +
+                             (caster.Bar.IndexOf(PlayerAbilityCaster.AetherPushId) + 1) + "), Mana " + caster.Mana.ToString("0") + ".");
                         phase = 1;
                         _stepStart = UnityEditor.EditorApplication.timeSinceStartup;
                         return false;
@@ -661,7 +663,7 @@ namespace Aetherfall.EditorTools.World
                             return false;
                         }
 
-                        if (!caster.TryCast())
+                        if (!caster.TryCast(PlayerAbilityCaster.AetherPushId))
                         {
                             return Fail(Elapsed > 3.0, "Aether-Stoß startet nicht: " + caster.LastRefusal + " (Mana " + caster.Mana.ToString("0") + ").");
                         }
@@ -670,13 +672,13 @@ namespace Aetherfall.EditorTools.World
                         _stepStart = UnityEditor.EditorApplication.timeSinceStartup;
                         return false;
                     case 2:
-                        if (caster.Runner.Phase == Aetherfall.Combat.AbilityPhase.Windup)
+                        if (runner.Phase == Aetherfall.Combat.AbilityPhase.Windup)
                         {
                             return Fail(Elapsed > 2.0, "Aether-Stoß bleibt im Ausholen hängen.");
                         }
 
                         Note("Aether-Stoß: " + caster.LastHitCount + " Treffer, Mana danach " + caster.Mana.ToString("0") + ", Abklingzeit " +
-                             caster.Runner.CooldownRemaining.ToString("0.0") + " s.");
+                             runner.CooldownRemaining.ToString("0.0") + " s.");
                         if (caster.LastHitCount == 0)
                         {
                             return Fail(true, "Der Aether-Stoß hat nichts getroffen.");

@@ -1,0 +1,49 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 946ae9da428a3f4489fdbbfebfc0d795, type: 3}
+  m_Name: Eis_Frostnova
+  m_EditorClassIdentifier: Aetherfall.Combat::Aetherfall.Combat.AbilityDefinition
+  abilityId: ability.eis.frostnova
+  displayName: Frostnova
+  kind: 0
+  manaCost: 25
+  cooldownSeconds: 12
+  windupSeconds: 0.3
+  recoverySeconds: 0.4
+  range: 5
+  coneAngle: 360
+  damageMultiplier: 0.9
+  element: 4
+  elementShare: 1
+  scalesWithWeapon: 0
+  poiseDamage: 20
+  knockbackDistance: 0
+  corruption: 0
+  buildupEffect: 1
+  buildup: 50
+  projectileSpeed: 24
+  projectileRadius: 0.3
+  maxTargets: 1
+  explosionRadius: 0
+  explosionShare: 0.7
+  chainTargets: 3
+  chainRange: 6
+  chainFalloff: 0.2
+  areaRadius: 4
+  areaSeconds: 6
+  areaTickSeconds: 0.5
+  strikeCount: 3
+  strikeInterval: 0.35
+  strikeRadius: 2
+  buffKind: 0
+  buffSeconds: 10
+  buffValue: 0.2

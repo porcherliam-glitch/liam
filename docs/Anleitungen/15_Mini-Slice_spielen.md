@@ -40,7 +40,9 @@ Tipp: Im Game-Fenster oben in der Leiste **Play Maximized** wählen, dann ist da
 | Bogen ziehen / wegstecken (Fernkampf-Haltung) | **F** |
 | Mit Bogen: zielen (Fadenkreuz) / spannen und schießen | **rechte Maustaste** halten / **linke Maustaste** halten und loslassen |
 | Mit Bogen ohne Zielen: schneller Hüftschuss (halber Schaden) | **linke Maustaste** |
-| Aether-Stoß (ab dem Riss im Prolog): stößt alle Gegner vor dir 3 m zurück, 15 Mana, danach 8 s warten | **4** |
+| Fähigkeiten der aktiven Leiste (unten rechts; Name über dem Feld) | **1 2 3 4** |
+| Zweite Fähigkeitenleiste anzeigen (2 × 4 Plätze) | **X** |
+| Aether-Stoß (ab dem Riss im Prolog, Leiste 1, Feld 4): stößt alle Gegner vor dir 3 m zurück, 15 Mana, danach 8 s warten | **4** |
 | Heiltrank trinken: +35 % Leben, dauert knapp eine Sekunde, ein harter Treffer bricht ab (3 Stück zu Beginn) | **5** |
 | Manatrank trinken (Magier, 3 Stück zu Beginn): +40 % Mana | **6** |
 | Inventar und Charakter | **Tab** |
@@ -57,7 +59,9 @@ Mit Gamepad geht es auch (Xbox-Belegung: A springen und benutzen, X/Y angreifen,
 
 **Streitkolben:** Bei Tobold zu kaufen, im Inventar (**Tab**) anlegen. Drei langsamere, wuchtige Schläge statt vier Schwerthieben, der dritte von oben; dafür bricht er die Deckung schneller. Den Schild behältst du.
 
-Unten rechts im HUD leuchtet Feld 4 blau, sobald du den Aether-Stoß kannst. Nach dem Einsatz läuft dort die Wartezeit in Sekunden ab; grau heißt: zu wenig Mana.
+**Zauber (Magier):** Der Magier kann von Anfang an drei Zauber, je einen pro Schule, auf den Tasten **1–3**: **Feuerball** (fliegt, explodiert in 2 m und setzt in Brand), **Eislanze** (durchbohrt den ersten Gegner und trifft noch einen zweiten, lässt erfrieren) und **Kettenblitz** (springt von deinem Ziel auf bis zu zwei weitere Gegner, jeder Sprung 20 % schwächer). Gezielt wird auf den anvisierten Gegner (**T**), sonst auf den nächsten. Zauber kosten Mana (etwas mehr mit jeder Stufe) und haben eine Wartezeit. Die sechs anderen Zauber kommen mit dem Skill-Baum: Flammenteppich (Boden brennt 6 s), Glutmantel (Feuer-Aura), Frostnova (Frost-Ring um dich), Eispanzer (mehr Rüstung, Angreifer frieren), Gewitterruf (drei Blitze aus dem Himmel) und Sturmschritt (20 % schneller, eine Rolle hinterlässt einen Schock). Mit **X** wechselst du zur zweiten Leiste.
+
+Unten rechts im HUD stehen die vier Felder der aktiven Leiste, darüber „Leiste 1 von 2“. Ein Feld leuchtet in der Farbe seines Elements (Feuer orange, Eis hellblau, Blitz gelb, Aether violett), sobald du die Fähigkeit kannst; Feld 4 von Leiste 1 ist für den Aether-Stoß frei. Nach dem Einsatz läuft dort die Wartezeit in Sekunden ab; grau heißt: zu wenig Mana.
 
 ## 3. Was dich erwartet
 
@@ -82,7 +86,8 @@ Oben rechts steht immer dein aktuelles Ziel. Die Gruft ist auf Stufe 4 eingestel
 ## 4. Bekannte Lücken
 
 - Du selbst bist jetzt ein Krieger aus Blender (Arme, Beine und Schwert bewegen sich per Code, noch ohne fertige Animationen). Dorfbewohner, Wölfe, Skelette, der Wachende Ritter sowie Fenster, Türen, Schornsteine und Brücken sind ebenfalls aus Blender.
-- Keine Musik, keine Zwischensequenzen. Der Aether-Stoß erhöht noch keine Verderbnis (die gibt es noch nicht).
+- Keine Musik, keine Zwischensequenzen.
+- Noch kein Skill-Baum: Der Magier hat nur seine drei Startzauber, der Krieger noch keine eigenen Kampftechniken (kommt als Nächstes). Die Leiste lässt sich noch nicht selbst umsortieren.
 - Die Gruft ist dunkel. Das ist Absicht, kann aber nachgebessert werden.
 
 ## 5. Rückmeldung an Claude

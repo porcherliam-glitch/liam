@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Aetherfall.Combat;
 using Aetherfall.Core;
 using Aetherfall.Inventory;
 using Aetherfall.SaveSystem;
@@ -8,7 +9,7 @@ using UnityEngine;
 namespace Aetherfall.Classes
 {
     /// <summary>
-    /// Registers <see cref="IClassService"/> with the classes of the list (the first one is the default) and its save section
+    /// Registers <see cref="IClassService"/> (and <see cref="IAbilityGrants"/>: the start abilities of the class) with the classes of the list (the first one is the default) and its save section
     /// <c>class</c>. Needs the inventory (starting kit of the class).
     /// </summary>
     [CreateAssetMenu(menuName = "Aetherfall/Boot/Installer: Klassen", fileName = "ClassInstaller", order = 113)]
@@ -18,7 +19,7 @@ namespace Aetherfall.Classes
         [SerializeField] private List<ClassDefinition> classes = new List<ClassDefinition>();
 
         /// <inheritdoc />
-        public override IEnumerable<Type> Provides => new[] { typeof(IClassService) };
+        public override IEnumerable<Type> Provides => new[] { typeof(IClassService), typeof(IAbilityGrants) };
 
         /// <inheritdoc />
         public override IEnumerable<Type> Requires => new[] { typeof(IInventoryService), typeof(ISaveManager) };
@@ -39,6 +40,7 @@ namespace Aetherfall.Classes
             locator.Get<ISaveManager>().Register(new ClassSaveable(service));
             Log.Info(LogCategory.Data, "Classes: " + service.Classes.Count + " (default " + service.Pending.Id + ").");
             registry.Register<IClassService>(service);
+            registry.Register<IAbilityGrants>(service);
         }
     }
 }

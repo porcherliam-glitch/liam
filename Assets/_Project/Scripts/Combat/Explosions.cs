@@ -27,18 +27,43 @@ namespace Aetherfall.Combat
         public static int Detonate(Combatant attacker, Combatant source, Vector3 origin, float radius, AttackSpec attack, float damage, float poise,
             IReadOnlyList<Combatant> combatants)
         {
+            if (attack == null)
+            {
+                return 0;
+            }
+
+            var profile = new AttackProfile(ElementReactions.ExplosionPacket(damage), AttributeScaling.None, poise);
+            return Detonate(attacker, source, null, origin, radius, attack, profile, damage, combatants);
+        }
+
+        /// <summary>
+        /// Hits everyone within <paramref name="radius"/> of <paramref name="origin"/> with a given damage profile (spell explosions
+        /// such as the Feuerball, GDD 03 6.4); explosives and oil puddles in range go off as well.
+        /// </summary>
+        /// <param name="attacker">Who set it off (null: the source itself).</param>
+        /// <param name="source">The exploding object's combatant (never hit itself; may be null).</param>
+        /// <param name="skip">A combatant that is not hit (e.g. the one the projectile already hit directly; may be null).</param>
+        /// <param name="origin">Centre.</param>
+        /// <param name="radius">Radius in metres.</param>
+        /// <param name="attack">Explosion attack.</param>
+        /// <param name="profile">Damage profile of every hit.</param>
+        /// <param name="triggerDamage">Damage that sets off explosives and oil (chain).</param>
+        /// <param name="combatants">Registered combatants.</param>
+        /// <returns>Number of combatants hit.</returns>
+        public static int Detonate(Combatant attacker, Combatant source, Combatant skip, Vector3 origin, float radius, AttackSpec attack,
+            in AttackProfile profile, float triggerDamage, IReadOnlyList<Combatant> combatants)
+        {
             if (combatants == null || attack == null)
             {
                 return 0;
             }
 
             Combatant owner = attacker != null ? attacker : source;
-            var profile = new AttackProfile(ElementReactions.ExplosionPacket(damage), AttributeScaling.None, poise);
             int hits = 0;
             for (int i = 0; i < combatants.Count; i++)
             {
                 Combatant target = combatants[i];
-                if (target == null || target == source || !target.IsAlive || !target.isActiveAndEnabled)
+                if (target == null || target == source || target == skip || !target.IsAlive || !target.isActiveAndEnabled)
                 {
                     continue;
                 }
@@ -52,13 +77,13 @@ namespace Aetherfall.Combat
                 if (target.TryGetComponent(out ExplosiveObject explosive))
                 {
                     // Chain: barrels and kegs go off a moment later (GDD 03 6.6 #16).
-                    explosive.Ignite(owner, damage, ElementReactions.ChainDelaySeconds);
+                    explosive.Ignite(owner, triggerDamage, ElementReactions.ChainDelaySeconds);
                     continue;
                 }
 
                 if (target.TryGetComponent(out ElementArea area))
                 {
-                    area.Ignite(owner, damage, ElementReactions.ChainDelaySeconds);
+                    area.Ignite(owner, triggerDamage, ElementReactions.ChainDelaySeconds);
                     continue;
                 }
 

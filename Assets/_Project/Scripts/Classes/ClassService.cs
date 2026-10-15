@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Aetherfall.Combat;
 using Aetherfall.Core;
 using Aetherfall.Inventory;
 
@@ -8,9 +9,10 @@ namespace Aetherfall.Classes
     /// <summary>
     /// Default <see cref="IClassService"/>: the classes of the content database, the class of the running game and the class of
     /// the next new game. Choosing a class also sets the starting kit of the inventory, so the new game starts with the kit of
-    /// the class (GDD 03 11.2). Saved in the section <c>class</c> (<see cref="ClassSaveable"/>, before the inventory).
+    /// the class (GDD 03 11.2). Saved in the section <c>class</c> (<see cref="ClassSaveable"/>, before the inventory). Grants the
+    /// start abilities of the current class (<see cref="IAbilityGrants"/>).
     /// </summary>
-    public sealed class ClassService : IClassService
+    public sealed class ClassService : IClassService, IAbilityGrants
     {
         private readonly List<ClassSpec> _classes = new List<ClassSpec>();
         private readonly IInventoryService _inventory;
@@ -94,6 +96,26 @@ namespace Aetherfall.Classes
             {
                 _inventory.SetStartingKit(spec.Kit);
             }
+        }
+
+        /// <inheritdoc />
+        public bool Grants(string abilityId)
+        {
+            if (string.IsNullOrEmpty(abilityId) || Current == null)
+            {
+                return false;
+            }
+
+            IReadOnlyList<string> abilities = Current.StartAbilities;
+            for (int i = 0; i < abilities.Count; i++)
+            {
+                if (abilities[i] == abilityId)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>The class with this id, or null.</summary>

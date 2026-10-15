@@ -108,6 +108,8 @@ namespace Aetherfall.EditorTools.Core
                    "Starten: Doppelklick auf Aetherfall.exe. Im Hauptmenü \"Neues Spiel\", dann die Klasse wählen:\r\n" +
                    "  Krieger – Schwert und Schild, viel Leben, Nahkampf.\r\n" +
                    "  Magier  – Lehrlingsstab: linke Maus Feuergeschosse (25 m), rechte Maus Feuerball; wenig Leben, viel Mana.\r\n" +
+                   "           Zauber auf den Tasten 1–3: Feuerball (explodiert, Brennen), Eislanze (durchbohrt, Frieren),\r\n" +
+                   "           Kettenblitz (springt auf 3 Gegner). Die übrigen 6 Zauber kommen mit dem Skill-Baum.\r\n" +
                    "Beenden: Esc, dann \"Spiel beenden\" gedrückt halten (oder Alt+F4).\r\n" +
                    "Dauer: etwa 45–60 Minuten (3 Quests: Asche über Eichental, Die Wölfe vom Nordhang, Die vergessene Gruft).\r\n\r\n" +
                    "Tasten:\r\n" +
@@ -121,7 +123,9 @@ namespace Aetherfall.EditorTools.Core
                    "                 loslassen = schießen; linke Maus ohne Zielen = schneller Hüftschuss;\r\n" +
                    "                 Mausrad = Pfeilart wechseln (Holzpfeil, Feuerpfeil). Jeder 2. Holzpfeil bleibt liegen (E)\r\n" +
                    "  5 / 6          Heiltrank / Manatrank trinken (knapp 1 s, ein harter Treffer bricht ab)\r\n" +
+                   "  1 2 3 4        Fähigkeiten der aktiven Leiste (unten rechts, Name über dem Feld, Zahl = Sekunden warten)\r\n" +
                    "  4              Aether-Stoß (ab dem Riss im Prolog; 15 Mana, 8 s warten)\r\n" +
+                   "  X              zweite Fähigkeitenleiste (2 × 4 Plätze)\r\n" +
                    "  Tab            Inventar        J              Questlog\r\n" +
                    "  F5 / F9        schnell speichern / laden\r\n" +
                    "  Esc            Pause und Menü\r\n" +

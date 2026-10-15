@@ -35,6 +35,10 @@ namespace Aetherfall.Classes
         [Tooltip("Startausrüstung eines neuen Spiels mit dieser Klasse.")]
         [SerializeField] private StartingEquipment startingEquipment = null;
 
+        [Header("Fähigkeiten")]
+        [Tooltip("Fähigkeiten, die die Klasse ohne Lernen kann (Magier: Feuerball, Eislanze, Kettenblitz – je Schule der erste Zauber).")]
+        [SerializeField] private string[] startAbilities = new string[0];
+
         /// <summary>Class id.</summary>
         public string ClassId => classId ?? string.Empty;
 
@@ -46,7 +50,7 @@ namespace Aetherfall.Classes
         {
             return new ClassSpec(ClassId, displayName, motto, description,
                 new[] { strength, dexterity, intelligence, wisdom, constitution, charisma },
-                startingEquipment != null ? startingEquipment.CreateKit() : StartingKit.Empty);
+                startingEquipment != null ? startingEquipment.CreateKit() : StartingKit.Empty, startAbilities);
         }
     }
 }

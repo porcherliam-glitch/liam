@@ -9,8 +9,9 @@ namespace Aetherfall.Player
 {
     /// <summary>
     /// Connects the player character with the save system: registers <see cref="PlayerLocationSaveable"/> (section
-    /// <c>player</c>: position, yaw, world space) and <see cref="PlayerResourcesSaveable"/> (section <c>stats.player</c>:
-    /// health, stamina, mana) with <see cref="ISaveManager"/>, places the character when a save is loaded, and blocks saving
+    /// <c>player</c>: position, yaw, world space), <see cref="PlayerResourcesSaveable"/> (section <c>stats.player</c>:
+    /// health, stamina, mana) and <see cref="PlayerAbilitiesSaveable"/> (section <c>abilities.player</c>: ability bar and
+    /// learned abilities) with <see cref="ISaveManager"/>, places the character when a save is loaded, and blocks saving
     /// while the character jumps or falls (<see cref="AirborneSaveLock"/>, architecture 9.8).
     /// </summary>
     /// <remarks>
@@ -40,6 +41,7 @@ namespace Aetherfall.Player
         private ISaveManager _saves;
         private PlayerLocationSaveable _location;
         private PlayerResourcesSaveable _resources;
+        private PlayerAbilitiesSaveable _abilities;
         private AirborneSaveLock _airborneLock;
 
         /// <inheritdoc />
@@ -113,6 +115,13 @@ namespace Aetherfall.Player
                 _resources = new PlayerResourcesSaveable(health.Health, stats != null ? stats.Stamina : null, stats != null ? stats.Mana : null,
                     combatant != null ? combatant.Status : null);
                 saves.Register(_resources);
+                if (TryGetComponent(out PlayerAbilityCaster caster) && caster.enabled)
+                {
+                    // Ability bar and learned abilities (section abilities.player).
+                    _abilities = new PlayerAbilitiesSaveable(caster);
+                    saves.Register(_abilities);
+                }
+
                 saves.Register(_location);
                 saves.RegisterHeaderContributor(_location);
                 _saves = saves;
@@ -151,6 +160,12 @@ namespace Aetherfall.Player
             // Health, stamina and mana go with the player into the next scene (portal change, guide 12, 11.5); the position does
             // not: there the arrival anchor places the player. Loading or a new game discards the carried values.
             _saves.CarryOver(_resources);
+            if (_abilities != null)
+            {
+                _saves.CarryOver(_abilities);
+                _abilities = null;
+            }
+
             _saves = null;
         }
     }

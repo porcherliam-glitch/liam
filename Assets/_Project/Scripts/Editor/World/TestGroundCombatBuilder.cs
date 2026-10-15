@@ -162,16 +162,6 @@ namespace Aetherfall.EditorTools.World
             TestGroundFields.SetReference(respawn, "combat", combat, report);
             TestGroundFields.SetReference(respawn, "stats", stats, report);
 
-            // GDD 03 6.5: the Aether-Stoß on key 4 (learned with the flag, or from the start without one).
-            PlayerAbilityCaster caster = player.AddComponent<PlayerAbilityCaster>();
-            TestGroundFields.SetReference(caster, "ability", assets.AetherPush, report);
-            TestGroundFields.SetString(caster, "unlockFlag", abilityUnlockFlag ?? string.Empty, report);
-            TestGroundFields.SetReference(caster, "combatant", combatant, report);
-            TestGroundFields.SetReference(caster, "stats", stats, report);
-            TestGroundFields.SetReference(caster, "combat", combat, report);
-            TestGroundFields.SetReference(caster, "puppet", puppet, report);
-            AetherPushEffect.Build(player.transform, caster, report);
-
             // GDD 03 11.2 / 5.3 mage: the staff lies in the sword hand (shown instead of the sword when it is equipped) and its
             // moveset fires fire bolts from the crystal; quick slots 5–8 drink potions.
             Transform staffModel = model != null ? CharacterModels.Instantiate(CharacterModels.Staff, swordHand, "Zauberstab", player.layer, report) : null;
@@ -236,6 +226,30 @@ namespace Aetherfall.EditorTools.World
 
             ProjectileLauncher launcher = player.AddComponent<ProjectileLauncher>();
             SpellEffects.BuildFireBolt(player.transform, launcher, muzzle, hurtboxLayer, 1 << environmentLayer, report);
+
+            // GDD 03 6.3–6.5, 11.8: the ability bar. The Aether-Stoß wants slot 4 of bar 1 (learned with the flag, or from the start
+            // without one); the nine spells of the mage follow (test ground: all known; mini slice: the class grants the first
+            // spell of each school, the skill tree the rest).
+            bool testGround = string.IsNullOrEmpty(abilityUnlockFlag);
+            PlayerAbilityCaster caster = player.AddComponent<PlayerAbilityCaster>();
+            TestGroundFields.SetReference(caster, "combatant", combatant, report);
+            TestGroundFields.SetReference(caster, "stats", stats, report);
+            TestGroundFields.SetReference(caster, "combat", combat, report);
+            TestGroundFields.SetReference(caster, "puppet", puppet, report);
+            TestGroundFields.SetInt(caster, "groundLayers", 1 << environmentLayer, report);
+            var casterSerialized = new SerializedObject(caster);
+            SerializedProperty loadout = casterSerialized.FindProperty("abilities");
+            loadout.arraySize = 1 + assets.Spells.Count;
+            SetAbility(loadout.GetArrayElementAtIndex(0), assets.AetherPush, abilityUnlockFlag ?? string.Empty, testGround, 4,
+                AetherPushEffect.Build(player.transform, report));
+            for (int i = 0; i < assets.Spells.Count; i++)
+            {
+                AbilityDefinition spell = assets.Spells[i];
+                AbilityVisual look = SpellVisualsBuilder.Build(player.transform, spell.AbilityId, muzzle, hurtboxLayer, 1 << environmentLayer, report);
+                SetAbility(loadout.GetArrayElementAtIndex(1 + i), spell, string.Empty, testGround, 0, look);
+            }
+
+            casterSerialized.ApplyModifiedPropertiesWithoutUndo();
             TestGroundFields.SetReference(combat, "projectiles", launcher, report);
             var combatSerialized = new SerializedObject(combat);
             SerializedProperty movesets = combatSerialized.FindProperty("movesets");
@@ -249,8 +263,9 @@ namespace Aetherfall.EditorTools.World
             TestGroundFields.SetReference(quickSlots, "combat", combat, report);
             TestGroundFields.SetReference(quickSlots, "health", damageable, report);
             TestGroundFields.SetReference(quickSlots, "stats", stats, report);
-            report.Info("Aether-Stoß (Taste 4): " + (string.IsNullOrEmpty(abilityUnlockFlag) ? "von Anfang an" : "ab Flag " + abilityUnlockFlag) +
-                        ", Kegel 6 m / 90°, 15 Mana, 8 s Abklingzeit.");
+            report.Info("Aether-Stoß (Leiste 1, Taste 4): " + (testGround ? "von Anfang an" : "ab Flag " + abilityUnlockFlag) +
+                        ", Kegel 6 m / 90°, 15 Mana, 8 s Abklingzeit. Zauber: " + assets.Spells.Count + " (" +
+                        (testGround ? "alle gelernt" : "Magier: Feuerball, Eislanze, Kettenblitz von der Klasse") + "), Leiste wechseln mit X.");
             report.Info("Spieler-Kampf: Combatant, Trefferzonen (Körper, Kopf), Hitbox, Lock-On, Kampfsteuerung, " +
                         (model != null ? "Krieger-Modell mit Schwert und Holzschild (Blender, HumanoidPuppet), " : "Schwert und Schild (Quader), ") +
                         "Wiederbeleben nach 3 s. Werte: Krieger Stufe 10 aus GDD 03, 8.3 (Stärke 20, Geschick 10, Konstitution 18; Rüstung und " +
@@ -363,6 +378,16 @@ namespace Aetherfall.EditorTools.World
             TestGroundFields.SetReference(shake, "impulseSource", source, report);
             report.Info("Lock-On-Kamera CM_LockOn (Third Person Follow 4,5–7 m, Blick auf Zielgruppe Spieler + Ziel, Priorität 20) und " +
                         "Kamera-Wackeln per Cinemachine Impulse (Quelle „CameraShake“, Listener an beiden Kameras).");
+        }
+
+        private static void SetAbility(SerializedProperty element, AbilityDefinition ability, string unlockFlag, bool learnedAtStart, int preferredSlot,
+            AbilityVisual visual)
+        {
+            element.FindPropertyRelative("ability").objectReferenceValue = ability;
+            element.FindPropertyRelative("unlockFlag").stringValue = unlockFlag ?? string.Empty;
+            element.FindPropertyRelative("learnedAtStart").boolValue = learnedAtStart;
+            element.FindPropertyRelative("preferredSlot").intValue = preferredSlot;
+            element.FindPropertyRelative("visual").objectReferenceValue = visual;
         }
 
         private static void SetAmmo(SerializedProperty element, string itemId, string name, float fireShare, float burning, bool recoverable)

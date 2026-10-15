@@ -2,6 +2,7 @@ using System;
 using Aetherfall.AI;
 using Aetherfall.Combat;
 using Aetherfall.Core;
+using Aetherfall.Events;
 using Aetherfall.Player;
 using Aetherfall.Stats;
 using UnityEngine;
@@ -22,8 +23,6 @@ namespace Aetherfall.UI.Screens
     [DisallowMultipleComponent]
     public sealed class PlayerHudLink : MonoBehaviour, IPlayerHudSource
     {
-        private const int AbilitySlot = 3;
-
         [Tooltip("Lebenspunkte der Figur. Leer = DamageableComponent am selben GameObject.")]
         [SerializeField] private DamageableComponent health = null;
 
@@ -42,7 +41,7 @@ namespace Aetherfall.UI.Screens
         [Tooltip("Kamera-Transform für den Kompass (Main Camera).")]
         [SerializeField] private Transform cameraTransform = null;
 
-        [Tooltip("Fähigkeit auf Platz 4 (Aether-Stoß). Leer = PlayerAbilityCaster am selben GameObject.")]
+        [Tooltip("Fähigkeiten und Fähigkeitenleiste. Leer = PlayerAbilityCaster am selben GameObject.")]
         [SerializeField] private PlayerAbilityCaster abilities = null;
 
         [Tooltip("Bogen (Fadenkreuz und Pfeile in der Fernkampf-Haltung). Leer = PlayerBow am selben GameObject.")]
@@ -170,18 +169,39 @@ namespace Aetherfall.UI.Screens
         }
 
         /// <inheritdoc />
+        public int ActiveAbilityBar => abilities != null ? abilities.Bar.ActiveBar : 0;
+
+        /// <inheritdoc />
         public bool TryGetAbility(int slot, out HudAbilityInfo ability)
         {
-            // The first bar holds only the Aether-Stoß on slot 4 so far (GDD 03 1411).
-            if (slot != AbilitySlot || abilities == null || !abilities.isActiveAndEnabled || abilities.Runner == null || !abilities.IsUnlocked)
+            string id = abilities != null && abilities.isActiveAndEnabled ? abilities.Bar.GetActive(slot) : string.Empty;
+            AbilityRunner runner = id.Length > 0 && abilities.IsLearned(id) ? abilities.GetRunner(id) : null;
+            if (runner == null)
             {
                 ability = default;
                 return false;
             }
 
-            AbilityRunner runner = abilities.Runner;
-            ability = new HudAbilityInfo(runner.Spec.DisplayName, runner.Cooldown01, runner.CooldownRemaining, abilities.Mana >= runner.Spec.ManaCost);
+            ability = new HudAbilityInfo(runner.Spec.DisplayName, runner.Cooldown01, runner.CooldownRemaining, abilities.Mana >= runner.ManaCost,
+                ElementKey(runner.Spec.Element));
             return true;
+        }
+
+        private static string ElementKey(DamageType element)
+        {
+            switch (element)
+            {
+                case DamageType.Fire:
+                    return "fire";
+                case DamageType.Ice:
+                    return "ice";
+                case DamageType.Lightning:
+                    return "lightning";
+                case DamageType.Aether:
+                    return "aether";
+                default:
+                    return string.Empty;
+            }
         }
 
         /// <inheritdoc />

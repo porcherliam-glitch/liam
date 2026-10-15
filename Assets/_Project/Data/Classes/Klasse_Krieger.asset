@@ -23,3 +23,4 @@ MonoBehaviour:
   constitution: 15
   charisma: 10
   startingEquipment: {fileID: 11400000, guid: 855497a544d5a6a4295818e1ea795ff5, type: 2}
+  startAbilities: []

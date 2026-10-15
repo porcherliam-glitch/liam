@@ -42,6 +42,7 @@ namespace Aetherfall.EditorTools.World
             Weapon = EnsureWeapon(combo, heavy, sprint, jump, counter, finisher, report);
             Settings = EnsureAsset<CombatSettings>(TestGroundPaths.CombatSettingsPath, report, null);
             AetherPush = EnsureAetherPush(report);
+            Spells = SpellAssets.EnsureAll(report);
             Wolf = EnsureEnemy("Grauwolf", false, bite, snap, pounce, report);
             AetherWolf = EnsureEnemy("AetherWolf", true, bite, snap, pounce, report);
             Staff = EnsureStaff(finisher, report);
@@ -69,6 +70,9 @@ namespace Aetherfall.EditorTools.World
 
         /// <summary>The first ability, Aether-Stoß (ability.aether.aether_stoss, GDD 03 6.5).</summary>
         public AbilityDefinition AetherPush { get; }
+
+        /// <summary>The nine spells of the mage (GDD 03 6.4), the first spell of each school first.</summary>
+        public System.Collections.Generic.List<AbilityDefinition> Spells { get; }
 
         /// <summary>Grey wolf (enemy.wolf.grauwolf, normal, level 8).</summary>
         public EnemyTypeDefinition Wolf { get; }
@@ -290,7 +294,7 @@ namespace Aetherfall.EditorTools.World
                 Set(so, "range", 6f, report);
                 Set(so, "coneAngle", 90f, report);
                 Set(so, "damageMultiplier", 1.2f, report);
-                Set(so, "aetherShare", 0.5f, report);
+                Set(so, "elementShare", 0.5f, report);
                 Set(so, "poiseDamage", 30f, report);
                 Set(so, "knockbackDistance", 3f, report);
                 Set(so, "corruption", 2f, report);

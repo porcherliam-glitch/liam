@@ -52,6 +52,9 @@ namespace Aetherfall.Tests.EditMode.UIScreens
         }
 
         /// <inheritdoc />
+        public int ActiveAbilityBar => 0;
+
+        /// <inheritdoc />
         public bool TryGetAbility(int slot, out HudAbilityInfo ability)
         {
             ability = default;

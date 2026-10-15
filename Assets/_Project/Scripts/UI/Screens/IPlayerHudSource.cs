@@ -37,7 +37,10 @@ namespace Aetherfall.UI.Screens
         /// <returns>False if no living target is locked on.</returns>
         bool TryGetTarget(out HudTargetInfo target);
 
-        /// <summary>Returns the learned ability on a slot of the first bar.</summary>
+        /// <summary>Active ability bar, 0 or 1 (GDD 03 11.8: X switches).</summary>
+        int ActiveAbilityBar { get; }
+
+        /// <summary>Returns the learned ability on a slot of the active bar.</summary>
         /// <param name="slot">Slot 0–3 (keys 1–4).</param>
         /// <param name="ability">Ability info.</param>
         /// <returns>False if the slot is empty or the ability is not learned yet.</returns>

@@ -51,10 +51,10 @@ namespace Aetherfall.EditorTools.World
                 // GDD 03 11.2: start attributes Str / Dex / Int / Wis / Con / Cha (sum 66).
                 EnsureClass("Klasse_Krieger", "class.krieger", "Krieger", "Ich stehe, wo andere fallen.",
                     "Nahkampf mit Schwert und Schild: Schläge, Blocken und Parieren. Viel Leben, wenig Mana. Für alle, die mitten ins Getümmel wollen.",
-                    new[] { 14f, 10f, 8f, 9f, 15f, 10f }, warriorKit, report),
+                    new[] { 14f, 10f, 8f, 9f, 15f, 10f }, warriorKit, new string[0], report),
                 EnsureClass("Klasse_Magier", "class.magier", "Magier", "Feuer, Eis und Sturm gehorchen mir.",
-                    "Kampf auf Abstand mit dem Lehrlingsstab: Feuergeschosse (Maustaste links) und ein großer Feuerball (rechts). Wenig Leben, viel Mana – halte Gegner auf Abstand. Start mit Stoffrobe, 3 Heil- und 3 Manatränken.",
-                    new[] { 8f, 10f, 15f, 13f, 10f, 10f }, mageKit, report)
+                    "Kampf auf Abstand mit dem Lehrlingsstab: Feuergeschosse (Maustaste links), ein großer Feuerball (rechts) und drei Zauber auf den Tasten 1–3: Feuerball, Eislanze und Kettenblitz. Wenig Leben, viel Mana – halte Gegner auf Abstand. Start mit Stoffrobe, 3 Heil- und 3 Manatränken.",
+                    new[] { 8f, 10f, 15f, 13f, 10f, 10f }, mageKit, SpellAssets.MageStart, report)
             };
             SetClasses(classes, report);
         }
@@ -94,7 +94,7 @@ namespace Aetherfall.EditorTools.World
         }
 
         private static Aetherfall.Classes.ClassDefinition EnsureClass(string file, string id, string name, string motto, string description, float[] attributes,
-            StartingEquipment kit, TestGroundReport report)
+            StartingEquipment kit, string[] startAbilities, TestGroundReport report)
         {
             if (!TestGroundAssets.EnsureFolder(ClassFolder, report))
             {
@@ -120,6 +120,14 @@ namespace Aetherfall.EditorTools.World
             }
 
             so.FindProperty("startingEquipment").objectReferenceValue = kit;
+            // GDD 03 11.1: the class knows its first abilities without the skill tree (mage: the first spell of each school).
+            SerializedProperty abilities = so.FindProperty("startAbilities");
+            abilities.arraySize = startAbilities.Length;
+            for (int i = 0; i < startAbilities.Length; i++)
+            {
+                abilities.GetArrayElementAtIndex(i).stringValue = startAbilities[i];
+            }
+
             so.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(definition);
             return definition;

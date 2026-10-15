@@ -7,23 +7,27 @@ namespace Aetherfall.EditorTools.World
 {
     /// <summary>
     /// The look of the Aether-Stoß on the player: a burst of glowing blue-violet sparks that shoots forward in a 90° cone and
-    /// fades within half a second, plus a short blue light flash. Built as children of the player and connected to the
-    /// <see cref="PlayerAbilityCaster"/>; the soft spark texture and the additive URP particle material are generated once.
+    /// fades within half a second, plus a short blue light flash. Built as an <see cref="AbilityVisual"/> under the player (the
+    /// <see cref="PlayerAbilityCaster"/> plays it); the soft spark texture and the additive URP particle material are generated once.
     /// </summary>
     public static class AetherPushEffect
     {
         private const string TexturePath = TestGroundPaths.MaterialFolder + "/T_AetherFunke.png";
         private const string MaterialPath = TestGroundPaths.MaterialFolder + "/M_AetherStoss.mat";
 
-        /// <summary>Adds the effect to the player and sets the fields <c>effect</c> and <c>flash</c> of the caster.</summary>
+        /// <summary>Adds the look of the Aether-Stoß to the player.</summary>
         /// <param name="player">Player root.</param>
-        /// <param name="caster">Ability caster of the player.</param>
         /// <param name="report">Protocol.</param>
-        public static void Build(Transform player, PlayerAbilityCaster caster, TestGroundReport report)
+        /// <returns>The look for the ability entry of the caster.</returns>
+        public static AbilityVisual Build(Transform player, TestGroundReport report)
         {
             Material material = EnsureMaterial(report);
+            var visualObject = new GameObject("Faehigkeit_AetherStoss");
+            visualObject.transform.SetParent(player, false);
+            visualObject.layer = player.gameObject.layer;
+            AbilityVisual visual = visualObject.AddComponent<AbilityVisual>();
             var burst = new GameObject("AetherStoss");
-            burst.transform.SetParent(player, false);
+            burst.transform.SetParent(visualObject.transform, false);
             burst.transform.localPosition = new Vector3(0f, 1.1f, 0.3f);
             burst.layer = player.gameObject.layer;
             ParticleSystem system = burst.AddComponent<ParticleSystem>();
@@ -64,7 +68,7 @@ namespace Aetherfall.EditorTools.World
             AddShockRing(burst.transform, material);
 
             var lightObject = new GameObject("AetherStossLicht");
-            lightObject.transform.SetParent(player, false);
+            lightObject.transform.SetParent(visualObject.transform, false);
             lightObject.transform.localPosition = new Vector3(0f, 1.3f, 1.2f);
             Light light = lightObject.AddComponent<Light>();
             light.type = LightType.Point;
@@ -74,12 +78,14 @@ namespace Aetherfall.EditorTools.World
             light.shadows = LightShadows.None;
             light.enabled = false;
 
-            TestGroundFields.SetReference(caster, "effect", system, report);
-            TestGroundFields.SetReference(caster, "flash", light, report);
+            TestGroundFields.SetReference(visual, "castEffect", system, report);
+            TestGroundFields.SetReference(visual, "flash", light, report);
             if (material == null)
             {
                 report.Warning("Aether-Stoß: kein Partikel-Material (URP fehlt?) – nur der Lichtblitz ist zu sehen.");
             }
+
+            return visual;
         }
 
         /// <summary>

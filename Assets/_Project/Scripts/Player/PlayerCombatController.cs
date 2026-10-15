@@ -114,6 +114,12 @@ namespace Aetherfall.Player
         private Combatant _rangedTarget;
         private readonly System.Collections.Generic.List<Combatant> _coneBuffer = new System.Collections.Generic.List<Combatant>(8);
 
+        /// <summary>Share of the weapon damage added as fire to melee hits (Glutmantel 0.2, GDD 03 6.4); set by the ability caster.</summary>
+        public float MeleeFireShare { get; set; }
+
+        /// <summary>Raised when a dodge starts: true for a roll, false for a back step (Sturmschritt leaves a shock pulse).</summary>
+        public event Action<bool> Dodged;
+
         /// <summary>The combat state machine (read-only use: weapon pose, overlays); null if the setup is invalid.</summary>
         public CombatStateMachine StateMachine => _machine;
 
@@ -129,6 +135,9 @@ namespace Aetherfall.Player
 
         /// <summary>Weapon damage W in use (GDD 03 8.2 step 1); 0 before the setup.</summary>
         public float WeaponDamage => _weapon != null ? _weapon.BaseDamage : 0f;
+
+        /// <summary>Weapon type of the moveset in use (staff, mace, one-handed sword …).</summary>
+        public WeaponType CurrentWeaponType => _weaponType;
 
         /// <summary>Attribute weights of the weapon type (for the displayed attack value).</summary>
         public AttributeScaling WeaponScaling => _weapon != null ? _weapon.Scaling : AttributeScaling.None;
@@ -165,7 +174,14 @@ namespace Aetherfall.Player
             }
 
             DamageType type = attack != null && attack.OverrideDamageType ? attack.DamageType : _weapon.DamageType;
-            return new AttackProfile(DamagePacket.Single(type, _weapon.BaseDamage), _weapon.Scaling, _weapon.WeaponPoise);
+            DamagePacket packet = DamagePacket.Single(type, _weapon.BaseDamage);
+            if (MeleeFireShare > 0f && (attack == null || !attack.IsProjectile))
+            {
+                // Glutmantel (GDD 03 6.4): melee hits deal +20 % of the weapon damage as fire.
+                packet = packet.With(DamageType.Fire, _weapon.BaseDamage * MeleeFireShare);
+            }
+
+            return new AttackProfile(packet, _weapon.Scaling, _weapon.WeaponPoise);
         }
 
         /// <inheritdoc />
@@ -822,6 +838,7 @@ namespace Aetherfall.Player
 
             // Roll: in the movement direction; back step (no direction): straight backwards.
             _motion.SetDodgeDirection(direction.X, direction.Z, yaw);
+            Dodged?.Invoke(roll);
         }
 
         private void HitFinisherTarget(AttackSpec attack)

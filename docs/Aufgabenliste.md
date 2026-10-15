@@ -50,9 +50,11 @@ Ziel: ein Teil des Eichentals (~1,1 km²), alle 8 Beispiel-Quests, etwa 3,5–4 
 - [x] **Bogen voll ausbauen (S27):** Schulterzielen, Spannen, Kopftreffer mit Zusatzschaden, Pfeiltypen, Munition – 2026-10-15
   - Stufe A: Holz- und Feuerpfeil, Wechsel per Mausrad/Steuerkreuz, 50 % der Holzpfeile wieder aufsammelbar
   - Offen für Stufe B: Breitkopf-, Eis-, Gift-, Explosiv-, Betäubungspfeil, Dreifachschuss
-- [ ] **Magie (S28):**
+- [x] **Magie (S28):** – 2026-10-15
   - 3 Schulen Feuer, Eis und Blitz mit je 3 Knoten in Stufe A, nach GDD 03, 11.5
   - Fähigkeitenleiste (2 × 4 Slots), Mana
+  - Erledigt: 9 Zauber, Leiste mit X, Mana je Stufe; der Magier kann die 3 Startzauber. Die übrigen 6 lernt man mit dem Skill-Baum (nächster Punkt)
+  - Offen: Kanal-Zauber (Flammenstrahl …), Bodenmarker zum Zielen, Reaktionen Schock-Fläche, Flächenbrand, Eis
 - [ ] **Gegner (S41) auf 5 Typen** nach GDD 01, 11.4:
   - Varianten Normal, Elite, Champion, Aether-verderbt
   - Gebietsstufe, Schwierigkeitsgrade

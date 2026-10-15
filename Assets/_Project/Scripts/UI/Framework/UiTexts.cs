@@ -42,6 +42,7 @@ namespace Aetherfall.UI.Framework
             new UiTextEntry("fmt-class-values", "Startwerte: Stärke {0} · Geschick {1} · Intelligenz {2} · Weisheit {3} · Konstitution {4} · Charisma {5}"),
             new UiTextEntry("fmt-hud-arrows", "{0}: {1}  (Mausrad: wechseln)"),
             new UiTextEntry("hud-arrows-default", "Pfeile"),
+            new UiTextEntry("fmt-hud-ability-bar", "Leiste {0} von 2"),
 
             // Pause menu (GDD 05 1.3, System tab)
             new UiTextEntry("pause-title", "Pause"),

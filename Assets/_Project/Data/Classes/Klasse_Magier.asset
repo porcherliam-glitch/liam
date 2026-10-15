@@ -15,7 +15,7 @@ MonoBehaviour:
   classId: class.magier
   displayName: Magier
   motto: Feuer, Eis und Sturm gehorchen mir.
-  description: "Kampf auf Abstand mit dem Lehrlingsstab: Feuergeschosse (Maustaste links) und ein gro\xDFer Feuerball (rechts). Wenig Leben, viel Mana \u2013 halte Gegner auf Abstand. Start mit Stoffrobe, 3 Heil- und 3 Manatr\xE4nken."
+  description: "Kampf auf Abstand mit dem Lehrlingsstab: Feuergeschosse (Maustaste links), ein gro\xDFer Feuerball (rechts) und drei Zauber auf den Tasten 1\u20133: Feuerball, Eislanze und Kettenblitz. Wenig Leben, viel Mana \u2013 halte Gegner auf Abstand. Start mit Stoffrobe, 3 Heil- und 3 Manatr\xE4nken."
   strength: 8
   dexterity: 10
   intelligence: 15
@@ -23,3 +23,7 @@ MonoBehaviour:
   constitution: 10
   charisma: 10
   startingEquipment: {fileID: 11400000, guid: 34f708f3ef8b9064b93e0a7594035087, type: 2}
+  startAbilities:
+  - ability.feuer.feuerball
+  - ability.eis.eislanze
+  - ability.blitz.kettenblitz

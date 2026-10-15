@@ -14,8 +14,8 @@ namespace Aetherfall.EditorTools.World
     /// <summary>
     /// Check run of the mage class (<c>-tourMode magier</c>): a new game with the class "Magier" (as chosen in the main menu)
     /// must have the start values of GDD 03 11.2, the apprentice staff in the hand and the fire bolt moveset; then the tour
-    /// fires bolts at a wolf the way the left mouse button does, takes a picture of a bolt in flight and drinks a mana potion
-    /// from quick slot 6.
+    /// fires bolts at a wolf the way the left mouse button does, takes a picture of a bolt in flight, sets a wolf and an oil barrel
+    /// alight, casts the nine spells (PlayTour.Spells) and drinks a mana potion from quick slot 6.
     /// </summary>
     public static partial class PlayTour
     {
@@ -40,6 +40,9 @@ namespace Aetherfall.EditorTools.World
             Steps.Enqueue(() => Wait(0.35));
             Steps.Enqueue(() => Capture("m02c_explosion", ViewBehindPlayer));
             Steps.Enqueue(ReportExplosion);
+            // GDD 03 6.4, 11.8: the nine spells of Stufe A and the second bar.
+            _spellTarget = null;
+            BuildSpellPlan();
             // The wolves fight back; drinking needs a calm moment (a stagger breaks it off).
             Steps.Enqueue(KillEnemiesInScene());
             Steps.Enqueue(WaitOutOfCombat);
@@ -331,6 +334,8 @@ namespace Aetherfall.EditorTools.World
                             return false;
                         }
 
+                        // Aim at the barrel itself: the staff prefers enemies in its cone, and the burning wolf may flee past.
+                        player.GetComponent<PlayerLockOn>().Lock(_barrel.GetComponent<Combatant>());
                         combat.QueueLightAttack();
                         phase = 2;
                         _stepStart = UnityEditor.EditorApplication.timeSinceStartup;
@@ -338,6 +343,7 @@ namespace Aetherfall.EditorTools.World
                     default:
                         if (_barrel.HasDetonated)
                         {
+                            player.GetComponent<PlayerLockOn>().Release();
                             Note("Ölfass " + objectId + " explodiert nach dem Feuergeschoss.");
                             return true;
                         }

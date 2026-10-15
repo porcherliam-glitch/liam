@@ -29,6 +29,7 @@ namespace Aetherfall.Combat
         [SerializeField] private ParticleSystem impact = null;
 
         private readonly RaycastHit[] _hits = new RaycastHit[MaxHits];
+        private readonly System.Collections.Generic.List<Combatant> _struck = new System.Collections.Generic.List<Combatant>(4);
         private ProjectileFlight _flight;
         private Combatant _owner;
         private AttackSpec _attack;
@@ -41,7 +42,7 @@ namespace Aetherfall.Combat
         /// <summary>True while it flies.</summary>
         public bool IsFlying => _flight != null && _impactTimer <= 0f;
 
-        /// <summary>The combatant it hit last (null if it hit a wall or nothing).</summary>
+        /// <summary>The combatant it hit last (null if it hit a wall or nothing; a piercing projectile: the last of its targets).</summary>
         public Combatant LastHit { get; private set; }
 
         /// <summary>The attack it carries (null before the first launch).</summary>
@@ -50,7 +51,10 @@ namespace Aetherfall.Combat
         /// <summary>Where it stopped last (a hit, a wall, or the end of its range).</summary>
         public Vector3 LastImpactPoint { get; private set; }
 
-        /// <summary>Raised when it stops: hit a combatant (<see cref="LastHit"/>), a wall, or reached its range.</summary>
+        /// <summary>Raised when it stops: hit its last combatant (<see cref="LastHit"/>), a wall, or reached its range.</summary>
+
+        /// <summary>Combatants hit during the current flight (a piercing projectile hits several).</summary>
+        public int StruckCount => _struck.Count;
         public event Action<Projectile> Impacted;
 
         /// <summary>Starts the flight.</summary>
@@ -73,6 +77,7 @@ namespace Aetherfall.Combat
             _release = release;
             _impactTimer = 0f;
             LastHit = null;
+            _struck.Clear();
             _flight = new ProjectileFlight(origin, direction, attack.ProjectileSpeed, attack.ProjectileGravity, attack.ProjectileRange);
             transform.SetPositionAndRotation(origin, Quaternion.LookRotation(_flight.Velocity.sqrMagnitude > 0f ? _flight.Velocity : Vector3.forward));
             gameObject.SetActive(true);
@@ -132,72 +137,87 @@ namespace Aetherfall.Combat
 
         private bool Sweep(Vector3 from, Vector3 to)
         {
-            Vector3 path = to - from;
-            float length = path.magnitude;
-            if (length < 1e-5f)
+            // A piercing projectile (ProjectileMaxTargets above 1) flies on through its first targets: the sweep goes on from the
+            // hit point and skips everyone already struck.
+            Vector3 start = from;
+            int maxTargets = Math.Max(1, _attack.ProjectileMaxTargets);
+            for (int pass = 0; pass <= maxTargets; pass++)
             {
-                return false;
-            }
-
-            int count = Physics.SphereCastNonAlloc(from, _attack.ProjectileRadius, path / length, _hits, length, _mask, QueryTriggerInteraction.Collide);
-            float best = float.MaxValue;
-            int bestIndex = -1;
-            Hurtbox bestZone = null;
-            for (int i = 0; i < count; i++)
-            {
-                RaycastHit candidate = _hits[i];
-                if (candidate.distance >= best || candidate.collider == null)
+                Vector3 path = to - start;
+                float length = path.magnitude;
+                if (length < 1e-5f)
                 {
-                    continue;
+                    return false;
                 }
 
-                bool hurtboxLayer = (_hurtboxLayers & (1 << candidate.collider.gameObject.layer)) != 0;
-                if (hurtboxLayer)
+                int count = Physics.SphereCastNonAlloc(start, _attack.ProjectileRadius, path / length, _hits, length, _mask, QueryTriggerInteraction.Collide);
+                float best = float.MaxValue;
+                int bestIndex = -1;
+                Hurtbox bestZone = null;
+                for (int i = 0; i < count; i++)
                 {
-                    if (!candidate.collider.TryGetComponent(out Hurtbox zone) || zone.Owner == null || zone.Owner == _owner || !zone.Owner.IsAlive ||
-                        _owner == null || !CombatTeams.CanDamage(_owner.Team, zone.Owner.Team))
+                    RaycastHit candidate = _hits[i];
+                    if (candidate.distance >= best || candidate.collider == null)
                     {
                         continue;
                     }
 
-                    best = candidate.distance;
-                    bestIndex = i;
-                    bestZone = zone;
+                    bool hurtboxLayer = (_hurtboxLayers & (1 << candidate.collider.gameObject.layer)) != 0;
+                    if (hurtboxLayer)
+                    {
+                        if (!candidate.collider.TryGetComponent(out Hurtbox zone) || zone.Owner == null || zone.Owner == _owner || !zone.Owner.IsAlive ||
+                            _owner == null || !CombatTeams.CanDamage(_owner.Team, zone.Owner.Team) || _struck.Contains(zone.Owner))
+                        {
+                            continue;
+                        }
+
+                        best = candidate.distance;
+                        bestIndex = i;
+                        bestZone = zone;
+                    }
+                    else if (!candidate.collider.isTrigger)
+                    {
+                        best = candidate.distance;
+                        bestIndex = i;
+                        bestZone = null;
+                    }
                 }
-                else if (!candidate.collider.isTrigger)
+
+                if (bestIndex < 0)
                 {
-                    best = candidate.distance;
-                    bestIndex = i;
-                    bestZone = null;
+                    return false;
                 }
-            }
 
-            if (bestIndex < 0)
-            {
-                return false;
-            }
-
-            RaycastHit hit = _hits[bestIndex];
-            Vector3 point = hit.point == Vector3.zero && hit.distance <= 0f ? from : hit.point;
-            if (bestZone != null)
-            {
-                Combatant target = bestZone.Owner;
-                LastHit = target;
-                var incoming = new IncomingHit
+                RaycastHit hit = _hits[bestIndex];
+                Vector3 point = hit.point == Vector3.zero && hit.distance <= 0f ? start : hit.point;
+                if (bestZone != null)
                 {
-                    Attacker = _owner,
-                    Attack = _attack,
-                    Profile = _profile,
-                    Zone = bestZone.Zone,
-                    Point = point,
-                    // Block angle and knockback come from where the projectile flew in.
-                    AttackerPosition = from - (to - from).normalized * 2f
-                };
-                target.ReceiveHit(incoming);
+                    Combatant target = bestZone.Owner;
+                    LastHit = target;
+                    _struck.Add(target);
+                    var incoming = new IncomingHit
+                    {
+                        Attacker = _owner,
+                        Attack = _attack,
+                        Profile = _profile,
+                        Zone = bestZone.Zone,
+                        Point = point,
+                        // Block angle and knockback come from where the projectile flew in.
+                        AttackerPosition = from - (to - from).normalized * 2f
+                    };
+                    target.ReceiveHit(incoming);
+                    if (_struck.Count < maxTargets)
+                    {
+                        start = point;
+                        continue;
+                    }
+                }
+
+                Impact(point);
+                return true;
             }
 
-            Impact(point);
-            return true;
+            return false;
         }
 
         private void Impact(Vector3 point)

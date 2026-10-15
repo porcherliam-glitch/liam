@@ -31,7 +31,10 @@ namespace Aetherfall.Combat
         Busy = 3,
 
         /// <summary>Too little mana.</summary>
-        NotEnoughMana = 4
+        NotEnoughMana = 4,
+
+        /// <summary>No target in range (the chain lightning needs one).</summary>
+        NoTarget = 5
     }
 
     /// <summary>
@@ -52,6 +55,12 @@ namespace Aetherfall.Combat
 
         /// <summary>Ability data.</summary>
         public AbilitySpec Spec { get; }
+
+        /// <summary>Factor on the mana cost of the spec (GDD 03 6.3: grows with the level, set by the owner; default 1).</summary>
+        public float CostFactor { get; set; } = 1f;
+
+        /// <summary>Mana cost now: the cost of the spec × <see cref="CostFactor"/>.</summary>
+        public float ManaCost => Spec.ManaCost * Math.Max(0f, CostFactor);
 
         /// <summary>Current phase.</summary>
         public AbilityPhase Phase { get; private set; }
@@ -86,7 +95,7 @@ namespace Aetherfall.Combat
                 return AbilityRefusal.Cooldown;
             }
 
-            return mana >= Spec.ManaCost ? AbilityRefusal.None : AbilityRefusal.NotEnoughMana;
+            return mana >= ManaCost ? AbilityRefusal.None : AbilityRefusal.NotEnoughMana;
         }
 
         /// <summary>Starts the wind-up if <see cref="Check"/> allows it.</summary>

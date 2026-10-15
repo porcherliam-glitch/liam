@@ -73,6 +73,11 @@ namespace Aetherfall.UI.Screens
         private readonly VisualElement[] _abilityCooldowns = new VisualElement[4];
         private readonly Label[] _abilityTimes = new Label[4];
         private readonly int[] _shownSeconds = { -1, -1, -1, -1 };
+        private readonly Label[] _abilityNames = new Label[4];
+        private readonly string[] _shownAbilityNames = new string[4];
+        private readonly string[] _shownElements = { string.Empty, string.Empty, string.Empty, string.Empty };
+        private readonly Label _abilityBar;
+        private int _shownBar = -1;
         private readonly VisualElement _quickSlots;
         private readonly VisualElement[] _quickSlotElements = new VisualElement[4];
         private readonly Label[] _quickNames = new Label[4];
@@ -136,6 +141,7 @@ namespace Aetherfall.UI.Screens
             _prompt = root.Q<VisualElement>("hud-prompt");
             _promptText = root.Q<Label>("hud-prompt-text");
             _abilities = root.Q<VisualElement>("hud-abilities");
+            _abilityBar = root.Q<Label>("hud-abilities-bar");
             _quickSlots = root.Q<VisualElement>("hud-quickslots");
             for (int i = 0; i < 4; i++)
             {
@@ -143,6 +149,7 @@ namespace Aetherfall.UI.Screens
                 _abilitySlots[i] = root.Q<VisualElement>(ability);
                 _abilityCooldowns[i] = root.Q<VisualElement>(ability + "-cooldown");
                 _abilityTimes[i] = root.Q<Label>(ability + "-time");
+                _abilityNames[i] = root.Q<Label>(ability + "-name");
                 string prefix = "hud-quick-" + (i + 1).ToString(CultureInfo.InvariantCulture);
                 _quickSlotElements[i] = root.Q<VisualElement>(prefix);
                 _quickNames[i] = root.Q<Label>(prefix + "-name");
@@ -341,6 +348,14 @@ namespace Aetherfall.UI.Screens
 
         private void UpdateAbilities(IPlayerHudSource source)
         {
+            // GDD 03 11.8: the four slots show the active bar; the label says which of the two bars it is.
+            int bar = source.ActiveAbilityBar;
+            if (bar != _shownBar)
+            {
+                _shownBar = bar;
+                UiElementUtility.SetText(_abilityBar, UiTexts.Format("fmt-hud-ability-bar", bar + 1));
+            }
+
             for (int i = 0; i < _abilitySlots.Length; i++)
             {
                 bool learned = source.TryGetAbility(i, out HudAbilityInfo ability);
@@ -349,6 +364,28 @@ namespace Aetherfall.UI.Screens
                 {
                     slot.EnableInClassList("is-learned", learned);
                     slot.EnableInClassList("is-unaffordable", learned && !ability.Affordable);
+                    string element = learned && ability.Element != null ? ability.Element : string.Empty;
+                    if (element != _shownElements[i])
+                    {
+                        if (_shownElements[i].Length > 0)
+                        {
+                            slot.RemoveFromClassList("is-" + _shownElements[i]);
+                        }
+
+                        if (element.Length > 0)
+                        {
+                            slot.AddToClassList("is-" + element);
+                        }
+
+                        _shownElements[i] = element;
+                    }
+                }
+
+                string name = learned && ability.Name != null ? ability.Name : string.Empty;
+                if (name != _shownAbilityNames[i])
+                {
+                    _shownAbilityNames[i] = name;
+                    UiElementUtility.SetText(_abilityNames[i], name);
                 }
 
                 if (_abilityCooldowns[i] != null)
