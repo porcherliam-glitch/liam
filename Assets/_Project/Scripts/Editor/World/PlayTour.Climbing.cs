@@ -30,11 +30,16 @@ namespace Aetherfall.EditorTools.World
             Steps.Enqueue(ClimbUntil(7.5f, "Fels"));
             Steps.Enqueue(ClimbJump());
             Steps.Enqueue(RunOutOfStamina());
+            // From the rest point down over the ladder to the ground (the climb must not end on top of the ladder).
             Steps.Enqueue(GrabLadder());
-            Steps.Enqueue(ClimbUntil(2.2f, "Leiter"));
+            Steps.Enqueue(ClimbUntil(6f, "Rastpunkt"));
             Steps.Enqueue(ClimbDown());
             Steps.Enqueue(GrabLadder());
             Steps.Enqueue(LetGo());
+            Steps.Enqueue(GrabLadder());
+            Steps.Enqueue(ClimbUntil(3f, "Leiter"));
+            Steps.Enqueue(DropOnDeath());
+            Steps.Enqueue(OverloadedCannotClimb());
             Steps.Enqueue(() => EndClimbing());
         }
 
@@ -271,7 +276,7 @@ namespace Aetherfall.EditorTools.World
                 if (player.IsClimbing)
                 {
                     Stick(0f, -1f);
-                    return Fail(Elapsed > 6.0, "Der Spieler kommt die Leiter nicht hinunter (" + HeightOnTower().ToString("0.0") + " m).");
+                    return Fail(Elapsed > 12.0, "Der Spieler kommt die Leiter nicht hinunter (" + HeightOnTower().ToString("0.0") + " m).");
                 }
 
                 Note("Hinuntergeklettert: " + player.LastClimbExit + " auf " + HeightOnTower().ToString("0.0") + " m.");
@@ -300,6 +305,59 @@ namespace Aetherfall.EditorTools.World
 
                 Note("Losgelassen: " + player.LastClimbExit + ".");
                 return Fail(player.LastClimbExit != ClimbExit.LetGo, "Das Ende ist kein Loslassen (" + player.LastClimbExit + ").") || true;
+            };
+        }
+
+        /// <summary>Dying on the wall (the combat controller calls DropFromWall): the body falls instead of hanging there.</summary>
+        private static Func<bool> DropOnDeath()
+        {
+            bool dropped = false;
+            return () =>
+            {
+                PlayerMotor player = FindPlayer();
+                if (!dropped)
+                {
+                    player.DropFromWall();
+                    dropped = true;
+                    _stepStart = EditorApplication.timeSinceStartup;
+                    return false;
+                }
+
+                if (!player.Model.IsGrounded)
+                {
+                    return Fail(Elapsed > 4.0, "Nach DropFromWall landet der Spieler nicht.");
+                }
+
+                Note("Tod an der Wand: " + player.LastClimbExit + ", gelandet auf " + HeightOnTower().ToString("0.0") + " m.");
+                return Fail(player.IsClimbing || player.LastClimbExit != ClimbExit.Lost, "Der Spieler hängt nach dem Tod noch an der Wand.") || true;
+            };
+        }
+
+        /// <summary>Heavily overloaded (no jump) means no climbing either (GDD 03/04).</summary>
+        private static Func<bool> OverloadedCannotClimb()
+        {
+            bool placed = false;
+            return () =>
+            {
+                PlayerMotor player = FindPlayer();
+                if (!placed)
+                {
+                    player.SetLoadLimits(1.5f, true, true);
+                    PlaceOnGround(_tower.position + _tower.forward * 5f, -_tower.forward);
+                    placed = true;
+                    _stepStart = EditorApplication.timeSinceStartup;
+                    return false;
+                }
+
+                if (Elapsed < 2.0)
+                {
+                    StickToward(-_tower.forward);
+                    return Fail(player.IsClimbing, "Stark überladen greift der Spieler trotzdem die Leiter.");
+                }
+
+                player.SetLoadLimits(0f, false, false);
+                Note("Stark überladen: Der Spieler läuft gegen die Leiter, klettert aber nicht.");
+                return true;
             };
         }
 

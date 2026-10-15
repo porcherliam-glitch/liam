@@ -20,6 +20,8 @@ namespace Aetherfall.Player
     /// TriggerVolume) a few times per second, like the interactor; no costs, no cooldown.
     /// </remarks>
     [DisallowMultipleComponent]
+    // Before PlayerLockOn (-45): a press that releases the lock-on still sees its target and is not taken for investigating.
+    [DefaultExecutionOrder(-50)]
     public sealed class PlayerInvestigator : MonoBehaviour
     {
         [Tooltip("Bewegung des Spielers (Aether-Sicht: nur Gehen). Leer = PlayerMotor am selben GameObject.")]
@@ -38,6 +40,7 @@ namespace Aetherfall.Player
         private readonly HashSet<IInvestigatable> _shown = new HashSet<IInvestigatable>();
         private readonly HashSet<IInvestigatable> _found = new HashSet<IInvestigatable>();
         private readonly List<IInvestigatable> _hide = new List<IInvestigatable>();
+        private readonly InvestigateHold _hold = new InvestigateHold();
         private IGameStateService _gameState;
         private IGameplayInput _gameplay;
         private IWorldState _world;
@@ -105,7 +108,8 @@ namespace Aetherfall.Player
         {
             bool held = ExternalHold || (_gameplay != null && _gameplay.IsActive && _gameplay.IsPressed(GameplayButton.Investigate));
             bool playing = _gameState != null && _gameState.Current == GameState.Playing;
-            bool active = InvestigateRules.IsActive(held, lockOn != null && lockOn.HasTarget, playing);
+            bool lockedOn = lockOn != null && lockOn.HasTarget;
+            bool active = InvestigateRules.IsActive(_hold.Update(held, lockedOn, Time.unscaledDeltaTime), lockedOn, playing);
             bool aetherSight = active && _world != null && _world.GetInt(InvestigateRules.AetherSightFlag) > 0;
             if (active != _active || aetherSight != _aetherSight)
             {

@@ -13,6 +13,12 @@ namespace Aetherfall.Core
         /// <summary>Radius of Aether sight in metres.</summary>
         public const float AetherSightRadius = 40f;
 
+        /// <summary>
+        /// Seconds the button must be held before investigating starts (R3 is shared with lock-on: a short press toggles the
+        /// lock-on and must not light clues up).
+        /// </summary>
+        public const float HoldDelaySeconds = 0.2f;
+
         /// <summary>World flag of Aether sight (set by HQ 4 "Der Steinkreis von Altenhain").</summary>
         public const string AetherSightFlag = "flag.faehigkeit.aether_sicht";
 

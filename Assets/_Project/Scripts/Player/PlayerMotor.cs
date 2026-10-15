@@ -264,7 +264,8 @@ namespace Aetherfall.Player
             TickClimbTimers(deltaTime);
             if (IsClimbing)
             {
-                StepClimb(input, deltaTime);
+                // While the combat owns the body (stagger, stun, freeze) the character only hangs on the wall.
+                StepClimb(input, deltaTime, limits.LockLocomotion);
                 return;
             }
 
@@ -284,7 +285,11 @@ namespace Aetherfall.Player
             }
 
             transform.rotation = Quaternion.Euler(0f, _model.Yaw, 0f);
-            TryStartClimb(input);
+            if (!limits.LockLocomotion && !limits.HasForcedVelocity)
+            {
+                // No grab while the combat owns the body (attack, charge, roll, stagger, death).
+                TryStartClimb(input);
+            }
         }
 
         private void ApplyLoadLimits(ref PlayerMovementOverride limits)

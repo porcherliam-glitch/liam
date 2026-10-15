@@ -38,5 +38,29 @@ namespace Aetherfall.Tests.EditMode.Gameplay
         {
             Assert.That(InvestigateRules.IsActive(held, lockedOn, playing), Is.EqualTo(active));
         }
+
+        [Test]
+        public void InvestigatingStartsAfterAShortHold()
+        {
+            var hold = new InvestigateHold();
+
+            Assert.That(hold.Update(true, false, 0.016f), Is.False, "first frame");
+            Assert.That(hold.Update(true, false, 0.1f), Is.False);
+            Assert.That(hold.Update(true, false, 0.12f), Is.True, "0.22 s held");
+            Assert.That(hold.Update(false, false, 0.016f), Is.False, "let go");
+        }
+
+        [Test]
+        public void AHoldThatTouchedTheLockOnNeverInvestigates()
+        {
+            var hold = new InvestigateHold();
+
+            // R3 pressed while a target is held (releasing the lock-on), then kept held.
+            Assert.That(hold.Update(true, true, 0.016f), Is.False);
+            Assert.That(hold.Update(true, false, 0.5f), Is.False, "still the same press");
+            Assert.That(hold.Update(false, false, 0.016f), Is.False);
+            Assert.That(hold.Update(true, false, 0.016f), Is.False);
+            Assert.That(hold.Update(true, false, 0.3f), Is.True, "a new press investigates again");
+        }
     }
 }

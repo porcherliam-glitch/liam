@@ -100,7 +100,8 @@ namespace Aetherfall.EditorTools.World
             AddBattlementColliders(root, w, d, h);
 
             float face = d * 0.5f;
-            AddClimb(root, "Leiter", ClimbSurfaceKind.Ladder, false, PlinthTop, LadderTop, face, 0.9f, 0.25f);
+            // All climb colliders lie (almost) in one plane, so climbing down never lands on top of the surface below.
+            AddClimb(root, "Leiter", ClimbSurfaceKind.Ladder, false, PlinthTop, LadderTop, face, 0.9f, 0.1f);
             AddClimb(root, "Rastpunkt", ClimbSurfaceKind.Rock, true, LadderTop, RestTop, face, RouteWidth, 0.08f);
             AddClimb(root, "Heller Fels", ClimbSurfaceKind.Rock, false, RestTop, RockTop, face, RouteWidth, 0.08f);
             AddClimb(root, "Ranken", ClimbSurfaceKind.Vines, false, RockTop, h, face, RouteWidth, 0.12f);
@@ -200,11 +201,11 @@ namespace Aetherfall.EditorTools.World
 
             // Ladder: two rails and rungs.
             float ladderHeight = LadderTop - PlinthTop;
-            Box(m, DarkWood, -0.38f, face + 0.13f, PlinthTop, 0.08f, 0.08f, ladderHeight);
-            Box(m, DarkWood, 0.38f, face + 0.13f, PlinthTop, 0.08f, 0.08f, ladderHeight);
+            Box(m, DarkWood, -0.38f, face + 0.06f, PlinthTop, 0.08f, 0.08f, ladderHeight);
+            Box(m, DarkWood, 0.38f, face + 0.06f, PlinthTop, 0.08f, 0.08f, ladderHeight);
             for (float y = PlinthTop + 0.3f; y < LadderTop - 0.1f; y += 0.35f)
             {
-                Box(m, Wood, 0f, face + 0.13f, y, 0.84f, 0.06f, 0.06f);
+                Box(m, Wood, 0f, face + 0.06f, y, 0.84f, 0.06f, 0.06f);
             }
 
             // Rest point: a ledge to stand on and a pale patch above it.

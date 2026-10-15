@@ -582,10 +582,10 @@ def build_watchtower(b, root, w, d, h):
     b.box("Brett", col, (1.6, 0.3, 0.1), (1.0, nest_front + 0.4, top), wood, parent=root, rot=(0, 0, math.radians(-25)))
     ladder = TOWER_LADDER_TOP - TOWER_PLINTH_TOP
     for xx in (-0.38, 0.38):
-        b.box("Leiter", col, (0.08, 0.08, ladder), (xx, face + 0.13, TOWER_PLINTH_TOP), dark_wood, parent=root)
+        b.box("Leiter", col, (0.08, 0.08, ladder), (xx, face + 0.06, TOWER_PLINTH_TOP), dark_wood, parent=root)
     yy = TOWER_PLINTH_TOP + 0.3
     while yy < TOWER_LADDER_TOP - 0.1:
-        b.box("Sprosse", col, (0.84, 0.06, 0.06), (0, face + 0.13, yy), wood, parent=root)
+        b.box("Sprosse", col, (0.84, 0.06, 0.06), (0, face + 0.06, yy), wood, parent=root)
         yy += 0.35
     b.box("Rastpunkt", col, (TOWER_ROUTE_WIDTH + 0.2, 0.16, 0.25), (0, face + 0.08, TOWER_LADDER_TOP - 0.25), pale, parent=root)
     b.box("Heller Fels", col, (TOWER_ROUTE_WIDTH, 0.06, TOWER_ROCK_TOP - TOWER_LADDER_TOP), (0, face + 0.02, TOWER_LADDER_TOP), pale,

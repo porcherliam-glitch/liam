@@ -1061,6 +1061,8 @@ namespace Aetherfall.Player
             }
 
             _motion.Clear();
+            // Dead on a wall: the body falls instead of hanging there until the respawn.
+            motor.DropFromWall();
         }
     }
 }

@@ -73,8 +73,9 @@ namespace Aetherfall.Player
 
         private void TryStartClimb(in PlayerMovementInput input)
         {
-            if (_climbRegrab > 0f || _climbNeedsLanding)
+            if (_climbRegrab > 0f || _climbNeedsLanding || _loadBlocksJump)
             {
+                // GDD 03/04: heavily overloaded = no jumping and no climbing.
                 return;
             }
 
@@ -117,7 +118,7 @@ namespace Aetherfall.Player
             Log.Info(LogCategory.Player, "Climbing " + surface.Kind + " on '" + surface.name + "'.");
         }
 
-        private void StepClimb(in PlayerMovementInput input, float deltaTime)
+        private void StepClimb(in PlayerMovementInput input, float deltaTime, bool locked)
         {
             Vector3 into = -_climbNormal;
             Vector3 center = CapsuleCenter;
@@ -143,9 +144,11 @@ namespace Aetherfall.Player
 
             ResourcePool stamina = stats != null ? stats.Stamina : null;
             float staminaNow = stamina != null ? stamina.Current : float.MaxValue;
-            bool fast = input.SprintHeld && !_loadBlocksSprint;
-            ClimbModel.StepResult step = _climb.Step(_climbSurface.Kind, _climbSurface.RestPoint, input.MoveX, input.MoveY, fast,
-                input.JumpPressed, input.LetGoPressed, staminaNow, deltaTime);
+            // Locked (stagger, stun, freeze): hang without moving, the hang stamina still drains.
+            bool fast = !locked && input.SprintHeld && !_loadBlocksSprint && !_senseSlow;
+            bool jump = !locked && input.JumpPressed && !_loadBlocksJump;
+            ClimbModel.StepResult step = _climb.Step(_climbSurface.Kind, _climbSurface.RestPoint, locked ? 0f : input.MoveX, locked ? 0f : input.MoveY,
+                fast, jump, !locked && input.LetGoPressed, staminaNow, deltaTime);
             if (step.StaminaCost > 0f && stamina != null)
             {
                 stamina.Spend(step.StaminaCost);
@@ -178,12 +181,12 @@ namespace Aetherfall.Player
                 delta += into * (WallGap(center, into, hit) - ClimbHoldGap);
             }
 
-            CollisionFlags flags = _controller.Move(delta);
+            _controller.Move(delta);
             ClimbDistance += new Vector2(Vector3.Dot(delta, right), delta.y).magnitude;
             transform.rotation = Quaternion.Euler(0f, _climbYaw, 0f);
-            if (step.Up < 0f && ((flags & CollisionFlags.Below) != 0 || IsOnGround()))
+            if (step.Up < 0f && IsOnGround())
             {
-                // Climbed down to the ground: stand up.
+                // Climbed down to the ground (not onto the top of the next climb surface): stand up.
                 EndClimb(ClimbExit.Ground, 0.05f);
             }
         }
@@ -203,6 +206,15 @@ namespace Aetherfall.Player
             }
 
             _model.Reset(_climbYaw);
+        }
+
+        /// <summary>Lets go of the wall at once (the character died on it): the body falls.</summary>
+        public void DropFromWall()
+        {
+            if (IsClimbing)
+            {
+                EndClimb(ClimbExit.Lost, ClimbPushOff);
+            }
         }
 
         private void CancelClimb()
@@ -270,7 +282,7 @@ namespace Aetherfall.Player
         private bool IsOnGround()
         {
             return CastDown(0.1f, out RaycastHit hitInfo, out float gap) && gap <= _controller.skinWidth + GroundedTolerance &&
-                   hitInfo.normal.y >= ClimbLedgeMinNormalY;
+                   hitInfo.normal.y >= ClimbLedgeMinNormalY && hitInfo.collider.GetComponentInParent<ClimbSurface>() == null;
         }
 
         private static Vector3 Flat(Vector3 normal)
