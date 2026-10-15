@@ -6,6 +6,7 @@
         "UnityEditor.TestRunner",
         "Aetherfall.Utilities",
         "Aetherfall.Core",
+        "Aetherfall.Events",
         "Aetherfall.Data",
         "Aetherfall.World",
         "Aetherfall.Conditions",

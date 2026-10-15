@@ -194,6 +194,9 @@ namespace Aetherfall.EditorTools.World
 
                 Steps.Enqueue(() => Capture(name, NpcView(villager)));
             }
+
+            // S43/S44: game clock, daily routines and barks.
+            EnqueueRoutines();
         }
 
         /// <summary>Waits for the trade screen (game state Menu), buys the first affordable offer and sells one item of the bag.</summary>

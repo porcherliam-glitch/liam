@@ -14,6 +14,7 @@
                 <ui:Label name="hud-compass-nw" class="af-text af-compass__label" picking-mode="Ignore" />
                 <ui:VisualElement class="af-compass__needle" picking-mode="Ignore" />
             </ui:VisualElement>
+            <ui:Label name="hud-clock" class="af-text af-hud__clock" picking-mode="Ignore" />
             <ui:VisualElement name="hud-target" class="af-target" picking-mode="Ignore">
                 <ui:Label name="hud-target-name" class="af-text af-target__name" picking-mode="Ignore" />
                 <ui:VisualElement name="hud-target-health" class="af-bar af-bar--target" picking-mode="Ignore">

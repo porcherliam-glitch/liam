@@ -15,19 +15,20 @@ namespace Aetherfall.GameTime
     public sealed class GameTimeInstaller : ServiceInstaller
     {
         /// <inheritdoc />
-        public override IEnumerable<Type> Provides => new[] { typeof(IPlaytimeClock) };
+        public override IEnumerable<Type> Provides => new[] { typeof(IPlaytimeClock), typeof(IGameClock) };
 
         /// <inheritdoc />
-        public override IEnumerable<Type> Requires => new[] { typeof(IGameStateService), typeof(ISaveManager) };
+        public override IEnumerable<Type> Requires => new[] { typeof(IGameStateService), typeof(ISaveManager), typeof(IEventBus) };
 
         /// <inheritdoc />
         public override void Install(IServiceRegistry registry, IServiceLocator locator)
         {
-            var clock = new PlaytimeClock(locator.Get<IGameStateService>());
+            var clock = new GameClock(locator.Get<IGameStateService>(), locator.Get<IEventBus>());
             ISaveManager saves = locator.Get<ISaveManager>();
             saves.Register(clock);
             saves.RegisterHeaderContributor(clock);
             registry.Register<IPlaytimeClock>(clock);
+            registry.Register<IGameClock>(clock);
         }
     }
 }

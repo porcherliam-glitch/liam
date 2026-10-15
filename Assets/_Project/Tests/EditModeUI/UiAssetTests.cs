@@ -178,7 +178,7 @@ namespace Aetherfall.Tests.EditMode.UI
             {
                 "mainmenu-continue-info", "mainmenu-version", "mainmenu-status", "load-status", "slot-kind", "slot-date", "slot-playtime",
                 "options-ui-scale-value", "options-hud-mode-value", "options-glyphs-value", "options-ui-scale", "options-hud-mode", "options-glyphs", "options-difficulty", "options-difficulty-value",
-                "pause-status", "pause-last-save", "death-load-info", "death-status", "loading-percent", "hud-target-name", "hud-prompt-text", "toast-text",
+                "pause-status", "pause-last-save", "death-load-info", "death-status", "loading-percent", "hud-target-name", "hud-prompt-text", "hud-clock", "toast-text",
                 "journal-title", "journal-hint-confirm", "journal-hint-secondary", "questlog-detail-title", "questlog-detail-meta", "questlog-detail-description",
                 "questlog-detail-stage-title", "questlog-detail-stage", "questlog-detail-history-title", "quest-row-title", "quest-row-info", "quest-row-badge",
                 "objective-text", "objective-count", "tracked-title", "journal-line", "attribute-name", "attribute-bonus", "attribute-value", "value-label",

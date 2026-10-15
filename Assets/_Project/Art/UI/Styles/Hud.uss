@@ -23,6 +23,16 @@
     align-items: center;
 }
 
+.af-hud__clock {
+    margin-top: 4px;
+    font-size: 19px;
+    -unity-font-style: bold;
+    color: rgb(240, 228, 196);
+    -unity-text-align: middle-center;
+    -unity-text-outline-width: 1px;
+    -unity-text-outline-color: rgba(0, 0, 0, 0.7);
+}
+
 .af-compass {
     width: 640px;
     height: 40px;

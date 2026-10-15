@@ -5,6 +5,7 @@ using Aetherfall.Core;
 using Aetherfall.Dialogue;
 using Aetherfall.Economy;
 using Aetherfall.Events;
+using Aetherfall.GameTime;
 using Aetherfall.Input;
 using Aetherfall.Inventory;
 using Aetherfall.Items;
@@ -134,6 +135,7 @@ namespace Aetherfall.UI.Screens
         private IProgressionService _progression;
         private IBossBarService _bosses;
         private BossBarView _bossBar;
+        private HudClockView _clock;
         private QuestNotifier _notifier;
         private JournalScreen _journal;
         private TradeScreen _trade;
@@ -294,6 +296,8 @@ namespace Aetherfall.UI.Screens
             XpBarView xpBar = _progression != null && hudRoot.Q<VisualElement>("hud-xp") != null ? new XpBarView(hudRoot.Q<VisualElement>("hud-xp"), _progression) : null;
             _hud.AttachProgressViews(tracker, xpBar);
             _bossBar = new BossBarView(hudRoot);
+            Services.Locator.TryGet(out IGameClock gameClock);
+            _clock = new HudClockView(hudRoot.Q<Label>("hud-clock"), gameClock);
             if (_quests != null)
             {
                 _notifier = new QuestNotifier(_quests, ShowNotification) { Enabled = NotifiesQuests(_gameState.Current) };
@@ -419,6 +423,7 @@ namespace Aetherfall.UI.Screens
             }
 
             _hud.Tick(dt);
+            _clock?.Tick();
             _bossBar.Tick(dt);
             if (_notifier != null)
             {

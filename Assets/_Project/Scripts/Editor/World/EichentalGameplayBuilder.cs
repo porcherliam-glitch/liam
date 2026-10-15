@@ -337,10 +337,12 @@ namespace Aetherfall.EditorTools.World
         /// <param name="parent">Parent.</param>
         /// <param name="player">Player object (the NPCs look at it).</param>
         /// <param name="interactableLayer">Interactable layer or −1.</param>
-        public void BuildNpcMarkers(Transform parent, GameObject player, int interactableLayer)
+        public void BuildNpcMarkers(Transform parent, GameObject player, int interactableLayer, int triggerVolumeLayer, int playerLayer, int groundMask)
         {
             var groups = new Dictionary<NpcMarkerPhase, Transform>();
             int talking = 0;
+            int routines = 0;
+            int barking = 0;
             foreach (LayoutNpcMarker npc in _layout.NpcMarkers)
             {
                 if (!groups.TryGetValue(npc.Phase, out Transform group))
@@ -392,11 +394,134 @@ namespace Aetherfall.EditorTools.World
                 TestGroundFields.SetString(marker, "locationId", npc.LocationId, _report);
                 TestGroundFields.SetInt(marker, "phase", (int)npc.Phase, _report);
                 TestGroundFields.SetString(marker, "stage", npc.Stage, _report);
-                EichentalLabel.Create(root.transform, SignText(npc), new Vector3(0f, signHeight, 0f), 180f, _labelFont, 0.025f);
+                TextMesh sign = EichentalLabel.Create(root.transform, SignText(npc), new Vector3(0f, signHeight, 0f), 180f, _labelFont, 0.025f);
+                if (sign != null && !npc.InsideBuilding)
+                {
+                    // Readable from every side: the NPCs walk and turn around (daily routines).
+                    sign.gameObject.AddComponent<CameraFacingLabel>();
+                }
+
+                if (npc.Phase != NpcMarkerPhase.Prolog && !npc.InsideBuilding)
+                {
+                    // S43/S44 (GDD 01 7.1, 7.4): daily routine and barks of the NPCs that are not bound by the prologue.
+                    List<NpcScheduleEntry> schedule = MiniSliceNpcRoutines.Schedule(npc.NpcId, new Vector3((float)x, 0f, (float)z), (float)npc.Yaw);
+                    if (schedule != null && AddSchedule(root, npc.NpcId, schedule, groundMask))
+                    {
+                        routines++;
+                    }
+
+                    List<NpcBarkLine> barks = MiniSliceNpcRoutines.Barks(npc.NpcId);
+                    if (barks.Count > 0 && AddBarker(root, npc.NpcId, barks, VillagerFigures.Height(npc.NpcId) + 1.0f, triggerVolumeLayer, playerLayer))
+                    {
+                        barking++;
+                    }
+                }
             }
 
             _report.Info("Dorfbewohner: " + _layout.NpcMarkers.Count + " Figuren mit NpcMarker (NPC-ID aus GDD 02, Ort, Phase, Stufe), " + talking +
                          " davon ansprechbar, sichtbar je nach Stand von „Asche über Eichental“. Echte Modelle kommen aus Blender (Mini-Slice 7).");
+            _report.Info("Tagesabläufe (GDD 01 7.1): " + routines + " Figuren gehen nach der Spieluhr zur Arbeit, zum Mittag, ins Gasthaus und nach Hause; " +
+                         barking + " sagen im Vorbeigehen kurze Sprüche (7.4).");
+        }
+
+        private bool AddSchedule(GameObject root, string npcId, List<NpcScheduleEntry> schedule, int groundMask)
+        {
+            string problem = NpcScheduleRules.Validate(schedule);
+            if (problem.Length > 0)
+            {
+                _report.Warning("Tagesablauf " + npcId + ": " + problem);
+                return false;
+            }
+
+            NpcScheduleRunner runner = root.AddComponent<NpcScheduleRunner>();
+            var serialized = new UnityEditor.SerializedObject(runner);
+            UnityEditor.SerializedProperty list = serialized.FindProperty("entries");
+            list.arraySize = schedule.Count;
+            for (int i = 0; i < schedule.Count; i++)
+            {
+                NpcScheduleEntry entry = schedule[i];
+                UnityEditor.SerializedProperty element = list.GetArrayElementAtIndex(i);
+                element.FindPropertyRelative("fromHour").floatValue = entry.FromHour;
+                element.FindPropertyRelative("toHour").floatValue = entry.ToHour;
+                element.FindPropertyRelative("position").vector3Value = new Vector3(entry.Position.x, H(entry.Position.x, entry.Position.z), entry.Position.z);
+                element.FindPropertyRelative("yaw").floatValue = entry.Yaw;
+                element.FindPropertyRelative("activity").stringValue = entry.Activity;
+            }
+
+            serialized.FindProperty("groundLayers").intValue = groundMask;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            var renderers = new List<Object>();
+            foreach (Renderer part in root.GetComponentsInChildren<Renderer>(true))
+            {
+                if (!(part is MeshRenderer) || part.GetComponent<TextMesh>() == null)
+                {
+                    renderers.Add(part);
+                }
+            }
+
+            TestGroundFields.SetReferences(runner, "figure", renderers.ToArray(), _report);
+            return true;
+        }
+
+        private bool AddBarker(GameObject root, string npcId, List<NpcBarkLine> barks, float textHeight, int triggerVolumeLayer, int playerLayer)
+        {
+            TextMesh text = EichentalLabel.Create(root.transform, "…", new Vector3(0f, textHeight, 0f), 180f, _labelFont, 0.024f);
+            if (text == null)
+            {
+                return false;
+            }
+
+            text.gameObject.name = "Spruch";
+            text.color = new Color(1f, 0.93f, 0.7f);
+            text.gameObject.SetActive(false);
+
+            var zone = new GameObject("Bark-Zone");
+            zone.transform.SetParent(root.transform, false);
+            zone.transform.localPosition = new Vector3(0f, 1f, 0f);
+            zone.layer = triggerVolumeLayer >= 0 ? triggerVolumeLayer : 0;
+            SphereCollider sphere = zone.AddComponent<SphereCollider>();
+            sphere.isTrigger = true;
+            sphere.radius = 5f;
+            Rigidbody body = zone.AddComponent<Rigidbody>();
+            body.isKinematic = true;
+            body.useGravity = false;
+            NpcBarker barker = zone.AddComponent<NpcBarker>();
+            TestGroundFields.SetString(barker, "npcId", npcId, _report);
+            TestGroundFields.SetReference(barker, "text", text, _report);
+            TestGroundFields.SetInt(barker, "playerLayers", playerLayer >= 0 ? 1 << playerLayer : 1 << TestGroundPaths.PlayerLayerIndex, _report);
+            var serialized = new UnityEditor.SerializedObject(barker);
+            UnityEditor.SerializedProperty list = serialized.FindProperty("lines");
+            list.arraySize = barks.Count;
+            for (int i = 0; i < barks.Count; i++)
+            {
+                UnityEditor.SerializedProperty element = list.GetArrayElementAtIndex(i);
+                element.FindPropertyRelative("text").stringValue = barks[i].Text;
+                UnityEditor.SerializedProperty phases = element.FindPropertyRelative("phases");
+                DayPhase[] wanted = PhasesOf(barks[i]);
+                phases.arraySize = wanted.Length;
+                for (int p = 0; p < wanted.Length; p++)
+                {
+                    phases.GetArrayElementAtIndex(p).enumValueIndex = (int)wanted[p];
+                }
+            }
+
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            return true;
+        }
+
+        private static DayPhase[] PhasesOf(NpcBarkLine line)
+        {
+            var phases = new List<DayPhase>();
+            foreach (DayPhase phase in new[] { DayPhase.Morning, DayPhase.Day, DayPhase.Evening, DayPhase.Night })
+            {
+                if (line.Fits(phase))
+                {
+                    phases.Add(phase);
+                }
+            }
+
+            // A line for every part of the day keeps an empty list ("always").
+            return phases.Count == 4 ? new DayPhase[0] : phases.ToArray();
         }
 
         /// <summary>Name sign: name and role of the NPC asset (the grey figure only by its look), else the layout name.</summary>

@@ -71,7 +71,8 @@ Ziel: ein Teil des Eichentals (~1,1 km²), alle 8 Beispiel-Quests, etwa 3,5–4 
 - [x] **Skill-Baum** mit etwa 15 Knoten je Klasse (Krieger, Magier), Stufen 1–8, Skill-Baum-Oberfläche mit Gamepad (S21, S61) – 2026-10-15, Commit 3312593
   - Erledigt: je 15 Knoten, Seite „Fähigkeiten“ (K) im Tagebuch, 5 Krieger-Techniken, Zauber und Verbesserungen über den Baum
   - Offen: grafischer Baum, Respec beim Lehrmeister, Stufen III–V (Stufe B)
-- [ ] **NPC-Tagesabläufe (S43) und Barks (S44):**
+- [x] **NPC-Tagesabläufe (S43) und Barks (S44):** – 2026-10-15
+  - Erledigt: Spieluhr (48 min je Tag, Uhr im HUD), Tagesabläufe für 8 Dorfbewohner, 33 Sprüche; offen: Ambient-Gespräche, Gerüchte, Warten/Schlafen
   - Hollmann von 7 bis 18 Uhr bei der Herde, Ole von 10 bis 24 Uhr, usw.
   - Kurze Sprüche im Vorbeigehen
 - [ ] **Ser Maren voll (S46):**

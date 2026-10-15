@@ -35,7 +35,7 @@ namespace Aetherfall.Tests.EditMode.Gameplay
 
         private static readonly Dictionary<string, Type> SectionTypes = new Dictionary<string, Type>
         {
-            { PlaytimeClock.Key, typeof(PlaytimeDto) },
+            { GameClock.Key, typeof(PlaytimeDto) },
             { PlayerResourcesSaveable.Key, typeof(PlayerResourcesDto) },
             { PlayerLocationSaveable.Key, typeof(PlayerLocationDto) }
         };
@@ -78,7 +78,7 @@ namespace Aetherfall.Tests.EditMode.Gameplay
 
             Assert.That(snapshot.Header.SlotId, Is.EqualTo("char_01/quick_0"));
             Assert.That(snapshot.Header.PlaytimeSeconds, Is.EqualTo(754.5));
-            Assert.That(snapshot.TryGet(PlaytimeClock.Key, out object time), Is.True);
+            Assert.That(snapshot.TryGet(GameClock.Key, out object time), Is.True);
             Assert.That(((PlaytimeDto)time).PlaytimeSeconds, Is.EqualTo(754.5));
             Assert.That(snapshot.TryGet(PlayerResourcesSaveable.Key, out object resources), Is.True);
             Assert.That(((PlayerResourcesDto)resources).Health, Is.EqualTo(98.5f));
@@ -130,7 +130,7 @@ namespace Aetherfall.Tests.EditMode.Gameplay
             var health = new Health(100f, ResourcePoolSettings.Health, "player");
             var stamina = new ResourcePool(100f, ResourcePoolSettings.Stamina);
             var mana = new ResourcePool(100f, ResourcePoolSettings.Mana);
-            var clock = new PlaytimeClock(_gameState);
+            var clock = new GameClock(_gameState, _bus);
             var manager = new SaveManager(_bus, _gameState, files, new FixedSaveLocation(_root), new SaveManagerSettings
             {
                 UseBackgroundThread = false,

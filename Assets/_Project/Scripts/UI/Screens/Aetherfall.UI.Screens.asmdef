@@ -3,6 +3,7 @@
     "rootNamespace": "Aetherfall.UI.Screens",
     "references": [
         "Aetherfall.Utilities",
+        "Aetherfall.GameTime",
         "Aetherfall.Core",
         "Aetherfall.Events",
         "Aetherfall.SaveSystem",

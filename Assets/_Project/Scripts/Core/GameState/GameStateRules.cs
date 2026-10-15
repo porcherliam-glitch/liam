@@ -13,6 +13,21 @@ namespace Aetherfall.Core
         /// <param name="state">Current game state (top of the modal stack).</param>
         public static bool IsPlaytimeRunning(GameState state)
         {
+            return IsPlaytimeState(state);
+        }
+
+        /// <summary>
+        /// True if the game clock (time of day) runs in <paramref name="state"/> (table 4.4, column "Spieluhr"): only while
+        /// playing (Playing, Building); menus, pauses, full dialogues, cutscenes and loading stop it.
+        /// </summary>
+        /// <param name="state">Current game state (top of the modal stack).</param>
+        public static bool IsGameClockRunning(GameState state)
+        {
+            return state == GameState.Playing || state == GameState.Building;
+        }
+
+        private static bool IsPlaytimeState(GameState state)
+        {
             switch (state)
             {
                 case GameState.Playing:

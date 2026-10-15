@@ -129,7 +129,7 @@ namespace Aetherfall.EditorTools.World
             TestGroundFields.SetReference(progression, "stats", player.GetComponent<CharacterStatsComponent>(), report);
 
             gameplay.BuildAreaTriggers(Group(game.transform, "Orte"), layers.TriggerVolume, layers.Player);
-            gameplay.BuildNpcMarkers(Group(game.transform, "NPC-Platzhalter"), player, layers.Interactable);
+            gameplay.BuildNpcMarkers(Group(game.transform, "NPC-Platzhalter"), player, layers.Interactable, layers.TriggerVolume, layers.Player, solidMask);
             // GDD 01 10.6: Ser Maren waits at the guard post of Lindenhain, next to Hauptmann Dorn.
             CompanionBuilder.BuildMaren(Group(game.transform, "Begleiter"), new Vector3(MarenPostX, (float)heights.Height(MarenPostX, MarenPostZ), MarenPostZ),
                 MarenPostYaw, true, player, materials, layers.Enemy, layers.Hurtbox, layers.Interactable, solidMask, labelFont, report);

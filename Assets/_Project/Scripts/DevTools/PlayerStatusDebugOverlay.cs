@@ -177,7 +177,7 @@ namespace Aetherfall.DevTools
 
             _gearText = DescribeGear();
             _playtimeText = _playtime != null
-                ? "Spielzeit: " + PlaytimeClock.Format(_playtime.PlaytimeSeconds) + (_playtime.IsRunning ? string.Empty : "  (angehalten)")
+                ? "Spielzeit: " + GameClock.Format(_playtime.PlaytimeSeconds) + (_playtime.IsRunning ? string.Empty : "  (angehalten)")
                 : "Spielzeit: (GameTimeInstaller fehlt)";
 
             if (_saves == null)
