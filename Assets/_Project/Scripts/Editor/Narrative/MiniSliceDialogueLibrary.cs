@@ -55,6 +55,9 @@ namespace Aetherfall.EditorTools.Narrative
         /// <summary>Maren's test dialogue (GDD 02 11.0); afterwards her commands.</summary>
         public const string MarenDialogue = "dlg.eichental.maren_pruefung";
 
+        /// <summary>Maren's campfire talks (GDD 01 10.4).</summary>
+        public const string MarenCampfireDialogue = "dlg.eichental.maren_lagerfeuer";
+
         /// <summary>Ulf's answer that starts the dice game "Krähenwurf".</summary>
         public const string UlfDiceOption = "Würfeln wir eine Runde?";
 
@@ -89,7 +92,7 @@ namespace Aetherfall.EditorTools.Narrative
         public static DialogueSpec[] CreateDialogues()
         {
             return new[] { Hedda(), Hollmann(), Corvin(), Dorn(), ToboldTalk(), WennaTalk(), LinaTalk(), GreyFigureTalk(), PimTalk(), UlfTalk(), BrennerTalk(),
-                LieseTalk(), MarenTalk() };
+                LieseTalk(), MarenTalk(), MarenCampfire() };
         }
 
         /// <summary>Dialogue id of a villager: <c>npc.eichental.schmied_tobold</c> → <c>dlg.eichental.schmied_tobold</c>.</summary>
@@ -362,7 +365,9 @@ namespace Aetherfall.EditorTools.Narrative
                 .Speaker(Maren)
                 .Start("n010")
                 .Nodes(
-                    new BranchNode("n010", "n100").When(joined, "n500"),
+                    new BranchNode("n010", "n100").When(new FlagIs(Q.MarenLeft, 1), "n050").When(joined, "n500"),
+                    new LineNode("n050", "Wir haben uns nichts mehr zu sagen. Sucht Euch jemanden, der Euch den Rücken freihält.")
+                        .Staging(DialogueEmotion.Angry, DialogueCameraHint.Close).EndWith("verlassen"),
                     new LineNode("n100", "Ser Maren Falkenried, Silberwacht. Ihr seid der Überlebende vom Riss in Eichental.").To("n110"),
                     new LineNode("n110", "Wer den Riss berührt und lebt, heißt bei uns Rissgeborener. Hauptmann Dorn hat mich geschickt, Euch zu prüfen.")
                         .To("n120"),
@@ -382,13 +387,74 @@ namespace Aetherfall.EditorTools.Narrative
                     new LineNode("n520", "Ich warte hier, wie befohlen. Soll ich mitkommen?").To("n610"),
                     new ChoiceNode("n600")
                         .Add(new DialogueOption("a", "Nichts. Gehen wir.", "n900"))
-                        .Add(new DialogueOption("b", "Warte hier.", "n700")),
+                        .Add(new DialogueOption("b", "Warte hier.", "n700"))
+                        .Add(new DialogueOption("c", "Wie willst du kämpfen?", "n650"))
+                        .Add(new DialogueOption("d", "Wie stehen wir zueinander?", "n660")),
+                    // GDD 03 13.1: the four combat modes (default defensive).
+                    new LineNode("n650", "Sagt mir, wie Ihr es haben wollt.").To("n651"),
+                    new ChoiceNode("n651")
+                        .Add(new DialogueOption("a", "Greif an, was uns bedroht. Auch zuerst.", "n652"))
+                        .Add(new DialogueOption("b", "Bleib nah bei mir und schütz mich.", "n653"))
+                        .Add(new DialogueOption("c", "Halt Abstand und deck mir den Rücken.", "n654"))
+                        .Add(new DialogueOption("d", "Halt dich raus, egal was passiert.", "n655")),
+                    new LineNode("n652", "Endlich ein Befehl nach meinem Geschmack.").Do(new SetFlag(Q.MarenMode, 1)).EndWith("aggressiv"),
+                    new LineNode("n653", "Schild vor, Schwert bereit. Wie immer.").Do(new SetFlag(Q.MarenMode, 0)).EndWith("defensiv"),
+                    new LineNode("n654", "Ich bleibe hinten. Wer Euch in den Rücken fällt, bekommt es mit mir zu tun.").Do(new SetFlag(Q.MarenMode, 2))
+                        .EndWith("unterstuetzend"),
+                    new LineNode("n655", "Das gefällt mir nicht. Aber gut, ich sehe nur zu.").Do(new SetFlag(Q.MarenMode, 3)).EndWith("passiv"),
+                    // GDD 01 10.3: the loyalty as a word, never as a number.
+                    new BranchNode("n660", "n661")
+                        .When(new FlagIs(Q.MarenLoyalty, FlagComparison.GreaterOrEqual, 60), "n664")
+                        .When(new FlagIs(Q.MarenLoyalty, FlagComparison.GreaterOrEqual, 40), "n663")
+                        .When(new FlagIs(Q.MarenLoyalty, FlagComparison.GreaterOrEqual, 20), "n662"),
+                    new LineNode("n661", "Ehrlich? Ich traue Euch nicht. Noch ein Fehler, und ich gehe.").Staging(DialogueEmotion.Angry, DialogueCameraHint.Close)
+                        .To("n600"),
+                    new LineNode("n662", "Ich bin vorsichtig. Ihr habt mir noch keinen Grund gegeben, es nicht zu sein.").To("n600"),
+                    new LineNode("n663", "Ihr seid kein schlechter Weggefährte. Für einen Rissgeborenen.").To("n600"),
+                    new LineNode("n664", "Ich würde Euch inzwischen meinen Schild leihen. Sagt das niemandem.").To("n600"),
                     new ChoiceNode("n610")
                         .Add(new DialogueOption("a", "Komm mit.", "n800"))
                         .Add(new DialogueOption("b", "Bleib noch hier.", "n900")),
                     new LineNode("n700", "Gut. Ich rühre mich nicht von der Stelle.").Do(new SetFlag(Q.FlagMarenWaits, 1)).EndWith("warten"),
                     new LineNode("n800", "Endlich. Mir wurden schon die Füße kalt.").Do(new SetFlag(Q.FlagMarenWaits, 0)).EndWith("folgen"),
                     new LineNode("n900", "Wie Ihr meint.").EndWith("weiter"))
+                .Build();
+        }
+
+        private static DialogueSpec MarenCampfire()
+        {
+            // GDD 01 10.4 / 10.6: two talks with the player at the campfire (+2 loyalty each). The campfire starts the first when
+            // the player rests with her for the first time, the second after the crypt.
+            return new DialogueSpecBuilder(MarenCampfireDialogue)
+                .Title("Am Lagerfeuer")
+                .Mode(DialogueMode.Full)
+                .Speaker(Maren)
+                .Start("n010")
+                .Nodes(
+                    new BranchNode("n010", "n100").When(new FlagIs(Q.MarenCampfire, FlagComparison.GreaterOrEqual, 1), "n300"),
+                    new LineNode("n100", "Ihr schlaft nicht. Ich auch nicht. Das Feuer macht zu viele Geräusche.").To("n110"),
+                    new LineNode("n110", "Mein Vater war Hufschmied in Weißwall. Ein ehrlicher Schlag, hat er gesagt, ist mehr wert als tausend Worte.")
+                        .To("n120"),
+                    new LineNode("n120", "Mit sechzehn bin ich zur Silberwacht. Mein Bruder war schneller als ich. Er ist nicht zurückgekommen.")
+                        .Staging(DialogueEmotion.Sad, DialogueCameraHint.Close).To("n200"),
+                    new ChoiceNode("n200")
+                        .Add(new DialogueOption("a", "Was ist mit ihm passiert?", "n210"))
+                        .Add(new DialogueOption("b", "Und warum prüft Ihr ausgerechnet mich?", "n220"))
+                        .Add(new DialogueOption("c", "Schlaft. Ich halte Wache.", "n230")),
+                    new LineNode("n210", "Er hat einen Rissgeborenen begleitet. So wie ich jetzt Euch. Man hat nur sein Schwert gefunden.").To("n240"),
+                    new LineNode("n220", "Weil Ihr gefährlich sein könntet. Und weil ich wissen will, ob mein Bruder sich geirrt hat.").To("n240"),
+                    new LineNode("n230", "Ihr haltet Wache? Für mich? … Das ist neu.").Staging(DialogueEmotion.Friendly, DialogueCameraHint.Auto).To("n240"),
+                    new LineNode("n240", "Genug geredet. Morgen wird lang.")
+                        .Do(new SetFlag(Q.MarenCampfire, 1), new AddToFlag(Q.MarenLoyalty, 2)).EndWith("gespraech_1"),
+                    new LineNode("n300", "Der Wachende Ritter. Hundert Jahre tot, und er hat seinen Posten nicht verlassen.").To("n310"),
+                    new LineNode("n310", "Die Eichenritter waren wie wir. Ein Eid, ein Wappen, eine Pflicht. Und am Ende Knochen in einer Gruft.").To("n400"),
+                    new ChoiceNode("n400")
+                        .Add(new DialogueOption("a", "Er hat getan, was er geschworen hat.", "n410"))
+                        .Add(new DialogueOption("b", "Ein Eid, der einen hundert Jahre bindet, ist ein Fluch.", "n420")),
+                    new LineNode("n410", "Ja. Das ist das Schöne daran. Und das Schreckliche.").To("n430"),
+                    new LineNode("n420", "Vielleicht. Aber ohne Eide wäre niemand da, der den Riss bewacht.").To("n430"),
+                    new LineNode("n430", "Ihr habt Euch in der Gruft gut geschlagen. Das schreibe ich in meinen Bericht. Ehrlich.")
+                        .Do(new SetFlag(Q.MarenCampfire, 2), new AddToFlag(Q.MarenLoyalty, 2)).EndWith("gespraech_2"))
                 .Build();
         }
 

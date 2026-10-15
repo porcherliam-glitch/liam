@@ -10,7 +10,9 @@
         "Aetherfall.AI",
         "Aetherfall.Player",
         "Aetherfall.Skills",
-        "Aetherfall.WorldState"
+        "Aetherfall.WorldState",
+        "Aetherfall.GameTime",
+        "Aetherfall.Dialogue"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

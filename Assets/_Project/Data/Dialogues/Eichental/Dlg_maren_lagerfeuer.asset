@@ -1,0 +1,344 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8e8dae9f016d99b4cb368684cefc2e46, type: 3}
+  m_Name: Dlg_maren_lagerfeuer
+  m_EditorClassIdentifier: Aetherfall.Dialogue::Aetherfall.Dialogue.DialogueDefinition
+  id: dlg.eichental.maren_lagerfeuer
+  status: 1
+  title: Am Lagerfeuer
+  mode: 0
+  speakerId: npc.begleiter.maren_falkenried
+  startNodeId: n010
+  cancelable: 0
+  questId: 
+  questExitIds: []
+  nodes:
+  - rid: 8292696271173976300
+  - rid: 8292696271173976302
+  - rid: 8292696271173976303
+  - rid: 8292696271173976304
+  - rid: 8292696271173976305
+  - rid: 8292696271173976306
+  - rid: 8292696271173976307
+  - rid: 8292696271173976308
+  - rid: 8292696271173976309
+  - rid: 8292696271173976312
+  - rid: 8292696271173976313
+  - rid: 8292696271173976314
+  - rid: 8292696271173976315
+  - rid: 8292696271173976316
+  - rid: 8292696271173976317
+  notes: 
+  references:
+    version: 2
+    RefIds:
+    - rid: -2
+      type: {class: , ns: , asm: }
+    - rid: 8292696271173976300
+      type: {class: BranchNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n010
+        editorPosition: {x: 0, y: 0}
+        branches:
+        - condition:
+            rid: 8292696271173976301
+          targetNodeId: n300
+        defaultNodeId: n100
+    - rid: 8292696271173976301
+      type: {class: FlagIs, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
+      data:
+        flagId: flag.begleiter.maren.lagerfeuer
+        comparison: 3
+        value: 1
+    - rid: 8292696271173976302
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n100
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: n110
+        exitId: 
+        followUp: 0
+        speakerId: 
+        text: "Ihr schlaft nicht. Ich auch nicht. Das Feuer macht zu viele Ger\xE4usche."
+        variants: []
+        emotion: 0
+        camera: 0
+        actions: []
+        voiceClipId: 
+    - rid: 8292696271173976303
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n110
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: n120
+        exitId: 
+        followUp: 0
+        speakerId: 
+        text: "Mein Vater war Hufschmied in Wei\xDFwall. Ein ehrlicher Schlag, hat er gesagt, ist mehr wert als tausend Worte."
+        variants: []
+        emotion: 0
+        camera: 0
+        actions: []
+        voiceClipId: 
+    - rid: 8292696271173976304
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n120
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: n200
+        exitId: 
+        followUp: 0
+        speakerId: 
+        text: "Mit sechzehn bin ich zur Silberwacht. Mein Bruder war schneller als ich. Er ist nicht zur\xFCckgekommen."
+        variants: []
+        emotion: 4
+        camera: 1
+        actions: []
+        voiceClipId: 
+    - rid: 8292696271173976305
+      type: {class: ChoiceNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n200
+        editorPosition: {x: 0, y: 0}
+        hub: 0
+        options:
+        - id: a
+          text: Was ist mit ihm passiert?
+          targetNodeId: n210
+          visibleIf:
+            rid: -2
+          selectableIf:
+            rid: -2
+          lockedReason: 
+          once: 0
+          irreversible: 0
+          actions: []
+          choiceId: 
+          choiceOptionId: 
+        - id: b
+          text: "Und warum pr\xFCft Ihr ausgerechnet mich?"
+          targetNodeId: n220
+          visibleIf:
+            rid: -2
+          selectableIf:
+            rid: -2
+          lockedReason: 
+          once: 0
+          irreversible: 0
+          actions: []
+          choiceId: 
+          choiceOptionId: 
+        - id: c
+          text: Schlaft. Ich halte Wache.
+          targetNodeId: n230
+          visibleIf:
+            rid: -2
+          selectableIf:
+            rid: -2
+          lockedReason: 
+          once: 0
+          irreversible: 0
+          actions: []
+          choiceId: 
+          choiceOptionId: 
+    - rid: 8292696271173976306
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n210
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: n240
+        exitId: 
+        followUp: 0
+        speakerId: 
+        text: Er hat einen Rissgeborenen begleitet. So wie ich jetzt Euch. Man hat nur sein Schwert gefunden.
+        variants: []
+        emotion: 0
+        camera: 0
+        actions: []
+        voiceClipId: 
+    - rid: 8292696271173976307
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n220
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: n240
+        exitId: 
+        followUp: 0
+        speakerId: 
+        text: "Weil Ihr gef\xE4hrlich sein k\xF6nntet. Und weil ich wissen will, ob mein Bruder sich geirrt hat."
+        variants: []
+        emotion: 0
+        camera: 0
+        actions: []
+        voiceClipId: 
+    - rid: 8292696271173976308
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n230
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: n240
+        exitId: 
+        followUp: 0
+        speakerId: 
+        text: "Ihr haltet Wache? F\xFCr mich? \u2026 Das ist neu."
+        variants: []
+        emotion: 1
+        camera: 0
+        actions: []
+        voiceClipId: 
+    - rid: 8292696271173976309
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n240
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: 
+        exitId: gespraech_1
+        followUp: 0
+        speakerId: 
+        text: Genug geredet. Morgen wird lang.
+        variants: []
+        emotion: 0
+        camera: 0
+        actions:
+        - rid: 8292696271173976310
+        - rid: 8292696271173976311
+        voiceClipId: 
+    - rid: 8292696271173976310
+      type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
+      data:
+        flagId: flag.begleiter.maren.lagerfeuer
+        value: 1
+    - rid: 8292696271173976311
+      type: {class: AddToFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
+      data:
+        flagId: stat.begleiter.maren.loyalitaet
+        delta: 2
+    - rid: 8292696271173976312
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n300
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: n310
+        exitId: 
+        followUp: 0
+        speakerId: 
+        text: Der Wachende Ritter. Hundert Jahre tot, und er hat seinen Posten nicht verlassen.
+        variants: []
+        emotion: 0
+        camera: 0
+        actions: []
+        voiceClipId: 
+    - rid: 8292696271173976313
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n310
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: n400
+        exitId: 
+        followUp: 0
+        speakerId: 
+        text: Die Eichenritter waren wie wir. Ein Eid, ein Wappen, eine Pflicht. Und am Ende Knochen in einer Gruft.
+        variants: []
+        emotion: 0
+        camera: 0
+        actions: []
+        voiceClipId: 
+    - rid: 8292696271173976314
+      type: {class: ChoiceNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n400
+        editorPosition: {x: 0, y: 0}
+        hub: 0
+        options:
+        - id: a
+          text: Er hat getan, was er geschworen hat.
+          targetNodeId: n410
+          visibleIf:
+            rid: -2
+          selectableIf:
+            rid: -2
+          lockedReason: 
+          once: 0
+          irreversible: 0
+          actions: []
+          choiceId: 
+          choiceOptionId: 
+        - id: b
+          text: Ein Eid, der einen hundert Jahre bindet, ist ein Fluch.
+          targetNodeId: n420
+          visibleIf:
+            rid: -2
+          selectableIf:
+            rid: -2
+          lockedReason: 
+          once: 0
+          irreversible: 0
+          actions: []
+          choiceId: 
+          choiceOptionId: 
+    - rid: 8292696271173976315
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n410
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: n430
+        exitId: 
+        followUp: 0
+        speakerId: 
+        text: "Ja. Das ist das Sch\xF6ne daran. Und das Schreckliche."
+        variants: []
+        emotion: 0
+        camera: 0
+        actions: []
+        voiceClipId: 
+    - rid: 8292696271173976316
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n420
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: n430
+        exitId: 
+        followUp: 0
+        speakerId: 
+        text: "Vielleicht. Aber ohne Eide w\xE4re niemand da, der den Riss bewacht."
+        variants: []
+        emotion: 0
+        camera: 0
+        actions: []
+        voiceClipId: 
+    - rid: 8292696271173976317
+      type: {class: LineNode, ns: Aetherfall.Dialogue, asm: Aetherfall.Dialogue}
+      data:
+        id: n430
+        editorPosition: {x: 0, y: 0}
+        nextNodeId: 
+        exitId: gespraech_2
+        followUp: 0
+        speakerId: 
+        text: Ihr habt Euch in der Gruft gut geschlagen. Das schreibe ich in meinen Bericht. Ehrlich.
+        variants: []
+        emotion: 0
+        camera: 0
+        actions:
+        - rid: 8292696271173976318
+        - rid: 8292696271173976319
+        voiceClipId: 
+    - rid: 8292696271173976318
+      type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
+      data:
+        flagId: flag.begleiter.maren.lagerfeuer
+        value: 2
+    - rid: 8292696271173976319
+      type: {class: AddToFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
+      data:
+        flagId: stat.begleiter.maren.loyalitaet
+        delta: 2

@@ -115,6 +115,11 @@ namespace Aetherfall.EditorTools.World
                 case PropKind.Campfire:
                     AddCollider(go, new Vector3(0f, 0.25f, 0f), new Vector3(1.5f, 0.5f, 1.5f));
                     AddLight(go.transform, new Vector3(0f, 1f, 0f), _materials.Color("ember"), 12f, 2.2f);
+                    if (prop.Id.Contains("lindenhain"))
+                    {
+                        AddRestSpot(go, prop);
+                    }
+
                     break;
                 case PropKind.Cart:
                     AddCollider(go, new Vector3(0f, 0.65f, 0.3f), new Vector3(1.9f, 1.3f, 3.4f));
@@ -444,6 +449,26 @@ namespace Aetherfall.EditorTools.World
             light.range = range;
             light.intensity = intensity;
             light.shadows = LightShadows.None;
+        }
+
+        private void AddRestSpot(GameObject go, LayoutProp prop)
+        {
+            // GDD 01 10.4: rest at the campfire (time passes), Maren's campfire talks start here.
+            var trigger = new GameObject("Rasten");
+            trigger.transform.SetParent(go.transform, false);
+            trigger.layer = _interactableLayer >= 0 ? _interactableLayer : 0;
+            BoxCollider box = trigger.AddComponent<BoxCollider>();
+            box.isTrigger = true;
+            box.center = new Vector3(0f, 0.8f, 0f);
+            box.size = new Vector3(2.6f, 1.6f, 2.6f);
+            Aetherfall.Companions.CampfireRest rest = trigger.AddComponent<Aetherfall.Companions.CampfireRest>();
+            TestGroundFields.SetString(rest, "objectId", prop.Id, _report);
+            TestGroundFields.SetString(rest, "companionId", Aetherfall.EditorTools.Narrative.MiniSliceDialogueLibrary.Maren, _report);
+            TestGroundFields.SetString(rest, "talkDialogueId", Aetherfall.EditorTools.Narrative.MiniSliceDialogueLibrary.MarenCampfireDialogue, _report);
+            TestGroundFields.SetString(rest, "talksFlag", Aetherfall.EditorTools.Narrative.MiniSliceQuestLibrary.MarenCampfire, _report);
+            TestGroundFields.SetString(rest, "secondTalkFlag", Aetherfall.EditorTools.Narrative.MiniSliceQuestLibrary.FlagSealStone, _report);
+            EichentalLabel.Create(go.transform, "Lagerfeuer (E: rasten)", new Vector3(0f, 1.9f, 0f), 180f, _labelFont, 0.03f);
+            _report.Info("Lagerfeuer „" + prop.Name + "“: Rasten (bis 8 Uhr oder 3 Stunden), Lagerfeuer-Gespräche mit Maren.");
         }
     }
 }

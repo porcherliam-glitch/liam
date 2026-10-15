@@ -38,6 +38,9 @@ namespace Aetherfall.Companions
         /// <summary>True while knocked down.</summary>
         public bool Downed { get; set; }
 
+        /// <summary>Combat behaviour (GDD 03 13.1).</summary>
+        public CompanionMode Mode { get; set; }
+
         /// <summary>True if an enemy to fight was chosen.</summary>
         public bool HasTarget { get; set; }
 
@@ -96,6 +99,18 @@ namespace Aetherfall.Companions
         /// <summary>A target farther than this from the player is not chased (defensive: GDD 03 13.1 "≤ 6 m", plus reach).</summary>
         public const float LeashFromPlayer = 9f;
 
+        /// <summary>Aggressive: chases targets up to this far from the player (GDD 03 13.1: 25 m).</summary>
+        public const float AggressiveLeash = 25f;
+
+        /// <summary>Supportive: only fights what comes this close to her.</summary>
+        public const float SupportGuardRadius = 4f;
+
+        /// <summary>Supportive: distance behind the player.</summary>
+        public const float SupportBehindDistance = 6.5f;
+
+        /// <summary>Passive: distance behind the player (GDD 03 13.1: 3 m).</summary>
+        public const float PassiveBehindDistance = 3f;
+
         private const float WalkSpeed = 2.4f;
         private const float RunSpeed = 5.2f;
         private const float CatchUpSpeed = 7.5f;
@@ -113,13 +128,46 @@ namespace Aetherfall.Companions
         /// <param name="side">+1 right, −1 left.</param>
         public static FlatPoint FollowSpot(FlatPoint player, float playerYaw, int side)
         {
+            return FollowSpot(player, playerYaw, side, CompanionMode.Defensive);
+        }
+
+        /// <summary>The follow spot of a combat mode: supportive farther back, passive straight behind.</summary>
+        /// <param name="player">Player position.</param>
+        /// <param name="playerYaw">Facing of the player in degrees.</param>
+        /// <param name="side">+1 right, −1 left.</param>
+        /// <param name="mode">Combat mode.</param>
+        public static FlatPoint FollowSpot(FlatPoint player, float playerYaw, int side, CompanionMode mode)
+        {
+            float behind = mode == CompanionMode.Supportive ? SupportBehindDistance : mode == CompanionMode.Passive ? PassiveBehindDistance : BehindDistance;
+            float aside = mode == CompanionMode.Passive ? 0.6f : SideDistance;
             double yaw = playerYaw * Math.PI / 180.0;
             float forwardX = (float)Math.Sin(yaw);
             float forwardZ = (float)Math.Cos(yaw);
             float rightX = forwardZ;
             float rightZ = -forwardX;
-            return new FlatPoint(player.X - forwardX * BehindDistance + rightX * SideDistance * side,
-                player.Z - forwardZ * BehindDistance + rightZ * SideDistance * side);
+            return new FlatPoint(player.X - forwardX * behind + rightX * aside * side, player.Z - forwardZ * behind + rightZ * aside * side);
+        }
+
+        /// <summary>True if the mode lets her fight the target (GDD 03 13.1).</summary>
+        /// <param name="senses">What the companion knows (with a target).</param>
+        public static bool MayFight(in CompanionSenses senses)
+        {
+            if (!senses.HasTarget)
+            {
+                return false;
+            }
+
+            switch (senses.Mode)
+            {
+                case CompanionMode.Passive:
+                    return false;
+                case CompanionMode.Supportive:
+                    return senses.Self.DistanceTo(senses.Target) <= SupportGuardRadius;
+                case CompanionMode.Aggressive:
+                    return senses.Waiting || senses.Target.DistanceTo(senses.Player) <= AggressiveLeash;
+                default:
+                    return senses.Waiting || senses.Target.DistanceTo(senses.Player) <= LeashFromPlayer;
+            }
         }
 
         /// <summary>Decides for one frame.</summary>
@@ -136,11 +184,11 @@ namespace Aetherfall.Companions
             if (!senses.Waiting && toPlayer > TeleportDistance)
             {
                 decision.Move = CompanionMove.Teleport;
-                decision.Destination = FollowSpot(senses.Player, senses.PlayerYaw, _side);
+                decision.Destination = FollowSpot(senses.Player, senses.PlayerYaw, _side, senses.Mode);
                 return decision;
             }
 
-            if (senses.HasTarget && (senses.Waiting || senses.Target.DistanceTo(senses.Player) <= LeashFromPlayer))
+            if (MayFight(senses))
             {
                 return Fight(senses, decision);
             }
@@ -157,7 +205,7 @@ namespace Aetherfall.Companions
                 _side = bearing > 0f ? 1 : -1;
             }
 
-            FlatPoint spot = FollowSpot(senses.Player, senses.PlayerYaw, _side);
+            FlatPoint spot = FollowSpot(senses.Player, senses.PlayerYaw, _side, senses.Mode);
             float toSpot = senses.Self.DistanceTo(spot);
             if (toSpot <= ArriveDistance)
             {

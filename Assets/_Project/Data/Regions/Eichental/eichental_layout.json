@@ -279,6 +279,7 @@
     { "id": "obj.eichental.sperre_west", "name": "Wagenburg der Silberwacht (Weg nach Westen gesperrt)", "kind": "barricade", "position": [-197, -32], "yaw": 90 },
     { "id": "obj.eichental.anschlagbrett_krummer_kessel", "name": "Anschlagbrett am Gasthaus", "kind": "notice_board", "position": [-149, -2], "yaw": 90 },
     { "id": "obj.eichental.zelt_1", "name": "Zelt der Flüchtlinge", "kind": "tent", "position": [-158, -54], "yaw": 20 },
+    { "id": "obj.eichental.lagerfeuer_lindenhain", "name": "Lagerfeuer der Flüchtlinge", "kind": "campfire", "position": [-163, -60], "yaw": 0 },
     { "id": "obj.eichental.zelt_2", "name": "Zelt der Flüchtlinge", "kind": "tent", "position": [-168, -46], "yaw": -15 },
     { "id": "obj.eichental.zelt_3", "name": "Zelt der Flüchtlinge", "kind": "tent", "position": [-150, -62], "yaw": 40 },
     { "id": "obj.eichental.heu_1", "name": "Heuballen", "kind": "hay_bale", "position": [-138, 106], "yaw": 0 },

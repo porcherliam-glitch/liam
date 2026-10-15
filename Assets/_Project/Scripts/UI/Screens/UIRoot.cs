@@ -354,6 +354,9 @@ namespace Aetherfall.UI.Screens
             _eventBus.Unsubscribe<ObjectiveProgressed>(OnObjectiveProgressed);
             _eventBus.Unsubscribe<QuestCompleted>(OnQuestCompleted);
             _eventBus.Unsubscribe<QuestFailed>(OnQuestFailed);
+            _eventBus.Unsubscribe<CompanionReacted>(OnCompanionReacted);
+            _eventBus.Unsubscribe<CompanionSpoke>(OnCompanionSpoke);
+            _eventBus.Unsubscribe<RestCompleted>(OnRestCompleted);
             _glyphs.Changed -= OnGlyphsChanged;
             _preferences.Changed -= OnPreferencesChanged;
             _flow.Failed -= OnFlowFailed;
@@ -457,6 +460,9 @@ namespace Aetherfall.UI.Screens
             _eventBus.Subscribe<ObjectiveProgressed>(OnObjectiveProgressed);
             _eventBus.Subscribe<QuestCompleted>(OnQuestCompleted);
             _eventBus.Subscribe<QuestFailed>(OnQuestFailed);
+            _eventBus.Subscribe<CompanionReacted>(OnCompanionReacted);
+            _eventBus.Subscribe<CompanionSpoke>(OnCompanionSpoke);
+            _eventBus.Subscribe<RestCompleted>(OnRestCompleted);
             _glyphs.Changed += OnGlyphsChanged;
             _preferences.Changed += OnPreferencesChanged;
             _flow.Failed += OnFlowFailed;
@@ -630,6 +636,34 @@ namespace Aetherfall.UI.Screens
             {
                 _notifier.OnQuestCompleted(evt.QuestId);
             }
+        }
+
+        private void OnCompanionReacted(CompanionReacted evt)
+        {
+            // GDD 01 10.3 / GDD 02 12: "Maren gefällt das." after the choice, then her comment.
+            if (evt.Delta != 0)
+            {
+                string verdict = evt.DisplayName + (evt.Delta > 0 ? " gefällt das." : " missbilligt das.");
+                _ui.ShowToast(Notification.Message(NotificationPriority.Progress, verdict, "companion"));
+            }
+
+            if (evt.Comment.Length > 0)
+            {
+                _ui.ShowToast(Notification.Message(NotificationPriority.Progress, evt.DisplayName + ": „" + evt.Comment + "“", "companion"));
+            }
+        }
+
+        private void OnCompanionSpoke(CompanionSpoke evt)
+        {
+            if (evt.Text.Length > 0)
+            {
+                _ui.ShowToast(Notification.Message(NotificationPriority.Milestone, evt.DisplayName + ": „" + evt.Text + "“", "companion"));
+            }
+        }
+
+        private void OnRestCompleted(RestCompleted evt)
+        {
+            _ui.ShowToast(Notification.Message(NotificationPriority.Progress, "Du rastest bis " + evt.Hour.ToString("00") + ":" + evt.Minute.ToString("00") + " Uhr."));
         }
 
         private void OnQuestFailed(QuestFailed evt)

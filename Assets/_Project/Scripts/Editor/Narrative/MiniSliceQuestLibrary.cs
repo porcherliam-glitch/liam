@@ -99,6 +99,21 @@ namespace Aetherfall.EditorTools.Narrative
         /// <summary>Command "Warte hier" for Maren (1 = she holds her position).</summary>
         public const string FlagMarenWaits = "flag.begleiter.maren_wartet";
 
+        /// <summary>1 while Maren is in the group (her controller keeps it; quest reactions need it).</summary>
+        public const string MarenInParty = "flag.begleiter.maren.in_gruppe";
+
+        /// <summary>1 after Maren's warning talk at loyalty 20 (GDD 01 10.3).</summary>
+        public const string MarenWarned = "flag.begleiter.maren.gewarnt";
+
+        /// <summary>1 after Maren left the group at loyalty 10 (GDD 01 10.3).</summary>
+        public const string MarenLeft = "flag.begleiter.maren.verlassen";
+
+        /// <summary>Maren's combat mode (GDD 03 13.1): 0 defensive, 1 aggressive, 2 supportive, 3 passive.</summary>
+        public const string MarenMode = "stat.begleiter.maren.kampfmodus";
+
+        /// <summary>Number of Maren's campfire talks (GDD 01 10.4: two in the slice).</summary>
+        public const string MarenCampfire = "flag.begleiter.maren.lagerfeuer";
+
         /// <summary>Outcome of quest 2: 1 fight, 2 destroyed, 3 taken.</summary>
         public const string FlagWolvesOutcome = "flag.eichental.woelfe_ausgang";
 
@@ -149,7 +164,12 @@ namespace Aetherfall.EditorTools.Narrative
                 new FlagSpec(FlagMarenTest, FlagKind.Enum, 0, 0, 0, new[] { "offen", "angenommen", "abgelehnt" }, false,
                     "Prüfung der Silberwacht (Slice: Dialog mit Maren): 1 angenommen, 2 abgelehnt; in beiden Fällen begleitet sie den Spieler."),
                 new FlagSpec(MarenLoyalty, FlagKind.StoryNumber, 0, 0, 100, null, false, "Loyalität von Ser Maren Falkenried (0–100, GDD 01 10.3)."),
-                Bool(FlagMarenWaits, "Maren wartet an ihrer Stelle („Warte hier.“).")
+                Bool(FlagMarenWaits, "Maren wartet an ihrer Stelle („Warte hier.“)."),
+                Bool(MarenInParty, "Maren ist in der Gruppe (für Begleiter-Reaktionen)."),
+                Bool(MarenWarned, "Maren hat bei Loyalität 20 gewarnt."),
+                Bool(MarenLeft, "Maren hat die Gruppe bei Loyalität 10 verlassen."),
+                new FlagSpec(MarenMode, FlagKind.StoryNumber, 0, 0, 3, null, false, "Kampfmodus von Maren: 0 defensiv, 1 aggressiv, 2 unterstützend, 3 passiv."),
+                new FlagSpec(MarenCampfire, FlagKind.StoryNumber, 0, 0, 2, null, false, "Zahl der Lagerfeuer-Gespräche mit Maren (0–2).")
             };
         }
 
@@ -367,6 +387,10 @@ namespace Aetherfall.EditorTools.Narrative
                         new ConditionalAction(new FlagIs(FlagReliefsRead, 1), new GameAction[] { new GiveCurrency(40) }))
                     .Ledger("ledger.c2")
                     .EndSuccess())
+                // GDD 02 11.7: Maren +5 when the seal stone stays, −5 when it is taken (only if she is in the group).
+                .Reaction(new CompanionReaction(MiniSliceDialogueLibrary.Maren, "s70_belassen", 5, "Gut. Manche Dinge sollen ruhen."))
+                .Reaction(new CompanionReaction(MiniSliceDialogueLibrary.Maren, "s70_genommen", -5,
+                    "Ihr habt ihn eingesteckt. Ich hoffe, Ihr wisst, was Ihr da tragt."))
                 .LedgerEntry("ledger.c1", "Du hast den Siegelstein aus der Gruft genommen. Nachts gehen im Tal Untote um.", true)
                 .LedgerEntry("ledger.c2", "Du hast den Siegelstein in der Gruft gelassen. Die Toten schlafen weiter.")
                 .Rewards(new GiveXp(0.6f, CryptLevel))

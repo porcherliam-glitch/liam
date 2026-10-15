@@ -166,6 +166,8 @@ namespace Aetherfall.EditorTools.World
             Steps.Enqueue(() => WaitQuest(Q.Crypt, QuestStatus.Completed));
             Steps.Enqueue(() => WaitFlag(Q.FlagSealStone, 1));
             Steps.Enqueue(() => Capture("q10_gruft_fertig", null));
+            // S46: Maren dislikes the taken seal stone (GDD 02 11.7: −5 from 40).
+            Steps.Enqueue(() => CheckMarenLoyalty(35, "nach der Gruft (Siegelstein genommen)"));
 
             // The villagers of Lindenhain, the mill and the farm (short talks).
             int shot = 11;
@@ -197,6 +199,9 @@ namespace Aetherfall.EditorTools.World
 
             // S43/S44: game clock, daily routines and barks.
             EnqueueRoutines();
+
+            // S46: Ser Maren in full (combat modes, campfire talks, warning and leaving).
+            EnqueueMaren();
         }
 
         /// <summary>Waits for the trade screen (game state Menu), buys the first affordable offer and sells one item of the bag.</summary>

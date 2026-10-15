@@ -28,7 +28,7 @@ MonoBehaviour:
   startTriggerKind: 3
   startTriggerId: loc.eichental.vergessene_gruft
   startCondition:
-    rid: 8292696250294206658
+    rid: 8292696271173976386
   startStageId: 
   startBranches: []
   stages:
@@ -36,7 +36,7 @@ MonoBehaviour:
     journalText: Corvin will den Siegelstein aus der Gruft der Eichenritter. Der Eingang liegt in der Senke unter dem Rabenfels.
     explorationHint: "Der Rabenfels ragt im Norden \xFCber dem Dorf auf."
     objectives:
-    - rid: 8292696250294206659
+    - rid: 8292696271173976387
     completionMode: 0
     requiredCount: 1
     actionOnly: 0
@@ -54,8 +54,8 @@ MonoBehaviour:
     journalText: "Das Tor ist versiegelt. Die Inschrift nennt eine Reihenfolge: \u201EErst die Eiche, die den Schild trug, dann die Krone, die sich beugte, zuletzt der Schild, der nie brach.\u201C"
     explorationHint: 
     objectives:
-    - rid: 8292696250294206660
-    - rid: 8292696250294206662
+    - rid: 8292696271173976388
+    - rid: 8292696271173976390
     completionMode: 0
     requiredCount: 1
     actionOnly: 0
@@ -73,8 +73,8 @@ MonoBehaviour:
     journalText: In den Hallen der Eichenritter regen sich die Toten. Die Siegelkammer liegt in der Tiefe.
     explorationHint: 
     objectives:
-    - rid: 8292696250294206664
-    - rid: 8292696250294206665
+    - rid: 8292696271173976392
+    - rid: 8292696271173976393
     completionMode: 0
     requiredCount: 1
     actionOnly: 0
@@ -92,7 +92,7 @@ MonoBehaviour:
     journalText: "Ein Strahl aus Aether-Licht f\xE4llt durch einen Spalt. Drei Spiegel stehen schief in ihren Halterungen."
     explorationHint: 
     objectives:
-    - rid: 8292696250294206666
+    - rid: 8292696271173976394
     completionMode: 0
     requiredCount: 1
     actionOnly: 0
@@ -110,7 +110,7 @@ MonoBehaviour:
     journalText: Vor dem Siegelstein erhebt sich der Wachende Ritter.
     explorationHint: 
     objectives:
-    - rid: 8292696250294206668
+    - rid: 8292696271173976396
     completionMode: 0
     requiredCount: 1
     actionOnly: 0
@@ -128,8 +128,8 @@ MonoBehaviour:
     journalText: "Der Siegelstein liegt frei. Die Inschrift warnt: \u201EWer den Riegel nimmt, \xF6ffnet die Gr\xE4ber.\u201C"
     explorationHint: 
     objectives:
-    - rid: 8292696250294206669
-    - rid: 8292696250294206670
+    - rid: 8292696271173976397
+    - rid: 8292696271173976398
     completionMode: 1
     requiredCount: 1
     actionOnly: 0
@@ -137,7 +137,7 @@ MonoBehaviour:
     onComplete: []
     branches:
     - condition:
-        rid: 8292696250294206671
+        rid: 8292696271173976399
       targetStageId: s70_genommen
       label: Stein genommen
     defaultNextStageId: s70_belassen
@@ -151,13 +151,13 @@ MonoBehaviour:
     journalText: Du hast den Siegelstein. Hinter dir knirschen Sargdeckel.
     explorationHint: 
     objectives:
-    - rid: 8292696250294206672
-    - rid: 8292696250294206676
+    - rid: 8292696271173976400
+    - rid: 8292696271173976404
     completionMode: 1
     requiredCount: 1
     actionOnly: 0
     onStart:
-    - rid: 8292696250294206682
+    - rid: 8292696271173976410
     onComplete: []
     branches: []
     defaultNextStageId: 
@@ -171,16 +171,16 @@ MonoBehaviour:
     journalText: Die Gruft bleibt versiegelt. Corvin wird nicht erfreut sein.
     explorationHint: 
     objectives:
-    - rid: 8292696250294206683
-    - rid: 8292696250294206685
+    - rid: 8292696271173976411
+    - rid: 8292696271173976413
     completionMode: 1
     requiredCount: 1
     actionOnly: 0
     onStart: []
     onComplete:
-    - rid: 8292696250294206688
-    - rid: 8292696250294206689
-    - rid: 8292696250294206692
+    - rid: 8292696271173976416
+    - rid: 8292696271173976417
+    - rid: 8292696271173976420
     branches: []
     defaultNextStageId: 
     failRules: []
@@ -190,7 +190,7 @@ MonoBehaviour:
     markerIds: []
     searchRadius: 50
   rewards:
-  - rid: 8292696250294206695
+  - rid: 8292696271173976423
   followUps: []
   repeatMode: 0
   cooldownHours: 0
@@ -210,7 +210,15 @@ MonoBehaviour:
     isConsequence: 0
     visibleCondition:
       rid: -2
-  companionReactions: []
+  companionReactions:
+  - companionId: npc.begleiter.maren_falkenried
+    endStageId: s70_belassen
+    loyaltyDelta: 5
+    comment: Gut. Manche Dinge sollen ruhen.
+  - companionId: npc.begleiter.maren_falkenried
+    endStageId: s70_genommen
+    loyaltyDelta: -5
+    comment: Ihr habt ihn eingesteckt. Ich hoffe, Ihr wisst, was Ihr da tragt.
   pacingMinute: 150
   scopeTier: 0
   author: claude
@@ -221,12 +229,12 @@ MonoBehaviour:
     RefIds:
     - rid: -2
       type: {class: , ns: , asm: }
-    - rid: 8292696250294206658
+    - rid: 8292696271173976386
       type: {class: QuestStatusIs, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         questId: quest.main.asche_ueber_eichental
         status: 3
-    - rid: 8292696250294206659
+    - rid: 8292696271173976387
       type: {class: GoToObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         id: o1
@@ -238,7 +246,7 @@ MonoBehaviour:
         onCompleted: []
         locationId: loc.eichental.vergessene_gruft
         radius: 12
-    - rid: 8292696250294206660
+    - rid: 8292696271173976388
       type: {class: ConditionObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         id: o1
@@ -249,13 +257,13 @@ MonoBehaviour:
         markerIds: []
         onCompleted: []
         condition:
-          rid: 8292696250294206661
+          rid: 8292696271173976389
         latch: 1
-    - rid: 8292696250294206661
+    - rid: 8292696271173976389
       type: {class: PuzzleIsSolved, ns: Aetherfall.World.Gameplay, asm: Aetherfall.World.Gameplay}
       data:
         puzzleId: puzzle.eichental.gruft_grabplatten
-    - rid: 8292696250294206662
+    - rid: 8292696271173976390
       type: {class: InspectCluesObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         id: o2
@@ -265,18 +273,18 @@ MonoBehaviour:
           rid: -2
         markerIds: []
         onCompleted:
-        - rid: 8292696250294206663
+        - rid: 8292696271173976391
         clueIds:
         - clue.eichental.gruft_wandrelief_1
         - clue.eichental.gruft_wandrelief_2
         - clue.eichental.gruft_wandrelief_3
         count: 3
-    - rid: 8292696250294206663
+    - rid: 8292696271173976391
       type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: flag.eichental.gruft_reliefs_gelesen
         value: 1
-    - rid: 8292696250294206664
+    - rid: 8292696271173976392
       type: {class: GoToObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         id: o1
@@ -288,7 +296,7 @@ MonoBehaviour:
         onCompleted: []
         locationId: loc.eichental.gruft_siegelkammer_vorraum
         radius: 6
-    - rid: 8292696250294206665
+    - rid: 8292696271173976393
       type: {class: InteractObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         id: o2
@@ -302,7 +310,7 @@ MonoBehaviour:
         - obj.eichental.gruft_kaefig
         count: 1
         verb: use
-    - rid: 8292696250294206666
+    - rid: 8292696271173976394
       type: {class: ConditionObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         id: o1
@@ -313,13 +321,13 @@ MonoBehaviour:
         markerIds: []
         onCompleted: []
         condition:
-          rid: 8292696250294206667
+          rid: 8292696271173976395
         latch: 1
-    - rid: 8292696250294206667
+    - rid: 8292696271173976395
       type: {class: PuzzleIsSolved, ns: Aetherfall.World.Gameplay, asm: Aetherfall.World.Gameplay}
       data:
         puzzleId: puzzle.eichental.gruft_spiegel
-    - rid: 8292696250294206668
+    - rid: 8292696271173976396
       type: {class: KillSpecificObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         id: o1
@@ -331,7 +339,7 @@ MonoBehaviour:
         onCompleted: []
         targetId: boss.eichental.wachender_ritter
         allowDefeat: 0
-    - rid: 8292696250294206669
+    - rid: 8292696271173976397
       type: {class: InteractObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         id: o1
@@ -345,7 +353,7 @@ MonoBehaviour:
         - obj.eichental.gruft_siegelstein
         count: 1
         verb: pickup
-    - rid: 8292696250294206670
+    - rid: 8292696271173976398
       type: {class: GoToObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         id: o2
@@ -357,162 +365,162 @@ MonoBehaviour:
         onCompleted: []
         locationId: loc.eichental.gruft_ausgang
         radius: 6
-    - rid: 8292696250294206671
+    - rid: 8292696271173976399
       type: {class: QuestObjectiveDone, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         questId: 
         stageId: 
         objectiveId: o1
-    - rid: 8292696250294206672
+    - rid: 8292696271173976400
       type: {class: ConditionObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         id: o1
         optional: 0
         journalText: Bring den Siegelstein zu Corvin
         visibleCondition:
-          rid: 8292696250294206673
+          rid: 8292696271173976401
         markerIds: []
         onCompleted:
-        - rid: 8292696250294206674
+        - rid: 8292696271173976402
         condition:
-          rid: 8292696250294206675
+          rid: 8292696271173976403
         latch: 1
-    - rid: 8292696250294206673
+    - rid: 8292696271173976401
       type: {class: NpcAlive, ns: Aetherfall.NPC, asm: Aetherfall.NPC}
       data:
         npcId: npc.eichental.gelehrter_corvin
-    - rid: 8292696250294206674
+    - rid: 8292696271173976402
       type: {class: GiveCurrency, ns: Aetherfall.Inventory, asm: Aetherfall.Inventory}
       data:
         currencyId: currency.gold
         amount: 120
-    - rid: 8292696250294206675
+    - rid: 8292696271173976403
       type: {class: FlagIs, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: flag.eichental.siegelstein_verbleib
         comparison: 0
         value: 1
-    - rid: 8292696250294206676
+    - rid: 8292696271173976404
       type: {class: ConditionObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         id: o2
         optional: 0
         journalText: Behalte den Stein
         visibleCondition:
-          rid: 8292696250294206677
+          rid: 8292696271173976405
         markerIds: []
         onCompleted:
-        - rid: 8292696250294206678
+        - rid: 8292696271173976406
         condition:
-          rid: 8292696250294206679
+          rid: 8292696271173976407
         latch: 1
-    - rid: 8292696250294206677
+    - rid: 8292696271173976405
       type: {class: Not, ns: Aetherfall.Conditions, asm: Aetherfall.Conditions}
       data:
         condition:
-          rid: 8292696250294206680
-    - rid: 8292696250294206678
+          rid: 8292696271173976408
+    - rid: 8292696271173976406
       type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: flag.eichental.siegelstein_verbleib
         value: 3
-    - rid: 8292696250294206679
+    - rid: 8292696271173976407
       type: {class: Not, ns: Aetherfall.Conditions, asm: Aetherfall.Conditions}
       data:
         condition:
-          rid: 8292696250294206681
-    - rid: 8292696250294206680
+          rid: 8292696271173976409
+    - rid: 8292696271173976408
       type: {class: NpcAlive, ns: Aetherfall.NPC, asm: Aetherfall.NPC}
       data:
         npcId: npc.eichental.gelehrter_corvin
-    - rid: 8292696250294206681
+    - rid: 8292696271173976409
       type: {class: NpcAlive, ns: Aetherfall.NPC, asm: Aetherfall.NPC}
       data:
         npcId: npc.eichental.gelehrter_corvin
-    - rid: 8292696250294206682
+    - rid: 8292696271173976410
       type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: flag.eichental.gruft_untote_nachts
         value: 1
-    - rid: 8292696250294206683
+    - rid: 8292696271173976411
       type: {class: TalkToObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         id: o1
         optional: 0
         journalText: Mit Corvin sprechen
         visibleCondition:
-          rid: 8292696250294206684
+          rid: 8292696271173976412
         markerIds: []
         onCompleted: []
         npcId: npc.eichental.gelehrter_corvin
         dialogueId: 
-    - rid: 8292696250294206684
+    - rid: 8292696271173976412
       type: {class: NpcAlive, ns: Aetherfall.NPC, asm: Aetherfall.NPC}
       data:
         npcId: npc.eichental.gelehrter_corvin
-    - rid: 8292696250294206685
+    - rid: 8292696271173976413
       type: {class: TalkToObjective, ns: Aetherfall.Quests, asm: Aetherfall.Quests}
       data:
         id: o2
         optional: 0
         journalText: Mit Hauptmann Dorn sprechen
         visibleCondition:
-          rid: 8292696250294206686
+          rid: 8292696271173976414
         markerIds: []
         onCompleted: []
         npcId: npc.eichental.hauptmann_dorn
         dialogueId: 
-    - rid: 8292696250294206686
+    - rid: 8292696271173976414
       type: {class: Not, ns: Aetherfall.Conditions, asm: Aetherfall.Conditions}
       data:
         condition:
-          rid: 8292696250294206687
-    - rid: 8292696250294206687
+          rid: 8292696271173976415
+    - rid: 8292696271173976415
       type: {class: NpcAlive, ns: Aetherfall.NPC, asm: Aetherfall.NPC}
       data:
         npcId: npc.eichental.gelehrter_corvin
-    - rid: 8292696250294206688
+    - rid: 8292696271173976416
       type: {class: SetFlag, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: flag.eichental.siegelstein_verbleib
         value: 2
-    - rid: 8292696250294206689
+    - rid: 8292696271173976417
       type: {class: ConditionalAction, ns: Aetherfall.Conditions, asm: Aetherfall.Conditions}
       data:
         condition:
-          rid: 8292696250294206690
+          rid: 8292696271173976418
         thenActions:
-        - rid: 8292696250294206691
+        - rid: 8292696271173976419
         elseActions: []
-    - rid: 8292696250294206690
+    - rid: 8292696271173976418
       type: {class: NpcAlive, ns: Aetherfall.NPC, asm: Aetherfall.NPC}
       data:
         npcId: npc.eichental.gelehrter_corvin
-    - rid: 8292696250294206691
+    - rid: 8292696271173976419
       type: {class: ChangeRelationship, ns: Aetherfall.NPC, asm: Aetherfall.NPC}
       data:
         npcId: npc.eichental.gelehrter_corvin
         delta: -10
-    - rid: 8292696250294206692
+    - rid: 8292696271173976420
       type: {class: ConditionalAction, ns: Aetherfall.Conditions, asm: Aetherfall.Conditions}
       data:
         condition:
-          rid: 8292696250294206693
+          rid: 8292696271173976421
         thenActions:
-        - rid: 8292696250294206694
+        - rid: 8292696271173976422
         elseActions: []
-    - rid: 8292696250294206693
+    - rid: 8292696271173976421
       type: {class: FlagIs, ns: Aetherfall.WorldState, asm: Aetherfall.WorldState}
       data:
         flagId: flag.eichental.gruft_reliefs_gelesen
         comparison: 0
         value: 1
-    - rid: 8292696250294206694
+    - rid: 8292696271173976422
       type: {class: GiveCurrency, ns: Aetherfall.Inventory, asm: Aetherfall.Inventory}
       data:
         currencyId: currency.gold
         amount: 40
-    - rid: 8292696250294206695
+    - rid: 8292696271173976423
       type: {class: GiveXp, ns: Aetherfall.Progression, asm: Aetherfall.Progression}
       data:
         mode: 1

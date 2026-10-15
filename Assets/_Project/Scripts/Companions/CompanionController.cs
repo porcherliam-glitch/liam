@@ -23,6 +23,8 @@ namespace Aetherfall.Companions
     /// object. The scene generators build her in every scene she can be in; in each scene she appears next to the player
     /// once she is recruited.</para>
     /// <para>"Warte hier" / "Komm mit" come from her dialogue (world flag <c>waitFlag</c>); the command wheel (G) follows later.</para>
+    /// <para>Combat mode (GDD 03 13.1) and loyalty (GDD 01 10.3) live in world values named after the companion
+    /// (<see cref="CompanionLoyalty"/>): at 20 she warns once, at 10 she leaves the group and goes back to her post.</para>
     /// </remarks>
     [DisallowMultipleComponent]
     public sealed class CompanionController : MonoBehaviour, ICombatantController, IHitWindowReceiver, ICombatDebugSource
@@ -40,6 +42,15 @@ namespace Aetherfall.Companions
 
         [Tooltip("Welt-Flag: 1 = „Warte hier“ (bleibt stehen, kämpft nur in der Nähe).")]
         [SerializeField] private string waitFlag = "";
+
+        [Tooltip("Name in Meldungen („Maren gefällt das.“).")]
+        [SerializeField] private string displayName = "Maren";
+
+        [Tooltip("Satz beim Warngespräch (Loyalität 20).")]
+        [SerializeField] private string warningLine = "";
+
+        [Tooltip("Satz, wenn sie die Gruppe verlässt (Loyalität 10).")]
+        [SerializeField] private string leaveLine = "";
 
         [Tooltip("Kampf-Wurzel. Leer = Combatant am selben GameObject.")]
         [SerializeField] private Combatant combatant = null;
@@ -97,7 +108,20 @@ namespace Aetherfall.Companions
         private bool _joined;
         private bool _wasJoined;
         private bool _placeNextToPlayer = true;
+        private bool _left;
+        private CompanionMode _mode = CompanionMode.Defensive;
+        private Vector3 _post;
+        private Quaternion _postRotation;
         private System.Random _random;
+
+        /// <summary>Current combat mode (GDD 03 13.1).</summary>
+        public CompanionMode Mode => _mode;
+
+        /// <summary>True after she left the group (loyalty 10 or below).</summary>
+        public bool HasLeft => _left;
+
+        /// <summary>Companion id.</summary>
+        public string CompanionId => companionId ?? string.Empty;
 
         /// <summary>True if she is with the player.</summary>
         public bool IsJoined => _joined;
@@ -118,7 +142,8 @@ namespace Aetherfall.Companions
         public BlockSpec ActiveBlock => BlockSpec.WoodenShield;
 
         /// <inheritdoc />
-        public string DebugStateText => !_joined ? "am Posten" : _downed ? "am Boden" : _target != null ? "kämpft" : "folgt";
+        public string DebugStateText => (!_joined ? (_left ? "hat die Gruppe verlassen" : "am Posten") : _downed ? "am Boden" : _target != null ? "kämpft" : "folgt") +
+                                         " (" + _mode + ")";
 
         /// <inheritdoc />
         public DefenseOutcome EvaluateDefense(in IncomingHit hit, float bearing)
@@ -149,7 +174,8 @@ namespace Aetherfall.Companions
                 _locomotion.StartKnockback(report.Attacker.transform.position, report.Attack.KnockbackDistance * 0.5f);
             }
 
-            if (_target == null && report.Attacker != null && report.Attacker.IsAlive && CombatTeams.CanDamage(combatant.Team, report.Attacker.Team))
+            if (_target == null && _mode != CompanionMode.Passive && report.Attacker != null && report.Attacker.IsAlive &&
+                CombatTeams.CanDamage(combatant.Team, report.Attacker.Team))
             {
                 // Defensive: whoever hits her becomes her target.
                 _target = report.Attacker;
@@ -214,6 +240,8 @@ namespace Aetherfall.Companions
             }
 
             _swordRest = swordPivot != null ? swordPivot.localRotation : Quaternion.identity;
+            _post = transform.position;
+            _postRotation = transform.rotation;
             combatant.SetController(this);
         }
 
@@ -235,6 +263,7 @@ namespace Aetherfall.Companions
                 if (locator.TryGet(out _bus))
                 {
                     _bus.Subscribe<PlayerSpawned>(OnPlayerSpawned);
+                    _bus.Subscribe<FlagChanged>(OnFlagChanged);
                 }
             }
             catch (OperationCanceledException)
@@ -258,6 +287,7 @@ namespace Aetherfall.Companions
             if (_bus != null)
             {
                 _bus.Unsubscribe<PlayerSpawned>(OnPlayerSpawned);
+                _bus.Unsubscribe<FlagChanged>(OnFlagChanged);
             }
         }
 
@@ -270,6 +300,7 @@ namespace Aetherfall.Companions
         {
             float deltaTime = combatant.Tick(Time.deltaTime);
             UpdateJoined();
+            UpdateMode();
             if (!FindPlayer())
             {
                 _locomotion.Move(default, deltaTime, TurnRate);
@@ -298,6 +329,7 @@ namespace Aetherfall.Companions
                 Player = new FlatPoint(playerPosition.x, playerPosition.z),
                 PlayerYaw = _playerCombat != null ? _playerCombat.FacingYaw : _player.transform.eulerAngles.y,
                 Joined = _joined,
+                Mode = _mode,
                 Waiting = IsWaiting(),
                 Downed = _downed,
                 HasTarget = _target != null,
@@ -311,7 +343,7 @@ namespace Aetherfall.Companions
                 _placeNextToPlayer = false;
                 if (senses.Self.DistanceTo(senses.Player) > CompanionBrain.ArriveDistance * 4f)
                 {
-                    PlaceAt(CompanionBrain.FollowSpot(senses.Player, senses.PlayerYaw, _brain.Side), playerPosition.y);
+                    PlaceAt(CompanionBrain.FollowSpot(senses.Player, senses.PlayerYaw, _brain.Side, _mode), playerPosition.y);
                     return;
                 }
             }
@@ -342,7 +374,8 @@ namespace Aetherfall.Companions
 
         private void UpdateJoined()
         {
-            _joined = !string.IsNullOrEmpty(joinedFlag) && _world != null && _world.GetInt(joinedFlag) > 0;
+            _left = _world != null && Flag(CompanionLoyalty.LeftFlag(companionId)) > 0;
+            _joined = !_left && !string.IsNullOrEmpty(joinedFlag) && _world != null && _world.GetInt(joinedFlag) > 0;
             if (_joined == _wasJoined)
             {
                 return;
@@ -350,6 +383,16 @@ namespace Aetherfall.Companions
 
             _wasJoined = _joined;
             _placeNextToPlayer = _joined;
+            SetFlag(CompanionLoyalty.InPartyFlag(companionId), _joined ? 1 : 0);
+            if (_left)
+            {
+                // GDD 01 10.3: she leaves the group and goes back to her post.
+                _target = null;
+                bool enabledController = _controller.enabled;
+                _controller.enabled = false;
+                transform.SetPositionAndRotation(_post, _postRotation);
+                _controller.enabled = enabledController;
+            }
             if (postSign != null)
             {
                 postSign.SetActive(!_joined);
@@ -428,9 +471,71 @@ namespace Aetherfall.Companions
             }
         }
 
+        private void UpdateMode()
+        {
+            int value = _world != null ? Flag(CompanionLoyalty.ModeFlag(companionId)) : 0;
+            var mode = value >= 0 && value <= 3 ? (CompanionMode)value : CompanionMode.Defensive;
+            if (mode == _mode)
+            {
+                return;
+            }
+
+            _mode = mode;
+            // GDD 03 13.1 "Passiv": enemies leave her alone while she does not fight.
+            combatant.SetTargetable(_mode != CompanionMode.Passive);
+            _target = null;
+            Log.Info(LogCategory.AI, "Companion '" + companionId + "': combat mode " + _mode + ".");
+        }
+
+        private void OnFlagChanged(FlagChanged evt)
+        {
+            if (_world == null || evt.FlagId != CompanionLoyalty.LoyaltyFlag(companionId))
+            {
+                return;
+            }
+
+            bool warned = Flag(CompanionLoyalty.WarnedFlag(companionId)) > 0;
+            CompanionLoyaltyStep step = _joined || evt.NewValue <= CompanionLoyalty.LeaveAt
+                ? CompanionLoyalty.StepFor(evt.OldValue, evt.NewValue, warned)
+                : CompanionLoyaltyStep.None;
+            if (step == CompanionLoyaltyStep.Warns)
+            {
+                SetFlag(CompanionLoyalty.WarnedFlag(companionId), 1);
+                Speak(warningLine);
+            }
+            else if (step == CompanionLoyaltyStep.Leaves && Flag(CompanionLoyalty.LeftFlag(companionId)) == 0)
+            {
+                SetFlag(CompanionLoyalty.LeftFlag(companionId), 1);
+                Speak(leaveLine);
+                Log.Info(LogCategory.AI, "Companion '" + companionId + "' leaves the group (loyalty " + evt.NewValue + ").");
+            }
+        }
+
+        private void Speak(string line)
+        {
+            if (_bus != null && !string.IsNullOrEmpty(line))
+            {
+                var spoke = new CompanionSpoke(companionId, displayName, line);
+                _bus.Publish(in spoke);
+            }
+        }
+
+        private int Flag(string flagId)
+        {
+            return _world != null && _world.IsDefined(flagId) ? _world.GetInt(flagId) : 0;
+        }
+
+        private void SetFlag(string flagId, int value)
+        {
+            if (_world != null && _world.IsDefined(flagId) && _world.GetInt(flagId) != value)
+            {
+                _world.SetInt(flagId, value, companionId);
+            }
+        }
+
         private Combatant ChooseTarget()
         {
-            if (_combat == null)
+            if (_combat == null || _mode == CompanionMode.Passive)
             {
                 return null;
             }
@@ -451,13 +556,31 @@ namespace Aetherfall.Companions
                     continue;
                 }
 
-                if ((candidate.transform.position - playerPosition).sqrMagnitude > EngageRange * EngageRange)
+                float range = _mode == CompanionMode.Aggressive ? CompanionBrain.AggressiveLeash : EngageRange;
+                if ((candidate.transform.position - playerPosition).sqrMagnitude > range * range)
                 {
                     continue;
                 }
 
                 Combatant focus = FocusOf(candidate);
                 bool threat = candidate == locked || candidate == _target || focus == _player || focus == combatant;
+                if (_mode == CompanionMode.Supportive)
+                {
+                    // Supportive: only what comes close to her.
+                    threat = (candidate.transform.position - position).sqrMagnitude <= CompanionBrain.SupportGuardRadius * CompanionBrain.SupportGuardRadius &&
+                             (focus == combatant || focus == _player || candidate == _target);
+                }
+                else if (_mode == CompanionMode.Aggressive)
+                {
+                    // Aggressive: the player's lock-on target first, else every enemy in reach.
+                    if (locked != null && locked.IsAlive && candidate != locked)
+                    {
+                        continue;
+                    }
+
+                    threat = true;
+                }
+
                 if (!threat)
                 {
                     continue;

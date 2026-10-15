@@ -1493,6 +1493,7 @@ namespace Aetherfall.Quests
                 _bus.Publish(new QuestCompleted(questId, endStageId));
                 if (spec != null)
                 {
+                    ApplyCompanionReactions(spec, endStageId);
                     StartFollowUps(spec);
                 }
             }
@@ -1503,6 +1504,43 @@ namespace Aetherfall.Quests
             }
 
             _availability.Refresh(questId);
+        }
+
+        private void ApplyCompanionReactions(QuestSpec spec, string endStageId)
+        {
+            // GDD 02 4.1 "Begleiter-Reaktionen": loyalty and comment per outcome, only if the companion is in the group.
+            if (_worldState == null)
+            {
+                return;
+            }
+
+            IReadOnlyList<CompanionReaction> reactions = spec.CompanionReactions;
+            for (int i = 0; i < reactions.Count; i++)
+            {
+                CompanionReaction reaction = reactions[i];
+                if (reaction == null || (reaction.EndStageId.Length > 0 && reaction.EndStageId != endStageId))
+                {
+                    continue;
+                }
+
+                string party = CompanionLoyalty.InPartyFlag(reaction.CompanionId);
+                if (!_worldState.IsDefined(party) || _worldState.GetInt(party) <= 0)
+                {
+                    continue;
+                }
+
+                string loyalty = CompanionLoyalty.LoyaltyFlag(reaction.CompanionId);
+                if (reaction.LoyaltyDelta != 0 && _worldState.IsDefined(loyalty))
+                {
+                    int value = CompanionLoyalty.Clamp(_worldState.GetInt(loyalty) + reaction.LoyaltyDelta);
+                    _worldState.SetInt(loyalty, value, spec.Id);
+                }
+
+                Log.Info(LogCategory.Quests, "Companion reaction '" + reaction.CompanionId + "' to '" + spec.Id + "/" + endStageId + "': " +
+                                             reaction.LoyaltyDelta.ToString("+0;-0;0") + ".");
+                _bus.Publish(new CompanionReacted(reaction.CompanionId, CompanionLoyalty.DisplayName(reaction.CompanionId), reaction.LoyaltyDelta,
+                    reaction.Comment));
+            }
         }
 
         private void StartFollowUps(QuestSpec spec)

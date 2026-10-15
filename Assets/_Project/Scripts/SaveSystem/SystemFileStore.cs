@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading;
 
 namespace Aetherfall.SaveSystem
 {
@@ -19,6 +20,12 @@ namespace Aetherfall.SaveSystem
     /// </remarks>
     public sealed class SystemFileStore : IFileStore
     {
+        /// <summary>Tries of the swap when Windows briefly holds the old file (virus scanner, search indexer).</summary>
+        public const int ReplaceAttempts = 5;
+
+        /// <summary>Wait before the next try in milliseconds (times the try number: 40, 80, 120, 160).</summary>
+        public const int ReplaceRetryMilliseconds = 40;
+
         /// <inheritdoc />
         public bool FileExists(string path)
         {
@@ -62,17 +69,30 @@ namespace Aetherfall.SaveSystem
                 File.Copy(destination, backup, true);
             }
 
-            try
+            for (int attempt = 1;; attempt++)
             {
-                File.Replace(source, destination, null, true);
-            }
-            catch (PlatformNotSupportedException)
-            {
-                ReplaceByRenaming(source, destination);
-            }
-            catch (NotSupportedException)
-            {
-                ReplaceByRenaming(source, destination);
+                try
+                {
+                    File.Replace(source, destination, null, true);
+                    return;
+                }
+                catch (PlatformNotSupportedException)
+                {
+                    ReplaceByRenaming(source, destination);
+                    return;
+                }
+                catch (NotSupportedException)
+                {
+                    ReplaceByRenaming(source, destination);
+                    return;
+                }
+                catch (IOException exception) when (attempt < ReplaceAttempts && !(exception is FileNotFoundException) &&
+                                                    !(exception is DirectoryNotFoundException))
+                {
+                    // Windows: a virus scanner or the search indexer can hold the old file for a moment right after it was
+                    // written ("Die Datei, die ersetzt werden soll, kann nicht entfernt werden"). Wait briefly and try again.
+                    Thread.Sleep(ReplaceRetryMilliseconds * attempt);
+                }
             }
         }
 

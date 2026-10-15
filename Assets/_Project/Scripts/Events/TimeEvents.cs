@@ -43,4 +43,42 @@ namespace Aetherfall.Events
             return "TimeOfDayChanged(day " + Day + ", " + Hour.ToString("00") + ":" + Minute.ToString("00") + ", " + Phase + ")";
         }
     }
+
+    /// <summary>
+    /// The player rested (campfire, bed; architecture 4.6: after the <c>TimeOfDayChanged</c> of the skipped hours). Receivers:
+    /// UI (notice), companions (campfire talks).
+    /// </summary>
+    public readonly struct RestCompleted : IGameEvent
+    {
+        /// <summary>Where (object id).</summary>
+        public readonly string SpotId;
+
+        /// <summary>Game hours that passed.</summary>
+        public readonly float Hours;
+
+        /// <summary>Hour after the rest.</summary>
+        public readonly int Hour;
+
+        /// <summary>Minute after the rest.</summary>
+        public readonly int Minute;
+
+        /// <summary>Creates the event.</summary>
+        /// <param name="spotId">Object id.</param>
+        /// <param name="hours">Game hours.</param>
+        /// <param name="hour">Hour after.</param>
+        /// <param name="minute">Minute after.</param>
+        public RestCompleted(string spotId, float hours, int hour, int minute)
+        {
+            SpotId = spotId ?? string.Empty;
+            Hours = hours;
+            Hour = hour;
+            Minute = minute;
+        }
+
+        /// <inheritdoc />
+        public override string ToString()
+        {
+            return "RestCompleted(" + SpotId + ", " + Hours.ToString("0.#") + " h)";
+        }
+    }
 }

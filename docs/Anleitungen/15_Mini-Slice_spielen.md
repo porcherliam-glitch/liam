@@ -92,6 +92,8 @@ Die Kopfgeld-Quest von Hauptmann Dorn dazu fehlt noch. Den Kampf kannst du aber 
 
 **Begleiterin Ser Maren Falkenried:** Wenn „Die Wölfe vom Nordhang“ erledigt ist, wartet am Wachposten von Lindenhain (neben Hauptmann Dorn) eine Ritterin der Silberwacht. Sie will dich als „Rissgeborenen“ prüfen. Ob du die Prüfung annimmst oder ablehnst, sie kommt in jedem Fall mit (nach der Ablehnung „auf Befehl“, dann mag sie dich weniger). Sie läuft hinter dir her, kämpft gegen alles, was dich oder sie angreift, und hält dir den Rücken frei. Fällt sie im Kampf, steht sie nach 12 Sekunden wieder auf. Sprich sie an, wenn sie stehen bleiben („Warte hier.“) oder wieder mitkommen soll („Komm mit.“). In die Gruft kommt sie mit.
 
+**Mehr mit Maren:** Frag sie „Wie willst du kämpfen?“: **Aggressiv** (greift dein Ziel und alles in der Nähe an), **Defensiv** (Standard: schützt dich), **Unterstützend** (bleibt hinten und wehrt nur ab, was ihr zu nahe kommt) oder **Passiv** (kämpft nicht, Gegner lassen sie in Ruhe). „Wie stehen wir zueinander?“ verrät, was sie von dir hält. Deine Entscheidungen gefallen ihr oder nicht (oben steht dann „Maren gefällt das.“ oder „Maren missbilligt das.“). Sinkt ihre Loyalität stark, warnt sie dich einmal – danach geht sie zurück zum Wachposten. **Lagerfeuer:** Am Feuer bei den Zelten in Lindenhain kannst du **rasten** (**E**): abends und nachts bis 8 Uhr morgens, tagsüber drei Stunden. Ist Maren dabei, erzählt sie dir beim ersten Rasten von ihrem Bruder und nach der Gruft vom Wachenden Ritter.
+
 Sprich auch mit den anderen Leuten (**E**): Wirt Ulf im Gasthaus kennt Gerüchte, Tobold und Wenna (wenn du sie gerettet hast), Pim auf dem Hof, Hannes und Liese an der Mühle.
 
 **Händler in Lindenhain:** Bei **Tobold** (Schmied: Schwerter, Streitkolben, Jagdbogen, Pfeile, Schilde, Plattenrüstung) und bei **Ulf** (Heiltränke, Manatränke, Pfeile, Leder- und Stoffkleidung) wählst du im Gespräch „Zeig mir deine Waren.“ bzw. „Was verkaufst du?“. Im Handelsfenster wechselst du mit **Q/E** zwischen Kaufen, Verkaufen und Zurückkaufen; **Enter** handelt ein Stück, **F** alle bzw. den ganzen Stapel, **Esc** schließt. Händler haben nur begrenzt Gold und füllen ihre Waren alle drei Spieltage (etwa 2,4 Stunden Spielzeit) wieder auf. Verkauftes kannst du bis dahin zum selben Preis zurückkaufen.
@@ -108,7 +110,7 @@ Oben rechts steht immer dein aktuelles Ziel. Die Gruft ist auf Stufe 4 eingestel
 
 - Du selbst bist jetzt ein Krieger aus Blender (Arme, Beine und Schwert bewegen sich per Code, noch ohne fertige Animationen). Dorfbewohner, Wölfe, Risslinge, Banditen, Skelette, der Wachende Ritter sowie Fenster, Türen, Schornsteine und Brücken sind ebenfalls aus Blender.
 - Keine Musik, keine Zwischensequenzen.
-- Die Uhr läuft, aber der Himmel bleibt noch hell (Tag und Nacht kommen als Nächstes). Warten oder Schlafen gibt es noch nicht.
+- Die Uhr läuft, aber der Himmel bleibt noch hell (Tag und Nacht kommen als Nächstes). Rasten geht am Lagerfeuer in Lindenhain.
 - Glutfang schläft noch nicht tagsüber (kommt mit Tag und Nacht). Champions haben noch keine Zusatzeigenschaften wie „schnell“ oder „Feuer-Aura“. Die Kopfgeld-Quest zu Grimmbart fehlt noch (der Kampf geht schon).
 - Der Skill-Baum zeigt die Knoten als Liste je Ast (noch kein grafischer Baum). Respec beim Lehrmeister gibt es noch nicht.
 - Die Gruft ist dunkel. Das ist Absicht, kann aber nachgebessert werden.

@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Text;
+using System.Threading;
 using Aetherfall.Events;
 using Aetherfall.SaveSystem;
 using NUnit.Framework;
@@ -85,6 +86,39 @@ namespace Aetherfall.Tests.EditMode.Save
 
             Assert.That(Encoding.UTF8.GetString(_files.ReadAllBytes(save)), Is.EqualTo("newer"));
             Assert.That(Encoding.UTF8.GetString(_files.ReadAllBytes(backup)), Is.EqualTo("new"));
+            Assert.That(_files.FileExists(temp), Is.False);
+        }
+
+        [Test]
+        [Platform(Include = "Win")]
+        public void Replace_WaitsWhileTheOldFileIsBrieflyHeldOpen()
+        {
+            // The quests tour once lost an autosave: right after the last save a virus scanner held the old file.
+            string folder = Path.Combine(_root, "char_01");
+            _files.CreateDirectory(folder);
+            string temp = Path.Combine(folder, "slot.sav.tmp");
+            string save = Path.Combine(folder, "slot.sav");
+            _files.WriteAllBytes(save, Encoding.UTF8.GetBytes("old"));
+            _files.WriteAllBytes(temp, Encoding.UTF8.GetBytes("new"));
+            var holder = new FileStream(save, FileMode.Open, FileAccess.Read, FileShare.Read);
+            var release = new Thread(() =>
+            {
+                Thread.Sleep(SystemFileStore.ReplaceRetryMilliseconds * 2);
+                holder.Dispose();
+            });
+            release.Start();
+
+            try
+            {
+                _files.Replace(temp, save, null);
+            }
+            finally
+            {
+                release.Join();
+                holder.Dispose();
+            }
+
+            Assert.That(Encoding.UTF8.GetString(_files.ReadAllBytes(save)), Is.EqualTo("new"));
             Assert.That(_files.FileExists(temp), Is.False);
         }
 

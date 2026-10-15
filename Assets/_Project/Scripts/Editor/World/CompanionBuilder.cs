@@ -131,6 +131,10 @@ namespace Aetherfall.EditorTools.World
             TestGroundFields.SetString(companion, "companionId", "companion.maren_falkenried", report);
             TestGroundFields.SetString(companion, "joinedFlag", Q.FlagMarenTest, report);
             TestGroundFields.SetString(companion, "waitFlag", Q.FlagMarenWaits, report);
+            // GDD 01 10.3: warning talk at loyalty 20, leaving at 10 (dry and dutiful, GDD 02 12).
+            TestGroundFields.SetString(companion, "displayName", "Maren", report);
+            TestGroundFields.SetString(companion, "warningLine", "Ich sage es Euch einmal: So kann ich Euch nicht folgen. Noch so etwas, und ich gehe.", report);
+            TestGroundFields.SetString(companion, "leaveLine", "Das war es. Ich gehe zurück zum Wachposten und schreibe meinen Bericht. Ohne Euch.", report);
             TestGroundFields.SetReference(companion, "combatant", combatant, report);
             TestGroundFields.SetReference(companion, "hitbox", hitbox, report);
             TestGroundFields.SetReferences(companion, "attacks", new Object[]
