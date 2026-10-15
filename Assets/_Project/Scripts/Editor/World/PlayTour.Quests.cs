@@ -89,6 +89,8 @@ namespace Aetherfall.EditorTools.World
             // GDD 02 11.2 "Die Wölfe vom Nordhang" (splinter broken out: the longest way).
             Steps.Enqueue(TalkTo(Q.Hollmann));
             Steps.Enqueue(() => WaitStage(Q.Wolves, "s10"));
+            // S37: holding R lights the torn sheep up, then Aether sight (PlayTour.Investigate.cs).
+            Steps.Enqueue(InvestigateNear("clue.eichental.weide_schaf"));
             Steps.Enqueue(UseObject("clue.eichental.weide_schaf", QuestObjectAction.Inspect));
             Steps.Enqueue(UseObject("clue.eichental.weide_pfoten", QuestObjectAction.Inspect));
             // s10 o2: Hollmann's bow (F takes it from the bag), three straw targets shot with fully drawn arrows (+10 arrows).

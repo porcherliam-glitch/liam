@@ -537,6 +537,7 @@ namespace Aetherfall.EditorTools.World
             GameObject text = GruftParts.Text(root.transform, "Text", GruftParts.Wrap(o.Text, 40), new Vector3(0f, note ? 1.4f : 0.9f, note ? 0f : 0.35f),
                 0.02f, TextColor, ctx.Font);
             AddHint(ctx, root, center + new Vector3(0f, 0f, note ? 0f : 0.02f), size + new Vector3(0.12f, 0.12f, 0.01f));
+            AddInvestigateGlow(ctx, root, center + new Vector3(0f, 0f, note ? 0f : 0.03f), size + new Vector3(0.18f, 0.18f, 0.02f));
             Vector3 triggerCenter = note ? new Vector3(0f, 0.5f, 0f) : new Vector3(0f, -0.2f, 0.7f);
             GruftParts.Trigger(root.transform, "Interaktion", triggerCenter, new Vector3(size.x + 0.6f, 1.8f, 1.4f), ctx.InteractLayerOrDefault, false);
             ReadableObject readable = root.AddComponent<ReadableObject>();
@@ -557,6 +558,20 @@ namespace Aetherfall.EditorTools.World
             glow.SetActive(false);
             HintHighlight hint = root.AddComponent<HintHighlight>();
             TestGroundFields.SetReference(hint, "glow", glow, ctx.Report);
+        }
+
+        private static void AddInvestigateGlow(GruftContext ctx, GameObject root, Vector3 center, Vector3 size)
+        {
+            // GDD 02 5.1 (task list S37): holding R lights readable clues up within 5 m (warm), in Aether sight turquoise.
+            GameObject glow = GruftParts.Part(root.transform, "Leuchten (Untersuchen)", PrimitiveType.Cube, center, size, ctx.Materials.Flame,
+                ctx.EnvironmentLayer, false);
+            glow.SetActive(false);
+            InvestigateHighlight highlight = root.AddComponent<InvestigateHighlight>();
+            TestGroundFields.SetInt(highlight, "kind", (int)InvestigateKind.Clue, ctx.Report);
+            TestGroundFields.SetReference(highlight, "glow", glow, ctx.Report);
+            TestGroundFields.SetReference(highlight, "glowRenderer", glow.GetComponent<Renderer>(), ctx.Report);
+            TestGroundFields.SetReference(highlight, "investigateMaterial", ctx.Materials.Flame, ctx.Report);
+            TestGroundFields.SetReference(highlight, "aetherMaterial", ctx.Materials.AetherGlow, ctx.Report);
         }
 
         private static void BuildRubble(GameObject root, DungeonObject o, GruftMaterials m, int layer)

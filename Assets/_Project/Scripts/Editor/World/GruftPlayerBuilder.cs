@@ -281,6 +281,10 @@ namespace Aetherfall.EditorTools.World
 
             PlayerLootCollector collector = player.AddComponent<PlayerLootCollector>();
             TestGroundFields.SetInt(collector, "pickupLayers", pickupLayer >= 0 ? 1 << pickupLayer : 0, report);
+            // GDD 02 5.1 / GDD 03: hold R (gamepad R3 without target) to light clues and trail marks up (task list S37).
+            PlayerInvestigator investigator = player.AddComponent<PlayerInvestigator>();
+            TestGroundFields.SetInt(investigator, "investigateLayers", (interactableLayer >= 0 ? 1 << interactableLayer : 0) |
+                                                                1 << TestGroundPaths.TriggerVolumeLayerIndex, report);
             TestGroundItemBuilder.AddPlayerEquipment(player, report);
         }
 

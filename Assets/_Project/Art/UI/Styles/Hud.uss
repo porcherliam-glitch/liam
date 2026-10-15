@@ -622,3 +622,35 @@
     height: 8px;
     border-width: 1px;
 }
+
+/* Detective mode (S37): a warm frame at the screen edges while investigating, Aether turquoise in Aether sight. */
+.af-investigate {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    border-width: 34px;
+    border-color: rgba(245, 208, 107, 0.16);
+    justify-content: flex-end;
+    align-items: center;
+    padding-bottom: 210px;
+}
+
+.af-investigate--aether {
+    border-color: rgba(47, 230, 214, 0.2);
+    background-color: rgba(10, 40, 48, 0.12);
+}
+
+.af-investigate__text {
+    font-size: 22px;
+    -unity-font-style: bold;
+    color: rgb(245, 222, 160);
+    -unity-text-align: middle-center;
+    -unity-text-outline-width: 1px;
+    -unity-text-outline-color: rgba(0, 0, 0, 0.7);
+}
+
+.af-investigate--aether .af-investigate__text {
+    color: rgb(150, 245, 236);
+}

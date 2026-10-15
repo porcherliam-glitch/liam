@@ -36,6 +36,7 @@ Tipp: Im Game-Fenster oben in der Leiste **Play Maximized** wählen, dann ist da
 | Leichter Angriff / schwerer Angriff | **linke / rechte Maustaste** |
 | Blocken (kurz vor dem Treffer: Parieren) | **Q** (halten) |
 | Ausweichen | **Strg links** |
+| Untersuchen: Hinweise und Spuren in der Nähe leuchten | **R** (halten) |
 | Klettern: an der Wand hoch, runter, zur Seite / schneller / Klettersprung / loslassen | **W A S D** / **Umschalt links** / **Leertaste** / **Strg links** |
 | Gegner anvisieren / wechseln | **T** oder mittlere Maustaste / Mausrad |
 | Bogen ziehen / wegstecken (Fernkampf-Haltung) | **F** |
@@ -92,6 +93,8 @@ Die Kopfgeld-Quest von Hauptmann Dorn dazu fehlt noch. Den Kampf kannst du aber 
 3. **Die vergessene Gruft**: Corvin im Gasthaus in Lindenhain. Tor-Rätsel mit Grabplatten (die Wandreliefs verraten die Reihenfolge), Hallen mit Skeletten, Spiegel-Rätsel, der Wachende Ritter. Am Ende: Siegelstein nehmen oder liegen lassen.
 
 **Begleiterin Ser Maren Falkenried:** Wenn „Die Wölfe vom Nordhang“ erledigt ist, wartet am Wachposten von Lindenhain (neben Hauptmann Dorn) eine Ritterin der Silberwacht. Sie will dich als „Rissgeborenen“ prüfen. Ob du die Prüfung annimmst oder ablehnst, sie kommt in jedem Fall mit (nach der Ablehnung „auf Befehl“, dann mag sie dich weniger). Sie läuft hinter dir her, kämpft gegen alles, was dich oder sie angreift, und hält dir den Rücken frei. Fällt sie im Kampf, steht sie nach 12 Sekunden wieder auf. Sprich sie an, wenn sie stehen bleiben („Warte hier.“) oder wieder mitkommen soll („Komm mit.“). In die Gruft kommt sie mit.
+
+**Untersuchen:** Halte **R**, dann leuchten Hinweise und Spurzeichen in deiner Nähe (5 m) golden auf, und unten steht, wie viele es sind. So findest du zum Beispiel auf Hollmanns Weide das gerissene Schaf und die Pfotenabdrücke – ohne **R** sind sie unauffällig. Auch die Tafeln und Reliefs in der Gruft leuchten so. (Die türkise **Aether-Sicht** mit 40 m Reichweite gibt es erst später in der Hauptgeschichte.)
 
 **Klettern:** Helle Felsen, Ranken und Leitern kannst du hinaufklettern – lauf einfach dagegen. Klettern kostet Ausdauer (auf Leitern und an hellen Rastpunkten nicht). Geht sie aus, zittern die Hände kurz, dann fällst du. Mit **Leertaste** machst du einen Klettersprung, mit **Strg links** lässt du los. Probier es am **Wachturm Grauwacht** am Westrand (westlich vom Weg zum Hollmann-Hof, jenseits des Birkenbachs): Über Leiter, Fels und Ranken kommst du hinauf ins Krähennest.
 

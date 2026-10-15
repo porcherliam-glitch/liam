@@ -61,6 +61,19 @@ namespace Aetherfall.EditorTools.World
             return Ensure("M_Eichental_" + key + "_Glow", color * 0.6f, 0.9f, 0f, color, intensity);
         }
 
+        /// <summary>
+        /// Like <see cref="Glow(string, float)"/>, but its own material (the cache goes by name, so the first intensity of a key
+        /// would win), e.g. the softer glow of the detective mode.
+        /// </summary>
+        /// <param name="key">Palette key.</param>
+        /// <param name="intensity">Emission intensity (HDR factor).</param>
+        /// <param name="variant">Name suffix of the material, e.g. "Untersuchen".</param>
+        public Material Glow(string key, float intensity, string variant)
+        {
+            Color color = Color(key);
+            return Ensure("M_Eichental_" + key + "_Glow_" + variant, color * 0.6f, 0.9f, 0f, color, intensity);
+        }
+
         /// <summary>Water: dark, very smooth (no turquoise; GDD 05 3.4 reserves it for Aether).</summary>
         public Material Water()
         {

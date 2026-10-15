@@ -169,7 +169,8 @@ namespace Aetherfall.EditorTools.Narrative
                 Bool(MarenWarned, "Maren hat bei Loyalität 20 gewarnt."),
                 Bool(MarenLeft, "Maren hat die Gruppe bei Loyalität 10 verlassen."),
                 new FlagSpec(MarenMode, FlagKind.StoryNumber, 0, 0, 3, null, false, "Kampfmodus von Maren: 0 defensiv, 1 aggressiv, 2 unterstützend, 3 passiv."),
-                new FlagSpec(MarenCampfire, FlagKind.StoryNumber, 0, 0, 2, null, false, "Zahl der Lagerfeuer-Gespräche mit Maren (0–2).")
+                new FlagSpec(MarenCampfire, FlagKind.StoryNumber, 0, 0, 2, null, false, "Zahl der Lagerfeuer-Gespräche mit Maren (0–2)."),
+                Bool(InvestigateRules.AetherSightFlag, "Die Spielfigur hat die Aether-Sicht (HQ 4 „Der Steinkreis von Altenhain“; im Mini-Slice nur zum Testen).")
             };
         }
 

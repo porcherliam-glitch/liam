@@ -135,6 +135,7 @@ namespace Aetherfall.UI.Screens
         private IProgressionService _progression;
         private IBossBarService _bosses;
         private BossBarView _bossBar;
+        private InvestigateOverlayView _investigate;
         private HudClockView _clock;
         private QuestNotifier _notifier;
         private JournalScreen _journal;
@@ -296,6 +297,7 @@ namespace Aetherfall.UI.Screens
             XpBarView xpBar = _progression != null && hudRoot.Q<VisualElement>("hud-xp") != null ? new XpBarView(hudRoot.Q<VisualElement>("hud-xp"), _progression) : null;
             _hud.AttachProgressViews(tracker, xpBar);
             _bossBar = new BossBarView(hudRoot);
+            _investigate = new InvestigateOverlayView(hudRoot);
             Services.Locator.TryGet(out IGameClock gameClock);
             _clock = new HudClockView(hudRoot.Q<Label>("hud-clock"), gameClock);
             if (_quests != null)
@@ -357,6 +359,7 @@ namespace Aetherfall.UI.Screens
             _eventBus.Unsubscribe<CompanionReacted>(OnCompanionReacted);
             _eventBus.Unsubscribe<CompanionSpoke>(OnCompanionSpoke);
             _eventBus.Unsubscribe<RestCompleted>(OnRestCompleted);
+            _eventBus.Unsubscribe<InvestigateModeChanged>(OnInvestigateModeChanged);
             _glyphs.Changed -= OnGlyphsChanged;
             _preferences.Changed -= OnPreferencesChanged;
             _flow.Failed -= OnFlowFailed;
@@ -463,6 +466,7 @@ namespace Aetherfall.UI.Screens
             _eventBus.Subscribe<CompanionReacted>(OnCompanionReacted);
             _eventBus.Subscribe<CompanionSpoke>(OnCompanionSpoke);
             _eventBus.Subscribe<RestCompleted>(OnRestCompleted);
+            _eventBus.Subscribe<InvestigateModeChanged>(OnInvestigateModeChanged);
             _glyphs.Changed += OnGlyphsChanged;
             _preferences.Changed += OnPreferencesChanged;
             _flow.Failed += OnFlowFailed;
@@ -659,6 +663,11 @@ namespace Aetherfall.UI.Screens
             {
                 _ui.ShowToast(Notification.Message(NotificationPriority.Milestone, evt.DisplayName + ": „" + evt.Text + "“", "companion"));
             }
+        }
+
+        private void OnInvestigateModeChanged(InvestigateModeChanged evt)
+        {
+            _investigate?.Apply(in evt);
         }
 
         private void OnRestCompleted(RestCompleted evt)

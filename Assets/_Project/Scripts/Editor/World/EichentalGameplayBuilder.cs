@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Aetherfall.AI;
 using Aetherfall.Combat;
+using Aetherfall.Core;
 using Aetherfall.EditorTools.Narrative;
 using Aetherfall.Events;
 using Aetherfall.Items;
@@ -598,6 +599,7 @@ namespace Aetherfall.EditorTools.World
         public void BuildQuestObjects(Transform parent, int environmentLayer, int interactableLayer, int triggerVolumeLayer, int playerLayer, int hurtboxLayer)
         {
             int interactive = 0;
+            int clues = 0;
             foreach (LayoutQuestObject q in _layout.QuestObjects)
             {
                 double x = q.Position.X;
@@ -606,6 +608,8 @@ namespace Aetherfall.EditorTools.World
                 root.transform.SetParent(parent, false);
                 root.transform.SetPositionAndRotation(new Vector3((float)x, H(x, z), (float)z), Quaternion.Euler(0f, (float)q.Yaw, 0f));
                 root.layer = environmentLayer;
+                MiniSliceWorld.ObjectSetup setup = MiniSliceWorld.ForObject(q.Id);
+                bool clue = setup != null && setup.Action == QuestObjectAction.Inspect;
                 switch (q.Kind)
                 {
                     case QuestObjectKind.Beam:
@@ -642,7 +646,10 @@ namespace Aetherfall.EditorTools.World
                         Part(root, PrimitiveType.Cube, new Vector3(0f, 0.25f, 0f), new Vector3(0.3f, 0.3f, 0.55f), Quaternion.identity, _testMaterials.Wolf, false);
                         break;
                     default:
-                        Material glow = q.Id.Contains("aether") ? _materials.Glow("aether", 3f) : _materials.Glow("questMarker", 3f);
+                        // GDD 02 5.1: a clue is found by investigating (it glows within 5 m while R is held); until then only a faint
+                        // mark. Aether saliva glows by itself (GDD 02 11.2: "Die Spuren leuchten physisch").
+                        Material glow = q.Id.Contains("aether") ? _materials.Glow("aether", 3f) :
+                            clue ? _materials.Fixed("clueMark", new Color(0.45f, 0.38f, 0.3f), 0.1f) : _materials.Glow("questMarker", 3f);
                         Part(root, PrimitiveType.Sphere, new Vector3(0f, 0.3f, 0f), new Vector3(0.3f, 0.3f, 0.3f), Quaternion.identity, glow, false);
                         Part(root, PrimitiveType.Cube, new Vector3(0f, 0.015f, 0f), new Vector3(0.8f, 0.03f, 0.8f), Quaternion.identity,
                             _materials.Fixed("trace", new Color(0.3f, 0.22f, 0.18f)), false);
@@ -654,11 +661,16 @@ namespace Aetherfall.EditorTools.World
                 TestGroundFields.SetString(marker, "groupId", q.Group, _report);
                 TestGroundFields.SetString(marker, "questId", q.QuestId, _report);
                 TestGroundFields.SetString(marker, "locationId", q.LocationId, _report);
-                MiniSliceWorld.ObjectSetup setup = MiniSliceWorld.ForObject(q.Id);
                 if (setup != null)
                 {
                     ConfigureInteraction(marker, setup, interactableLayer);
                     interactive++;
+                }
+
+                if (clue)
+                {
+                    AddInvestigateGlow(root, InvestigateKind.Clue, marker, 0.3f);
+                    clues++;
                 }
 
                 if (q.Id == MiniSliceWorld.SplinterId)
@@ -683,7 +695,39 @@ namespace Aetherfall.EditorTools.World
             }
 
             _report.Info("Quest-Objekte: " + _layout.QuestObjects.Count + " mit QuestObjectMarker, davon " + interactive + " benutzbar in ihrer " +
-                         "Quest-Stufe (Balken, Runen, Weide, Strohziele, Postreiter, Splitter, Welpe); die Tür der Bäckerei ist ein Zeit-Ziel.");
+                         "Quest-Stufe (Balken, Runen, Weide, Strohziele, Postreiter, Splitter, Welpe); die Tür der Bäckerei ist ein Zeit-Ziel; " + clues +
+                         " Hinweise leuchten beim Untersuchen (R halten, 5 m).");
+        }
+
+        /// <summary>
+        /// Glow of the detective mode (GDD 02 5.1, task list S37): a light column over the object, on only while the player
+        /// investigates nearby (<see cref="InvestigateHighlight"/>): gold, in Aether sight turquoise.
+        /// </summary>
+        private void AddInvestigateGlow(GameObject root, InvestigateKind kind, QuestObjectMarker clue, float height)
+        {
+            var glow = new GameObject("Leuchten (Untersuchen)");
+            glow.transform.SetParent(root.transform, false);
+            GameObject column = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+            column.name = "Lichtsäule";
+            column.transform.SetParent(glow.transform, false);
+            column.transform.localPosition = new Vector3(0f, height + 1.2f, 0f);
+            column.transform.localScale = new Vector3(0.12f, 1.2f, 0.12f);
+            Object.DestroyImmediate(column.GetComponent<Collider>());
+            MeshRenderer renderer = column.GetComponent<MeshRenderer>();
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            Material gold = _materials.Glow("questMarker", 1.2f, "Untersuchen");
+            renderer.sharedMaterial = gold;
+            glow.SetActive(false);
+            InvestigateHighlight highlight = root.AddComponent<InvestigateHighlight>();
+            TestGroundFields.SetInt(highlight, "kind", (int)kind, _report);
+            TestGroundFields.SetReference(highlight, "glow", glow, _report);
+            TestGroundFields.SetReference(highlight, "glowRenderer", renderer, _report);
+            TestGroundFields.SetReference(highlight, "investigateMaterial", gold, _report);
+            TestGroundFields.SetReference(highlight, "aetherMaterial", _materials.Glow("aether", 1.5f, "Untersuchen"), _report);
+            if (clue != null)
+            {
+                TestGroundFields.SetReference(highlight, "clue", clue, _report);
+            }
         }
 
         private void BuildArrowTarget(GameObject root, string objectId, int hurtboxLayer)
@@ -796,6 +840,7 @@ namespace Aetherfall.EditorTools.World
                     MeshRenderer renderer = mark.GetComponent<MeshRenderer>();
                     renderer.sharedMaterial = sign;
                     renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                    AddInvestigateGlow(node, InvestigateKind.Trail, null, -0.97f);
                 }
 
                 names.Add(trail.Id + " (" + trail.Nodes.Count + " Knoten)");

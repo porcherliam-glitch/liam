@@ -58,6 +58,7 @@ namespace Aetherfall.Player
         private float _loadMaxSpeed;
         private bool _loadBlocksSprint;
         private bool _loadBlocksJump;
+        private bool _senseSlow;
 
         /// <summary>The movement model (read-only use: speed, gait, states for animation, UI and debug tools).</summary>
         public PlayerMovementModel Model => _model;
@@ -108,6 +109,19 @@ namespace Aetherfall.Player
             _loadMaxSpeed = maxSpeed > 0f ? maxSpeed : 0f;
             _loadBlocksSprint = blockSprint;
             _loadBlocksJump = blockJump;
+        }
+
+        /// <summary>True while a sense limits the movement to walking (Aether sight, GDD 03).</summary>
+        public bool IsSenseSlow => _senseSlow;
+
+        /// <summary>
+        /// Limits the movement to walking speed without sprint while a sense is active (GDD 03 skill table: Aether sight "Bewegung
+        /// auf Gehtempo begrenzt"). Called by the player's investigator.
+        /// </summary>
+        /// <param name="slow">True: walk only.</param>
+        public void SetSenseSlow(bool slow)
+        {
+            _senseSlow = slow;
         }
 
         /// <summary>Current pose (feet position and yaw) for saving.</summary>
@@ -288,6 +302,13 @@ namespace Aetherfall.Player
             if (_loadMaxSpeed > 0f)
             {
                 limits.SpeedLimit = limits.SpeedLimit > 0f ? Mathf.Min(limits.SpeedLimit, _loadMaxSpeed) : _loadMaxSpeed;
+            }
+
+            if (_senseSlow && _model != null)
+            {
+                float walk = _model.Tuning.WalkSpeed;
+                limits.BlockSprint = true;
+                limits.SpeedLimit = limits.SpeedLimit > 0f ? Mathf.Min(limits.SpeedLimit, walk) : walk;
             }
         }
 
