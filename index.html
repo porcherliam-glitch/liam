@@ -143,6 +143,7 @@ kbd { font-family: var(--mono); background: var(--panel2); border: 1px solid var
 .equip-panel { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px; }
 .equip-grid { display: grid; grid-template-columns: repeat(4, calc(var(--slot) * 1.25)); gap: 6px; }
 .equip-slot { width: calc(var(--slot) * 1.25); height: calc(var(--slot) * 1.15); padding-top: 12px; }
+.equip-slot .mag { top: auto; bottom: 7px; }
 .equip-label { position: absolute; top: 2px; left: 4px; font-size: 8px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
 .drag-ghost { position: fixed; left: 0; top: 0; z-index: 45; pointer-events: none; opacity: 0.9; transform: translate(-100px,-100px); }
 .loot-grid .grid { --slot: 72px; }
@@ -3621,7 +3622,7 @@ class Camera {
   resize(w, h) {
     this.width = Math.max(1, w | 0);
     this.height = Math.max(1, h | 0);
-    this.zoom = this.width < 900 ? 0.8 : 1.0;
+    this.zoom = this.width < 900 ? 0.9 : 1.15;
     this._clamp();
   }
   setBounds(worldW, worldH) {
@@ -10214,21 +10215,21 @@ class Renderer {
     const dots = (col, n, size) => { ctx.fillStyle = col; for (let i = 0; i < n; i++) { const h = (tx * 73856093 ^ ty * 19349663 ^ i * 83492791) >>> 0; ctx.fillRect(px + (h % 29) + 1, py + ((h >> 5) % 29) + 1, size, size); } };
     switch (t) {
       case T.VOID: ctx.fillStyle = '#07090b'; ctx.fillRect(px, py, S, S); break;
-      case T.GROUND: ctx.fillStyle = this._shade(C.ground, (v - 1.5) * 0.03); ctx.fillRect(px, py, S, S); dots('rgba(0,0,0,0.12)', 4, 2); dots('rgba(255,255,255,0.04)', 2, 1); break;
-      case T.GRASS: ctx.fillStyle = this._shade(C.grass, (v - 1.5) * 0.04); ctx.fillRect(px, py, S, S); dots('rgba(120,170,90,0.18)', 6, 1); dots('rgba(0,0,0,0.15)', 3, 2); break;
-      case T.GRAVEL: ctx.fillStyle = this._shade(C.gravel, (v - 1.5) * 0.04); ctx.fillRect(px, py, S, S); dots('rgba(200,190,170,0.12)', 8, 1); dots('rgba(0,0,0,0.18)', 5, 2); break;
+      case T.GROUND: ctx.fillStyle = this._shade(C.ground, (v - 1.5) * 0.012); ctx.fillRect(px, py, S, S); dots('rgba(0,0,0,0.12)', 4, 2); dots('rgba(255,255,255,0.04)', 2, 1); break;
+      case T.GRASS: ctx.fillStyle = this._shade(C.grass, (v - 1.5) * 0.014); ctx.fillRect(px, py, S, S); dots('rgba(120,170,90,0.18)', 6, 1); dots('rgba(0,0,0,0.15)', 3, 2); break;
+      case T.GRAVEL: ctx.fillStyle = this._shade(C.gravel, (v - 1.5) * 0.014); ctx.fillRect(px, py, S, S); dots('rgba(200,190,170,0.12)', 8, 1); dots('rgba(0,0,0,0.18)', 5, 2); break;
       case T.ROAD: case T.ROAD_LINE:
-        ctx.fillStyle = this._shade(C.road, (v - 1.5) * 0.02); ctx.fillRect(px, py, S, S); dots('rgba(255,255,255,0.03)', 3, 1);
+        ctx.fillStyle = this._shade(C.road, (v - 1.5) * 0.008); ctx.fillRect(px, py, S, S); dots('rgba(255,255,255,0.03)', 3, 1);
         if (t === T.ROAD_LINE) {
           ctx.fillStyle = C.line;
           const vert = world.tile(tx, ty - 1) === T.ROAD_LINE || world.tile(tx, ty + 1) === T.ROAD_LINE || (world.tile(tx - 1, ty) !== T.ROAD_LINE && world.tile(tx + 1, ty) !== T.ROAD_LINE && world.tile(tx, ty - 1) === T.ROAD);
           if (vert) ctx.fillRect(px + S / 2 - 2, py + 2, 4, S - 4); else ctx.fillRect(px + 2, py + S / 2 - 2, S - 4, 4);
         }
         break;
-      case T.SIDEWALK: ctx.fillStyle = this._shade(C.sidewalk, (v - 1.5) * 0.03); ctx.fillRect(px, py, S, S); ctx.strokeStyle = 'rgba(0,0,0,0.18)'; ctx.lineWidth = 1; ctx.strokeRect(px + 0.5, py + 0.5, S - 1, S - 1); break;
+      case T.SIDEWALK: ctx.fillStyle = this._shade(C.sidewalk, (v - 1.5) * 0.01); ctx.fillRect(px, py, S, S); ctx.strokeStyle = 'rgba(0,0,0,0.18)'; ctx.lineWidth = 1; ctx.strokeRect(px + 0.5, py + 0.5, S - 1, S - 1); break;
       case T.FLOOR: {
         const fc = b ? b.floorColor : C.floor;
-        ctx.fillStyle = this._shade(fc, (v - 1.5) * 0.03); ctx.fillRect(px, py, S, S);
+        ctx.fillStyle = this._shade(fc, (v - 1.5) * 0.012); ctx.fillRect(px, py, S, S);
         ctx.fillStyle = 'rgba(0,0,0,0.12)';
         if (b && (b.type === 'house' || b.type === 'apartment' || b.type === 'office')) { for (let i = 0; i < 4; i++) ctx.fillRect(px, py + i * 8 + 7, S, 1); }
         else { ctx.fillRect(px + S - 1, py, 1, S); ctx.fillRect(px, py + S - 1, S, 1); }
@@ -10373,7 +10374,7 @@ class Renderer {
       for (let i = 0; i < 26; i++) {
         const x = Math.random() * 512, y = Math.random() * 512, r = 60 + Math.random() * 120;
         const gr = g.createRadialGradient(x, y, 0, x, y, r);
-        gr.addColorStop(0, 'rgba(200,210,220,0.22)'); gr.addColorStop(1, 'rgba(200,210,220,0)');
+        gr.addColorStop(0, 'rgba(150,160,170,0.16)'); gr.addColorStop(1, 'rgba(150,160,170,0)');
         g.fillStyle = gr; g.fillRect(0, 0, 512, 512);
       }
       this.fogSprite = c;
@@ -10461,10 +10462,10 @@ class Renderer {
     }
     ctx.globalAlpha = 1;
     ctx.restore();
-    // 5. lighting
-    this._drawLighting(ctx, raid, cam, vb, inside);
-    // 6. fog
+    // 5. fog (under the darkness so nights stay dark)
     if (pal.fog && this.settings.quality !== 'low') this._drawFog(ctx, pal.fog, t, cam);
+    // 6. lighting
+    this._drawLighting(ctx, raid, cam, vb, inside);
     // 7. screen effects
     this._drawScreenFx(ctx, raid, cam, t);
     this._drawArrows(ctx, raid, cam, t);
@@ -10681,10 +10682,10 @@ class Renderer {
   _drawFog(ctx, fog, t, cam) {
     ctx.save();
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-    ctx.globalAlpha = 0.35;
+    ctx.globalAlpha = 0.22;
     const sp = this.fogSprite;
     const size = 900;
-    for (let i = 0; i < 3; i++) {
+    for (let i = 0; i < 2; i++) {
       const ox = ((-cam.x * (0.3 + i * 0.1) + t * (8 + i * 5)) % size + size) % size - size;
       const oy = ((-cam.y * (0.3 + i * 0.1) + t * (3 + i * 2)) % size + size) % size - size;
       for (let x = ox; x < this.w; x += size) for (let y = oy; y < this.h; y += size) ctx.drawImage(sp, x, y, size, size);

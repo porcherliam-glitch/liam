@@ -15,7 +15,7 @@ class Camera {
   resize(w, h) {
     this.width = Math.max(1, w | 0);
     this.height = Math.max(1, h | 0);
-    this.zoom = this.width < 900 ? 0.8 : 1.0;
+    this.zoom = this.width < 900 ? 0.9 : 1.15;
     this._clamp();
   }
   setBounds(worldW, worldH) {

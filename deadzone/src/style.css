@@ -134,6 +134,7 @@ kbd { font-family: var(--mono); background: var(--panel2); border: 1px solid var
 .equip-panel { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px; }
 .equip-grid { display: grid; grid-template-columns: repeat(4, calc(var(--slot) * 1.25)); gap: 6px; }
 .equip-slot { width: calc(var(--slot) * 1.25); height: calc(var(--slot) * 1.15); padding-top: 12px; }
+.equip-slot .mag { top: auto; bottom: 7px; }
 .equip-label { position: absolute; top: 2px; left: 4px; font-size: 8px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
 .drag-ghost { position: fixed; left: 0; top: 0; z-index: 45; pointer-events: none; opacity: 0.9; transform: translate(-100px,-100px); }
 .loot-grid .grid { --slot: 72px; }
