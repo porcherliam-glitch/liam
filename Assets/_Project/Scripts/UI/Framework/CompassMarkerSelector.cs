@@ -304,7 +304,8 @@ namespace Aetherfall.UI.Framework
             // Highest priority first, then the nearest (a comparer object: List.Sort with a lambda allocates on Mono).
             public int Compare(Entry a, Entry b)
             {
-                return a.Slot.Kind != b.Slot.Kind ? a.Slot.Kind.CompareTo(b.Slot.Kind) : a.Slot.Distance.CompareTo(b.Slot.Distance);
+                // Compare the numbers: Enum.CompareTo boxes both kinds on every comparison.
+                return a.Slot.Kind != b.Slot.Kind ? ((int)a.Slot.Kind).CompareTo((int)b.Slot.Kind) : a.Slot.Distance.CompareTo(b.Slot.Distance);
             }
         }
 
