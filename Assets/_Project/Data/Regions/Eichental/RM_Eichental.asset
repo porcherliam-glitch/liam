@@ -36,6 +36,9 @@ MonoBehaviour:
     boxWidth: 0
     boxDepth: 0
     boxYaw: 0
+    hasWaypoint: 1
+    arrival: {x: 47, y: 8.125532, z: -36}
+    arrivalYaw: 300
   - id: loc.eichental.dorfplatz
     displayName: Dorfplatz von Eichental
     kind: 1
@@ -47,6 +50,9 @@ MonoBehaviour:
     boxWidth: 0
     boxDepth: 0
     boxYaw: 0
+    hasWaypoint: 0
+    arrival: {x: 0, y: 0, z: 0}
+    arrivalYaw: 0
   - id: loc.eichental.dorfrand
     displayName: Dorfrand von Eichental
     kind: 1
@@ -58,6 +64,9 @@ MonoBehaviour:
     boxWidth: 0
     boxDepth: 0
     boxYaw: 0
+    hasWaypoint: 0
+    arrival: {x: 0, y: 0, z: 0}
+    arrivalYaw: 0
   - id: loc.eichental.riss_eichental
     displayName: Der Riss von Eichental
     kind: 1
@@ -69,6 +78,9 @@ MonoBehaviour:
     boxWidth: 0
     boxDepth: 0
     boxYaw: 0
+    hasWaypoint: 0
+    arrival: {x: 0, y: 0, z: 0}
+    arrivalYaw: 0
   - id: loc.eichental.lindenhain
     displayName: Lindenhain
     kind: 0
@@ -80,6 +92,9 @@ MonoBehaviour:
     boxWidth: 0
     boxDepth: 0
     boxYaw: 0
+    hasWaypoint: 1
+    arrival: {x: -150, y: 8.115815, z: -33}
+    arrivalYaw: 270
   - id: loc.eichental.gasthaus_krummer_kessel
     displayName: "Gasthaus \u201EZum Krummen Kessel\u201C"
     kind: 1
@@ -91,6 +106,9 @@ MonoBehaviour:
     boxWidth: 0
     boxDepth: 0
     boxYaw: 0
+    hasWaypoint: 0
+    arrival: {x: 0, y: 0, z: 0}
+    arrivalYaw: 0
   - id: loc.eichental.wachposten_lindenhain
     displayName: Wachposten der Silberwacht
     kind: 1
@@ -102,6 +120,9 @@ MonoBehaviour:
     boxWidth: 0
     boxDepth: 0
     boxYaw: 0
+    hasWaypoint: 0
+    arrival: {x: 0, y: 0, z: 0}
+    arrivalYaw: 0
   - id: loc.eichental.hof_hollmann
     displayName: Hollmann-Hof
     kind: 0
@@ -113,6 +134,9 @@ MonoBehaviour:
     boxWidth: 0
     boxDepth: 0
     boxYaw: 0
+    hasWaypoint: 1
+    arrival: {x: -152, y: 7.9027104, z: 88}
+    arrivalYaw: 0
   - id: loc.eichental.nordhang
     displayName: Nordhang
     kind: 2
@@ -124,6 +148,9 @@ MonoBehaviour:
     boxWidth: 170
     boxDepth: 60
     boxYaw: 0
+    hasWaypoint: 0
+    arrival: {x: 0, y: 0, z: 0}
+    arrivalYaw: 0
   - id: loc.eichental.wolfsbau_nordhang
     displayName: Wolfsbau
     kind: 1
@@ -135,6 +162,9 @@ MonoBehaviour:
     boxWidth: 0
     boxDepth: 0
     boxYaw: 0
+    hasWaypoint: 0
+    arrival: {x: 0, y: 0, z: 0}
+    arrivalYaw: 0
   - id: loc.eichental.vergessene_gruft
     displayName: Vergessene Gruft
     kind: 3
@@ -146,6 +176,9 @@ MonoBehaviour:
     boxWidth: 0
     boxDepth: 0
     boxYaw: 0
+    hasWaypoint: 1
+    arrival: {x: 2, y: 10.439243, z: 145}
+    arrivalYaw: 0
   - id: loc.eichental.muehle_muehlbach
     displayName: "M\xFChle am M\xFChlbach"
     kind: 0
@@ -157,6 +190,9 @@ MonoBehaviour:
     boxWidth: 0
     boxDepth: 0
     boxYaw: 0
+    hasWaypoint: 1
+    arrival: {x: -126, y: 8.045448, z: -113}
+    arrivalYaw: 180
   - id: loc.eichental.rabenfels_spitze
     displayName: Rabenfels-Spitze
     kind: 4
@@ -168,6 +204,9 @@ MonoBehaviour:
     boxWidth: 0
     boxDepth: 0
     boxYaw: 0
+    hasWaypoint: 1
+    arrival: {x: 14, y: 33.96858, z: 181}
+    arrivalYaw: 0
   - id: loc.eichental.wachturm_grauwacht
     displayName: Wachturm Grauwacht
     kind: 4
@@ -179,6 +218,9 @@ MonoBehaviour:
     boxWidth: 0
     boxDepth: 0
     boxYaw: 0
+    hasWaypoint: 1
+    arrival: {x: -178, y: 7.693762, z: 78}
+    arrivalYaw: 270
   - id: loc.eichental.steinbruch_grimmbart
     displayName: Grimmbarts Steinbruch
     kind: 1
@@ -190,6 +232,9 @@ MonoBehaviour:
     boxWidth: 0
     boxDepth: 0
     boxYaw: 0
+    hasWaypoint: 0
+    arrival: {x: 0, y: 0, z: 0}
+    arrivalYaw: 0
   - id: loc.eichental.steinbruch_arena
     displayName: Kessel des Steinbruchs
     kind: 1
@@ -201,3 +246,6 @@ MonoBehaviour:
     boxWidth: 0
     boxDepth: 0
     boxYaw: 0
+    hasWaypoint: 0
+    arrival: {x: 0, y: 0, z: 0}
+    arrivalYaw: 0

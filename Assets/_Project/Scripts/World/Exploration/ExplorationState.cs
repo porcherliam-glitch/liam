@@ -55,6 +55,35 @@ namespace Aetherfall.World.Exploration
             return placeId != null && _viewpoints.Contains(placeId);
         }
 
+        /// <summary>
+        /// True if the place is an unlocked fast travel point (S50): a place with a waypoint that was discovered, or a viewpoint
+        /// that was activated.
+        /// </summary>
+        /// <param name="placeId">Location id.</param>
+        public bool IsWaypointUnlocked(string placeId)
+        {
+            if (!Map.TryGetPlace(placeId, out MapPlace place) || !place.HasWaypoint)
+            {
+                return false;
+            }
+
+            return place.IsViewpoint ? _viewpoints.Contains(place.Id) : _discovered.Contains(place.Id);
+        }
+
+        /// <summary>The unlocked fast travel points in the order of the map's places.</summary>
+        /// <param name="result">Filled with the places (cleared first).</param>
+        public void CollectWaypoints(List<MapPlace> result)
+        {
+            result.Clear();
+            foreach (MapPlace place in Map.Places)
+            {
+                if (place != null && IsWaypointUnlocked(place.Id))
+                {
+                    result.Add(place);
+                }
+            }
+        }
+
         /// <summary>Clears the fog around a point.</summary>
         /// <param name="x">World x.</param>
         /// <param name="z">World z.</param>

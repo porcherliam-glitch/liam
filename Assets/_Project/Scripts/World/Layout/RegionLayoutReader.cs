@@ -635,7 +635,7 @@ namespace Aetherfall.World
 
         private static LayoutLocation ReadLocation(LayoutJsonContext ctx, JsonNode node, string path)
         {
-            ctx.Known(node, path, "id", "name", "kind", "shape", "center", "radius", "size", "yaw", "quests", "mapName", "revealRadius");
+            ctx.Known(node, path, "id", "name", "kind", "shape", "center", "radius", "size", "yaw", "quests", "mapName", "revealRadius", "waypoint");
             var location = new LayoutLocation
             {
                 Id = ctx.String(node, "id", path),
@@ -659,6 +659,13 @@ namespace Aetherfall.World
             location.Quests = ReadStrings(ctx, node, "quests", path);
             location.MapName = ctx.String(node, "mapName", path, string.Empty);
             location.RevealRadius = ctx.Number(node, "revealRadius", path, 0.0);
+            if (node.Has("waypoint"))
+            {
+                double[] waypoint = ctx.Numbers(node, "waypoint", path, 3);
+                location.HasWaypoint = true;
+                location.Waypoint = new LayoutPoint(waypoint[0], waypoint[1]);
+                location.WaypointYaw = waypoint[2];
+            }
             return location;
         }
 

@@ -37,14 +37,25 @@ namespace Aetherfall.EditorTools.World
 
             var places = new List<MapPlace>();
             int shown = 0;
+            int waypoints = 0;
             foreach (LayoutLocation location in layout.Locations)
             {
                 bool show = location.MapName.Length > 0;
                 float radius = (float)(location.Shape == LocationShape.Circle ? location.Radius : Mathf.Max((float)location.Width, (float)location.Depth) * 0.5);
                 bool box = location.Shape != LocationShape.Circle;
-                places.Add(new MapPlace(location.Id, show ? location.MapName : location.Name, location.Kind, (float)location.Center.X,
+                var place = new MapPlace(location.Id, show ? location.MapName : location.Name, location.Kind, (float)location.Center.X,
                     (float)location.Center.Z, radius, show, (float)location.RevealRadius, box ? (float)location.Width : 0f, box ? (float)location.Depth : 0f,
-                    box ? (float)location.Yaw : 0f));
+                    box ? (float)location.Yaw : 0f);
+                if (location.HasWaypoint)
+                {
+                    // S50: the player arrives here on the terrain (the generator bakes the height).
+                    float wx = (float)location.Waypoint.X;
+                    float wz = (float)location.Waypoint.Z;
+                    place.WithWaypoint(new Vector3(wx, (float)heights.Height(wx, wz) + 0.1f, wz), (float)location.WaypointYaw);
+                    waypoints++;
+                }
+
+                places.Add(place);
                 if (show)
                 {
                     shown++;
@@ -75,7 +86,7 @@ namespace Aetherfall.EditorTools.World
             TestGroundFields.SetReference(anchor, "map", map, report);
             int viewpoints = BuildViewpoints(layout, heights, parent, triggerLayer, playerLayer, report);
             report.Info("Weltkarte: " + MapSize + "² px gemalt (" + EichentalPaths.MapImagePath + "), " + places.Count + " Orte, davon " + shown +
-                        " auf der Karte, Nebel " + map.FogColumns + " × " + map.FogRows + " Zellen à " + map.FogCellSize + " m, " + viewpoints +
+                        " auf der Karte, " + waypoints + " Schnellreise-Ziele, Nebel " + map.FogColumns + " × " + map.FogRows + " Zellen à " + map.FogCellSize + " m, " + viewpoints +
                         " Aussichtspunkt-Zonen.");
             return map;
         }

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Aetherfall.Core;
+using Aetherfall.Player;
 using Aetherfall.UI.Framework;
 using Aetherfall.World;
 using Aetherfall.World.Exploration;
@@ -38,6 +39,14 @@ namespace Aetherfall.UI.Screens
         private readonly Label _viewpoints;
         private readonly Label _revealed;
         private readonly List<VisualElement> _iconPool = new List<VisualElement>();
+        private readonly IFastTravelService _travel;
+        private readonly Label _travelTitle;
+        private readonly VisualElement _travelRows;
+        private readonly Label _travelStatus;
+        private readonly List<MapPlace> _targets = new List<MapPlace>();
+        private readonly List<MapPlace> _scratch = new List<MapPlace>();
+        private readonly List<Label> _rows = new List<Label>();
+        private int _confirm = -1;
         private Texture2D _fogTexture;
         private Color32[] _fogPixels;
         private RegionMapDefinition _shownMap;
@@ -50,10 +59,12 @@ namespace Aetherfall.UI.Screens
         /// <param name="page">Page element of Journal.uxml ("journal-map-page").</param>
         /// <param name="exploration">Exploration service (null: always "Keine Karte").</param>
         /// <param name="players">Player locator (null: no arrow).</param>
-        public MapPageView(VisualElement page, IExplorationService exploration, IPlayerLocator players)
+        /// <param name="travel">Fast travel (null: no travel list).</param>
+        public MapPageView(VisualElement page, IExplorationService exploration, IPlayerLocator players, IFastTravelService travel = null)
         {
             _exploration = exploration;
             _players = players;
+            _travel = travel;
             var row = new VisualElement { pickingMode = PickingMode.Ignore };
             row.AddToClassList("af-map");
             _frame = new VisualElement { name = "map-frame", pickingMode = PickingMode.Ignore };
@@ -75,6 +86,13 @@ namespace Aetherfall.UI.Screens
             _places = SideLabel(side, "af-map__count");
             _viewpoints = SideLabel(side, "af-map__count");
             _revealed = SideLabel(side, "af-map__count");
+            _travelTitle = SideLabel(side, "af-map__travel-title");
+            _travelRows = new VisualElement { pickingMode = PickingMode.Ignore };
+            _travelRows.AddToClassList("af-map__travel");
+            side.Add(_travelRows);
+            _travelStatus = SideLabel(side, "af-map__travel-status");
+            UiElementUtility.SetDisplayed(_travelTitle, travel != null);
+            UiElementUtility.SetDisplayed(_travelStatus, false);
             var legend = new VisualElement { pickingMode = PickingMode.Ignore };
             legend.AddToClassList("af-map__legend");
             legend.Add(LegendRow("af-map__place", UiTexts.Get(UiTextKeys.MapLegendPlace)));
@@ -97,6 +115,92 @@ namespace Aetherfall.UI.Screens
 
         /// <summary>Text of the counters (tests, tour).</summary>
         public string CountText => _places.text + " · " + _viewpoints.text + " · " + _revealed.text;
+
+        /// <summary>Unlocked travel points shown in the list (same order as <see cref="TravelRows"/>).</summary>
+        public IReadOnlyList<MapPlace> TravelTargets => _targets;
+
+        /// <summary>The rows of the travel list (focusable items of the page).</summary>
+        public IReadOnlyList<Label> TravelRows => _rows;
+
+        /// <summary>Row waiting for the second press, or −1.</summary>
+        public int ConfirmIndex => _confirm;
+
+        /// <summary>Text under the travel list (why travel is blocked), for tests and the tour.</summary>
+        public string TravelStatus => _travelStatus.text;
+
+        /// <summary>
+        /// Updates the travel list (S50): unlocked travel points with their travel time. Returns true if the rows were
+        /// recreated (the journal then rebuilds its focus list).
+        /// </summary>
+        public bool RefreshTravel()
+        {
+            ExplorationState state = _exploration != null ? _exploration.ActiveState : null;
+            _scratch.Clear();
+            if (state != null && _travel != null)
+            {
+                state.CollectWaypoints(_scratch);
+            }
+
+            bool same = _scratch.Count == _targets.Count;
+            for (int i = 0; same && i < _scratch.Count; i++)
+            {
+                same = ReferenceEquals(_scratch[i], _targets[i]);
+            }
+
+            if (!same)
+            {
+                _targets.Clear();
+                _targets.AddRange(_scratch);
+                foreach (Label row in _rows)
+                {
+                    row.RemoveFromHierarchy();
+                }
+
+                _rows.Clear();
+                foreach (MapPlace target in _targets)
+                {
+                    var row = new Label { name = "map-travel-" + target.Id };
+                    row.AddToClassList("af-text");
+                    row.AddToClassList("af-map__travel-row");
+                    _travelRows.Add(row);
+                    _rows.Add(row);
+                }
+
+                _confirm = -1;
+            }
+
+            if (_travel != null)
+            {
+                string title = state == null ? UiTextKeys.MapTravelNoMap : _targets.Count > 0 ? UiTextKeys.MapTravelTitle : UiTextKeys.MapTravelNone;
+                UiElementUtility.SetText(_travelTitle, UiTexts.Get(title));
+            }
+
+            for (int i = 0; i < _rows.Count; i++)
+            {
+                string name = _targets[i].DisplayName;
+                UiElementUtility.SetText(_rows[i], i == _confirm ? UiTexts.Format(UiTextKeys.MapTravelConfirm, name)
+                    : UiTexts.Format(UiTextKeys.MapTravelRow, name, FastTravelRules.Describe(_travel.HoursTo(_targets[i].Id))));
+                _rows[i].EnableInClassList("af-map__travel-row--confirm", i == _confirm);
+            }
+
+            return !same;
+        }
+
+        /// <summary>Marks a row as waiting for the second press (−1: none).</summary>
+        /// <param name="index">Row index.</param>
+        public void SetConfirm(int index)
+        {
+            _confirm = index;
+            RefreshTravel();
+        }
+
+        /// <summary>Shows a line under the travel list (empty: hidden).</summary>
+        /// <param name="text">Text.</param>
+        public void SetStatus(string text)
+        {
+            UiElementUtility.SetText(_travelStatus, text ?? string.Empty);
+            UiElementUtility.SetDisplayed(_travelStatus, !string.IsNullOrEmpty(text));
+        }
 
         /// <summary>Redraws what changed (call while the page is visible).</summary>
         public void Refresh()

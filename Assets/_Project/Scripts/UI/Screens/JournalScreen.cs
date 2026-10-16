@@ -1,8 +1,10 @@
 using System;
 using System.Collections.Generic;
 using Aetherfall.Core;
+using Aetherfall.Player;
 using Aetherfall.Progression;
 using Aetherfall.Quests;
+using Aetherfall.SaveSystem;
 using Aetherfall.Skills;
 using Aetherfall.UI.Framework;
 using Aetherfall.World.Exploration;
@@ -45,6 +47,8 @@ namespace Aetherfall.UI.Screens
 
         private readonly MapPageView _map;
         private readonly MenuItemList _mapList;
+        private readonly VisualElement _mapFocus;
+        private readonly IFastTravelService _fastTravel;
 
         private readonly IQuestService _quests;
         private readonly IProgressionService _progression;
@@ -124,9 +128,11 @@ namespace Aetherfall.UI.Screens
         /// <param name="skills">Skill trees (null: the skill page stays empty).</param>
         /// <param name="exploration">Exploration (null: the map page shows "keine Karte").</param>
         /// <param name="players">Player locator (null: no player arrow on the map).</param>
+        /// <param name="fastTravel">Fast travel (null: the map shows no travel list).</param>
         public JournalScreen(VisualElement root, VisualTreeAsset questRowAsset, VisualTreeAsset objectiveRowAsset, VisualTreeAsset lineAsset,
             VisualTreeAsset attributeRowAsset, VisualTreeAsset valueRowAsset, IGlyphService glyphs, IQuestService quests, IProgressionService progression,
-            Action closeRequested, ISkillService skills = null, IExplorationService exploration = null, IPlayerLocator players = null) : base(Id, root, glyphs)
+            Action closeRequested, ISkillService skills = null, IExplorationService exploration = null, IPlayerLocator players = null, IFastTravelService fastTravel = null)
+            : base(Id, root, glyphs)
         {
             if (questRowAsset == null || objectiveRowAsset == null || lineAsset == null || attributeRowAsset == null || valueRowAsset == null)
             {
@@ -155,7 +161,8 @@ namespace Aetherfall.UI.Screens
             _pageTabs[(int)JournalPage.Skills] = root.Q<VisualElement>("journal-tab-skills");
             _pages[(int)JournalPage.Map] = root.Q<VisualElement>("journal-map-page");
             _pageTabs[(int)JournalPage.Map] = root.Q<VisualElement>("journal-tab-map");
-            _map = new MapPageView(_pages[(int)JournalPage.Map], exploration, players);
+            _fastTravel = fastTravel;
+            _map = new MapPageView(_pages[(int)JournalPage.Map], exploration, players, fastTravel);
             for (int i = 0; i < PageCount; i++)
             {
                 var page = (JournalPage)i;
@@ -210,11 +217,11 @@ namespace Aetherfall.UI.Screens
             _attributeList = CreateList("attributes");
             _skillList = CreateList("skills");
             _mapList = CreateList("map");
-            // One invisible item keeps the page focusable (Tab, Back and later the map cursor reach it).
-            var mapFocus = new VisualElement { pickingMode = PickingMode.Ignore };
-            mapFocus.AddToClassList("af-map__focus");
-            _pages[(int)JournalPage.Map]?.Add(mapFocus);
-            _mapList.Add(mapFocus);
+            // Without travel targets one invisible item keeps the page focusable (Tab and Back reach it).
+            _mapFocus = new VisualElement { pickingMode = PickingMode.Ignore };
+            _mapFocus.AddToClassList("af-map__focus");
+            _pages[(int)JournalPage.Map]?.Add(_mapFocus);
+            _mapList.Add(_mapFocus);
             BuildCharacterRows(root.Q<VisualElement>("character-attributes"), attributeRowAsset, valueRowAsset);
             BindGlyphs();
             SelectPage(JournalPage.Quests);
@@ -243,6 +250,7 @@ namespace Aetherfall.UI.Screens
             if (_page == JournalPage.Map)
             {
                 _map.Refresh();
+                RefreshMapList(false);
             }
 
             if (_quests != null && _quests.Revision != _questRevision)
@@ -269,6 +277,7 @@ namespace Aetherfall.UI.Screens
         {
             if (_page == JournalPage.Map)
             {
+                SubmitTravel(index);
                 return;
             }
 
@@ -401,6 +410,13 @@ namespace Aetherfall.UI.Screens
                 ShowDetails();
             }
 
+            if (_page == JournalPage.Map && current != previous)
+            {
+                // Another target: the confirmation starts again.
+                _map.SetConfirm(-1);
+                _map.SetStatus(string.Empty);
+            }
+
             if (_page == JournalPage.Skills && ReferenceEquals(ActiveList, _skillList))
             {
                 if (_skillWindow.EnsureVisible(current))
@@ -462,15 +478,17 @@ namespace Aetherfall.UI.Screens
             bool skills = page == JournalPage.Skills;
             bool map = page == JournalPage.Map;
             UiElementUtility.SetText(_title, UiTexts.Get(map ? UiTextKeys.JournalMap : quests ? UiTextKeys.JournalQuests : skills ? UiTextKeys.JournalSkills : UiTextKeys.JournalCharacter));
-            UiElementUtility.SetText(_hintConfirm, UiTexts.Get(quests ? UiTextKeys.HintTrack : skills ? UiTextKeys.HintLearn : UiTextKeys.HintSpend));
+            UiElementUtility.SetText(_hintConfirm, UiTexts.Get(map ? UiTextKeys.HintTravel : quests ? UiTextKeys.HintTrack : skills ? UiTextKeys.HintLearn : UiTextKeys.HintSpend));
             UiElementUtility.SetText(_hintSecondary, UiTexts.Get(quests ? UiTextKeys.HintFocus : UiTextKeys.HintRefund));
             UiElementUtility.SetText(_hintSubtabText, UiTexts.Get(skills ? UiTextKeys.HintBar : UiTextKeys.HintSubtabs));
             UiElementUtility.SetDisplayed(_hintSubtabs, quests || skills);
             UpdateActionHints();
             if (map)
             {
-                Activate(_mapList, 0);
                 _map.Refresh();
+                _map.SetConfirm(-1);
+                _map.SetStatus(string.Empty);
+                RefreshMapList(true);
             }
             else if (quests)
             {
@@ -503,12 +521,121 @@ namespace Aetherfall.UI.Screens
             }
         }
 
+        private void RefreshMapList(bool force)
+        {
+            // The list is rebuilt only when its items differ from the rows: adding the same row again would bind its pointer
+            // callbacks twice (one click = two presses = travel without the question).
+            _map.RefreshTravel();
+            if (MapListMatchesRows())
+            {
+                if (force && _page == JournalPage.Map)
+                {
+                    Activate(_mapList, 0);
+                    UpdateActionHints();
+                }
+
+                return;
+            }
+
+            _mapList.Clear();
+            if (_map.TravelRows.Count == 0)
+            {
+                _mapList.Add(_mapFocus);
+            }
+            else
+            {
+                foreach (Label row in _map.TravelRows)
+                {
+                    _mapList.Add(row);
+                }
+            }
+
+            if (_page == JournalPage.Map)
+            {
+                Activate(_mapList, 0);
+                UpdateActionHints();
+            }
+        }
+
+        private bool MapListMatchesRows()
+        {
+            IReadOnlyList<Label> rows = _map.TravelRows;
+            if (rows.Count == 0)
+            {
+                return _mapList.Count == 1 && ReferenceEquals(_mapList[0], _mapFocus);
+            }
+
+            if (_mapList.Count != rows.Count)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < rows.Count; i++)
+            {
+                if (!ReferenceEquals(_mapList[i], rows[i]))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private void SubmitTravel(int index)
+        {
+            // S50: the first press asks, the second travels (the journal closes, the loading screen covers the jump).
+            if (_fastTravel == null || index < 0 || index >= _map.TravelTargets.Count)
+            {
+                return;
+            }
+
+            string placeId = _map.TravelTargets[index].Id;
+            FastTravelBlock block = _fastTravel.Check(placeId, out string reasonKey);
+            if (block != FastTravelBlock.None)
+            {
+                _map.SetConfirm(-1);
+                _map.SetStatus(TravelBlockText(block, reasonKey));
+                return;
+            }
+
+            if (_map.ConfirmIndex != index)
+            {
+                _map.SetStatus(string.Empty);
+                _map.SetConfirm(index);
+                return;
+            }
+
+            _map.SetConfirm(-1);
+            _closeRequested?.Invoke();
+            _ = _fastTravel.TravelAsync(placeId);
+        }
+
+        private static string TravelBlockText(FastTravelBlock block, string reasonKey)
+        {
+            switch (block)
+            {
+                case FastTravelBlock.InCombat:
+                    return UiTexts.Get(UiTextKeys.MapTravelCombat);
+                case FastTravelBlock.Overloaded:
+                    return UiTexts.Get(UiTextKeys.MapTravelOverloaded);
+                case FastTravelBlock.SaveLocked:
+                    return UiTexts.Format(UiTextKeys.MapTravelLocked, SaveReasonKeys.ToGermanText(reasonKey));
+                case FastTravelBlock.AlreadyThere:
+                    return UiTexts.Get(UiTextKeys.MapTravelHere);
+                case FastTravelBlock.NoMap:
+                    return UiTexts.Get(UiTextKeys.MapTravelNoMap);
+                default:
+                    return UiTexts.Get(UiTextKeys.MapTravelUnknown);
+            }
+        }
+
         private void UpdateActionHints()
         {
             // Finished quests cannot be tracked or focused: the hints for A and X are hidden on the tab "Abgeschlossen".
-            bool actions = _page != JournalPage.Map && (_page != JournalPage.Quests || _tab != QuestLogTab.Completed);
+            bool travel = _page == JournalPage.Map && _map.TravelRows.Count > 0;
+            bool actions = travel || (_page != JournalPage.Map && (_page != JournalPage.Quests || _tab != QuestLogTab.Completed));
             UiElementUtility.SetDisplayed(_hintConfirm != null ? _hintConfirm.parent : null, actions);
-            UiElementUtility.SetDisplayed(_hintSecondaryGroup, actions);
+            UiElementUtility.SetDisplayed(_hintSecondaryGroup, actions && _page != JournalPage.Map);
         }
 
         private void RebuildQuests(string keepQuestId)

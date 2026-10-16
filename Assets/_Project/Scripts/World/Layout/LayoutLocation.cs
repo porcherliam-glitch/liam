@@ -41,5 +41,14 @@ namespace Aetherfall.World
 
         /// <summary>Viewpoints: fog cleared around them on activation in metres (GDD 01 6.6); 0 for other places.</summary>
         public double RevealRadius { get; internal set; }
+
+        /// <summary>True if the location is a fast travel point (S50).</summary>
+        public bool HasWaypoint { get; internal set; }
+
+        /// <summary>Arrival point of the travel point (x, z).</summary>
+        public LayoutPoint Waypoint { get; internal set; }
+
+        /// <summary>Facing on arrival in degrees.</summary>
+        public double WaypointYaw { get; internal set; }
     }
 }

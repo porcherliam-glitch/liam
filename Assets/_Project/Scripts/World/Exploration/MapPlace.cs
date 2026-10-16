@@ -23,6 +23,9 @@ namespace Aetherfall.World.Exploration
         [SerializeField] private float boxWidth;
         [SerializeField] private float boxDepth;
         [SerializeField] private float boxYaw;
+        [SerializeField] private bool hasWaypoint;
+        [SerializeField] private Vector3 arrival;
+        [SerializeField] private float arrivalYaw;
 
         /// <summary>Creates a place (generator, tests).</summary>
         /// <param name="id">Location id, e.g. <c>loc.eichental.lindenhain</c>.</param>
@@ -52,6 +55,18 @@ namespace Aetherfall.World.Exploration
             this.boxYaw = boxYaw;
         }
 
+        /// <summary>Makes the place a fast travel point (generator; S50): where the player arrives and looks.</summary>
+        /// <param name="position">Arrival position (feet, terrain height baked in).</param>
+        /// <param name="yaw">Facing on arrival in degrees.</param>
+        /// <returns>This place.</returns>
+        public MapPlace WithWaypoint(Vector3 position, float yaw)
+        {
+            hasWaypoint = true;
+            arrival = position;
+            arrivalYaw = yaw;
+            return this;
+        }
+
         /// <summary>Location id.</summary>
         public string Id => id ?? string.Empty;
 
@@ -78,6 +93,21 @@ namespace Aetherfall.World.Exploration
 
         /// <summary>Viewpoints: fog cleared around them on activation in metres.</summary>
         public float RevealRadius => revealRadius;
+
+        /// <summary>True if the place is a fast travel point (once discovered, or activated for a viewpoint).</summary>
+        public bool HasWaypoint => hasWaypoint;
+
+        /// <summary>Arrival x of the travel point.</summary>
+        public float ArrivalX => arrival.x;
+
+        /// <summary>Arrival height of the travel point.</summary>
+        public float ArrivalY => arrival.y;
+
+        /// <summary>Arrival z of the travel point.</summary>
+        public float ArrivalZ => arrival.z;
+
+        /// <summary>Facing on arrival in degrees.</summary>
+        public float ArrivalYaw => arrivalYaw;
 
         /// <summary>True for a box-shaped place (otherwise a circle).</summary>
         public bool IsBox => boxWidth > 0f && boxDepth > 0f;
