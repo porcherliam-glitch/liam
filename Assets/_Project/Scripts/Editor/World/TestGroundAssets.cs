@@ -262,6 +262,18 @@ namespace Aetherfall.EditorTools.World
         }
 
         /// <summary>
+        /// Cutscene installer into the BootConfig (S58): behind the EventBus, GameState, Dialogue and NPC installers (the UI installer
+        /// follows it, see TestGroundUiBuilder.EnsureInstallers).
+        /// </summary>
+        /// <param name="report">Protocol.</param>
+        /// <returns>True if the BootConfig contains it afterwards.</returns>
+        public static bool EnsureCinematicsInstallerInBootConfig(TestGroundReport report)
+        {
+            return EnsureInstallerInBootConfig<Aetherfall.Cinematics.CinematicsInstaller>(TestGroundPaths.CinematicsInstallerPath, report,
+                typeof(EventBusInstaller), typeof(GameStateInstaller), typeof(Aetherfall.Dialogue.DialogueInstaller), typeof(Aetherfall.NPC.NpcInstaller));
+        }
+
+        /// <summary>
         /// Loads or creates the installers of conditions, world state, progression, world services and quests and puts them into
         /// the BootConfig in the order of architecture 4.1 and guide 08, 11.1: ConditionsInstaller behind the EventBus and GameTime
         /// installers, WorldStateInstaller behind Conditions, Save, GameTime and Content, ProgressionInstaller behind EventBus,

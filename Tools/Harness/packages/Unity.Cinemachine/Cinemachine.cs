@@ -67,9 +67,19 @@ namespace Unity.Cinemachine
         }
     }
 
-    public abstract class CinemachineVirtualCameraBase : MonoBehaviour
+    // release/3.1 Runtime/Core/ICinemachineCamera.cs: what the brain knows about a live camera.
+    public interface ICinemachineCamera
+    {
+        string Name { get; }
+
+        bool IsValid { get; }
+    }
+
+    public abstract class CinemachineVirtualCameraBase : MonoBehaviour, ICinemachineCamera
     {
         public PrioritySettings Priority = new PrioritySettings();
+        public string Name => throw HarnessStub.NotSupported();
+        public bool IsValid => throw HarnessStub.NotSupported();
         public virtual bool PreviousStateIsValid { get; set; }
         public virtual Transform LookAt { get; set; }
         public virtual Transform Follow { get; set; }
@@ -453,6 +463,8 @@ namespace Unity.Cinemachine
         public CinemachineBlendDefinition DefaultBlend = new CinemachineBlendDefinition(CinemachineBlendDefinition.Styles.EaseInOut, 2f);
         public bool ShowDebugText;
         public bool ShowCameraFrustum = true;
+        public ICinemachineCamera ActiveVirtualCamera => throw HarnessStub.NotSupported();
+        public bool IsBlending => throw HarnessStub.NotSupported();
 
         public enum UpdateMethods
         {

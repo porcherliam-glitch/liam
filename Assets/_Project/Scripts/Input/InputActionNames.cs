@@ -94,6 +94,7 @@ namespace Aetherfall.Input
                 case UiButton.SubTabPrev: return UI.SubTabPrev;
                 case UiButton.SubTabNext: return UI.SubTabNext;
                 case UiButton.Secondary: return UI.Secondary;
+                case UiButton.Skip: return UI.SkipCutscene;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(button), button, "Unknown UI button.");
             }

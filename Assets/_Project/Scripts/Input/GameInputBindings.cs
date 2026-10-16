@@ -165,9 +165,9 @@ namespace Aetherfall.Input
             Button(map, Names.UI.SubTabNext, "<Gamepad>/rightTrigger", "<Keyboard>/c");
             Button(map, Names.UI.Secondary, "<Gamepad>/buttonWest", "<Keyboard>/f");
 
-            InputAction skip = Button(map, Names.UI.SkipCutscene, null, null);
-            skip.AddBinding("<Gamepad>/buttonSouth", "hold(duration=1)", groups: Pad);
-            skip.AddBinding("<Keyboard>/space", "hold(duration=1)", groups: Kbm);
+            // GDD 03 1.5: SkipCutscene = A or Space held. No hold interaction here: the cutscene screen times the hold itself
+            // (CutsceneSkipHold), so it can draw the progress bar and the hold duration option applies.
+            Button(map, Names.UI.SkipCutscene, "<Gamepad>/buttonSouth", "<Keyboard>/space");
             // TODO (inventory screen): SortFilter (Y / R), Details (R3 / Shift), ScrollRotate (RS / mouse wheel) – GDD 03 1.5.
         }
 

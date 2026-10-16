@@ -32,6 +32,12 @@ namespace Aetherfall.EditorTools.World
         /// <summary>Day-and-night installer (S35), directly after the GameTime installer.</summary>
         public const string DayNightInstallerPath = SetupPaths.BootSettingsFolder + "/DayNightInstaller.asset";
 
+        /// <summary>Cutscene installer (S58), after the EventBus, GameState, Dialogue and NPC installers, before the UI installer.</summary>
+        public const string CinematicsInstallerPath = SetupPaths.BootSettingsFolder + "/CinematicsInstaller.asset";
+
+        /// <summary>Folder of the generated cutscene Timelines (S58).</summary>
+        public const string CutsceneTimelineFolder = SetupPaths.ProjectFolder + "/Art/Animations/Cinematics";
+
         /// <summary>Folder of the attack assets (architecture 3.1: Data/…).</summary>
         public const string AttackFolder = SetupPaths.ProjectFolder + "/Data/Combat/Attacks";
 

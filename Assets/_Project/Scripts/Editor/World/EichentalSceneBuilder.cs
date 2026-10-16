@@ -1,7 +1,11 @@
+using System;
+using System.Collections.Generic;
 using Aetherfall.AI;
 using Aetherfall.CameraSystem;
+using Aetherfall.Cinematics;
 using Aetherfall.Combat;
 using Aetherfall.DevTools;
+using Aetherfall.EditorTools.Narrative;
 using Aetherfall.Player;
 using Aetherfall.Stats;
 using Aetherfall.World;
@@ -159,6 +163,8 @@ namespace Aetherfall.EditorTools.World
             gameplay.BuildQuestObjects(Group(game.transform, "Quest-Objekte"), env, layers.Interactable, layers.TriggerVolume, layers.Player, layers.Hurtbox);
             gameplay.BuildTrails(Group(game.transform, "Spuren"), layers.TriggerVolume, layers.Player);
             EichentalDungeonLinks.Build(layout, heights, spawnPoint.transform, layers.Interactable, Group(game.transform, "Durchgänge"), report);
+            // S58: the prologue cutscene (Timeline baked from EichentalCutscenes; the fire group "Brand (Prolog)" is not touched).
+            BuildCutscenes(layout, heights, Group(game.transform, "Zwischensequenzen"), mainCamera, exploreOrbital, solidMask, report);
             TestGroundUiBuilder.AddPlayerHudLink(player, mainCamera, report);
 
             report.Info("Meshes: " + meshes.Count + " in " + EichentalPaths.MeshLibraryPath + ".");
@@ -172,6 +178,39 @@ namespace Aetherfall.EditorTools.World
 
             report.Info("Szene gespeichert: " + EichentalPaths.ScenePath);
             return player;
+        }
+
+        private static void BuildCutscenes(RegionLayout layout, LayoutHeightField heights, Transform group, Camera mainCamera,
+            CinemachineOrbitalFollow exploreOrbital, int solidMask, TestGroundReport report)
+        {
+            CutsceneScript prologue;
+            try
+            {
+                var rest = new ExploreRestPose(TestGroundSceneBuilder.CameraDistance, TestGroundSceneBuilder.PivotHeight, exploreOrbital.VerticalAxis.Center,
+                    TestGroundSceneBuilder.FieldOfView, TestGroundSceneBuilder.ShoulderScreenOffset);
+                prologue = EichentalCutscenes.Prologue(layout, heights, rest);
+            }
+            catch (ArgumentException exception)
+            {
+                report.Warning("Prolog-Zwischensequenz nicht gebaut: " + exception.Message);
+                return;
+            }
+
+            // The light column over Lina: a cold spot light from above, switched on by the Timeline during "Lina im Licht".
+            CinePoint top = EichentalCutscenes.LightColumnPosition(layout, heights);
+            var lightObject = new GameObject(EichentalCutscenes.LightColumnKey);
+            lightObject.transform.SetPositionAndRotation(new Vector3((float)top.X, (float)top.Y, (float)top.Z), Quaternion.Euler(90f, 0f, 0f));
+            Light light = lightObject.AddComponent<Light>();
+            light.type = LightType.Spot;
+            light.color = new Color(0.9f, 1f, 0.99f);
+            light.intensity = 40f;
+            light.range = (float)EichentalCutscenes.LightColumnHeight + 6f;
+            light.spotAngle = 32f;
+            light.innerSpotAngle = 12f;
+            light.shadows = LightShadows.None;
+            var props = new Dictionary<string, GameObject> { { EichentalCutscenes.LightColumnKey, lightObject } };
+            CutsceneTimelineBuilder.Build(prologue, group, mainCamera.GetComponent<CinemachineBrain>(), EichentalPaths.PrologueTimelinePath, heights,
+                solidMask, props, report);
         }
 
         private static Transform Group(Transform parent, string name)

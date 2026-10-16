@@ -13,12 +13,13 @@ namespace Aetherfall.Input
     /// <item><term>MainMenu, Menu, Paused</term><description>UI</description></item>
     /// <item><term>Playing on foot / mounted</term><description>Gameplay / Riding</description></item>
     /// <item><term>Dialogue (full and short mode)</term><description>Dialog</description></item>
-    /// <item><term>Cutscene</term><description>UI (only skipping and pause are meant to react, see TODO)</description></item>
+    /// <item><term>Cutscene</term><description>UI (only <c>SkipCutscene</c> held reacts, through the cutscene screen)</description></item>
     /// <item><term>Building</term><description>Building</description></item>
     /// </list>
-    /// TODO (UI step): in Cutscene only <c>SkipCutscene</c> should react; in the short dialogue mode <c>Move</c> stays
-    /// active in addition; while the furniture catalog is open in building mode the UI map replaces Building; the Debug
-    /// map of development builds comes with the debug console.
+    /// In Cutscene the UI map stays on, but only the cutscene screen reads it: <c>SkipCutscene</c> held skips, Cancel and
+    /// CloseHub are ignored and there is no pause in Stufe A (S58).
+    /// TODO (UI step): in the short dialogue mode <c>Move</c> stays active in addition; while the furniture catalog is open
+    /// in building mode the UI map replaces Building; the Debug map of development builds comes with the debug console.
     /// </remarks>
     public static class ActionMapTable
     {

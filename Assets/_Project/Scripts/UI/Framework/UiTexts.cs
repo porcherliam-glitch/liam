@@ -260,6 +260,7 @@ namespace Aetherfall.UI.Framework
             new UiTextEntry("hint-back", "Zurück"),
             new UiTextEntry("hint-tabs", "Reiter"),
             new UiTextEntry("hint-hold", "Halten = bestätigen"),
+            new UiTextEntry("hint-skip", "Überspringen (halten)"),
 
             // HUD (GDD 05 1.2)
             new UiTextEntry("hud-target-poise-label", "Haltung"),

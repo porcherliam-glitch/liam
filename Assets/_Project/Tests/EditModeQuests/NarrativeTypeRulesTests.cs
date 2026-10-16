@@ -10,7 +10,7 @@ namespace Aetherfall.Tests.EditMode.Quests
 {
     /// <summary>
     /// Rules of architecture 7.6 for every concrete <c>[SerializeReference]</c> type of the narrative assemblies (Conditions,
-    /// WorldState, Quests): <c>[Serializable]</c>, <c>sealed</c>, not generic, public parameterless constructor, a German
+    /// WorldState, Quests, Cinematics): <c>[Serializable]</c>, <c>sealed</c>, not generic, public parameterless constructor, a German
     /// <c>[TypeMenu]</c> in the right folder, no two types with the same menu path, no mutable state outside serialized
     /// fields. Also checks the list of types of architecture 7.7 that this step delivers.
     /// </summary>
@@ -21,7 +21,8 @@ namespace Aetherfall.Tests.EditMode.Quests
         {
             typeof(Condition).Assembly,
             typeof(FlagIs).Assembly,
-            typeof(QuestObjective).Assembly
+            typeof(QuestObjective).Assembly,
+            typeof(Aetherfall.Cinematics.PlayCutscene).Assembly
         };
 
         [Test]
@@ -132,6 +133,11 @@ namespace Aetherfall.Tests.EditMode.Quests
             if (typeof(QuestObjective).IsAssignableFrom(type))
             {
                 return "Ziele/";
+            }
+
+            if (type.Assembly == typeof(Aetherfall.Cinematics.PlayCutscene).Assembly)
+            {
+                return "Inszenierung/";
             }
 
             if (type.Assembly == typeof(FlagIs).Assembly)

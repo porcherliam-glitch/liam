@@ -111,6 +111,23 @@ namespace Aetherfall.Tests.EditMode
         }
 
         [Test]
+        public void EndSession_EndsTheFightOfTheOldSession_AndReportsIt()
+        {
+            _service.ReportHitValues("player", CombatTeam.Player, "wolf_1", CombatTeam.Enemy, 20, true, DamageType.Slash, false, HitZone.Body,
+                DefenseOutcome.Hit);
+            Assert.That(_service.InCombat, Is.True, "the damage memory keeps the fight for a few seconds");
+
+            using (var recorder = new EventRecorder<CombatStateChanged>(_bus))
+            {
+                _service.EndSession();
+
+                Assert.That(_service.InCombat, Is.False);
+                Assert.That(recorder.Count, Is.EqualTo(1));
+                Assert.That(recorder.Last.InCombat, Is.False);
+            }
+        }
+
+        [Test]
         public void DisposedService_PublishesNoMoreStateChanges()
         {
             using (var recorder = new EventRecorder<CombatStateChanged>(_bus))

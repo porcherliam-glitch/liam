@@ -116,7 +116,7 @@ Aus §6.1 übernommen, ergänzt um technische Regeln, die aus der [Recherche](./
 | `com.unity.ai.navigation` | NavMesh (§4.2) | 2.0.x | 2 | Verhalten bei Terrain-Bäumen ab 2.0.16 beachten |
 | `com.unity.probuilder` | Level-Blocking (§4.2) | 6.1.x | 2 | |
 | `com.unity.animation.rigging` | IK Blick/Hände (§4.2) | 1.4.x | 2 | wenig Weiterentwicklung, nur für IK nutzen |
-| `com.unity.timeline` | Zwischensequenzen (§4.2) | 1.8.x | 3 | |
+| `com.unity.timeline` | Zwischensequenzen (§4.2) | 1.8.x (im Projekt 6.6.0) | 3 | seit S58 (Prolog-Timeline, vom Generator gebacken) |
 | `com.unity.terrain-tools` | Offene Welt (§4.2) | 5.3.x | 4 | Editor-Werkzeug |
 | `com.unity.memoryprofiler` | Speicheranalyse | laut Package Manager (nicht verifiziert) | 2 | nur Editor |
 | `com.unity.testtools.codecoverage` | Testabdeckung | laut Package Manager (nicht verifiziert) | 3 | optional |
@@ -536,7 +536,8 @@ Alle Runtime-Assemblies: Auto Referenced = aus, Root Namespace = Assembly-Name. 
 | 26 | `Aetherfall.Quests` | `Aetherfall.Quests` | `Scripts/Quests` | 1, 2, 3, 4, 5, 6, 9, 10, 13, 14, 15, 20, 22 | nein |
 | 27 | `Aetherfall.CameraSystem` | `Aetherfall.CameraSystem` | `Scripts/Camera` | 2, 3, 6, 7, 8, 16, 24; Unity.Cinemachine | nein |
 | 28 | `Aetherfall.Audio` | `Aetherfall.Audio` | `Scripts/Audio` | 2, 3, 4, 5, 6, 7, 9, 16, 20 | nein |
-| 29 | `Aetherfall.Cinematics` | `Aetherfall.Cinematics` | `Scripts/Cinematics` | 2, 3, 4, 5, 22, 24, 27, 28; Unity.Timeline, Unity.Cinemachine | nein |
+| 29 | `Aetherfall.Cinematics` | `Aetherfall.Cinematics` | `Scripts/Cinematics` | 2, 3, 4, 5, 17 (reine Logik: Dienst, Drehbuch, Prüfregeln, Aktion `PlayCutscene`) | nein |
+| 29b | `Aetherfall.Cinematics.Playback` | `Aetherfall.Cinematics.Playback` | `Scripts/Cinematics/Playback` | 2, 3, 17, 29; Unity.Cinemachine (`PlayableDirector` kommt aus der Engine) | nein |
 | 30 | `Aetherfall.UI.Framework` | `Aetherfall.UI.Framework` | `Scripts/UI/Framework` | 1, 2, 3, 4, 7, 8; Unity.Localization, Unity.InputSystem, Unity.TextMeshPro | nein |
 | 31 | `Aetherfall.UI.Screens` | `Aetherfall.UI.Screens` | `Scripts/UI/Screens` | 2–30 nach Bedarf (Anzeige aller Systeme) | nein |
 | 32 | `Aetherfall.DevTools` | `Aetherfall.DevTools` | `Scripts/DevTools` | 2–31 nach Bedarf | nein |
@@ -935,7 +936,7 @@ stateDiagram-v2
 | Paused | UI | 0 | steht | steht | ja |
 | Dialogue (Voll-Modus) | Dialog | 1 | steht (GDD 02, 12.1) | läuft | nein |
 | Dialogue (Kurz-Modus) | Dialog | 1 | läuft | läuft | nein |
-| Cutscene | UI (nur „Überspringen halten“) | 1 | je Timeline einstellbar | läuft | nein |
+| Cutscene | UI (nur „Überspringen halten“; Esc, B und Start tun nichts, keine Pause in Stufe A) | 1 | je Timeline einstellbar | läuft | nein |
 | Building | Bauen | 1 | läuft | läuft | ja |
 
 Audio bei `timeScale = 0`: `AudioListener.pause = true`, UI-Quellen mit `ignoreListenerPause = true`. Musik läuft mit −6 dB weiter ([GDD 05, 2.5](../GDD/05_UI_Audio_Grafik_Barrierefreiheit.md)).
@@ -1909,9 +1910,9 @@ Kompression lokal: LZ4. Kein Remote-Katalog. Jede Ladeoperation hat einen Besitz
 | `CM_LockOn` | `CinemachineThirdPersonFollow` + `CinemachineRotationComposer` auf `CinemachineTargetGroup` (Spieler + Ziel) | Lock-On (R3) |
 | `CM_Aim` | `CinemachineThirdPersonFollow` (Schulter) + `CinemachineThirdPersonAim` | Bogen, Zauber (LT) |
 | `CM_Mount` | wie Explore, größerer Radius | Reiten |
-| `CM_Dialog_A/B/Wide` | 3 positionierte Kameras, `DialogueCameraDirector` wählt je Zeile (Schuss-Gegenschuss). Dialogkameras und `DialogueCameraDirector` liegen in `Aetherfall.Cinematics` (29), das NPC (22) und CameraSystem (27) bereits referenziert | Dialog |
+| `CM_Dialog_A/B/Wide` | 3 positionierte Kameras in Boot.unity (`DialogueCameraRig`, Assembly 29b), `DialogueCameraDirector` (reine Logik, Assembly 29) wählt je Zeile (Schuss-Gegenschuss). Sprecher-Positionen kommen über `IPlayerLocator` und `IWorldMarkerRegistry` (Core), daher braucht keine der beiden Assemblies NPC (22) oder CameraSystem (27) | Dialog |
 | `CM_Build` | Orbital, steiler Winkel | Bau-Modus |
-| Timeline | `CinemachineTrack` | Zwischensequenzen |
+| Timeline | `CinemachineTrack` mit statischen Kameras je Einstellung (überlappende Clips = Kamerafahrt), vom Generator gebacken (`CutsceneTimelineBuilder` aus `EichentalCutscenes`) | Zwischensequenzen |
 
 - `CinemachineBrain` an der Main Camera in der `Gameplay`-Szene (Hauptmenü hat eigene Kamera).
 - Umschalten per **Priorität** im `CameraModeService` (hört `GameStateChanged`, Lock-On-/Ziel-/Reit-Events der Spieler-Komponenten). Blends: Standard 0,25 s Ease, Lock-On 0,3 s, Dialog harter Schnitt.
@@ -2216,7 +2217,7 @@ Siehe 4.8. Ergänzend: **Schrittgeräusche** (§26) über `SurfaceType`: Terrain
 | Gegner-Lebensbalken, Questgeber-Symbole, Interaktions-Hinweise | UI Toolkit **Overlay-Projektion** (Ebene WorldMarkers): gepoolte Elemente, Position per `WorldToScreenPoint`, max. 32 gleichzeitig sichtbar. Vorteil: konstante Bildschirmgröße, USS-Themes für Farbenblind-Modi. |
 | Schadenszahlen | TMP, gepoolt, Billboard in der Welt (Recherche-Empfehlung) |
 | NPC-Namen/3D-Weltlabels | TMP (World Space), gepoolt, Layer UI |
-| UI in Zwischensequenzen | uGUI/TMP (Timeline-Anbindung) |
+| UI in Zwischensequenzen | UI Toolkit (`CutsceneScreen`, Screens-Ebene): Kinobalken, Abblende, Texttafel, Untertitel, „Überspringen (halten)“; Inhalte als Daten am Abspieler (`CutsceneCue`), ausgewertet nach der Zeit des `PlayableDirector` |
 | 3D-Charaktervorschau | Kamera → RenderTexture (Layer `PreviewUI`) → Hintergrund eines UI-Toolkit-Elements |
 
 **Spike vor Phase 2 (2–3 Tage):** Inventarraster 8 × 6 mit Gamepad, Tableiste LB/RB, Rebinding-Dialog, Tooltip mit Vergleichswerten, 3D-Vorschau, Sprachwechsel zur Laufzeit. **Abbruchkriterium:** Fokuslogik braucht > 1 Tag Workarounds pro Bildschirm → uGUI für Menüs.

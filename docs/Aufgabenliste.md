@@ -99,6 +99,8 @@ Ziel: ein Teil des Eichentals (~1,1 km²), alle 8 Beispiel-Quests, etwa 3,5–4 
   - CC0-Musik für Erkundung, Spannung, Kampf und Boss mit Überblendung
   - Umgebungsgeräusche, Schritte, Kampfgeräusche, Audio-Mixer
 - [ ] **Zwischensequenzen (S58):** Prolog-Sequenz von „Asche über Eichental“ mit „Überspringen halten“, Dialogkamera (Schuss/Gegenschuss)
+  - Teil 1 erledigt (2026-10-16): Prolog-Zwischensequenz cs.prolog.erwachen mit Kinobalken, Untertiteln und „Überspringen halten“, Rundgang `zwischensequenz`
+  - Offen: Teil 2 Dialogkamera (Schuss/Gegenschuss)
 - [ ] **Sammeln (S30, Teil):** Kräuter-Sammelpunkte mit Respawn, für „Das Kraut der Kräuterfrau“
 - [ ] **Optionen und Barrierefreiheit (S11, S12)** nach GDD 05, 4.2:
   - Untertitel, Farbenblind-Modi, Halten statt Drücken, Wackeln aus, UI-Größe, Schwierigkeit

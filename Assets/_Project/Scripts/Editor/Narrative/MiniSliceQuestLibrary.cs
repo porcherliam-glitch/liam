@@ -1,3 +1,4 @@
+using Aetherfall.Cinematics;
 using Aetherfall.Conditions;
 using Aetherfall.Core;
 using Aetherfall.Data;
@@ -18,7 +19,8 @@ namespace Aetherfall.EditorTools.Narrative
     /// trails, NPC markers) and the crypt (zones, puzzles, boss, seal stone; guide 12, 11.4). Built fresh on every call.
     /// </summary>
     /// <remarks>
-    /// <para>Deviations until the systems exist (documented in docs/Status.md): no cutscenes or music, no faction reputation, no
+    /// <para>Deviations until the systems exist (documented in docs/Status.md): the prologue opens with the cutscene
+    /// cs.prolog.erwachen, but the cutscenes of s40/s50 and the music are still missing; no faction reputation, no
     /// cheese item; Hollmann's bow and 30 arrows come with s10 and the straw targets are shot (verb "hit"). Rift
     /// spawns are Aether wolves (layout stand-ins), so the kill objective of s30 counts them. The splitter in the den offers
     /// "zerschlagen" (stand-in for the Aether push, outcome 2) and "herausbrechen" (outcome 3).</para>
@@ -192,7 +194,8 @@ namespace Aetherfall.EditorTools.Narrative
                 .StartTrigger(QuestStartTriggerKind.Automatic)
                 .Stage(new StageBuilder("s10")
                     .Text("Eichental brennt. Lina ist fort. Irgendwo ruft jemand um Hilfe.", "Der Dorfplatz liegt westlich, beim Brunnen.")
-                    .OnStart(new SetFlag(FlagVillageDestroyed, 1))
+                    // GDD 02 11.1: s10 opens with the cutscene cs.prolog.erwachen (S58; it waits for the end of the load).
+                    .OnStart(new SetFlag(FlagVillageDestroyed, 1), new PlayCutscene(CutsceneIds.PrologueAwakening))
                     .Objective(new GoToObjective("o1", "loc.eichental.dorfplatz", 15f).WithJournalText("Zum Dorfplatz gehen"))
                     .Next("s20"))
                 .Stage(new StageBuilder("s20")
@@ -250,7 +253,8 @@ namespace Aetherfall.EditorTools.Narrative
                 .LedgerEntry("ledger.c3", "Eine graue Gestalt hat am Riss auf dich gewartet.")
                 .Rewards(new GiveXp(500), new GiveItem("item.potion.heiltrank_schwach", 3))
                 .Production(ContentStatus.Draft, QuestScopeTier.A, 0, "claude", 40,
-                    "Mini-Slice: ohne Zwischensequenzen und Musik; Risslinge im Hinterhalt, die Rissbrut ist ein Champion-Rissling.")
+                    "Mini-Slice: Prolog-Eröffnung als Zwischensequenz (cs.prolog.erwachen), s40/s50 noch ohne, keine Musik; Risslinge im " +
+                    "Hinterhalt, die Rissbrut ist ein Champion-Rissling.")
                 .Build();
         }
 

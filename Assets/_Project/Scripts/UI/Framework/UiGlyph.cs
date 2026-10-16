@@ -61,6 +61,9 @@ namespace Aetherfall.UI.Framework
         QuickSlot3 = 18,
 
         /// <summary>Quick slot 4 (D-pad left / key 8).</summary>
-        QuickSlot4 = 19
+        QuickSlot4 = 19,
+
+        /// <summary>Skip a cutscene (A / Cross / south button / Space; held).</summary>
+        Skip = 20
     }
 }

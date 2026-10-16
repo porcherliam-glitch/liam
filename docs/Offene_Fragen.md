@@ -241,6 +241,11 @@ Diese Entscheidungen bestimmen Phase 0.4 und Phase 1 weniger stark. **Bis zur An
 | Tag/Nacht | Welche Lichter zählen für die Schleich-KI? | Brennende Feuer und Lampen bis 5 m (registrierte Lichtquellen); leuchtende Fenster nicht | [Status](./Status.md) |
 | Tag/Nacht | Lichtwert in der Gruft? | Vorerst 1,0 (wie bisher); später 0,7 mit Fackel-Inseln 0,9 | [Status](./Status.md) |
 | Tag/Nacht | Was heißt „tagsüber“ für Glutfang? | Offen: Phase Tag (8–18) oder 6–20 Uhr | [Status](./Status.md) |
+| Zwischensequenz | Oberfläche der Zwischensequenzen (Balken, Untertitel, Abblende)? | UI Toolkit wie alle anderen Bildschirme statt uGUI/TMP (Technik/01 Z. 2219); Untertitel und Abblenden sind Daten am Abspieler, keine eigene Timeline-Spur | [Anleitung 16](./Anleitungen/16_Test_Zwischensequenzen.md) |
+| Zwischensequenz | Pause während einer Zwischensequenz? | Vorerst nein: Esc und B tun nichts (Technik/01 4.4 statt GDD 03 Z. 256); Pause mit Rückkehr in die Sequenz in Stufe B | [Anleitung 16](./Anleitungen/16_Test_Zwischensequenzen.md) |
+| Zwischensequenz | Überspringen: wie lange halten, welche Tasten? | A oder Leertaste so lange wie „Halten zum Bestätigen“ (1 s, Option 0,5–1,5 s), nur nach neuem Drücken; Enter überspringt nicht | [Anleitung 16](./Anleitungen/16_Test_Zwischensequenzen.md) |
+| Zwischensequenz | Kinobalken? | Bild auf 2,35:1, je Balken höchstens 13 % der Höhe; bei 21:9 und 32:9 keine Balken | [Anleitung 16](./Anleitungen/16_Test_Zwischensequenzen.md) |
+| Zwischensequenz | Aufteilung der Assembly 29? | 29 Aetherfall.Cinematics (reine Logik, mit Verweis auf Dialogue) und 29b Aetherfall.Cinematics.Playback (Timeline/Cinemachine) | [Technik/01](./Technik/01_Architektur.md) |
 | Kampf | Kampf vom Reittier? | Nur Reiterhieb und Bogen/Armbrust (~15 statt ~60 Animationen) | [GDD 03](./GDD/03_Kampf_Charakter_Progression.md#offene-entscheidungen) |
 | Kampf | Alle 11 Waffentypen als Ziel für Stufe C? | Ja, Faustwaffen und Armbrust zuletzt | [GDD 03](./GDD/03_Kampf_Charakter_Progression.md#offene-entscheidungen) |
 | Steuerung | Fähigkeiten am Controller: nur Rad (§7.1) oder Rad + Akkord? | Rad + Akkord (RB + Taste), „nur Rad“ als Option | [GDD 03](./GDD/03_Kampf_Charakter_Progression.md#offene-entscheidungen) |

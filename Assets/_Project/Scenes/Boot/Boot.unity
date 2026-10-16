@@ -570,6 +570,7 @@ MonoBehaviour:
   optionsPageLayout: {fileID: 9197481963319205126, guid: 39901eabd18ecaa4e8c9e19bc762a205, type: 3}
   toastEntryLayout: {fileID: 9197481963319205126, guid: e413db98a0019f54bbd11039fab904a5, type: 3}
   dialogueLayout: {fileID: 9197481963319205126, guid: 91c79c7a3cae5094b82bcc61b81347a4, type: 3}
+  cutsceneLayout: {fileID: 9197481963319205126, guid: 0728bf5bace28ae4abe61f72e216b3af, type: 3}
   journalLayout: {fileID: 9197481963319205126, guid: bdc19ba278ae5094a86aa20a53cda6fc, type: 3}
   tradeLayout: {fileID: 9197481963319205126, guid: bb2911d953c57ad4b852712d201787e2, type: 3}
   diceLayout: {fileID: 9197481963319205126, guid: eecb7aa80ea18e948a3e8c0c1954a0e2, type: 3}

@@ -21,6 +21,8 @@
         "Aetherfall.Player",
         "Aetherfall.Quests",
         "Aetherfall.Dialogue",
+        "Aetherfall.Cinematics",
+        "Aetherfall.Cinematics.Playback",
         "Aetherfall.NPC",
         "Aetherfall.CameraSystem",
         "Aetherfall.UI.Framework",
@@ -35,6 +37,7 @@
         "Aetherfall.Skills",
         "Aetherfall.Difficulty",
         "Unity.Cinemachine",
+        "Unity.Timeline",
         "Unity.InputSystem"
     ],
     "includePlatforms": [
@@ -48,7 +51,8 @@
     "defineConstraints": [
         "AETHERFALL_INPUTSYSTEM",
         "AETHERFALL_CINEMACHINE",
-        "AETHERFALL_NEWTONSOFT"
+        "AETHERFALL_NEWTONSOFT",
+        "AETHERFALL_TIMELINE"
     ],
     "versionDefines": [
         {
@@ -65,6 +69,11 @@
             "name": "com.unity.nuget.newtonsoft-json",
             "expression": "3.0",
             "define": "AETHERFALL_NEWTONSOFT"
+        },
+        {
+            "name": "com.unity.timeline",
+            "expression": "1.0",
+            "define": "AETHERFALL_TIMELINE"
         }
     ],
     "noEngineReferences": false

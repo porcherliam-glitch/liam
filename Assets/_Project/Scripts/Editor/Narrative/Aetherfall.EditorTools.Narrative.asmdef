@@ -14,6 +14,7 @@
         "Aetherfall.World",
         "Aetherfall.World.Gameplay",
         "Aetherfall.Dialogue",
+        "Aetherfall.Cinematics",
         "Aetherfall.NPC",
         "Aetherfall.Minigames",
         "Aetherfall.EditorTools.Core"

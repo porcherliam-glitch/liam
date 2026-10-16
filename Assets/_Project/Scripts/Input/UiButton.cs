@@ -29,6 +29,9 @@ namespace Aetherfall.Input
         SubTabNext = 6,
 
         /// <summary>Secondary action (X, F; GDD 05 1.4: equip, mark, focus a quest).</summary>
-        Secondary = 7
+        Secondary = 7,
+
+        /// <summary>Skip a cutscene (A, Space; GDD 03 1.5: held for the hold duration, timed by the cutscene screen).</summary>
+        Skip = 8
     }
 }

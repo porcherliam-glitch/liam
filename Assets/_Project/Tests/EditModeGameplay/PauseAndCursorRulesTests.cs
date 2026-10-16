@@ -68,11 +68,11 @@ namespace Aetherfall.Tests.EditMode.Gameplay
         }
 
         [Test]
-        public void Cursor_IsLockedOnlyWhilePlaying()
+        public void Cursor_IsLockedWhilePlayingAndInCutscenes()
         {
             foreach (GameState state in AllStates)
             {
-                Assert.That(CursorPolicy.ShouldLockCursor(state), Is.EqualTo(state == GameState.Playing), state.ToString());
+                Assert.That(CursorPolicy.ShouldLockCursor(state), Is.EqualTo(state == GameState.Playing || state == GameState.Cutscene), state.ToString());
             }
         }
     }

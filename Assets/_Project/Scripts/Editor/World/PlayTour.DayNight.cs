@@ -21,7 +21,6 @@ namespace Aetherfall.EditorTools.World
     public static partial class PlayTour
     {
         private static readonly List<DayPhaseChanged> PhaseEvents = new List<DayPhaseChanged>();
-        private static float _morningLuminance = -1f;
         private static bool _phaseSubscribed;
 
         private static void BuildDayNightPlan()
@@ -69,7 +68,6 @@ namespace Aetherfall.EditorTools.World
         private static bool StartDayNight()
         {
             PhaseEvents.Clear();
-            _morningLuminance = -1f;
             if (!_phaseSubscribed && Services.Locator.TryGet(out IEventBus bus))
             {
                 bus.Subscribe<DayPhaseChanged>(OnDayPhase);

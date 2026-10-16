@@ -1,0 +1,25 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
+    <!--
+        Cutscene screen (S58): veil, cinema bars, caption card, subtitle and the skip hint. Caption, speaker and subtitle are set
+        by CutsceneScreen; "cutscene-hint-skip" gets its text from UiTexts (hint-skip), the glyph label from the glyph service.
+    -->
+    <ui:VisualElement name="cutscene" class="af-root af-cutscene" picking-mode="Ignore">
+        <ui:VisualElement name="cutscene-veil" class="af-cutscene__veil" picking-mode="Ignore" />
+        <ui:VisualElement name="cutscene-bar-top" class="af-cutscene__bar af-cutscene__bar--top" picking-mode="Ignore" />
+        <ui:VisualElement name="cutscene-bar-bottom" class="af-cutscene__bar af-cutscene__bar--bottom" picking-mode="Ignore" />
+        <ui:Label name="cutscene-caption" class="af-text af-cutscene__caption" picking-mode="Ignore" />
+        <ui:VisualElement name="cutscene-subtitle" class="af-cutscene__subtitle" picking-mode="Ignore">
+            <ui:Label name="cutscene-speaker" class="af-text af-cutscene__speaker" picking-mode="Ignore" />
+            <ui:Label name="cutscene-text" class="af-text af-cutscene__text" picking-mode="Ignore" />
+        </ui:VisualElement>
+        <ui:VisualElement name="cutscene-hint" class="af-cutscene__hint" picking-mode="Ignore">
+            <ui:VisualElement class="af-hint af-cutscene__hint-row" picking-mode="Ignore">
+                <ui:Label name="cutscene-hint-glyph-skip" class="af-text af-glyph af-glyph--face" picking-mode="Ignore" />
+                <ui:Label name="cutscene-hint-skip" class="af-text af-hint__text" picking-mode="Ignore" />
+            </ui:VisualElement>
+            <ui:VisualElement class="af-cutscene__hold" picking-mode="Ignore">
+                <ui:VisualElement name="cutscene-hold-fill" class="af-button__hold-fill" picking-mode="Ignore" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

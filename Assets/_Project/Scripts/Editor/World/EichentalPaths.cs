@@ -56,6 +56,9 @@ namespace Aetherfall.EditorTools.World
         /// <summary>Day cycle of the region (S35), baked from the layout's <c>dayCycle</c> block; the crypt uses it too.</summary>
         public const string DayNightProfilePath = SetupPaths.ProjectFolder + "/Data/Regions/Eichental/DN_Eichental.asset";
 
+        /// <summary>Timeline of the prologue cutscene cs.prolog.erwachen (S58), baked from EichentalCutscenes; never edit by hand.</summary>
+        public const string PrologueTimelinePath = TestGroundPaths.CutsceneTimelineFolder + "/TL_Prolog_Erwachen.playable";
+
         /// <summary>Map id (save key of the exploration).</summary>
         public const string MapId = "map.eichental.mini_slice";
     }

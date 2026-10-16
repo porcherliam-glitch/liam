@@ -5,7 +5,7 @@ namespace Aetherfall.UI.Framework
     /// <summary>
     /// Naming rule for glyph labels in UXML (pure logic): a label named <c>…-glyph-&lt;id&gt;</c> shows the glyph of
     /// <c>&lt;id&gt;</c>, e.g. <c>pause-hint-glyph-back</c> → <see cref="UiGlyph.Back"/>. Ids: confirm, back, secondary,
-    /// sort, tabprev, tabnext, subtabprev, subtabnext, details, map, menu, interact, ability1–4, quick1–4.
+    /// sort, tabprev, tabnext, subtabprev, subtabnext, details, map, menu, interact, ability1–4, quick1–4, skip.
     /// </summary>
     public static class GlyphNames
     {
@@ -56,6 +56,7 @@ namespace Aetherfall.UI.Framework
                 case "quick2": glyph = UiGlyph.QuickSlot2; return true;
                 case "quick3": glyph = UiGlyph.QuickSlot3; return true;
                 case "quick4": glyph = UiGlyph.QuickSlot4; return true;
+                case "skip": glyph = UiGlyph.Skip; return true;
                 default: glyph = UiGlyph.Confirm; return false;
             }
         }

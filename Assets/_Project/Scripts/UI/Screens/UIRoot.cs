@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using Aetherfall.AI.Bosses;
+using Aetherfall.Cinematics;
 using Aetherfall.Core;
 using Aetherfall.Dialogue;
 using Aetherfall.Economy;
@@ -84,6 +85,9 @@ namespace Aetherfall.UI.Screens
         [Tooltip("Dialogue.uxml (Dialog-Bildschirm: Untertitel und Antworten)")]
         [SerializeField] private VisualTreeAsset dialogueLayout = null;
 
+        [Tooltip("Cutscene.uxml (Zwischensequenz: Kinobalken, Untertitel, „Überspringen (halten)“)")]
+        [SerializeField] private VisualTreeAsset cutsceneLayout = null;
+
         [Header("Layouts Questlog und Charakter (UXML)")]
         [Tooltip("Journal.uxml (Questlog und Charakter-Seite, Taste J oder Pausemenü)")]
         [SerializeField] private VisualTreeAsset journalLayout = null;
@@ -162,6 +166,7 @@ namespace Aetherfall.UI.Screens
         private IPlayerHudSource _deathScreenPlayer;
         private DialogueScreen _dialogueScreen;
         private DialogueScreenDirector _dialogueDirector;
+        private CutsceneScreen _cutsceneScreen;
         private readonly DialogueScreenPreferences _dialoguePreferences = new DialogueScreenPreferences();
         private int _screenWidth;
         private int _screenHeight;
@@ -268,6 +273,7 @@ namespace Aetherfall.UI.Screens
             _ui.RegisterScreen(_pauseMenu);
             _ui.RegisterScreen(_deathScreen);
             BuildDialogueScreen(screensRoot);
+            BuildCutsceneScreen(screensRoot);
             Services.Locator.TryGet(out IExplorationService exploration);
             Services.Locator.TryGet(out IPlayerLocator players);
             Services.Locator.TryGet(out IWorldMarkerRegistry worldMarkers);
@@ -324,6 +330,7 @@ namespace Aetherfall.UI.Screens
             _director = new UiStateDirector(_ui, _gameState, _input.Gameplay, _input.WasPausePressedThisFrame, _flow, _mainMenu, _pauseMenu,
                 _deathScreen, deathScreenDelay);
             _director.AttachJournal(_journal);
+            _director.AttachCutscene(_cutsceneScreen);
             _director.AttachMenu(_trade);
             _director.AttachMenu(_dice);
             _ui.AttachLayerHost(this);
@@ -811,6 +818,11 @@ namespace Aetherfall.UI.Screens
                 _dialogueScreen.RefreshGlyphs();
             }
 
+            if (_cutsceneScreen != null)
+            {
+                _cutsceneScreen.RefreshGlyphs();
+            }
+
             if (_journal != null)
             {
                 _journal.RefreshGlyphs();
@@ -955,6 +967,21 @@ namespace Aetherfall.UI.Screens
                 _dialoguePreferences);
             _ui.RegisterScreen(_dialogueScreen);
             _dialogueDirector = new DialogueScreenDirector(_ui, _dialogueScreen, source);
+        }
+
+        private void BuildCutsceneScreen(VisualElement screensRoot)
+        {
+            // Without CinematicsInstaller in the BootConfig, or without the layout, there is no cutscene screen (cutscenes then
+            // play without bars, subtitles and skipping).
+            if (cutsceneLayout == null || !Services.Locator.TryGet(out ICutsceneService cutscenes))
+            {
+                Log.Warning(LogCategory.UI, "UIRoot: no cutscene screen (field 'Cutscene Layout' empty or CinematicsInstaller missing).");
+                return;
+            }
+
+            _cutsceneScreen = new CutsceneScreen(CloneScreen(cutsceneLayout, screensRoot), _glyphs, cutscenes, _input.UI,
+                () => _ui is UIManager manager ? manager.Hold.Duration : HoldToConfirm.DefaultDuration);
+            _ui.RegisterScreen(_cutsceneScreen);
         }
 
         private static VisualElement CloneScreen(VisualTreeAsset layout, VisualElement parent)

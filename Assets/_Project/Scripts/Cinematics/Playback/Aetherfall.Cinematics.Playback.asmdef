@@ -1,0 +1,34 @@
+{
+    "name": "Aetherfall.Cinematics.Playback",
+    "rootNamespace": "Aetherfall.Cinematics.Playback",
+    "references": [
+        "Aetherfall.Core",
+        "Aetherfall.Events",
+        "Aetherfall.Dialogue",
+        "Aetherfall.Cinematics",
+        "Unity.Cinemachine"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "AETHERFALL_CINEMACHINE",
+        "AETHERFALL_NEWTONSOFT"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.unity.cinemachine",
+            "expression": "3.0",
+            "define": "AETHERFALL_CINEMACHINE"
+        },
+        {
+            "name": "com.unity.nuget.newtonsoft-json",
+            "expression": "3.0",
+            "define": "AETHERFALL_NEWTONSOFT"
+        }
+    ],
+    "noEngineReferences": false
+}
