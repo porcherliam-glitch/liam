@@ -102,7 +102,9 @@ Ziel: ein Teil des Eichentals (~1,1 km²), alle 8 Beispiel-Quests, etwa 3,5–4 
   - Teil 1 erledigt (2026-10-16): Prolog-Zwischensequenz cs.prolog.erwachen mit Kinobalken, Untertiteln und „Überspringen halten“, Rundgang `zwischensequenz`
   - Teil 2 erledigt: Dialogkamera mit Eröffnung, Schuss, Gegenschuss und Nah, 180°-Regel, Schnittregeln aus GDD 02 12.6
   - Später (Stufe B): Zwischensequenzen bei s40/s50, Musik in Zwischensequenzen, Pause in Zwischensequenzen, Begleiter-Einwürfe und Gruppen-Einstellungen der Dialogkamera
-- [ ] **Sammeln (S30, Teil):** Kräuter-Sammelpunkte mit Respawn, für „Das Kraut der Kräuterfrau“
+- [x] **Sammeln (S30, Teil):** Kräuter-Sammelpunkte mit Respawn, für „Das Kraut der Kräuterfrau“ – 2026-10-16, Commit 46bcbd5
+  - Erledigt: 12 Sammelpunkte (6 Blutwurz, 2 Nachtschattenblüten auf der neuen Kräuterwiese, 4 Rissmoos am Riss-Rand), 1–3 Stück je Pflanze, Nachwachsen nach 1 oder 3 Spieltagen nur ab 50 m Abstand, Nachtschatten nur 22–4 Uhr, Speichern und Laden, Rundgang `sammeln`
+  - Später (Stufe B): Beruf Kräuterkunde (Stufen, Erfahrung, Samen, Sichel), Glitzern ab 10 m, Erz und Holz; die Quest selbst mit Alwine kommt mit 1b
 - [ ] **Optionen und Barrierefreiheit (S11, S12)** nach GDD 05, 4.2:
   - Untertitel, Farbenblind-Modi, Halten statt Drücken, Wackeln aus, UI-Größe, Schwierigkeit
   - Grafik-Presets, Auflösung, FPS-Limit, V-Sync
