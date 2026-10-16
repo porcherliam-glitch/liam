@@ -25,7 +25,8 @@ namespace Aetherfall.EditorTools.World
     /// tour checks that it starts in the same frame as the game (the first picture is the black title card), that the game is
     /// held meanwhile (UI map, HUD hidden, saving refused, NPC signs hidden, player at the spawn point), photographs the five
     /// shots, checks the hand-over to the exploration camera at the natural end, then plays it again and skips it (hold bar,
-    /// veil, everything back as before). Every other tour skips the cutscene right after the start (<see cref="SkipRunningCutscene"/>).
+    /// veil, everything back as before), and ends with the dialogue camera (PlayTour.DialogueCamera.cs). Every other tour skips the
+    /// cutscene right after the start (<see cref="SkipRunningCutscene"/>).
     /// </summary>
     public static partial class PlayTour
     {
@@ -67,6 +68,9 @@ namespace Aetherfall.EditorTools.World
             Steps.Enqueue(CheckAfterCutscene);
             Steps.Enqueue(() => Capture("z10_spiel", null));
             Steps.Enqueue(EndCutsceneWatch);
+
+            // The dialogue camera: shot and reverse shot with Hollmann, the close-up with Hedda (PlayTour.DialogueCamera.cs).
+            BuildDialogueCameraPlan();
         }
 
         /// <summary>Before "Neues Spiel": records the cutscene events and the state changes with their frame.</summary>

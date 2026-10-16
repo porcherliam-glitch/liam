@@ -1915,7 +1915,7 @@ Kompression lokal: LZ4. Kein Remote-Katalog. Jede Ladeoperation hat einen Besitz
 | Timeline | `CinemachineTrack` mit statischen Kameras je Einstellung (überlappende Clips = Kamerafahrt), vom Generator gebacken (`CutsceneTimelineBuilder` aus `EichentalCutscenes`) | Zwischensequenzen |
 
 - `CinemachineBrain` an der Main Camera in der `Gameplay`-Szene (Hauptmenü hat eigene Kamera).
-- Umschalten per **Priorität** im `CameraModeService` (hört `GameStateChanged`, Lock-On-/Ziel-/Reit-Events der Spieler-Komponenten). Blends: Standard 0,25 s Ease, Lock-On 0,3 s, Dialog harter Schnitt.
+- Umschalten per **Priorität** im `CameraModeService` (hört `GameStateChanged`, Lock-On-/Ziel-/Reit-Events der Spieler-Komponenten). Blends: Standard 0,25 s Ease, Lock-On 0,3 s; Dialog 0,4 s Ease hinein und hinaus, zwischen den Dialogkameras harte Schnitte (`CinematicBlendOverride` über `CinemachineCore.GetBlendOverride`, S58).
 - **Kamera-Shake:** `CinemachineImpulseSource` an Treffern/Explosionen, `CinemachineImpulseListener` an allen Kameras, globaler Faktor aus Options (0 = aus, §8.1, §29).
 - Empfindlichkeit/Invertierung aus Options auf die Input-Axis-Controller.
 - Lock-On-Zielwahl liegt in `Combat` (`TargetingSystem`), nicht in der Kamera.

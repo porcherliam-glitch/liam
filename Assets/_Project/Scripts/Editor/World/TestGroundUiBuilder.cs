@@ -264,6 +264,8 @@ namespace Aetherfall.EditorTools.World
                 FillReference(root, Layouts[i].Key, layout, report);
             }
 
+            // S58: the dialogue cameras live in the boot scene, so they work in every world scene.
+            DialogueCameraBuilder.Ensure(scene, report);
             EditorSceneManager.MarkSceneDirty(scene);
             if (!EditorSceneManager.SaveScene(scene))
             {
