@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using Aetherfall.Core;
 using Aetherfall.Progression;
 using Aetherfall.Quests;
 using Aetherfall.Skills;
 using Aetherfall.UI.Framework;
+using Aetherfall.World.Exploration;
 using UnityEngine.UIElements;
 
 namespace Aetherfall.UI.Screens
@@ -36,7 +38,13 @@ namespace Aetherfall.UI.Screens
         /// <summary>Skill rows that fit into the list column.</summary>
         public const int VisibleSkillRows = 6;
 
-        private const int PageCount = 3;
+        private const int PageCount = 4;
+
+        // GDD 05 1.3: the map is the first hub tab.
+        private static readonly JournalPage[] TabOrder = { JournalPage.Map, JournalPage.Quests, JournalPage.Character, JournalPage.Skills };
+
+        private readonly MapPageView _map;
+        private readonly MenuItemList _mapList;
 
         private readonly IQuestService _quests;
         private readonly IProgressionService _progression;
@@ -114,9 +122,11 @@ namespace Aetherfall.UI.Screens
         /// Called for B / Esc / J (the director pops <c>Menu</c>); null: the screen closes itself.
         /// </param>
         /// <param name="skills">Skill trees (null: the skill page stays empty).</param>
+        /// <param name="exploration">Exploration (null: the map page shows "keine Karte").</param>
+        /// <param name="players">Player locator (null: no player arrow on the map).</param>
         public JournalScreen(VisualElement root, VisualTreeAsset questRowAsset, VisualTreeAsset objectiveRowAsset, VisualTreeAsset lineAsset,
             VisualTreeAsset attributeRowAsset, VisualTreeAsset valueRowAsset, IGlyphService glyphs, IQuestService quests, IProgressionService progression,
-            Action closeRequested, ISkillService skills = null) : base(Id, root, glyphs)
+            Action closeRequested, ISkillService skills = null, IExplorationService exploration = null, IPlayerLocator players = null) : base(Id, root, glyphs)
         {
             if (questRowAsset == null || objectiveRowAsset == null || lineAsset == null || attributeRowAsset == null || valueRowAsset == null)
             {
@@ -143,6 +153,9 @@ namespace Aetherfall.UI.Screens
             _pageTabs[(int)JournalPage.Character] = root.Q<VisualElement>("journal-tab-character");
             _pages[(int)JournalPage.Skills] = root.Q<VisualElement>("journal-skills-page");
             _pageTabs[(int)JournalPage.Skills] = root.Q<VisualElement>("journal-tab-skills");
+            _pages[(int)JournalPage.Map] = root.Q<VisualElement>("journal-map-page");
+            _pageTabs[(int)JournalPage.Map] = root.Q<VisualElement>("journal-tab-map");
+            _map = new MapPageView(_pages[(int)JournalPage.Map], exploration, players);
             for (int i = 0; i < PageCount; i++)
             {
                 var page = (JournalPage)i;
@@ -196,6 +209,12 @@ namespace Aetherfall.UI.Screens
             _questList = CreateList("quests");
             _attributeList = CreateList("attributes");
             _skillList = CreateList("skills");
+            _mapList = CreateList("map");
+            // One invisible item keeps the page focusable (Tab, Back and later the map cursor reach it).
+            var mapFocus = new VisualElement { pickingMode = PickingMode.Ignore };
+            mapFocus.AddToClassList("af-map__focus");
+            _pages[(int)JournalPage.Map]?.Add(mapFocus);
+            _mapList.Add(mapFocus);
             BuildCharacterRows(root.Q<VisualElement>("character-attributes"), attributeRowAsset, valueRowAsset);
             BindGlyphs();
             SelectPage(JournalPage.Quests);
@@ -203,6 +222,9 @@ namespace Aetherfall.UI.Screens
 
         /// <summary>The page shown.</summary>
         public JournalPage Page => _page;
+
+        /// <summary>The map page (tests, tour).</summary>
+        public MapPageView Map => _map;
 
         /// <summary>The quest log category shown.</summary>
         public QuestLogTab Category => _tab;
@@ -216,6 +238,11 @@ namespace Aetherfall.UI.Screens
             if (!IsOpen)
             {
                 return;
+            }
+
+            if (_page == JournalPage.Map)
+            {
+                _map.Refresh();
             }
 
             if (_quests != null && _quests.Revision != _questRevision)
@@ -240,6 +267,11 @@ namespace Aetherfall.UI.Screens
         /// <inheritdoc />
         public override void Submit(int index)
         {
+            if (_page == JournalPage.Map)
+            {
+                return;
+            }
+
             if (_page == JournalPage.Character)
             {
                 Spend(index);
@@ -264,6 +296,11 @@ namespace Aetherfall.UI.Screens
         /// <inheritdoc />
         public override void Secondary(int index)
         {
+            if (_page == JournalPage.Map)
+            {
+                return;
+            }
+
             if (_page == JournalPage.Character)
             {
                 Refund(index);
@@ -319,7 +356,8 @@ namespace Aetherfall.UI.Screens
         /// <inheritdoc />
         public override void Tab(int delta)
         {
-            SelectPage((JournalPage)((((int)_page + delta) % PageCount + PageCount) % PageCount));
+            int index = Array.IndexOf(TabOrder, _page);
+            SelectPage(TabOrder[((index + delta) % TabOrder.Length + TabOrder.Length) % TabOrder.Length]);
         }
 
         /// <inheritdoc />
@@ -422,13 +460,19 @@ namespace Aetherfall.UI.Screens
 
             bool quests = page == JournalPage.Quests;
             bool skills = page == JournalPage.Skills;
-            UiElementUtility.SetText(_title, UiTexts.Get(quests ? UiTextKeys.JournalQuests : skills ? UiTextKeys.JournalSkills : UiTextKeys.JournalCharacter));
+            bool map = page == JournalPage.Map;
+            UiElementUtility.SetText(_title, UiTexts.Get(map ? UiTextKeys.JournalMap : quests ? UiTextKeys.JournalQuests : skills ? UiTextKeys.JournalSkills : UiTextKeys.JournalCharacter));
             UiElementUtility.SetText(_hintConfirm, UiTexts.Get(quests ? UiTextKeys.HintTrack : skills ? UiTextKeys.HintLearn : UiTextKeys.HintSpend));
             UiElementUtility.SetText(_hintSecondary, UiTexts.Get(quests ? UiTextKeys.HintFocus : UiTextKeys.HintRefund));
             UiElementUtility.SetText(_hintSubtabText, UiTexts.Get(skills ? UiTextKeys.HintBar : UiTextKeys.HintSubtabs));
             UiElementUtility.SetDisplayed(_hintSubtabs, quests || skills);
             UpdateActionHints();
-            if (quests)
+            if (map)
+            {
+                Activate(_mapList, 0);
+                _map.Refresh();
+            }
+            else if (quests)
             {
                 Activate(_questList, _questList.Focus.HasFocus ? _questList.Focus.Current : 0);
                 ApplyWindow();
@@ -462,7 +506,7 @@ namespace Aetherfall.UI.Screens
         private void UpdateActionHints()
         {
             // Finished quests cannot be tracked or focused: the hints for A and X are hidden on the tab "Abgeschlossen".
-            bool actions = _page != JournalPage.Quests || _tab != QuestLogTab.Completed;
+            bool actions = _page != JournalPage.Map && (_page != JournalPage.Quests || _tab != QuestLogTab.Completed);
             UiElementUtility.SetDisplayed(_hintConfirm != null ? _hintConfirm.parent : null, actions);
             UiElementUtility.SetDisplayed(_hintSecondaryGroup, actions);
         }

@@ -12,7 +12,8 @@ namespace Aetherfall.Player
     /// <c>player</c>: position, yaw, world space), <see cref="PlayerResourcesSaveable"/> (section <c>stats.player</c>:
     /// health, stamina, mana) and <see cref="PlayerAbilitiesSaveable"/> (section <c>abilities.player</c>: ability bar and
     /// learned abilities) with <see cref="ISaveManager"/>, places the character when a save is loaded, and blocks saving
-    /// while the character jumps or falls (<see cref="AirborneSaveLock"/>, architecture 9.8).
+    /// while the character jumps, falls or climbs (<see cref="AirborneSaveLock"/>, architecture 9.8). Registers the character with
+    /// <see cref="IPlayerLocator"/> (<see cref="IPlayerAnchor"/>: map, compass, fast travel).
     /// </summary>
     /// <remarks>
     /// <para>GameObject: the player root next to <see cref="PlayerMotor"/>, <see cref="DamageableComponent"/> and
@@ -24,7 +25,7 @@ namespace Aetherfall.Player
     /// SaveInstaller in the BootConfig it logs a warning and the player is not saved.</para>
     /// </remarks>
     [DisallowMultipleComponent]
-    public sealed class PlayerPersistence : MonoBehaviour, IPlayerPlacement
+    public sealed class PlayerPersistence : MonoBehaviour, IPlayerPlacement, IPlayerAnchor
     {
         [Tooltip("Bewegung der Figur (zum Teleportieren beim Laden). Leer = PlayerMotor am selben GameObject.")]
         [SerializeField] private PlayerMotor motor = null;
@@ -43,12 +44,19 @@ namespace Aetherfall.Player
         private PlayerResourcesSaveable _resources;
         private PlayerAbilitiesSaveable _abilities;
         private AirborneSaveLock _airborneLock;
+        private IPlayerLocator _players;
 
         /// <inheritdoc />
         public PlayerPose CurrentPose => motor.CurrentPose;
 
         /// <inheritdoc />
         public string WorldSpaceId => worldSpaceId;
+
+        /// <inheritdoc />
+        public Vector3 Position => transform.position;
+
+        /// <inheritdoc />
+        public float Yaw => transform.eulerAngles.y;
 
         /// <summary>True after both saveables were registered with the save manager.</summary>
         public bool IsRegistered => _saves != null;
@@ -66,6 +74,12 @@ namespace Aetherfall.Player
             }
 
             motor.Teleport(pose);
+        }
+
+        /// <inheritdoc />
+        public void Place(Vector3 position, float yaw)
+        {
+            motor.Teleport(position, Quaternion.Euler(0f, yaw, 0f));
         }
 
         private void Awake()
@@ -102,6 +116,13 @@ namespace Aetherfall.Player
             {
                 await Services.WaitForAsync<IGameStateService>(destroyCancellationToken);
                 IServiceLocator locator = Services.Locator;
+                if (locator != null && locator.TryGet(out IPlayerLocator players))
+                {
+                    // Before the save check: the map and the compass need the player even without a save system.
+                    players.Register(this);
+                    _players = players;
+                }
+
                 if (locator == null || !locator.TryGet(out ISaveManager saves))
                 {
                     Log.Warning(LogCategory.Player, "PlayerPersistence: no ISaveManager registered, the player is not saved. " +
@@ -147,6 +168,8 @@ namespace Aetherfall.Player
 
         private void OnDestroy()
         {
+            _players?.Unregister(this);
+            _players = null;
             if (_saves == null)
             {
                 return;

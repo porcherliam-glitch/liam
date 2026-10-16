@@ -90,7 +90,7 @@ namespace Aetherfall.EditorTools.World
             string mode = ReadArgument("-tourMode");
             _outputFolder = Path.Combine(projectRoot, "Logs", "Tour", Path.GetFileNameWithoutExtension(scenePath) +
                                                                       (mode == "quests" ? "_Quests" : mode == "magier" ? "_Magier" :
-                                                                          mode == "waffen" ? "_Waffen" : mode == "klettern" ? "_Klettern" : string.Empty));
+                                                                          mode == "waffen" ? "_Waffen" : mode == "klettern" ? "_Klettern" : mode == "karte" ? "_Karte" : string.Empty));
             Directory.CreateDirectory(_outputFolder);
             foreach (string old in Directory.GetFiles(_outputFolder))
             {
@@ -146,6 +146,13 @@ namespace Aetherfall.EditorTools.World
             {
                 // Mace and bow of the warrior (PlayTour.Weapons.cs).
                 BuildWeaponsPlan();
+                return;
+            }
+
+            if (ReadArgument("-tourMode") == "karte")
+            {
+                // World map, discovering places, the crow's nest viewpoint and saving the fog (PlayTour.Map.cs).
+                BuildMapPlan();
                 return;
             }
 

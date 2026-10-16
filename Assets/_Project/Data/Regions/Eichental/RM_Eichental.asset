@@ -1,0 +1,203 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9b9231bc6dd8db249ba136efa0cd9695, type: 3}
+  m_Name: RM_Eichental
+  m_EditorClassIdentifier: Aetherfall.World::Aetherfall.World.Exploration.RegionMapDefinition
+  mapId: map.eichental.mini_slice
+  regionId: region.eichental
+  regionName: Eichental
+  worldSpaceId: worldspace.eichental.mini_slice
+  mapImage: {fileID: 2800000, guid: e5b6f64d889d94144812ca8ab48cda39, type: 3}
+  originX: -256
+  originZ: -256
+  extent: 512
+  playableMin: {x: -200, y: -200}
+  playableMax: {x: 200, y: 200}
+  fogCellSize: 4
+  revealRadius: 60
+  places:
+  - id: loc.eichental.dorf_eichental
+    displayName: Dorf Eichental
+    kind: 0
+    x: 48
+    z: -24
+    radius: 75
+    showOnMap: 1
+    revealRadius: 0
+    boxWidth: 0
+    boxDepth: 0
+    boxYaw: 0
+  - id: loc.eichental.dorfplatz
+    displayName: Dorfplatz von Eichental
+    kind: 1
+    x: 40
+    z: -30
+    radius: 15
+    showOnMap: 0
+    revealRadius: 0
+    boxWidth: 0
+    boxDepth: 0
+    boxYaw: 0
+  - id: loc.eichental.dorfrand
+    displayName: Dorfrand von Eichental
+    kind: 1
+    x: -16
+    z: -46
+    radius: 10
+    showOnMap: 0
+    revealRadius: 0
+    boxWidth: 0
+    boxDepth: 0
+    boxYaw: 0
+  - id: loc.eichental.riss_eichental
+    displayName: Der Riss von Eichental
+    kind: 1
+    x: 120
+    z: 44
+    radius: 20
+    showOnMap: 1
+    revealRadius: 0
+    boxWidth: 0
+    boxDepth: 0
+    boxYaw: 0
+  - id: loc.eichental.lindenhain
+    displayName: Lindenhain
+    kind: 0
+    x: -160
+    z: -30
+    radius: 40
+    showOnMap: 1
+    revealRadius: 0
+    boxWidth: 0
+    boxDepth: 0
+    boxYaw: 0
+  - id: loc.eichental.gasthaus_krummer_kessel
+    displayName: "Gasthaus \u201EZum Krummen Kessel\u201C"
+    kind: 1
+    x: -152
+    z: -8
+    radius: 10
+    showOnMap: 1
+    revealRadius: 0
+    boxWidth: 0
+    boxDepth: 0
+    boxYaw: 0
+  - id: loc.eichental.wachposten_lindenhain
+    displayName: Wachposten der Silberwacht
+    kind: 1
+    x: -178
+    z: -52
+    radius: 8
+    showOnMap: 1
+    revealRadius: 0
+    boxWidth: 0
+    boxDepth: 0
+    boxYaw: 0
+  - id: loc.eichental.hof_hollmann
+    displayName: Hollmann-Hof
+    kind: 0
+    x: -156
+    z: 108
+    radius: 30
+    showOnMap: 1
+    revealRadius: 0
+    boxWidth: 0
+    boxDepth: 0
+    boxYaw: 0
+  - id: loc.eichental.nordhang
+    displayName: Nordhang
+    kind: 2
+    x: -112
+    z: 170
+    radius: 85
+    showOnMap: 1
+    revealRadius: 0
+    boxWidth: 170
+    boxDepth: 60
+    boxYaw: 0
+  - id: loc.eichental.wolfsbau_nordhang
+    displayName: Wolfsbau
+    kind: 1
+    x: -82
+    z: 186
+    radius: 10
+    showOnMap: 1
+    revealRadius: 0
+    boxWidth: 0
+    boxDepth: 0
+    boxYaw: 0
+  - id: loc.eichental.vergessene_gruft
+    displayName: Vergessene Gruft
+    kind: 3
+    x: 2
+    z: 150
+    radius: 12
+    showOnMap: 1
+    revealRadius: 0
+    boxWidth: 0
+    boxDepth: 0
+    boxYaw: 0
+  - id: loc.eichental.muehle_muehlbach
+    displayName: "M\xFChle am M\xFChlbach"
+    kind: 0
+    x: -128
+    z: -124
+    radius: 22
+    showOnMap: 1
+    revealRadius: 0
+    boxWidth: 0
+    boxDepth: 0
+    boxYaw: 0
+  - id: loc.eichental.rabenfels_spitze
+    displayName: Rabenfels-Spitze
+    kind: 4
+    x: 12
+    z: 184
+    radius: 7
+    showOnMap: 1
+    revealRadius: 150
+    boxWidth: 0
+    boxDepth: 0
+    boxYaw: 0
+  - id: loc.eichental.wachturm_grauwacht
+    displayName: Wachturm Grauwacht
+    kind: 4
+    x: -186
+    z: 78
+    radius: 14
+    showOnMap: 1
+    revealRadius: 150
+    boxWidth: 0
+    boxDepth: 0
+    boxYaw: 0
+  - id: loc.eichental.steinbruch_grimmbart
+    displayName: Grimmbarts Steinbruch
+    kind: 1
+    x: 150
+    z: -168
+    radius: 34
+    showOnMap: 1
+    revealRadius: 0
+    boxWidth: 0
+    boxDepth: 0
+    boxYaw: 0
+  - id: loc.eichental.steinbruch_arena
+    displayName: Kessel des Steinbruchs
+    kind: 1
+    x: 150
+    z: -176
+    radius: 14
+    showOnMap: 0
+    revealRadius: 0
+    boxWidth: 0
+    boxDepth: 0
+    boxYaw: 0

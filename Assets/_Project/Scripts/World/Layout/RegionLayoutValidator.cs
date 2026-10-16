@@ -436,6 +436,16 @@ namespace Aetherfall.World
                 {
                     RequireId(l.Quests[q], "quest.", l.Id + ".quests", report);
                 }
+
+                if (l.Kind == LocationKind.Viewpoint && !(l.RevealRadius > 0.0))
+                {
+                    report.Error(l.Id, "Aussichtspunkt ohne revealRadius: Er muss beim Aktivieren den Kartennebel lichten (GDD 01 6.6).");
+                }
+
+                if (l.RevealRadius < 0.0)
+                {
+                    report.Error(l.Id, "revealRadius darf nicht negativ sein.");
+                }
             }
 
             for (int i = 0; i < layout.Props.Count; i++)

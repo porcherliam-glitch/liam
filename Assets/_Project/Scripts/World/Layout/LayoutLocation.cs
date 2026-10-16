@@ -35,5 +35,11 @@ namespace Aetherfall.World
 
         /// <summary>Quest ids that use the zone.</summary>
         public IReadOnlyList<string> Quests { get; internal set; } = Array.Empty<string>();
+
+        /// <summary>Name on the world map; empty = no icon and no "Ort entdeckt" (sub-zones such as the village square).</summary>
+        public string MapName { get; internal set; } = string.Empty;
+
+        /// <summary>Viewpoints: fog cleared around them on activation in metres (GDD 01 6.6); 0 for other places.</summary>
+        public double RevealRadius { get; internal set; }
     }
 }

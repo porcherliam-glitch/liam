@@ -1,11 +1,12 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" editor-extension-mode="False">
-    <!-- Journal (GDD 05 1.3 hub tabs "Questlog", "Charakter" and "Fähigkeiten", LB/RB; quest categories with LT/RT, GDD 02 7.1). -->
+    <!-- Journal (GDD 05 1.3 hub tabs "Karte", "Questlog", "Charakter" and "Fähigkeiten", LB/RB; quest categories with LT/RT, GDD 02 7.1). -->
     <ui:VisualElement name="journal" class="af-root af-screen af-overlay af-journal">
         <ui:VisualElement class="af-panel af-journal__panel">
             <ui:VisualElement class="af-pause__header">
                 <ui:Label name="journal-title" class="af-text af-pause__title" />
                 <ui:VisualElement class="af-tabs">
                     <ui:Label name="journal-tabs-glyph-tabprev" class="af-text af-glyph" picking-mode="Ignore" />
+                    <ui:Button name="journal-tab-map" class="af-text af-tab" focusable="false" />
                     <ui:Button name="journal-tab-quests" class="af-text af-tab" focusable="false" />
                     <ui:Button name="journal-tab-character" class="af-text af-tab" focusable="false" />
                     <ui:Button name="journal-tab-skills" class="af-text af-tab" focusable="false" />
@@ -13,6 +14,7 @@
                 </ui:VisualElement>
             </ui:VisualElement>
             <ui:VisualElement class="af-journal__body">
+                <ui:VisualElement name="journal-map-page" class="af-journal__page" />
                 <ui:VisualElement name="journal-quests-page" class="af-journal__page">
                     <ui:VisualElement class="af-subtabs">
                         <ui:Label name="questlog-subtabs-glyph-subtabprev" class="af-text af-glyph" picking-mode="Ignore" />

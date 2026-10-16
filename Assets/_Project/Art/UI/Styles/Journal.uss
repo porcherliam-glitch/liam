@@ -531,3 +531,145 @@
 .af-quest-row.is-learned .af-quest-row__badge {
     color: var(--text-secondary);
 }
+
+/* World map page (S63): the painted map with fog, place icons and the player arrow; counters and legend at the side. */
+.af-map {
+    flex-direction: row;
+    flex-grow: 1;
+}
+
+.af-map__frame {
+    position: relative;
+    width: 560px;
+    height: 560px;
+    overflow: hidden;
+    border-width: 3px;
+    border-color: rgb(92, 70, 44);
+    background-color: rgb(120, 104, 80);
+}
+
+.af-map__image,
+.af-map__fog,
+.af-map__icons {
+    position: absolute;
+}
+
+.af-map__icons {
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+}
+
+.af-map__place {
+    position: absolute;
+    width: 12px;
+    height: 12px;
+    margin-left: -6px;
+    margin-top: -6px;
+    border-radius: 6px;
+    border-width: 2px;
+    border-color: rgb(40, 28, 18);
+    background-color: rgb(236, 220, 180);
+    overflow: visible;
+}
+
+.af-map__place--viewpoint {
+    border-radius: 2px;
+    background-color: rgb(110, 200, 196);
+}
+
+.af-map__place--dungeon {
+    background-color: rgb(120, 90, 140);
+}
+
+.af-map__place--unknown {
+    background-color: rgb(170, 160, 140);
+    border-color: rgb(110, 98, 80);
+}
+
+.af-map__name {
+    position: absolute;
+    left: 11px;
+    top: -10px;
+    padding: 0 4px;
+    font-size: 14px;
+    white-space: nowrap;
+    color: rgb(30, 22, 14);
+    -unity-font-style: bold;
+    background-color: rgba(240, 228, 196, 0.8);
+    border-radius: 3px;
+}
+
+.af-map__name--unknown {
+    left: -3px;
+    top: -22px;
+    font-size: 16px;
+    background-color: rgba(240, 228, 196, 0.6);
+}
+
+.af-map__player {
+    position: absolute;
+    width: 16px;
+    height: 22px;
+    margin-left: -8px;
+    margin-top: -11px;
+}
+
+.af-map__none {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 45%;
+    font-size: 20px;
+    -unity-text-align: middle-center;
+    color: rgb(240, 228, 196);
+}
+
+.af-map__side {
+    flex-grow: 1;
+    padding-left: 24px;
+}
+
+.af-map__region {
+    font-size: 26px;
+    -unity-font-style: bold;
+    margin-bottom: 10px;
+}
+
+.af-map__count {
+    font-size: 17px;
+    margin-bottom: 4px;
+}
+
+.af-map__legend {
+    margin-top: 22px;
+}
+
+.af-map__legend-row {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.af-map__swatch {
+    position: relative;
+    margin: 0 12px 0 6px;
+}
+
+.af-map__legend-player {
+    width: 12px;
+    height: 12px;
+    border-radius: 6px;
+    background-color: rgb(190, 30, 26);
+}
+
+.af-map__legend-text {
+    font-size: 15px;
+}
+
+.af-map__focus {
+    position: absolute;
+    width: 0;
+    height: 0;
+}

@@ -135,6 +135,42 @@ namespace Aetherfall.UI.Framework
         /// <summary>Tab name "Fähigkeiten" (journal title).</summary>
         public const string JournalSkills = "journal-tab-skills";
 
+        /// <summary>Tab name "Karte" (journal title, first hub tab).</summary>
+        public const string JournalMap = "journal-tab-map";
+
+        /// <summary>Map page without a map (crypt).</summary>
+        public const string MapNone = "map-none";
+
+        /// <summary>Legend: discovered place.</summary>
+        public const string MapLegendPlace = "map-legend-place";
+
+        /// <summary>Legend: viewpoint.</summary>
+        public const string MapLegendViewpoint = "map-legend-viewpoint";
+
+        /// <summary>Legend: place seen from a viewpoint, not visited yet.</summary>
+        public const string MapLegendUnknown = "map-legend-unknown";
+
+        /// <summary>Legend: the player.</summary>
+        public const string MapLegendPlayer = "map-legend-player";
+
+        /// <summary>Counter of discovered places ({0} of {1}).</summary>
+        public const string MapCountPlaces = "map-count-places";
+
+        /// <summary>Counter of viewpoints ({0} of {1}).</summary>
+        public const string MapCountViewpoints = "map-count-viewpoints";
+
+        /// <summary>Share of the map without fog ({0} %).</summary>
+        public const string MapCountRevealed = "map-count-revealed";
+
+        /// <summary>Message: a place was discovered ({0} = name).</summary>
+        public const string NoteLocationDiscovered = "note-location-discovered";
+
+        /// <summary>Message: a viewpoint was activated ({0} = name, {1} = places marked).</summary>
+        public const string NoteViewpoint = "note-viewpoint";
+
+        /// <summary>Message: a region was entered for the first time ({0} = name).</summary>
+        public const string NoteRegionDiscovered = "note-region-discovered";
+
         /// <summary>Footer hint "Lernen".</summary>
         public const string HintLearn = "hint-learn";
 
