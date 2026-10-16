@@ -17,6 +17,13 @@ namespace Aetherfall.UI.Framework
         /// <param name="index">Item index.</param>
         bool RequiresHold(int index);
 
+        /// <summary>
+        /// A direction step (with auto-repeat) before it moves the focus: a screen that uses directions itself, e.g. the cursor
+        /// of the map page, returns true and the focus stays.
+        /// </summary>
+        /// <param name="direction">Up, down, left or right.</param>
+        bool TryNavigate(NavDirection direction);
+
         /// <summary>Left/right on a value item (option rows). Return true if the item consumed it.</summary>
         /// <param name="index">Focused item.</param>
         /// <param name="delta">-1 (left) or +1 (right).</param>

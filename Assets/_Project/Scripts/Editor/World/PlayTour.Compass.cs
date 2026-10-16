@@ -107,6 +107,8 @@ namespace Aetherfall.EditorTools.World
                     return "Quest";
                 case CompassMarkerKind.SearchArea:
                     return "Suchgebiet";
+                case CompassMarkerKind.OwnMarker:
+                    return "Eigene";
                 case CompassMarkerKind.Place:
                     return "Ort";
                 case CompassMarkerKind.UnknownPlace:

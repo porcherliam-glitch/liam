@@ -13,12 +13,15 @@ namespace Aetherfall.UI.Screens
     /// The map page of the journal (S63, GDD 05 1.3: first hub tab, M): the painted map of the current region cut to the
     /// playable area, the fog over everything not explored yet (soft edges), icons and names of the discovered places, "?" for
     /// places seen from a viewpoint, the targets of the tracked quests (diamonds in the colour of the quest category, the focus
-    /// quest larger; many targets as a search circle, S60), the player as an arrow, and at the side the region name, counters and a legend. Without a
-    /// map (crypt, menus) it says so.
+    /// quest larger; many targets as a search circle, S60), the player's own markers (GDD 05 1.8), the player as an arrow, and
+    /// at the side the region name, counters, the travel list and a legend. Without a map (crypt, menus) it says so.
     /// </summary>
     /// <remarks>
-    /// Built in code inside the page element of Journal.uxml (styles in Journal.uss, classes <c>af-map…</c>). Redraws the fog
-    /// and the icons only when <see cref="IExplorationService.Revision"/> changed; the arrow every refresh.
+    /// Built in code inside the page element of Journal.uxml (styles in Journal.uss, classes <c>af-map…</c>). Redraws the fog,
+    /// the icons and the own markers only when <see cref="IExplorationService.Revision"/> changed; the arrow, the quest pins and
+    /// the cursor every refresh. Own markers: X / F shows a cursor at the player, the directions move it, A / Enter sets a
+    /// marker there or removes the one under it, LT/RT (Z/C) choose the symbol, B / Esc puts the cursor away; a left click on
+    /// the map does the same at the pointer.
     /// </remarks>
     public sealed class MapPageView
     {
@@ -51,6 +54,14 @@ namespace Aetherfall.UI.Screens
         private readonly VisualElement _quests;
         private readonly List<VisualElement> _questPool = new List<VisualElement>();
         private readonly List<CompassCandidate> _questCandidates = new List<CompassCandidate>();
+        private readonly VisualElement _own;
+        private readonly List<Label> _ownPool = new List<Label>();
+        private readonly List<string> _ownTones = new List<string>();
+        private readonly VisualElement _cursor;
+        private readonly Label _cursorSymbol;
+        private readonly MapCursor _cursorModel = new MapCursor();
+        private int _symbol;
+        private string _cursorTone = string.Empty;
         private readonly List<string> _questTones = new List<string>();
         private int _confirm = -1;
         private Texture2D _fogTexture;
@@ -76,14 +87,25 @@ namespace Aetherfall.UI.Screens
             _questMarkers = questMarkers;
             var row = new VisualElement { pickingMode = PickingMode.Ignore };
             row.AddToClassList("af-map");
-            _frame = new VisualElement { name = "map-frame", pickingMode = PickingMode.Ignore };
+            // The frame takes clicks: a click sets an own marker there or removes the one under the pointer.
+            _frame = new VisualElement { name = "map-frame", pickingMode = PickingMode.Position };
             _frame.AddToClassList("af-map__frame");
             _image = Child(_frame, "af-map__image");
             _fog = Child(_frame, "af-map__fog");
             _icons = Child(_frame, "af-map__icons");
             _quests = Child(_frame, "af-map__icons");
+            _own = Child(_frame, "af-map__icons");
             _player = Child(_frame, "af-map__player");
             _player.generateVisualContent += DrawArrow;
+            _cursor = Child(_frame, "af-map__cursor");
+            Child(_cursor, "af-map__cursor-h");
+            Child(_cursor, "af-map__cursor-v");
+            _cursorSymbol = new Label { pickingMode = PickingMode.Ignore };
+            _cursorSymbol.AddToClassList("af-text");
+            _cursorSymbol.AddToClassList("af-map__cursor-symbol");
+            _cursor.Add(_cursorSymbol);
+            UiElementUtility.SetDisplayed(_cursor, false);
+            _frame.RegisterCallback<PointerDownEvent>(OnFramePointerDown);
             _noMap = new Label(UiTexts.Get(UiTextKeys.MapNone)) { pickingMode = PickingMode.Ignore };
             _noMap.AddToClassList("af-text");
             _noMap.AddToClassList("af-map__none");
@@ -109,6 +131,7 @@ namespace Aetherfall.UI.Screens
             legend.Add(LegendRow("af-map__place--viewpoint", UiTexts.Get(UiTextKeys.MapLegendViewpoint)));
             legend.Add(LegendRow("af-map__place--unknown", UiTexts.Get(UiTextKeys.MapLegendUnknown)));
             legend.Add(LegendRow("af-map__quest", UiTexts.Get(UiTextKeys.MapLegendQuest)));
+            legend.Add(OwnLegendRow(UiTexts.Get(UiTextKeys.MapLegendOwn)));
             legend.Add(LegendRow("af-map__legend-player", UiTexts.Get(UiTextKeys.MapLegendPlayer)));
             side.Add(legend);
             row.Add(side);
@@ -126,6 +149,21 @@ namespace Aetherfall.UI.Screens
 
         /// <summary>Quest markers shown (targets and search areas), for tests and the tour.</summary>
         public int VisibleQuestMarkers { get; private set; }
+
+        /// <summary>Own markers shown, for tests and the tour.</summary>
+        public int VisibleOwnMarkers { get; private set; }
+
+        /// <summary>True while the cursor for own markers is shown.</summary>
+        public bool CursorActive => _cursorModel.Active;
+
+        /// <summary>World position of the cursor (x, z).</summary>
+        public Vector2 CursorPosition => new Vector2(_cursorModel.X, _cursorModel.Z);
+
+        /// <summary>Symbol for new own markers (0–5).</summary>
+        public int Symbol => _symbol;
+
+        /// <summary>Radius within which a click or the cursor removes an own marker: 2.5 % of the shown area (about 14 px).</summary>
+        public float PickRadius => _viewExtent * 0.025f;
 
         /// <summary>Text of the counters (tests, tour).</summary>
         public string CountText => _places.text + " · " + _viewpoints.text + " · " + _revealed.text;
@@ -216,6 +254,88 @@ namespace Aetherfall.UI.Screens
             UiElementUtility.SetDisplayed(_travelStatus, !string.IsNullOrEmpty(text));
         }
 
+        /// <summary>Shows the cursor for own markers at the player (or in the middle of the map).</summary>
+        /// <returns>False without a map.</returns>
+        public bool BeginCursor()
+        {
+            if (_shownMap == null)
+            {
+                return false;
+            }
+
+            IPlayerAnchor player = _players != null ? _players.Current : null;
+            bool here = player != null && (player.WorldSpaceId.Length == 0 || player.WorldSpaceId == _shownMap.WorldSpaceId);
+            Vector3 position = here ? player.Position : new Vector3(float.NaN, 0f, float.NaN);
+            _cursorModel.Begin(position.x, position.z, _viewMinX, _viewMaxZ - _viewExtent, _viewMinX + _viewExtent, _viewMaxZ);
+            SetStatus(UiTexts.Format(UiTextKeys.MapMarkerSymbolChosen, MapMarkerSymbols.Glyph(_symbol), MapMarkerSymbols.Name(_symbol)));
+            DrawCursor();
+            return true;
+        }
+
+        /// <summary>Hides the cursor.</summary>
+        public void EndCursor()
+        {
+            if (!_cursorModel.Active)
+            {
+                return;
+            }
+
+            _cursorModel.End();
+            SetStatus(string.Empty);
+            DrawCursor();
+        }
+
+        /// <summary>Moves the cursor one step.</summary>
+        /// <param name="dx">−1 west, +1 east.</param>
+        /// <param name="dz">−1 south, +1 north.</param>
+        public void MoveCursor(int dx, int dz)
+        {
+            _cursorModel.Move(dx, dz);
+            DrawCursor();
+        }
+
+        /// <summary>Chooses the next or previous symbol for new markers.</summary>
+        /// <param name="delta">+1 or −1.</param>
+        public void CycleSymbol(int delta)
+        {
+            _symbol = MapMarkerRules.ClampSymbol(_symbol + delta);
+            SetStatus(UiTexts.Format(UiTextKeys.MapMarkerSymbolChosen, MapMarkerSymbols.Glyph(_symbol), MapMarkerSymbols.Name(_symbol)));
+            DrawCursor();
+        }
+
+        /// <summary>Sets an own marker at the cursor, or removes the one there.</summary>
+        public MapMarkerChange ToggleAtCursor()
+        {
+            return _cursorModel.Active ? ToggleAt(_cursorModel.X, _cursorModel.Z) : MapMarkerChange.None;
+        }
+
+        /// <summary>Sets an own marker at a world point of the shown map, or removes the one there, and says what happened.</summary>
+        /// <param name="x">World x.</param>
+        /// <param name="z">World z.</param>
+        public MapMarkerChange ToggleAt(float x, float z)
+        {
+            if (_exploration == null || _shownMap == null)
+            {
+                return MapMarkerChange.None;
+            }
+
+            MapMarkerChange change = _exploration.ToggleMarker(x, z, _symbol, PickRadius);
+            switch (change)
+            {
+                case MapMarkerChange.Added:
+                    SetStatus(UiTexts.Format(UiTextKeys.MapMarkerSet, MapMarkerSymbols.Name(_symbol)));
+                    break;
+                case MapMarkerChange.Removed:
+                    SetStatus(UiTexts.Get(UiTextKeys.MapMarkerRemoved));
+                    break;
+                case MapMarkerChange.Full:
+                    SetStatus(UiTexts.Format(UiTextKeys.MapMarkerFull, MapMarkerRules.MaxPerMap));
+                    break;
+            }
+
+            return change;
+        }
+
         /// <summary>Redraws what changed (call while the page is visible).</summary>
         public void Refresh()
         {
@@ -227,11 +347,15 @@ namespace Aetherfall.UI.Screens
             UiElementUtility.SetDisplayed(_fog, hasMap);
             UiElementUtility.SetDisplayed(_icons, hasMap);
             UiElementUtility.SetDisplayed(_quests, hasMap);
+            UiElementUtility.SetDisplayed(_own, hasMap);
             if (!hasMap)
             {
                 _shownMap = null;
                 VisibleIcons = 0;
                 VisibleQuestMarkers = 0;
+                VisibleOwnMarkers = 0;
+                _cursorModel.End();
+                UiElementUtility.SetDisplayed(_cursor, false);
                 UiElementUtility.SetDisplayed(_player, false);
                 UiElementUtility.SetText(_region, UiTexts.Get(UiTextKeys.JournalMap));
                 UiElementUtility.SetText(_places, string.Empty);
@@ -251,6 +375,7 @@ namespace Aetherfall.UI.Screens
                 _shownRevision = _exploration.Revision;
                 DrawFog(state);
                 DrawIcons(state);
+                DrawOwnMarkers(state);
                 DrawCounters(state);
             }
 
@@ -463,6 +588,98 @@ namespace Aetherfall.UI.Screens
             }
 
             shown[index] = tone;
+        }
+
+        private void DrawOwnMarkers(ExplorationState state)
+        {
+            int used = 0;
+            foreach (MapMarker marker in state.Markers)
+            {
+                while (_ownPool.Count <= used)
+                {
+                    var label = new Label { pickingMode = PickingMode.Ignore };
+                    label.AddToClassList("af-text");
+                    label.AddToClassList("af-map__own");
+                    _own.Add(label);
+                    _ownPool.Add(label);
+                    _ownTones.Add(string.Empty);
+                }
+
+                Label pin = _ownPool[used];
+                pin.text = MapMarkerSymbols.Glyph(marker.Symbol);
+                SwapTone(pin, "af-map__own--tone-", _ownTones, used, MapMarkerSymbols.Tone(marker.Symbol));
+                Place(pin, marker.X, marker.Z);
+                UiElementUtility.SetDisplayed(pin, true);
+                used++;
+            }
+
+            for (int i = used; i < _ownPool.Count; i++)
+            {
+                UiElementUtility.SetDisplayed(_ownPool[i], false);
+            }
+
+            VisibleOwnMarkers = used;
+        }
+
+        private void DrawCursor()
+        {
+            UiElementUtility.SetDisplayed(_cursor, _cursorModel.Active);
+            if (!_cursorModel.Active)
+            {
+                return;
+            }
+
+            Place(_cursor, _cursorModel.X, _cursorModel.Z);
+            UiElementUtility.SetText(_cursorSymbol, MapMarkerSymbols.Glyph(_symbol));
+            string tone = MapMarkerSymbols.Tone(_symbol);
+            if (tone != _cursorTone)
+            {
+                if (_cursorTone.Length > 0)
+                {
+                    _cursorSymbol.RemoveFromClassList("af-map__own--tone-" + _cursorTone);
+                }
+
+                _cursorSymbol.AddToClassList("af-map__own--tone-" + tone);
+                _cursorTone = tone;
+            }
+        }
+
+        private void OnFramePointerDown(PointerDownEvent evt)
+        {
+            if (evt.button != 0 || _shownMap == null || _exploration == null)
+            {
+                return;
+            }
+
+            Rect content = _frame.contentRect;
+            if (content.width <= 0f || content.height <= 0f)
+            {
+                return;
+            }
+
+            // Pointer in the frame's own space: the shown area spans the content box.
+            Vector2 local = _frame.WorldToLocal(evt.position);
+            float x = _viewMinX + (local.x - content.x) / content.width * _viewExtent;
+            float z = _viewMaxZ - (local.y - content.y) / content.height * _viewExtent;
+            ToggleAt(x, z);
+            evt.StopPropagation();
+        }
+
+        private static VisualElement OwnLegendRow(string text)
+        {
+            var row = new VisualElement { pickingMode = PickingMode.Ignore };
+            row.AddToClassList("af-map__legend-row");
+            var swatch = new Label(MapMarkerSymbols.Glyph(0)) { pickingMode = PickingMode.Ignore };
+            swatch.AddToClassList("af-text");
+            swatch.AddToClassList("af-map__own");
+            swatch.AddToClassList("af-map__own--tone-" + MapMarkerSymbols.Tone(0));
+            swatch.AddToClassList("af-map__swatch");
+            row.Add(swatch);
+            var label = new Label(text) { pickingMode = PickingMode.Ignore };
+            label.AddToClassList("af-text");
+            label.AddToClassList("af-map__legend-text");
+            row.Add(label);
+            return row;
         }
 
         private void Place(VisualElement element, float x, float z)

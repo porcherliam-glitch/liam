@@ -12,7 +12,8 @@ namespace Aetherfall.EditorTools.World
     /// <summary>
     /// World map and exploration (S34/S63, task list "Weltkarte und Erkundung"): the map page at the start, a place discovered
     /// by walking in, the crow's nest of the Wachturm Grauwacht climbed (viewpoint: fog cleared, places marked with "?"), the
-    /// map again, then a quick save and load that must keep the fog and the viewpoint, two fast travels, and the compass markers
+    /// map again, an own marker set with the cursor, then a quick save and load that must keep the fog, the viewpoint and the
+    /// marker, two fast travels, and the compass markers
     /// (S60) at the start and at the tower foot.
     /// </summary>
     public static partial class PlayTour
@@ -32,11 +33,16 @@ namespace Aetherfall.EditorTools.World
             Steps.Enqueue(() => EndClimbing());
             Steps.Enqueue(ExpectViewpoint("loc.eichental.wachturm_grauwacht"));
             Steps.Enqueue(OpenMap("k02_karte_nach_kraehennest"));
+
+            // GDD 05 1.8: an own marker with the cursor (X / F, move, A / Enter); the save and load below must keep it.
+            Steps.Enqueue(PlaceOwnMarker("k02b_eigene_markierung"));
+            Steps.Enqueue(RememberOwnMarkers);
             Steps.Enqueue(MapQuickSave);
             Steps.Enqueue(() => _mapSaveDone || Fail(Elapsed > 30.0, "Schnellspeichern wurde nicht fertig."));
             Steps.Enqueue(MapLoadAndWait());
             Steps.Enqueue(() => Wait(2.0));
             Steps.Enqueue(CheckMapAfterLoad);
+            Steps.Enqueue(CheckOwnMarkersAfterLoad);
             Steps.Enqueue(OpenMap("k03_karte_nach_laden"));
 
             // S50: fast travel through the map page to Lindenhain (discovered) and to the tower foot (viewpoint activated).

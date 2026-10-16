@@ -279,6 +279,12 @@ namespace Aetherfall.UI.Screens
         {
             if (_page == JournalPage.Map)
             {
+                if (_map.CursorActive)
+                {
+                    _map.ToggleAtCursor();
+                    return;
+                }
+
                 SubmitTravel(index);
                 return;
             }
@@ -305,10 +311,35 @@ namespace Aetherfall.UI.Screens
         }
 
         /// <inheritdoc />
+        public override void PointerSubmit(int index)
+        {
+            if (_page == JournalPage.Map && _map.CursorActive)
+            {
+                // A click on a travel row means the row, not the marker cursor: put the cursor away first.
+                _map.EndCursor();
+                UpdateMapHints();
+            }
+
+            Submit(index);
+        }
+
+        /// <inheritdoc />
         public override void Secondary(int index)
         {
             if (_page == JournalPage.Map)
             {
+                // GDD 05 1.8: X / F shows the cursor for own markers, a second press puts it away.
+                if (_map.CursorActive)
+                {
+                    _map.EndCursor();
+                }
+                else
+                {
+                    _map.SetConfirm(-1);
+                    _map.BeginCursor();
+                }
+
+                UpdateMapHints();
                 return;
             }
 
@@ -328,6 +359,19 @@ namespace Aetherfall.UI.Screens
             {
                 _quests.TrySetFocus(_entries[index].QuestId);
             }
+        }
+
+        /// <inheritdoc />
+        public override bool TryNavigate(NavDirection direction)
+        {
+            if (_page != JournalPage.Map || !_map.CursorActive)
+            {
+                return false;
+            }
+
+            _map.MoveCursor(direction == NavDirection.Left ? -1 : direction == NavDirection.Right ? 1 : 0,
+                direction == NavDirection.Down ? -1 : direction == NavDirection.Up ? 1 : 0);
+            return true;
         }
 
         /// <inheritdoc />
@@ -374,6 +418,12 @@ namespace Aetherfall.UI.Screens
         /// <inheritdoc />
         public override void SubTab(int delta)
         {
+            if (_page == JournalPage.Map && _map.CursorActive)
+            {
+                _map.CycleSymbol(delta);
+                return;
+            }
+
             if (_page == JournalPage.Skills)
             {
                 MoveOnBar(delta);
@@ -389,6 +439,17 @@ namespace Aetherfall.UI.Screens
         /// <inheritdoc />
         public override BackOutcome Back(bool closeHub)
         {
+            if (_page == JournalPage.Map && _map.CursorActive)
+            {
+                _map.EndCursor();
+                UpdateMapHints();
+                if (!closeHub)
+                {
+                    // B / Esc puts the cursor away first; the next Back closes the journal.
+                    return BackOutcome.Handled;
+                }
+            }
+
             if (_closeRequested == null)
             {
                 return BackOutcome.Close;
@@ -414,9 +475,12 @@ namespace Aetherfall.UI.Screens
 
             if (_page == JournalPage.Map && current != previous)
             {
-                // Another target: the confirmation starts again.
+                // Another target: the confirmation starts again (the symbol line of the marker cursor stays).
                 _map.SetConfirm(-1);
-                _map.SetStatus(string.Empty);
+                if (!_map.CursorActive)
+                {
+                    _map.SetStatus(string.Empty);
+                }
             }
 
             if (_page == JournalPage.Skills && ReferenceEquals(ActiveList, _skillList))
@@ -450,6 +514,7 @@ namespace Aetherfall.UI.Screens
         /// <inheritdoc />
         protected override void OnClose()
         {
+            _map.EndCursor();
             // GDD 03 11.3: points placed in this menu can be taken back until it closes.
             if (_progression != null)
             {
@@ -466,6 +531,11 @@ namespace Aetherfall.UI.Screens
 
         private void SelectPage(JournalPage page)
         {
+            if (page != JournalPage.Map)
+            {
+                _map.EndCursor();
+            }
+
             _page = page;
             for (int i = 0; i < PageCount; i++)
             {
@@ -487,6 +557,7 @@ namespace Aetherfall.UI.Screens
             UpdateActionHints();
             if (map)
             {
+                UpdateMapHints();
                 _map.Refresh();
                 _map.SetConfirm(-1);
                 _map.SetStatus(string.Empty);
@@ -634,10 +705,22 @@ namespace Aetherfall.UI.Screens
         private void UpdateActionHints()
         {
             // Finished quests cannot be tracked or focused: the hints for A and X are hidden on the tab "Abgeschlossen".
-            bool travel = _page == JournalPage.Map && _map.TravelRows.Count > 0;
-            bool actions = travel || (_page != JournalPage.Map && (_page != JournalPage.Quests || _tab != QuestLogTab.Completed));
+            bool map = _page == JournalPage.Map;
+            bool travel = map && (_map.TravelRows.Count > 0 || _map.CursorActive);
+            bool actions = travel || (!map && (_page != JournalPage.Quests || _tab != QuestLogTab.Completed));
             UiElementUtility.SetDisplayed(_hintConfirm != null ? _hintConfirm.parent : null, actions);
-            UiElementUtility.SetDisplayed(_hintSecondaryGroup, actions && _page != JournalPage.Map);
+            UiElementUtility.SetDisplayed(_hintSecondaryGroup, map ? _map.ShownMap != null : actions);
+        }
+
+        private void UpdateMapHints()
+        {
+            // Map page: A travels or (with the cursor) sets/removes a marker, X starts/ends marking, LT/RT change the symbol.
+            bool cursor = _map.CursorActive;
+            UiElementUtility.SetText(_hintConfirm, UiTexts.Get(cursor ? UiTextKeys.HintMarkerToggle : UiTextKeys.HintTravel));
+            UiElementUtility.SetText(_hintSecondary, UiTexts.Get(cursor ? UiTextKeys.HintMarkerDone : UiTextKeys.HintMarker));
+            UiElementUtility.SetText(_hintSubtabText, UiTexts.Get(UiTextKeys.HintMarkerSymbol));
+            UiElementUtility.SetDisplayed(_hintSubtabs, cursor);
+            UpdateActionHints();
         }
 
         private void RebuildQuests(string keepQuestId)

@@ -56,6 +56,14 @@
     --quest-repeatable: #5AA9FF;
     --quest-legendary: #FF8C1A;
 
+    /* GDD 05 1.8 - own map markers, one colour per symbol (proposal) */
+    --marker-own-0: #F2C14E;
+    --marker-own-1: #E5534B;
+    --marker-own-2: #5AA9FF;
+    --marker-own-3: #6CCB76;
+    --marker-own-4: #B8E07A;
+    --marker-own-5: #F29CB8;
+
     /* GDD 05 1.1 - attributes */
     --attr-strength: #E07A5F;
     --attr-dexterity: #81C784;

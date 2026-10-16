@@ -41,6 +41,17 @@ namespace Aetherfall.World.Exploration
         /// <returns>False if it is unknown or already active.</returns>
         bool ActivateViewpoint(string placeId);
 
+        /// <summary>
+        /// Sets an own marker on the active map at a point, or removes the one there (GDD 05 1.8; see
+        /// <see cref="ExplorationState.ToggleMarker"/>).
+        /// </summary>
+        /// <param name="x">World x.</param>
+        /// <param name="z">World z.</param>
+        /// <param name="symbol">Symbol of a new marker.</param>
+        /// <param name="pickRadius">Radius in metres within which an existing marker is removed.</param>
+        /// <returns>What happened (<see cref="MapMarkerChange.None"/> without an active map).</returns>
+        MapMarkerChange ToggleMarker(float x, float z, int symbol, float pickRadius);
+
         /// <summary>Clears the whole fog of the active map (debug).</summary>
         void RevealAll();
 

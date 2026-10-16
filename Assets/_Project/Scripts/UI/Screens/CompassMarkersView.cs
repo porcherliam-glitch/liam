@@ -10,7 +10,8 @@ namespace Aetherfall.UI.Screens
     /// <summary>
     /// Markers on the HUD compass (S60, GDD 05 compass): quest targets in the colour of their category (focus large with the
     /// distance of the nearest one, pinned to the edge when behind the player; other tracked quests small), search areas
-    /// (bracket), discovered places within 300 m (white dot), places seen from a viewpoint within 100 m (grey "?"), ▲/▼ from 6 m height difference. Built in code inside the compass
+    /// (bracket), the nearest own markers (their symbol, at most <see cref="MapMarkerRules.MaxOnCompass"/>), discovered places within
+    /// 300 m (white dot), places seen from a viewpoint within 100 m (grey "?"), ▲/▼ from 6 m height difference. Built in code inside the compass
     /// strip of Hud.uxml (styles in Hud.uss, classes <c>af-compass__marker…</c>); hidden together with the compass.
     /// </summary>
     public sealed class CompassMarkersView
@@ -27,6 +28,8 @@ namespace Aetherfall.UI.Screens
         private readonly VisualElement[] _markers = new VisualElement[CompassMarkerSelector.MaxMarkers];
         private readonly Label[] _distances = new Label[CompassMarkerSelector.MaxMarkers];
         private readonly Label[] _arrows = new Label[CompassMarkerSelector.MaxMarkers];
+        private readonly Label[] _glyphs = new Label[CompassMarkerSelector.MaxMarkers];
+        private readonly List<int> _nearest = new List<int>();
         private readonly float[] _shownPositions = new float[CompassMarkerSelector.MaxMarkers];
         private readonly int[] _shownDistances = new int[CompassMarkerSelector.MaxMarkers];
         private readonly string[] _shownTones = new string[CompassMarkerSelector.MaxMarkers];
@@ -35,7 +38,7 @@ namespace Aetherfall.UI.Screens
         /// <summary>Builds the marker pool inside the compass.</summary>
         /// <param name="hudRoot">Root of the HUD document.</param>
         /// <param name="quests">Quest markers (null: none).</param>
-        /// <param name="exploration">Exploration (places; null: none).</param>
+        /// <param name="exploration">Exploration (places and own markers; null: none).</param>
         /// <param name="players">Player locator (null: no markers at all).</param>
         public CompassMarkersView(VisualElement hudRoot, QuestMarkerModel quests, IExplorationService exploration, IPlayerLocator players)
         {
@@ -52,17 +55,22 @@ namespace Aetherfall.UI.Screens
                 distance.AddToClassList("af-compass__distance");
                 var pip = new VisualElement { pickingMode = PickingMode.Ignore };
                 pip.AddToClassList("af-compass__pip");
+                var glyph = new Label { pickingMode = PickingMode.Ignore };
+                glyph.AddToClassList("af-text");
+                glyph.AddToClassList("af-compass__glyph");
                 var arrow = new Label { pickingMode = PickingMode.Ignore };
                 arrow.AddToClassList("af-text");
                 arrow.AddToClassList("af-compass__arrow");
                 marker.Add(distance);
                 marker.Add(pip);
+                marker.Add(glyph);
                 marker.Add(arrow);
                 _strip?.Add(marker);
                 UiElementUtility.SetDisplayed(marker, false);
                 UiElementUtility.SetDisplayed(distance, false);
                 _markers[i] = marker;
                 _arrows[i] = arrow;
+                _glyphs[i] = glyph;
                 _distances[i] = distance;
                 _shownPositions[i] = float.NaN;
                 _shownDistances[i] = -1;
@@ -72,6 +80,49 @@ namespace Aetherfall.UI.Screens
 
         /// <summary>Markers shown right now (tests, tour).</summary>
         public IReadOnlyList<CompassSlot> Slots => _slots;
+
+        /// <summary>
+        /// Indices of the own markers nearest to a point, nearest first, at most <paramref name="max"/> (GDD 05 1.8: at most 5 in
+        /// the compass).
+        /// </summary>
+        /// <param name="markers">Own markers of the map.</param>
+        /// <param name="x">Player x.</param>
+        /// <param name="z">Player z.</param>
+        /// <param name="max">Most indices.</param>
+        /// <param name="result">Receives the indices (cleared first).</param>
+        public static void NearestOwnMarkers(IReadOnlyList<MapMarker> markers, float x, float z, int max, List<int> result)
+        {
+            result.Clear();
+            if (markers == null || max <= 0)
+            {
+                return;
+            }
+
+            // At most 50 markers and 5 picks: a plain selection, no sorting and no allocation per frame.
+            while (result.Count < max)
+            {
+                int best = -1;
+                float bestSq = float.PositiveInfinity;
+                for (int i = 0; i < markers.Count; i++)
+                {
+                    float dx = markers[i].X - x;
+                    float dz = markers[i].Z - z;
+                    float sq = dx * dx + dz * dz;
+                    if (sq < bestSq && !result.Contains(i))
+                    {
+                        bestSq = sq;
+                        best = i;
+                    }
+                }
+
+                if (best < 0)
+                {
+                    return;
+                }
+
+                result.Add(best);
+            }
+        }
 
         /// <summary>Updates the markers for the camera heading (call every HUD frame after the compass labels).</summary>
         /// <param name="heading">Camera heading in degrees (NaN: compass hidden or no player – no markers, no work).</param>
@@ -122,13 +173,15 @@ namespace Aetherfall.UI.Screens
                 marker.EnableInClassList("af-compass__marker--focus", slot.Kind == CompassMarkerKind.FocusQuest);
                 marker.EnableInClassList("af-compass__marker--quest", slot.Kind == CompassMarkerKind.TrackedQuest);
                 marker.EnableInClassList("af-compass__marker--area", slot.IsArea || slot.Kind == CompassMarkerKind.SearchArea);
+                marker.EnableInClassList("af-compass__marker--own", slot.Kind == CompassMarkerKind.OwnMarker);
                 marker.EnableInClassList("af-compass__marker--place", slot.Kind == CompassMarkerKind.Place);
                 marker.EnableInClassList("af-compass__marker--unknown", slot.Kind == CompassMarkerKind.UnknownPlace);
                 marker.EnableInClassList("af-compass__marker--edge", slot.AtEdge);
                 marker.EnableInClassList("af-compass__marker--right", left > 0.75f && slot.Kind != CompassMarkerKind.UnknownPlace);
                 SetTone(i, slot.Tone);
-                UiElementUtility.SetText(_arrows[i], slot.Kind == CompassMarkerKind.UnknownPlace ? "?" :
-                    slot.HeightArrow > 0 ? "▲" : slot.HeightArrow < 0 ? "▼" : string.Empty);
+                UiElementUtility.SetText(_glyphs[i], slot.Kind == CompassMarkerKind.UnknownPlace ? "?" :
+                    slot.Kind == CompassMarkerKind.OwnMarker ? slot.Label : string.Empty);
+                UiElementUtility.SetText(_arrows[i], slot.HeightArrow > 0 ? "▲" : slot.HeightArrow < 0 ? "▼" : string.Empty);
 
                 // The distance of the nearest focus target in whole metres (the text changes only when the number does).
                 int metres = slot.ShowsDistance ? Mathf.RoundToInt(slot.Distance) : -1;
@@ -175,6 +228,16 @@ namespace Aetherfall.UI.Screens
             if (state == null || (player.WorldSpaceId.Length > 0 && player.WorldSpaceId != state.Map.WorldSpaceId))
             {
                 return;
+            }
+
+            // Own markers: the nearest five, always shown (GDD 05 1.8), with their symbol and colour.
+            Vector3 p = player.Position;
+            NearestOwnMarkers(state.Markers, p.x, p.z, MapMarkerRules.MaxOnCompass, _nearest);
+            for (int i = 0; i < _nearest.Count; i++)
+            {
+                MapMarker own = state.Markers[_nearest[i]];
+                _candidates.Add(new CompassCandidate(CompassMarkerKind.OwnMarker, own.X, float.NaN, own.Z, MapMarkerSymbols.Glyph(own.Symbol), 0f,
+                    MapMarkerSymbols.Tone(own.Symbol)));
             }
 
             // An index loop: foreach over the IReadOnlyList would allocate an enumerator every frame.

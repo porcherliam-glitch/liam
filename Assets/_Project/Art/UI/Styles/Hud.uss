@@ -166,16 +166,6 @@
     -unity-text-align: lower-right;
 }
 
-.af-compass__marker--unknown .af-compass__arrow {
-    left: 0;
-    right: 0;
-    bottom: 0;
-    font-size: 15px;
-    color: rgb(170, 160, 140);
-    -unity-text-align: lower-center;
-    -unity-font-style: bold;
-}
-
 /* Quest category colours on the compass (GDD 05 1.8 / 1.9): the pip takes the colour of the quest's category. */
 .af-compass__marker--tone-main .af-compass__pip { background-color: var(--quest-main); }
 .af-compass__marker--tone-faction .af-compass__pip { background-color: var(--quest-faction); }
@@ -199,6 +189,32 @@
 .af-compass__marker--area.af-compass__marker--tone-crafting .af-compass__pip { background-color: rgba(0, 0, 0, 0); border-color: var(--quest-crafting); }
 .af-compass__marker--area.af-compass__marker--tone-repeatable .af-compass__pip { background-color: rgba(0, 0, 0, 0); border-color: var(--quest-repeatable); }
 .af-compass__marker--area.af-compass__marker--tone-legendary .af-compass__pip { background-color: rgba(0, 0, 0, 0); border-color: var(--quest-legendary); }
+
+/* Own markers: the symbol in its colour instead of a pip (GDD 05 1.8). */
+.af-compass__marker--own .af-compass__pip {
+    display: none;
+}
+
+/* "?" of a place seen from a viewpoint and the symbols of own markers, centred at the bottom of the marker. */
+.af-compass__glyph {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    font-size: 16px;
+    -unity-font-style: bold;
+    -unity-text-align: lower-center;
+    -unity-text-outline-width: 1px;
+    -unity-text-outline-color: rgb(20, 14, 6);
+    color: rgb(170, 160, 140);
+}
+
+.af-compass__marker--tone-own0 .af-compass__glyph { color: var(--marker-own-0); }
+.af-compass__marker--tone-own1 .af-compass__glyph { color: var(--marker-own-1); }
+.af-compass__marker--tone-own2 .af-compass__glyph { color: var(--marker-own-2); }
+.af-compass__marker--tone-own3 .af-compass__glyph { color: var(--marker-own-3); }
+.af-compass__marker--tone-own4 .af-compass__glyph { color: var(--marker-own-4); }
+.af-compass__marker--tone-own5 .af-compass__glyph { color: var(--marker-own-5); }
 
 .af-compass__needle {
     position: absolute;

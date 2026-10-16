@@ -5,7 +5,7 @@ namespace Aetherfall.World.Exploration
 {
     /// <summary>
     /// What the player has explored on one map (S34, GDD 01 6.6): the fog, the discovered places, the places seen from a
-    /// viewpoint ("?", not visited yet) and the activated viewpoints. Pure logic; the exploration service sends the events.
+    /// viewpoint ("?", not visited yet), the activated viewpoints and the player's own markers (GDD 05 1.8). Pure logic; the exploration service sends the events.
     /// </summary>
     /// <remarks>
     /// Rules: only places shown on the map count as discovered; a viewpoint is found only by activating it at the top (walking
@@ -16,6 +16,7 @@ namespace Aetherfall.World.Exploration
         private readonly HashSet<string> _discovered = new HashSet<string>(StringComparer.Ordinal);
         private readonly HashSet<string> _revealed = new HashSet<string>(StringComparer.Ordinal);
         private readonly HashSet<string> _viewpoints = new HashSet<string>(StringComparer.Ordinal);
+        private readonly List<MapMarker> _markers = new List<MapMarker>();
 
         /// <summary>Creates the state of a map: everything in fog, nothing found.</summary>
         /// <param name="map">The map.</param>
@@ -33,6 +34,63 @@ namespace Aetherfall.World.Exploration
 
         /// <summary>True once the "Region entdeckt" message was shown.</summary>
         public bool Announced { get; set; }
+
+        /// <summary>Own markers in the order they were set.</summary>
+        public IReadOnlyList<MapMarker> Markers => _markers;
+
+        /// <summary>
+        /// Removes the own marker nearest to a point if one lies within <paramref name="pickRadius"/>, otherwise sets a new one
+        /// there (unless the map has <see cref="MapMarkerRules.MaxPerMap"/> already).
+        /// </summary>
+        /// <param name="x">World x.</param>
+        /// <param name="z">World z.</param>
+        /// <param name="symbol">Symbol of a new marker.</param>
+        /// <param name="pickRadius">How close a click or the cursor must be to an existing marker to remove it (metres).</param>
+        public MapMarkerChange ToggleMarker(float x, float z, int symbol, float pickRadius)
+        {
+            if (!IsFinite(x) || !IsFinite(z))
+            {
+                return MapMarkerChange.None;
+            }
+
+            int index = FindMarker(x, z, pickRadius);
+            if (index >= 0)
+            {
+                _markers.RemoveAt(index);
+                return MapMarkerChange.Removed;
+            }
+
+            if (_markers.Count >= MapMarkerRules.MaxPerMap)
+            {
+                return MapMarkerChange.Full;
+            }
+
+            _markers.Add(new MapMarker(x, z, symbol));
+            return MapMarkerChange.Added;
+        }
+
+        /// <summary>Index of the own marker nearest to a point within a radius, or −1.</summary>
+        /// <param name="x">World x.</param>
+        /// <param name="z">World z.</param>
+        /// <param name="radius">Radius in metres.</param>
+        public int FindMarker(float x, float z, float radius)
+        {
+            int best = -1;
+            float bestSq = radius * radius;
+            for (int i = 0; i < _markers.Count; i++)
+            {
+                float dx = _markers[i].X - x;
+                float dz = _markers[i].Z - z;
+                float sq = dx * dx + dz * dz;
+                if (sq <= bestSq)
+                {
+                    bestSq = sq;
+                    best = i;
+                }
+            }
+
+            return best;
+        }
 
         /// <summary>True if the place was discovered (visited, or a viewpoint activated).</summary>
         /// <param name="placeId">Location id.</param>
@@ -202,6 +260,11 @@ namespace Aetherfall.World.Exploration
             dto.Discovered.AddRange(Sorted(_discovered));
             dto.Revealed.AddRange(Sorted(_revealed));
             dto.Viewpoints.AddRange(Sorted(_viewpoints));
+            foreach (MapMarker marker in _markers)
+            {
+                dto.Markers.Add(new MapMarkerDto { X = marker.X, Z = marker.Z, Symbol = marker.Symbol });
+            }
+
             return dto;
         }
 
@@ -212,6 +275,7 @@ namespace Aetherfall.World.Exploration
             _discovered.Clear();
             _revealed.Clear();
             _viewpoints.Clear();
+            _markers.Clear();
             Announced = false;
             if (dto == null)
             {
@@ -224,6 +288,23 @@ namespace Aetherfall.World.Exploration
             AddAll(_revealed, dto.Revealed);
             AddAll(_viewpoints, dto.Viewpoints);
             Announced = dto.Announced;
+            if (dto.Markers != null)
+            {
+                foreach (MapMarkerDto marker in dto.Markers)
+                {
+                    // Only finite points inside the map (an edited save must not leave a marker that can never be removed).
+                    if (marker != null && _markers.Count < MapMarkerRules.MaxPerMap && IsFinite(marker.X) && IsFinite(marker.Z) &&
+                        Map.Projection.Contains(marker.X, marker.Z, 100f))
+                    {
+                        _markers.Add(new MapMarker(marker.X, marker.Z, marker.Symbol));
+                    }
+                }
+            }
+        }
+
+        private static bool IsFinite(float value)
+        {
+            return !float.IsNaN(value) && !float.IsInfinity(value);
         }
 
         private static void AddAll(HashSet<string> target, List<string> source)

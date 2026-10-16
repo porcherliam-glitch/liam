@@ -153,6 +153,51 @@ namespace Aetherfall.UI.Framework
         /// <summary>Legend: target of a tracked quest (gold diamond).</summary>
         public const string MapLegendQuest = "map-legend-quest";
 
+        /// <summary>Legend: own marker.</summary>
+        public const string MapLegendOwn = "map-legend-own";
+
+        /// <summary>Status: symbol for new markers ({0} glyph, {1} name).</summary>
+        public const string MapMarkerSymbolChosen = "map-marker-symbol-chosen";
+
+        /// <summary>Status: an own marker was set ({0} symbol name).</summary>
+        public const string MapMarkerSet = "map-marker-set";
+
+        /// <summary>Status: an own marker was removed.</summary>
+        public const string MapMarkerRemoved = "map-marker-removed";
+
+        /// <summary>Status: the map has the most own markers ({0}).</summary>
+        public const string MapMarkerFull = "map-marker-full";
+
+        /// <summary>Name of own marker symbol 0 (●).</summary>
+        public const string MapMarkerSymbol0 = "map-marker-symbol-0";
+
+        /// <summary>Name of own marker symbol 1 (▲).</summary>
+        public const string MapMarkerSymbol1 = "map-marker-symbol-1";
+
+        /// <summary>Name of own marker symbol 2 (■).</summary>
+        public const string MapMarkerSymbol2 = "map-marker-symbol-2";
+
+        /// <summary>Name of own marker symbol 3 (◆).</summary>
+        public const string MapMarkerSymbol3 = "map-marker-symbol-3";
+
+        /// <summary>Name of own marker symbol 4 (♣).</summary>
+        public const string MapMarkerSymbol4 = "map-marker-symbol-4";
+
+        /// <summary>Name of own marker symbol 5 (♥).</summary>
+        public const string MapMarkerSymbol5 = "map-marker-symbol-5";
+
+        /// <summary>Hint: start setting own markers on the map.</summary>
+        public const string HintMarker = "hint-marker";
+
+        /// <summary>Hint: set or remove an own marker at the cursor.</summary>
+        public const string HintMarkerToggle = "hint-marker-toggle";
+
+        /// <summary>Hint: leave the marker cursor.</summary>
+        public const string HintMarkerDone = "hint-marker-done";
+
+        /// <summary>Hint: choose the symbol of new markers.</summary>
+        public const string HintMarkerSymbol = "hint-marker-symbol";
+
         /// <summary>Legend: the player.</summary>
         public const string MapLegendPlayer = "map-legend-player";
 

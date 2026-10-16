@@ -49,5 +49,22 @@ namespace Aetherfall.World.Exploration
 
         /// <summary>True once the "Region entdeckt" message was shown.</summary>
         public bool Announced;
+
+        /// <summary>Own markers of the player (GDD 05 1.8; saves from before 2026-10-16 have none).</summary>
+        public List<MapMarkerDto> Markers = new List<MapMarkerDto>();
+    }
+
+    /// <summary>One own marker in the save.</summary>
+    [Preserve]
+    public sealed class MapMarkerDto
+    {
+        /// <summary>World x in metres.</summary>
+        public float X;
+
+        /// <summary>World z in metres.</summary>
+        public float Z;
+
+        /// <summary>Symbol index (0–5).</summary>
+        public int Symbol;
     }
 }
