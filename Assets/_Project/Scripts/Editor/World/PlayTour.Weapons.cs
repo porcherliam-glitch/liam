@@ -152,9 +152,11 @@ namespace Aetherfall.EditorTools.World
             return () =>
             {
                 PlayerMotor player = FindPlayer();
+                // Wolves first: a bandit brawler blocks arrows from the front with his shield, so he is only the fallback.
                 _wolf = Object.FindObjectsByType<EnemyController>(FindObjectsInactive.Exclude)
                     .Where(e => e.GetComponent<Combatant>().IsAlive)
-                    .OrderBy(e => Vector3.Distance(e.transform.position, player.transform.position))
+                    .OrderBy(e => e.GetComponent<Combatant>().TypeId.StartsWith("enemy.wolf", System.StringComparison.Ordinal) ? 0 : 1)
+                    .ThenBy(e => Vector3.Distance(e.transform.position, player.transform.position))
                     .FirstOrDefault();
                 if (_wolf == null)
                 {

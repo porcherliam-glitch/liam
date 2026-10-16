@@ -87,7 +87,7 @@ namespace Aetherfall.UI.Screens
         public bool HasJournal => _journal != null;
 
         /// <summary>True if the HUD peek action (hold Select / M) fired this frame.</summary>
-        public bool PeekRequested => _gameplay != null && _gameplay.IsActive && _gameplay.WasPressedThisFrame(GameplayButton.HudPeek);
+        public bool PeekRequested => _gameplay != null && _gameplay.IsActive && _gameplay.WasPerformedThisFrame(GameplayButton.HudPeek);
 
         /// <summary>Applies the screens of a game state (on every GameStateChanged and once at start).</summary>
         /// <param name="state">Current game state.</param>
@@ -332,6 +332,14 @@ namespace Aetherfall.UI.Screens
                 _gameplay.WasPressedThisFrame(GameplayButton.QuestLog))
             {
                 OpenJournal(JournalPage.Quests);
+                return;
+            }
+
+            // M tap / View tap (GDD 03 1.5, GDD 05 1.3): the map, the first hub tab (holding M peeks the HUD instead).
+            if (_journal != null && _gameplay != null && _gameplay.IsActive && _gameState.Current == GameState.Playing &&
+                _gameplay.WasPerformedThisFrame(GameplayButton.Map))
+            {
+                OpenJournal(JournalPage.Map);
                 return;
             }
 

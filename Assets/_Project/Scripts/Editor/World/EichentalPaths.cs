@@ -43,5 +43,17 @@ namespace Aetherfall.EditorTools.World
 
         /// <summary>Region id for death events (PlayerRespawn).</summary>
         public const string RegionId = "region.eichental";
+
+        /// <summary>Folder of the painted world maps.</summary>
+        public const string MapFolder = SetupPaths.ProjectFolder + "/Art/UI/Maps";
+
+        /// <summary>Painted world map of the Eichental (S63).</summary>
+        public const string MapImagePath = MapFolder + "/T_Map_Eichental.png";
+
+        /// <summary>Map definition of the Eichental (places, fog grid, picture).</summary>
+        public const string RegionMapPath = SetupPaths.ProjectFolder + "/Data/Regions/Eichental/RM_Eichental.asset";
+
+        /// <summary>Map id (save key of the exploration).</summary>
+        public const string MapId = "map.eichental.mini_slice";
     }
 }

@@ -48,6 +48,7 @@ Tipp: Im Game-Fenster oben in der Leiste **Play Maximized** wählen, dann ist da
 | Heiltrank trinken: +35 % Leben, dauert knapp eine Sekunde, ein harter Treffer bricht ab (3 Stück zu Beginn) | **5** |
 | Manatrank trinken (Magier, 3 Stück zu Beginn): +40 % Mana | **6** |
 | Inventar und Charakter | **Tab** |
+| Karte (Nebel, entdeckte Orte, Aussichtspunkte) | **M** (antippen; halten zeigt das HUD) |
 | Questlog | **J** |
 | Skill-Baum (Fähigkeiten lernen) | **K** |
 | Schnell speichern / laden | **F5** / **F9** |
@@ -93,6 +94,8 @@ Die Kopfgeld-Quest von Hauptmann Dorn dazu fehlt noch. Den Kampf kannst du aber 
 3. **Die vergessene Gruft**: Corvin im Gasthaus in Lindenhain. Tor-Rätsel mit Grabplatten (die Wandreliefs verraten die Reihenfolge), Hallen mit Skeletten, Spiegel-Rätsel, der Wachende Ritter. Am Ende: Siegelstein nehmen oder liegen lassen.
 
 **Begleiterin Ser Maren Falkenried:** Wenn „Die Wölfe vom Nordhang“ erledigt ist, wartet am Wachposten von Lindenhain (neben Hauptmann Dorn) eine Ritterin der Silberwacht. Sie will dich als „Rissgeborenen“ prüfen. Ob du die Prüfung annimmst oder ablehnst, sie kommt in jedem Fall mit (nach der Ablehnung „auf Befehl“, dann mag sie dich weniger). Sie läuft hinter dir her, kämpft gegen alles, was dich oder sie angreift, und hält dir den Rücken frei. Fällt sie im Kampf, steht sie nach 12 Sekunden wieder auf. Sprich sie an, wenn sie stehen bleiben („Warte hier.“) oder wieder mitkommen soll („Komm mit.“). In die Gruft kommt sie mit.
+
+**Karte:** Mit **M** öffnest du die Karte des Eichentals (mit **Q/E** wechselst du zu Questlog, Charakter und Fähigkeiten). Am Anfang liegt fast alles im Nebel; er lichtet sich überall, wo du hingehst. Betrittst du einen Ort zum ersten Mal, steht oben „Ort entdeckt“. Klettere auf einen **Aussichtspunkt** – das Krähennest des Wachturms Grauwacht oder die Rabenfels-Spitze –, dann lichtet sich der Nebel weit um dich herum und Orte in der Nähe erscheinen als „?“ auf der Karte. Rechts neben der Karte siehst du, wie viele Orte und Aussichtspunkte du schon gefunden hast.
 
 **Untersuchen:** Halte **R**, dann leuchten Hinweise und Spurzeichen in deiner Nähe (5 m) golden auf, und unten steht, wie viele es sind. So findest du zum Beispiel auf Hollmanns Weide das gerissene Schaf und die Pfotenabdrücke – ohne **R** sind sie unauffällig. Auch die Tafeln und Reliefs in der Gruft leuchten so. (Die türkise **Aether-Sicht** mit 40 m Reichweite gibt es erst später in der Hauptgeschichte.)
 

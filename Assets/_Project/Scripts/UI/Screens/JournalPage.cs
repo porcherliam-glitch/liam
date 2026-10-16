@@ -10,6 +10,9 @@ namespace Aetherfall.UI.Screens
         Character = 1,
 
         /// <summary>Skill tree of the class (GDD 03 11; key K).</summary>
-        Skills = 2
+        Skills = 2,
+
+        /// <summary>World map (first hub tab, M; S63).</summary>
+        Map = 3
     }
 }

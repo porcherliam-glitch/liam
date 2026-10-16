@@ -16,6 +16,7 @@
         "Aetherfall.Player",
         "Aetherfall.Data",
         "Aetherfall.Conditions",
+        "Aetherfall.World",
         "Aetherfall.Progression",
         "Aetherfall.Quests",
         "Aetherfall.Dialogue",

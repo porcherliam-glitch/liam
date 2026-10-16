@@ -137,6 +137,8 @@ namespace Aetherfall.EditorTools.World
             TestGroundFields.SetReference(progression, "stats", player.GetComponent<CharacterStatsComponent>(), report);
 
             gameplay.BuildAreaTriggers(Group(game.transform, "Orte"), layers.TriggerVolume, layers.Player);
+            // S34/S63: world map with fog, places and the viewpoints (crow's nest, Rabenfels summit).
+            EichentalMapBuilder.Build(layout, heights, layout.WorldSpaceId, Group(game.transform, "Weltkarte"), layers.TriggerVolume, layers.Player, report);
             gameplay.BuildNpcMarkers(Group(game.transform, "NPC-Platzhalter"), player, layers.Interactable, layers.TriggerVolume, layers.Player, solidMask);
             // GDD 01 10.6: Ser Maren waits at the guard post of Lindenhain, next to Hauptmann Dorn.
             CompanionBuilder.BuildMaren(Group(game.transform, "Begleiter"), new Vector3(MarenPostX, (float)heights.Height(MarenPostX, MarenPostZ), MarenPostZ),

@@ -152,10 +152,12 @@ namespace Aetherfall.Input
             click.AddBinding("<Mouse>/leftButton", groups: Kbm);
 
             // GDD 03 1.5: CloseHub = Menu or Esc, and the direct key of the open tab (Tab for the inventory, J for the quest log;
-            // M and K follow with their screens).
+            // M or View for the map; K follows with its screen).
             InputAction closeHub = Button(map, Names.UI.CloseHub, "<Gamepad>/start", "<Keyboard>/escape");
             closeHub.AddBinding("<Keyboard>/tab", groups: Kbm);
             closeHub.AddBinding("<Keyboard>/j", groups: Kbm);
+            closeHub.AddBinding("<Keyboard>/m", groups: Kbm);
+            closeHub.AddBinding("<Gamepad>/select", groups: Pad);
 
             // GDD 05 1.4/1.5: LT/RT = sub categories (Z/C by position: Unity binds keys by their US position, so QWERTZ uses Y/C),
             // X = secondary action (F).

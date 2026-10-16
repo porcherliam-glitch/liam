@@ -15,6 +15,7 @@ using Aetherfall.Quests;
 using Aetherfall.SaveSystem;
 using Aetherfall.UI.Framework;
 using Aetherfall.UI.Screens.Dialogue;
+using Aetherfall.World.Exploration;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -267,8 +268,10 @@ namespace Aetherfall.UI.Screens
             BuildDialogueScreen(screensRoot);
             if (HasJournalLayouts())
             {
+                Services.Locator.TryGet(out IExplorationService exploration);
+                Services.Locator.TryGet(out IPlayerLocator players);
                 _journal = new JournalScreen(CloneScreen(journalLayout, screensRoot), questRowLayout, objectiveRowLayout, journalLineLayout,
-                    attributeRowLayout, valueRowLayout, _glyphs, _quests, _progression, OnJournalCloseRequested, _skills);
+                    attributeRowLayout, valueRowLayout, _glyphs, _quests, _progression, OnJournalCloseRequested, _skills, exploration, players);
                 _ui.RegisterScreen(_journal);
             }
             else
@@ -360,6 +363,9 @@ namespace Aetherfall.UI.Screens
             _eventBus.Unsubscribe<CompanionSpoke>(OnCompanionSpoke);
             _eventBus.Unsubscribe<RestCompleted>(OnRestCompleted);
             _eventBus.Unsubscribe<InvestigateModeChanged>(OnInvestigateModeChanged);
+            _eventBus.Unsubscribe<LocationDiscovered>(OnLocationDiscovered);
+            _eventBus.Unsubscribe<ViewpointActivated>(OnViewpointActivated);
+            _eventBus.Unsubscribe<RegionDiscovered>(OnRegionDiscovered);
             _glyphs.Changed -= OnGlyphsChanged;
             _preferences.Changed -= OnPreferencesChanged;
             _flow.Failed -= OnFlowFailed;
@@ -467,6 +473,9 @@ namespace Aetherfall.UI.Screens
             _eventBus.Subscribe<CompanionSpoke>(OnCompanionSpoke);
             _eventBus.Subscribe<RestCompleted>(OnRestCompleted);
             _eventBus.Subscribe<InvestigateModeChanged>(OnInvestigateModeChanged);
+            _eventBus.Subscribe<LocationDiscovered>(OnLocationDiscovered);
+            _eventBus.Subscribe<ViewpointActivated>(OnViewpointActivated);
+            _eventBus.Subscribe<RegionDiscovered>(OnRegionDiscovered);
             _glyphs.Changed += OnGlyphsChanged;
             _preferences.Changed += OnPreferencesChanged;
             _flow.Failed += OnFlowFailed;
@@ -663,6 +672,21 @@ namespace Aetherfall.UI.Screens
             {
                 _ui.ShowToast(Notification.Message(NotificationPriority.Milestone, evt.DisplayName + ": „" + evt.Text + "“", "companion"));
             }
+        }
+
+        private void OnLocationDiscovered(LocationDiscovered evt)
+        {
+            _ui.ShowToast(Notification.Message(NotificationPriority.Progress, UiTexts.Format(UiTextKeys.NoteLocationDiscovered, evt.DisplayName), "map"));
+        }
+
+        private void OnViewpointActivated(ViewpointActivated evt)
+        {
+            _ui.ShowToast(Notification.Message(NotificationPriority.Progress, UiTexts.Format(UiTextKeys.NoteViewpoint, evt.DisplayName, evt.RevealedPlaces), "map"));
+        }
+
+        private void OnRegionDiscovered(RegionDiscovered evt)
+        {
+            _ui.ShowToast(Notification.Message(NotificationPriority.Milestone, UiTexts.Format(UiTextKeys.NoteRegionDiscovered, evt.RegionName), "map"));
         }
 
         private void OnInvestigateModeChanged(InvestigateModeChanged evt)
