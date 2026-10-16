@@ -12,7 +12,8 @@ namespace Aetherfall.EditorTools.World
     /// <summary>
     /// World map and exploration (S34/S63, task list "Weltkarte und Erkundung"): the map page at the start, a place discovered
     /// by walking in, the crow's nest of the Wachturm Grauwacht climbed (viewpoint: fog cleared, places marked with "?"), the
-    /// map again, then a quick save and load that must keep the fog and the viewpoint, and two fast travels.
+    /// map again, then a quick save and load that must keep the fog and the viewpoint, two fast travels, and the compass markers
+    /// (S60) at the start and at the tower foot.
     /// </summary>
     public static partial class PlayTour
     {
@@ -22,6 +23,7 @@ namespace Aetherfall.EditorTools.World
         private static void BuildMapPlan()
         {
             Steps.Enqueue(() => ReportFog("am Start"));
+            Steps.Enqueue(CheckCompass("k00_kompass_start"));
             Steps.Enqueue(OpenMap("k01_karte_start"));
             Steps.Enqueue(VisitPlace("loc.eichental.lindenhain"));
             Steps.Enqueue(() => FindTower());
@@ -40,6 +42,9 @@ namespace Aetherfall.EditorTools.World
             // S50: fast travel through the map page to Lindenhain (discovered) and to the tower foot (viewpoint activated).
             Steps.Enqueue(TravelOnMap("loc.eichental.lindenhain", "k04_schnellreise_lindenhain"));
             Steps.Enqueue(TravelOnMap("loc.eichental.wachturm_grauwacht", "k05_schnellreise_wachturm"));
+
+            // S60: compass markers at the tower foot (places nearby, the quest targets).
+            Steps.Enqueue(CheckCompass("k06_kompass_wachturm"));
         }
 
         private static ExplorationState MapState()
@@ -87,7 +92,7 @@ namespace Aetherfall.EditorTools.World
                         }
 
                         Note("Karte geöffnet: " + (journal.Map.ShownMap != null ? journal.Map.ShownMap.RegionName : "keine") + ", " +
-                             journal.Map.VisibleIcons + " Orte sichtbar (" + journal.Map.CountText + ").");
+                             journal.Map.VisibleIcons + " Orte und " + journal.Map.VisibleQuestMarkers + " Questziele sichtbar (" + journal.Map.CountText + ").");
                         if (journal.Map.ShownMap == null)
                         {
                             return Fail(true, "Die Kartenseite zeigt keine Karte.");

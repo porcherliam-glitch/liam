@@ -129,9 +129,11 @@ namespace Aetherfall.UI.Screens
         /// <param name="exploration">Exploration (null: the map page shows "keine Karte").</param>
         /// <param name="players">Player locator (null: no player arrow on the map).</param>
         /// <param name="fastTravel">Fast travel (null: the map shows no travel list).</param>
+        /// <param name="questMarkers">Quest targets for the map (null: none).</param>
         public JournalScreen(VisualElement root, VisualTreeAsset questRowAsset, VisualTreeAsset objectiveRowAsset, VisualTreeAsset lineAsset,
             VisualTreeAsset attributeRowAsset, VisualTreeAsset valueRowAsset, IGlyphService glyphs, IQuestService quests, IProgressionService progression,
-            Action closeRequested, ISkillService skills = null, IExplorationService exploration = null, IPlayerLocator players = null, IFastTravelService fastTravel = null)
+            Action closeRequested, ISkillService skills = null, IExplorationService exploration = null, IPlayerLocator players = null, IFastTravelService fastTravel = null,
+            QuestMarkerModel questMarkers = null)
             : base(Id, root, glyphs)
         {
             if (questRowAsset == null || objectiveRowAsset == null || lineAsset == null || attributeRowAsset == null || valueRowAsset == null)
@@ -162,7 +164,7 @@ namespace Aetherfall.UI.Screens
             _pages[(int)JournalPage.Map] = root.Q<VisualElement>("journal-map-page");
             _pageTabs[(int)JournalPage.Map] = root.Q<VisualElement>("journal-tab-map");
             _fastTravel = fastTravel;
-            _map = new MapPageView(_pages[(int)JournalPage.Map], exploration, players, fastTravel);
+            _map = new MapPageView(_pages[(int)JournalPage.Map], exploration, players, fastTravel, questMarkers);
             for (int i = 0; i < PageCount; i++)
             {
                 var page = (JournalPage)i;

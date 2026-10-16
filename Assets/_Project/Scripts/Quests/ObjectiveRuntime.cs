@@ -9,7 +9,7 @@ namespace Aetherfall.Quests
     /// </summary>
     public sealed class ObjectiveRuntime
     {
-        private const char ListSeparator = ';';
+        internal const char ListSeparator = ';';
 
         private readonly ObjectiveState _state;
         private readonly bool _canRegress;

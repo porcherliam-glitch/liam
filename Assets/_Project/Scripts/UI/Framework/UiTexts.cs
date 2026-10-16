@@ -74,6 +74,7 @@ namespace Aetherfall.UI.Framework
             new UiTextEntry("map-legend-place", "Entdeckter Ort"),
             new UiTextEntry("map-legend-viewpoint", "Aussichtspunkt"),
             new UiTextEntry("map-legend-unknown", "Gesehen, noch nicht besucht"),
+            new UiTextEntry("map-legend-quest", "Questziel"),
             new UiTextEntry("map-legend-player", "Du"),
             new UiTextEntry("map-count-places", "Orte entdeckt: {0} / {1}"),
             new UiTextEntry("map-count-viewpoints", "Aussichtspunkte: {0} / {1}"),

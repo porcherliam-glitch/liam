@@ -28,6 +28,7 @@ namespace Aetherfall.World
         [Tooltip("Layer, die als Spieler zählen (Architektur 2.8: Layer 6 „Player“).")]
         [SerializeField] private LayerMask playerLayers = 1 << 6;
 
+        private readonly WorldMarkerHandle _marker = new WorldMarkerHandle();
         private IEventBus _eventBus;
 
         /// <summary>Trail id.</summary>
@@ -51,6 +52,7 @@ namespace Aetherfall.World
             try
             {
                 _eventBus = await Services.WaitForAsync<IEventBus>(destroyCancellationToken);
+                _marker.Connect(Services.Locator);
             }
             catch (OperationCanceledException)
             {
@@ -60,6 +62,17 @@ namespace Aetherfall.World
             {
                 Log.Exception(LogCategory.World, exception, "TrailNodeTrigger could not resolve IEventBus.");
             }
+        }
+
+        private void OnEnable()
+        {
+            // "Folge der Spur" points the compass at the next node (trailId#index).
+            _marker.Show(WorldMarkerIds.TrailNode(TrailId, index), transform);
+        }
+
+        private void OnDisable()
+        {
+            _marker.Hide();
         }
 
         private void OnTriggerEnter(Collider other)

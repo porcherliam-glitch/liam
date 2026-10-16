@@ -322,6 +322,12 @@ namespace Aetherfall.EditorTools.Narrative
                 .Build();
         }
 
+        /// <summary>
+        /// The crypt entrance in Eichental (portal of EichentalDungeonLinks): the stages inside the crypt name it as their stage
+        /// marker, so outside the crypt the compass points at the entrance first (GDD 02 7.3 "Mehrstufige Wege").
+        /// </summary>
+        public const string CryptEntranceId = "obj.eichental.gruft_eingang";
+
         /// <summary>GDD 02, 11.7 "Die vergessene Gruft" (sources: guide 12, 11.4).</summary>
         public static QuestSpec CreateCrypt()
         {
@@ -339,27 +345,33 @@ namespace Aetherfall.EditorTools.Narrative
                     .Objective(new GoToObjective("o1", "loc.eichental.vergessene_gruft", 12f).WithJournalText("Zur Gruft gehen"))
                     .Next("s20"))
                 .Stage(new StageBuilder("s20")
-                    .Text("Das Tor ist versiegelt. Die Inschrift nennt eine Reihenfolge: „Erst die Eiche, die den Schild trug, dann die Krone, die sich beugte, zuletzt der Schild, der nie brach.“")
+                    .Text("Das Tor ist versiegelt. Die Inschrift nennt eine Reihenfolge: „Erst die Eiche, die den Schild trug, dann die Krone, die sich beugte, zuletzt der Schild, der nie brach.“",
+                          "Die Gruft liegt in der Senke unter dem Rabenfels, nördlich des Dorfes.")
+                    .Markers(50f, CryptEntranceId)
                     .Objective(new ConditionObjective("o1", new PuzzleIsSolved("puzzle.eichental.gruft_grabplatten")).WithJournalText("Das Tor öffnen"))
                     .Optional(new InspectCluesObjective("o2", 3, "clue.eichental.gruft_wandrelief_1", "clue.eichental.gruft_wandrelief_2",
                         "clue.eichental.gruft_wandrelief_3").WithJournalText("Untersuche die Wandreliefs"), new SetFlag(FlagReliefsRead, 1))
                     .Next("s30"))
                 .Stage(new StageBuilder("s30")
-                    .Text("In den Hallen der Eichenritter regen sich die Toten. Die Siegelkammer liegt in der Tiefe.")
+                    .Text("In den Hallen der Eichenritter regen sich die Toten. Die Siegelkammer liegt in der Tiefe.", "Die Gruft liegt in der Senke unter dem Rabenfels, nördlich des Dorfes.")
+                    .Markers(50f, CryptEntranceId)
                     .Objective(new GoToObjective("o1", "loc.eichental.gruft_siegelkammer_vorraum", 6f).WithJournalText("Zur Siegelkammer gehen"))
                     .Optional(new InteractObjective("o2", 1, "obj.eichental.gruft_kaefig").WithVerb(InteractionVerbs.Use)
                         .WithJournalText("Befreie den Grabräuber"))
                     .Next("s40"))
                 .Stage(new StageBuilder("s40")
-                    .Text("Ein Strahl aus Aether-Licht fällt durch einen Spalt. Drei Spiegel stehen schief in ihren Halterungen.")
+                    .Text("Ein Strahl aus Aether-Licht fällt durch einen Spalt. Drei Spiegel stehen schief in ihren Halterungen.", "Die Gruft liegt in der Senke unter dem Rabenfels, nördlich des Dorfes.")
+                    .Markers(50f, CryptEntranceId)
                     .Objective(new ConditionObjective("o1", new PuzzleIsSolved("puzzle.eichental.gruft_spiegel")).WithJournalText("Den Strahl zum Siegel lenken"))
                     .Next("s50"))
                 .Stage(new StageBuilder("s50")
-                    .Text("Vor dem Siegelstein erhebt sich der Wachende Ritter.")
+                    .Text("Vor dem Siegelstein erhebt sich der Wachende Ritter.", "Die Gruft liegt in der Senke unter dem Rabenfels, nördlich des Dorfes.")
+                    .Markers(50f, CryptEntranceId)
                     .Objective(new KillSpecificObjective("o1", "boss.eichental.wachender_ritter").WithJournalText("Den Wachenden Ritter besiegen"))
                     .Next("s60"))
                 .Stage(new StageBuilder("s60")
-                    .Text("Der Siegelstein liegt frei. Die Inschrift warnt: „Wer den Riegel nimmt, öffnet die Gräber.“")
+                    .Text("Der Siegelstein liegt frei. Die Inschrift warnt: „Wer den Riegel nimmt, öffnet die Gräber.“", "Die Gruft liegt in der Senke unter dem Rabenfels, nördlich des Dorfes.")
+                    .Markers(50f, CryptEntranceId)
                     .Objective(new InteractObjective("o1", 1, "obj.eichental.gruft_siegelstein").WithVerb(InteractionVerbs.PickUp)
                         .WithJournalText("Nimm den Siegelstein"))
                     .Objective(new GoToObjective("o2", "loc.eichental.gruft_ausgang", 6f).WithJournalText("Lass ihn liegen und geh"))

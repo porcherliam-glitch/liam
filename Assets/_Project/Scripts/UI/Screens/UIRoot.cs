@@ -153,6 +153,8 @@ namespace Aetherfall.UI.Screens
         private LoadingScreenProxy _loadingProxy;
         private UiStateDirector _director;
         private HudView _hud;
+        private QuestMarkerModel _questMarkers;
+        private CompassMarkersView _compassMarkers;
         private ToastView _toasts;
         private MainMenuScreen _mainMenu;
         private PauseMenuScreen _pauseMenu;
@@ -266,14 +268,16 @@ namespace Aetherfall.UI.Screens
             _ui.RegisterScreen(_pauseMenu);
             _ui.RegisterScreen(_deathScreen);
             BuildDialogueScreen(screensRoot);
+            Services.Locator.TryGet(out IExplorationService exploration);
+            Services.Locator.TryGet(out IPlayerLocator players);
+            Services.Locator.TryGet(out IWorldMarkerRegistry worldMarkers);
+            _questMarkers = new QuestMarkerModel(_quests, exploration, worldMarkers);
             if (HasJournalLayouts())
             {
-                Services.Locator.TryGet(out IExplorationService exploration);
-                Services.Locator.TryGet(out IPlayerLocator players);
                 Services.Locator.TryGet(out Aetherfall.Player.IFastTravelService fastTravel);
                 _journal = new JournalScreen(CloneScreen(journalLayout, screensRoot), questRowLayout, objectiveRowLayout, journalLineLayout,
                     attributeRowLayout, valueRowLayout, _glyphs, _quests, _progression, OnJournalCloseRequested, _skills, exploration, players,
-                    fastTravel);
+                    fastTravel, _questMarkers);
                 _ui.RegisterScreen(_journal);
             }
             else
@@ -302,6 +306,7 @@ namespace Aetherfall.UI.Screens
             XpBarView xpBar = _progression != null && hudRoot.Q<VisualElement>("hud-xp") != null ? new XpBarView(hudRoot.Q<VisualElement>("hud-xp"), _progression) : null;
             _hud.AttachProgressViews(tracker, xpBar);
             _bossBar = new BossBarView(hudRoot);
+            _compassMarkers = new CompassMarkersView(hudRoot, _questMarkers, exploration, players);
             _investigate = new InvestigateOverlayView(hudRoot);
             Services.Locator.TryGet(out IGameClock gameClock);
             _clock = new HudClockView(hudRoot.Q<Label>("hud-clock"), gameClock);
@@ -437,6 +442,8 @@ namespace Aetherfall.UI.Screens
             }
 
             _hud.Tick(dt);
+            // A hidden compass (immersive HUD, no player) costs nothing: NaN clears the markers.
+            _compassMarkers.Tick(_hud.CompassVisible ? _hud.CompassHeading : float.NaN);
             _clock?.Tick();
             _bossBar.Tick(dt);
             if (_notifier != null)
@@ -541,6 +548,7 @@ namespace Aetherfall.UI.Screens
         {
             _director.OnGameLoaded();
             _hud.ResetState();
+            _questMarkers.Reset();
             if (_notifier != null)
             {
                 _notifier.Reset();
@@ -714,6 +722,12 @@ namespace Aetherfall.UI.Screens
         {
             _ui.ShowToast(notification);
         }
+
+        /// <summary>Markers on the HUD compass (null before the UI is ready), for check runs.</summary>
+        public CompassMarkersView CompassMarkers => _compassMarkers;
+
+        /// <summary>Quest targets of compass and map (null before the UI is ready), for check runs.</summary>
+        public QuestMarkerModel QuestMarkers => _questMarkers;
 
         /// <summary>Opens the journal on a page like its keys do (J, K; tools and check runs use it too).</summary>
         /// <param name="page">Page.</param>

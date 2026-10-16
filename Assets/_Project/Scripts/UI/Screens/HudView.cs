@@ -204,6 +204,12 @@ namespace Aetherfall.UI.Screens
             _targetHidden = hidden;
         }
 
+        /// <summary>Heading the compass shows in degrees (NaN before the first frame), for the compass markers.</summary>
+        public float CompassHeading => _shownHeading;
+
+        /// <summary>True while the compass is shown (a player exists and the HUD rules show it).</summary>
+        public bool CompassVisible { get; private set; }
+
         /// <summary>Shows all elements for 5 s (HUD peek: hold Select / M).</summary>
         public void Peek()
         {
@@ -253,6 +259,7 @@ namespace Aetherfall.UI.Screens
                 UiElementUtility.SetDisplayed(_prompt, false);
                 UiElementUtility.SetDisplayed(_crosshair, false);
                 UiElementUtility.SetDisplayed(_arrows, false);
+                CompassVisible = false;
                 UpdateCompass(0f);
                 TickProgressViews(deltaTime, false, false);
                 return;
@@ -297,6 +304,7 @@ namespace Aetherfall.UI.Screens
             UiElementUtility.SetDisplayed(_abilities, _rules.ShowAbilities);
             UiElementUtility.SetDisplayed(_quickSlots, _rules.ShowQuickSlots);
             UiElementUtility.SetDisplayed(_compass, _rules.ShowCompass);
+            CompassVisible = _rules.ShowCompass;
             UpdateExhausted(exhausted, deltaTime);
             UpdateStatus(source.StatusText, _rules.ShowHealth);
             UpdateTarget(hasTarget && !_targetHidden, target, deltaTime);

@@ -150,6 +150,9 @@ namespace Aetherfall.UI.Framework
         /// <summary>Legend: place seen from a viewpoint, not visited yet.</summary>
         public const string MapLegendUnknown = "map-legend-unknown";
 
+        /// <summary>Legend: target of a tracked quest (gold diamond).</summary>
+        public const string MapLegendQuest = "map-legend-quest";
+
         /// <summary>Legend: the player.</summary>
         public const string MapLegendPlayer = "map-legend-player";
 

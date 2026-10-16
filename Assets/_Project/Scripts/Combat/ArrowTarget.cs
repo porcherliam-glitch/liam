@@ -21,6 +21,7 @@ namespace Aetherfall.Combat
 
         private Combatant _combatant;
         private IEventBus _bus;
+        private readonly WorldMarkerHandle _marker = new WorldMarkerHandle();
 
         /// <summary>Object id.</summary>
         public string ObjectId => objectId ?? string.Empty;
@@ -80,6 +81,7 @@ namespace Aetherfall.Combat
             {
                 await Services.WaitForAsync<IGameStateService>(destroyCancellationToken);
                 Services.Locator.TryGet(out _bus);
+                _marker.Connect(Services.Locator);
             }
             catch (OperationCanceledException)
             {
@@ -93,6 +95,8 @@ namespace Aetherfall.Combat
 
         private void OnEnable()
         {
+            // "Treffe" objectives point the compass at the targets.
+            _marker.Show(ObjectId, transform);
             Health health = _combatant != null ? _combatant.Health : null;
             if (health != null)
             {
@@ -102,6 +106,7 @@ namespace Aetherfall.Combat
 
         private void OnDisable()
         {
+            _marker.Hide();
             Health health = _combatant != null ? _combatant.Health : null;
             if (health != null)
             {

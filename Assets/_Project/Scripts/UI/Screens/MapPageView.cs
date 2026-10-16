@@ -12,7 +12,8 @@ namespace Aetherfall.UI.Screens
     /// <summary>
     /// The map page of the journal (S63, GDD 05 1.3: first hub tab, M): the painted map of the current region cut to the
     /// playable area, the fog over everything not explored yet (soft edges), icons and names of the discovered places, "?" for
-    /// places seen from a viewpoint, the player as an arrow, and at the side the region name, counters and a legend. Without a
+    /// places seen from a viewpoint, the targets of the tracked quests (diamonds in the colour of the quest category, the focus
+    /// quest larger; many targets as a search circle, S60), the player as an arrow, and at the side the region name, counters and a legend. Without a
     /// map (crypt, menus) it says so.
     /// </summary>
     /// <remarks>
@@ -46,6 +47,11 @@ namespace Aetherfall.UI.Screens
         private readonly List<MapPlace> _targets = new List<MapPlace>();
         private readonly List<MapPlace> _scratch = new List<MapPlace>();
         private readonly List<Label> _rows = new List<Label>();
+        private readonly QuestMarkerModel _questMarkers;
+        private readonly VisualElement _quests;
+        private readonly List<VisualElement> _questPool = new List<VisualElement>();
+        private readonly List<CompassCandidate> _questCandidates = new List<CompassCandidate>();
+        private readonly List<string> _questTones = new List<string>();
         private int _confirm = -1;
         private Texture2D _fogTexture;
         private Color32[] _fogPixels;
@@ -60,11 +66,14 @@ namespace Aetherfall.UI.Screens
         /// <param name="exploration">Exploration service (null: always "Keine Karte").</param>
         /// <param name="players">Player locator (null: no arrow).</param>
         /// <param name="travel">Fast travel (null: no travel list).</param>
-        public MapPageView(VisualElement page, IExplorationService exploration, IPlayerLocator players, IFastTravelService travel = null)
+        /// <param name="questMarkers">Quest targets (null: none).</param>
+        public MapPageView(VisualElement page, IExplorationService exploration, IPlayerLocator players, IFastTravelService travel = null,
+            QuestMarkerModel questMarkers = null)
         {
             _exploration = exploration;
             _players = players;
             _travel = travel;
+            _questMarkers = questMarkers;
             var row = new VisualElement { pickingMode = PickingMode.Ignore };
             row.AddToClassList("af-map");
             _frame = new VisualElement { name = "map-frame", pickingMode = PickingMode.Ignore };
@@ -72,6 +81,7 @@ namespace Aetherfall.UI.Screens
             _image = Child(_frame, "af-map__image");
             _fog = Child(_frame, "af-map__fog");
             _icons = Child(_frame, "af-map__icons");
+            _quests = Child(_frame, "af-map__icons");
             _player = Child(_frame, "af-map__player");
             _player.generateVisualContent += DrawArrow;
             _noMap = new Label(UiTexts.Get(UiTextKeys.MapNone)) { pickingMode = PickingMode.Ignore };
@@ -98,6 +108,7 @@ namespace Aetherfall.UI.Screens
             legend.Add(LegendRow("af-map__place", UiTexts.Get(UiTextKeys.MapLegendPlace)));
             legend.Add(LegendRow("af-map__place--viewpoint", UiTexts.Get(UiTextKeys.MapLegendViewpoint)));
             legend.Add(LegendRow("af-map__place--unknown", UiTexts.Get(UiTextKeys.MapLegendUnknown)));
+            legend.Add(LegendRow("af-map__quest", UiTexts.Get(UiTextKeys.MapLegendQuest)));
             legend.Add(LegendRow("af-map__legend-player", UiTexts.Get(UiTextKeys.MapLegendPlayer)));
             side.Add(legend);
             row.Add(side);
@@ -112,6 +123,9 @@ namespace Aetherfall.UI.Screens
 
         /// <summary>Icons shown (discovered places and "?"), for tests and the tour.</summary>
         public int VisibleIcons { get; private set; }
+
+        /// <summary>Quest markers shown (targets and search areas), for tests and the tour.</summary>
+        public int VisibleQuestMarkers { get; private set; }
 
         /// <summary>Text of the counters (tests, tour).</summary>
         public string CountText => _places.text + " · " + _viewpoints.text + " · " + _revealed.text;
@@ -212,10 +226,12 @@ namespace Aetherfall.UI.Screens
             UiElementUtility.SetDisplayed(_image, hasMap);
             UiElementUtility.SetDisplayed(_fog, hasMap);
             UiElementUtility.SetDisplayed(_icons, hasMap);
+            UiElementUtility.SetDisplayed(_quests, hasMap);
             if (!hasMap)
             {
                 _shownMap = null;
                 VisibleIcons = 0;
+                VisibleQuestMarkers = 0;
                 UiElementUtility.SetDisplayed(_player, false);
                 UiElementUtility.SetText(_region, UiTexts.Get(UiTextKeys.JournalMap));
                 UiElementUtility.SetText(_places, string.Empty);
@@ -239,6 +255,7 @@ namespace Aetherfall.UI.Screens
             }
 
             DrawPlayer(map);
+            DrawQuests();
         }
 
         /// <summary>Releases the fog texture.</summary>
@@ -382,6 +399,70 @@ namespace Aetherfall.UI.Screens
             Vector3 position = player.Position;
             Place(_player, position.x, position.z);
             _player.style.rotate = new Rotate(new Angle(player.Yaw, AngleUnit.Degree));
+        }
+
+        private void DrawQuests()
+        {
+            _questCandidates.Clear();
+            _questMarkers?.Collect(_questCandidates);
+            int used = 0;
+            foreach (CompassCandidate target in _questCandidates)
+            {
+                VisualElement pin = QuestPin(used++);
+                bool area = target.Radius > 0f;
+                pin.EnableInClassList("af-map__quest--focus", target.Kind == CompassMarkerKind.FocusQuest);
+                pin.EnableInClassList("af-map__quest--area", area);
+                SwapTone(pin, "af-map__quest--tone-", _questTones, used - 1, target.Tone);
+                // A search area is a circle as large as the area; a single target keeps the size of its style.
+                StyleLength size = area ? new StyleLength(Length.Percent(target.Radius * 2f / _viewExtent * 100f)) : new StyleLength(StyleKeyword.Null);
+                pin.style.width = size;
+                pin.style.height = size;
+                Place(pin, target.X, target.Z);
+                UiElementUtility.SetDisplayed(pin, true);
+            }
+
+            for (int i = used; i < _questPool.Count; i++)
+            {
+                UiElementUtility.SetDisplayed(_questPool[i], false);
+            }
+
+            VisibleQuestMarkers = used;
+        }
+
+        private VisualElement QuestPin(int index)
+        {
+            while (_questPool.Count <= index)
+            {
+                var pin = new VisualElement { pickingMode = PickingMode.Ignore };
+                pin.AddToClassList("af-map__quest");
+                _quests.Add(pin);
+                _questPool.Add(pin);
+                _questTones.Add(string.Empty);
+            }
+
+            return _questPool[index];
+        }
+
+        private static void SwapTone(VisualElement element, string prefix, List<string> shown, int index, string tone)
+        {
+            // Category colour (GDD 05 1.9): one class per tone, swapped only when it changes.
+            tone = tone ?? string.Empty;
+            if (shown[index] == tone)
+            {
+                return;
+            }
+
+            if (shown[index].Length > 0)
+            {
+                element.RemoveFromClassList(prefix + shown[index]);
+            }
+
+            if (tone.Length > 0)
+            {
+                element.AddToClassList(prefix + tone);
+            }
+
+            shown[index] = tone;
         }
 
         private void Place(VisualElement element, float x, float z)

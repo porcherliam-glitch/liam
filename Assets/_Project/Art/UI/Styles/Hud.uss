@@ -73,6 +73,133 @@
     color: var(--text-title);
 }
 
+/* Compass markers (S60): quest targets, search areas, places. The focus target is the largest and shows its distance. */
+.af-compass__marker {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 60px;
+    margin-left: -30px;
+    align-items: center;
+    justify-content: flex-end;
+    padding-bottom: 4px;
+}
+
+.af-compass__pip {
+    width: 9px;
+    height: 9px;
+    rotate: 45deg;
+    border-width: 1px;
+    border-color: rgb(40, 26, 8);
+    background-color: rgb(214, 168, 64);
+}
+
+.af-compass__marker--focus .af-compass__pip {
+    width: 14px;
+    height: 14px;
+    border-width: 2px;
+    background-color: rgb(255, 204, 64);
+}
+
+.af-compass__marker--area .af-compass__pip {
+    width: 14px;
+    height: 14px;
+    rotate: 0deg;
+    border-width: 2px;
+    border-radius: 3px;
+    border-color: rgb(232, 176, 52);
+    background-color: rgba(232, 176, 52, 0.15);
+}
+
+.af-compass__marker--place .af-compass__pip {
+    width: 7px;
+    height: 7px;
+    rotate: 0deg;
+    border-radius: 4px;
+    background-color: rgb(236, 226, 200);
+}
+
+.af-compass__marker--unknown .af-compass__pip {
+    display: none;
+}
+
+.af-compass__marker--edge {
+    opacity: 0.8;
+}
+
+/* The distance of the nearest focus target (GDD 05 1.4: HUD numbers 22 px) on a dark plate right of the pip; the plate also
+   keeps the line and the letters behind it readable. */
+.af-compass__distance {
+    position: absolute;
+    left: 40px;
+    bottom: 0;
+    padding: 0 4px;
+    font-size: 22px;
+    color: rgb(255, 214, 102);
+    -unity-font-style: bold;
+    -unity-text-align: middle-left;
+    white-space: nowrap;
+    border-radius: 3px;
+    background-color: rgba(8, 10, 13, 0.82);
+}
+
+/* Near the right edge the plate goes to the left of the pip, so the strip does not cut it off. */
+.af-compass__marker--right .af-compass__distance {
+    left: auto;
+    right: 40px;
+    -unity-text-align: middle-right;
+}
+
+.af-compass__marker--right .af-compass__arrow {
+    right: auto;
+    left: 40px;
+    -unity-text-align: lower-left;
+}
+
+/* ▲/▼ left of the pip. */
+.af-compass__arrow {
+    position: absolute;
+    right: 40px;
+    bottom: 2px;
+    font-size: 16px;
+    color: rgb(255, 214, 102);
+    -unity-text-align: lower-right;
+}
+
+.af-compass__marker--unknown .af-compass__arrow {
+    left: 0;
+    right: 0;
+    bottom: 0;
+    font-size: 15px;
+    color: rgb(170, 160, 140);
+    -unity-text-align: lower-center;
+    -unity-font-style: bold;
+}
+
+/* Quest category colours on the compass (GDD 05 1.8 / 1.9): the pip takes the colour of the quest's category. */
+.af-compass__marker--tone-main .af-compass__pip { background-color: var(--quest-main); }
+.af-compass__marker--tone-faction .af-compass__pip { background-color: var(--quest-faction); }
+.af-compass__marker--tone-region .af-compass__pip { background-color: var(--quest-region); }
+.af-compass__marker--tone-side .af-compass__pip { background-color: var(--quest-side); }
+.af-compass__marker--tone-companion .af-compass__pip { background-color: var(--quest-companion); }
+.af-compass__marker--tone-bounty .af-compass__pip { background-color: var(--quest-bounty); }
+.af-compass__marker--tone-treasure .af-compass__pip { background-color: var(--quest-treasure); }
+.af-compass__marker--tone-crafting .af-compass__pip { background-color: var(--quest-crafting); }
+.af-compass__marker--tone-repeatable .af-compass__pip { background-color: var(--quest-repeatable); }
+.af-compass__marker--tone-legendary .af-compass__pip { background-color: var(--quest-legendary); }
+
+/* A search area is a bracket in the category colour. */
+.af-compass__marker--area.af-compass__marker--tone-main .af-compass__pip { background-color: rgba(0, 0, 0, 0); border-color: var(--quest-main); }
+.af-compass__marker--area.af-compass__marker--tone-faction .af-compass__pip { background-color: rgba(0, 0, 0, 0); border-color: var(--quest-faction); }
+.af-compass__marker--area.af-compass__marker--tone-region .af-compass__pip { background-color: rgba(0, 0, 0, 0); border-color: var(--quest-region); }
+.af-compass__marker--area.af-compass__marker--tone-side .af-compass__pip { background-color: rgba(0, 0, 0, 0); border-color: var(--quest-side); }
+.af-compass__marker--area.af-compass__marker--tone-companion .af-compass__pip { background-color: rgba(0, 0, 0, 0); border-color: var(--quest-companion); }
+.af-compass__marker--area.af-compass__marker--tone-bounty .af-compass__pip { background-color: rgba(0, 0, 0, 0); border-color: var(--quest-bounty); }
+.af-compass__marker--area.af-compass__marker--tone-treasure .af-compass__pip { background-color: rgba(0, 0, 0, 0); border-color: var(--quest-treasure); }
+.af-compass__marker--area.af-compass__marker--tone-crafting .af-compass__pip { background-color: rgba(0, 0, 0, 0); border-color: var(--quest-crafting); }
+.af-compass__marker--area.af-compass__marker--tone-repeatable .af-compass__pip { background-color: rgba(0, 0, 0, 0); border-color: var(--quest-repeatable); }
+.af-compass__marker--area.af-compass__marker--tone-legendary .af-compass__pip { background-color: rgba(0, 0, 0, 0); border-color: var(--quest-legendary); }
+
 .af-compass__needle {
     position: absolute;
     left: 319px;

@@ -616,6 +616,47 @@
     margin-top: -11px;
 }
 
+/* Quest targets (S60): gold diamonds, the focus quest larger; many targets become a search circle. */
+.af-map__quest {
+    position: absolute;
+    width: 13px;
+    height: 13px;
+    margin-left: -6px;
+    margin-top: -6px;
+    rotate: 45deg;
+    border-width: 2px;
+    border-color: rgb(60, 36, 10);
+    background-color: rgb(232, 176, 52);
+}
+
+.af-map__quest--focus {
+    width: 18px;
+    height: 18px;
+    margin-left: -9px;
+    margin-top: -9px;
+}
+
+/* Quest pins in the category colour (GDD 05 1.9). */
+.af-map__quest--tone-main { background-color: var(--quest-main); }
+.af-map__quest--tone-faction { background-color: var(--quest-faction); }
+.af-map__quest--tone-region { background-color: var(--quest-region); }
+.af-map__quest--tone-side { background-color: var(--quest-side); }
+.af-map__quest--tone-companion { background-color: var(--quest-companion); }
+.af-map__quest--tone-bounty { background-color: var(--quest-bounty); }
+.af-map__quest--tone-treasure { background-color: var(--quest-treasure); }
+.af-map__quest--tone-crafting { background-color: var(--quest-crafting); }
+.af-map__quest--tone-repeatable { background-color: var(--quest-repeatable); }
+.af-map__quest--tone-legendary { background-color: var(--quest-legendary); }
+
+.af-map__quest--area {
+    margin: 0;
+    translate: -50% -50%;
+    rotate: 0deg;
+    border-radius: 50%;
+    border-color: rgba(200, 140, 40, 0.9);
+    background-color: rgba(232, 176, 52, 0.22);
+}
+
 .af-map__none {
     position: absolute;
     left: 0;

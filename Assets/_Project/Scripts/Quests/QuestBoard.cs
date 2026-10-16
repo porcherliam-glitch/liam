@@ -34,6 +34,7 @@ namespace Aetherfall.Quests
         [SerializeField] private int priority = 20;
 
         private readonly List<string> _scratch = new List<string>();
+        private readonly WorldMarkerHandle _marker = new WorldMarkerHandle();
         private IQuestService _quests;
         private bool _subscribed;
         private int _shownRevision = -1;
@@ -91,6 +92,7 @@ namespace Aetherfall.Quests
             try
             {
                 await Services.WaitForAsync<IGameStateService>(destroyCancellationToken);
+                _marker.Connect(Services.Locator);
                 if (!Services.Locator.TryGet(out _quests))
                 {
                     Log.Warning(LogCategory.Quests, "QuestBoard '" + name + "': no IQuestService registered - the board offers nothing. Add the " +
@@ -113,12 +115,14 @@ namespace Aetherfall.Quests
 
         private void OnEnable()
         {
+            _marker.Show(InteractionObjectId, transform);
             Subscribe();
             _shownRevision = -1;
         }
 
         private void OnDisable()
         {
+            _marker.Hide();
             if (_subscribed && _quests != null)
             {
                 _quests.Changed -= OnQuestsChanged;
