@@ -84,6 +84,7 @@ Ziel: ein Teil des Eichentals (~1,1 km²), alle 8 Beispiel-Quests, etwa 3,5–4 
 - [x] **Untersuchen, Aether-Sicht, Spuren (S37):** – 2026-10-15, Commit 06b9c6c
   - Erledigt: R halten lässt Hinweise und Spuren in 5 m leuchten (Weide, Runen, Spurknoten, Gruft-Tafeln), HUD-Rand und Zähler, Aether-Sicht (40 m, türkis, nur Gehen) per Welt-Flag; offen: Aether-Sicht erlernen (HQ 4), verborgene Wege in der Welt Detektiv-Modus nach GDD 02, für Quest 2 und 3
 - [ ] **Weltkarte und Erkundung (S34, S63, S60):**
+  - Teil 3 erledigt (2026-10-16, Commit 3202bee): Kompass mit Questmarkern (Fokus mit Entfernung, Kategorie-Farben, verfolgte Quests, Suchgebiet, Orte, „?“, Gruft-Eingang), Questziele auf der Karte
   - Teil 2 erledigt (2026-10-16, Commit 537ce45): Schnellreise über die Karte (Reiseziele mit Reisezeit, Zeitsprung der Spieluhr, Sperren, Autospeichern)
   - Teil 1 erledigt (2026-10-15, Commit e29c1e4): Karte (M) mit gemaltem Kartenbild, Nebel, entdeckten Orten und „?“, Aussichtspunkte Krähennest und Rabenfels-Spitze, Speichern im Abschnitt world
   - Karte mit Nebel, Aussichtspunkte, eigene Marker
