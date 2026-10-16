@@ -92,7 +92,9 @@ Ziel: ein Teil des Eichentals (~1,1 km²), alle 8 Beispiel-Quests, etwa 3,5–4 
   - Karte mit Nebel, Aussichtspunkte, eigene Marker
   - Kompass mit Questmarkern
   - Schnellreise zwischen Wegpunkten (S50), die Spieluhr springt um die Reisedauer
-- [ ] **Tag/Nacht (S35):** Licht folgt der Uhr, Lichtwert für die Schleich-KI
+- [x] **Tag/Nacht (S35):** Licht folgt der Uhr, Lichtwert für die Schleich-KI – 2026-10-16, Commit f7687c5
+  - Erledigt: Sonne und Mond nach der Uhr, 11 Tageszeit-Schlüssel aus der Layout-Datei, Feuer und Fenster, Gruft-Ausgänge, Lichtwert für die Schleich-KI (Tag 1,0 / Dämmerung 0,7 / Nacht 0,4 / am Feuer 0,9), Ereignis `DayPhaseChanged`, Rundgang `tagnacht`
+  - Später (Stufe B): Wetter, Fackel und Laternen, Sterne, Nachbearbeitung, Konsole `set_time`; jetzt möglich: Glutfang schläft tagsüber, Nacht-Skelette, Nacht-Erfahrung ×1,25
 - [ ] **Musik und Ambience (S57):**
   - CC0-Musik für Erkundung, Spannung, Kampf und Boss mit Überblendung
   - Umgebungsgeräusche, Schritte, Kampfgeräusche, Audio-Mixer

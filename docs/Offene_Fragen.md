@@ -236,6 +236,11 @@ Diese Entscheidungen bestimmen Phase 0.4 und Phase 1 weniger stark. **Bis zur An
 | Klassen | Rissläufer als Startklasse? | Nein: Story-Klasse, der Baum öffnet sich für alle nach Akt 1 (Option B) | [GDD 03](./GDD/03_Kampf_Charakter_Progression.md#offene-entscheidungen) |
 | Klassen | Anzahl der Hybridklassen? | 6 in Stufe C1–C2, die übrigen 4 später | [GDD 03](./GDD/03_Kampf_Charakter_Progression.md#offene-entscheidungen) |
 | Kampf | Strafe beim Tod? | Keine; Neustart am letzten Checkpoint, < 30 s bis zum neuen Versuch | [GDD 03](./GDD/03_Kampf_Charakter_Progression.md#offene-entscheidungen) |
+| Tag/Nacht | Was heißt „Dämmerung“ für die Schleich-KI? | Die Phasen Morgen (5–8) und Abend (18–21) mit 0,7, als Stufe an den Phasengrenzen (wie HUD und Tagesabläufe) | [Status](./Status.md) |
+| Tag/Nacht | Ändert die Nacht auch die Sichtweite? | Nein, nur die Entdeckungsrate (GDD 03 9.2); die 22 m bleiben | [Status](./Status.md) |
+| Tag/Nacht | Welche Lichter zählen für die Schleich-KI? | Brennende Feuer und Lampen bis 5 m (registrierte Lichtquellen); leuchtende Fenster nicht | [Status](./Status.md) |
+| Tag/Nacht | Lichtwert in der Gruft? | Vorerst 1,0 (wie bisher); später 0,7 mit Fackel-Inseln 0,9 | [Status](./Status.md) |
+| Tag/Nacht | Was heißt „tagsüber“ für Glutfang? | Offen: Phase Tag (8–18) oder 6–20 Uhr | [Status](./Status.md) |
 | Kampf | Kampf vom Reittier? | Nur Reiterhieb und Bogen/Armbrust (~15 statt ~60 Animationen) | [GDD 03](./GDD/03_Kampf_Charakter_Progression.md#offene-entscheidungen) |
 | Kampf | Alle 11 Waffentypen als Ziel für Stufe C? | Ja, Faustwaffen und Armbrust zuletzt | [GDD 03](./GDD/03_Kampf_Charakter_Progression.md#offene-entscheidungen) |
 | Steuerung | Fähigkeiten am Controller: nur Rad (§7.1) oder Rad + Akkord? | Rad + Akkord (RB + Taste), „nur Rad“ als Option | [GDD 03](./GDD/03_Kampf_Charakter_Progression.md#offene-entscheidungen) |
