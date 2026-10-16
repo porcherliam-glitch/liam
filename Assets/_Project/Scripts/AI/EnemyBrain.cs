@@ -273,7 +273,7 @@ namespace Aetherfall.AI
                 PerceptionSettings perception = _settings.Perception;
                 float distance = senses.Self.DistanceTo(senses.Target);
                 float bearing = CombatMath.BearingTo(senses.Self.X, senses.Self.Z, senses.SelfYaw, senses.Target.X, senses.Target.Z);
-                sight = senses.TargetVisible ? PerceptionMath.SightRate(distance, bearing, perception, senses.TargetStance) : 0f;
+                sight = senses.TargetVisible ? PerceptionMath.SightRate(distance, bearing, perception, senses.TargetStance, senses.TargetLight) : 0f;
                 instant = PerceptionMath.IsInstantDetection(distance, perception, senses.TargetStance);
                 noise = PerceptionMath.NoiseDetection(distance, PerceptionMath.NoiseRadius(senses.TargetStance) * perception.HearingFactor);
             }

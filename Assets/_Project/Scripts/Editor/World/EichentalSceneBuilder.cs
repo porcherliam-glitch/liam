@@ -55,7 +55,7 @@ namespace Aetherfall.EditorTools.World
             var meshes = new EichentalMeshLibrary(report);
             Font labelFont = TestGroundSceneBuilder.LoadLabelFont(report);
 
-            SetUpLighting(scene, layout.Lighting, report);
+            Light sun = SetUpLighting(scene, layout.Lighting, report);
             Camera mainCamera = TestGroundSceneBuilder.SetUpMainCamera(scene, report);
 
             // Landscape.
@@ -96,6 +96,19 @@ namespace Aetherfall.EditorTools.World
             new EichentalPropBuilder(materials, meshes, heights, env, layers.Interactable, layers.Hurtbox, labelFont, report)
                 .BuildAll(layout, Group(village.transform, "Requisiten"));
             nature.BuildRift(null);
+
+            // S35: the light follows the game clock (profile baked from the layout's dayCycle; the generated look is its 18:10).
+            DayNightProfile dayProfile = DayNightBuilder.EnsureProfile(layout, EichentalPaths.DayNightProfilePath, report);
+            if (dayProfile != null)
+            {
+                DayNightBuilder.AddOutdoorRig(sun, RenderSettings.skybox, dayProfile, new[] { village.transform, landscape.transform },
+                    materials.Fixed("window", new Color(0.08f, 0.07f, 0.07f), 0.5f),
+                    materials.FixedGlow("window_lit", new Color(0.08f, 0.07f, 0.07f), new Color(1f, 0.706f, 0.4f), 1.8f), report);
+            }
+            else
+            {
+                report.Warning("Kein dayCycle im Layout – das Licht bleibt statisch.");
+            }
 
             // Player and cameras (like the test ground, but on the layout's start point and with terrain as an obstacle).
             var gameplay = new EichentalGameplayBuilder(layout, heights, materials, testMaterials, labelFont, report);
@@ -168,7 +181,7 @@ namespace Aetherfall.EditorTools.World
             return group.transform;
         }
 
-        private static void SetUpLighting(Scene scene, LayoutLighting lighting, TestGroundReport report)
+        private static Light SetUpLighting(Scene scene, LayoutLighting lighting, TestGroundReport report)
         {
             Light sun = null;
             GameObject[] roots = scene.GetRootGameObjects();
@@ -206,8 +219,9 @@ namespace Aetherfall.EditorTools.World
                 RenderSettings.skybox = sky;
             }
 
-            report.Info("Licht: Abendsonne aus " + lighting.SunAzimuth + "° in " + lighting.SunElevation + "° Höhe, Umgebungslicht in drei Farben, " +
-                        "leichter Dunst (Dichte " + lighting.FogDensity + "), Himmel aus dem Layout.");
+            report.Info("Licht: Layout-Stand 18:10 (goldene Stunde) aus " + lighting.SunAzimuth + "° in " + lighting.SunElevation + "° Höhe, " +
+                        "Umgebungslicht in drei Farben, leichter Dunst (Dichte " + lighting.FogDensity + "); zur Laufzeit folgt es der Uhr.");
+            return sun;
         }
 
         private static Material EnsureSkybox(LayoutLighting lighting, TestGroundReport report)

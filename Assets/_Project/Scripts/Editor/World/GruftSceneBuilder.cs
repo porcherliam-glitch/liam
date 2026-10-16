@@ -5,6 +5,7 @@ using Aetherfall.AI;
 using Aetherfall.Combat;
 using Aetherfall.EditorTools.Core;
 using Aetherfall.Player;
+using Aetherfall.World;
 using Aetherfall.World.Dungeons;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -117,6 +118,14 @@ namespace Aetherfall.EditorTools.World
             GruftGeometryBuilder.Build(geometry, layout.WallThickness, root.transform, materials, environmentLayer, report);
             GameObject player = GruftPlayerBuilder.Build(ctx, settings, testMaterials, combat, items, out Camera mainCamera);
             GruftObjectBuilder.Build(ctx);
+
+            // S35: the daylight at the exits follows the sun of the valley (Eichental profile); the crypt keeps its own darkness.
+            DayNightProfile dayProfile = DayNightBuilder.EnsureEichentalProfile(report);
+            if (dayProfile != null)
+            {
+                DayNightBuilder.AddIndoorRig(dayProfile, ctx.DaylightLights.ToArray(), ctx.DaylightRenderers.ToArray(), materials.Daylight,
+                    materials.Nightlight, report);
+            }
             EnemySpawner spawner = GruftEnemyBuilder.Build(ctx, assets);
             Combatant playerCombatant = player.GetComponent<Combatant>();
             TestGroundCombatBuilder.CreateOverlays(playerCombatant, spawner, mainCamera, ctx.Font, report);

@@ -36,6 +36,9 @@ namespace Aetherfall.World
         /// <summary>Sun, ambient light and fog.</summary>
         public LayoutLighting Lighting { get; internal set; }
 
+        /// <summary>Day cycle (S35: light over the day), or null without the optional <c>dayCycle</c> block.</summary>
+        public LayoutDayCycle DayCycle { get; internal set; }
+
         /// <summary>Brooks and rivers.</summary>
         public IReadOnlyList<LayoutRiver> Rivers { get; internal set; } = Array.Empty<LayoutRiver>();
 

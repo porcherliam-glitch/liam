@@ -9,7 +9,8 @@ namespace Aetherfall.GameTime
     /// The two clocks of architecture 4.6 in one service: the active playtime (<see cref="IPlaytimeClock"/>: runs in Playing,
     /// Menu, Dialogue, Cutscene and Building) and the game clock (<see cref="IGameClock"/>: runs only in Playing and Building,
     /// table 4.4). Saves both in section <c>time</c>, writes the playtime into the save header and sends
-    /// <c>TimeOfDayChanged</c> for every new game minute. Pure C# service, ticked with real time.
+    /// <c>TimeOfDayChanged</c> for every new game minute and <c>DayPhaseChanged</c> when the phase of the day changes (S35;
+    /// with <c>Skipped</c> during <see cref="AdvanceHours"/>, never on loading). Pure C# service, ticked with real time.
     /// </summary>
     public sealed class GameClock : Saveable<PlaytimeDto>, IPlaytimeClock, IGameClock, IUnscaledTickable, ISaveHeaderContributor
     {
@@ -27,6 +28,8 @@ namespace Aetherfall.GameTime
         private double _gameMinutes = GameCalendar.StartMinutes;
         private float _dayLength = GameCalendar.DefaultRealSecondsPerDay;
         private long _lastMinute = (long)GameCalendar.StartMinutes;
+        private DayPhase _phase = GameCalendar.PhaseOf((int)(GameCalendar.StartMinutes / 60));
+        private bool _skipping;
 
         /// <summary>Creates the clock: playtime 0, day 1 at 10:00.</summary>
         /// <param name="gameState">Game state service (decides which counter runs).</param>
@@ -98,17 +101,26 @@ namespace Aetherfall.GameTime
             float clamped = Math.Min(hours, MaxAdvanceHours);
             double end = _gameMinutes + clamped * 60.0;
             double next = Math.Floor(_gameMinutes / 60.0) * 60.0 + 60.0;
-            while (next <= end)
+            _skipping = true;
+            try
             {
-                // One event per skipped full hour (architecture 4.6: "gebündelt").
-                _gameMinutes = next;
+                while (next <= end)
+                {
+                    // One event per skipped full hour (architecture 4.6: "gebündelt").
+                    _gameMinutes = next;
+                    Publish(Now);
+                    next += 60.0;
+                }
+
+                _gameMinutes = end;
+                _lastMinute = (long)Math.Floor(_gameMinutes);
                 Publish(Now);
-                next += 60.0;
+            }
+            finally
+            {
+                _skipping = false;
             }
 
-            _gameMinutes = end;
-            _lastMinute = (long)Math.Floor(_gameMinutes);
-            Publish(Now);
             Log.Info(LogCategory.Core, "Game clock +" + clamped.ToString("0.##") + " h (" + (reasonId ?? "?") + "): " + Now + ".");
         }
 
@@ -139,19 +151,29 @@ namespace Aetherfall.GameTime
             _gameMinutes = data != null && data.TotalGameMinutes >= 0.0 ? data.TotalGameMinutes : GameCalendar.StartMinutes;
             _dayLength = GameCalendar.ClampDayLength(data != null ? data.RealSecondsPerGameDay : GameCalendar.DefaultRealSecondsPerDay);
             _lastMinute = (long)Math.Floor(_gameMinutes);
+
+            // A loaded game starts in its phase: no DayPhaseChanged for the jump of the load.
+            _phase = Now.Phase;
             Publish(Now);
         }
 
         private void Publish(GameDateTime now)
         {
+            DayPhase previous = _phase;
+            _phase = now.Phase;
             if (_bus == null)
             {
                 return;
             }
 
-            // The event counts days from 0 (architecture 4.3); the clock shows them from 1.
+            // The events count days from 0 (architecture 4.3); the clock shows them from 1.
             var changed = new TimeOfDayChanged(now.Day - 1, now.Hour, now.Minute, now.Phase);
             _bus.Publish(in changed);
+            if (now.Phase != previous)
+            {
+                var phase = new DayPhaseChanged(now.Day - 1, previous, now.Phase, _skipping);
+                _bus.Publish(in phase);
+            }
         }
     }
 }

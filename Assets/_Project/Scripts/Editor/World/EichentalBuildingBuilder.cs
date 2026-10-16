@@ -141,6 +141,12 @@ namespace Aetherfall.EditorTools.World
             filter.sharedMesh = _meshes.Add("Gebaeude_" + b.Id, mesh);
             var renderer = root.AddComponent<MeshRenderer>();
             renderer.sharedMaterials = Materials(b);
+            if (b.State == BuildingState.Intact && (b.Kind == BuildingKind.House || b.Kind == BuildingKind.Tavern))
+            {
+                // S35: warm windows in the evening and early morning (the rig of the scene switches them).
+                DayNightBuilder.AddWindowLights(root, seed, b.Kind == BuildingKind.Tavern);
+            }
+
             // Occlusion only, no static batching (it would take the buildings away from the GPU Resident Drawer, architecture 1.2).
             GameObjectUtility.SetStaticEditorFlags(root, StaticEditorFlags.OccluderStatic | StaticEditorFlags.OccludeeStatic);
             return root;
@@ -426,6 +432,7 @@ namespace Aetherfall.EditorTools.World
             light.range = 9f;
             light.intensity = 2.5f;
             light.shadows = LightShadows.None;
+            DayNightBuilder.AddLightSource(lightObject, light, true);
             _smoke.Add(node.transform, new Vector3(0f, h, 0f));
         }
 

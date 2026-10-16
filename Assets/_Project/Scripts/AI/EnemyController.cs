@@ -3,6 +3,7 @@ using Aetherfall.Combat;
 using Aetherfall.Core;
 using Aetherfall.Events;
 using Aetherfall.Utilities;
+using Aetherfall.World;
 using UnityEngine;
 
 namespace Aetherfall.AI
@@ -90,6 +91,8 @@ namespace Aetherfall.AI
         private EnemyBrain _brain;
         private IAIManager _manager;
         private ICombatService _combat;
+        private IDayNightService _dayNight;
+        private float _targetLight = 1f;
         private Combatant _target;
         private Combatant _tauntSource;
         private bool _warnedNoLauncher;
@@ -463,6 +466,12 @@ namespace Aetherfall.AI
                 IServiceLocator locator = Services.Locator;
                 locator.TryGet(out _combat);
                 locator.TryGet(out _manager);
+                if (!locator.TryGet(out _dayNight))
+                {
+                    Log.Warning(LogCategory.AI, "EnemyController '" + name + "': no IDayNightService (DayNightInstaller missing in the BootConfig); " +
+                                                "the light factor stays 1.");
+                }
+
                 if (!locator.TryGet(out IAttackTokenService tokens))
                 {
                     tokens = new AttackTokenService();
@@ -661,6 +670,7 @@ namespace Aetherfall.AI
             if (_target == null || !_target.IsAlive)
             {
                 _targetVisible = false;
+                _targetLight = 1f;
                 return senses;
             }
 
@@ -681,9 +691,13 @@ namespace Aetherfall.AI
                 PerceptionSettings perception = _brain.Settings.Perception;
                 _targetVisible = PerceptionMath.IsInSight(distance, bearing, perception) &&
                                  !Physics.Linecast(position + Vector3.up * 0.6f, _target.TargetPosition, sightBlockers, QueryTriggerInteraction.Ignore);
+
+                // GDD 03 9.2: darkness slows the sight detection (only the rate, the range stays).
+                _targetLight = _targetVisible && _dayNight != null ? _dayNight.LightFactorAt(_target.TargetPosition) : 1f;
             }
 
             senses.TargetVisible = _targetVisible;
+            senses.TargetLight = _targetLight;
             return senses;
         }
 

@@ -30,6 +30,11 @@ namespace Aetherfall.World
             return path + "[" + index.ToString(CultureInfo.InvariantCulture) + "]";
         }
 
+        public void Error(string path, string message)
+        {
+            _report.Error(path, message);
+        }
+
         public void Known(JsonNode node, string path, params string[] keys)
         {
             if (node == null || node.Kind != JsonNodeKind.Object)

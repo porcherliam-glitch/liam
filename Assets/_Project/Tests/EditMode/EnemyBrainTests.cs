@@ -42,10 +42,11 @@ namespace Aetherfall.Tests.EditMode
         }
 
         private static EnemySenses Senses(float targetX, float targetZ, PerceptionStance stance = PerceptionStance.Walk, bool visible = true,
-            float selfX = 0f, float selfZ = 0f)
+            float selfX = 0f, float selfZ = 0f, float light = 1f)
         {
             return new EnemySenses
             {
+                TargetLight = light,
                 HasTarget = true,
                 Self = new FlatPoint(selfX, selfZ),
                 SelfYaw = 0f,
@@ -126,6 +127,32 @@ namespace Aetherfall.Tests.EditMode
 
             Assert.That(brain.Intent.Mode, Is.EqualTo(EnemyMoveMode.Walk));
             Assert.That(brain.Intent.Destination.X, Is.EqualTo(0f));
+        }
+
+        [Test]
+        public void Senses_DefaultToDaylight_AndClampTheLight()
+        {
+            Assert.That(new EnemySenses().TargetLight, Is.EqualTo(1f));
+            var senses = new EnemySenses { TargetLight = 1.5f };
+            Assert.That(senses.TargetLight, Is.EqualTo(1f));
+            senses.TargetLight = 0.4f;
+            Assert.That(senses.TargetLight, Is.EqualTo(0.4f).Within(1e-6f));
+        }
+
+        [Test]
+        public void AtNight_SneakingInSight_IsNoticedMuchLater()
+        {
+            // GDD 03 9.2: light 0.4 at night, about 15 per second at 5 m while sneaking (combat after about 6.5 s).
+            EnemyBrain day = CreateBrain();
+            Run(day, Senses(0f, 5f, PerceptionStance.Sneak), 1f);
+            EnemyBrain night = CreateBrain();
+            Run(night, Senses(0f, 5f, PerceptionStance.Sneak, light: 0.4f), 1f);
+
+            Assert.That(night.Detection, Is.EqualTo(day.Detection * 0.4f).Within(0.5f));
+            Assert.That(night.State, Is.EqualTo(EnemyStateId.Guard), "at day it is suspicious after 0.8 s, at night not yet");
+
+            Run(night, Senses(0f, 5f, PerceptionStance.Sneak, light: 0.4f), 1.1f);
+            Assert.That(night.State, Is.EqualTo(EnemyStateId.Suspicious), "suspicious after about 2 s");
         }
 
         [Test]

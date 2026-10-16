@@ -18,6 +18,7 @@ namespace Aetherfall.Tests.EditMode.Save
         private SaveTestEnvironment _env;
         private GameClock _clock;
         private readonly List<TimeOfDayChanged> _events = new List<TimeOfDayChanged>();
+        private readonly List<DayPhaseChanged> _phases = new List<DayPhaseChanged>();
 
         [SetUp]
         public void SetUp()
@@ -25,19 +26,90 @@ namespace Aetherfall.Tests.EditMode.Save
             _env = new SaveTestEnvironment();
             _clock = new GameClock(_env.StateService, _env.Bus);
             _events.Clear();
+            _phases.Clear();
             _env.Bus.Subscribe<TimeOfDayChanged>(OnTime);
+            _env.Bus.Subscribe<DayPhaseChanged>(OnPhase);
         }
 
         [TearDown]
         public void TearDown()
         {
             _env.Bus.Unsubscribe<TimeOfDayChanged>(OnTime);
+            _env.Bus.Unsubscribe<DayPhaseChanged>(OnPhase);
             _env.Dispose();
         }
 
         private void OnTime(TimeOfDayChanged evt)
         {
             _events.Add(evt);
+        }
+
+        private void OnPhase(DayPhaseChanged evt)
+        {
+            _phases.Add(evt);
+        }
+
+        [Test]
+        public void TheClockIsTheGameTimeSourceOfDayAndNight()
+        {
+            IGameTimeSource source = _clock;
+            _clock.AdvanceHours(2f, "test");
+
+            Assert.That(source.TotalGameMinutes, Is.EqualTo(_clock.TotalGameMinutes));
+            Assert.That(source.IsClockRunning, Is.EqualTo(_clock.IsClockRunning));
+        }
+
+        [Test]
+        public void CrossingNineInTheEvening_SendsOnePhaseChange()
+        {
+            _clock.AdvanceHours(10f + 59f / 60f, "test");
+            _phases.Clear();
+
+            // Two real seconds are one game minute: 20:59 -> 21:00.
+            _clock.Tick(2.5f);
+
+            Assert.That(_phases.Count, Is.EqualTo(1));
+            Assert.That(_phases[0].Previous, Is.EqualTo(DayPhase.Evening));
+            Assert.That(_phases[0].Current, Is.EqualTo(DayPhase.Night));
+            Assert.That(_phases[0].Skipped, Is.False);
+        }
+
+        [Test]
+        public void ARestOverNight_SendsEachPhaseOnce_AsSkipped()
+        {
+            _clock.AdvanceHours(12f, "test");
+            _phases.Clear();
+
+            _clock.AdvanceHours(10f, "rest.test");
+
+            Assert.That(_clock.Now.ClockText, Is.EqualTo("08:00"));
+            Assert.That(_phases.Count, Is.EqualTo(2), "Night -> Morning at 05:00, Morning -> Day at 08:00");
+            Assert.That(_phases[0].Current, Is.EqualTo(DayPhase.Morning));
+            Assert.That(_phases[1].Current, Is.EqualTo(DayPhase.Day));
+            Assert.That(_phases.TrueForAll(p => p.Skipped), Is.True);
+        }
+
+        [Test]
+        public void LoadingAGame_SendsNoPhaseChange()
+        {
+            _clock.AdvanceHours(12f, "test");
+            object saved = _clock.Save();
+            var other = new GameClock(_env.StateService, _env.Bus);
+            _phases.Clear();
+
+            other.Load(saved, new LoadContext("slot", 1, false, false, null));
+            other.Tick(0.5f);
+
+            Assert.That(_phases, Is.Empty, "the loaded game starts in its phase");
+        }
+
+        [Test]
+        public void TheCalendarAndDayAndNightShareOnePhaseTable()
+        {
+            for (int hour = 0; hour < 24; hour++)
+            {
+                Assert.That(DayPhaseRules.Of(hour), Is.EqualTo(GameCalendar.PhaseOf(hour)), hour + ":00");
+            }
         }
 
         [Test]

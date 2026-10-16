@@ -449,6 +449,7 @@ namespace Aetherfall.EditorTools.World
             light.range = range;
             light.intensity = intensity;
             light.shadows = LightShadows.None;
+            DayNightBuilder.AddLightSource(lightObject, light, true);
         }
 
         private void AddRestSpot(GameObject go, LayoutProp prop)

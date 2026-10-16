@@ -52,6 +52,17 @@ namespace Aetherfall.EditorTools.World
             return Ensure("M_Eichental_" + name, color, smoothness, metallic, null, 0f);
         }
 
+        /// <summary>Fixed colour that glows (lit windows at night): base colour, emission colour and strength.</summary>
+        /// <param name="name">Name without the M_Eichental_ prefix.</param>
+        /// <param name="color">Base colour.</param>
+        /// <param name="emission">Emission colour.</param>
+        /// <param name="intensity">Emission strength (HDR factor).</param>
+        /// <param name="smoothness">Smoothness.</param>
+        public Material FixedGlow(string name, Color color, Color emission, float intensity, float smoothness = 0.5f)
+        {
+            return Ensure("M_Eichental_" + name, color, smoothness, 0f, emission, intensity);
+        }
+
         /// <summary>Material that glows in a palette colour (emission; Aether and embers).</summary>
         /// <param name="key">Palette key, e.g. "aether" or "ember".</param>
         /// <param name="intensity">Emission intensity (HDR factor).</param>

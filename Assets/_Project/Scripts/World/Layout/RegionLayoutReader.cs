@@ -131,7 +131,7 @@ namespace Aetherfall.World
 
             var ctx = new LayoutJsonContext(report);
             ctx.Known(root, string.Empty, "schemaVersion", "layoutId", "regionId", "name", "sceneTitle", "worldSpaceId", "areaLevel", "notes",
-                "sizeRationale", "terrain", "palette", "lighting", "rivers", "paths", "bridges", "buildings", "fences", "fields", "groundZones",
+                "sizeRationale", "terrain", "palette", "lighting", "dayCycle", "rivers", "paths", "bridges", "buildings", "fences", "fields", "groundZones",
                 "vegetation", "rocks", "props", "rift", "locations", "spawners", "chests", "npcMarkers", "questObjects", "trails", "playerStart");
             int schema = ctx.Integer(root, "schemaVersion", string.Empty);
             if (schema != SupportedSchemaVersion)
@@ -152,6 +152,7 @@ namespace Aetherfall.World
                 Terrain = ReadTerrain(ctx, ctx.Object(root, "terrain", string.Empty, true), "terrain"),
                 Palette = ReadPalette(ctx, ctx.Object(root, "palette", string.Empty, true), "palette"),
                 Lighting = ReadLighting(ctx, ctx.Object(root, "lighting", string.Empty, true), "lighting"),
+                DayCycle = ReadDayCycle(ctx, ctx.Object(root, "dayCycle", string.Empty, false), "dayCycle"),
                 Rivers = ReadList(ctx, root, "rivers", false, ReadRiver),
                 Paths = ReadList(ctx, root, "paths", false, ReadPath),
                 Bridges = ReadList(ctx, root, "bridges", false, ReadBridge),
@@ -181,13 +182,15 @@ namespace Aetherfall.World
         }
 
         private static IReadOnlyList<T> ReadList<T>(LayoutJsonContext ctx, JsonNode root, string key, bool required,
-            System.Func<LayoutJsonContext, JsonNode, string, T> read)
+            System.Func<LayoutJsonContext, JsonNode, string, T> read, string parentPath = "")
         {
-            IReadOnlyList<JsonNode> items = ctx.Array(root, key, string.Empty, required);
+            // Item paths include the parent ("dayCycle.keys[3]"), so findings point at the real field.
+            IReadOnlyList<JsonNode> items = ctx.Array(root, key, parentPath, required);
+            string listPath = LayoutJsonContext.Join(parentPath, key);
             var list = new List<T>(items.Count);
             for (int i = 0; i < items.Count; i++)
             {
-                string path = LayoutJsonContext.Index(key, i);
+                string path = LayoutJsonContext.Index(listPath, i);
                 if (ctx.IsObject(items[i], path))
                 {
                     list.Add(read(ctx, items[i], path));
@@ -324,6 +327,102 @@ namespace Aetherfall.World
             }
 
             return palette;
+        }
+
+        private static LayoutDayCycle ReadDayCycle(LayoutJsonContext ctx, JsonNode node, string path)
+        {
+            if (node == null)
+            {
+                return null;
+            }
+
+            ctx.Known(node, path, "sun", "moon", "keys");
+            var cycle = new LayoutDayCycle();
+            string sunPath = LayoutJsonContext.Join(path, "sun");
+            JsonNode sun = ctx.Object(node, "sun", path, true);
+            if (sun != null)
+            {
+                ctx.Known(sun, sunPath, "sunrise", "sunset", "noonElevation", "nightDepth", "riseAzimuth", "setAzimuth");
+                cycle.Sunrise = ReadClock(ctx, sun, "sunrise", sunPath, out _);
+                cycle.Sunset = ReadClock(ctx, sun, "sunset", sunPath, out _);
+                cycle.NoonElevation = ctx.Number(sun, "noonElevation", sunPath);
+                cycle.NightDepth = ctx.Number(sun, "nightDepth", sunPath);
+                cycle.RiseAzimuth = ctx.Number(sun, "riseAzimuth", sunPath);
+                cycle.SetAzimuth = ctx.Number(sun, "setAzimuth", sunPath);
+            }
+
+            string moonPath = LayoutJsonContext.Join(path, "moon");
+            JsonNode moon = ctx.Object(node, "moon", path, true);
+            if (moon != null)
+            {
+                ctx.Known(moon, moonPath, "color", "intensity", "newMoonFactor", "shadowStrength", "minElevation");
+                cycle.MoonColor = ctx.Color(moon, "color", moonPath);
+                cycle.MoonIntensity = ctx.Number(moon, "intensity", moonPath);
+                cycle.NewMoonFactor = ctx.Number(moon, "newMoonFactor", moonPath);
+                cycle.MoonShadowStrength = ctx.Number(moon, "shadowStrength", moonPath);
+                cycle.MoonMinElevation = ctx.Number(moon, "minElevation", moonPath);
+            }
+
+            cycle.Keys = ReadList(ctx, node, "keys", true, ReadDayKey, path);
+            return cycle;
+        }
+
+        private static LayoutDayKey ReadDayKey(LayoutJsonContext ctx, JsonNode node, string path)
+        {
+            ctx.Known(node, path, "time", "sunColor", "sunIntensity", "ambientSky", "ambientEquator", "ambientGround", "fogColor", "fogDensity",
+                "skyTint", "skyExposure", "atmosphere", "sunSize", "reflection", "localLights");
+            var key = new LayoutDayKey();
+            key.Hour = ReadClock(ctx, node, "time", path, out string time);
+            key.Time = time;
+            key.SunColor = ctx.Color(node, "sunColor", path);
+            key.SunIntensity = ctx.Number(node, "sunIntensity", path);
+            key.AmbientSky = ctx.Color(node, "ambientSky", path);
+            key.AmbientEquator = ctx.Color(node, "ambientEquator", path);
+            key.AmbientGround = ctx.Color(node, "ambientGround", path);
+            key.FogColor = ctx.Color(node, "fogColor", path);
+            key.FogDensity = ctx.Number(node, "fogDensity", path);
+            key.SkyTint = ctx.Color(node, "skyTint", path);
+            key.SkyExposure = ctx.Number(node, "skyExposure", path);
+            key.Atmosphere = ctx.Number(node, "atmosphere", path);
+            key.SunSize = ctx.Number(node, "sunSize", path);
+            key.Reflection = ctx.Number(node, "reflection", path);
+            key.LocalLights = ctx.Number(node, "localLights", path);
+            return key;
+        }
+
+        private static double ReadClock(LayoutJsonContext ctx, JsonNode node, string key, string path, out string text)
+        {
+            // "HH:mm", 00:00 to 23:59 (a key at 24:00 would be the 00:00 of the next day).
+            text = ctx.String(node, key, path, string.Empty);
+            if (TryParseClock(text, out double hours))
+            {
+                return hours;
+            }
+
+            ctx.Error(LayoutJsonContext.Join(path, key), "Uhrzeit im Format HH:mm erwartet (00:00 bis 23:59), gefunden: „" + text + "“.");
+            return -1.0;
+        }
+
+        /// <summary>Parses "HH:mm" (00:00–23:59) into hours.</summary>
+        /// <param name="text">Text.</param>
+        /// <param name="hours">Hours (fractional).</param>
+        internal static bool TryParseClock(string text, out double hours)
+        {
+            hours = 0.0;
+            if (string.IsNullOrEmpty(text) || text.Length != 5 || text[2] != ':')
+            {
+                return false;
+            }
+
+            if (!int.TryParse(text.Substring(0, 2), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int h) ||
+                !int.TryParse(text.Substring(3, 2), System.Globalization.NumberStyles.None, System.Globalization.CultureInfo.InvariantCulture, out int m) ||
+                h > 23 || m > 59)
+            {
+                return false;
+            }
+
+            hours = h + m / 60.0;
+            return true;
         }
 
         private static LayoutLighting ReadLighting(LayoutJsonContext ctx, JsonNode node, string path)

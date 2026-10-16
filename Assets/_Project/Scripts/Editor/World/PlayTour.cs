@@ -90,7 +90,8 @@ namespace Aetherfall.EditorTools.World
             string mode = ReadArgument("-tourMode");
             _outputFolder = Path.Combine(projectRoot, "Logs", "Tour", Path.GetFileNameWithoutExtension(scenePath) +
                                                                       (mode == "quests" ? "_Quests" : mode == "magier" ? "_Magier" :
-                                                                          mode == "waffen" ? "_Waffen" : mode == "klettern" ? "_Klettern" : mode == "karte" ? "_Karte" : string.Empty));
+                                                                          mode == "waffen" ? "_Waffen" : mode == "klettern" ? "_Klettern" : mode == "karte" ? "_Karte" :
+                                                                          mode == "tagnacht" ? "_TagNacht" : string.Empty));
             Directory.CreateDirectory(_outputFolder);
             foreach (string old in Directory.GetFiles(_outputFolder))
             {
@@ -153,6 +154,13 @@ namespace Aetherfall.EditorTools.World
             {
                 // World map, discovering places, the crow's nest viewpoint and saving the fog (PlayTour.Map.cs).
                 BuildMapPlan();
+                return;
+            }
+
+            if (ReadArgument("-tourMode") == "tagnacht")
+            {
+                // Day and night: the light at five times of day, the stealth light factor, saving at night, the crypt (PlayTour.DayNight.cs).
+                BuildDayNightPlan();
                 return;
             }
 

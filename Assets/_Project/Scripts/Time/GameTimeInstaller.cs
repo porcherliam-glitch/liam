@@ -7,7 +7,8 @@ using UnityEngine;
 namespace Aetherfall.GameTime
 {
     /// <summary>
-    /// Registers <see cref="IPlaytimeClock"/> (<see cref="PlaytimeClock"/>) and registers it with the save manager as
+    /// Registers the <see cref="GameClock"/> as <see cref="IPlaytimeClock"/>, <see cref="IGameClock"/> and <see cref="IGameTimeSource"/> (the
+    /// Core facade day and night reads) and registers it with the save manager as
     /// saveable (section <c>time</c>) and header contributor (architecture 4.1, step 10). Requires
     /// <see cref="IGameStateService"/> and <see cref="ISaveManager"/>, so it comes directly after the save installer.
     /// </summary>
@@ -15,7 +16,7 @@ namespace Aetherfall.GameTime
     public sealed class GameTimeInstaller : ServiceInstaller
     {
         /// <inheritdoc />
-        public override IEnumerable<Type> Provides => new[] { typeof(IPlaytimeClock), typeof(IGameClock) };
+        public override IEnumerable<Type> Provides => new[] { typeof(IPlaytimeClock), typeof(IGameClock), typeof(IGameTimeSource) };
 
         /// <inheritdoc />
         public override IEnumerable<Type> Requires => new[] { typeof(IGameStateService), typeof(ISaveManager), typeof(IEventBus) };
@@ -29,6 +30,7 @@ namespace Aetherfall.GameTime
             saves.RegisterHeaderContributor(clock);
             registry.Register<IPlaytimeClock>(clock);
             registry.Register<IGameClock>(clock);
+            registry.Register<IGameTimeSource>(clock);
         }
     }
 }

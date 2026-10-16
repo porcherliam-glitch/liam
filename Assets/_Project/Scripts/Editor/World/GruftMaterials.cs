@@ -45,6 +45,7 @@ namespace Aetherfall.EditorTools.World
             AetherGlow = Ensure("Gruft_Aether", aether, aether * 4f, 0.3f);
             AetherBeam = Ensure("Gruft_Aether_Strahl", aether, aether * 6f, 0f);
             Daylight = Ensure("Gruft_Tageslicht", new Color(0.8f, 0.85f, 1f), new Color(0.8f, 0.85f, 1f) * 1.5f, 0f);
+            Nightlight = Ensure("Gruft_Nachtlicht", new Color(0.35f, 0.4f, 0.55f), new Color(0.16f, 0.2f, 0.34f), 0f);
             Npc = Ensure("Gruft_Fenn", new Color(0.45f, 0.36f, 0.25f), Color.black, 0.1f);
         }
 
@@ -101,6 +102,9 @@ namespace Aetherfall.EditorTools.World
 
         /// <summary>Daylight in the exits.</summary>
         public Material Daylight { get; }
+
+        /// <summary>Exit glow at night (S35).</summary>
+        public Material Nightlight { get; }
 
         /// <summary>The grave robber Fenn.</summary>
         public Material Npc { get; }

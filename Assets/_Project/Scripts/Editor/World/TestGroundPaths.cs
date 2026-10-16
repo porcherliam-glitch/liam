@@ -29,6 +29,9 @@ namespace Aetherfall.EditorTools.World
         /// <summary>Installer asset of the playtime clock (added directly after the save installer, architecture 4.1 step 10).</summary>
         public const string GameTimeInstallerPath = SetupPaths.BootSettingsFolder + "/GameTimeInstaller.asset";
 
+        /// <summary>Day-and-night installer (S35), directly after the GameTime installer.</summary>
+        public const string DayNightInstallerPath = SetupPaths.BootSettingsFolder + "/DayNightInstaller.asset";
+
         /// <summary>Folder of the attack assets (architecture 3.1: Data/…).</summary>
         public const string AttackFolder = SetupPaths.ProjectFolder + "/Data/Combat/Attacks";
 

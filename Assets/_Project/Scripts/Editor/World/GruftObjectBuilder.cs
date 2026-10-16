@@ -482,8 +482,13 @@ namespace Aetherfall.EditorTools.World
                 ctx.EnvironmentLayer, true);
             GruftParts.Part(root.transform, "Sturz", PrimitiveType.Cube, new Vector3(0f, 3.3f, 0f), new Vector3(3.6f, 0.4f, 0.4f), m.Trim,
                 ctx.EnvironmentLayer, false);
-            GruftParts.Part(root.transform, "Tageslicht", PrimitiveType.Cube, new Vector3(0f, 1.6f, -0.15f), new Vector3(2.8f, 3.1f, 0.05f), m.Daylight,
-                ctx.EnvironmentLayer, false);
+            GameObject daylight = GruftParts.Part(root.transform, "Tageslicht", PrimitiveType.Cube, new Vector3(0f, 1.6f, -0.15f),
+                new Vector3(2.8f, 3.1f, 0.05f), m.Daylight, ctx.EnvironmentLayer, false);
+            if (daylight != null && daylight.TryGetComponent(out Renderer opening))
+            {
+                ctx.DaylightRenderers.Add(opening);
+            }
+
             GruftParts.Text(root.transform, "Schild", "Nach Eichental", new Vector3(0f, 3.8f, 0.3f), 0.035f, TextColor, ctx.Font);
             GruftParts.Trigger(root.transform, "Interaktion", new Vector3(0f, 1.4f, 0.3f), new Vector3(3.0f, 2.8f, 1.4f), ctx.InteractLayerOrDefault, false);
             DungeonPortal portal = root.AddComponent<DungeonPortal>();
@@ -891,6 +896,11 @@ namespace Aetherfall.EditorTools.World
                 light.range = entry.Range;
                 light.intensity = entry.Intensity;
                 light.shadows = entry.Kind == DungeonLight.Brazier ? LightShadows.Soft : LightShadows.None;
+                if (entry.Kind == DungeonLight.Daylight)
+                {
+                    ctx.DaylightLights.Add(light);
+                }
+
                 if (entry.Kind == DungeonLight.Torch)
                 {
                     GruftParts.Part(root, "Fackel Stiel", PrimitiveType.Cylinder, new Vector3(0f, -0.3f, 0f), new Vector3(0.06f, 0.25f, 0.06f), ctx.Materials.Wood,

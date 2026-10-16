@@ -501,6 +501,12 @@ namespace Aetherfall.EditorTools.World
             light.intensity = 4f;
             light.shadows = LightShadows.Soft;
 
+            // S35: the Aether light hangs 6 m up; for the stealth AI the rift counts from player height, with a constant strength.
+            var stealthPoint = new GameObject("Lichtpunkt (Schleichen)");
+            stealthPoint.transform.SetParent(root.transform, false);
+            stealthPoint.transform.localPosition = new Vector3(0f, 1.2f, 0f);
+            DayNightBuilder.AddLightSource(stealthPoint, light, false);
+
             var marker = root.AddComponent<QuestObjectMarker>();
             TestGroundFields.SetString(marker, "objectId", rift.Id, _report);
             TestGroundFields.SetString(marker, "questId", "quest.main.asche_ueber_eichental", _report);

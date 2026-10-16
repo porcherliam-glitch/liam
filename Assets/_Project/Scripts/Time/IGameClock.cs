@@ -1,24 +1,22 @@
+using Aetherfall.Core;
+
 namespace Aetherfall.GameTime
 {
     /// <summary>
     /// The game clock (architecture 4.6): day, hour and minute of the world, 48 min of real time per game day by default
     /// (options 24–96 min). It runs while the player plays (Playing, Building) and stands in menus, pauses and full dialogues
     /// (table 4.4). Every new game minute sends <c>TimeOfDayChanged</c>; waiting or sleeping (<see cref="AdvanceHours"/>)
-    /// sends one per skipped hour. Saved in section <c>time</c> together with the playtime.
+    /// sends one per skipped hour, every new phase of the day <c>DayPhaseChanged</c>. Saved in section <c>time</c> together with
+    /// the playtime. The smooth time (<see cref="IGameTimeSource.TotalGameMinutes"/>, <see cref="IGameTimeSource.IsClockRunning"/>)
+    /// comes from the Core facade, which day and night reads.
     /// </summary>
-    public interface IGameClock
+    public interface IGameClock : IGameTimeSource
     {
         /// <summary>The current moment.</summary>
         GameDateTime Now { get; }
 
-        /// <summary>Total game minutes (day 1, 0:00 = 0).</summary>
-        double TotalGameMinutes { get; }
-
         /// <summary>Real seconds per game day (default 2880 = 48 min).</summary>
         float RealSecondsPerGameDay { get; }
-
-        /// <summary>True while the clock runs in the current game state.</summary>
-        bool IsClockRunning { get; }
 
         /// <summary>Changes the day length (options; kept inside 24–96 min).</summary>
         /// <param name="realSeconds">Real seconds per game day.</param>

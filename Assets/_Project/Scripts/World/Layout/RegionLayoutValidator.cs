@@ -41,6 +41,7 @@ namespace Aetherfall.World
             CheckHeader(layout, report);
             CheckTerrain(layout, report, ids);
             CheckPalette(layout, report);
+            CheckDayCycle(layout.DayCycle, report);
             CheckLines(layout, report, ids);
             CheckBuildings(layout, report, ids);
             CheckAreas(layout, report, ids);
@@ -176,6 +177,64 @@ namespace Aetherfall.World
             if (layout.Lighting.FogDensity < 0.0 || layout.Lighting.FogDensity > 0.05)
             {
                 report.Error("lighting.fogDensity", "Nebeldichte muss zwischen 0 und 0,05 liegen.");
+            }
+        }
+
+        private static void CheckDayCycle(LayoutDayCycle cycle, LayoutReport report)
+        {
+            // S35: the light over the day; the block is optional.
+            if (cycle == null)
+            {
+                return;
+            }
+
+            if (cycle.Sunrise < 0.0 || cycle.Sunset < 0.0 || cycle.Sunrise >= cycle.Sunset)
+            {
+                report.Error("dayCycle.sun", "Sonnenaufgang muss vor dem Sonnenuntergang liegen.");
+            }
+
+            Range(report, "dayCycle.sun.noonElevation", cycle.NoonElevation, 0.0, 90.0, true, "Sonnenhöhe am Mittag");
+            Range(report, "dayCycle.sun.nightDepth", cycle.NightDepth, 0.0, 90.0, true, "Sonnentiefe um Mitternacht");
+            Range(report, "dayCycle.sun.riseAzimuth", cycle.RiseAzimuth, 0.0, 360.0, false, "Richtung des Sonnenaufgangs", true);
+            Range(report, "dayCycle.sun.setAzimuth", cycle.SetAzimuth, 0.0, 360.0, false, "Richtung des Sonnenuntergangs", true);
+            Range(report, "dayCycle.moon.intensity", cycle.MoonIntensity, 0.0, 8.0, false, "Mondlicht");
+            Range(report, "dayCycle.moon.newMoonFactor", cycle.NewMoonFactor, 0.0, 1.0, false, "Mondlicht bei Neumond");
+            Range(report, "dayCycle.moon.shadowStrength", cycle.MoonShadowStrength, 0.0, 1.0, false, "Schatten des Mondes");
+            Range(report, "dayCycle.moon.minElevation", cycle.MoonMinElevation, 0.0, 90.0, true, "Mindesthöhe des Mondes", true);
+            if (cycle.Keys.Count < 2)
+            {
+                report.Error("dayCycle.keys", "Es braucht mindestens 2 Tageszeit-Schlüssel.");
+            }
+
+            for (int i = 0; i < cycle.Keys.Count; i++)
+            {
+                LayoutDayKey key = cycle.Keys[i];
+                string at = "dayCycle.keys[" + i + "]";
+                if (i > 0 && key.Hour >= 0.0 && cycle.Keys[i - 1].Hour >= 0.0 && key.Hour <= cycle.Keys[i - 1].Hour)
+                {
+                    report.Error(at + ".time", "Tageszeit-Schlüssel müssen nach der Uhrzeit aufsteigend sortiert sein.");
+                }
+
+                Range(report, at + ".sunIntensity", key.SunIntensity, 0.0, 8.0, false, "Sonnenstärke");
+                Range(report, at + ".fogDensity", key.FogDensity, 0.0, 0.05, false, "Nebeldichte");
+                Range(report, at + ".skyExposure", key.SkyExposure, 0.0, 8.0, false, "Himmelshelligkeit");
+                Range(report, at + ".atmosphere", key.Atmosphere, 0.0, 5.0, false, "Atmosphäre");
+                Range(report, at + ".sunSize", key.SunSize, 0.0, 1.0, false, "Größe der Sonnenscheibe");
+                Range(report, at + ".reflection", key.Reflection, 0.0, 1.0, false, "Spiegelung");
+                Range(report, at + ".localLights", key.LocalLights, 0.0, 4.0, false, "Faktor für Feuer und Lampen");
+            }
+        }
+
+        private static void Range(LayoutReport report, string path, double value, double min, double max, bool minExclusive, string what,
+            bool maxExclusive = false)
+        {
+            bool low = minExclusive ? value <= min : value < min;
+            bool high = maxExclusive ? value >= max : value > max;
+            if (low || high || double.IsNaN(value))
+            {
+                string from = min.ToString(System.Globalization.CultureInfo.GetCultureInfo("de-DE"));
+                string to = max.ToString(System.Globalization.CultureInfo.GetCultureInfo("de-DE"));
+                report.Error(path, what + " muss zwischen " + from + " und " + to + " liegen.");
             }
         }
 
