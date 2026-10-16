@@ -98,7 +98,7 @@ Ziel: ein Teil des Eichentals (~1,1 km²), alle 8 Beispiel-Quests, etwa 3,5–4 
 - [ ] **Musik und Ambience (S57):**
   - CC0-Musik für Erkundung, Spannung, Kampf und Boss mit Überblendung
   - Umgebungsgeräusche, Schritte, Kampfgeräusche, Audio-Mixer
-- [x] **Zwischensequenzen (S58):** Prolog-Sequenz von „Asche über Eichental“ mit „Überspringen halten“, Dialogkamera (Schuss/Gegenschuss) – 2026-10-16, Commits ed06004 und COMMIT_B
+- [x] **Zwischensequenzen (S58):** Prolog-Sequenz von „Asche über Eichental“ mit „Überspringen halten“, Dialogkamera (Schuss/Gegenschuss) – 2026-10-16, Commits ed06004 und 8bda0e7
   - Teil 1 erledigt (2026-10-16): Prolog-Zwischensequenz cs.prolog.erwachen mit Kinobalken, Untertiteln und „Überspringen halten“, Rundgang `zwischensequenz`
   - Teil 2 erledigt: Dialogkamera mit Eröffnung, Schuss, Gegenschuss und Nah, 180°-Regel, Schnittregeln aus GDD 02 12.6
   - Später (Stufe B): Zwischensequenzen bei s40/s50, Musik in Zwischensequenzen, Pause in Zwischensequenzen, Begleiter-Einwürfe und Gruppen-Einstellungen der Dialogkamera
