@@ -108,6 +108,7 @@ namespace Aetherfall.World.Gameplay
             _eventBus.Subscribe<BossEncounterStarted>(OnEncounterStarted);
             _eventBus.Subscribe<BossEncounterEnded>(OnEncounterEnded);
             _eventBus.Subscribe<GameLoaded>(OnGameLoaded);
+            _eventBus.Subscribe<FastTravelCompleted>(OnFastTravelCompleted);
             _subscribed = true;
         }
 
@@ -136,6 +137,7 @@ namespace Aetherfall.World.Gameplay
             _eventBus.Unsubscribe<BossEncounterStarted>(OnEncounterStarted);
             _eventBus.Unsubscribe<BossEncounterEnded>(OnEncounterEnded);
             _eventBus.Unsubscribe<GameLoaded>(OnGameLoaded);
+                _eventBus.Unsubscribe<FastTravelCompleted>(OnFastTravelCompleted);
             _subscribed = false;
         }
 
@@ -203,6 +205,12 @@ namespace Aetherfall.World.Gameplay
             {
                 Log.Exception(LogCategory.Save, exception, "Autosave '" + reason + "' failed.");
             }
+        }
+
+        private void OnFastTravelCompleted(FastTravelCompleted evt)
+        {
+            // S50 / GDD 05 5.2: an autosave at the arrival of a fast travel.
+            RequestAutosave("travel." + evt.PlaceId);
         }
     }
 }

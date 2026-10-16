@@ -107,6 +107,7 @@ namespace Aetherfall.EditorTools.World
             int phase = 0;
             int saidBefore = 0;
             NpcBarker barker = null;
+            double started = 0.0;
             return () =>
             {
                 switch (phase)
@@ -125,6 +126,7 @@ namespace Aetherfall.EditorTools.World
                         saidBefore = barker.Said;
                         PlaceOnGround(npc.position + npc.forward * 9f, -npc.forward);
                         _stepStart = UnityEditor.EditorApplication.timeSinceStartup;
+                        started = _stepStart;
                         phase = 1;
                         return false;
                     case 1:
@@ -141,7 +143,18 @@ namespace Aetherfall.EditorTools.World
                     default:
                         if (barker.Said <= saidBefore || barker.Current.Length == 0)
                         {
-                            return Fail(Elapsed > 3.0, npcId + " sagt nichts, obwohl der Spieler daneben steht.");
+                            // An NPC speaks at most every 30 s (and not while a neighbour speaks): walk away and come back.
+                            if (Elapsed > 3.0 && UnityEditor.EditorApplication.timeSinceStartup - started < 35.0)
+                            {
+                                Transform again = barker.transform.parent;
+                                PlaceOnGround(again.position + again.forward * 9f, -again.forward);
+                                _stepStart = UnityEditor.EditorApplication.timeSinceStartup;
+                                phase = 1;
+                                return false;
+                            }
+
+                            return Fail(UnityEditor.EditorApplication.timeSinceStartup - started > 35.0,
+                                npcId + " sagt nichts, obwohl der Spieler daneben steht.");
                         }
 
                         Note(npcId + " sagt: „" + barker.Current.Trim('„', '“') + "“");

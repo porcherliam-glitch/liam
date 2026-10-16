@@ -673,3 +673,37 @@
     width: 0;
     height: 0;
 }
+
+/* Fast travel list on the map page (S50). */
+.af-map__travel-title {
+    margin-top: 18px;
+    margin-bottom: 4px;
+    font-size: 17px;
+    -unity-font-style: bold;
+}
+
+.af-map__travel-row {
+    padding: 3px 8px;
+    margin-bottom: 2px;
+    font-size: 16px;
+    border-radius: 3px;
+    border-width: 1px;
+    border-color: rgba(0, 0, 0, 0);
+}
+
+.af-map__travel-row.is-focused {
+    background-color: rgba(214, 186, 120, 0.22);
+    border-color: rgb(214, 186, 120);
+}
+
+.af-map__travel-row--confirm {
+    color: rgb(240, 214, 140);
+    -unity-font-style: bold;
+}
+
+.af-map__travel-status {
+    margin-top: 6px;
+    font-size: 15px;
+    color: rgb(230, 150, 120);
+    white-space: normal;
+}

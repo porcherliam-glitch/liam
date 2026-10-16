@@ -176,6 +176,46 @@ namespace Aetherfall.Events
         }
     }
 
+    /// <summary>A fast travel ended (S50): the player stands at the travel point, the clock jumped. Receivers: autosave, UI.</summary>
+    public readonly struct FastTravelCompleted : IGameEvent
+    {
+        /// <summary>Location id of the travel point.</summary>
+        public readonly string PlaceId;
+
+        /// <summary>Name of the travel point (German).</summary>
+        public readonly string DisplayName;
+
+        /// <summary>Game hours the travel took.</summary>
+        public readonly double GameHours;
+
+        /// <summary>Game clock before the travel (minutes since the calendar start).</summary>
+        public readonly double MinutesBefore;
+
+        /// <summary>Game clock after the travel.</summary>
+        public readonly double MinutesAfter;
+
+        /// <summary>Creates the event.</summary>
+        /// <param name="placeId">Location id of the travel point.</param>
+        /// <param name="displayName">Name of the travel point.</param>
+        /// <param name="gameHours">Game hours the travel took.</param>
+        /// <param name="minutesBefore">Game clock before.</param>
+        /// <param name="minutesAfter">Game clock after.</param>
+        public FastTravelCompleted(string placeId, string displayName, double gameHours, double minutesBefore, double minutesAfter)
+        {
+            PlaceId = placeId ?? string.Empty;
+            DisplayName = displayName ?? string.Empty;
+            GameHours = gameHours;
+            MinutesBefore = minutesBefore;
+            MinutesAfter = minutesAfter;
+        }
+
+        /// <inheritdoc />
+        public override string ToString()
+        {
+            return "FastTravelCompleted(" + PlaceId + ", " + GameHours.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture) + " h)";
+        }
+    }
+
     /// <summary>The player set foot in a region for the first time (GDD 05 notification "Region entdeckt", priority P0).</summary>
     public readonly struct RegionDiscovered : IGameEvent
     {

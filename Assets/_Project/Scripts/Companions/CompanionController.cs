@@ -341,7 +341,8 @@ namespace Aetherfall.Companions
             if (_joined && _placeNextToPlayer)
             {
                 _placeNextToPlayer = false;
-                if (senses.Self.DistanceTo(senses.Player) > CompanionBrain.ArriveDistance * 4f)
+                // A companion told to wait (or lying downed) stays where she is when the player travels or respawns.
+                if (!senses.Waiting && !senses.Downed && senses.Self.DistanceTo(senses.Player) > CompanionBrain.ArriveDistance * 4f)
                 {
                     PlaceAt(CompanionBrain.FollowSpot(senses.Player, senses.PlayerYaw, _brain.Side, _mode), playerPosition.y);
                     return;

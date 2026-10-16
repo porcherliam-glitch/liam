@@ -50,6 +50,9 @@ namespace Aetherfall.EditorTools.World
         /// <summary>Installer asset of the combat service (BootConfig, architecture 4.1 step 12).</summary>
         public const string CombatInstallerPath = SetupPaths.BootSettingsFolder + "/CombatInstaller.asset";
 
+        /// <summary>Installer of the player services (fast travel).</summary>
+        public const string PlayerInstallerPath = SetupPaths.BootSettingsFolder + "/PlayerInstaller.asset";
+
         /// <summary>Installer asset of the AI services (BootConfig, architecture 4.1 step 13).</summary>
         public const string AIInstallerPath = SetupPaths.BootSettingsFolder + "/AIInstaller.asset";
 

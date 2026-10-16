@@ -171,6 +171,39 @@ namespace Aetherfall.UI.Framework
         /// <summary>Message: a region was entered for the first time ({0} = name).</summary>
         public const string NoteRegionDiscovered = "note-region-discovered";
 
+        /// <summary>Title of the travel list.</summary>
+        public const string MapTravelTitle = "map-travel-title";
+
+        /// <summary>No travel point unlocked yet.</summary>
+        public const string MapTravelNone = "map-travel-none";
+
+        /// <summary>Travel row ({0} = place, {1} = travel time).</summary>
+        public const string MapTravelRow = "map-travel-row";
+
+        /// <summary>Travel row waiting for the second press ({0} = place).</summary>
+        public const string MapTravelConfirm = "map-travel-confirm";
+
+        /// <summary>Travel blocked: combat.</summary>
+        public const string MapTravelCombat = "map-travel-combat";
+
+        /// <summary>Travel blocked: overloaded.</summary>
+        public const string MapTravelOverloaded = "map-travel-overloaded";
+
+        /// <summary>Travel blocked by a save lock ({0} = reason).</summary>
+        public const string MapTravelLocked = "map-travel-locked";
+
+        /// <summary>Travel target is where the player stands.</summary>
+        public const string MapTravelHere = "map-travel-here";
+
+        /// <summary>No map here (crypt).</summary>
+        public const string MapTravelNoMap = "map-travel-nomap";
+
+        /// <summary>Travel target not unlocked.</summary>
+        public const string MapTravelUnknown = "map-travel-unknown";
+
+        /// <summary>Footer hint "Reisen" on the map page.</summary>
+        public const string HintTravel = "hint-travel";
+
         /// <summary>Footer hint "Lernen".</summary>
         public const string HintLearn = "hint-learn";
 

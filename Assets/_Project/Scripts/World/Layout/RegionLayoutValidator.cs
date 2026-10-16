@@ -446,6 +446,17 @@ namespace Aetherfall.World
                 {
                     report.Error(l.Id, "revealRadius darf nicht negativ sein.");
                 }
+
+                if (l.HasWaypoint)
+                {
+                    if (!bounds.Contains(l.Waypoint))
+                    {
+                        report.Error(l.Id, "Der Wegpunkt (Ankunft der Schnellreise) liegt außerhalb des begehbaren Bereichs.");
+                    }
+
+                    CheckOutsideBuildings(layout, l.Waypoint.X, l.Waypoint.Z, l.Id, "Der Wegpunkt (Ankunft der Schnellreise) liegt in einem Gebäude.", report);
+                    CheckDry(layout, l.Waypoint.X, l.Waypoint.Z, l.Id, "Der Wegpunkt (Ankunft der Schnellreise) liegt im Bach.", report);
+                }
             }
 
             for (int i = 0; i < layout.Props.Count; i++)

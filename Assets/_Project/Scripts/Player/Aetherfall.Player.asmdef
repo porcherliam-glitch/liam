@@ -12,7 +12,9 @@
         "Aetherfall.Inventory",
         "Aetherfall.Progression",
         "Aetherfall.Combat",
-        "Aetherfall.WorldState"
+        "Aetherfall.WorldState",
+        "Aetherfall.GameTime",
+        "Aetherfall.World"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

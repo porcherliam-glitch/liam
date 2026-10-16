@@ -184,7 +184,9 @@ namespace Aetherfall.EditorTools.World
             }
 
             bool ai = combat && EnsureInstallerInBootConfig<AIInstaller>(TestGroundPaths.AIInstallerPath, report, typeof(CombatInstaller));
-            return combat && ai;
+            // S50: fast travel needs combat, inventory, clock, save system and the world map (all installed before).
+            bool player = ai && EnsureInstallerInBootConfig<Aetherfall.Player.PlayerInstaller>(TestGroundPaths.PlayerInstallerPath, report, typeof(AIInstaller));
+            return combat && ai && player;
         }
 
         /// <summary>

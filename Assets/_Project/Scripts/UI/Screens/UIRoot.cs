@@ -270,8 +270,10 @@ namespace Aetherfall.UI.Screens
             {
                 Services.Locator.TryGet(out IExplorationService exploration);
                 Services.Locator.TryGet(out IPlayerLocator players);
+                Services.Locator.TryGet(out Aetherfall.Player.IFastTravelService fastTravel);
                 _journal = new JournalScreen(CloneScreen(journalLayout, screensRoot), questRowLayout, objectiveRowLayout, journalLineLayout,
-                    attributeRowLayout, valueRowLayout, _glyphs, _quests, _progression, OnJournalCloseRequested, _skills, exploration, players);
+                    attributeRowLayout, valueRowLayout, _glyphs, _quests, _progression, OnJournalCloseRequested, _skills, exploration, players,
+                    fastTravel);
                 _ui.RegisterScreen(_journal);
             }
             else
