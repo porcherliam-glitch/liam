@@ -525,7 +525,7 @@ Alle Runtime-Assemblies: Auto Referenced = aus, Root Namespace = Assembly-Name. 
 | 15 | `Aetherfall.Factions` | `Aetherfall.Factions` | `Scripts/Factions` | 2, 3, 4, 5, 6 | nein |
 | 16 | `Aetherfall.Combat` | `Aetherfall.Combat` | `Scripts/Combat` | 1, 2, 3, 4, 5, 11, 12 | nein |
 | 17 | `Aetherfall.Dialogue` | `Aetherfall.Dialogue` | `Scripts/Dialogue` | 1, 2, 3, 4, 5, 6, 11, 13, 14 | nein |
-| 18 | `Aetherfall.Crafting` | `Aetherfall.Crafting` | `Scripts/Crafting` | 1, 2, 3, 4, 5, 6, 9, 12, 13 | nein |
+| 18 | `Aetherfall.Crafting` | `Aetherfall.Crafting` | `Scripts/Crafting` | 1, 2, 3, 4, 5, 6, 9, 11, 12, 13 (Stand Stufe A: 1, 2, 3, 4, 11, 12, 13; 11, weil `IInventoryService` Werte zeigt) | nein |
 | 19 | `Aetherfall.Economy` | `Aetherfall.Economy` | `Scripts/Economy` | 1, 2, 3, 4, 5, 6, 9, 11, 12, 13, 15 | nein |
 | 20 | `Aetherfall.World` | `Aetherfall.World` | `Scripts/World` | 1, 2, 3, 4, 5, 6, 9, 10, 16; Unity.AI.Navigation, Unity.Addressables, Unity.ResourceManager | nein |
 | 21 | `Aetherfall.AI` | `Aetherfall.AI` | `Scripts/AI` | 1, 2, 3, 4, 5, 11, 16, 20; Unity.AI.Navigation | nein |
@@ -1727,7 +1727,7 @@ Regeln: höchstens 1 Autosave pro 60 s; gesperrt (9.8) → bis zu 120 s aufschie
 
 | Fall | Speicherort | Verhalten |
 |---|---|---|
-| Szenenobjekt mit Zustand (Truhe geöffnet, Tür offen, Hebel, Sammelpunkt geerntet, Rätsel gelöst) | `WorldObjectStateStore` (World, Sektion `worldobjects`), Schlüssel = `UniqueId` | Objekt implementiert `IPersistentObject { object CaptureState(); void RestoreState(object state); }` – Interface liegt in `Aetherfall.SaveSystem`, damit auch Crafting (`HarvestNode`) oder Housing es nutzen können. Gespeichert wird nur, was vom Prefab-Standard abweicht. |
+| Szenenobjekt mit Zustand (Truhe geöffnet, Tür offen, Hebel, Sammelpunkt geerntet, Rätsel gelöst) | `WorldObjectStateStore` (World, Sektion `worldobjects`), Schlüssel = `UniqueId` | Stand Stufe A: Die Objekte speichern direkt eine Zahl je ID im Store (Sammelpunkte: Erntezeit + 1, siehe 11.13). Ziel: Objekt implementiert `IPersistentObject { object CaptureState(); void RestoreState(object state); }` – Interface liegt in `Aetherfall.SaveSystem`, damit auch Crafting (`HarvestNode`) oder Housing es nutzen können. Gespeichert wird nur, was vom Prefab-Standard abweicht. |
 | Zerstörtes Szenenobjekt | wie oben, Zustand `destroyed` | Beim Laden der Zelle wird es **vor** der Aktivierung deaktiviert (kein Aufflackern) |
 | Zelle wird entladen | – | Vor dem Entladen `CaptureState()` aller `IPersistentObject` der Zelle in den Store |
 | Zelle wird geladen | – | Nach dem Laden, vor der gestaffelten Aktivierung `RestoreState()` |
@@ -2156,7 +2156,7 @@ namespace Aetherfall.AI {
 | Daten (§13.3) | `RecipeDefinition`: Zutaten {Item-ID, Menge, Mindestqualität}, Ergebnis, Station, Beruf + Stufe, Zeit; `ProfessionDefinition` (Stufen 1–100, XP-Kurve) |
 | Laufzeit | `CraftingService` (reine Logik: prüfen, herstellen, Qualitätswurf, Zerlegen); `CraftingStation` (UniqueId, Stationstyp) |
 | Filter (§13.3) | „herstellbar“, „fehlende Zutaten“, „alle“ als reine Funktionen |
-| Sammelpunkte (§13.3) | `HarvestNode` (IPersistentObject): `harvestedAtGameMinutes`, Respawn nach n Spielstunden |
+| Sammelpunkte (§13.3) | `HarvestNode` liegt in World (20), weil er Szene, Uhr und Spielerposition braucht; den Ertrag gibt er über den Core-Port `IGatheringService` an `GatheringService` (Crafting, reine Regel `GatheringRules`: 1–3 + ⌊Berufsstufe ÷ 25⌋, Stufe A ohne Beruf). Zustand im `WorldObjectStateStore` als ⌊`harvestedAtGameMinutes`⌋ + 1 (0 = reif, keine eigene Sektion); Respawn nach `respawnDays` Spieltagen, nur bei mindestens 50 m Abstand zum Spieler oder beim Laden; Blühzeit `activeHours` (z. B. Nachtschatten 22–4). Interaktion meldet `Interacted` mit dem Verb `gather` (`InteractionVerbs.Gather`), Daten in der Layout-Liste `harvestNodes`. Abweichung von 9.7: zentraler Zahlen-Speicher statt `IPersistentObject` (wie Truhen und Rätsel, siehe Anleitung 12). Umgesetzt in Stufe A (S30). |
 
 ### 11.14 Haus und Bau-Modus (`Aetherfall.Housing`)
 

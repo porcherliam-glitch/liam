@@ -93,6 +93,7 @@ namespace Aetherfall.EditorTools.World
             MiniSliceAssets.CreateAll(items.Catalog, report);
             TestGroundAssets.EnsureNarrativeInstallersInBootConfig(report, applyTestGroundStartLevel);
             TestGroundAssets.EnsureMerchantInstallerInBootConfig(report);
+            TestGroundAssets.EnsureGatheringInstallerInBootConfig(report);
             if (applyTestGroundStartLevel)
             {
                 MiniSliceProfile.ApplyTestGround(items.StartingEquipment, report);

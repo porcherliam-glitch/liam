@@ -363,7 +363,8 @@
     { "id": "loc.eichental.rabenfels_spitze", "name": "Rabenfels-Spitze (Aussichtspunkt, Vorschlag)", "mapName": "Rabenfels-Spitze", "kind": "viewpoint", "shape": "circle", "center": [12, 184], "radius": 7, "revealRadius": 150, "waypoint": [14, 181, 0], "quests": [] },
     { "id": "loc.eichental.wachturm_grauwacht", "name": "Wachturm Grauwacht (Krähennest, Aussichtspunkt)", "mapName": "Wachturm Grauwacht", "kind": "viewpoint", "shape": "circle", "center": [-186, 78], "radius": 14, "revealRadius": 150, "waypoint": [-178, 78, 270], "quests": [] },
     { "id": "loc.eichental.steinbruch_grimmbart", "name": "Grimmbarts Steinbruch", "mapName": "Grimmbarts Steinbruch", "kind": "poi", "shape": "circle", "center": [150, -168], "radius": 34, "quests": [] },
-    { "id": "loc.eichental.steinbruch_arena", "name": "Kessel des Steinbruchs", "kind": "poi", "shape": "circle", "center": [150, -176], "radius": 14, "quests": [] }
+    { "id": "loc.eichental.steinbruch_arena", "name": "Kessel des Steinbruchs", "kind": "poi", "shape": "circle", "center": [150, -176], "radius": 14, "quests": [] },
+    { "id": "loc.eichental.kraeuterwiese", "name": "Kräuterwiese zwischen Lindenhain und Dorf", "mapName": "Kräuterwiese", "kind": "poi", "shape": "circle", "center": [-95, 24], "radius": 28, "quests": [] }
   ],
   "spawners": [
     { "id": "spawn.eichental.nordhang_woelfe", "name": "Wölfe am Nordhang mit Rudelführer", "enemyTypeId": "enemy.wolf.grauwolf", "variant": "normal", "count": 3,
@@ -406,6 +407,20 @@
     { "id": "obj.eichental.truhe_wolfsbau", "name": "Eisentruhe im Wolfsbau", "tier": "iron", "position": [-87, 190], "yaw": 160, "areaLevel": 3, "locationId": "loc.eichental.wolfsbau_nordhang" },
     { "id": "obj.eichental.truhe_rabenfels", "name": "Versteckte Truhe auf dem Rabenfels", "tier": "hidden", "position": [16, 188], "yaw": 200, "areaLevel": 3, "locationId": "loc.eichental.rabenfels_spitze" },
     { "id": "obj.eichental.truhe_kraehennest", "name": "Versteckte Truhe im Krähennest", "tier": "hidden", "position": [-187, 78], "yaw": 90, "areaLevel": 2, "locationId": "loc.eichental.wachturm_grauwacht" }
+  ],
+  "harvestNodes": [
+    { "id": "obj.eichental.kraut_blutwurz_1", "name": "Blutwurz", "kind": "bloodroot", "itemId": "item.herb.blutwurz", "position": [-90, 20], "yaw": 0, "respawnDays": 1, "locationId": "loc.eichental.kraeuterwiese" },
+    { "id": "obj.eichental.kraut_blutwurz_2", "name": "Blutwurz", "kind": "bloodroot", "itemId": "item.herb.blutwurz", "position": [-98, 30], "yaw": 40, "respawnDays": 1, "locationId": "loc.eichental.kraeuterwiese" },
+    { "id": "obj.eichental.kraut_blutwurz_3", "name": "Blutwurz", "kind": "bloodroot", "itemId": "item.herb.blutwurz", "position": [-82, 8], "yaw": 85, "respawnDays": 1, "locationId": "loc.eichental.kraeuterwiese" },
+    { "id": "obj.eichental.kraut_blutwurz_4", "name": "Blutwurz", "kind": "bloodroot", "itemId": "item.herb.blutwurz", "position": [-112, 22], "yaw": 130, "respawnDays": 1, "locationId": "loc.eichental.kraeuterwiese" },
+    { "id": "obj.eichental.kraut_blutwurz_5", "name": "Blutwurz", "kind": "bloodroot", "itemId": "item.herb.blutwurz", "position": [-105, 0], "yaw": 200, "respawnDays": 1, "locationId": "loc.eichental.kraeuterwiese" },
+    { "id": "obj.eichental.kraut_blutwurz_6", "name": "Blutwurz", "kind": "bloodroot", "itemId": "item.herb.blutwurz", "position": [-116, 30], "yaw": 290, "respawnDays": 1, "locationId": "loc.eichental.kraeuterwiese" },
+    { "id": "obj.eichental.kraut_nachtschatten_1", "name": "Nachtschattenblüte", "kind": "nightshade", "itemId": "item.herb.nachtschattenbluete", "position": [-86, 36], "yaw": 20, "respawnDays": 3, "activeHours": [22, 4], "locationId": "loc.eichental.kraeuterwiese" },
+    { "id": "obj.eichental.kraut_nachtschatten_2", "name": "Nachtschattenblüte", "kind": "nightshade", "itemId": "item.herb.nachtschattenbluete", "position": [-78, 26], "yaw": 250, "respawnDays": 3, "activeHours": [22, 4], "locationId": "loc.eichental.kraeuterwiese" },
+    { "id": "obj.eichental.kraut_rissmoos_1", "name": "Rissmoos", "kind": "rift_moss", "itemId": "item.herb.rissmoos", "position": [124, 63], "yaw": 10, "respawnDays": 3, "locationId": "loc.eichental.riss_eichental" },
+    { "id": "obj.eichental.kraut_rissmoos_2", "name": "Rissmoos", "kind": "rift_moss", "itemId": "item.herb.rissmoos", "position": [134, 58], "yaw": 60, "respawnDays": 3, "locationId": "loc.eichental.riss_eichental" },
+    { "id": "obj.eichental.kraut_rissmoos_3", "name": "Rissmoos", "kind": "rift_moss", "itemId": "item.herb.rissmoos", "position": [139, 47], "yaw": 100, "respawnDays": 3, "locationId": "loc.eichental.riss_eichental" },
+    { "id": "obj.eichental.kraut_rissmoos_4", "name": "Rissmoos", "kind": "rift_moss", "itemId": "item.herb.rissmoos", "position": [104, 54], "yaw": 300, "respawnDays": 3, "locationId": "loc.eichental.riss_eichental" }
   ],
   "npcMarkers": [
     { "npcId": "npc.eichental.dorfvorsteherin_hedda", "name": "Hedda Eichholz", "phase": "prolog", "stage": "s20", "locationId": "loc.eichental.dorfplatz", "position": [34, -24], "yaw": 120 },

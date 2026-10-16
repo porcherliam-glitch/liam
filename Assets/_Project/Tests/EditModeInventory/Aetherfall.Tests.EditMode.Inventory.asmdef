@@ -15,6 +15,7 @@
         "Aetherfall.Inventory",
         "Aetherfall.GameTime",
         "Aetherfall.Economy",
+        "Aetherfall.Crafting",
         "Aetherfall.Classes",
         "Aetherfall.Skills",
         "Aetherfall.Combat",

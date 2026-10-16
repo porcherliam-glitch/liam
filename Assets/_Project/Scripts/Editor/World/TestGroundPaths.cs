@@ -149,6 +149,9 @@ namespace Aetherfall.EditorTools.World
         /// <summary>Merchant installer (Lindenhain merchants, GDD 04 8.2).</summary>
         public const string MerchantInstallerPath = SetupPaths.BootSettingsFolder + "/MerchantInstaller.asset";
 
+        /// <summary>Gathering installer (S30), after the InventoryInstaller.</summary>
+        public const string GatheringInstallerPath = SetupPaths.BootSettingsFolder + "/GatheringInstaller.asset";
+
         /// <summary>Installer asset of the NPC system.</summary>
         public const string NpcInstallerPath = SetupPaths.BootSettingsFolder + "/NpcInstaller.asset";
 

@@ -286,8 +286,9 @@ graph TD
 | K13 | XP_Kill = f(Gegnerlevel, Variante, Nacht) | `EnemyKilled` enthält kein Level; Progression darf AI nicht referenzieren | Payload von `EnemyKilled` um `EnemyLevel` (int) ergänzen. Größe: 5 Referenzen à 8 Byte + `Vector3` 12 Byte + int 4 Byte = 56 Byte, unter der Grenze von 64 Byte. Nacht-Faktor über K5. |
 | K14 | Kopf-Datei (Level, Klassen, Region, Spielzeit) und Vorschaubild (Kamera) | SaveSystem kennt Progression, World, GameTime und Kamera nicht | Interfaces `ISaveHeaderContributor` und `IScreenshotProvider` in SaveSystem, implementiert von Progression, World, GameTime bzw. CameraSystem |
 | K15 | Conditions `DifficultyIs` und `NewGamePlusAtLeast` waren Core (2) zugeordnet (Technik/01, 7.7) | Konkrete Conditions erben von `Condition` aus Conditions (5); Core → Conditions ist verboten und ergäbe einen Zyklus | `DifficultyIs` → Options (7, + Referenz 5), `NewGamePlusAtLeast` → Progression (14) |
+| K16 | `HarvestNode` (Sammelpunkt) war Crafting (18) zugeordnet (Technik/01, 11.13) | Er braucht Szene, Spieluhr, Spielerposition und den Weltobjekt-Speicher aus World (20); Crafting darf World nicht referenzieren, World darf Inventory (13) nicht referenzieren | `HarvestNode` liegt in World; den Ertrag gibt er über den Port `IGatheringService` aus Core (2), umgesetzt von `GatheringService` in Crafting (S30, Stufe A, 2026-10-16) |
 
-K1–K15 sind vor dem Projekt-Setup (Phase 0.4) in [Technik/01](./01_Architektur.md) eingearbeitet (Stand 2026-10-13). Der Assembly-Regel-Test (S70) fängt neue Verstöße ab Phase 1 automatisch ab.
+K1–K15 sind vor dem Projekt-Setup (Phase 0.4) in [Technik/01](./01_Architektur.md) eingearbeitet (Stand 2026-10-13). K16 kam beim Bau von S30 dazu (2026-10-16). Der Assembly-Regel-Test (S70) fängt neue Verstöße ab Phase 1 automatisch ab.
 
 ---
 

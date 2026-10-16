@@ -91,7 +91,7 @@ namespace Aetherfall.EditorTools.World
             _outputFolder = Path.Combine(projectRoot, "Logs", "Tour", Path.GetFileNameWithoutExtension(scenePath) +
                                                                       (mode == "quests" ? "_Quests" : mode == "magier" ? "_Magier" :
                                                                           mode == "waffen" ? "_Waffen" : mode == "klettern" ? "_Klettern" : mode == "karte" ? "_Karte" :
-                                                                          mode == "tagnacht" ? "_TagNacht" : mode == "zwischensequenz" ? "_Zwischensequenz" :
+                                                                          mode == "tagnacht" ? "_TagNacht" : mode == "zwischensequenz" ? "_Zwischensequenz" : mode == "sammeln" ? "_Sammeln" :
                                                                           string.Empty));
             Directory.CreateDirectory(_outputFolder);
             foreach (string old in Directory.GetFiles(_outputFolder))
@@ -177,6 +177,13 @@ namespace Aetherfall.EditorTools.World
             {
                 // Day and night: the light at five times of day, the stealth light factor, saving at night, the crypt (PlayTour.DayNight.cs).
                 BuildDayNightPlan();
+                return;
+            }
+
+            if (ReadArgument("-tourMode") == "sammeln")
+            {
+                // Herb gathering points: gather, day and night, save and load, regrowth (PlayTour.Gathering.cs).
+                BuildGatheringPlan();
                 return;
             }
 

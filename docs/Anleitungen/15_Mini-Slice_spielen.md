@@ -115,6 +115,8 @@ Sprich auch mit den anderen Leuten (**E**): Wirt Ulf im Gasthaus kennt Gerüchte
 
 **Händler in Lindenhain:** Bei **Tobold** (Schmied: Schwerter, Streitkolben, Jagdbogen, Pfeile, Schilde, Plattenrüstung) und bei **Ulf** (Heiltränke, Manatränke, Pfeile, Leder- und Stoffkleidung) wählst du im Gespräch „Zeig mir deine Waren.“ bzw. „Was verkaufst du?“. Im Handelsfenster wechselst du mit **Q/E** zwischen Kaufen, Verkaufen und Zurückkaufen; **Enter** handelt ein Stück, **F** alle bzw. den ganzen Stapel, **Esc** schließt. Händler haben nur begrenzt Gold und füllen ihre Waren alle drei Spieltage (etwa 2,4 Stunden Spielzeit) wieder auf. Verkauftes kannst du bis dahin zum selben Preis zurückkaufen.
 
+**Kräuter sammeln:** Auf der **Kräuterwiese** zwischen dem Lindenhain und dem Dorf wachsen **Blutwurz** (grüne Blätter, rote Samenköpfe) und **Nachtschattenblüte**, am Rand des **Risses** im Osten blaugrün leuchtendes **Rissmoos**. Vor einer Pflanze steht „Sammeln: …“, mit **E** bekommst du 1 bis 3 Stück. Die Nachtschattenblüte öffnet sich nur nachts von 22 bis 4 Uhr, am Tag siehst du nur die geschlossene Knospe. Gesammelte Kräuter wachsen nach 1 Spieltag (Blutwurz) oder 3 Spieltagen (die beiden anderen) nach, aber nie, während du daneben stehst. Mehr dazu in Anleitung 17.
+
 **Würfeln mit Ulf („Krähenwurf“):** Frag Ulf „Würfeln wir eine Runde?“. Zuerst wählst du den Einsatz mit **◄ ►** (10 bis 500 Gold) und klickst „Spiel beginnen“. Dann klickst du auf „Würfeln“. Nach jedem Wurf klickst du die Würfel an, die Punkte bringen, und wählst:
 - „Beiseitelegen und weiterwürfeln“: Die übrigen Würfel rollen noch einmal. Bringt der neue Wurf keinen Punkt, sind alle Punkte dieser Runde weg.
 - „Beiseitelegen und sichern“: Die Punkte zählen fest, dann ist Ulf dran.
@@ -126,9 +128,8 @@ Oben rechts steht immer dein aktuelles Ziel. Die Gruft ist auf Stufe 4 eingestel
 ## 4. Bekannte Lücken
 
 - Du selbst bist jetzt ein Krieger aus Blender (Arme, Beine und Schwert bewegen sich per Code, noch ohne fertige Animationen). Dorfbewohner, Wölfe, Risslinge, Banditen, Skelette, der Wachende Ritter sowie Fenster, Türen, Schornsteine und Brücken sind ebenfalls aus Blender.
-- Keine Musik, keine Zwischensequenzen.
-- Die Uhr läuft, aber der Himmel bleibt noch hell (Tag und Nacht kommen als Nächstes). Rasten geht am Lagerfeuer in Lindenhain.
-- Glutfang schläft noch nicht tagsüber (kommt mit Tag und Nacht). Champions haben noch keine Zusatzeigenschaften wie „schnell“ oder „Feuer-Aura“. Die Kopfgeld-Quest zu Grimmbart fehlt noch (der Kampf geht schon).
+- Keine Musik. Eine Zwischensequenz gibt es bisher nur am Anfang (Prolog).
+- Glutfang schläft noch nicht tagsüber. Champions haben noch keine Zusatzeigenschaften wie „schnell“ oder „Feuer-Aura“. Die Kopfgeld-Quest zu Grimmbart fehlt noch (der Kampf geht schon).
 - Der Skill-Baum zeigt die Knoten als Liste je Ast (noch kein grafischer Baum). Respec beim Lehrmeister gibt es noch nicht.
 - Die Gruft ist dunkel. Das ist Absicht, kann aber nachgebessert werden.
 

@@ -312,6 +312,19 @@ namespace Aetherfall.World
             return values;
         }
 
+        public int[] Integers(JsonNode parent, string key, string path, int count)
+        {
+            double[] raw = Numbers(parent, key, path, count);
+            string full = Join(path, key);
+            var values = new int[count];
+            for (int i = 0; i < count; i++)
+            {
+                values[i] = ToInteger(raw[i], Index(full, i));
+            }
+
+            return values;
+        }
+
         public LayoutColor Color(JsonNode parent, string key, string path)
         {
             string text = String(parent, key, path);

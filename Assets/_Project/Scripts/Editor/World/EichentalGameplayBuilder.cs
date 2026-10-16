@@ -752,6 +752,195 @@ namespace Aetherfall.EditorTools.World
             TestGroundFields.SetString(target, "objectId", objectId, _report);
         }
 
+        /// <summary>
+        /// Builds the harvest nodes of the layout (S30): a small plant of basic shapes in saturated colours (GDD 05: "etwas höhere
+        /// Sättigung"), an interaction trigger and a <see cref="HarvestNode"/> with the values of the layout. Nachtschatten gets a
+        /// closed bud for the day.
+        /// </summary>
+        /// <param name="parent">Group in the scene.</param>
+        /// <param name="catalog">Content catalog (warns about unknown items).</param>
+        /// <param name="environmentLayer">Layer of the plant.</param>
+        /// <param name="interactableLayer">Layer of the interaction trigger.</param>
+        public void BuildHarvestNodes(Transform parent, Aetherfall.Data.ContentCatalog catalog, int environmentLayer, int interactableLayer)
+        {
+            int env = environmentLayer >= 0 ? environmentLayer : 0;
+            var counts = new Dictionary<HarvestNodeKind, int>();
+            for (int i = 0; i < _layout.HarvestNodes.Count; i++)
+            {
+                LayoutHarvestNode h = _layout.HarvestNodes[i];
+                if (!HasItem(catalog, h.ItemId))
+                {
+                    _report.Warning("Sammelpunkt " + h.Id + ": Item " + h.ItemId + " fehlt im Katalog – er gibt nichts.");
+                }
+
+                var root = new GameObject(h.Name + " (" + h.Id + ")");
+                root.transform.SetParent(parent, false);
+                root.transform.SetPositionAndRotation(new Vector3((float)h.Position.X, H(h.Position.X, h.Position.Z), (float)h.Position.Z),
+                    Quaternion.Euler(0f, (float)h.Yaw, 0f));
+                root.layer = env;
+                GameObject ripe = HarvestChild(root, "Aussehen");
+                GameObject waiting = null;
+                BuildHarvestLook(h.Kind, ripe);
+                if (h.Kind == HarvestNodeKind.Nightshade)
+                {
+                    waiting = HarvestChild(root, "Knospe");
+                    BuildNightshadeBud(waiting);
+                }
+
+                var trigger = new GameObject("Interaktion");
+                trigger.transform.SetParent(root.transform, false);
+                trigger.transform.localPosition = new Vector3(0f, 0.4f, 0f);
+                trigger.layer = interactableLayer >= 0 ? interactableLayer : 0;
+                SphereCollider sphere = trigger.AddComponent<SphereCollider>();
+                sphere.isTrigger = true;
+                sphere.radius = 0.7f;
+
+                HarvestNode node = root.AddComponent<HarvestNode>();
+                TestGroundFields.SetString(node, "nodeId", h.Id, _report);
+                TestGroundFields.SetString(node, "itemId", h.ItemId, _report);
+                TestGroundFields.SetString(node, "displayName", h.Name, _report);
+                TestGroundFields.SetFloat(node, "respawnDays", (float)h.RespawnDays, _report);
+                TestGroundFields.SetInt(node, "minYield", h.MinYield, _report);
+                TestGroundFields.SetInt(node, "maxYield", h.MaxYield, _report);
+                TestGroundFields.SetFloat(node, "activeFrom", (float)h.ActiveFrom, _report);
+                TestGroundFields.SetFloat(node, "activeTo", (float)h.ActiveTo, _report);
+                TestGroundFields.SetReference(node, "ripeVisual", ripe, _report);
+                TestGroundFields.SetReference(node, "waitingVisual", waiting, _report);
+                counts[h.Kind] = (counts.TryGetValue(h.Kind, out int count) ? count : 0) + 1;
+            }
+
+            _report.Info("Sammelpunkte: " + _layout.HarvestNodes.Count + " (" + Count(counts, HarvestNodeKind.Bloodroot) + " Blutwurz, " +
+                         Count(counts, HarvestNodeKind.RiftMoss) + " Rissmoos, " + Count(counts, HarvestNodeKind.Nightshade) +
+                         " Nachtschattenblüte), Nachwachsen nach Spieltagen, nie in Sicht des Spielers.");
+        }
+
+        private static int Count(Dictionary<HarvestNodeKind, int> counts, HarvestNodeKind kind)
+        {
+            return counts.TryGetValue(kind, out int count) ? count : 0;
+        }
+
+        private static bool HasItem(Aetherfall.Data.ContentCatalog catalog, string itemId)
+        {
+            if (catalog == null)
+            {
+                return false;
+            }
+
+            foreach (Aetherfall.Data.GameDefinition definition in catalog.Definitions)
+            {
+                if (definition is ItemDefinition item && item.Id == itemId)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static GameObject HarvestChild(GameObject root, string name)
+        {
+            var child = new GameObject(name);
+            child.transform.SetParent(root.transform, false);
+            child.layer = root.layer;
+            return child;
+        }
+
+        // Herbs must be found by eye on a green meadow (GDD 05: "etwas höhere Sättigung"): knee-high plants of about 0.8 m with a
+        // colour the grass does not have (red seed heads, violet bud or glowing bloom, glowing Aether dots).
+        private void BuildHarvestLook(HarvestNodeKind kind, GameObject look)
+        {
+            switch (kind)
+            {
+                case HarvestNodeKind.RiftMoss:
+                    // A low cushion of about 1.2 × 0.9 m on the scorched rim, with glowing Aether dots.
+                    Material moss = _materials.Fixed("rissmoos", new Color(0.157f, 0.42f, 0.388f));
+                    Part(look, PrimitiveType.Sphere, new Vector3(0f, 0.04f, 0f), new Vector3(1.0f, 0.2f, 0.75f), Quaternion.identity, moss, false);
+                    Part(look, PrimitiveType.Sphere, new Vector3(0.38f, 0.03f, 0.22f), new Vector3(0.6f, 0.16f, 0.5f), Quaternion.Euler(0f, 30f, 0f), moss, false);
+                    Part(look, PrimitiveType.Sphere, new Vector3(-0.34f, 0.03f, -0.18f), new Vector3(0.55f, 0.14f, 0.45f), Quaternion.Euler(0f, -20f, 0f), moss, false);
+                    Material dots = _materials.Glow("aether", 1.6f, "Rissmoos");
+                    for (int d = 0; d < 8; d++)
+                    {
+                        float angle = d * Mathf.PI * 0.25f + 0.4f;
+                        float radius = d % 2 == 0 ? 0.36f : 0.2f;
+                        Part(look, PrimitiveType.Sphere, new Vector3(Mathf.Cos(angle) * radius, 0.12f, Mathf.Sin(angle) * radius * 0.8f), Vector3.one * 0.09f,
+                            Quaternion.identity, dots, false);
+                    }
+
+                    break;
+                case HarvestNodeKind.Nightshade:
+                    // Night: each of the three stems carries an open, glowing violet bloom with a pale heart.
+                    Material petal = _materials.FixedGlow("nachtschattenBluete", new Color(0.42f, 0.2f, 0.62f), new Color(0.55f, 0.3f, 0.85f), 1.4f);
+                    Material heart = _materials.FixedGlow("nachtschattenHerz", new Color(0.95f, 0.85f, 0.55f), new Color(1f, 0.85f, 0.5f), 1.2f);
+                    foreach (Vector3 top in NightshadeStems(look))
+                    {
+                        for (int p = 0; p < 5; p++)
+                        {
+                            Quaternion turn = Quaternion.Euler(0f, p * 72f, 0f);
+                            Part(look, PrimitiveType.Sphere, top + turn * new Vector3(0.08f, 0.02f, 0f), new Vector3(0.17f, 0.035f, 0.09f),
+                                turn * Quaternion.Euler(0f, 0f, 25f), petal, false);
+                        }
+
+                        Part(look, PrimitiveType.Sphere, top + new Vector3(0f, 0.03f, 0f), Vector3.one * 0.05f, Quaternion.identity, heart, false);
+                    }
+
+                    break;
+                default:
+                    // Blutwurz: a rosette of seven saturated leaves with three red seed heads at knee height.
+                    Material leaf = _materials.Fixed("krautBlatt", new Color(0.2f, 0.5f, 0.09f));
+                    for (int l = 0; l < 7; l++)
+                    {
+                        Quaternion turn = Quaternion.Euler(0f, l * (360f / 7f), 0f);
+                        Part(look, PrimitiveType.Sphere, turn * new Vector3(0.2f, 0.12f, 0f), new Vector3(0.44f, 0.05f, 0.17f), turn * Quaternion.Euler(0f, 0f, 28f),
+                            leaf, false);
+                    }
+
+                    Material stalk = _materials.Fixed("blutwurzStiel", new Color(0.3f, 0.36f, 0.12f));
+                    Material red = _materials.Fixed("blutwurz", new Color(0.72f, 0.09f, 0.14f), 0.45f);
+                    for (int h = 0; h < 3; h++)
+                    {
+                        Vector3 top = Quaternion.Euler(0f, h * 120f + 20f, 0f) * new Vector3(0.07f, 0.48f + h * 0.04f, 0f);
+                        Part(look, PrimitiveType.Capsule, new Vector3(top.x, top.y * 0.5f, top.z), new Vector3(0.025f, top.y * 0.5f, 0.025f), Quaternion.identity,
+                            stalk, false);
+                        Part(look, PrimitiveType.Sphere, top, new Vector3(0.12f, 0.1f, 0.12f), Quaternion.identity, red, false);
+                    }
+
+                    Part(look, PrimitiveType.Sphere, new Vector3(0f, 0.05f, 0f), new Vector3(0.16f, 0.12f, 0.16f), Quaternion.identity, red, false);
+                    break;
+            }
+        }
+
+        private void BuildNightshadeBud(GameObject bud)
+        {
+            // Day: the same stems with closed, dark violet buds.
+            Material closed = _materials.Fixed("nachtschattenKnospe", new Color(0.3f, 0.14f, 0.42f));
+            foreach (Vector3 top in NightshadeStems(bud))
+            {
+                Part(bud, PrimitiveType.Sphere, top + new Vector3(0f, 0.05f, 0f), new Vector3(0.09f, 0.16f, 0.09f), Quaternion.identity, closed, false);
+            }
+        }
+
+        /// <summary>Five dark leaves and three stems of 0.46–0.62 m; returns the tips of the stems.</summary>
+        private Vector3[] NightshadeStems(GameObject root)
+        {
+            Material leaf = _materials.Fixed("nachtschattenBlatt", new Color(0.12f, 0.25f, 0.15f));
+            for (int l = 0; l < 5; l++)
+            {
+                Quaternion turn = Quaternion.Euler(0f, l * 72f + 30f, 0f);
+                Part(root, PrimitiveType.Sphere, turn * new Vector3(0.16f, 0.09f, 0f), new Vector3(0.36f, 0.045f, 0.15f), turn * Quaternion.Euler(0f, 0f, 22f),
+                    leaf, false);
+            }
+
+            var tops = new Vector3[3];
+            for (int t = 0; t < tops.Length; t++)
+            {
+                Vector3 top = Quaternion.Euler(0f, t * 120f, 0f) * new Vector3(t == 0 ? 0f : 0.1f, 0.62f - t * 0.08f, 0f);
+                Part(root, PrimitiveType.Capsule, new Vector3(top.x, top.y * 0.5f, top.z), new Vector3(0.025f, top.y * 0.5f, 0.025f), Quaternion.identity, leaf, false);
+                tops[t] = top;
+            }
+
+            return tops;
+        }
+
         private void ConfigureInteraction(QuestObjectMarker marker, MiniSliceWorld.ObjectSetup setup, int interactableLayer)
         {
             TestGroundFields.SetInt(marker, "action", (int)setup.Action, _report);

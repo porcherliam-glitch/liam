@@ -249,3 +249,17 @@ MonoBehaviour:
     hasWaypoint: 0
     arrival: {x: 0, y: 0, z: 0}
     arrivalYaw: 0
+  - id: loc.eichental.kraeuterwiese
+    displayName: "Kr\xE4uterwiese"
+    kind: 1
+    x: -95
+    z: 24
+    radius: 28
+    showOnMap: 1
+    revealRadius: 0
+    boxWidth: 0
+    boxDepth: 0
+    boxYaw: 0
+    hasWaypoint: 0
+    arrival: {x: 0, y: 0, z: 0}
+    arrivalYaw: 0

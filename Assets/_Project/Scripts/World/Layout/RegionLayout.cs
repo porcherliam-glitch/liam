@@ -81,6 +81,9 @@ namespace Aetherfall.World
         /// <summary>Chests.</summary>
         public IReadOnlyList<LayoutChest> Chests { get; internal set; } = Array.Empty<LayoutChest>();
 
+        /// <summary>Harvest nodes (herbs; S30).</summary>
+        public IReadOnlyList<LayoutHarvestNode> HarvestNodes { get; internal set; } = Array.Empty<LayoutHarvestNode>();
+
         /// <summary>Placeholder markers of NPCs.</summary>
         public IReadOnlyList<LayoutNpcMarker> NpcMarkers { get; internal set; } = Array.Empty<LayoutNpcMarker>();
 

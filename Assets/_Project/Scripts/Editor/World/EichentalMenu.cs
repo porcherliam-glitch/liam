@@ -46,7 +46,7 @@ namespace Aetherfall.EditorTools.World
                 "Aus der Layout-Datei\n" + EichentalPaths.LayoutPath + "\nwird das Dorf Eichental gebaut:\n\n" +
                 "• Szene " + EichentalPaths.ScenePath + " mit Gelände (512 × 512 m, spielbar 400 × 400 m), Bächen, Brücken, " +
                 "Häusern (intakt, verbrannt, eingestürzt), Bäumen, Feldern, Zäunen und dem Aether-Riss\n" +
-                "• Spielfigur, Kamera, Wölfe, Truhen, Anschlagbrett, Orts-Zonen, NPC-Platzhalter und Quest-Objekte\n" +
+                "• Spielfigur, Kamera, Wölfe, Truhen, Anschlagbrett, Orts-Zonen, NPC-Platzhalter, Quest-Objekte und Kräuter-Sammelpunkte\n" +
                 "• Gelände-Daten, Texturen und Materialien in " + EichentalPaths.TerrainFolder + " und " + EichentalPaths.MaterialFolder + "\n" +
                 "• Gemeinsame Daten wie beim Testgelände (Kampf, Items, Installer, Oberfläche)\n" +
                 "• Szenenliste: Boot → Eichental → Testgelände; „Neues Spiel“ startet im Eichental\n\n" +

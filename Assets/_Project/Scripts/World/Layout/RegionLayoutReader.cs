@@ -90,6 +90,11 @@ namespace Aetherfall.World
             Pair("wooden", LayoutChestTier.Wooden), Pair("iron", LayoutChestTier.Iron), Pair("hidden", LayoutChestTier.Hidden)
         };
 
+        internal static readonly KeyValuePair<string, HarvestNodeKind>[] HarvestNodeKinds =
+        {
+            Pair("bloodroot", HarvestNodeKind.Bloodroot), Pair("rift_moss", HarvestNodeKind.RiftMoss), Pair("nightshade", HarvestNodeKind.Nightshade)
+        };
+
         internal static readonly KeyValuePair<string, NpcMarkerPhase>[] NpcPhases =
         {
             Pair("always", NpcMarkerPhase.Always), Pair("prolog", NpcMarkerPhase.Prolog), Pair("after_prolog", NpcMarkerPhase.AfterProlog)
@@ -132,7 +137,7 @@ namespace Aetherfall.World
             var ctx = new LayoutJsonContext(report);
             ctx.Known(root, string.Empty, "schemaVersion", "layoutId", "regionId", "name", "sceneTitle", "worldSpaceId", "areaLevel", "notes",
                 "sizeRationale", "terrain", "palette", "lighting", "dayCycle", "rivers", "paths", "bridges", "buildings", "fences", "fields", "groundZones",
-                "vegetation", "rocks", "props", "rift", "locations", "spawners", "chests", "npcMarkers", "questObjects", "trails", "playerStart");
+                "vegetation", "rocks", "props", "rift", "locations", "spawners", "chests", "harvestNodes", "npcMarkers", "questObjects", "trails", "playerStart");
             int schema = ctx.Integer(root, "schemaVersion", string.Empty);
             if (schema != SupportedSchemaVersion)
             {
@@ -166,6 +171,7 @@ namespace Aetherfall.World
                 Locations = ReadList(ctx, root, "locations", true, ReadLocation),
                 Spawners = ReadList(ctx, root, "spawners", false, ReadSpawner),
                 Chests = ReadList(ctx, root, "chests", false, ReadChest),
+                HarvestNodes = ReadList(ctx, root, "harvestNodes", false, ReadHarvestNode),
                 NpcMarkers = ReadList(ctx, root, "npcMarkers", false, ReadNpcMarker),
                 QuestObjects = ReadList(ctx, root, "questObjects", false, ReadQuestObject),
                 Trails = ReadList(ctx, root, "trails", false, ReadTrail),
@@ -838,6 +844,28 @@ namespace Aetherfall.World
                 Yaw = ctx.Number(node, "yaw", path, 0.0),
                 AreaLevel = ctx.Integer(node, "areaLevel", path, 1),
                 LocationId = ctx.String(node, "locationId", path, string.Empty)
+            };
+        }
+
+        private static LayoutHarvestNode ReadHarvestNode(LayoutJsonContext ctx, JsonNode node, string path)
+        {
+            ctx.Known(node, path, "id", "name", "kind", "itemId", "position", "yaw", "locationId", "respawnDays", "yield", "activeHours");
+            int[] yield = node.Has("yield") ? ctx.Integers(node, "yield", path, 2) : new[] { 1, 3 };
+            double[] hours = node.Has("activeHours") ? ctx.Numbers(node, "activeHours", path, 2) : new[] { 0d, 0d };
+            return new LayoutHarvestNode
+            {
+                Id = ctx.String(node, "id", path),
+                Name = ctx.String(node, "name", path),
+                Kind = ctx.Token(node, "kind", path, HarvestNodeKinds),
+                ItemId = ctx.String(node, "itemId", path),
+                Position = ctx.Point(node, "position", path),
+                Yaw = ctx.Number(node, "yaw", path, 0.0),
+                LocationId = ctx.String(node, "locationId", path, string.Empty),
+                RespawnDays = ctx.Number(node, "respawnDays", path, 1.0),
+                MinYield = yield[0],
+                MaxYield = yield[1],
+                ActiveFrom = hours[0],
+                ActiveTo = hours[1]
             };
         }
 

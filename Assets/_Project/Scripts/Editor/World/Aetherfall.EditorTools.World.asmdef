@@ -31,6 +31,7 @@
         "Aetherfall.EditorTools.Core",
         "Aetherfall.EditorTools.Narrative",
         "Aetherfall.Economy",
+        "Aetherfall.Crafting",
         "Aetherfall.Minigames",
         "Aetherfall.Companions",
         "Aetherfall.Classes",

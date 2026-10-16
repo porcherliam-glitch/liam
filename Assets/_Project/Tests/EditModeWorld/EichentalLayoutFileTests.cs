@@ -28,7 +28,7 @@ namespace Aetherfall.Tests.EditMode.World
             "loc.eichental.lindenhain", "loc.eichental.gasthaus_krummer_kessel", "loc.eichental.wachposten_lindenhain",
             "loc.eichental.hof_hollmann", "loc.eichental.nordhang", "loc.eichental.wolfsbau_nordhang", "loc.eichental.vergessene_gruft",
             "loc.eichental.muehle_muehlbach", "loc.eichental.rabenfels_spitze", "loc.eichental.steinbruch_grimmbart", "loc.eichental.steinbruch_arena",
-            "loc.eichental.wachturm_grauwacht"
+            "loc.eichental.wachturm_grauwacht", "loc.eichental.kraeuterwiese"
         };
 
         // GDD 01 4.1.3 and GDD 02 11.0 "Verwendete NPCs" (region Eichental and the grey figure).
@@ -309,6 +309,16 @@ namespace Aetherfall.Tests.EditMode.World
         }
 
         [Test]
+        public void HerbNodesCoverQuestFive()
+        {
+            // GDD 02 11.5 s10: Sammle(blutwurz, 5), Sammle(rissmoos, 3), Sammle(nachtschattenbluete, 1) in one visit at the smallest yield;
+            // GDD 04 6.10: common herbs grow back after 1 game day, rare ones after 3; Nachtschatten only at night (22-4).
+            AssertHerbs("item.herb.blutwurz", 5, 1d, null, 0d, 0d);
+            AssertHerbs("item.herb.rissmoos", 3, 3d, "loc.eichental.riss_eichental", 0d, 0d);
+            AssertHerbs("item.herb.nachtschattenbluete", 1, 3d, null, 22d, 4d);
+        }
+
+        [Test]
         public void EveryViewpointHasAChest()
         {
             int viewpoints = 0;
@@ -330,6 +340,29 @@ namespace Aetherfall.Tests.EditMode.World
             }
 
             Assert.That(viewpoints, Is.GreaterThanOrEqualTo(2), "Rabenfels-Spitze and the crow's nest of the Wachturm Grauwacht");
+        }
+
+        private void AssertHerbs(string itemId, int needed, double respawnDays, string locationId, double from, double to)
+        {
+            int pieces = 0;
+            foreach (LayoutHarvestNode node in _layout.HarvestNodes)
+            {
+                if (node.ItemId != itemId)
+                {
+                    continue;
+                }
+
+                pieces += node.MinYield;
+                Assert.That(node.RespawnDays, Is.EqualTo(respawnDays), node.Id);
+                Assert.That(node.ActiveFrom, Is.EqualTo(from), node.Id);
+                Assert.That(node.ActiveTo, Is.EqualTo(to), node.Id);
+                if (locationId != null)
+                {
+                    Assert.That(node.LocationId, Is.EqualTo(locationId), node.Id);
+                }
+            }
+
+            Assert.That(pieces, Is.GreaterThanOrEqualTo(needed), itemId + ": one visit at the smallest yield covers quest 5");
         }
 
         private static IEnumerable<string> RationaleLines()

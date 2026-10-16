@@ -250,6 +250,14 @@ namespace Aetherfall.EditorTools.World
                 typeof(ProgressionInstaller), typeof(GameTimeInstaller), typeof(SaveInstaller));
         }
 
+        /// <summary>Gathering installer into the BootConfig (S30): after the InventoryInstaller (herb nodes give items).</summary>
+        /// <param name="report">Protocol.</param>
+        /// <returns>True if the BootConfig contains it afterwards.</returns>
+        public static bool EnsureGatheringInstallerInBootConfig(TestGroundReport report)
+        {
+            return EnsureInstallerInBootConfig<Aetherfall.Crafting.GatheringInstaller>(TestGroundPaths.GatheringInstallerPath, report, typeof(InventoryInstaller));
+        }
+
         /// <summary>Dialogue and NPC installers into the BootConfig: DialogueInstaller after InventoryInstaller, NpcInstaller after it.</summary>
         /// <param name="report">Protocol.</param>
         /// <returns>True if the BootConfig contains both installers afterwards.</returns>

@@ -162,6 +162,8 @@ namespace Aetherfall.EditorTools.World
                 MarenPostYaw, true, player, materials, layers.Enemy, layers.Hurtbox, layers.Interactable, solidMask, labelFont, report);
             gameplay.BuildQuestObjects(Group(game.transform, "Quest-Objekte"), env, layers.Interactable, layers.TriggerVolume, layers.Player, layers.Hurtbox);
             gameplay.BuildTrails(Group(game.transform, "Spuren"), layers.TriggerVolume, layers.Player);
+            // S30: herb gathering points (Kräuterwiese, rift rim), grow back after game days.
+            gameplay.BuildHarvestNodes(Group(game.transform, "Sammelpunkte"), items.Catalog, env, layers.Interactable);
             EichentalDungeonLinks.Build(layout, heights, spawnPoint.transform, layers.Interactable, Group(game.transform, "Durchgänge"), report);
             // S58: the prologue cutscene (Timeline baked from EichentalCutscenes; the fire group "Brand (Prolog)" is not touched).
             BuildCutscenes(layout, heights, Group(game.transform, "Zwischensequenzen"), mainCamera, exploreOrbital, solidMask, report);
