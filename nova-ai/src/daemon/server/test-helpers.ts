@@ -64,6 +64,15 @@ export async function waitUntil(pred: () => boolean, timeoutMs = 3000, stepMs = 
   }
 }
 
+/** Like waitUntil, for conditions that need I/O (e.g. probing an endpoint). */
+export async function waitUntilAsync(pred: () => Promise<boolean>, timeoutMs = 3000, stepMs = 50): Promise<void> {
+  const until = Date.now() + timeoutMs;
+  while (!(await pred())) {
+    if (Date.now() > until) throw new Error('waitUntilAsync: condition not met in time');
+    await new Promise((r) => setTimeout(r, stepMs));
+  }
+}
+
 export interface TestServer {
   server: RpcServerHandle;
   bus: EventBus;

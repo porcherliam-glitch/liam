@@ -2,7 +2,8 @@
 // playwright, winget (SPEC §4.9, §6.9).
 // Key decisions:
 // - Detection = PATH lookup (where.exe / command -v) + well-known Windows install folders, then a version command with
-//   a 10–15 s timeout judged by exit code 0. Windows .cmd shims (npm.cmd, code.cmd, playwright.cmd) run through
+//   a 10–15 s timeout judged by exit code 0. The .NET SDK is detected through `dotnet --list-sdks` (native host) with
+//   the sdk folder as fallback, never through `dotnet --version` (see dotnetModule). Windows .cmd shims (npm.cmd, code.cmd, playwright.cmd) run through
 //   execTool's validated cmd.exe handling; when that refuses a path (e.g. umlauts in the user name) the version is read
 //   from the package.json next to the shim instead.
 // - Python on Windows skips the Microsoft Store placeholder (python.exe in WindowsApps that only opens the Store) by
@@ -13,6 +14,7 @@
 import type { IntegrationDetectContext, IntegrationModule } from '../contracts';
 import type { IntegrationStatus } from '@shared/schemas';
 import {
+  compareVersions,
   detectVersionTool,
   existingOnly,
   findAllOnPath,
@@ -23,6 +25,7 @@ import {
   uniquePaths,
   winFolders,
   type DetectResult,
+  type FsLike,
   type Installation,
   type ModuleDeps,
 } from './helpers';
@@ -198,35 +201,102 @@ export function pythonModule(deps: ModuleDeps): IntegrationModule {
 
 // --------------------------------------------------------------------------------------------------------- dotnet
 
+const DOTNET_SDK_LINE = /^(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)\s+\[.+\]$/;
+const DOTNET_SDK_DIR = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
+const DOTNET_LIST_TIMEOUT_MS = 15_000;
+
+function comparePrerelease(a: string, b: string): number {
+  const pa = a.split('.');
+  const pb = b.split('.');
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const x = pa[i];
+    const y = pb[i];
+    if (x === undefined || y === undefined) return x === undefined ? -1 : 1;
+    const nx = /^\d+$/.test(x);
+    const ny = /^\d+$/.test(y);
+    if (nx && ny) {
+      const d = Number(x) - Number(y);
+      if (d !== 0) return d;
+    } else if (nx !== ny) {
+      return nx ? -1 : 1;
+    } else if (x !== y) {
+      return x < y ? -1 : 1;
+    }
+  }
+  return 0;
+}
+
+/** Semantic order of .NET SDK versions (>0 if a is newer): numbers first, a release above its previews. */
+export function compareDotnetVersions(a: string, b: string): number {
+  const split = (v: string): [string, string] => {
+    const i = v.indexOf('-');
+    return i < 0 ? [v, ''] : [v.slice(0, i), v.slice(i + 1)];
+  };
+  const [coreA, preA] = split(a);
+  const [coreB, preB] = split(b);
+  const d = compareVersions(coreA, coreB);
+  if (d !== 0) return d;
+  if (!preA !== !preB) return preA ? -1 : 1;
+  return comparePrerelease(preA, preB);
+}
+
+/** SDK versions from `dotnet --list-sdks` lines like "8.0.404 [C:\Program Files\dotnet\sdk]". */
+export function parseDotnetSdkList(stdout: string): string[] {
+  const out: string[] = [];
+  for (const line of stdout.split(/\r?\n/)) {
+    const m = DOTNET_SDK_LINE.exec(line.trim());
+    if (m) out.push(m[1]);
+  }
+  return out;
+}
+
+/** SDK versions from the sdk folder next to the (symlink-resolved) dotnet executable: sdk/<version>/dotnet.dll. */
+export function dotnetSdkFolderVersions(fs: FsLike, exe: string, platform: NodeJS.Platform): string[] {
+  const p = pathFor(platform);
+  const sdkDir = p.join(p.dirname(fs.realpath(exe)), 'sdk');
+  return fs.listDir(sdkDir).filter((d) => DOTNET_SDK_DIR.test(d) && fs.exists(p.join(sdkDir, d, 'dotnet.dll')));
+}
+
+// `dotnet --list-sdks` is answered by the native host (hostfxr): no managed SDK start and no global.json lookup.
+// `dotnet --version` is not used for detection: it starts the managed CLI, which can exceed the detection timeout on a
+// cold machine (a fresh Windows image with 11 SDKs reported "not installed"), and it fails when a global.json in the
+// daemon's working folder pins an SDK that is not installed. When the host does not answer, the sdk folder decides.
 export function dotnetModule(deps: ModuleDeps): IntegrationModule {
   return {
     id: 'dotnet',
     name: '.NET SDK',
     category: 'runtime',
-    detect: (ctx) =>
-      detectVersionTool(ctx, deps, {
-        name: '.NET SDK',
-        purpose: 'Das .NET SDK wird für Windows-Desktop-Anwendungen (WPF) und C#-Projekte benötigt.',
-        candidates: async (c) => {
-          const p = pathFor(c.platform);
-          const w = winFolders(c.env);
-          return [await c.findExecutable('dotnet'), ...(c.platform === 'win32' ? existingOnly(deps.fs, [p.join(w.programFiles, 'dotnet', 'dotnet.exe')]) : [])];
-        },
-        versionArgs: ['--version'],
-        parseVersion: (out) => firstVersion(out, 3),
-        badResponseMessage: () => '.NET ist vorhanden, aber es ist kein .NET SDK installiert. Für Builds und Tests wird das .NET SDK benötigt.',
-        extraInstallations: async (c, exe) => {
-          const r = await c.run(exe, ['--list-sdks'], 10_000);
-          if (r.code !== 0) return [];
-          const list: Installation[] = [];
-          for (const line of r.stdout.split(/\r?\n/)) {
-            const m = /^(\d+\.\d+\.\d+\S*)\s+\[/.exec(line.trim());
-            if (m) list.push({ version: m[1], path: exe });
-          }
-          return sortInstallations(list);
-        },
-        availableMessage: (v) => `.NET SDK ${v} ist installiert.`,
-      }),
+    async detect(ctx) {
+      const p = pathFor(ctx.platform);
+      const w = winFolders(ctx.env);
+      const note = manualMissingNote(ctx, deps);
+      const candidates = uniquePaths(
+        [manualIfExists(ctx, deps), await ctx.findExecutable('dotnet'), ...(ctx.platform === 'win32' ? existingOnly(deps.fs, [p.join(w.programFiles, 'dotnet', 'dotnet.exe')]) : [])],
+        ctx.platform,
+      );
+      let runtimeOnly: string | null = null;
+      let silent: string | null = null;
+      for (const exe of candidates) {
+        const r = await ctx.run(exe, ['--list-sdks'], DOTNET_LIST_TIMEOUT_MS);
+        let versions = r.code === 0 ? parseDotnetSdkList(r.stdout) : [];
+        if (versions.length === 0) versions = dotnetSdkFolderVersions(deps.fs, exe, ctx.platform);
+        if (versions.length > 0) {
+          const sorted = [...new Set(versions)].sort((a, b) => compareDotnetVersions(b, a));
+          return {
+            available: true,
+            version: sorted[0],
+            path: exe,
+            message: `${note}.NET SDK ${sorted[0]} ist installiert.`,
+            installations: sorted.map((version) => ({ version, path: exe })),
+          };
+        }
+        if (r.code === 0) runtimeOnly ??= exe;
+        else silent ??= exe;
+      }
+      if (runtimeOnly) return notAvailable(`${note}.NET ist vorhanden, aber es ist kein .NET SDK installiert. Für Builds und Tests wird das .NET SDK benötigt.`);
+      if (silent) return notAvailable(`${note}.NET wurde gefunden (${silent}), antwortet aber nicht auf die Abfrage der installierten SDKs. Eventuell ist die Installation beschädigt.`);
+      return notAvailable(`${note}.NET SDK wurde nicht gefunden. Das .NET SDK wird für Windows-Desktop-Anwendungen (WPF) und C#-Projekte benötigt.`);
+    },
     installHint: (platform) => installHint('dotnet', platform, 'https://dotnet.microsoft.com/download'),
   };
 }

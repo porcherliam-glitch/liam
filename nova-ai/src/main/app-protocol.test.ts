@@ -1,24 +1,28 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve, sep } from 'node:path';
 import { createAppProtocolHandler, mimeTypeFor, resolveRendererPath } from './app-protocol';
 
 describe('resolveRendererPath', () => {
-  const root = '/srv/renderer';
+  // Host-native root: "/srv/renderer" on POSIX, "<current drive>:\srv\renderer" on Windows.
+  const root = resolve('/srv/renderer');
+  const inRoot = (...segments: string[]) => ({ ok: true, file: join(root, ...segments) });
 
   it('maps / to index.html and nested assets', () => {
-    expect(resolveRendererPath(root, 'app://nova/')).toEqual({ ok: true, file: '/srv/renderer/index.html' });
-    expect(resolveRendererPath(root, 'app://nova/index.html')).toEqual({ ok: true, file: '/srv/renderer/index.html' });
-    expect(resolveRendererPath(root, 'app://nova/assets/index-abc.js?x=1#y')).toEqual({ ok: true, file: '/srv/renderer/assets/index-abc.js' });
-    expect(resolveRendererPath(root, 'app://nova/assets/a%20b.css')).toEqual({ ok: true, file: '/srv/renderer/assets/a b.css' });
+    expect(resolveRendererPath(root, 'app://nova/')).toEqual(inRoot('index.html'));
+    expect(resolveRendererPath(root, 'app://nova/index.html')).toEqual(inRoot('index.html'));
+    expect(resolveRendererPath(root, 'app://nova/assets/index-abc.js?x=1#y')).toEqual(inRoot('assets', 'index-abc.js'));
+    expect(resolveRendererPath(root, 'app://nova/assets/a%20b.css')).toEqual(inRoot('assets', 'a b.css'));
+    expect(resolveRendererPath(`${root}${sep}`, 'app://nova/index.html')).toEqual(inRoot('index.html'));
   });
 
   it('rejects traversal, encoded separators, drive letters and other hosts', () => {
     // The WHATWG URL parser removes ".." and "%2e%2e" dot segments itself: the result stays inside the root.
-    expect(resolveRendererPath(root, 'app://nova/../secret.txt')).toEqual({ ok: true, file: '/srv/renderer/secret.txt' });
-    expect(resolveRendererPath(root, 'app://nova/%2e%2e/secret.txt')).toEqual({ ok: true, file: '/srv/renderer/secret.txt' });
+    expect(resolveRendererPath(root, 'app://nova/../secret.txt')).toEqual(inRoot('secret.txt'));
+    expect(resolveRendererPath(root, 'app://nova/%2e%2e/secret.txt')).toEqual(inRoot('secret.txt'));
     expect(resolveRendererPath(root, 'app://nova/assets/%2e%2e%2f%2e%2e%2fetc/passwd')).toEqual({ ok: false, status: 403 });
+    expect(resolveRendererPath(root, 'app://nova/assets/..%2F..%2Fsecret.txt')).toEqual({ ok: false, status: 403 });
     expect(resolveRendererPath(root, 'app://nova/..%5C..%5Cwindows')).toEqual({ ok: false, status: 400 });
     expect(resolveRendererPath(root, 'app://nova/C:%5Cx')).toEqual({ ok: false, status: 400 });
     expect(resolveRendererPath(root, 'app://nova/a%00b')).toEqual({ ok: false, status: 400 });
@@ -28,9 +32,21 @@ describe('resolveRendererPath', () => {
     expect(resolveRendererPath(root, 'not-a-url')).toEqual({ ok: false, status: 400 });
   });
 
+  it('rejects the Windows forms: drive letters, UNC paths, backslashes and alternate data streams', () => {
+    expect(resolveRendererPath(root, 'app://nova/C:/Windows/win.ini')).toEqual({ ok: false, status: 400 });
+    expect(resolveRendererPath(root, 'app://nova/c%3A/Windows/win.ini')).toEqual({ ok: false, status: 400 });
+    expect(resolveRendererPath(root, 'app://nova/%5C%5Cserver%5Cshare%5Cx')).toEqual({ ok: false, status: 400 });
+    expect(resolveRendererPath(root, 'app://nova/%5C%5C%3F%5CC%3A%5Cx')).toEqual({ ok: false, status: 400 }); // \\?\C:\x
+    expect(resolveRendererPath(root, 'app://nova/assets\\..\\..\\secret.txt')).toEqual({ ok: false, status: 400 });
+    expect(resolveRendererPath(root, 'app://nova/index.html::$DATA')).toEqual({ ok: false, status: 400 });
+    expect(resolveRendererPath(root, 'app://nova/index.html%3A%3A%24DATA')).toEqual({ ok: false, status: 400 });
+    // Leading double slashes are just empty segments, never a UNC path.
+    expect(resolveRendererPath(root, 'app://nova//server/share/x')).toEqual(inRoot('server', 'share', 'x'));
+  });
+
   it('the URL parser already collapses plain ".." so the result stays inside the root', () => {
     const r = resolveRendererPath(root, 'app://nova/../../etc/passwd');
-    expect(r).toEqual({ ok: true, file: '/srv/renderer/etc/passwd' });
+    expect(r).toEqual(inRoot('etc', 'passwd'));
   });
 });
 

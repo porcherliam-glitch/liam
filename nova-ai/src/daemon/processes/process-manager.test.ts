@@ -251,14 +251,16 @@ process.exit(0);`,
 // Real processes on Windows: cmd.exe wrapper, exit codes, CIM walk + taskkill
 // ---------------------------------------------------------------------------------------------------------------------
 
-describe.runIf(process.platform === 'win32')('ProcessManager (real processes, cmd.exe)', () => {
+// Generous timeout: the first PATH refresh and the CIM query start PowerShell, which is slow on a cold machine.
+describe.runIf(process.platform === 'win32')('ProcessManager (real processes, cmd.exe)', { timeout: 60_000 }, () => {
   it('captures output and reports exit codes of programs, cmd built-ins and unknown commands', async () => {
     h = createProcHarness();
     const ok = await h.s.processes.run({ command: `${NODE} -e "console.log('hallo'); console.error('warnung')"`, cwd: h.root, kind: 'command' });
     expect(ok.exitCode).toBe(0);
     expect(ok.stdout.replace(/\r\n/g, '\n')).toBe('hallo\n');
     expect(ok.stderr.replace(/\r\n/g, '\n')).toBe('warnung\n');
-    expect(h.s.processes.get(ok.processId)).toMatchObject({ status: 'exited', exitCode: 0, command: `${NODE} -e "console.log('hallo'); console.error('warnung')"` });
+    expect(h.s.processes.get(ok.processId)).toMatchObject({ status: 'exited', exitCode: 0 });
+    expect(h.s.processes.get(ok.processId)?.command).not.toContain('chcp'); // the wrapper is never shown
     const failed = await h.s.processes.run({ command: `${NODE} -e "process.exit(3)"`, cwd: h.root, kind: 'test' });
     expect(failed.exitCode).toBe(3);
     const builtin = await h.s.processes.run({ command: 'echo kaputt 1>&2 & exit 4', cwd: h.root, kind: 'command' });

@@ -4,15 +4,18 @@
 // approved and without secret/unsupported options, non-local providers always paid, permissions/network/budgets and
 // the update address never imported, invalid items skipped, one transaction with rollback, events only after the commit).
 import { afterEach, describe, expect, it } from 'vitest';
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join, parse } from 'node:path';
 import type { AnyNovaEvent } from '@shared/events';
 import { backupHarness, defaultConfig, type BackupHarness } from './test-support';
-import { unsafeProjectRoot } from './export-import';
+import { checkImportedRoot, unsafeProjectRoot } from './export-import';
 
 const harnesses: BackupHarness[] = [];
+const cleanups: (() => void)[] = [];
 afterEach(() => {
   for (const x of harnesses.splice(0)) x.cleanup();
+  while (cleanups.length) cleanups.pop()!();
 });
 function harness(): BackupHarness {
   const h = backupHarness();
@@ -20,8 +23,19 @@ function harness(): BackupHarness {
   return h;
 }
 
+/**
+ * Parent folder for project folders. NOVA refuses project folders inside %LOCALAPPDATA% – and on Windows %TEMP% (so
+ * h.scratch) lies there, so these tests use a folder below the home folder there (like the end-to-end tests).
+ */
+function projectsBase(h: BackupHarness): string {
+  if (process.platform !== 'win32') return h.scratch;
+  const dir = mkdtempSync(join(homedir(), 'nova-bak-'));
+  cleanups.push(() => rmSync(dir, { recursive: true, force: true }));
+  return dir;
+}
+
 function seed(h: BackupHarness): { root: string } {
-  const root = join(h.scratch, 'spiel');
+  const root = join(projectsBase(h), 'spiel');
   mkdirSync(root);
   h.addProject({ id: 'prj_a', name: 'Spiel', path: root, config: { ...defaultConfig(), allowedCommands: ['rm -rf'] } });
   h.addTask({ id: 'task_1', projectId: 'prj_a', title: 'Fertig', status: 'done' });
@@ -136,9 +150,13 @@ describe('importData', () => {
 
   it('skips path_key collisions, unsafe and overlapping folders, missing projects and invalid items', async () => {
     const h = harness();
-    const existingRoot = join(h.scratch, 'vorhanden');
+    const base = projectsBase(h);
+    const existingRoot = join(base, 'vorhanden');
     mkdirSync(existingRoot);
     h.addProject({ id: 'prj_old', name: 'Alt', path: existingRoot });
+    // A link (junction on Windows) into the data dir: only the canonical path reveals the overlap.
+    symlinkSync(h.t.core.paths.root, join(base, 'daten-link'), 'junction');
+    const systemFolder = process.platform === 'win32' ? join(process.env.SystemRoot ?? 'C:\\Windows', 'nova') : '/etc/nova';
     const project = (id: string, path: string) => ({
       id,
       name: id,
@@ -167,9 +185,10 @@ describe('importData', () => {
             project('prj_same', existingRoot + '/'),
             project('prj_inside', join(existingRoot, 'sub')),
             project('prj_data', join(h.t.core.paths.root, 'x')),
-            project('prj_root', '/'),
-            project('prj_sys', '/etc/nova'),
-            project('prj_ok', join(h.scratch, 'neu')),
+            project('prj_link', join(base, 'daten-link', 'spiel')),
+            project('prj_root', parse(base).root),
+            project('prj_sys', systemFolder),
+            project('prj_ok', join(base, 'neu')),
             { id: 'broken' },
           ],
           tasks: [{ id: 'task_x', projectId: 'prj_missing', title: 'Waise' }],
@@ -191,6 +210,7 @@ describe('importData', () => {
     expect(w).toMatch(/prj_same.*bereits als Projekt „Alt“/);
     expect(w).toMatch(/prj_inside.*überschneidet sich mit dem Projekt „Alt“/);
     expect(w).toMatch(/prj_data.*NOVA-Datenordner/);
+    expect(w).toMatch(/prj_link.*NOVA-Datenordner/);
     expect(w).toMatch(/prj_root.*Stammordner/);
     expect(w).toMatch(/prj_sys.*Systemordner/);
     expect(w).toMatch(/ungültige Daten/);
@@ -304,18 +324,65 @@ describe('importData', () => {
   });
 });
 
-describe('unsafeProjectRoot (Windows rules with injected environment)', () => {
+describe('unsafeProjectRoot (Windows rules with injected environment and file system)', () => {
   const env = { WINDIR: 'C:\\Windows', ProgramFiles: 'C:\\Program Files', APPDATA: 'C:\\Users\\a\\AppData\\Roaming', LOCALAPPDATA: 'C:\\Users\\a\\AppData\\Local', USERPROFILE: 'C:\\Users\\a' };
+  const data = 'C:\\Users\\a\\AppData\\Local\\NOVA AI';
+  /** Fake Windows realpath (case-insensitive): 8.3 short names and a junction resolve to their long/target paths. */
+  const existing: Record<string, string> = {
+    'c:\\': 'C:\\',
+    'c:\\windows': 'C:\\Windows',
+    'c:\\program files': 'C:\\Program Files',
+    'c:\\progra~1': 'C:\\Program Files',
+    'c:\\users': 'C:\\Users',
+    'c:\\users\\a': 'C:\\Users\\a',
+    'c:\\users\\a\\appdata\\local': 'C:\\Users\\a\\AppData\\Local',
+    'c:\\users\\a\\appdat~1\\local': 'C:\\Users\\a\\AppData\\Local',
+    'c:\\users\\a\\appdata\\local\\temp': 'C:\\Users\\a\\AppData\\Local\\Temp',
+    'c:\\users\\a\\appdat~1\\local\\temp': 'C:\\Users\\a\\AppData\\Local\\Temp',
+    'c:\\users\\a\\appdata\\local\\nova ai': 'C:\\Users\\a\\AppData\\Local\\NOVA AI',
+    'c:\\users\\a\\appdata\\local\\novaai~1': 'C:\\Users\\a\\AppData\\Local\\NOVA AI',
+    'c:\\users\\a\\nova projekte': 'C:\\Users\\a\\NOVA Projekte',
+    'c:\\users\\a\\nova projekte\\daten': 'C:\\Users\\a\\AppData\\Local\\NOVA AI', // junction
+    'c:\\users\\a\\nova projekte\\system': 'C:\\Windows', // junction
+  };
+  const realpath = (p: string): string | null => existing[p.toLowerCase()] ?? existing[p.toLowerCase().replace(/\\+$/, '')] ?? null;
+  const check = (p: string, dataDir = data) => unsafeProjectRoot(p, 'win32', dataDir, env, realpath);
+
   it('refuses drive roots, system folders, the profile itself and the data dir', () => {
-    const data = 'C:\\Users\\a\\AppData\\Local\\NOVA AI';
-    expect(unsafeProjectRoot('C:\\', 'win32', data, env)).toMatch(/Stammordner/);
-    expect(unsafeProjectRoot('\\\\server\\share', 'win32', data, env)).toMatch(/Stammordner/);
-    expect(unsafeProjectRoot('c:\\windows\\system32\\x', 'win32', data, env)).toMatch(/Systemordner/);
-    expect(unsafeProjectRoot('C:\\Program Files\\App', 'win32', data, env)).toMatch(/Systemordner/);
-    expect(unsafeProjectRoot('C:\\Users\\A', 'win32', 'D:\\NOVA Daten', env)).toMatch(/Benutzerordner/);
-    expect(unsafeProjectRoot('C:\\Users\\A', 'win32', data, env)).toMatch(/Datenordner/); // ancestor of the data dir
-    expect(unsafeProjectRoot('C:\\Users\\a\\AppData\\Local\\NOVA AI\\x', 'win32', data, env)).toMatch(/Datenordner|Systemordner/);
-    expect(unsafeProjectRoot('relative\\x', 'win32', data, env)).toMatch(/nicht absolut/);
-    expect(unsafeProjectRoot('C:\\Users\\a\\NOVA Projekte\\Spiel', 'win32', data, env)).toBeNull();
+    expect(check('C:\\')).toMatch(/Stammordner/);
+    expect(check('\\\\server\\share')).toMatch(/Stammordner/);
+    expect(check('c:\\windows\\system32\\x')).toMatch(/Systemordner/);
+    expect(check('C:\\Program Files\\App')).toMatch(/Systemordner/);
+    expect(check('C:\\Users\\A', 'D:\\NOVA Daten')).toMatch(/Benutzerordner/);
+    expect(check('C:\\Users\\A')).toMatch(/Datenordner/); // ancestor of the data dir
+    expect(check('C:\\Users\\a\\AppData\\Local\\NOVA AI\\x')).toMatch(/Datenordner|Systemordner/);
+    expect(check('relative\\x')).toMatch(/nicht absolut/);
+    expect(check('C:\\Users\\a\\NOVA Projekte\\Spiel')).toBeNull();
+    expect(check('\\\\nas\\daten\\Spiel')).toBeNull();
+  });
+
+  it('compares canonical paths: 8.3 short names and junctions cannot hide a refused folder', () => {
+    expect(check('C:\\PROGRA~1\\App')).toMatch(/Systemordner/);
+    expect(check('C:\\Users\\a\\APPDAT~1\\Local\\Temp\\Spiel')).toMatch(/Systemordner/); // %TEMP% as 8.3 short path
+    expect(check('C:\\Users\\a\\AppData\\Local\\NOVAAI~1\\Spiel')).toMatch(/Datenordner/);
+    expect(check('C:\\Users\\a\\NOVA Projekte\\Daten\\Spiel')).toMatch(/Datenordner/);
+    expect(check('C:\\Users\\a\\NOVA Projekte\\System\\Spiel')).toMatch(/Systemordner/);
+    expect(checkImportedRoot('c:\\users\\A\\nova projekte\\Spiel\\', 'win32', data, env, realpath).key).toBe('c:\\users\\a\\nova projekte\\spiel');
+  });
+
+  it('refuses paths that are not fully qualified, device paths and reserved names before touching the file system', () => {
+    const touched: string[] = [];
+    const spy = (p: string) => {
+      touched.push(p);
+      return realpath(p);
+    };
+    for (const p of ['\\etc\\nova', '/etc/nova', '\\\\server', '\\\\?\\C:\\Windows\\x', '\\\\.\\C:\\Windows\\x', 'C:\\Projekte\\CON', 'C:\\Projekte\\a|b', 'C:\\Projekte\\Spiel.']) {
+      const r = checkImportedRoot(p, 'win32', data, env, spy);
+      expect([p, r.key]).toEqual([p, null]);
+      expect(r.reason).toBeTruthy();
+    }
+    expect(checkImportedRoot('\\etc\\nova', 'win32', data, env, spy).reason).toMatch(/vollständigen Pfad/);
+    expect(checkImportedRoot('\\\\?\\C:\\Windows\\x', 'win32', data, env, spy).reason).toMatch(/Gerätepfade|Sonderpfade/);
+    expect(touched).toEqual([]);
   });
 });

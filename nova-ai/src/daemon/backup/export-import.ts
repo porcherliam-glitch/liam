@@ -9,7 +9,9 @@
 //   order projects → tasks → memory → providers, then settings. Events (project/task/memory/provider updated) are
 //   emitted only after the commit.
 // - Import rules: existing ids and path_key collisions are skipped (German warning); project folders failing the
-//   basic root safety rules or overlapping a registered project are skipped; imported projects start with work
+//   basic root safety rules or overlapping a registered project are skipped – all compared as CANONICAL keys (realpath,
+//   lower-case on Windows, like ProjectService's path_key), so 8.3 short names, junctions and symlinks cannot slip
+//   past them; imported projects start with work
 //   state "stopped" (the UI shows the honest-limits warning before work is enabled), gitAvailable is re-detected
 //   and project.config.allowedCommands is NOT taken over (a permission); tasks with status running /
 //   waiting_approval / interrupted become queued, startRequested is cleared and dependencies on / parents that are
@@ -19,7 +21,7 @@
 //   budget), only the options the provider registry supports are taken over (same value rules) and API keys must be
 //   re-entered; the settings sections permissions, network and budgets are never imported, and neither is
 //   updates.feedUrl (an address NOVA would contact – a foreign file must not redirect the update check).
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { posix, win32 } from 'node:path';
 import { z } from 'zod';
@@ -41,6 +43,7 @@ import { atomicWriteFile } from '../core/fs-atomic';
 import { isLocalEndpoint } from '../core/net';
 import { containsSecret, redact, redactString } from '../core/redact';
 import { bool, fromJson, int, toJson } from '../db/database';
+import { canonicalize, ROOT_REJECT_PREFIX, validateRawPath } from '../projects/root-safety';
 import { exportFileName } from './names';
 
 export const EXPORT_FORMAT = 'nova-export';
@@ -107,15 +110,49 @@ function keyInside(child: string, parent: string, platform: NodeJS.Platform): bo
   return child.startsWith(parent.endsWith(sep) ? parent : parent + sep);
 }
 
-/** German reason why a folder must not be registered as a project, or null. Basic subset of SPEC §6.8. */
-export function unsafeProjectRoot(path: string, platform: NodeJS.Platform, dataDir: string, env: Record<string, string | undefined> = process.env): string | null {
+/** realpath of an existing path, null otherwise (root-safety contract). */
+function realpathOrNull(p: string): string | null {
+  try {
+    return realpathSync.native(p);
+  } catch {
+    return null;
+  }
+}
+
+export interface ImportedRootCheck {
+  /** Canonical path key (realpath of the deepest existing ancestor + rest, lower-case on Windows) – the same key
+   *  ProjectService stores as path_key; null when the path is unusable. */
+  key: string | null;
+  /** German reason why the folder must not be registered, or null. */
+  reason: string | null;
+}
+
+/**
+ * Basic subset of the root safety rules (SPEC §6.8) for imported project folders. Every comparison uses CANONICAL
+ * paths (root-safety canonicalize): 8.3 short names (C:\PROGRA~1, %TEMP% = C:\Users\RUNNER~1\…), junctions and
+ * symlinks can neither hide a system folder or the data dir nor dodge a path_key collision. Raw input rules
+ * (device paths \\?\ \\.\, "\foo" without a drive, reserved names, NUL …) are root-safety's validateRawPath.
+ */
+export function checkImportedRoot(
+  path: string,
+  platform: NodeJS.Platform,
+  dataDir: string,
+  env: Record<string, string | undefined> = process.env,
+  realpath: (p: string) => string | null = realpathOrNull,
+): ImportedRootCheck {
   const api = pathApi(platform);
-  if (!api.isAbsolute(path)) return 'Der Pfad ist nicht absolut.';
-  const key = projectPathKey(path, platform);
-  const root = projectPathKey(api.parse(api.normalize(path)).root || path, platform);
-  if (key === root) return 'Laufwerks- oder Freigabe-Stammordner sind nicht erlaubt.';
-  const data = projectPathKey(dataDir, platform);
-  if (keyInside(key, data, platform) || keyInside(data, key, platform)) return 'Der Ordner überschneidet sich mit dem NOVA-Datenordner.';
+  if (!api.isAbsolute(path)) return { key: null, reason: 'Der Pfad ist nicht absolut.' };
+  try {
+    validateRawPath(path, platform);
+  } catch (e) {
+    return { key: null, reason: errorMessage(e).replace(ROOT_REJECT_PREFIX, '') };
+  }
+  const canonicalKey = (p: string) => projectPathKey(canonicalize(p, platform, realpath), platform);
+  const key = canonicalKey(path);
+  const result = (reason: string | null): ImportedRootCheck => ({ key, reason });
+  if (key === projectPathKey(api.parse(key).root || key, platform)) return result('Laufwerks- oder Freigabe-Stammordner sind nicht erlaubt.');
+  const data = canonicalKey(dataDir);
+  if (keyInside(key, data, platform) || keyInside(data, key, platform)) return result('Der Ordner überschneidet sich mit dem NOVA-Datenordner.');
   const forbiddenInside: string[] = [];
   const forbiddenEqual: string[] = [];
   if (platform === 'win32') {
@@ -125,9 +162,21 @@ export function unsafeProjectRoot(path: string, platform: NodeJS.Platform, dataD
     forbiddenInside.push('/etc', '/usr', '/bin', '/sbin', '/boot', '/proc', '/sys', '/dev', '/lib', '/lib64');
     forbiddenEqual.push(env.HOME || homedir());
   }
-  for (const f of forbiddenInside) if (keyInside(key, projectPathKey(f, platform), platform)) return 'Systemordner sind nicht erlaubt.';
-  for (const f of forbiddenEqual) if (key === projectPathKey(f, platform)) return 'Der Benutzerordner selbst ist nicht erlaubt.';
-  return null;
+  const keysOf = (list: string[]) => list.filter((f) => api.isAbsolute(f)).map(canonicalKey);
+  if (keysOf(forbiddenInside).some((f) => keyInside(key, f, platform))) return result('Systemordner sind nicht erlaubt.');
+  if (keysOf(forbiddenEqual).some((f) => key === f)) return result('Der Benutzerordner selbst ist nicht erlaubt.');
+  return result(null);
+}
+
+/** German reason why a folder must not be registered as a project, or null (see checkImportedRoot). */
+export function unsafeProjectRoot(
+  path: string,
+  platform: NodeJS.Platform,
+  dataDir: string,
+  env: Record<string, string | undefined> = process.env,
+  realpath: (p: string) => string | null = realpathOrNull,
+): string | null {
+  return checkImportedRoot(path, platform, dataDir, env, realpath).reason;
 }
 
 // ------------------------------------------------------------------------------------------------ export
@@ -419,17 +468,17 @@ export async function importData(deps: DataIoDeps, path: string, opts: IoOptions
         skip('Projekte', `Projekt „${label(p.name)}“ wurde übersprungen: Es ist bereits vorhanden.`);
         continue;
       }
-      const key = projectPathKey(p.path, platform);
-      const same = keys.find((k) => k.key === key);
+      const root = checkImportedRoot(p.path, platform, s.core.paths.root);
+      const same = root.key === null ? undefined : keys.find((k) => k.key === root.key);
       if (same) {
         skip('Projekte', `Projekt „${label(p.name)}“ wurde übersprungen: Der Ordner ist bereits als Projekt „${label(same.name)}“ eingetragen.`);
         continue;
       }
-      const unsafe = unsafeProjectRoot(p.path, platform, s.core.paths.root);
-      if (unsafe) {
-        skip('Projekte', `Projekt „${label(p.name)}“ wurde übersprungen: ${unsafe}`);
+      if (root.reason !== null || root.key === null) {
+        skip('Projekte', `Projekt „${label(p.name)}“ wurde übersprungen: ${root.reason ?? 'Der Pfad ist ungültig.'}`);
         continue;
       }
+      const key = root.key;
       const overlap = keys.find((k) => keyInside(key, k.key, platform) || keyInside(k.key, key, platform));
       if (overlap) {
         skip('Projekte', `Projekt „${label(p.name)}“ wurde übersprungen: Der Ordner überschneidet sich mit dem Projekt „${label(overlap.name)}“.`);

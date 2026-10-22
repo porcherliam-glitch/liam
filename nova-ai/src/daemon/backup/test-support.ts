@@ -1,7 +1,7 @@
 // Test helpers for the backup module (imported by *.test.ts only): a real core on a temp data dir plus small fakes
 // for the services BackupService uses. The project/task/provider fakes read the real tables, so data inserted by an
 // import is visible through them exactly like through the real services.
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, realpathSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Project, ProviderConfig, Task } from '@shared/schemas';
 import type { Services } from '../contracts';
@@ -9,6 +9,7 @@ import { notFound } from '../core/errors';
 import { bool, fromJson, toJson } from '../db/database';
 import { createTestCore, tempDir, type TestCore } from '../../../tests/helpers/core';
 import { makeServices } from '../../../tests/helpers/services';
+import { canonicalize, pathKey } from '../projects/root-safety';
 import { createBackupService, type BackupServiceOptions } from './backup-service';
 
 interface ProjectRow {
@@ -175,6 +176,15 @@ export function backupHarness(opts: BackupServiceOptions & { extra?: Partial<Omi
   const s = makeServices(t.core, { projects, tasks, providers, journal, work, governor, notifications, watcher, resources, ...(opts.extra ?? {}) });
   const backups = createBackupService(s, { homeDir: scratchDir.dir, ...opts });
   const now = Date.now();
+  // path_key exactly like ProjectService: canonical path (realpath), lower-case on Windows.
+  const realpath = (p: string): string | null => {
+    try {
+      return realpathSync.native(p);
+    } catch {
+      return null;
+    }
+  };
+  const pathKeyOf = (p: string) => pathKey(canonicalize(p, t.core.platform, realpath), t.core.platform);
   return {
     t,
     s,
@@ -203,7 +213,7 @@ export function backupHarness(opts: BackupServiceOptions & { extra?: Partial<Omi
       db.run(
         `INSERT INTO projects(id, name, description, path, path_key, kind, technologies, status, template_id, origin, config, work_state, git_available, created_at, updated_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)`,
-        [project.id, project.name, project.description, project.path, project.path, project.kind, toJson(project.technologies), project.status, project.templateId, project.origin, toJson(project.config), project.workState, project.createdAt, project.updatedAt],
+        [project.id, project.name, project.description, project.path, pathKeyOf(project.path), project.kind, toJson(project.technologies), project.status, project.templateId, project.origin, toJson(project.config), project.workState, project.createdAt, project.updatedAt],
       );
       return project;
     },

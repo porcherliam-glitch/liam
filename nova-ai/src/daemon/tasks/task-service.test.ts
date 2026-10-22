@@ -118,6 +118,8 @@ describe('TaskService.delete', () => {
 
 describe('TaskService files, ready, counts, list', () => {
   it('dedupes files by key (case-insensitive on Windows) and emits only on change', () => {
+    // Explicit platform on every host: POSIX keys are case-sensitive, Windows keys are not.
+    (h.core as { platform: NodeJS.Platform }).platform = 'linux';
     const p = h.projects.add();
     const t = h.tasks.create({ projectId: p.id, title: 'A' } as never);
     const updated = events('task.updated');

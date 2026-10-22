@@ -150,7 +150,7 @@ export function LimitsCard({ budget, settings, onBudgetSaved, onSettingsSaved }:
           <Meter
             label="Heute verbraucht"
             value={dayPct}
-            valueText={`${formatUsd(budget.spentTodayUsd, budget.containsEstimates)} von ${formatUsd(budget.dailyLimitUsd)}`}
+            valueText={`${formatUsd(budget.spentTodayUsd)} von ${formatUsd(budget.dailyLimitUsd)}`}
             unavailableText={budget.dailyLimitUsd === 0 ? 'Kostenpflichtige Nutzung ist ausgeschaltet' : 'Keine Tagesgrenze'}
             estimated={budget.containsEstimates}
             thresholds={[warnAt, 100]}
@@ -158,7 +158,7 @@ export function LimitsCard({ budget, settings, onBudgetSaved, onSettingsSaved }:
           <Meter
             label="Diesen Monat verbraucht"
             value={monthPct}
-            valueText={`${formatUsd(budget.spentMonthUsd, budget.containsEstimates)} von ${formatUsd(budget.monthlyLimitUsd)}`}
+            valueText={`${formatUsd(budget.spentMonthUsd)} von ${formatUsd(budget.monthlyLimitUsd)}`}
             unavailableText={budget.monthlyLimitUsd === 0 ? 'Kostenpflichtige Nutzung ist ausgeschaltet' : 'Keine Monatsgrenze'}
             estimated={budget.containsEstimates}
             thresholds={[warnAt, 100]}

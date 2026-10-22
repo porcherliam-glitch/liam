@@ -67,6 +67,13 @@ describe('lock file', () => {
     expect(existsSync(paths.lock)).toBe(true);
   });
 
+  it('keeps a Windows named-pipe endpoint unchanged', () => {
+    const windows = { ...info, endpoint: '\\\\.\\pipe\\nova-ai-daemon-0123456789abcdef01234567' };
+    writeLock(paths, windows);
+    expect(readLock(paths)).toEqual(windows);
+    expect(removeLock(paths, 'inst_a')).toBe(true);
+  });
+
   it('rejects invalid lock info', () => {
     expect(() => writeLock(paths, { ...info, pid: -1 })).toThrow();
   });

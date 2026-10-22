@@ -1,11 +1,14 @@
 // Tests for the RPC HTTP server: health/proof, auth (401/403), routing, JSON handling, body limit, close().
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { request } from 'node:http';
-import { connect } from 'node:net';
+import { Server as NetServer, connect } from 'node:net';
 import { existsSync, statSync } from 'node:fs';
 import { computeProof, newNonce } from '../client/proof';
 import { NovaError } from '../core/errors';
-import { rawRequest, rpcBody, startTestServer, waitUntil, openRawSse, type TestServer } from './test-helpers';
+import { probeDaemon } from './probe';
+import { rawRequest, rpcBody, startTestServer, waitUntil, waitUntilAsync, openRawSse, type TestServer } from './test-helpers';
+
+const isWindows = process.platform === 'win32';
 
 let ts: TestServer | null = null;
 afterEach(async () => {
@@ -34,9 +37,25 @@ describe('GET /health', () => {
     expect((await rawRequest({ endpoint: ts.endpoint, method: 'POST', path: '/health', headers: { 'X-Nova-Nonce': newNonce() } })).status).toBe(405);
   });
 
-  it('sets the unix socket to mode 0600', async () => {
+  // POSIX only: a named pipe has no file mode (Windows counterpart: the next test).
+  it.skipIf(isWindows)('sets the unix socket to mode 0600', async () => {
     ts = await startTestServer();
     expect(statSync(ts.endpoint).mode & 0o777).toBe(0o600);
+  });
+
+  it('binds with the per-user default access: never readableAll/writableAll (which would open a Windows pipe to everyone)', async () => {
+    const listen = vi.spyOn(NetServer.prototype, 'listen');
+    ts = await startTestServer();
+    expect(listen).toHaveBeenCalledWith(ts.endpoint);
+    for (const args of listen.mock.calls) {
+      for (const arg of args as unknown[]) {
+        if (arg && typeof arg === 'object') {
+          expect(arg).not.toHaveProperty('readableAll');
+          expect(arg).not.toHaveProperty('writableAll');
+        }
+      }
+    }
+    expect((await rawRequest({ endpoint: ts.endpoint, path: '/health', headers: { 'X-Nova-Nonce': newNonce() } })).status).toBe(200);
   });
 });
 
@@ -238,7 +257,7 @@ describe('timeouts and close()', () => {
     await waitUntil(() => closed, 3000);
   });
 
-  it('close() ends an open SSE stream and finishes quickly; the socket file is removed', async () => {
+  it('close() ends an open SSE stream and finishes quickly; the endpoint is released (socket file removed / pipe gone)', async () => {
     ts = await startTestServer();
     const sse = await openRawSse(ts.endpoint, ts.token);
     await waitUntil(() => ts!.server.stats().sseClients === 1);
@@ -246,7 +265,15 @@ describe('timeouts and close()', () => {
     await ts.server.close();
     expect(Date.now() - started).toBeLessThan(6000);
     await waitUntil(() => sse.ended);
-    expect(existsSync(ts.endpoint)).toBe(false);
+    if (!isWindows) expect(existsSync(ts.endpoint)).toBe(false);
+    // nothing answers there any more, and a new daemon can bind the same endpoint right away
+    await waitUntilAsync(async () => (await probeDaemon(ts!.endpoint, ts!.tokenPath, 300)).status === 'none');
+    const next = await startTestServer({ endpoint: ts.endpoint });
+    try {
+      expect((await probeDaemon(next.endpoint, next.tokenPath, 500)).status).toBe('ours');
+    } finally {
+      await next.cleanup();
+    }
     // second close is a no-op
     await ts.server.close();
   });

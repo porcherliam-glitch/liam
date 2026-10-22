@@ -23,8 +23,10 @@ describe('AppShell', () => {
   it('navigates via the sidebar and lazy-loads pages', async () => {
     renderApp('/');
     await userEvent.click(screen.getByRole('link', { name: 'Projekte' }));
-    expect(await screen.findByText('Dieser Bereich wird gerade gebaut.')).toBeTruthy();
+    // The lazily loaded projects page renders its real content (project cards from the mock daemon).
+    expect(await screen.findByRole('article', { name: 'Pixel-Abenteuer' })).toBeTruthy();
     expect(screen.getByRole('heading', { level: 1, name: 'Projekte' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { level: 1, name: 'Übersicht' })).toBeNull();
     await userEvent.click(within(screen.getByRole('navigation', { name: 'Hauptnavigation' })).getByRole('link', { name: /Freigaben/ }));
     expect(await screen.findByText('Offene Freigaben')).toBeTruthy();
   });

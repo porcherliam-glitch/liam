@@ -1,6 +1,6 @@
-// Tests for DaemonClient against the real RPC server (unix sockets) and small stub servers:
-// typed RPC, error mapping, proof verification before the token is sent, 401 → token re-read, timeouts,
-// SSE subscribe with reconnect after a daemon restart with a NEW token, idle watchdog, close().
+// Tests for DaemonClient against the real RPC server (named pipes on Windows, unix sockets elsewhere) and small stub
+// servers: typed RPC, error mapping, proof verification before the token is sent, 401 → token re-read, timeouts,
+// keep-alive reset retry, SSE subscribe with reconnect after a daemon restart with a NEW token, idle watchdog, close().
 import { afterEach, describe, expect, it } from 'vitest';
 import { createServer, type Server } from 'node:http';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -9,11 +9,12 @@ import { join } from 'node:path';
 import type { AnyNovaEvent } from '@shared/events';
 import type { RpcResult } from '@shared/rpc';
 import { DaemonClient, DaemonRpcError, rpcTimeoutFor, DEFAULT_RPC_TIMEOUT_MS, LONG_RPC_TIMEOUT_MS, isLongRpcMethod } from './index';
+import { isStaleKeepAliveFailure } from './daemon-client';
 import { CLIENT_MESSAGES } from './errors';
 import { computeProof } from './proof';
 import { NovaError } from '../core/errors';
 import { generateToken, writeToken } from '../server/token';
-import { shortSocketPath, startTestServer, waitUntil, type TestServer } from '../server/test-helpers';
+import { listenOn, startTestServer, uniqueEndpoint, waitUntil, type TestServer } from '../server/test-helpers';
 
 const cleanups: Array<() => unknown> = [];
 afterEach(async () => {
@@ -50,7 +51,7 @@ interface SeenRequest {
 
 /** Stub daemon: /health answers with a proof computed by `proofToken()`, /rpc via `onRpc`. Records every request. */
 async function stub(proofToken: () => string, onRpc: (auth: string | undefined, body: { id: string }) => { status: number; body: unknown }) {
-  const endpoint = shortSocketPath();
+  const endpoint = uniqueEndpoint();
   const seen: SeenRequest[] = [];
   const srv: Server = createServer((req, res) => {
     const chunks: Buffer[] = [];
@@ -71,7 +72,7 @@ async function stub(proofToken: () => string, onRpc: (auth: string | undefined, 
       res.end(json);
     });
   });
-  await new Promise<void>((r) => srv.listen(endpoint, () => r()));
+  await listenOn(srv, endpoint);
   cleanups.push(
     () =>
       new Promise<void>((r) => {
@@ -127,12 +128,12 @@ describe('DaemonClient.rpc', () => {
 
   it('fails with DAEMON_UNAVAILABLE when nothing listens, and with token_missing without token file', async () => {
     const tf = tempTokenFile(generateToken());
-    const c = client({ endpoint: shortSocketPath(), tokenPath: tf.path });
+    const c = client({ endpoint: uniqueEndpoint(), tokenPath: tf.path });
     const err = await rejection(c.rpc('daemon.logs'));
     expect(err.code).toBe('DAEMON_UNAVAILABLE');
     expect(err.reason).toBe('unreachable');
     expect(err.message).toBe('Der Hintergrunddienst ist nicht erreichbar.');
-    const health = await rejection(client({ endpoint: shortSocketPath(), tokenPath: join(tf.dir, 'none') }).health());
+    const health = await rejection(client({ endpoint: uniqueEndpoint(), tokenPath: join(tf.dir, 'none') }).health());
     expect(health.reason).toBe('unreachable');
     const ts = await server();
     const noToken = client({ endpoint: ts.endpoint, tokenPath: join(tf.dir, 'none') });
@@ -200,7 +201,7 @@ describe('DaemonClient.rpc', () => {
 
   it('retries once when a reused keep-alive socket is reset before the answer', async () => {
     const token = generateToken();
-    const endpoint = shortSocketPath();
+    const endpoint = uniqueEndpoint();
     let resets = 0;
     let rpcCalls = 0;
     const perSocket = new WeakMap<object, number>();
@@ -229,7 +230,7 @@ describe('DaemonClient.rpc', () => {
         res.end(json);
       });
     });
-    await new Promise<void>((r) => srv.listen(endpoint, () => r()));
+    await listenOn(srv, endpoint);
     cleanups.push(
       () =>
         new Promise<void>((r) => {
@@ -242,6 +243,20 @@ describe('DaemonClient.rpc', () => {
     expect(await c.rpc('daemon.logs')).toEqual([]);
     expect(resets).toBe(1);
     expect(rpcCalls).toBe(2);
+  });
+
+  it('retries only failures that prove the daemon never saw the request (reused socket: ECONNRESET, hang-up, EPIPE of a Windows pipe)', () => {
+    const err = (code: string, message = `write ${code}`) => Object.assign(new Error(message), { code });
+    expect(isStaleKeepAliveFailure(err('ECONNRESET'), true)).toBe(true);
+    expect(isStaleKeepAliveFailure(err('ECONNRESET', 'socket hang up'), true)).toBe(true);
+    expect(isStaleKeepAliveFailure(new Error('socket hang up'), true)).toBe(true);
+    // Windows named pipe: writing to a pipe whose server end is already closed fails with EPIPE (ERROR_NO_DATA).
+    expect(isStaleKeepAliveFailure(err('EPIPE'), true)).toBe(true);
+    // A fresh socket was verified just before: such failures are real connection losses.
+    expect(isStaleKeepAliveFailure(err('ECONNRESET'), false)).toBe(false);
+    expect(isStaleKeepAliveFailure(err('EPIPE'), false)).toBe(false);
+    expect(isStaleKeepAliveFailure(err('ETIMEDOUT'), true)).toBe(false);
+    expect(isStaleKeepAliveFailure('ECONNRESET', true)).toBe(false);
   });
 
   it('rejects answers that do not belong to the request', async () => {
@@ -271,7 +286,7 @@ describe('DaemonClient.rpc', () => {
   });
 
   it('refuses requests above 25 MB locally', async () => {
-    const c = client({ endpoint: shortSocketPath(), token: generateToken() });
+    const c = client({ endpoint: uniqueEndpoint(), token: generateToken() });
     const err = await rejection(c.rpc('memory.add', { projectId: null, kind: 'insight', title: 't', content: 'x'.repeat(26 * 1024 * 1024) }));
     expect(err.code).toBe('VALIDATION');
     expect(err.reason).toBe('too_large');
@@ -328,7 +343,7 @@ describe('DaemonClient.subscribe', () => {
   it('reconnects after a daemon restart with a NEW token and keeps RPC working', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'nv-rs-'));
     cleanups.push(() => rmSync(dir, { recursive: true, force: true }));
-    const endpoint = shortSocketPath();
+    const endpoint = uniqueEndpoint();
     const first = await startTestServer({ endpoint, dir, instanceId: 'inst_first' });
     const c = client({ endpoint, tokenPath: first.tokenPath });
     const events: AnyNovaEvent[] = [];
@@ -345,7 +360,8 @@ describe('DaemonClient.subscribe', () => {
     cleanups.push(() => second.cleanup());
     expect(second.token).not.toBe(first.token);
     await waitUntil(() => second.server.stats().sseClients === 1, 4000);
-    expect(states.filter(([s]) => s === 'connected')).toHaveLength(2);
+    // The server counts the stream before the client has read the response headers: wait for 'connected' as well.
+    await waitUntil(() => states.filter(([s]) => s === 'connected').length === 2, 4000);
     second.bus.emit('project.removed', { id: 'from-second' });
     await waitUntil(() => events.length === 2);
     expect(events[1]).toMatchObject({ payload: { id: 'from-second' } });

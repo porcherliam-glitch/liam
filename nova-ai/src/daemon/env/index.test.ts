@@ -73,7 +73,15 @@ function setup() {
   };
   s.secrets = createSecretStore(s, { scheme: 'memory' });
   s.approvals = createApprovalService(s);
-  s.resources = createResourceMonitor(s, { gpu: { findExecutable: async () => null }, firstGpuWaitMs: 50, firstOllamaWaitMs: 50 });
+  // Every GPU probe is faked: on Windows the prober would otherwise look for nvidia-smi.exe on disk and start a real
+  // PowerShell (WMI), which is slower than the 50 ms first-sample wait.
+  const gpu = {
+    findExecutable: async () => null,
+    exists: () => false,
+    runTool: async () => ({ code: 1, stdout: '', stderr: '' }),
+    runPowerShell: async () => ({ code: 1, stdout: '', stderr: 'Get-CimInstance nicht verfügbar' }),
+  };
+  s.resources = createResourceMonitor(s, { gpu, firstGpuWaitMs: 50, firstOllamaWaitMs: 50 });
   s.governor = createConcurrencyGovernor(s);
   s.integrations = createIntegrationService(s, {
     platform: 'linux',
@@ -120,7 +128,9 @@ describe('registerEnvRpc', () => {
     const snap = (await call('resources.snapshot')) as { cpu: { cores: number }; gpuNote: string | null; disks: unknown[] };
     expect(snap.cpu.cores).toBeGreaterThan(0);
     expect(snap.disks.length).toBeGreaterThan(0);
-    expect(snap.gpuNote).toContain('nvidia-smi nicht gefunden');
+    // The first sample waited for the (fake) GPU probe: the host's honest "no values" note, never "still measuring".
+    const gpuNote = { win32: 'Windows-Leistungsindikatoren für Grafikkarten sind nicht lesbar', darwin: 'unter macOS nicht erfasst' }[process.platform as string] ?? 'nvidia-smi nicht gefunden';
+    expect(snap.gpuNote).toContain(gpuNote);
     expect(await call('resources.history', { minutes: 5 })).toHaveLength(1);
     expect(await call('resources.history')).toHaveLength(1);
   });

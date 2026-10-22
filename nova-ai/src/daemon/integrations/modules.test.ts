@@ -8,7 +8,9 @@ import { compareUnityVersions, compareVersions, firstVersion, sortInstallations,
 import {
   PLAYWRIGHT_PROJECT_MESSAGE,
   PS_VERSION_ARGS,
+  compareDotnetVersions,
   dotnetModule,
+  parseDotnetSdkList,
   gitModule,
   npmModule,
   ollamaModule,
@@ -128,18 +130,79 @@ describe('git / node / npm / dotnet / ollama', () => {
     expect(ok.calls[0]).toEqual({ file: shim, args: ['--version'] });
   });
 
-  it('dotnet lists all SDKs newest first and explains a runtime-only install', async () => {
+  it('dotnet lists all SDKs newest first via --list-sdks and explains a runtime-only install', async () => {
     const run = scriptedRun({
-      '/usr/bin/dotnet --version': { code: 0, stdout: '8.0.404\n' },
       '/usr/bin/dotnet --list-sdks': { code: 0, stdout: '6.0.428 [/usr/share/dotnet/sdk]\n8.0.404 [/usr/share/dotnet/sdk]\n' },
     });
     const r = await dotnetModule(deps('linux')).detect(detectCtx('linux', { run: run.run, which: { dotnet: '/usr/bin/dotnet' } }));
-    expect(r).toMatchObject({ available: true, version: '8.0.404', message: '.NET SDK 8.0.404 ist installiert.' });
+    expect(r).toMatchObject({ available: true, version: '8.0.404', path: '/usr/bin/dotnet', message: '.NET SDK 8.0.404 ist installiert.' });
     expect(r.installations.map((i) => i.version)).toEqual(['8.0.404', '6.0.428']);
-    const runtimeOnly = scriptedRun({ '/usr/bin/dotnet --version': { code: 145, stderr: 'No .NET SDKs were found.' } });
+    expect(run.calls).toEqual([{ file: '/usr/bin/dotnet', args: ['--list-sdks'] }]);
+    const runtimeOnly = scriptedRun({ '/usr/bin/dotnet --list-sdks': { code: 0, stdout: '' } });
     const r2 = await dotnetModule(deps('linux')).detect(detectCtx('linux', { run: runtimeOnly.run, which: { dotnet: '/usr/bin/dotnet' } }));
     expect(r2.available).toBe(false);
     expect(r2.message).toContain('kein .NET SDK installiert');
+    const none = await dotnetModule(deps('linux')).detect(detectCtx('linux'));
+    expect(none).toMatchObject({ available: false, message: '.NET SDK wurde nicht gefunden. Das .NET SDK wird für Windows-Desktop-Anwendungen (WPF) und C#-Projekte benötigt.' });
+  });
+
+  it('dotnet on Windows: many SDKs incl. previews, never `dotnet --version` (cold start, global.json)', async () => {
+    const exe = 'C:\\Program Files\\dotnet\\dotnet.exe';
+    const sdks = ['8.0.426', '9.0.319', '10.0.100-rc.2.25502.107', '10.0.402', '10.0.100'];
+    const run = scriptedRun({
+      [`${exe} --list-sdks`]: { code: 0, stdout: sdks.map((v) => `${v} [C:\\Program Files\\dotnet\\sdk]\r\n`).join('') },
+      // What a global.json pinning a missing SDK in the daemon's working folder makes `dotnet --version` answer:
+      [`${exe} --version`]: { code: 145, stderr: 'A compatible .NET SDK was not found.' },
+    });
+    const r = await dotnetModule(deps('win32')).detect(detectCtx('win32', { run: run.run, which: { dotnet: exe } }));
+    expect(r).toMatchObject({ available: true, version: '10.0.402', path: exe, message: '.NET SDK 10.0.402 ist installiert.' });
+    expect(r.installations.map((i) => i.version)).toEqual(['10.0.402', '10.0.100', '10.0.100-rc.2.25502.107', '9.0.319', '8.0.426']);
+    expect(run.calls.map((c) => c.args)).toEqual([['--list-sdks']]);
+  });
+
+  it('dotnet on Windows: falls back to the sdk folder when the host does not answer in time', async () => {
+    const exe = 'C:\\Program Files\\dotnet\\dotnet.exe';
+    const d = deps('win32', {
+      [exe]: '',
+      'C:\\Program Files\\dotnet\\sdk\\8.0.426\\dotnet.dll': '',
+      'C:\\Program Files\\dotnet\\sdk\\10.0.402\\dotnet.dll': '',
+      'C:\\Program Files\\dotnet\\sdk\\NuGetFallbackFolder\\x.txt': '',
+      'C:\\Program Files\\dotnet\\sdk\\9.0.100\\leer.txt': '', // incomplete SDK folder without dotnet.dll
+    });
+    const timedOut = scriptedRun({ [`${exe} --list-sdks`]: { code: null, stderr: '' } });
+    // Not on PATH: the default install folder is found through %ProgramFiles%.
+    const r = await dotnetModule(d).detect(detectCtx('win32', { run: timedOut.run }));
+    expect(r).toMatchObject({ available: true, version: '10.0.402', path: exe });
+    expect(r.installations.map((i) => i.version)).toEqual(['10.0.402', '8.0.426']);
+
+    const broken = await dotnetModule(deps('win32', { [exe]: '' })).detect(detectCtx('win32', { run: timedOut.run }));
+    expect(broken.available).toBe(false);
+    expect(broken.message).toContain('antwortet aber nicht auf die Abfrage der installierten SDKs');
+  });
+
+  it('dotnet: an x86 host without SDKs first on PATH does not hide the x64 SDKs; symlinked hosts use their real folder', async () => {
+    const x86 = 'C:\\Program Files (x86)\\dotnet\\dotnet.exe';
+    const x64 = 'C:\\Program Files\\dotnet\\dotnet.exe';
+    const run = scriptedRun({ [`${x86} --list-sdks`]: { code: 0, stdout: '' }, [`${x64} --list-sdks`]: { code: 0, stdout: '8.0.426 [C:\\Program Files\\dotnet\\sdk]\r\n' } });
+    const r = await dotnetModule(deps('win32', { [x86]: '', [x64]: '' })).detect(detectCtx('win32', { run: run.run, which: { dotnet: x86 } }));
+    expect(r).toMatchObject({ available: true, version: '8.0.426', path: x64 });
+
+    const lin = deps('linux', { '/usr/lib/dotnet/dotnet': '', '/usr/lib/dotnet/sdk/8.0.120/dotnet.dll': '' }, { '/usr/bin/dotnet': '/usr/lib/dotnet/dotnet' });
+    const silent = scriptedRun({ '/usr/bin/dotnet --list-sdks': { code: 1, stderr: 'kaputt' } });
+    expect(await dotnetModule(lin).detect(detectCtx('linux', { run: silent.run, which: { dotnet: '/usr/bin/dotnet' } }))).toMatchObject({ available: true, version: '8.0.120', path: '/usr/bin/dotnet' });
+  });
+
+  it('orders .NET SDK versions semantically and parses --list-sdks output', () => {
+    expect(compareDotnetVersions('10.0.100', '9.0.400')).toBeGreaterThan(0);
+    expect(compareDotnetVersions('10.0.100', '10.0.100-rc.2.25502.107')).toBeGreaterThan(0);
+    expect(compareDotnetVersions('10.0.100-rc.2.25502.107', '10.0.100-preview.7.25380.108')).toBeGreaterThan(0);
+    expect(compareDotnetVersions('10.0.100-rc.10', '10.0.100-rc.2')).toBeGreaterThan(0);
+    expect(compareDotnetVersions('8.0.404', '8.0.404')).toBe(0);
+    expect(parseDotnetSdkList('8.0.404 [C:\\Program Files\\dotnet\\sdk]\r\n\r\nWarnung: irgendwas\r\n10.0.100-rc.2.25502.107 [C:\\Program Files\\dotnet\\sdk]\r\n')).toEqual([
+      '8.0.404',
+      '10.0.100-rc.2.25502.107',
+    ]);
+    expect(parseDotnetSdkList('')).toEqual([]);
   });
 
   it('ollama parses the version also when the server is not running', async () => {

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createTestCore, type TestCore } from '../../../tests/helpers/core';
 import { makeServices } from '../../../tests/helpers/services';
@@ -242,14 +242,13 @@ describe('SecretStore – memory scheme', () => {
 });
 
 describe('SecretStore – aes-local fallback', () => {
-  it('encrypts with AES-256-GCM, key file mode 0600, secure=false and reports the insecure warning', async () => {
+  it('encrypts with AES-256-GCM, secure=false and reports the insecure warning', async () => {
     const { store, core } = setup({ platform: 'linux', commandExists: () => false });
     expect(store.scheme).toBe('aes-local');
     expect(store.secure).toBe(false);
     await store.set('provider:x', 'aes-secret-value-123');
     const keyPath = join(core.paths.root, 'secret.key');
     expect(existsSync(keyPath)).toBe(true);
-    expect(statSync(keyPath).mode & 0o777).toBe(0o600);
     const row = core.db.get<{ scheme: string; ciphertext: string }>('SELECT scheme, ciphertext FROM secrets WHERE id = ?', ['provider:x'])!;
     expect(row.scheme).toBe('aes-local');
     expect(row.ciphertext.startsWith('v1:')).toBe(true);
@@ -261,6 +260,18 @@ describe('SecretStore – aes-local fallback', () => {
     await store2.loadAll();
     expect(await store2.get('provider:x')).toBe('aes-secret-value-123');
     expect(core.errors.list().filter((e) => e.title === 'Schlüsselspeicher eingeschränkt sicher')).toHaveLength(1);
+  });
+
+  // POSIX permissions only: Windows reports every writable file as 0o666 and never uses aes-local – it always takes
+  // DPAPI and never falls back (see "a failing PowerShell is SECRET_STORE … and no fallback" above).
+  it.skipIf(process.platform === 'win32')('creates the key file with mode 0600 and tightens loosened permissions', async () => {
+    const { store, core } = setup({ platform: 'linux', commandExists: () => false });
+    await store.set('provider:x', 'aes-secret-value-123');
+    const keyPath = join(core.paths.root, 'secret.key');
+    expect(statSync(keyPath).mode & 0o777).toBe(0o600);
+    chmodSync(keyPath, 0o644);
+    expect(loadOrCreateKey(keyPath, 'linux').ok).toBe(true);
+    expect(statSync(keyPath).mode & 0o777).toBe(0o600);
   });
 
   it('detects tampering, wrong ids and never regenerates a corrupt key file', async () => {
