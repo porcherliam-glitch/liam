@@ -50,12 +50,28 @@ them). Shared files (`src/shared/**`, `src/daemon/contracts.ts`, `src/daemon/cor
 | git | `src/daemon/git/`, `src/daemon/checkpoints/`, `src/daemon/backup/` | GitService, CheckpointService, BackupService | git.*, checkpoints.*, backup.*, data.* |
 | memory | `src/daemon/memory/` | MemoryService | memory.* |
 | projects | `src/daemon/projects/`, `src/daemon/checks/`, `src/daemon/preview/` | ProjectService, TemplateRegistry (+4 templates), ProjectDetector, CheckService, PreviewService | projects.*, templates.list, checks.*, preview.* |
-| env | `src/daemon/secrets/`, `src/daemon/approvals/`, `src/daemon/resources/`, `src/daemon/integrations/`, `src/daemon/updates/` | SecretStore, ApprovalService, ResourceMonitor, ConcurrencyGovernor, IntegrationService, UpdateService | approvals.*, resources.*, integrations.*, updates.check |
+| env | `src/daemon/env/`, `src/daemon/secrets/`, `src/daemon/approvals/`, `src/daemon/resources/`, `src/daemon/integrations/`, `src/daemon/updates/` | SecretStore, ApprovalService, ResourceMonitor, ConcurrencyGovernor, IntegrationService, UpdateService | approvals.*, resources.*, integrations.*, updates.check |
 | integrator | `src/daemon/app.ts`, `src/daemon/index.ts`, `src/daemon/rpc-core.ts` | wiring, lifecycle | daemon.*, settings.* |
 
-Each module folder has an `index.ts` exporting factories with this shape:
+Each module exposes ONE barrel file exporting factories with this shape:
 `export function createX(s: Services): X` (constructor must not call other services) and
-`export const registerXRpc: RpcRegistrar`. Services with timers expose `start()`/`stop()` (or the contract methods).
+`export const register<Module>Rpc: RpcRegistrar`. Services with timers expose `start()`/`stop()` (or the contract methods).
+Exact barrels and export names (used by `src/daemon/app.ts`):
+
+| Barrel | Exports |
+|---|---|
+| `src/daemon/server/index.ts` | `createRpcRouter(log)`, `startRpcServer(opts)`, `ensureToken(paths): string`, `readToken(paths): string \| null`, `writeLock(paths, info)`, `readLock(paths)`, `removeLock(paths, instanceId)` |
+| `src/daemon/client/index.ts` | `DaemonClient`, `DaemonRpcError` |
+| `src/daemon/providers/index.ts` | `createProviderRegistry`, `createModelClient`, `createBudgetService`, `createOllamaService`, `registerProvidersRpc` |
+| `src/daemon/tools/index.ts` | `createPathGuard`, `createChangeJournal`, `createFileLockService`, `createCommandPolicy`, `createProcessManager`, `createTerminalService`, `createFileService`, `createToolRegistry`, `registerToolsRpc` |
+| `src/daemon/agents/index.ts` | `createRunStore`, `createAgentRunner`, `registerAgentsRpc` |
+| `src/daemon/tasks/index.ts` | `createTaskService`, `createWorkCycle`, `registerTasksRpc` |
+| `src/daemon/git/index.ts` | `createGitService`, `createCheckpointService`, `createBackupService`, `registerGitRpc` |
+| `src/daemon/memory/index.ts` | `createMemoryService`, `registerMemoryRpc` |
+| `src/daemon/projects/index.ts` | `createProjectService`, `createTemplateRegistry`, `createProjectDetector`, `createCheckService`, `createPreviewService`, `registerProjectsRpc` |
+| `src/daemon/env/index.ts` | `createSecretStore`, `createApprovalService`, `createResourceMonitor`, `createConcurrencyGovernor`, `createIntegrationService`, `createUpdateService`, `registerEnvRpc` |
+
+All factories take `(s: Services)` only (an optional second `options` argument for test injection is allowed).
 
 ## 3. Global rules
 
@@ -96,7 +112,8 @@ Each module folder has an `index.ts` exporting factories with this shape:
   logs mismatches (does not fail the call). Maps `NovaError` → `{code, message, details}`; unknown errors → `INTERNAL`
   with German message "Interner Fehler im Hintergrunddienst." and the redacted message in details. Unregistered method
   → `NOT_FOUND`.
-- `startRpcServer({ endpoint, token, router, bus, log, version, instanceId })` → `{ close(): Promise<void>, endpoint }`.
+- `startRpcServer({ endpoint, token, tokenPath, router, bus, log, version, instanceId })` → `{ close(): Promise<void>, endpoint }`
+  (`tokenPath` is used to read the token of an existing daemon when probing on EADDRINUSE).
   - `node:http` server listening on the pipe/socket path. On EADDRINUSE: probe the existing endpoint (`GET /health`
     with the token from the token file); if it answers → throw `NovaError('CONFLICT', 'NOVA läuft bereits …')`; if not
     and the endpoint is a unix socket file → unlink and retry once.
@@ -109,7 +126,8 @@ Each module folder has an `index.ts` exporting factories with this shape:
 - `token.ts`: `ensureToken(paths)` creates 32 random bytes hex at daemon start (new token per daemon start), written
   atomically (temp + rename) with mode 0o600; `readToken(paths)`.
 - `lock.ts`: lock file `<dataDir>/daemon.lock` JSON `{ pid, instanceId, endpoint, startedAt, version }` written after
-  listen; removed on clean shutdown. `readLock()` for clients/diagnostics.
+  listen (`writeLock(paths, info)`); removed on clean shutdown (`removeLock(paths, instanceId)` deletes only if the file
+  still belongs to that instance). `readLock(paths)` for clients/diagnostics (null if missing/corrupt).
 - `src/daemon/client/daemon-client.ts` – `DaemonClient` used by Electron main, scripts and integration tests:
   `new DaemonClient({ endpoint, tokenPath | token })`, `rpc<M>(method, params, { timeoutMs })` (typed with
   `RpcParams/RpcResult`, throws `DaemonRpcError` with code/message), `health()`, `subscribe(onEvent, onState)` with

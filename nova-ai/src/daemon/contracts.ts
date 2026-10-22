@@ -597,9 +597,14 @@ export interface AgentRoleModule {
   info: AgentRoleInfo;
   /** System prompt for this role (English), given project + task + memory context. */
   systemPrompt(ctx: { project: Project; task: Task; memory: MemoryEntry[]; platform: NodeJS.Platform; extraContext?: string }): string;
-  /** Name of the terminal tool that finishes the run (e.g. "submit_plan", "finish"). */
-  finishTool: string;
-  /** Parses/validates the finish tool data into the role output. */
+  /**
+   * Terminal tool that finishes the run (e.g. "submit_plan", "finish", "submit_review"). It is NOT registered in the
+   * ToolRegistry: the runner adds its spec to the role's tool list and handles the call itself.
+   */
+  finishTool: { name: string; description: string; schema: z.ZodType };
+  /** Generic tools (ToolRegistry names) this role may use. */
+  toolNames: string[];
+  /** Parses/validates the finish tool data into the role output (throws on invalid data; message goes back to the model). */
   parseOutput(data: unknown): AgentOutput;
 }
 
