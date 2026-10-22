@@ -971,6 +971,7 @@ const handlers: HandlerMap = {
       technologies: input.technologies.length ? input.technologies : (template?.technologies ?? []),
       status: 'active',
       templateId: input.templateId,
+      origin: input.mode === 'open' ? 'open' : input.mode === 'import' ? 'import' : 'new',
       config: defaultConfig(kind),
       // Opened/imported folders start with autonomous work switched off (SPEC: trust first).
       workState: input.mode === 'open' || input.mode === 'import' ? 'stopped' : 'running',

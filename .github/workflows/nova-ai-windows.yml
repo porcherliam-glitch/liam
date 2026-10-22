@@ -47,6 +47,8 @@ jobs:
         run: npm ci
 
       - name: Typprüfung
+        id: typecheck
+        continue-on-error: true
         run: npm run typecheck
 
       - name: Tests (Vitest)
@@ -119,5 +121,5 @@ jobs:
       - name: Ergebnis
         if: always()
         run: |
-          Write-Host "Tests: ${{ steps.tests.outcome }}, Ende-zu-Ende: ${{ steps.e2e.outcome }}, Installation: ${{ steps.smoke.outcome }}"
-          if ('${{ steps.tests.outcome }}' -ne 'success' -or '${{ steps.e2e.outcome }}' -ne 'success' -or '${{ steps.smoke.outcome }}' -ne 'success') { exit 1 }
+          Write-Host "Typprüfung: ${{ steps.typecheck.outcome }}, Tests: ${{ steps.tests.outcome }}, Ende-zu-Ende: ${{ steps.e2e.outcome }}, Installation: ${{ steps.smoke.outcome }}"
+          if ('${{ steps.typecheck.outcome }}' -ne 'success' -or '${{ steps.tests.outcome }}' -ne 'success' -or '${{ steps.e2e.outcome }}' -ne 'success' -or '${{ steps.smoke.outcome }}' -ne 'success') { exit 1 }

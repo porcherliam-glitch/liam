@@ -499,6 +499,7 @@ export function createMockDb(now: number = Date.now()): MockDb {
       technologies: ['TypeScript', 'Vite', 'Phaser 3', 'Vitest'],
       status: 'active',
       templateId: 'web-game-phaser',
+      origin: 'new',
       config: config({
         commands: { install: 'npm install', dev: 'npm run dev', build: 'npm run build', test: 'npm test', lint: 'npm run lint', typecheck: 'npx tsc --noEmit', e2e: 'npx playwright test', security: 'npm audit --omit=dev --audit-level=high' },
         artifactGlobs: ['dist/**'],
@@ -521,6 +522,7 @@ export function createMockDb(now: number = Date.now()): MockDb {
       technologies: ['Unity 6.6', 'C#', 'URP', 'Input System', 'Cinemachine'],
       status: 'active',
       templateId: null,
+      origin: 'open',
       config: config({
         commands: {
           install: null,
@@ -550,6 +552,7 @@ export function createMockDb(now: number = Date.now()): MockDb {
       technologies: ['Node.js', 'Express', 'SQLite', 'Vitest'],
       status: 'active',
       templateId: 'node-api',
+      origin: 'new',
       config: config({
         commands: { install: 'npm install', dev: 'npm run dev', build: 'npm run build', test: 'npm test', run: 'npm start', typecheck: 'npx tsc --noEmit' },
         preview: { kind: 'browser-dev-server', entry: null, url: 'http://127.0.0.1:3000/' },
