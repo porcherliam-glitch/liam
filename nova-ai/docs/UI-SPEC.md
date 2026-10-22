@@ -228,3 +228,54 @@ using `lib/mock-bridge.ts`. Each page gets tests for its main flows (render with
 the right RPC with the right params, error toast). Run `npx vitest run src/renderer/<your folder>` and
 `npx tsc -p tsconfig.web.json --noEmit` (filter to your files while others are still writing). `npm run build`
 must succeed at the end of the wave.
+
+## 7. Amendments after the contract review (binding; the shared types already reflect them)
+
+- **Work state:** `Project.workEnabled` was replaced by `Project.workState` ('running' | 'paused' | 'stopped').
+  Per-project controls use `work.start/pause/resume/stop({ projectId })` (`projects.setWork` remains an alias).
+  `ProjectStatus` is only 'active' | 'archived'. Before work is enabled for the first time on a project created with
+  mode open/import, show (German): "Von NOVA ausgeführte Befehle, Tests und Builds laufen mit den Rechten des
+  Windows-Kontos. Nur vertrauenswürdige Projekte für die autonome Arbeit freigeben."
+- **Task conversation:** `tasks.notes` / `tasks.addNote`, plus the event `task.note`.
+  - Agents can ask questions (kind 'question', options, assumption). Blocked tasks with blockerCode 'NEEDS_INPUT' show
+    the question prominently, with answer buttons for the options and a free-text answer.
+  - Users can send hints to running or paused agents ("Hinweis an den Agenten").
+  - Show the conversation in the task detail and in the agents feed.
+- **New task fields:** blockerCode (show the right action: NO_MODEL → link to "Modelle", BUDGET_EXCEEDED → "Kosten",
+  NEEDS_INPUT → answer, APPROVAL_REQUIRED → "Freigaben", TOOL_MISSING → "Werkzeuge"), plannedFiles, startRequested.
+  Findings in `verification.checks[].findings` (reviewer) are shown in the task and as Monaco markers in the studio.
+- **"Fix task" buttons:** `tasks.createFix` from a failed check run or an ErrorCard ("Reparatur-Aufgabe anlegen").
+- **Notifications:** `notifications.list` / `markRead` give a history of what happened while the user was away.
+  - Bell menu in the top bar with the unread count.
+  - Show unread notifications when the app reconnects.
+  - `dashboard.summary.unreadNotifications`.
+- **Operations:** `operations.list` and the `operation.updated` event drive a global "Laufende Vorgänge" panel or
+  popover in the top bar (title, progress bar or indeterminate, message, "Abbrechen" via `operations.cancel`).
+  - Long RPCs (projects.create import, backup.*, data.*, memory.export/import, checkpoints.restore,
+    integrations.install) show their operation while waiting.
+  - `checks.run` returns immediately with status running; follow `check.updated`. `checks.cancel` stops it.
+- **DaemonStatus:** `secretStore.secure=false` → visible warning in Einstellungen and on the Models page.
+  - `methods` → hide features the daemon does not support.
+  - `previousShutdown.clean=false` → info banner "NOVA wurde zuletzt nicht sauber beendet – unterbrochene Aufgaben
+    wurden geprüft."
+  - `state 'error'` → red status pill.
+- **Costs:** `budget.breakdown` (by provider, model, project, day) shown as tables or simple bars. Per-project
+  paidPaused/remainingUsd. `budget.resumePaid({projectId?})`.
+- **Models:** the Ollama endpoint is edited on the provider row "ollama-local" (providers.upsert);
+  `ollama.status({baseUrl})` tests a URL before saving. Provider options must not contain keys. The API key goes
+  through providers.setApiKey; `options.authHeader` sets the header name. A non-local provider with paid=false shows
+  the warning "Ist dieser Anbieter wirklich kostenlos?"
+- **Files:** `files.delete/rename/mkdir` (context menu in the studio tree), `files.snapshot` + `files.diff({changeId})`
+  to compare older versions from the history.
+- **Integrations:** `integrations.open` buttons ("In VS Code öffnen" with file:line, "Terminal öffnen", "In Unity
+  öffnen" …) when `canOpen`. Show all `installations` (e.g. several Unity versions).
+- **Backups:** `backup.restore` (DB: "NOVA startet neu"; snapshot: choose a target folder) and `backup.delete`.
+- **Approvals:** hide "Immer erlauben" for APPROVAL_KINDS_ONCE_ONLY. The approval dialog footer shows the
+  honest-limits sentence.
+- **Settings › Berechtigungen and Netzwerk** show the honest-limits texts (SPEC §6.0, network descriptions in
+  settings.ts). There is no `allowOutsideProject` anymore. Resources has `maxVramPercent`, Diagnose has
+  `historyRetentionDays`, Gedächtnis has `autoShareAgentInsights`.
+- **Bridge:** `app.openPath` only opens folders; files use `app.showInFolder`. Never render untrusted text as HTML
+  (no dangerouslySetInnerHTML); URLs in agent text are plain text.
+- **Checks:** CheckKind now includes typecheck, e2e, security, runtime and package. CheckRun has `message`,
+  `artifacts` (list with sizes and "Im Explorer zeigen") and `processId`.

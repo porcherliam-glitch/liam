@@ -1,5 +1,5 @@
 // Thin wrapper around node:sqlite (built into Node >= 22.13 and Electron >= 35; no native build needed).
-// WAL mode + synchronous=NORMAL keeps the database consistent across crashes.
+// WAL mode + synchronous=FULL: no committed transaction is lost on crash or power loss (write volume is low).
 import { DatabaseSync, type StatementSync } from 'node:sqlite';
 import { mkdirSync, existsSync } from 'node:fs';
 import { dirname } from 'node:path';
@@ -19,7 +19,7 @@ export class Db {
     }
     this.raw = new DatabaseSync(file);
     this.raw.exec('PRAGMA journal_mode = WAL;');
-    this.raw.exec('PRAGMA synchronous = NORMAL;');
+    this.raw.exec('PRAGMA synchronous = FULL;');
     this.raw.exec('PRAGMA foreign_keys = ON;');
     this.raw.exec('PRAGMA busy_timeout = 5000;');
   }

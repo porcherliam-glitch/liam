@@ -2,10 +2,23 @@
 <html lang="de">
   <head>
     <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark" />
     <title>NOVA AI</title>
+    <style>
+      /* Paint the dark background before the CSS bundle loads (no white flash). */
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #0b0d14;
+        color: #e6e8f0;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
+    <noscript>NOVA AI benötigt JavaScript.</noscript>
     <script type="module" src="./src/main.tsx"></script>
   </body>
 </html>

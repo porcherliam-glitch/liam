@@ -51,7 +51,7 @@ them). Shared files (`src/shared/**`, `src/daemon/contracts.ts`, `src/daemon/cor
 | memory | `src/daemon/memory/` | MemoryService | memory.* |
 | projects | `src/daemon/projects/`, `src/daemon/checks/`, `src/daemon/preview/` | ProjectService, TemplateRegistry (+4 templates), ProjectDetector, CheckService, PreviewService | projects.*, templates.list, checks.*, preview.* |
 | env | `src/daemon/env/`, `src/daemon/secrets/`, `src/daemon/approvals/`, `src/daemon/resources/`, `src/daemon/integrations/`, `src/daemon/updates/` | SecretStore, ApprovalService, ResourceMonitor, ConcurrencyGovernor, IntegrationService, UpdateService | approvals.*, resources.*, integrations.*, updates.check |
-| integrator | `src/daemon/app.ts`, `src/daemon/index.ts`, `src/daemon/rpc-core.ts` | wiring, lifecycle | daemon.*, settings.* |
+| integrator | `src/daemon/app.ts`, `src/daemon/index.ts`, `src/daemon/rpc-core.ts`, `src/daemon/core/**` | wiring, lifecycle, NotificationService, OperationService, DaemonInfo | daemon.*, settings.*, notifications.*, operations.* |
 
 Each module exposes ONE barrel file exporting factories with this shape:
 `export function createX(s: Services): X` (constructor must not call other services) and
@@ -63,7 +63,7 @@ Exact barrels and export names (used by `src/daemon/app.ts`):
 | `src/daemon/server/index.ts` | `createRpcRouter(log)`, `startRpcServer(opts)`, `ensureToken(paths): string`, `readToken(paths): string \| null`, `writeLock(paths, info)`, `readLock(paths)`, `removeLock(paths, instanceId)` |
 | `src/daemon/client/index.ts` | `DaemonClient`, `DaemonRpcError` |
 | `src/daemon/providers/index.ts` | `createProviderRegistry`, `createModelClient`, `createBudgetService`, `createOllamaService`, `registerProvidersRpc` |
-| `src/daemon/tools/index.ts` | `createPathGuard`, `createChangeJournal`, `createFileLockService`, `createCommandPolicy`, `createProcessManager`, `createTerminalService`, `createFileService`, `createToolRegistry`, `registerToolsRpc` |
+| `src/daemon/tools/index.ts` | `createPathGuard`, `createChangeJournal`, `createFileLockService`, `createCommandPolicy`, `createProcessManager`, `createTerminalService`, `createFileWatcher`, `createFileService`, `createToolRegistry`, `registerToolsRpc` |
 | `src/daemon/agents/index.ts` | `createRunStore`, `createAgentRunner`, `registerAgentsRpc` |
 | `src/daemon/tasks/index.ts` | `createTaskService`, `createWorkCycle`, `registerTasksRpc` |
 | `src/daemon/git/index.ts` | `createGitService`, `createCheckpointService`, `createBackupService`, `registerGitRpc` |
@@ -480,3 +480,399 @@ existing DB), `providers.ensureDefaults()`, `processes.recoverOrphans()`, `work.
 stop accepting work → `work.shutdown(10 s)` → `preview.stopAll()` → `terminals.closeAll()` → `processes.shutdown()` →
 `resources.stop()` → close server → `db.close()` → remove lock → exit 0. Crash safety: `uncaughtException` logs,
 reports a critical error, attempts graceful shutdown.
+
+---------------------------------------------------------------------------------------------------------------------
+
+## 6. Binding amendments after the contract review (OVERRIDE §1–§5 where they differ)
+
+Three independent reviews found 101 issues. The decisions below are binding. `src/shared/*` and
+`src/daemon/contracts.ts` already reflect them; read the doc comments there.
+
+### 6.0 Global
+
+1. **Honest limits (state them in code headers, UI texts and README; never promise more):**
+   (a) Agent commands, checks, previews and git hooks run with the user's Windows rights. Approvals cover recognised
+   commands only, not code inside projects. There is no OS sandbox (no native code).
+   (b) The command block list is best effort. cmd.exe expansion makes complete detection impossible. Only one thing is
+   guaranteed: auto-allow requires a line without metacharacters.
+   (c) allowAgentNetwork=false cannot block connections opened by programs or tests.
+   (d) DPAPI protects keys against other Windows users and offline disk access. It does not protect against processes
+   of the same user, including commands that NOVA runs.
+   (e) PathGuard cannot prevent TOCTOU swaps. It prevents model mistakes.
+   (f) Without a UI, Windows may terminate the daemon at logoff or shutdown. State stays consistent (WAL plus journal),
+   and running commands count as interrupted.
+   (g) Local administrators can read the token and the database.
+   (h) Costs are estimates when the provider returns no usage or a call is aborted (booked at the estimated maximum).
+   (i) After a Windows restart, tasks resume only once NOVA is started (autostart is optional).
+   UI sentence: "NOVA fragt vor bekannten riskanten Befehlen nach. Projektcode, Tests und Build-Skripte, die ein Agent
+   geschrieben hat, laufen jedoch mit den Rechten des Windows-Kontos und können technisch nicht eingeschränkt werden."
+2. Core helpers are mandatory. Use `buildChildEnv()` for every child process, `execTool()`, `findExecutable()` and
+   `runPowerShell()` for tools with argv, `atomicWriteFile()`, `renameWithRetry()` and `unlinkWithRetry()` for files,
+   `isLocalEndpoint()` and `assertHostAllowed()` for network, and `maskSecretFile()`/`redactString()` for secrets.
+   Never call `spawn` with `shell:true`. Never parse localized OS text: use exit codes, CSV/JSON
+   (`ConvertTo-Json`), porcelain formats and `LC_ALL=C`. Every daemon PowerShell script runs through `runPowerShell`
+   (UTF-8, no progress records, `-EncodedCommand`).
+3. Directory walkers never follow symlinks or junctions. Use `readdir({withFileTypes:true})` or `lstat`, and list such
+   entries as dirs with `children = null`.
+4. Redaction on store covers task results, approval title/action/consequences/details (the fingerprint uses the raw
+   subject), process commands, check output and agent steps. The ToolRegistry redacts every tool result before it
+   reaches a model. Notification bodies never include command lines, paths or file content.
+5. Every service with history implements `prune(olderThanMs)`. The integrator runs a maintenance timer at start and
+   every 24 h: backups, retention, `journal.pruneSnapshots`, all prunes with `diagnostics.historyRetentionDays`,
+   `PRAGMA optimize`, and VACUUM when freelist/page_count > 0.2.
+6. Long work runs inside `core.operations.run({kind,title,projectId}, fn)`. This covers clone, project snapshot,
+   export/import, memory export/import, restore, installs and diagnostics. Report progress and honour
+   `ctx.signal`. RPC result types stay unchanged. `checks.run` returns immediately with status running.
+
+### 6.1 server
+
+- **Startup order (integrator, app.ts):** canonicalize the data dir, then `acquireInstanceLock` BEFORE opening the
+  DB. If the lock is held: read the existing token, probe `/health` with a nonce proof, exit 3, and touch NOTHING.
+  Next: apply restore-pending, open/migrate the DB, `journal.recoverPending`, `recoverOrphans`, `work.recover`,
+  backups, resources. Generate the token in memory, bind the endpoint, write the token atomically, then the lock file.
+- **Auth:** `GET /health` accepts `X-Nova-Nonce: <32 hex>` without Authorization and returns
+  `{ ok, pid, version, instanceId, proof: HMAC-SHA256(token, nonce) }`. DaemonClient verifies the proof on every
+  (re)connect before it sends the token. On a mismatch it fails with DAEMON_UNAVAILABLE: "Der Kommunikationskanal wird
+  von einem fremden Programm belegt. Bitte den PC neu starten." Compare tokens with
+  `timingSafeEqual(sha256(a), sha256(b))`, so differing lengths never throw. Wrap every request handler and SSE writer
+  in try/catch (500). The body limit is enforced while streaming (destroy at 25 MB, 413).
+- **close():** stop accepting connections, `res.end()` every SSE response, `server.closeAllConnections()`, resolve.
+- **SSE:** end a connection when `res.writableLength` exceeds 4 MB (the client reconnects). Coalesce
+  process/terminal output per stream every 100 ms. Cap event data at 64 KB with "[… gekürzt]". Allow at most 16
+  connections (429). Set `headersTimeout` 10 s and `requestTimeout` 60 s for /rpc; /events has no timeout.
+- **DaemonClient:** on 401, re-read the token file and retry once. Default RPC timeout 120 s, and 30 min for
+  `projects.create`, `backup.*`, `data.*`, `memory.export/import`, `checkpoints.restore`, `integrations.install`.
+
+### 6.2 providers
+
+- The Ollama endpoint is the `ollama-local` provider row only; the settings no longer have `ollamaBaseUrl`.
+  `ollama.status({baseUrl})` tests a candidate URL.
+- `upsert` merge semantics are defined in the schema doc. Provider ids match `^[a-z0-9][a-z0-9-]*$`. Options must not
+  contain secrets. `options.authHeader` sends the stored key under another header (Azure `api-key`). A non-local
+  baseUrl must use https.
+- Local versus cloud is decided only by `isLocalEndpoint(baseUrl)`. For non-local providers, ModelClient deep-redacts
+  all message contents and tool arguments. The sensitive_data approval (subject `cloud:<providerId>`) applies to every
+  non-local provider when `approveCloudProjectData` is on, paid or not. ModelClient never calls `consume` for it. A
+  'once' approval is valid for the whole task and expires with the task.
+- **Budget:** `reserve()` → send with `max_tokens` = reserved output → `record(usage, reservationId)`. After an abort,
+  timeout, 5xx or network error AFTER the request was sent, record estimated input + maxOutputTokens with
+  costEstimated=true. On success without usage, estimate output as `ceil(chars/3.5)`. Never record 0 for a paid call.
+  `release()` only applies when the request provably never reached the provider. A project limit pauses only that
+  project.
+- When a budget stop happens, create an approval of kind `paid_model` with subject `budget:resume`. Approving it calls
+  `budget.resumePaid()`. Wire this via `approvals.onDecision` in the providers module.
+- VRAM: local candidates are checked with `ollama.fit(model, min(numCtx, contextLength))`, cached for 60 s. A candidate
+  with fits===false is rejected and the next one is tried. If none is left, throw VRAM_INSUFFICIENT with alternatives
+  and an error report.
+- Rate limits: `options.maxConcurrent` and `options.maxRequestsPerMinute` per provider (semaphore + token bucket).
+  On 429 honour Retry-After (at most 120 s) within the retry budget.
+- `lastHealth()` and `ollama.lastStatus()` are caches. `dashboard.summary` never triggers network calls.
+
+### 6.3 tools
+
+- **PathGuard:** use the exact algorithm in the contract doc. Lock, journal, dedupe and protection checks use
+  `ResolvedPath.key`.
+- **ChangeJournal:** follow the crash-safe order (pending → committed) and run `recoverPending()` at startup. Command
+  changes go through `scanState` / `recordCommandChanges` around every agent command. Blobs are verified on read.
+  The journal is honest about non-revertible command changes.
+- **write_file / edit_file:** edit_file matches on a CRLF→LF normalized view and writes newText back in the file's
+  dominant EOL. write_file on an existing file keeps its dominant EOL and its BOM. NOVA never adds a BOM. New files use
+  CRLF for .bat/.cmd/.sln/.csproj/.cs/.ps1 and LF otherwise. Writes to `isSensitive` files need a
+  `security_config` approval. read_file/search_files on sensitive files return `maskSecretFile()` content plus a German
+  note. A write whose content contains a secret (`containsSecret`) adds a warning to the tool result.
+- **CommandPolicy (fail-closed):**
+  (a) C0 control chars (CR, LF, NUL …) → block "Steuerzeichen im Befehl".
+  (b) Auto-allow requires all of the following: no `& | < > ^ % ! ( ) ; $` or backtick, balanced quotes, and an
+  exact prefix match (`line === p || line.startsWith(p + ' ')`). On Windows the first token is compared
+  case-insensitively. Chained or redirected lines are never auto-allowed; they need approval kind `command` with the
+  raw line.
+  (c) Classify a normalized copy: strip `^` and `"`, lower-case, split on `& && | || ; newline ( )`, and take each
+  segment's first token as a basename without .exe/.com/.bat/.cmd/.ps1. A segment starting with `%` or `!` → approve.
+  (d) Block list (best effort): format, diskpart, `del /s` and `rd /s` on drive roots, `Remove-Item -Recurse` on
+  paths outside the project, shutdown, `reg add/delete`, bcdedit, `cipher /w`, vssadmin, `Set-ExecutionPolicy`,
+  netsh, `sc config/delete`, `schtasks /create`, writes to %WINDIR%, fork bombs, `curl|wget … | sh/iex`. Encoded
+  PowerShell (`-e`, `-ec`, `-en`, `-enc`, … any prefix of -EncodedCommand, also with `/`) → block.
+  (e) Nested interpreters → approve: cmd, powershell, pwsh, wsl, bash, sh, start, call, conhost, mshta, rundll32,
+  regsvr32, cscript, wscript, certutil, bitsadmin, `node -e/--eval/-p`, `python -c`.
+  (f) Admin (runas, sudo, `-Verb RunAs`) → approve admin.
+  (g) Install/system (`npm i -g`, `pip install` outside a venv, winget/choco/scoop, setx, PATH edits) → approve.
+  (h) security_config: `git config --global/--system`, `npm config set`, Set/Add-MpPreference, icacls, takeown,
+  hosts file.
+  (i) publish: git push, npm publish, docker push, scp, uploads.
+  (j) delete: rm -r, rmdir /s, del /s, Remove-Item -Recurse, git clean, `git reset` (any form), git restore,
+  `git stash` (except list/show), `git checkout -f/--force/-- <path>`, `git switch -f/--discard-changes`, git rm.
+  (k) outside_project: absolute paths outside the root used as write or delete targets.
+  (l) **Network** (evaluated before auto-allow): curl, wget, iwr/irm, Invoke-WebRequest/RestMethod,
+  Start-BitsTransfer, bitsadmin, `certutil -urlcache`, `git clone/fetch/pull/ls-remote`, `npm install/i/ci/add`,
+  `pip install`, `dotnet restore/add package`, winget, scp, ssh, sftp, ftp. With allowAgentNetwork=false → approve
+  network. URL hosts that are not allowed (`assertHostAllowed` logic) → approve network with subject = host.
+  (m) **Taint rule** (before auto-allow): if an argument resolves to a project file with a non-reverted NOVA change in
+  the current task AND the first token is an interpreter/launcher (node, python, py, deno, bun, tsx, ts-node, bash, sh,
+  `powershell -File`) or the file itself is .bat/.cmd/.ps1/.exe/.vbs/.js → approve command, consequences "Führt eine
+  Datei aus, die NOVA in dieser Aufgabe geschrieben hat."
+  (n) Allowlist → allow; otherwise approve command (if approveUnknownCommands is off, metacharacter-free unknown commands
+  are allowed and everything else is approved).
+  Add table-driven tests for every bypass.
+- **run_command:** policy → approval check → `consume()` BEFORE execution → `scanState` → run → `recordCommandChanges`.
+  When a waiting approval resumes, re-evaluate the policy on the stored command.
+- **ProcessManager:** process identity is (pid, OS creation time). Windows uses ONE
+  `Get-CimInstance Win32_Process | Select ProcessId,ParentProcessId,Name,CreationDate(UTC ISO) | ConvertTo-Json` query.
+  Never use wmic, never parse localized tasklist text. Descendants follow ParentProcessId with creation time ≥ the
+  parent's. Kill leaves-first with `taskkill /pid N /F` and judge by exit code (0/128). This walk also handles roots
+  that have already exited (kill, shutdown, recoverOrphans). POSIX uses /proc stat field 22 + btime, and kill(-pgid).
+  Record `started_at` immediately before spawn. The env sets `npm_config_yes=false` via buildChildEnv.
+- **TerminalService:** Windows runs lines via `runPowerShell`-style `-EncodedCommand` (trusted user input). Output is
+  UTF-8.
+- **FileWatcher:** `fs.watch(root, {recursive:true})`. Ignore the FileService.tree dirs and .git, debounce 300 ms, and
+  suppress `journal.recentlyWritten(2 s)`. Emit `files.changed {actor:'external'}`. Watch at most 20 non-archived
+  projects. On EMFILE/ENOSPC fall back to a 5 s mtime poll. app.ts starts it for all active projects; ProjectService
+  calls watch/unwatch on create/remove.
+- **Tool table (authoritative, AgentRoleModule.toolNames):** planner [list_files, read_file, search_files,
+  memory_search, memory_note, ask_user]; coder [list_files, read_file, search_files, write_file, edit_file, delete_file,
+  run_command, run_checks, git_diff, memory_search, memory_note, ask_user]; tester [list_files, read_file, search_files,
+  write_file, edit_file, run_command, run_checks, git_diff, memory_search, memory_note, ask_user]; reviewer [list_files,
+  read_file, search_files, git_diff, run_checks, memory_search, memory_note]. `ask_user {question, options?,
+  assumption}` (tools module) creates a TaskNote (kind question, author agent) plus a notification (category blocker)
+  and returns `{status:'needs_input', noteId}`. `run_checks` accepts every CheckKind and passes `ctx.task.id` as
+  taskId.
+
+### 6.4 agents
+
+- `AgentRunInput.role` (default task.role) is the role of the run. The reviewer pass is a separate run with role
+  'reviewer' on the same task. `RunStore.latestForTask(taskId, role?)`.
+- The run state stores `taskSnapshot {title, description, acceptance, role}`, `inFlight {toolCallId, name, args,
+  readOnly, startedAt} | null` (saved BEFORE any non-readOnly tool executes and cleared after its result is
+  persisted), and the pending tool call or model call for approvals.
+- **Resume:**
+  - If title/description/acceptance changed, append "The user edited this task while it was paused. New …".
+  - If the role changed, start a fresh run instead.
+  - Unconsumed user notes are appended as "Note from the user: …" at every step boundary and on resume, then marked
+    consumed.
+  - inFlight with readOnly → run it again. Otherwise do NOT run it again: append the tool result "Interrupted by a
+    restart; the action may be partially done. Inspect the current state before continuing." and add an `error` step.
+- **Outcomes:** abort reason INTERRUPTED → state kept, run status interrupted, outcome interrupted. Model errors
+  APPROVAL_REQUIRED → run waiting_approval with pendingApprovalId, and the model call repeats on resume. NO_MODEL,
+  VRAM_INSUFFICIENT, BUDGET_EXCEEDED, PAID_NOT_APPROVED, PRICE_UNKNOWN, OLLAMA_UNREACHABLE (after retries) → blocked
+  with the code, state saved. `needs_input` tool result → blocked, code NEEDS_INPUT. `run.errorCode` is set.
+- The runner NEVER writes the tasks table. `activeMs` counts only running time.
+- The runner rejects tool calls that are not in `toolNames` or the finish tool, with an error message back to the
+  model. Tool specs come from `tools.specs(toolNames)` plus the finish tool spec
+  (`z.toJSONSchema(schema,{io:'input'})`).
+- In JSON-protocol mode (no native tools) the system prompt lists the tools with their JSON schemas.
+- The planner prompt says: for minor unknowns choose sensible defaults and record them as memory kind 'decision'
+  tagged 'annahme'; use ask_user only for decisive choices; at most 15 small tasks with acceptance criteria and
+  expected files.
+
+### 6.5 orchestrator
+
+- **WorkCycle is the only writer of** task.status, blocker, blockerCode, result, model, verification, attempts,
+  startedAt, finishedAt and startRequested.
+- **Work state:** global state in meta `work_state` (default `running`) plus `project.workState`
+  (`ProjectService.setWorkState`).
+  - `work.start({projectId})` → running.
+  - `work.pause` → paused: runs of the project pause at the next step and their tasks become paused (remember which).
+  - `work.resume` → running, and the tasks paused by that pause resume.
+  - `work.stop` → stopped: runs cancelled, tasks re-queued.
+  - Without projectId these act on the global state.
+  - The scheduler starts a queued task iff global = running AND (project.workState = running OR
+    task.startRequested).
+  - `tasks.start` and `tasks.resume` set startRequested; it is cleared when the task finishes.
+  - New projects: description/wizard/template → running; open/import → stopped (the UI shows the honest-limits
+    warning before enabling).
+- **Outcome mapping:** done → verification flow; paused → paused; waiting_approval → waiting_approval; blocked →
+  blocked + blockerCode; failed → failed; cancelled → cancelled (stopTask) or queued (work.stop); interrupted →
+  interrupted.
+- **Resume vs fresh run:** a task starts by resuming `runs.latestForTask(id)` iff its status is paused,
+  waiting_approval or interrupted, or blocked with a resumable errorCode (RESUMABLE_BLOCKER_CODES). Otherwise it starts
+  a fresh run. `tasks.retry` sets attempts=0, resets verification, clears the blocker and always starts fresh.
+- **Auto-unblock:** blocked tasks with resumable codes are re-checked on provider.updated, provider.removed,
+  ollama.models.changed, settings.updated (models/budgets/resources), budget.updated (paidPaused=false),
+  integrations.updated, task.note (NEEDS_INPUT) and every 60 s, using `models.resolve(role,{projectId})`,
+  `integrations.get`, disk and resources. When the condition is gone the task is queued for resume, the blocker is
+  cleared and its errors are resolved. DEPENDENCY_FAILED dependents are re-queued when the dependency becomes done.
+- **Approvals:** `onDecision` → for every run with status waiting_approval and `pendingApprovalId === approval.id`,
+  re-queue its task if the task is still waiting_approval.
+- **Locks:** acquired by write tools. WorkCycle releases them when a task becomes done, failed or cancelled, or blocked
+  with a non-resumable code. They are kept while paused, waiting_approval or interrupted. `recover()` releases only
+  locks of tasks it does not resume.
+- **Checkpoints:** pre_task only before the first run of a task (attempts=0, no resume).
+- **Verification (from REAL results only):**
+  - coder done with result.status='blocked' → task blocked, AGENT_BLOCKED.
+  - coder done → checks per project: build (if a command exists and kind web/desktop/backend), test (if
+    testAfterChange), typecheck/lint if configured. Applicable kinds without a command are listed as 'skipped' with a
+    German reason. Then the reviewer pass if reviewChanges (verdict changes_requested → check 'Review' failed with
+    findings).
+  - tester done → only CheckRuns with taskId = task.id started during the run. If none exist the orchestrator runs
+    `checks.run(test)` itself; if there is no test command → unavailable. `passed` from the agent is informational; if
+    the agent claimed success but the check failed → failed plus an error step.
+  - reviewer task → check 'Review' from the verdict.
+  - plan task → unavailable.
+  - Patch the verification BEFORE calling `checkpoints.afterTask`.
+- **Repeated failures:** the failure signature comes from `check.failureSignature` or a hash of the review findings.
+  After `maxIdenticalFailures` identical signatures in a row, the next attempt gets the instruction "take a different
+  approach" plus the list of previous attempts. The next identical failure → blocked REPEATED_FAILURE with an error
+  report whose userAction names `checkpoints.latestVerified`.
+- **Planner done:**
+  - Created tasks get `parentId = planTask.id` and `plannedFiles = PlanTask.files`; their description gets
+    "Voraussichtlich betroffene Dateien: …". plannedFiles are never written to task.files.
+  - Plan memory is stored with source 'system' (best effort, try/catch).
+  - Two tasks of one project whose plannedFiles overlap never run in parallel.
+- **Integration pass:** when all non-cancelled children of a plan task P are done, run build then test with
+  taskId = P. Results go into P.verification as 'Integration: Build' and 'Integration: Tests', plus a memory
+  test_result. On failure create a fix task (parentId P, source system), an error report and a notification.
+- **Idle:** idleReason plus a per-project `suggestion` (`memory.latestNextStep` or "Neues Ziel planen"). Never create
+  tasks on its own.
+- **Recover:**
+  - `runs.markInterrupted()`; tasks with status running → interrupted.
+  - When the run's inFlight tool was non-readOnly AND its approval kind was publish/delete/install/admin/system_change
+    → the task becomes paused with blocker "Nach Neustart unterbrochen – bitte prüfen".
+  - Otherwise, if resumeAfterRestart → queued for resume.
+- **Shutdown:** set pause flags → wait timeoutMs → abort the remaining runs with NovaError INTERRUPTED → wait ≤ 2 s →
+  persist anything still running as interrupted.
+- **`dashboard.summary`** uses only cached/local data:
+  - recentBuilds: the newest 10 PASSED build/package runs.
+  - failedTests: `checks.currentFailures`.
+  - models.local: `ollama.lastStatus()`.
+  - cloud: `providers.lastHealth()`.
+  - The daemon status comes from `s.daemon.status()`.
+  - Any part may be null on failure.
+- `tasks.createFix` builds the description from check failures/outputTail or from the error's whatHappened/details.
+- `tasks.delete` → CONFLICT when dependents exist. `tasks.update`, `tasks.stop` and `tasks.delete` call
+  `approvals.expireForTask`.
+
+### 6.6 git
+
+- Every git call goes through `execTool` with `buildChildEnv({ LC_ALL:'C', LANG:'C' })` and
+  `-c core.longpaths=true -c core.quotepath=off`. `--end-of-options` comes before revisions and `--` before paths.
+  Refs match `^(?!-)[A-Za-z0-9._/@{}~^-]+$`.
+- Read-only commands use `GIT_OPTIONAL_LOCKS=0`. Mutating commands are serialized per canonical repo root.
+- A stale `index.lock` (no NOVA git process running and older than 60 s) is removed with a warning, then retried once.
+  Otherwise retry every 1 s, up to 5 times.
+- "dubious ownership" → GIT_ERROR (German) plus an approval of kind security_config for
+  `git config --global --add safe.directory <path>`. Never add it automatically.
+- `commitPaths`: `git add -- <paths>`, then `git commit --only -m <msg> -- <paths>` (respects hooks). Without a
+  configured identity, use `-c user.name="NOVA AI" -c user.email="nova@localhost"`.
+- `clone`: only https://, ssh:// and git@host: URLs; `GIT_ALLOW_PROTOCOL=https:ssh`; no submodules; host checked with
+  assertHostAllowed (not allowed → network approval); progress parsed from `--progress`.
+- Checkpoints carry a `verification` marker and emit `checkpoint.updated`. `restore` → CONFLICT while tasks of the
+  project run. Restore commits leave out modifiedSinceNova files.
+- **Backups:**
+  - Database restore: validate the backup (opens, schema_version ≤ latest), back up the current DB
+    ("vor Wiederherstellung"), write `restore-pending.json`, request the daemon restart. app.ts swaps the files before
+    opening the DB.
+  - Project snapshot restore goes to a new folder only.
+  - Retention: count and age for DB backups, `retentionCount` project snapshots per project.
+  - Import never takes over the permissions, network or budgets sections; providers get approved=false; task status
+    running/waiting_approval/interrupted becomes queued; the FK order is projects → tasks → memory → providers;
+    path_key collisions and existing ids are skipped with German warnings.
+  - The snapshot copy skips links.
+
+### 6.7 memory
+
+- projectId semantics as in the contract.
+- Agent insights become shareable only when `autoShareAgentInsights` is on.
+- Shared entries entering another project's context get absolute paths and the source project name replaced with
+  placeholders (`<Projektpfad>`, `<Projekt>`).
+- `memory.clear` emits one `memory.updated {cleared:true}`.
+- `removeProject` deletes the project's non-shareable entries.
+
+### 6.8 projects
+
+- **Root safety (create in all modes, import, and update path):**
+  - Canonicalize with realpath, case-folded on Windows.
+  - Reject drive and share roots.
+  - Reject %USERPROFILE% and its known folders (Desktop, Documents, Downloads, Pictures, Music, Videos via
+    `[Environment]::GetFolderPath`).
+  - Reject anything equal to or inside %WINDIR%, %ProgramFiles%, %ProgramFiles(x86)%, %ProgramData%, %APPDATA% or
+    %LOCALAPPDATA%.
+  - Reject anything equal to, inside or an ancestor of the data dir, or of another registered project.
+  - The VALIDATION message is "Dieser Ordner kann nicht als Projektordner verwendet werden: <Grund>".
+  - Warn under OneDrive or when the root is longer than 150 characters.
+  - The default projectsDir is `%USERPROFILE%\NOVA Projekte`.
+- `remove()`: CONFLICT if tasks run. Then `preview.stop`, `terminals.closeProject`, `processes.killProject`,
+  `approvals.expireForProject`, `locks.releaseProject`, `watcher.unwatch`. In one transaction delete the project row
+  (cascade) plus its changes, approval_rules and file_locks; call `memory.removeProject`; resolve its errors. Keep
+  usage records and backups. Emit project.removed.
+- `refreshGit` after create/init. `pathMissing` in the summary. `update({path})` relinks a moved folder, with the
+  same safety rules.
+- **Detector:**
+  - typecheck: `scripts.typecheck`, else `npx tsc --noEmit` when a tsconfig exists.
+  - e2e: `scripts.e2e` / `test:e2e` / playwright config.
+  - security: `npm audit --omit=dev --audit-level=high` for npm projects.
+  - package: dotnet publish, `npm run dist` or package, Unity build.
+  - artifactGlobs defaults per kind.
+  - Unity `engineVersion` from `ProjectSettings/ProjectVersion.txt`.
+- **CheckService:**
+  - Install dependencies first when the marker is missing (package.json without node_modules, *.csproj without obj/,
+    Python without .venv). An install failure → status error "Abhängigkeiten konnten nicht installiert werden".
+    Installs triggered by agents/system go through CommandPolicy (network rules); user-triggered installs do not.
+  - The runtime check starts run/dev for up to 30 s. It passes if the process is still alive after 10 s, or for web if
+    the loopback URL answers 2xx; then kill the tree.
+  - Record artifacts.
+  - Unity uses only the editor matching engineVersion (`integrations.resolvePath('unity',{version})`). If it is
+    missing → not_run "Unity <ver> ist nicht installiert …". If the project is open (Temp/UnityLockfile locked) →
+    error "Projekt ist in Unity geöffnet – bitte Unity schließen."
+  - Parsers rely on exit codes plus machine-readable output where possible (dotnet test with
+    `--logger "trx"`/English via env, Unity NUnit XML, vitest/jest/node --test summaries).
+- **Preview static server:**
+  - Answer 421 unless Host is exactly `127.0.0.1:<port>`, `localhost:<port>` or `[::1]:<port>`.
+  - Serve only below a random `/p/<32hex>/` prefix (included in PreviewStatus.url).
+  - Never serve dot-segments; do not follow links out of the root (PathGuard).
+  - GET and HEAD only, with `X-Content-Type-Options: nosniff`.
+  - Templates' `server.mjs` implement the Host check too.
+- Templates are copy-free and offline. Their README states the honest limits (German).
+
+### 6.9 env
+
+- **SecretStore Windows:** DPAPI via one PowerShell process per batch. Script and data go via stdin
+  (`-Command -`, single-line script, base64 payloads). Entropy = UTF-8 of "NOVA AI|" + id. Decrypted values are
+  cached in memory, and `loadAll()` runs at start. Any failure → SECRET_STORE "Der Windows-Schlüsselspeicher ist
+  nicht verfügbar. API-Schlüssel bitte erneut eingeben." Never fall back on Windows. The aes-local fallback (Linux/macOS
+  only) reports the warning error 'secret-store-insecure'.
+  UI sentence: "Schlüssel sind mit dem Windows-Konto verschlüsselt. Programme unter diesem Konto – auch von NOVA
+  ausgeführte Projektbefehle – können sie auslesen."
+- **Approvals:** reuse requires fingerprint + taskId. `consume` before execution. `decide` rejects 'always' for
+  APPROVAL_KINDS_ONCE_ONLY.
+- **Resources (Windows GPU via WMI classes, not localized):**
+  - `Win32_PerfFormattedData_GPUPerformanceCounters_GPUEngine` (sum UtilizationPercentage per luid over names
+    containing engtype_3D) and `…GPUAdapterMemory` (DedicatedUsage).
+  - VRAM total from `HKLM:\SYSTEM\CurrentControlSet\Control\Class\{4d36e968-e325-11ce-bfc1-08002be10318}\0???`
+    HardwareInformation.qwMemorySize.
+  - One PowerShell call every 10 s (not every sample).
+  - nvidia-smi first when present.
+- **Governor:**
+  - `allowed(activeRuns)`.
+  - `allowedFor(model)` → not ok when the model is not loaded (`ollama.running`) and VRAM usage > maxVramPercent.
+  - `canWrite(absPath)` → statfs of that path < minFreeDiskMb → not ok. On the data drive this also stops new runs.
+  - `canStartProcess` counts only command/test/build/install/terminal kinds.
+- **Integrations:**
+  - Modules with `register()`. Built-ins are listed in BUILTIN_INTEGRATIONS.
+  - All installations are reported (Unity versions from Hub/Editor/*, secondaryInstallPath.json, editors-v2.json /
+    editors.json; Unreal from LauncherInstalled.dat + `UE_*` + UE4Editor.exe; Godot from PATH, WinGet Links/Packages,
+    Steam, %LOCALAPPDATA%\Programs).
+  - `open()` (vscode `code -g file:line`, windows_terminal `wt.exe -d <root>`, unity `-projectPath` with the matching
+    version, godot `--editor --path`, unreal `<x>.uproject`) runs detached as a user action.
+  - winget command: `winget install --id <Id> -e --source winget --accept-package-agreements
+    --accept-source-agreements --disable-interactivity` (plus `--scope user` where supported). The approval
+    consequences say (German) that approving accepts the license terms and that a UAC prompt may need someone at the
+    PC.
+  - After an install: `refreshWindowsPath(true)` and refresh.
+- **Updates:** `start()` → daily check if enabled. The feed host must pass assertHostAllowed. Notify once per version
+  (meta `update_notified_version`). Never download or install.
+
+### 6.10 integrator / Electron (summary; details in UI-SPEC)
+
+- **DaemonStatus:** state 'error' when lastError is set or an open critical error exists. It carries
+  previousShutdown (meta `last_shutdown` written on a clean exit), secretStore and methods. It is re-emitted on every
+  work.status.
+- **crash.json:** written on fatal errors. CLI flags `--diagnostics-only` and `--restore-db <file>`.
+- **Electron main:**
+  - Stays resident in the tray while keepRunningWhenUiClosed, supervising the daemon and showing toasts.
+  - Spawns the daemon with `cwd: dataDir`, stdio to `logs/daemon-start.log`.
+  - Exit 3 → connect to the running daemon. If the version differs → shutdown, then spawn the new daemon.
+  - Handles `query-session-end` / `session-end` → `daemon.shutdown({reason:'os-shutdown'})`.
+  - CLI `--stop-daemon` is used by the NSIS customInit and customUnInit (the uninstaller also removes the autostart
+    entry).
+  - Fuses: RunAsNode on, NodeOptions off, inspect args off.
+  - openPath only for directories, plus `showInFolder`.
+  - No `dangerouslySetInnerHTML`.

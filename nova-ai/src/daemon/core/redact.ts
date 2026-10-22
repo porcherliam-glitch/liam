@@ -15,17 +15,28 @@ export function unregisterSecret(value: string | null | undefined): void {
 
 export const REDACTED = '[GEHEIM]';
 
-const PATTERNS: RegExp[] = [
-  /sk-ant-[A-Za-z0-9_-]{10,}/g, // Anthropic
-  /sk-(?:proj-|live-|test-)?[A-Za-z0-9_-]{20,}/g, // OpenAI style
-  /gh[pousr]_[A-Za-z0-9]{20,}/g, // GitHub tokens
-  /github_pat_[A-Za-z0-9_]{20,}/g,
-  /AKIA[0-9A-Z]{16}/g, // AWS access key id
-  /xox[abprs]-[A-Za-z0-9-]{10,}/g, // Slack
-  /AIza[0-9A-Za-z_-]{35}/g, // Google API key
-  /hf_[A-Za-z0-9]{30,}/g, // Hugging Face
-  /-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/g,
-  /(?<=\b(?:authorization|x-api-key|api[_-]?key|password|passwd|secret|token)["']?\s*[:=]\s*["']?(?:Bearer\s+)?)[^\s"',;]{6,}/gi,
+const PATTERNS: Array<{ re: RegExp; replace: string }> = [
+  { re: /sk-ant-[A-Za-z0-9_-]{10,}/g, replace: REDACTED }, // Anthropic
+  { re: /sk-(?:proj-|live-|test-)?[A-Za-z0-9_-]{20,}/g, replace: REDACTED }, // OpenAI style
+  { re: /\b(?:sk|rk)_(?:live|test)_[A-Za-z0-9]{16,}/g, replace: REDACTED }, // Stripe
+  { re: /gh[pousr]_[A-Za-z0-9]{20,}/g, replace: REDACTED }, // GitHub tokens
+  { re: /github_pat_[A-Za-z0-9_]{20,}/g, replace: REDACTED },
+  { re: /glpat-[A-Za-z0-9_-]{20,}/g, replace: REDACTED }, // GitLab
+  { re: /\bnpm_[A-Za-z0-9]{36}\b/g, replace: REDACTED }, // npm
+  { re: /\bgsk_[A-Za-z0-9]{20,}/g, replace: REDACTED }, // Groq
+  { re: /\bxai-[A-Za-z0-9]{20,}/g, replace: REDACTED }, // xAI
+  { re: /AKIA[0-9A-Z]{16}/g, replace: REDACTED }, // AWS access key id
+  { re: /xox[abprs]-[A-Za-z0-9-]{10,}/g, replace: REDACTED }, // Slack
+  { re: /AIza[0-9A-Za-z_-]{35}/g, replace: REDACTED }, // Google API key
+  { re: /hf_[A-Za-z0-9]{30,}/g, replace: REDACTED }, // Hugging Face
+  { re: /eyJ[\w-]{10,}\.eyJ[\w-]{10,}\.[\w-]{10,}/g, replace: REDACTED }, // JWT
+  { re: /-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/g, replace: REDACTED },
+  { re: /(:\/\/[^/\s:@]+:)[^@\s/]+(?=@)/g, replace: `$1${REDACTED}` }, // URL userinfo password
+  // KEY=value / "key": "value" / Authorization: Bearer x – also DB_PASSWORD=, STRIPE_SECRET=, MY_API_KEY=, AUTH_TOKEN=
+  {
+    re: /((?:[A-Za-z0-9]+[_-])*(?:api[_-]?key|apikey|access[_-]?key|secret(?:[_-]?key)?|token|password|passwd|pwd|credentials?|auth(?:orization)?)(?:[_-][A-Za-z0-9]+)*["']?\s*[:=]\s*["']?)(?:(?:Bearer|Basic)\s+)?[^\s"',;]{6,}/gi,
+    replace: `$1${REDACTED}`,
+  },
 ];
 
 export function redactString(input: string): string {
@@ -33,11 +44,23 @@ export function redactString(input: string): string {
   for (const secret of registered) {
     if (out.includes(secret)) out = out.split(secret).join(REDACTED);
   }
-  for (const re of PATTERNS) {
+  for (const { re, replace } of PATTERNS) {
     re.lastIndex = 0;
-    out = out.replace(re, REDACTED);
+    out = out.replace(re, replace);
   }
   return out;
+}
+
+/** Masks values in .env-style / key=value text line by line (used for sensitive files shown to models). */
+export function maskSecretFile(content: string): string {
+  return content
+    .split(/\r?\n/)
+    .map((line) => {
+      const m = /^(\s*(?:export\s+)?[A-Za-z0-9_.-]+\s*[=:]\s*)(.*)$/.exec(line);
+      if (m && m[2].trim() !== '') return `${m[1]}${REDACTED}`;
+      return redactString(line);
+    })
+    .join('\n');
 }
 
 /** True when the text contains something that looks like a credential. */
@@ -45,7 +68,7 @@ export function containsSecret(input: string): boolean {
   return redactString(input) !== input;
 }
 
-const SECRET_KEYS = /^(api[_-]?key|apikey|authorization|password|passwd|secret|token|access[_-]?token|refresh[_-]?token|private[_-]?key)$/i;
+const SECRET_KEYS = /(api[_-]?key|apikey|authorization|passw(or)?d|secret|private[_-]?key|access[_-]?token|refresh[_-]?token|auth[_-]?token|cookie|token$)/i;
 
 /** Deep redaction of arbitrary JSON-like data. Keys that look like secrets are blanked completely. */
 export function redact<T>(value: T, depth = 0): T {

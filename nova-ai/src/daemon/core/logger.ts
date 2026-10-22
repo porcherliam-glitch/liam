@@ -87,8 +87,18 @@ export class LogStore {
 
   private append(entry: LogEntry): void {
     const file = this.fileName(0);
+    let size = 0;
     try {
-      if (existsSync(file) && statSync(file).size > this.opts.maxFileBytes) this.rotate();
+      size = existsSync(file) ? statSync(file).size : 0;
+      if (size > this.opts.maxFileBytes) {
+        this.rotate();
+        size = 0;
+      }
+    } catch {
+      /* rotation failed (file held by another program): keep appending, retry on the next write */
+    }
+    if (size > this.opts.maxFileBytes * 2) return; // hard cap while rotation keeps failing
+    try {
       appendFileSync(file, safeJson(entry) + '\n');
     } catch {
       /* disk full or locked: keep in-memory ring only */

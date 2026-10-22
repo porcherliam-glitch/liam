@@ -10,7 +10,10 @@ import { z } from 'zod';
 export const ProjectKind = z.enum(['web', 'unity', 'desktop', 'backend', 'godot', 'unreal', 'generic']);
 export type ProjectKind = z.infer<typeof ProjectKind>;
 
-export const ProjectStatus = z.enum(['active', 'paused', 'archived']);
+export const ProjectStatus = z.enum(['active', 'archived']);
+
+export const WorkCycleState = z.enum(['running', 'paused', 'stopped']);
+export type WorkCycleState = z.infer<typeof WorkCycleState>;
 export type ProjectStatus = z.infer<typeof ProjectStatus>;
 
 /** Commands NOVA uses for a project. null = not available / unknown. */
@@ -20,6 +23,12 @@ export const ProjectCommandsSchema = z.object({
   build: z.string().nullable(),
   test: z.string().nullable(),
   lint: z.string().nullable(),
+  typecheck: z.string().nullable(),
+  e2e: z.string().nullable(),
+  /** e.g. "npm audit --omit=dev --audit-level=high" */
+  security: z.string().nullable(),
+  /** Produces distributable builds/installers, e.g. "dotnet publish -c Release -o dist", "npm run dist". */
+  package: z.string().nullable(),
   run: z.string().nullable(),
 });
 export type ProjectCommands = z.infer<typeof ProjectCommandsSchema>;
@@ -48,8 +57,19 @@ export const ProjectConfigSchema = z.object({
   monthlyBudgetUsd: z.number().nonnegative().nullable(),
   /** Free-form notes / conventions given to the agents. */
   conventions: z.string(),
+  /** Globs (project-relative) of build artifacts recorded after package/build checks, e.g. "dist/**". */
+  artifactGlobs: z.array(z.string()),
+  /** Engine version the project requires (Unity m_EditorVersion, Godot/Unreal version) – null if not applicable. */
+  engineVersion: z.string().nullable(),
 });
 export type ProjectConfig = z.infer<typeof ProjectConfigSchema>;
+
+/** Partial update of a ProjectConfig: every field optional, nested commands/preview partial too (deep merge). */
+export const ProjectConfigPatchSchema = ProjectConfigSchema.extend({
+  commands: ProjectCommandsSchema.partial(),
+  preview: ProjectConfigSchema.shape.preview.partial(),
+}).partial();
+export type ProjectConfigPatch = z.infer<typeof ProjectConfigPatchSchema>;
 
 export const ProjectSchema = z.object({
   id: z.string(),
@@ -61,8 +81,12 @@ export const ProjectSchema = z.object({
   status: ProjectStatus,
   templateId: z.string().nullable(),
   config: ProjectConfigSchema,
-  /** Autonomous work cycle enabled for this project. */
-  workEnabled: z.boolean(),
+  /**
+   * Autonomous work for this project: running = the scheduler starts queued tasks; paused = runs of this project
+   * pause at the next step; stopped = nothing starts automatically (single tasks can still be started by the user).
+   */
+  workState: WorkCycleState,
+  /** git executable found AND the folder is a git repository. */
   gitAvailable: z.boolean(),
   createdAt: z.number(),
   updatedAt: z.number(),
@@ -70,39 +94,62 @@ export const ProjectSchema = z.object({
 export type Project = z.infer<typeof ProjectSchema>;
 
 export const ProjectSummarySchema = ProjectSchema.extend({
-  progress: z.number().min(0).max(100), // done tasks / all non-cancelled tasks
+  progress: z.number().min(0).max(100), // done tasks / all non-cancelled tasks × 100 (0 when no tasks)
+  /** queued + running + paused + waiting_approval + blocked + interrupted */
   openTasks: z.number(),
   runningTasks: z.number(),
   failedTasks: z.number(),
   blockedTasks: z.number(),
+  pausedTasks: z.number(),
+  waitingApprovalTasks: z.number(),
+  /** Count per TaskStatus (all statuses present, 0 if none). */
+  taskCounts: z.record(z.string(), z.number()),
+  pendingApprovals: z.number(),
   openErrors: z.number(),
   lastBuild: z.lazy(() => CheckRunSchema).nullable(),
+  lastSuccessfulBuild: z.lazy(() => CheckRunSchema).nullable(),
   lastTest: z.lazy(() => CheckRunSchema).nullable(),
   lastActivityAt: z.number().nullable(),
+  /** The project folder no longer exists (moved/deleted) – projects.update({path}) relinks it. */
+  pathMissing: z.boolean(),
 });
 export type ProjectSummary = z.infer<typeof ProjectSummarySchema>;
 
 export const CreateProjectMode = z.enum(['description', 'wizard', 'template', 'open', 'import']);
 export type CreateProjectMode = z.infer<typeof CreateProjectMode>;
 
-export const CreateProjectInputSchema = z.object({
-  mode: CreateProjectMode,
-  name: z.string().min(1).max(120),
-  description: z.string().max(20000).default(''),
-  /** Target directory. For 'open' an existing folder; otherwise parent dir + name is used when omitted. */
-  path: z.string().nullable().default(null),
-  templateId: z.string().nullable().default(null),
-  kind: ProjectKind.nullable().default(null),
-  technologies: z.array(z.string()).default([]),
-  /** For 'import': git URL to clone. */
-  repoUrl: z.string().nullable().default(null),
-  /** Wizard answers (free-form key/value), stored in project memory as requirements. */
-  answers: z.record(z.string(), z.string()).default({}),
-  /** Create a planning task right away from the description. */
-  planNow: z.boolean().default(true),
-  initGit: z.boolean().default(true),
-});
+export const CreateProjectInputSchema = z
+  .object({
+    mode: CreateProjectMode,
+    name: z.string().min(1).max(120),
+    description: z.string().max(20000).default(''),
+    /**
+     * EXACT target directory (for 'open': the existing project folder; for 'import': the clone target).
+     * null → <projectsDir>/<safe name>.
+     */
+    path: z.string().nullable().default(null),
+    templateId: z.string().nullable().default(null),
+    kind: ProjectKind.nullable().default(null),
+    technologies: z.array(z.string()).default([]),
+    /** For 'import': git URL to clone (https://, ssh:// or git@host:path). */
+    repoUrl: z
+      .string()
+      .regex(/^(https:\/\/|ssh:\/\/|git@[A-Za-z0-9.-]+:)/, 'Nur https://-, ssh://- oder git@-Adressen sind erlaubt.')
+      .nullable()
+      .default(null),
+    /** Wizard answers (free-form key/value), stored in project memory as requirements. */
+    answers: z.record(z.string(), z.string()).default({}),
+    /** Create a planning task right away from the description. */
+    planNow: z.boolean().default(true),
+    /** Ignored for 'open' and 'import' (existing folders are never modified on creation). */
+    initGit: z.boolean().default(true),
+  })
+  .superRefine((v, ctx) => {
+    if (v.mode === 'import' && !v.repoUrl) ctx.addIssue({ code: 'custom', path: ['repoUrl'], message: 'Für den Import wird eine Git-Adresse benötigt.' });
+    if (v.mode === 'open' && !v.path) ctx.addIssue({ code: 'custom', path: ['path'], message: 'Bitte einen vorhandenen Projektordner auswählen.' });
+  });
 export type CreateProjectInput = z.input<typeof CreateProjectInputSchema>;
+export type CreateProjectParams = z.output<typeof CreateProjectInputSchema>;
 
 export const ProjectTemplateInfoSchema = z.object({
   id: z.string(),
@@ -143,8 +190,16 @@ export type TaskStatus = z.infer<typeof TaskStatus>;
 export const TaskPriority = z.number().int().min(0).max(3); // 0 low, 1 normal, 2 high, 3 critical
 export type TaskPriority = z.infer<typeof TaskPriority>;
 
-export const CheckStatus = z.enum(['passed', 'failed', 'error', 'not_run', 'running', 'skipped']);
+export const CheckStatus = z.enum(['passed', 'failed', 'error', 'not_run', 'running', 'skipped', 'cancelled']);
 export type CheckStatus = z.infer<typeof CheckStatus>;
+
+export const ReviewFindingSchema = z.object({
+  severity: z.enum(['critical', 'major', 'minor', 'info']),
+  file: z.string().nullable().default(null),
+  line: z.number().int().nullable().default(null),
+  message: z.string(),
+});
+export type ReviewFinding = z.infer<typeof ReviewFindingSchema>;
 
 export const VerificationSchema = z.object({
   /**
@@ -156,10 +211,12 @@ export const VerificationSchema = z.object({
   status: z.enum(['passed', 'failed', 'not_run', 'unavailable']),
   checks: z.array(
     z.object({
-      name: z.string(), // e.g. "Tests", "Build", "Review"
+      name: z.string(), // e.g. "Tests", "Build", "Review", "Integration: Tests"
       status: CheckStatus,
       details: z.string().nullable(),
       checkRunId: z.string().nullable(),
+      /** Reviewer findings (shown as editor markers). */
+      findings: z.array(ReviewFindingSchema).default([]),
     }),
   ),
 });
@@ -180,14 +237,24 @@ export const TaskSchema = z.object({
   maxAttempts: z.number().int(),
   /** Human readable reason why the task is blocked/failed/waiting (German). */
   blocker: z.string().nullable(),
+  /**
+   * Machine-readable reason (ErrorCode). Resumable codes (NO_MODEL, MODEL_UNAVAILABLE, OLLAMA_UNREACHABLE,
+   * VRAM_INSUFFICIENT, BUDGET_EXCEEDED, PAID_NOT_APPROVED, PRICE_UNKNOWN, RESOURCE_LIMIT, TOOL_MISSING, NEEDS_INPUT,
+   * DEPENDENCY_FAILED) are re-checked and auto-resumed by the work cycle.
+   */
+  blockerCode: z.string().nullable(),
   /** Final summary written by the agent (German). */
   result: z.string().nullable(),
   /** Acceptance criteria from the planner or the user. */
   acceptance: z.string().nullable(),
   verification: VerificationSchema,
-  /** Files changed by NOVA for this task (project-relative, forward slashes). */
+  /** Files changed by NOVA for this task (project-relative, forward slashes). Written ONLY via tasks.addFiles by tools. */
   files: z.array(z.string()),
-  /** "providerId/modelId" of the last model used. */
+  /** Files the planner expects this task to touch (used to avoid parallel conflicts; never committed). */
+  plannedFiles: z.array(z.string()),
+  /** The user explicitly started this task – it runs even if the project's work state is not running. */
+  startRequested: z.boolean(),
+  /** "providerId/modelId" of the last model used (split at the FIRST '/'; provider ids never contain '/'). */
   model: z.string().nullable(),
   source: z.enum(['user', 'planner', 'system']),
   createdAt: z.number(),
@@ -207,9 +274,12 @@ export const CreateTaskInputSchema = z.object({
   dependsOn: z.array(z.string()).default([]),
   acceptance: z.string().nullable().default(null),
   parentId: z.string().nullable().default(null),
-  maxAttempts: z.number().int().min(1).max(10).default(3),
+  /** Omitted → settings.agents.maxAttempts. */
+  maxAttempts: z.number().int().min(1).max(10).optional(),
+  plannedFiles: z.array(z.string()).default([]),
 });
 export type CreateTaskInput = z.input<typeof CreateTaskInputSchema>;
+export type CreateTaskParams = z.output<typeof CreateTaskInputSchema>;
 
 export const UpdateTaskInputSchema = z.object({
   id: z.string(),
@@ -224,6 +294,7 @@ export const UpdateTaskInputSchema = z.object({
 export type UpdateTaskInput = z.infer<typeof UpdateTaskInputSchema>;
 
 export const AgentRunStatus = z.enum(['running', 'paused', 'waiting_approval', 'done', 'failed', 'cancelled', 'interrupted', 'blocked']);
+/** Active = status 'running' only. */
 export type AgentRunStatus = z.infer<typeof AgentRunStatus>;
 
 export const AgentRunSchema = z.object({
@@ -242,11 +313,32 @@ export const AgentRunSchema = z.object({
   files: z.array(z.string()),
   pendingApprovalId: z.string().nullable(),
   error: z.string().nullable(),
+  /** ErrorCode of error/blocker (e.g. NO_MODEL, AGENT_STEP_LIMIT). */
+  errorCode: z.string().nullable(),
+  /** Time actually spent running (excluding paused/waiting). */
+  activeMs: z.number().int(),
   startedAt: z.number(),
   updatedAt: z.number(),
   endedAt: z.number().nullable(),
 });
 export type AgentRun = z.infer<typeof AgentRunSchema>;
+
+export const TaskNoteSchema = z.object({
+  id: z.string(),
+  taskId: z.string(),
+  projectId: z.string(),
+  author: z.enum(['user', 'agent', 'system']),
+  /** note = hint from the user to the agent; question = agent asks (ask_user); answer = user answers a question. */
+  kind: z.enum(['note', 'question', 'answer']),
+  text: z.string(),
+  /** For questions: suggested options and the assumption the agent would make. */
+  options: z.array(z.string()),
+  assumption: z.string().nullable(),
+  createdAt: z.number(),
+  /** Run that received this note (null = not yet delivered to an agent). */
+  consumedRunId: z.string().nullable(),
+});
+export type TaskNote = z.infer<typeof TaskNoteSchema>;
 
 export const AgentStepKind = z.enum(['status', 'thought', 'model_call', 'tool_call', 'tool_result', 'message', 'error', 'approval']);
 export type AgentStepKind = z.infer<typeof AgentStepKind>;
@@ -272,8 +364,6 @@ export const AgentRoleInfoSchema = z.object({
 });
 export type AgentRoleInfo = z.infer<typeof AgentRoleInfoSchema>;
 
-export const WorkCycleState = z.enum(['running', 'paused', 'stopped']);
-export type WorkCycleState = z.infer<typeof WorkCycleState>;
 
 export const WorkStatusSchema = z.object({
   state: WorkCycleState,
@@ -288,10 +378,15 @@ export const WorkStatusSchema = z.object({
   projects: z.array(
     z.object({
       projectId: z.string(),
-      workEnabled: z.boolean(),
+      state: WorkCycleState,
       activeRuns: z.number().int(),
       queuedTasks: z.number().int(),
+      waitingApproval: z.number().int(),
+      blocked: z.number().int(),
+      paused: z.number().int(),
       idleReason: z.string().nullable(),
+      /** Clearly justified next step when idle (latest next_step memory entry or "Neues Ziel planen"). Never auto-created. */
+      suggestion: z.string().nullable(),
     }),
   ),
 });
@@ -302,18 +397,20 @@ export type WorkStatus = z.infer<typeof WorkStatusSchema>;
 // ---------------------------------------------------------------------------
 
 export const ApprovalKind = z.enum([
-  'command', // command not on the allowlist
+  'command', // command not on the allowlist (or with shell metacharacters)
   'admin', // needs administrator rights
-  'delete', // destructive delete
-  'outside_project', // access outside the project folder
+  'delete', // destructive delete / discarding changes
+  'outside_project', // a command writes to a path outside the project folder (agent file tools never can)
   'system_change', // system-wide change (PATH, registry, global installs ...)
-  'security_config', // changes to security relevant configuration
-  'publish', // publish/transfer data (git push, upload ...)
-  'sensitive_data', // send sensitive data to a cloud provider
-  'paid_model', // use a paid model / exceed budget
-  'install', // install a tool
-  'network', // network access to a non-allowed host
+  'security_config', // security relevant configuration (git config --global, icacls, sensitive files like .env)
+  'publish', // publish/transfer data (git push, npm publish, upload ...)
+  'sensitive_data', // send project data to a non-local (cloud) model provider
+  'paid_model', // continue paid usage after a budget stop ("budget:resume")
+  'install', // install a tool (winget ...)
+  'network', // network access to a host that is not allowed
 ]);
+/** Kinds for which "Immer erlauben" is not offered (each action needs its own decision). */
+export const APPROVAL_KINDS_ONCE_ONLY: ApprovalKind[] = ['admin', 'system_change', 'security_config', 'publish', 'paid_model', 'delete'];
 export type ApprovalKind = z.infer<typeof ApprovalKind>;
 
 export const ApprovalStatus = z.enum(['pending', 'approved', 'denied', 'expired']);
@@ -377,15 +474,25 @@ export const ProviderConfigSchema = z.object({
 });
 export type ProviderConfig = z.infer<typeof ProviderConfigSchema>;
 
+/**
+ * Create (no id / unknown id): enabled=true, paid = type!=='ollama' && !isLocalEndpoint(baseUrl),
+ * approved = type==='ollama', options={}. Update (existing id): omitted fields keep their stored values;
+ * changing `type` → VALIDATION; type 'ollama' rows always have paid=false, approved=true.
+ * Options must not contain secrets (keys matching the redaction key pattern are rejected); use providers.setApiKey.
+ * Supported option keys: authHeader (header name for the API key, e.g. "api-key"), maxConcurrent, maxRequestsPerMinute, organization.
+ */
 export const UpsertProviderInputSchema = z.object({
-  id: z.string().optional(),
+  id: z
+    .string()
+    .regex(/^[a-z0-9][a-z0-9-]*$/, 'Kennung: nur Kleinbuchstaben, Ziffern und Bindestriche.')
+    .optional(),
   type: ProviderType,
   name: z.string().min(1),
   baseUrl: z.string().url(),
-  enabled: z.boolean().default(true),
-  paid: z.boolean().default(true),
-  approved: z.boolean().default(false),
-  options: z.record(z.string(), z.string()).default({}),
+  enabled: z.boolean().optional(),
+  paid: z.boolean().optional(),
+  approved: z.boolean().optional(),
+  options: z.record(z.string(), z.string()).optional(),
 });
 export type UpsertProviderInput = z.input<typeof UpsertProviderInputSchema>;
 
@@ -414,6 +521,7 @@ export const ModelInfoSchema = z.object({
   providerId: z.string(),
   id: z.string(), // provider model id, e.g. "qwen2.5-coder:7b"
   displayName: z.string(),
+  /** Provider endpoint is local (Ollama on loopback or any loopback URL). Non-local = cloud (needs data approval). */
   local: z.boolean(),
   paid: z.boolean(),
   sizeBytes: z.number().nullable(), // on-disk size (Ollama)
@@ -504,13 +612,32 @@ export const BudgetStatusSchema = z.object({
       projectId: z.string(),
       limitUsd: z.number().nullable(),
       spentMonthUsd: z.number(),
+      remainingUsd: z.number().nullable(),
+      /** A project limit pauses paid work of that project only. */
+      paidPaused: z.boolean(),
+      containsEstimates: z.boolean(),
     }),
   ),
+  /** Sum of open reservations (paid calls in flight). */
+  reservedUsd: z.number(),
   tokensToday: z.object({ input: z.number(), output: z.number() }),
   tokensMonth: z.object({ input: z.number(), output: z.number() }),
   localRuntimeMsToday: z.number(),
   cloudRuntimeMsToday: z.number(),
+  localRuntimeMsMonth: z.number(),
+  cloudRuntimeMsMonth: z.number(),
 });
+
+export const BudgetBreakdownRowSchema = z.object({
+  key: z.string(), // provider id, "providerId/modelId", project id or "YYYY-MM-DD"
+  calls: z.number().int(),
+  inputTokens: z.number().int(),
+  outputTokens: z.number().int(),
+  durationMs: z.number().int(),
+  costUsd: z.number(),
+  costEstimated: z.boolean(),
+});
+export type BudgetBreakdownRow = z.infer<typeof BudgetBreakdownRowSchema>;
 export type BudgetStatus = z.infer<typeof BudgetStatusSchema>;
 
 // ---------------------------------------------------------------------------
@@ -642,6 +769,10 @@ export const ChangeRecordSchema = z.object({
   beforeHash: z.string().nullable(), // null for create
   afterHash: z.string().nullable(), // null for delete
   actor: z.enum(['nova', 'user']),
+  /** tool = agent file tool; command = detected after an agent command; user = editor; restore = written by a restore. */
+  source: z.enum(['tool', 'command', 'user', 'restore']),
+  /** false when no "before" snapshot exists (e.g. a command modified an untracked file) – restore skips it with a note. */
+  revertible: z.boolean(),
   ts: z.number(),
   reverted: z.boolean(),
 });
@@ -701,6 +832,8 @@ export const CheckpointSchema = z.object({
   gitCommit: z.string().nullable(), // commit NOVA created for this checkpoint (post_task)
   /** Highest change-journal id at the time of the checkpoint. Restoring undoes all later NOVA changes. */
   changeCursor: z.number().int(),
+  /** Known-good marker: post_task = task verification; manual = latest checks if newer than the last change. */
+  verification: z.enum(['passed', 'failed', 'unavailable', 'not_run']).nullable(),
   createdAt: z.number(),
   restoredAt: z.number().nullable(),
 });
@@ -748,7 +881,8 @@ export const TerminalSessionSchema = z.object({
 });
 export type TerminalSession = z.infer<typeof TerminalSessionSchema>;
 
-export const CheckKind = z.enum(['test', 'build', 'lint', 'typecheck', 'runtime']);
+/** runtime = start run/dev command briefly and check it stays alive / answers (no own command). */
+export const CheckKind = z.enum(['test', 'build', 'lint', 'typecheck', 'e2e', 'security', 'runtime', 'package']);
 export type CheckKind = z.infer<typeof CheckKind>;
 
 export const CheckFailureSchema = z.object({
@@ -774,6 +908,11 @@ export const CheckRunSchema = z.object({
   failures: z.array(CheckFailureSchema),
   /** Short stable signature of the failure (used to detect identical repeated failures). */
   failureSignature: z.string().nullable(),
+  /** German explanation for not_run/error/skipped (e.g. "Kein Testbefehl eingerichtet"). */
+  message: z.string().nullable(),
+  processId: z.string().nullable(),
+  /** Files matching project.config.artifactGlobs modified during this run (package/build). */
+  artifacts: z.array(z.object({ path: z.string(), sizeBytes: z.number() })),
   startedAt: z.number(),
   finishedAt: z.number().nullable(),
 });
@@ -794,7 +933,8 @@ export type PreviewStatus = z.infer<typeof PreviewStatusSchema>;
 // Integrations / tools
 // ---------------------------------------------------------------------------
 
-export const IntegrationId = z.enum([
+/** Integration ids are open (modules can register more); these are built in. */
+export const BUILTIN_INTEGRATIONS = [
   'git',
   'node',
   'npm',
@@ -809,8 +949,9 @@ export const IntegrationId = z.enum([
   'vscode',
   'playwright',
   'winget',
-]);
-export type IntegrationId = z.infer<typeof IntegrationId>;
+] as const;
+export const IntegrationId = z.string().min(1).max(64);
+export type IntegrationId = string;
 
 export const IntegrationStatusSchema = z.object({
   id: IntegrationId,
@@ -820,6 +961,10 @@ export const IntegrationStatusSchema = z.object({
   version: z.string().nullable(),
   path: z.string().nullable(), // resolved executable path
   manualPath: z.string().nullable(), // user override
+  /** All installations found (e.g. several Unity editor versions), newest first. */
+  installations: z.array(z.object({ version: z.string(), path: z.string() })),
+  /** integrations.open supported (editor/terminal/engine). */
+  canOpen: z.boolean(),
   message: z.string(), // German diagnosis
   installHint: z
     .object({
@@ -849,8 +994,26 @@ export const DaemonStatusSchema = z.object({
   lastError: z.string().nullable(),
   recovered: z.object({ tasks: z.number().int(), orphanProcesses: z.number().int() }),
   platform: z.string(),
+  previousShutdown: z.object({ at: z.number(), clean: z.boolean(), reason: z.string() }).nullable(),
+  /** The UI warns when secure=false (fallback store). */
+  secretStore: z.object({ scheme: z.string(), secure: z.boolean() }),
+  /** Registered RPC methods (features not listed are not available in this version). */
+  methods: z.array(z.string()),
 });
 export type DaemonStatus = z.infer<typeof DaemonStatusSchema>;
+
+/** Written to <dataDir>/crash.json on fatal daemon errors; read by Electron main when the daemon exits early. */
+export const DaemonCrashReportSchema = z.object({
+  ts: z.number(),
+  version: z.string(),
+  phase: z.enum(['startup', 'instance_lock', 'database_open', 'migration', 'runtime']),
+  code: z.string(),
+  message: z.string(), // German
+  details: z.string().nullable(), // redacted
+  logFile: z.string().nullable(),
+  suggestedActions: z.array(z.enum(['restore_backup', 'open_logs', 'create_diagnostics', 'retry'])),
+});
+export type DaemonCrashReport = z.infer<typeof DaemonCrashReportSchema>;
 
 export const LogLevel = z.enum(['debug', 'info', 'warn', 'error']);
 export type LogLevel = z.infer<typeof LogLevel>;
@@ -887,10 +1050,45 @@ export const NotificationSchema = z.object({
   projectId: z.string().nullable(),
   taskId: z.string().nullable(),
   ts: z.number(),
+  readAt: z.number().nullable(),
 });
 export type Notification = z.infer<typeof NotificationSchema>;
 
+export const OperationKind = z.enum([
+  'check',
+  'project_create',
+  'clone',
+  'backup',
+  'backup_restore',
+  'project_snapshot',
+  'export',
+  'import',
+  'memory_export',
+  'memory_import',
+  'restore',
+  'install',
+  'diagnostics',
+]);
+export type OperationKind = z.infer<typeof OperationKind>;
+
+/** A long-running daemon operation with progress and cancel (shown in "Laufende Vorgänge"). */
+export const OperationSchema = z.object({
+  id: z.string(),
+  kind: OperationKind,
+  projectId: z.string().nullable(),
+  title: z.string(), // German
+  status: z.enum(['running', 'done', 'failed', 'cancelled']),
+  progress: z.number().min(0).max(100).nullable(), // null = indeterminate
+  message: z.string().nullable(),
+  cancellable: z.boolean(),
+  error: z.string().nullable(),
+  startedAt: z.number(),
+  endedAt: z.number().nullable(),
+});
+export type Operation = z.infer<typeof OperationSchema>;
+
 export const UpdateInfoSchema = z.object({
+  /** When an update is available the UI offers "Daten jetzt sichern" (backup.create) before the manual install. */
   currentVersion: z.string(),
   latestVersion: z.string().nullable(),
   updateAvailable: z.boolean(),

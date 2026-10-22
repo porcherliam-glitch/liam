@@ -10,6 +10,7 @@ import { SettingsService } from './settings';
 import { ErrorService } from './error-service';
 import { dataPaths } from './paths';
 import { systemClock, type Clock } from './time';
+import { OperationService } from './operations';
 
 export const NOVA_VERSION: string = typeof __NOVA_VERSION__ !== 'undefined' ? __NOVA_VERSION__ : '0.0.0-dev';
 
@@ -33,6 +34,10 @@ export function createCore(opts: CreateCoreOptions): { core: CoreContext; migrat
   const migration = migrate(db, (from) => opts.beforeMigrate?.(db, from));
   const bus = new EventBus();
   const logs = new LogStore({ dir: opts.logToFiles === false ? null : paths.logs, level: 'info', maxFileBytes: 5 * 1024 * 1024, maxFiles: 5, echo: opts.echoLogs });
+  // Forward only warn/error entries to clients (debug/info would flood the event channel).
+  logs.onEntry((e) => {
+    if (e.level === 'warn' || e.level === 'error') bus.emit('log', { level: e.level, scope: e.scope, msg: e.msg, ts: e.ts });
+  });
   const settings = new SettingsService(db, bus);
   const diag = settings.section('diagnostics');
   logs.configure({ level: diag.logLevel, maxFileBytes: diag.maxLogFileMb * 1024 * 1024, maxFiles: diag.maxLogFiles });
@@ -48,6 +53,7 @@ export function createCore(opts: CreateCoreOptions): { core: CoreContext; migrat
     log: createLogger(logs, 'daemon'),
     settings,
     errors: new ErrorService(db, bus),
+    operations: new OperationService(bus),
     paths,
     clock: opts.clock ?? systemClock,
     instanceId: 'inst_' + randomBytes(6).toString('hex'),

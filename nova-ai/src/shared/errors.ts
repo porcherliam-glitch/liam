@@ -24,6 +24,16 @@ export const NovaErrorInfoSchema = z.object({
   autoFixable: z.boolean(), // NOVA can repair/retry on its own
   userAction: z.string().nullable(), // what the user needs to do, null if nothing
   details: z.string().nullable(), // technical details (already redacted)
+  /** Links for "jump to" actions in the UI. */
+  related: z
+    .object({
+      checkRunId: z.string().nullable(),
+      runId: z.string().nullable(),
+      approvalId: z.string().nullable(),
+      file: z.string().nullable(),
+      line: z.number().int().nullable(),
+    })
+    .nullable(),
   createdAt: z.number(),
   resolvedAt: z.number().nullable(),
 });
@@ -66,7 +76,31 @@ export const ErrorCodes = {
   DAEMON_UNAVAILABLE: 'DAEMON_UNAVAILABLE',
   INTERRUPTED: 'INTERRUPTED',
   CANCELLED: 'CANCELLED',
+  NEEDS_INPUT: 'NEEDS_INPUT',
+  NETWORK_BLOCKED: 'NETWORK_BLOCKED',
+  SECRET_IN_CODE: 'SECRET_IN_CODE',
+  FILE_IN_USE: 'FILE_IN_USE',
+  DEPENDENCY_FAILED: 'DEPENDENCY_FAILED',
+  AGENT_BLOCKED: 'AGENT_BLOCKED',
+  DISK_FULL: 'DISK_FULL',
 } as const;
+
+/** Blocker codes the work cycle re-checks and resumes automatically when the condition is gone. */
+export const RESUMABLE_BLOCKER_CODES: string[] = [
+  'NO_MODEL',
+  'MODEL_UNAVAILABLE',
+  'OLLAMA_UNREACHABLE',
+  'VRAM_INSUFFICIENT',
+  'BUDGET_EXCEEDED',
+  'PAID_NOT_APPROVED',
+  'PRICE_UNKNOWN',
+  'RESOURCE_LIMIT',
+  'DISK_FULL',
+  'TOOL_MISSING',
+  'NEEDS_INPUT',
+  'DEPENDENCY_FAILED',
+  'APPROVAL_REQUIRED',
+];
 export type ErrorCode = (typeof ErrorCodes)[keyof typeof ErrorCodes];
 
 /** Wire format of a failed RPC call. */

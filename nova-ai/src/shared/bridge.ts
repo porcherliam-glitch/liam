@@ -47,11 +47,13 @@ export interface NovaBridge {
   };
   app: {
     version(): Promise<string>;
-    platform: NodeJS.Platform | string;
+    platform: string;
     /** Opens http(s) URLs in the default browser. Returns false if the URL was rejected. */
     openExternal(url: string): Promise<boolean>;
-    /** Opens a folder/file with the OS (Explorer). Only absolute paths. */
+    /** Opens an existing FOLDER in Explorer (files are never executed). */
     openPath(path: string): Promise<boolean>;
+    /** Shows a file or folder selected in Explorer ("Im Explorer zeigen"). */
+    showInFolder(path: string): Promise<boolean>;
     selectDirectory(options?: { title?: string; defaultPath?: string }): Promise<string | null>;
     selectFile(options?: { title?: string; defaultPath?: string; filters?: FileDialogFilter[] }): Promise<string | null>;
     saveFile(options?: { title?: string; defaultPath?: string; filters?: FileDialogFilter[] }): Promise<string | null>;
@@ -81,6 +83,7 @@ export const IPC = {
   appVersion: 'nova:app-version',
   openExternal: 'nova:open-external',
   openPath: 'nova:open-path',
+  showInFolder: 'nova:show-in-folder',
   selectDirectory: 'nova:select-directory',
   selectFile: 'nova:select-file',
   saveFile: 'nova:save-file',

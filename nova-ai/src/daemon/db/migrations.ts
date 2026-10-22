@@ -36,7 +36,7 @@ export const MIGRATIONS: Migration[] = [
           status TEXT NOT NULL DEFAULT 'active',
           template_id TEXT,
           config TEXT NOT NULL,
-          work_enabled INTEGER NOT NULL DEFAULT 0,
+          work_state TEXT NOT NULL DEFAULT 'stopped',   -- running | paused | stopped
           git_available INTEGER NOT NULL DEFAULT 0,
           created_at INTEGER NOT NULL,
           updated_at INTEGER NOT NULL
@@ -56,10 +56,13 @@ export const MIGRATIONS: Migration[] = [
           attempts INTEGER NOT NULL DEFAULT 0,
           max_attempts INTEGER NOT NULL DEFAULT 3,
           blocker TEXT,
+          blocker_code TEXT,
           result TEXT,
           acceptance TEXT,
           verification TEXT NOT NULL DEFAULT '{"status":"not_run","checks":[]}',
           files TEXT NOT NULL DEFAULT '[]',
+          planned_files TEXT NOT NULL DEFAULT '[]',
+          start_requested INTEGER NOT NULL DEFAULT 0,
           model TEXT,
           source TEXT NOT NULL DEFAULT 'user',
           failure_signatures TEXT NOT NULL DEFAULT '[]', -- recent failure signatures (repeat detection)
@@ -87,6 +90,8 @@ export const MIGRATIONS: Migration[] = [
           files TEXT NOT NULL DEFAULT '[]',
           pending_approval_id TEXT,
           error TEXT,
+          error_code TEXT,
+          active_ms INTEGER NOT NULL DEFAULT 0,
           state TEXT,                              -- JSON conversation snapshot for pause/resume/recovery
           started_at INTEGER NOT NULL,
           updated_at INTEGER NOT NULL,
@@ -106,6 +111,20 @@ export const MIGRATIONS: Migration[] = [
           data TEXT
         );
         CREATE INDEX idx_steps_run ON agent_steps(run_id, id);
+
+        CREATE TABLE task_notes (
+          id TEXT PRIMARY KEY,
+          task_id TEXT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+          project_id TEXT NOT NULL,
+          author TEXT NOT NULL,                    -- user | agent | system
+          kind TEXT NOT NULL,                      -- note | question | answer
+          text TEXT NOT NULL,
+          options TEXT NOT NULL DEFAULT '[]',
+          assumption TEXT,
+          created_at INTEGER NOT NULL,
+          consumed_run_id TEXT
+        );
+        CREATE INDEX idx_task_notes_task ON task_notes(task_id, created_at);
 
         CREATE TABLE approvals (
           id TEXT PRIMARY KEY,
@@ -225,6 +244,7 @@ export const MIGRATIONS: Migration[] = [
           git_head TEXT,
           git_commit TEXT,
           change_cursor INTEGER NOT NULL DEFAULT 0,
+          verification TEXT,
           created_at INTEGER NOT NULL,
           restored_at INTEGER
         );
@@ -240,9 +260,14 @@ export const MIGRATIONS: Migration[] = [
           before_hash TEXT,                        -- sha256, blob in snapshots/<hash>
           after_hash TEXT,
           actor TEXT NOT NULL DEFAULT 'nova',
+          source TEXT NOT NULL DEFAULT 'tool',     -- tool | command | user | restore
+          revertible INTEGER NOT NULL DEFAULT 1,
+          state TEXT NOT NULL DEFAULT 'committed', -- pending (write in progress) | committed
+          path_key TEXT NOT NULL DEFAULT '',       -- canonical comparison key (lower-case on Windows)
           ts INTEGER NOT NULL,
           reverted INTEGER NOT NULL DEFAULT 0
         );
+        CREATE INDEX idx_changes_pending ON changes(state);
         CREATE INDEX idx_changes_project ON changes(project_id, id);
         CREATE INDEX idx_changes_task ON changes(task_id);
 
@@ -286,6 +311,9 @@ export const MIGRATIONS: Migration[] = [
           output_tail TEXT NOT NULL DEFAULT '',
           failures TEXT NOT NULL DEFAULT '[]',
           failure_signature TEXT,
+          message TEXT,
+          process_id TEXT,
+          artifacts TEXT NOT NULL DEFAULT '[]',
           started_at INTEGER NOT NULL,
           finished_at INTEGER
         );
@@ -304,6 +332,7 @@ export const MIGRATIONS: Migration[] = [
           auto_fixable INTEGER NOT NULL DEFAULT 0,
           user_action TEXT,
           details TEXT,
+          related TEXT,
           dedupe_key TEXT,
           created_at INTEGER NOT NULL,
           resolved_at INTEGER
@@ -316,6 +345,19 @@ export const MIGRATIONS: Migration[] = [
           last_status TEXT,
           updated_at INTEGER NOT NULL
         );
+
+        CREATE TABLE notifications (
+          id TEXT PRIMARY KEY,
+          level TEXT NOT NULL,
+          category TEXT NOT NULL,
+          title TEXT NOT NULL,
+          body TEXT NOT NULL,
+          project_id TEXT,
+          task_id TEXT,
+          ts INTEGER NOT NULL,
+          read_at INTEGER
+        );
+        CREATE INDEX idx_notifications_ts ON notifications(ts);
 
         CREATE TABLE backups (
           id TEXT PRIMARY KEY,

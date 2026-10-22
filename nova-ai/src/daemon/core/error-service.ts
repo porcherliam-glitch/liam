@@ -19,6 +19,7 @@ export interface ReportErrorInput {
   autoFixable?: boolean;
   userAction?: string | null;
   details?: string | null;
+  related?: NovaErrorInfo['related'];
   /** Errors with the same key that are still open are updated instead of duplicated. */
   dedupeKey?: string;
 }
@@ -36,6 +37,7 @@ interface ErrorRow {
   auto_fixable: number;
   user_action: string | null;
   details: string | null;
+  related: string | null;
   created_at: number;
   resolved_at: number | null;
 }
@@ -54,6 +56,7 @@ function toInfo(r: ErrorRow): NovaErrorInfo {
     autoFixable: bool(r.auto_fixable),
     userAction: r.user_action,
     details: r.details,
+    related: fromJson<NovaErrorInfo['related']>(r.related, null),
     createdAt: r.created_at,
     resolvedAt: r.resolved_at,
   };
@@ -69,7 +72,7 @@ export class ErrorService {
       const existing = this.db.get<ErrorRow>('SELECT * FROM errors WHERE dedupe_key = ? AND resolved_at IS NULL', [input.dedupeKey]);
       if (existing) {
         this.db.run(
-          'UPDATE errors SET severity = ?, title = ?, what_happened = ?, attempted = ?, project_safe = ?, auto_fixable = ?, user_action = ?, details = ?, created_at = ? WHERE id = ?',
+          'UPDATE errors SET severity = ?, title = ?, what_happened = ?, attempted = ?, project_safe = ?, auto_fixable = ?, user_action = ?, details = ?, related = ?, created_at = ? WHERE id = ?',
           [
             input.severity,
             input.title,
@@ -79,6 +82,7 @@ export class ErrorService {
             int(input.autoFixable ?? false),
             input.userAction ?? null,
             details,
+            input.related ? JSON.stringify(input.related) : null,
             now,
             existing.id,
           ],
@@ -90,8 +94,8 @@ export class ErrorService {
     }
     const id = newId('err');
     this.db.run(
-      `INSERT INTO errors(id, code, severity, title, what_happened, project_id, task_id, attempted, project_safe, auto_fixable, user_action, details, dedupe_key, created_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO errors(id, code, severity, title, what_happened, project_id, task_id, attempted, project_safe, auto_fixable, user_action, details, related, dedupe_key, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         id,
         input.code,
@@ -105,6 +109,7 @@ export class ErrorService {
         int(input.autoFixable ?? false),
         input.userAction ?? null,
         details,
+        input.related ? JSON.stringify(input.related) : null,
         input.dedupeKey ?? null,
         now,
       ],
@@ -161,6 +166,16 @@ export class ErrorService {
     const ids = this.db.all<{ id: string }>(`SELECT id FROM errors WHERE ${where.join(' AND ')}`, params);
     for (const { id } of ids) this.resolve(id);
     return ids.length;
+  }
+
+  /** Deletes resolved errors resolved before the cutoff. Returns the number of deleted rows. */
+  prune(olderThanMs: number): number {
+    return this.db.run('DELETE FROM errors WHERE resolved_at IS NOT NULL AND resolved_at < ?', [olderThanMs]).changes;
+  }
+
+  /** True when an open critical error exists (daemon status 'error'). */
+  hasOpenCritical(): boolean {
+    return !!this.db.get("SELECT 1 FROM errors WHERE resolved_at IS NULL AND severity = 'critical' LIMIT 1");
   }
 
   countOpen(projectId?: string): number {

@@ -4,6 +4,20 @@ import type { Db } from '../db/database';
 import type { EventBus } from './bus';
 import { validation } from './errors';
 
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+  return !!v && typeof v === 'object' && !Array.isArray(v) && Object.getPrototypeOf(v) === Object.prototype;
+}
+
+/** Deep merge of plain objects; arrays and primitives in the patch replace the current value; undefined is ignored. */
+export function deepMerge(current: Record<string, unknown>, patch: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...current };
+  for (const [k, v] of Object.entries(patch)) {
+    if (v === undefined) continue;
+    out[k] = isPlainObject(v) && isPlainObject(current?.[k]) ? deepMerge(current[k] as Record<string, unknown>, v) : v;
+  }
+  return out;
+}
+
 export class SettingsService {
   private cache: Settings | null = null;
   private listeners = new Set<(s: Settings, changed: SettingsSection[]) => void>();
@@ -48,7 +62,7 @@ export class SettingsService {
     for (const [section, values] of Object.entries(patch)) {
       if (!SETTINGS_SECTIONS.includes(section as SettingsSection)) throw validation(`Unbekannter Einstellungsbereich: ${section}`);
       if (!values || typeof values !== 'object') continue;
-      next[section] = { ...(current as Record<string, Record<string, unknown>>)[section], ...values };
+      next[section] = deepMerge((current as Record<string, Record<string, unknown>>)[section], values as Record<string, unknown>);
       changed.push(section as SettingsSection);
     }
     const parsed = SettingsSchema.safeParse(next);

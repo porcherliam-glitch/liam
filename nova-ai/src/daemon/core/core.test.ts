@@ -43,16 +43,34 @@ describe('core', () => {
     expect(redactString('Authorization: Bearer abcdefghijklmnop')).toContain('[GEHEIM]');
     expect(redactString('sk-ant-api03-abcdefghijklmnopqrstuvwxyz')).toBe('[GEHEIM]');
     expect(redact({ apiKey: 'whatever123', nested: { text: 'ghp_abcdefghijklmnopqrstuvwxyz0123' } })).toEqual({ apiKey: '[GEHEIM]', nested: { text: '[GEHEIM]' } });
+    expect(redactString('DB_PASSWORD=hunter2hunter')).toBe('DB_PASSWORD=[GEHEIM]');
+    expect(redactString('MY_API_KEY = "abcdef123456"')).toContain('[GEHEIM]');
+    expect(redactString('https://user:s3cretpass@example.com/repo.git')).toBe('https://user:[GEHEIM]@example.com/repo.git');
+    expect(redact({ openaiApiKey: 'x1234567' })).toEqual({ openaiApiKey: '[GEHEIM]' });
   });
 
   it('filters notifications by settings', () => {
     t = createTestCore();
     const got: unknown[] = [];
     t.core.bus.on('notification', (n) => got.push(n));
-    const svc = createNotificationService(t.core.bus, t.core.settings);
+    const svc = createNotificationService(t.core.bus, t.core.settings, t.core.db);
     svc.notify({ level: 'success', category: 'task_done', title: 'a', body: 'b', projectId: null, taskId: null });
     t.core.settings.update({ notifications: { onTaskDone: false } });
     svc.notify({ level: 'success', category: 'task_done', title: 'a', body: 'b', projectId: null, taskId: null });
     expect(got).toHaveLength(1);
+    expect(svc.list()).toHaveLength(1);
+    expect(svc.unreadCount()).toBe(1);
+    svc.markRead();
+    expect(svc.unreadCount()).toBe(0);
+  });
+
+  it('deep-merges nested settings patches', () => {
+    t = createTestCore();
+    t.core.settings.update({ models: { roleOverrides: { coder: { providerId: 'ollama-local', modelId: 'a' } } } });
+    t.core.settings.update({ models: { roleOverrides: { planner: { providerId: 'ollama-local', modelId: 'b' } } } });
+    const m = t.core.settings.section('models');
+    expect(m.roleOverrides.coder?.modelId).toBe('a');
+    expect(m.roleOverrides.planner?.modelId).toBe('b');
+    expect(m.temperature).toBe(0.2);
   });
 });
