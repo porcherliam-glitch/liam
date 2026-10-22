@@ -4,7 +4,7 @@
 // the daily backup of a large database does not freeze the daemon's event loop; where the worker cannot run it falls
 // back to the synchronous backupTo.
 import { DatabaseSync, type StatementSync } from 'node:sqlite';
-import { mkdirSync, existsSync } from 'node:fs';
+import { mkdirSync, existsSync, rmSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { Worker } from 'node:worker_threads';
 
@@ -124,6 +124,7 @@ export class Db {
         if (settled) return;
         settled = true;
         try {
+          rmSync(target, { force: true }); // a worker that died midway may have left a partial file
           this.backupTo(target);
           resolve();
         } catch (e) {

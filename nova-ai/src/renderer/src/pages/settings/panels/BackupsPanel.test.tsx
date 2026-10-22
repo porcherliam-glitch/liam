@@ -43,7 +43,7 @@ describe('BackupsPanel', () => {
   });
 
   it('restores a database backup after confirmation (NOVA restarts)', async () => {
-    for (const r of getMockDb().runs) if (r.status === 'running') r.status = 'succeeded';
+    for (const r of getMockDb().runs) if (r.status === 'running') r.status = 'done';
     await renderBackups();
     const row = within(table()).getByText('Anlass: täglich').closest('tr')!;
     await userEvent.click(within(row).getByRole('button', { name: 'Wiederherstellen' }));

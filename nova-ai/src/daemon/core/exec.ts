@@ -1,8 +1,10 @@
-// Safe execution of external TOOLS with argv (git, where, ollama, winget, nvidia-smi, powershell scripts ...).
+// Safe execution of external TOOLS with argv (git, ollama, winget, nvidia-smi, powershell scripts ...).
 // Not for agent/user command lines (those go through ProcessManager). Never uses a shell with concatenated strings;
 // Windows .cmd/.bat shims (npm, npx, code) are run through cmd.exe only with strictly validated arguments
 // (Node refuses to spawn them directly since CVE-2024-27980).
 import { execFile, spawn } from 'node:child_process';
+import { lstatSync, statSync } from 'node:fs';
+import { win32 as winPath } from 'node:path';
 import { buildChildEnv } from './child-env';
 import { NovaError } from './errors';
 
@@ -107,15 +109,73 @@ export function execTool(file: string, args: string[], opts: ExecToolOptions = {
   });
 }
 
-/** Locates an executable on PATH (where.exe on Windows, `command -v` elsewhere). Returns the first match or null. */
-export async function findExecutable(name: string, platform: NodeJS.Platform = process.platform): Promise<string | null> {
-  if (!/^[A-Za-z0-9_.+-]+$/.test(name)) return null;
+export interface FindExecutableOptions {
+  /** Environment whose PATH/PATHEXT is searched (default: buildChildEnv – the refreshed Windows PATH). */
+  env?: Record<string, string | undefined>;
+  /** Existence check of a candidate (tests). */
+  isFile?: (path: string) => boolean;
+}
+
+const EXECUTABLE_NAME = /^[A-Za-z0-9_.+-]+$/;
+
+function existingFile(p: string): boolean {
   try {
-    if (platform === 'win32') {
-      const r = await execTool('where.exe', [name], { timeoutMs: 5000, platform });
-      if (r.code !== 0) return null;
-      return r.stdout.split(/\r?\n/).map((l) => l.trim()).find(Boolean) ?? null;
+    return statSync(p).isFile();
+  } catch {
+    // App execution aliases (%LOCALAPPDATA%\Microsoft\WindowsApps\pwsh.exe …) are reparse points that cannot
+    // always be opened by stat; they still run.
+    try {
+      const st = lstatSync(p);
+      return st.isFile() || st.isSymbolicLink();
+    } catch {
+      return false;
     }
+  }
+}
+
+function envValue(env: Record<string, string | undefined>, name: string): string | undefined {
+  const key = Object.keys(env).find((k) => k.toLowerCase() === name.toLowerCase());
+  return key === undefined ? undefined : env[key];
+}
+
+/**
+ * Windows PATH lookup in JavaScript, like cmd.exe: every absolute PATH entry in order (quotes removed, %VAR%
+ * expanded), in each the name with every PATHEXT extension (or the name itself when it already has one). Replaces
+ * parsing where.exe, whose redirected output comes in the console's OEM code page (C:\Users\Jürgen → mojibake).
+ * Relative PATH entries (current folder) are ignored on purpose.
+ */
+export function findAllExecutables(name: string, platform: NodeJS.Platform = process.platform, opts: FindExecutableOptions = {}): string[] {
+  if (!EXECUTABLE_NAME.test(name) || platform !== 'win32') return [];
+  const env = opts.env ?? buildChildEnv({}, platform);
+  const isFile = opts.isFile ?? existingFile;
+  const expand = (v: string) => v.replace(/%([^%;]+)%/g, (m, k: string) => envValue(env, k) ?? m);
+  const exts = (envValue(env, 'PATHEXT') ?? '.COM;.EXE;.BAT;.CMD')
+    .split(';')
+    .map((e) => e.trim())
+    .filter((e) => /^\.[A-Za-z0-9]+$/.test(e));
+  const ext = winPath.extname(name).toLowerCase();
+  const names = ext && exts.some((e) => e.toLowerCase() === ext) ? [name] : exts.map((e) => name + e.toLowerCase());
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of (envValue(env, 'PATH') ?? '').split(';')) {
+    const dir = expand(raw.trim().replace(/^"(.*)"$/, '$1')).trim();
+    if (!dir || /%[^%]+%/.test(dir) || !/^(?:[A-Za-z]:[\\/]|[\\/]{2}[^\\/])/.test(dir)) continue;
+    for (const n of names) {
+      const candidate = winPath.join(dir, n);
+      const key = candidate.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      if (isFile(candidate)) out.push(candidate);
+    }
+  }
+  return out;
+}
+
+/** Locates an executable on PATH (JavaScript lookup on Windows, `command -v` elsewhere). First match or null. */
+export async function findExecutable(name: string, platform: NodeJS.Platform = process.platform, opts: FindExecutableOptions = {}): Promise<string | null> {
+  if (!EXECUTABLE_NAME.test(name)) return null;
+  try {
+    if (platform === 'win32') return findAllExecutables(name, platform, opts)[0] ?? null;
     const r = await execTool('/bin/sh', ['-c', `command -v ${name}`], { timeoutMs: 5000, platform });
     if (r.code !== 0) return null;
     return r.stdout.trim().split('\n')[0] || null;

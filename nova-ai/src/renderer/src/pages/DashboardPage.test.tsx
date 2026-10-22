@@ -22,13 +22,43 @@ describe('DashboardPage', () => {
 
     expect(screen.getByRole('heading', { name: /Aktuelle Fehler/ })).toBeTruthy();
     expect(screen.getByText('Gleicher Testfehler nach 3 Versuchen')).toBeTruthy();
-    expect(screen.getByText(/Laufend \(2\)/)).toBeTruthy();
-    expect(screen.getByText(/Pausiert und wartend \(1\)/)).toBeTruthy();
+    expect(screen.getByText(/Arbeitet gerade \(2\)/)).toBeTruthy();
+    expect(screen.getByText(/Bereit – gerade läuft keine Aufgabe \(0\)/)).toBeTruthy();
+    expect(screen.getByText(/Pausiert oder ausgeschaltet \(1\)/)).toBeTruthy();
     expect(screen.getByText('Ollama (lokal)')).toBeTruthy();
     expect(screen.getByText(/Version 0\.12\.6 · 3 Modelle installiert/)).toBeTruthy();
     expect(screen.getByText('Kosten und Verbrauch')).toBeTruthy();
     expect(screen.getByText('Fehlgeschlagene Tests')).toBeTruthy();
     expect(screen.getByRole('link', { name: 'tests/player.test.ts:48' }).getAttribute('href')).toBe('/projects/prj_pixel/studio?file=tests%2Fplayer.test.ts&line=48');
+  });
+
+  it('shows a switched-on project without a running task as "Bereit", not as paused', async () => {
+    const db = getMockDb();
+    const rezept = db.projects.find((p) => p.name === 'Rezept-API')!;
+    db.tasks = db.tasks.map((t) => (t.projectId === rezept.id && t.status !== 'done' && t.status !== 'cancelled' ? { ...t, status: 'done' } : t));
+    db.runs = db.runs.map((r) => (r.projectId === rezept.id && r.status === 'running' ? { ...r, status: 'done' } : r));
+    renderWithRouter(<DashboardPage />);
+    expect(await screen.findByText(/Arbeitet gerade \(1\)/)).toBeTruthy();
+    expect(screen.getByText(/Bereit – gerade läuft keine Aufgabe \(1\)/)).toBeTruthy();
+    expect(screen.getByText(/Pausiert oder ausgeschaltet \(1\)/)).toBeTruthy();
+    const ready = screen.getByText(/Bereit – gerade läuft keine Aufgabe/).nextElementSibling as HTMLElement;
+    expect(within(ready).getByRole('link', { name: 'Rezept-API' })).toBeTruthy();
+    expect(within(ready).getByText(/Keine offenen Aufgaben/)).toBeTruthy();
+    const halted = screen.getByText(/Pausiert oder ausgeschaltet/).nextElementSibling as HTMLElement;
+    expect(within(halted).getByRole('link', { name: 'Aetherfall' })).toBeTruthy();
+    expect(within(halted).getByText('Autonome Arbeit für dieses Projekt ausgeschaltet')).toBeTruthy();
+  });
+
+  it('describes the queue neutrally and names failed tasks under "Offene Aufgaben"', async () => {
+    const db = getMockDb();
+    const pixel = db.projects.find((p) => p.name === 'Pixel-Abenteuer')!;
+    const idx = db.tasks.findIndex((t) => t.projectId === pixel.id && t.status === 'queued');
+    db.tasks[idx] = { ...db.tasks[idx], status: 'failed' };
+    const failed = db.tasks.filter((t) => t.status === 'failed' && db.projects.some((p) => p.id === t.projectId && p.status !== 'archived')).length;
+    renderWithRouter(<DashboardPage />);
+    await screen.findByText('Agenten-Aktivität');
+    expect(screen.queryByText(/warten auf einen Platz/)).toBeNull();
+    expect(screen.getByText(new RegExp(`^${failed} fehlgeschlagen · \\d+ in der Warteschlange$`))).toBeTruthy();
   });
 
   it('updates resource meters live from resources.snapshot events', async () => {

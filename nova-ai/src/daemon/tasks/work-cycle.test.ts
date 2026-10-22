@@ -503,6 +503,44 @@ describe('failures, retries, dependencies', () => {
   });
 });
 
+describe('runner blockers without auto-resume', () => {
+  it('APPROVAL_DENIED and AGENT_LOOP: German title and user action, fresh start on "Starten", one toast per blocker', async () => {
+    h = createHarness({ work: { tickIntervalMs: 3_600_000, recheckIntervalMs: 3_600_000, wakeDelayMs: 0, recheckDelayMs: 0 } });
+    const p = quiet({ name: 'Shop' });
+    const cloud = task(p.id, 'Cloud');
+    h.agents.on({ taskId: cloud.id }, outcomes.blocked('APPROVAL_DENIED', 'Das Senden von Projektdaten an „OpenRouter“ (gpt-x) wurde für diese Aufgabe abgelehnt.'));
+    h.work.startLoop();
+    await waitFor(() => status(cloud.id) === 'blocked');
+    await h.work.idle();
+    expect(h.core.errors.list().find((e) => e.taskId === cloud.id)).toMatchObject({
+      code: 'APPROVAL_DENIED',
+      title: 'Cloud-Freigabe abgelehnt',
+      autoFixable: false,
+      userAction: expect.stringContaining('lokales Modell'),
+    });
+    expect(h.notifications.list_.filter((n) => n.taskId === cloud.id).map((n) => n.body)).toEqual([
+      'Eine Aufgabe im Projekt „Shop“ kann nicht weiterarbeiten: Das Senden von Projektdaten an einen Cloud-Anbieter wurde abgelehnt.',
+    ]);
+    // not auto-resumed by re-checks
+    h.core.bus.emit('provider.updated', { id: 'x' } as ProviderConfig);
+    await h.work.idle();
+    expect(status(cloud.id)).toBe('blocked');
+    // the same blocker again (user restarts, the model is denied again) does not toast a second time
+    h.agents.on({ taskId: cloud.id }, outcomes.blocked('APPROVAL_DENIED', 'Wieder abgelehnt.'));
+    h.work.startTask(cloud.id);
+    await waitFor(() => h.agents.callsFor(cloud.id).length === 2 && status(cloud.id) === 'blocked');
+    await h.work.idle();
+    expect(h.agents.callsFor(cloud.id)[1].resumeRunId).toBeNull();
+    expect(h.notifications.list_.filter((n) => n.taskId === cloud.id)).toHaveLength(1);
+
+    const loop = task(p.id, 'Schleife');
+    h.agents.on({ taskId: loop.id }, outcomes.blocked('AGENT_LOOP', 'Das Modell hat fünfmal denselben Schritt wiederholt.'));
+    await waitFor(() => status(loop.id) === 'blocked');
+    await h.work.idle();
+    expect(h.core.errors.list().find((e) => e.taskId === loop.id)).toMatchObject({ code: 'AGENT_LOOP', title: 'Modell wiederholt sich', userAction: expect.stringContaining('anderes Modell') });
+  });
+});
+
 describe('recovery and shutdown', () => {
   it('shutdown marks running tasks interrupted (not cancelled) and recover() resumes them', async () => {
     h = createHarness();

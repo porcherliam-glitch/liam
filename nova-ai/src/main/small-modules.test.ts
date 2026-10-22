@@ -276,6 +276,13 @@ describe('AutostartManager', () => {
     expect(dev.set(true)).toBe(false);
   });
 
+  it('tells the settings page why autostart is unavailable (R6-7: start without installation)', () => {
+    const { api } = fakeApi({ openAtLogin: false });
+    expect(new AutostartManager({ platform: 'win32', isPackaged: false, execPath: 'C:\\x\\electron.exe', api }).support()).toEqual({ supported: false, reason: 'not-installed' });
+    expect(new AutostartManager({ platform: 'linux', isPackaged: true, execPath: '/x', api }).support()).toEqual({ supported: false, reason: 'platform' });
+    expect(new AutostartManager({ platform: 'win32', isPackaged: true, execPath: 'C:\\NOVA\\NOVA AI.exe', api }).support()).toEqual({ supported: true, reason: null });
+  });
+
   it('windows: registers with --hidden under the AppUserModelId and reads the effective state', () => {
     const { api, calls, state } = fakeApi({ openAtLogin: false });
     const m = new AutostartManager({ platform: 'win32', isPackaged: true, execPath: 'C:\\NOVA\\NOVA AI.exe', api });

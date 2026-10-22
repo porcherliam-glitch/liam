@@ -17,7 +17,7 @@
 // - fit(): required ≈ size × 1.2 + KV cache (2 × layers × KV heads × head dim × 2 bytes × num_ctx; 64 KiB per token
 //   when the model metadata is missing), available = free VRAM of the GPU with the largest VRAM plus the VRAM held by
 //   loaded Ollama models (the model itself and others – Ollama unloads idle models when a new one needs the space),
-//   capped at the GPU total. fits=null without GPU data. A model already fully loaded in VRAM fits. estimated=true
+//   capped at the GPU total, from a fresh resources.sample(). fits=null without GPU data. A model already fully loaded in VRAM fits. estimated=true
 //   when GPU numbers or model metadata are estimates. Alternatives: installed completion models that fit, smallest
 //   first.
 // - lastStatus() never touches the network; a 60 s background refresh (unref'd timer) runs after start() or the first
@@ -456,11 +456,18 @@ export function createOllamaService(s: Services, options: OllamaServiceOptions =
       const target = details.find((d) => d.info.id === model) ?? details.find((d) => sameOllamaModel(d.info.id, model));
       if (!target) throw new NovaError('MODEL_UNAVAILABLE', `Das Modell „${model}“ ist nicht installiert.`, { severity: 'warning' });
       const required = requiredVramBytes(target, ctx);
+      // A fresh sample: GPU numbers are probed only rarely while the PC is idle (ResourceMonitor), and a VRAM decision
+      // must not rest on numbers that are minutes old.
       let snap = null;
       try {
-        snap = s.resources.latest();
+        snap = await s.resources.sample();
       } catch (e) {
         log.debug('Ressourcendaten nicht verfügbar', { error: errorMessage(e) });
+        try {
+          snap = s.resources.latest();
+        } catch {
+          snap = null;
+        }
       }
       const loadedModels = snap?.ollamaLoaded ?? [];
       const loaded = loadedModels.find((r) => sameOllamaModel(r.model, target.info.id)) ?? null;

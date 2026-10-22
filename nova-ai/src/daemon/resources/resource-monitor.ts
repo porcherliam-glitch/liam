@@ -5,7 +5,11 @@
 //   short-term value, not the average since boot). Memory: Linux prefers MemAvailable (/proc/meminfo), elsewhere
 //   os.freemem(). Disks: statfs of the data dir plus every trackPath() (de-duplicated per volume).
 // - GPU (gpu.ts) and Ollama (s.ollama.running(), every 10 s, errors ignored → []) are stale-while-revalidate caches:
-//   only the very first sample waits for them (bounded), later samples never block on slow probes.
+//   only the very first sample waits for them (bounded), later background samples never block on slow probes.
+// - GPU probes start processes, so they run at the fast intervals only while GPU numbers are needed: agent runs are
+//   active (work.activeRunCount() > 0) or an explicit sample() was requested within the last 60 s (UI request via
+//   resources.snapshot, VRAM check in OllamaService.fit). Otherwise the timer probes the GPU at most every 2 minutes.
+//   An explicit sample() waits up to 3 s for a stale GPU probe, so VRAM decisions never use numbers minutes old.
 // - Interval = settings.resources.sampleIntervalSec (re-read every tick); the next tick is scheduled after the sample
 //   finished (no overlap); timers are unref'd; stop() aborts running probes. sample() is single-flight.
 // - Ring buffer of 2 h (time based, hard cap 7200 entries).
@@ -24,6 +28,8 @@ export const HISTORY_MS = 2 * 60 * 60 * 1000;
 const HISTORY_CAP = 7200;
 const OLLAMA_INTERVAL_MS = 10_000;
 const MAX_TRACKED = 64;
+/** GPU numbers stay "wanted" (fast probe intervals) this long after an explicit sample(). */
+export const GPU_DEMAND_WINDOW_MS = 60_000;
 
 export interface ResourceMonitorOptions {
   platform?: NodeJS.Platform;
@@ -36,15 +42,19 @@ export interface ResourceMonitorOptions {
   gpu?: Partial<Omit<GpuProbeDeps, 'platform' | 'now'>>;
   processRss?: () => number;
   processCpuUsage?: () => { user: number; system: number };
-  /** Max wait of the FIRST sample for GPU / Ollama data (later samples never wait). */
+  /** Max wait of the FIRST sample for GPU / Ollama data (later background samples never wait). */
   firstGpuWaitMs?: number;
   firstOllamaWaitMs?: number;
+  /** Max wait of an explicit sample() for a stale GPU probe (default 3 s). */
+  explicitGpuWaitMs?: number;
 }
 
 export interface ResourceMonitorImpl extends ResourceMonitor {
   /** Paths whose volumes are reported (data dir first). */
   trackedPaths(): string[];
   isRunning(): boolean;
+  /** What the timer runs: no GPU demand of its own, never waits for a running GPU probe. */
+  sampleInBackground(): Promise<ResourceSnapshot>;
 }
 
 function withTimeout<T>(p: Promise<T>, ms: number): Promise<T | undefined> {
@@ -86,6 +96,7 @@ export function createResourceMonitor(s: Services, opts: ResourceMonitorOptions 
   const processCpu = opts.processCpuUsage ?? (() => process.cpuUsage());
   const firstGpuWaitMs = opts.firstGpuWaitMs ?? 5_000;
   const firstOllamaWaitMs = opts.firstOllamaWaitMs ?? 2_000;
+  const explicitGpuWaitMs = opts.explicitGpuWaitMs ?? 3_000;
 
   const gpu = new GpuProber({
     platform,
@@ -107,7 +118,8 @@ export function createResourceMonitor(s: Services, opts: ResourceMonitorOptions 
   let ollama: { models: OllamaRunningModel[]; at: number } | null = null;
   let ollamaRefreshing: Promise<void> | null = null;
   let firstSampleDone = false;
-  let inFlight: Promise<ResourceSnapshot> | null = null;
+  let inFlight: { promise: Promise<ResourceSnapshot>; explicit: boolean } | null = null;
+  let gpuDemandUntil = 0;
   let running = false;
   let timer: NodeJS.Timeout | null = null;
 
@@ -161,12 +173,25 @@ export function createResourceMonitor(s: Services, opts: ResourceMonitorOptions 
     return { totalBytes: total, usedBytes: total - free, freeBytes: free };
   };
 
-  const takeSample = async (): Promise<ResourceSnapshot> => {
+  const activeRuns = (): number => {
+    try {
+      const n = s.work.activeRunCount();
+      return Number.isFinite(n) ? n : 0;
+    } catch {
+      return 0;
+    }
+  };
+
+  /** Fast GPU probe intervals only while somebody needs the numbers (see header). */
+  const gpuWanted = (): boolean => core.clock.now() < gpuDemandUntil || activeRuns() > 0;
+
+  const takeSample = async (explicit: boolean): Promise<ResourceSnapshot> => {
     const first = !firstSampleDone;
-    // GPU + Ollama: stale-while-revalidate, bounded wait only for the first sample.
-    if (gpu.isStale()) {
+    // GPU + Ollama: stale-while-revalidate; bounded wait for the first sample and for explicit requests.
+    if (gpu.isStale(explicit || gpuWanted())) {
       const p = gpu.refresh();
-      if (!gpu.current()) await withTimeout(p, first ? firstGpuWaitMs : 0);
+      if (explicit && !first) await withTimeout(p, explicitGpuWaitMs);
+      else if (!gpu.current()) await withTimeout(p, first ? firstGpuWaitMs : 0);
     }
     if (!ollama || core.clock.now() - ollama.at >= OLLAMA_INTERVAL_MS) {
       const p = refreshOllama();
@@ -227,11 +252,21 @@ export function createResourceMonitor(s: Services, opts: ResourceMonitorOptions 
     timer.unref?.();
   };
 
+  /** Single-flight; an explicit request that meets a running background sample takes its own sample afterwards. */
+  const runSample = (explicit: boolean): Promise<ResourceSnapshot> => {
+    if (inFlight && (inFlight.explicit || !explicit)) return inFlight.promise;
+    if (inFlight) return inFlight.promise.catch(() => undefined).then(() => runSample(true));
+    const promise = takeSample(explicit).finally(() => {
+      if (inFlight?.promise === promise) inFlight = null;
+    });
+    inFlight = { promise, explicit };
+    return promise;
+  };
+
   function tick(): void {
     timer = null;
     if (!running) return;
-    monitor
-      .sample()
+    runSample(false)
       .catch((e) => log.warn('Messung der Systemressourcen fehlgeschlagen', { error: errorMessage(e) }))
       .finally(schedule);
   }
@@ -261,12 +296,12 @@ export function createResourceMonitor(s: Services, opts: ResourceMonitorOptions 
     },
 
     sample() {
-      if (!inFlight) {
-        inFlight = takeSample().finally(() => {
-          inFlight = null;
-        });
-      }
-      return inFlight;
+      gpuDemandUntil = core.clock.now() + GPU_DEMAND_WINDOW_MS;
+      return runSample(true);
+    },
+
+    sampleInBackground() {
+      return runSample(false);
     },
 
     trackPath(p) {

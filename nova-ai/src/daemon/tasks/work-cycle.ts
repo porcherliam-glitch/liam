@@ -464,21 +464,28 @@ export function createWorkCycle(s: Services, options: WorkCycleOptions = {}): Wo
     return list;
   }
 
-  function reportBlocked(task: Task, code: string, reason: string, runId: string | null, userAction?: string): void {
+  /** Text overrides for a blocker whose code is shared with other causes (e.g. a check that could not run). */
+  interface BlockTexts {
+    userAction?: string;
+    title?: string;
+    shortReason?: string;
+  }
+
+  function reportBlocked(task: Task, code: string, reason: string, runId: string | null, texts: BlockTexts = {}): void {
     if (code === 'NEEDS_INPUT' || code === 'DEPENDENCY_FAILED') return;
     safe(
       () =>
         core.errors.report({
           code,
           severity: 'blocker',
-          title: blockerTitle(code),
+          title: texts.title ?? blockerTitle(code),
           whatHappened: `Die Aufgabe „${task.title}“ ist blockiert: ${reason}`,
           projectId: task.projectId,
           taskId: task.id,
           attempted: attemptsList(task),
           projectSafe: true,
           autoFixable: isResumable(code),
-          userAction: userAction ?? blockerUserAction(code),
+          userAction: texts.userAction ?? blockerUserAction(code),
           details: reason,
           related: { checkRunId: null, runId: runId || null, approvalId: null, file: null, line: null },
           dedupeKey: `task:${task.id}`,
@@ -487,14 +494,18 @@ export function createWorkCycle(s: Services, options: WorkCycleOptions = {}): Wo
     );
   }
 
-  function notifyBlocked(task: Task, code: string): void {
+  function notifyBlocked(task: Task, code: string, shortReason?: string): void {
     if (code === 'DEPENDENCY_FAILED') return;
     if (code === 'NEEDS_INPUT' && recentNotification(task.id, 'blocker', 120_000)) return;
+    const body = `Eine Aufgabe im Projekt „${projectName(task.projectId)}“ kann nicht weiterarbeiten: ${shortReason ?? blockerShortReason(code)}`;
+    // The same blocker of the same task (e.g. a model that is still missing after an auto-unblock) toasts once per 30 min.
+    const recent = safe(() => s.notifications.list({ limit: 50 })) ?? [];
+    if (recent.some((n) => n.taskId === task.id && n.category === 'blocker' && n.body === body && now() - n.ts < 30 * 60_000)) return;
     notify({
       level: 'warning',
       category: 'blocker',
       title: code === 'NEEDS_INPUT' ? 'Rückfrage des Agenten' : 'Aufgabe blockiert',
-      body: `Eine Aufgabe im Projekt „${projectName(task.projectId)}“ kann nicht weiterarbeiten: ${blockerShortReason(code)}`,
+      body,
       projectId: task.projectId,
       taskId: task.id,
     });
@@ -622,14 +633,14 @@ export function createWorkCycle(s: Services, options: WorkCycleOptions = {}): Wo
     return cancelTask(task, 'Vom Benutzer gestoppt.');
   }
 
-  function blockTask(task: Task, code: string, reason: string, runId: string | null, cont: Continuation | null, opts2: { userAction?: string } = {}): void {
+  function blockTask(task: Task, code: string, reason: string, runId: string | null, cont: Continuation | null, texts: BlockTexts = {}): void {
     const resumable = isResumable(code);
     if (cont && (resumable || cont.userResume)) setContinuation(task.id, cont);
     else if (!resumable) store.clearContinuation(task.id);
     const t = patchTask(task.id, { status: 'blocked', blocker: shorten(reason, 4000) || blockerShortReason(code), blockerCode: code }) ?? task;
     if (!resumable) releaseLocks(task.id);
-    reportBlocked(t, code, reason, runId, opts2.userAction);
-    notifyBlocked(t, code);
+    reportBlocked(t, code, reason, runId, texts);
+    notifyBlocked(t, code, texts.shortReason);
     requestWake();
   }
 
@@ -1020,8 +1031,15 @@ export function createWorkCycle(s: Services, options: WorkCycleOptions = {}): Wo
     entry: VerificationCheck,
     problem: CheckEnvironmentProblem,
     thenStart = 'und die Aufgabe dann mit „Starten“ weiterprüfen lassen. Die Änderungen des Agenten bleiben erhalten.',
-  ): { code: string; reason: string; userAction: string } {
+  ): { code: string; reason: string; userAction: string; title: string; shortReason: string } {
     const reason = `Die Prüfung „${entry.name}“ konnte nicht laufen: ${entry.details ?? 'Die Prüfung konnte nicht ausgeführt werden.'}`;
+    const advice = adviceFor(problem, reason, thenStart);
+    const title = problem.kind === 'tool_missing' ? blockerTitle(advice.code) : 'Prüfung konnte nicht laufen';
+    const shortReason = problem.kind === 'approval_denied' ? 'Die Installation der Abhängigkeiten für eine Prüfung wurde abgelehnt.' : blockerShortReason(advice.code);
+    return { ...advice, title, shortReason };
+  }
+
+  function adviceFor(problem: CheckEnvironmentProblem, reason: string, thenStart: string): { code: string; reason: string; userAction: string } {
     switch (problem.kind) {
       case 'approval':
         return { code: 'APPROVAL_REQUIRED', reason, userAction: 'Bitte unter „Freigaben“ über die Installation der Abhängigkeiten entscheiden. NOVA prüft danach automatisch weiter.' };
@@ -1069,7 +1087,7 @@ export function createWorkCycle(s: Services, options: WorkCycleOptions = {}): Wo
     }
     const advice = environmentAdvice(env.entry, p);
     log.info('Prüfung konnte wegen der Umgebung nicht laufen – kein neuer Agentenlauf', { taskId: t.id, code: advice.code });
-    blockTask(t, advice.code, advice.reason, runId, isResumable(advice.code) ? cont : { ...cont, userResume: true }, { userAction: advice.userAction });
+    blockTask(t, advice.code, advice.reason, runId, isResumable(advice.code) ? cont : { ...cont, userResume: true }, { userAction: advice.userAction, title: advice.title, shortReason: advice.shortReason });
   }
 
   async function finalizeVerification(ctx: RunCtx, task: Task, project: Project, checks: VerificationCheck[], summary: string, runId: string | null): Promise<void> {
@@ -1420,7 +1438,7 @@ export function createWorkCycle(s: Services, options: WorkCycleOptions = {}): Wo
         level: 'warning',
         category: 'blocker',
         title: 'Integrationsprüfung konnte nicht laufen',
-        body: `Im Projekt „${project.name}“ konnte die gemeinsame Prüfung nicht laufen: ${blockerShortReason(advice.code)}`,
+        body: `Im Projekt „${project.name}“ konnte die gemeinsame Prüfung nicht laufen: ${advice.shortReason}`,
         projectId: parent.projectId,
         taskId: parent.id,
       });

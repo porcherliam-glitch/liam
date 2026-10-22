@@ -135,6 +135,7 @@ describe('CheckService basics', () => {
       ['npx vitest run', 1, ' RUN  v3.2.7 C:/Projekte/spiel\n\nNo test files found, exiting with code 1\n\ninclude: **/*.{test,spec}.?(c|m)[jt]s?(x)\n'],
       ['npx jest', 1, 'No tests found, exiting with code 1\nRun with `--passWithNoTests` to exit with code 0\n'],
       ['npx mocha', 1, 'Error: No test files found: "test"\n'],
+      ['npx playwright test', 1, 'Error: No tests found.\nMake sure that arguments are regular expressions matching test files.\n'],
     ];
     for (const [command, exitCode, output] of outputs) {
       const { checks, add } = setup({ platform: 'win32', script: [{ match: /./, result: { exitCode, output } }] });

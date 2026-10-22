@@ -142,6 +142,9 @@ function DashboardContent({ data }: { data: Summary }) {
   const blockers = data.errors.filter((e) => e.severity === 'blocker' || e.severity === 'critical').length;
   const b = data.budget;
   const waitingApproval = data.projects.reduce((n, p) => n + p.waitingApprovalTasks, 0);
+  // "Offene Aufgaben" counts everything not done/cancelled – like the "Offen" filter of the task page it links to.
+  const failedTasks = data.projects.reduce((n, p) => n + p.failedTasks, 0);
+  const queueText = `${data.work.queuedTasks} in der Warteschlange`;
 
   return (
     <div className="@container space-y-4">
@@ -158,7 +161,7 @@ function DashboardContent({ data }: { data: Summary }) {
               : `max. ${data.work.allowedConcurrency} gleichzeitig`
           }
         />
-        <Stat label="Offene Aufgaben" value={data.openTasks} icon={ListTodo} to={paths.tasks} sub={`${data.work.queuedTasks} warten auf einen Platz`} />
+        <Stat label="Offene Aufgaben" value={data.openTasks} icon={ListTodo} to={paths.tasks} sub={failedTasks > 0 ? `${failedTasks} fehlgeschlagen · ${queueText}` : queueText} />
         <Stat
           label="Offene Freigaben"
           value={data.pendingApprovals}
@@ -494,47 +497,88 @@ function ProjectRow({ project, reason }: { project: ProjectSummary; reason?: str
   );
 }
 
+/**
+ * Three groups that match the status words elsewhere: a project whose autonomous work is on ("Arbeitet" in the
+ * project header) is either working on a task right now or ready without a running task (the reason says why, e.g.
+ * no open tasks or a task waiting for an approval); paused/switched-off projects form the third group.
+ */
 function ProjectsCard({ projects, work, className }: { projects: ProjectSummary[]; work: WorkStatus; className?: string }) {
   const workById = new Map(work.projects.map((p) => [p.projectId, p]));
-  const isRunning = (p: ProjectSummary) => p.status === 'active' && p.workState === 'running' && work.state === 'running' && (p.runningTasks > 0 || (workById.get(p.id)?.activeRuns ?? 0) > 0);
-  const running = projects.filter(isRunning);
-  const waiting = projects.filter((p) => !isRunning(p) && p.status !== 'archived');
-  const reasonFor = (p: ProjectSummary) => {
-    if (work.state !== 'running') return work.idleReason;
+  const enabled = (p: ProjectSummary) => p.status === 'active' && p.workState === 'running' && work.state === 'running';
+  const isWorking = (p: ProjectSummary) => enabled(p) && (p.runningTasks > 0 || (workById.get(p.id)?.activeRuns ?? 0) > 0);
+  const visible = projects.filter((p) => p.status !== 'archived');
+  const working = visible.filter(isWorking);
+  const ready = visible.filter((p) => enabled(p) && !isWorking(p));
+  const halted = visible.filter((p) => !enabled(p));
+  const readyReason = (p: ProjectSummary) => {
     const w = workById.get(p.id);
-    if (w?.idleReason) return w.suggestion ? `${w.idleReason} Vorschlag: ${w.suggestion}` : w.idleReason;
-    return p.workState === 'paused' ? 'Pausiert' : p.workState === 'stopped' ? 'Autonome Arbeit aus' : null;
+    const reason = w?.idleReason ?? 'Gerade läuft keine Aufgabe';
+    return w?.suggestion ? `${reason} · Vorschlag: ${w.suggestion}` : reason;
+  };
+  const haltedReason = (p: ProjectSummary) => {
+    if (work.state !== 'running') return work.idleReason ?? (work.state === 'paused' ? 'Arbeit pausiert' : 'Arbeit gestoppt');
+    return p.workState === 'paused' ? 'Arbeit an diesem Projekt pausiert' : 'Autonome Arbeit für dieses Projekt ausgeschaltet';
   };
 
   return (
     <Card title="Projekte" icon={FolderKanban} className={className} padding="none" actions={<CardLink to={paths.projects}>Alle Projekte</CardLink>}>
       <div className="pb-1">
-        <h3 className="flex items-center gap-2 px-4 pt-1 pb-1 text-xs font-semibold text-muted">
-          <StatusDot tone="success" pulse={running.length > 0} size="sm" /> Laufend ({running.length})
-        </h3>
-        {running.length === 0 ? (
-          <p className="px-4 pb-3 text-[13px] text-muted">Gerade läuft in keinem Projekt eine Aufgabe.</p>
-        ) : (
-          <ul className="divide-y divide-border/70">
-            {running.map((p) => (
-              <ProjectRow key={p.id} project={p} />
-            ))}
-          </ul>
-        )}
-        <h3 className="mt-1 flex items-center gap-2 border-t border-border px-4 pt-3 pb-1 text-xs font-semibold text-muted">
-          <StatusDot tone="warning" size="sm" /> Pausiert und wartend ({waiting.length})
-        </h3>
-        {waiting.length === 0 ? (
-          <p className="px-4 pb-3 text-[13px] text-muted">Keine pausierten oder wartenden Projekte.</p>
-        ) : (
-          <ul className="divide-y divide-border/70">
-            {waiting.map((p) => (
-              <ProjectRow key={p.id} project={p} reason={reasonFor(p)} />
-            ))}
-          </ul>
-        )}
+        <ProjectGroup
+          first
+          dot={<StatusDot tone="success" pulse={working.length > 0} size="sm" />}
+          title="Arbeitet gerade"
+          projects={working}
+          empty="Gerade läuft in keinem Projekt eine Aufgabe."
+        />
+        <ProjectGroup
+          dot={<StatusDot tone="info" size="sm" />}
+          title="Bereit – gerade läuft keine Aufgabe"
+          projects={ready}
+          reason={readyReason}
+          empty="Jedes eingeschaltete Projekt arbeitet gerade."
+        />
+        <ProjectGroup
+          dot={<StatusDot tone="warning" size="sm" />}
+          title="Pausiert oder ausgeschaltet"
+          projects={halted}
+          reason={haltedReason}
+          empty="Kein Projekt ist pausiert oder ausgeschaltet."
+        />
       </div>
     </Card>
+  );
+}
+
+function ProjectGroup({
+  title,
+  dot,
+  projects,
+  reason,
+  empty,
+  first = false,
+}: {
+  title: string;
+  dot: ReactNode;
+  projects: ProjectSummary[];
+  reason?: (p: ProjectSummary) => string | null;
+  empty: string;
+  first?: boolean;
+}) {
+  return (
+    <>
+      <h3 className={cn('flex items-center gap-2 px-4 pb-1 text-xs font-semibold text-muted', first ? 'pt-1' : 'mt-1 border-t border-border pt-3')}>
+        {dot} {title} ({projects.length})
+      </h3>
+      {projects.length === 0 ? (
+        <p className="px-4 pb-3 text-[13px] text-muted">{empty}</p>
+      ) : (
+        <ul className="divide-y divide-border/70">
+          {projects.map((p) => (
+            <ProjectRow key={p.id} project={p} reason={reason?.(p)} />
+          ))}
+        </ul>
+      )}
+    </>
   );
 }
 

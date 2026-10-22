@@ -602,11 +602,12 @@ export function mergeParsed(parts: ParsedCheck[]): ParsedCheck | null {
 
 /**
  * True when a test runner reports that it found no tests at all: pytest "no tests ran" (exit 5), vitest/mocha
- * "No test files found" and jest "No tests found" (exit 1 without --passWithNoTests).
+ * "No test files found", jest "No tests found" and Playwright "Error: No tests found" (exit 1 without
+ * --passWithNoTests).
  */
 export function noTestsFound(rawOutput: string): boolean {
   const text = stripAnsi(rawOutput);
-  return /^=+ no tests ran in [\d.]+s =+$/m.test(text) || /^\s*(?:Error:\s*)?No test files found\b/im.test(text) || /^\s*No tests found\b/im.test(text);
+  return /^=+ no tests ran in [\d.]+s =+$/m.test(text) || /^\s*(?:Error:\s*)?No test files found\b/im.test(text) || /^\s*(?:Error:\s*)?No tests found\b/im.test(text);
 }
 
 // ------------------------------------------------------------------------------------------------ dispatcher

@@ -1,10 +1,13 @@
 // GitService mutating paths against real repositories: commitPaths (identity fallback, configured identity, only the
 // given paths, other staged changes untouched, deletions, ignored/missing paths, nothing-to-commit, many paths via
 // --pathspec-from-file, failing hooks with exact index restore, subdirectory roots), lock-file handling (stale lock
-// removed, fresh lock retried then GIT_ERROR) and dubious ownership (approval flow, never automatic).
+// removed only when no git process runs, fresh lock retried then GIT_ERROR) and dubious ownership (approval flow,
+// never automatic).
 import { afterEach, describe, expect, it } from 'vitest';
+import { spawn } from 'node:child_process';
 import { chmodSync, chownSync, existsSync, mkdirSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { anyGitProcessRunning } from './git-service';
 import { gitFixture, type GitFixture } from './test-support';
 
 let f: GitFixture;
@@ -138,8 +141,8 @@ describe('commitPaths', () => {
 });
 
 describe('lock files', () => {
-  it('removes a stale index.lock (older than the limit) and retries once', async () => {
-    f = gitFixture({ staleLockMs: 60_000, lockRetryDelayMs: 20 });
+  it('removes a stale index.lock (older than the limit, no git process running) and retries once', async () => {
+    f = gitFixture({ staleLockMs: 60_000, lockRetryDelayMs: 20, gitProcessRunning: async () => false });
     const root = f.repo('stale', { files: { 'a.txt': '1\n' } });
     const lock = join(root, '.git', 'index.lock');
     writeFileSync(lock, '');
@@ -148,6 +151,39 @@ describe('lock files', () => {
     f.write(root, 'a.txt', '2\n');
     expect(await f.git.commitPaths(root, ['a.txt'], 'NOVA: trotz Sperre')).not.toBeNull();
     expect(existsSync(lock)).toBe(false);
+  });
+
+  it('never removes an old lock while any git process runs (e.g. the user\'s `git commit` waiting for its message)', async () => {
+    let asked = 0;
+    f = gitFixture({
+      staleLockMs: 60_000,
+      lockRetryDelayMs: 10,
+      lockRetries: 2,
+      gitProcessRunning: async () => {
+        asked++;
+        return true;
+      },
+    });
+    const root = f.repo('held', { files: { 'a.txt': '1\n' } });
+    const lock = join(root, '.git', 'index.lock');
+    writeFileSync(lock, 'index of the user\'s commit in progress');
+    const old = (Date.now() - 5 * 60_000) / 1000;
+    utimesSync(lock, old, old);
+    f.write(root, 'a.txt', '2\n');
+    await expect(f.git.commitPaths(root, ['a.txt'], 'NOVA: x')).rejects.toMatchObject({ code: 'GIT_ERROR', message: expect.stringContaining('gesperrt') });
+    expect(asked).toBeGreaterThan(0);
+    expect(readFileSync(lock, 'utf8')).toBe('index of the user\'s commit in progress');
+  });
+
+  it('detects a running git process on this computer (process listing without localized text)', async () => {
+    const child = spawn('git', ['cat-file', '--batch'], { stdio: ['pipe', 'ignore', 'ignore'], windowsHide: true });
+    try {
+      await new Promise((r) => setTimeout(r, 300));
+      expect(await anyGitProcessRunning()).toBe(true);
+    } finally {
+      child.stdin.end();
+      child.kill();
+    }
   });
 
   it('retries a fresh lock and fails with GIT_ERROR when it stays', async () => {

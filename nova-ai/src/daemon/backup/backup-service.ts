@@ -19,7 +19,13 @@
 //   a backup selected for a pending restore is never deleted; exports are user data and not subject to retention.
 //   Then journal.pruneSnapshots(now − snapshotRetentionDays). Returns deleted backups + pruned journal blobs.
 // - delete() only removes files inside the backups/exports folders.
-import { closeSync, existsSync, lstatSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, statSync, statfsSync, copyFileSync, rmSync } from 'node:fs';
+// - Every "inside/overlaps" check (restore target vs. data dir, snapshot and original project; delete only inside the
+//   backup folders) compares CANONICAL paths (root-safety canonicalize: realpath of the deepest existing ancestor), so
+//   8.3 short names (C:\PROGRA~1), junctions and symlinks cannot dodge them; a user-chosen target also passes
+//   root-safety's raw path rules (device paths, drive-relative paths, reserved names …).
+// - The daemon's maintenance uses maybeDailyBackupAsync (VACUUM INTO in a worker thread) and
+//   applyRetention({ journal: false }) followed by the journal's asynchronous prune, so neither blocks the event loop.
+import { closeSync, existsSync, lstatSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, realpathSync, statSync, statfsSync, copyFileSync, rmSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, isAbsolute, join, parse as parsePath, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -35,6 +41,7 @@ import { LATEST_SCHEMA_VERSION } from '../db/migrations';
 import { exportData as runExport, importData as runImport, projectPathKey, type DataIoDeps, type IoOptions } from './export-import';
 import { databaseBackupName, folderDate, parseDatabaseBackupName, safeFolderName, snapshotFolderName } from './names';
 import { SNAPSHOT_MAX_BYTES, copyTree, scanTree } from './snapshot';
+import { ROOT_REJECT_PREFIX, canonicalize, validateRawPath } from '../projects/root-safety';
 
 interface BackupRow {
   id: string;
@@ -80,6 +87,16 @@ export interface BackupServiceOptions {
   snapshotMaxBytes?: number;
   /** Home folder for the default projects folder (tests). */
   homeDir?: string;
+  /** realpath for the canonical path checks (tests); default realpathSync.native, null when missing. */
+  realpath?: (p: string) => string | null;
+}
+
+function realpathOrNull(p: string): string | null {
+  try {
+    return realpathSync.native(p);
+  } catch {
+    return null;
+  }
 }
 
 export interface BackupServiceImpl extends BackupService {
@@ -91,6 +108,10 @@ export interface BackupServiceImpl extends BackupService {
   importData(path: string, opts?: IoOptions): Promise<{ counts: Record<string, number>; warnings: string[] }>;
   /** Validates a database backup file (throws VALIDATION with a German reason). */
   validateDatabaseFile(path: string): { schemaVersion: number };
+  /** maybeDailyBackup with the copy made in a worker thread (daemon maintenance). */
+  maybeDailyBackupAsync(): Promise<BackupInfo | null>;
+  /** journal: false leaves the journal prune to the caller (the daemon runs it asynchronously). */
+  applyRetention(opts?: { journal?: boolean }): number;
 }
 
 function dateText(ts: number): string {
@@ -105,13 +126,16 @@ export function createBackupService(s: Services, options: BackupServiceOptions =
   const snapshotMax = options.snapshotMaxBytes ?? SNAPSHOT_MAX_BYTES;
   const snapshotsRoot = join(paths.backups, 'projects');
   const key = (p: string) => projectPathKey(resolve(p), platform);
+  const realpath = options.realpath ?? realpathOrNull;
+  /** Canonical comparison key: 8.3 names, junctions and symlinks resolved (deepest existing ancestor). */
+  const canonicalKey = (p: string) => projectPathKey(canonicalize(p, platform, realpath), platform);
   let restartHandler: (() => void) | null = null;
 
   const tooLargeMessage = `Das Projekt ist zu groß für eine Sicherungskopie (mehr als ${Math.round(snapshotMax / 1024 ** 3)} GB ohne Abhängigkeiten und Build-Ordner).`;
 
   function inside(child: string, parent: string): boolean {
-    const c = key(child);
-    const p = key(parent);
+    const c = canonicalKey(child);
+    const p = canonicalKey(parent);
     const sep = platform === 'win32' ? '\\' : '/';
     return c === p || c.startsWith(p.endsWith(sep) ? p : p + sep);
   }
@@ -299,24 +323,59 @@ export function createBackupService(s: Services, options: BackupServiceOptions =
     }
   }
 
-  function createDatabaseBackup(reason: string): BackupInfo {
+  function prepareDatabaseBackup(reason: string): { target: string; cleanReason: string; ts: number } {
     const cleanReason = redactString(String(reason ?? '').replace(/\s+/g, ' ').trim()).slice(0, 200) || 'manuell';
     mkdirSync(paths.backups, { recursive: true });
     checkDisk(paths.backups);
     const ts = s.core.clock.now();
     let target = join(paths.backups, databaseBackupName(ts, cleanReason));
     for (let i = 2; existsSync(target); i++) target = join(paths.backups, databaseBackupName(ts, cleanReason).replace(/\.db$/, `-${i}.db`));
-    try {
-      db.backupTo(target);
-    } catch (e) {
-      rmSync(target, { force: true });
-      const msg = errorMessage(e);
-      if (/full|ENOSPC|disk/i.test(msg)) throw new NovaError('DISK_FULL', 'Nicht genug freier Speicherplatz für die Datenbanksicherung.', { severity: 'blocker', cause: e });
-      throw new NovaError('INTERNAL', `Die Datenbanksicherung ist fehlgeschlagen: ${msg}`, { severity: 'blocker', cause: e });
-    }
-    const info = insertRow({ id: newId('bak'), kind: 'database', path: target, size_bytes: sizeOf(target), reason: cleanReason, project_id: null, created_at: ts });
-    log.info('Datenbanksicherung erstellt', { path: target, reason: cleanReason, sizeBytes: info.sizeBytes });
+    return { target, cleanReason, ts };
+  }
+
+  function backupFailed(target: string, e: unknown): NovaError {
+    rmSync(target, { force: true });
+    const msg = errorMessage(e);
+    if (/full|ENOSPC|disk/i.test(msg)) return new NovaError('DISK_FULL', 'Nicht genug freier Speicherplatz für die Datenbanksicherung.', { severity: 'blocker', cause: e });
+    return new NovaError('INTERNAL', `Die Datenbanksicherung ist fehlgeschlagen: ${msg}`, { severity: 'blocker', cause: e });
+  }
+
+  function recordDatabaseBackup(p: { target: string; cleanReason: string; ts: number }): BackupInfo {
+    const info = insertRow({ id: newId('bak'), kind: 'database', path: p.target, size_bytes: sizeOf(p.target), reason: p.cleanReason, project_id: null, created_at: p.ts });
+    log.info('Datenbanksicherung erstellt', { path: p.target, reason: p.cleanReason, sizeBytes: info.sizeBytes });
     return info;
+  }
+
+  function createDatabaseBackup(reason: string): BackupInfo {
+    const p = prepareDatabaseBackup(reason);
+    try {
+      db.backupTo(p.target);
+    } catch (e) {
+      throw backupFailed(p.target, e);
+    }
+    return recordDatabaseBackup(p);
+  }
+
+  async function createDatabaseBackupAsync(reason: string): Promise<BackupInfo> {
+    const p = prepareDatabaseBackup(reason);
+    try {
+      await db.backupToAsync(p.target);
+    } catch (e) {
+      throw backupFailed(p.target, e);
+    }
+    return recordDatabaseBackup(p);
+  }
+
+  /** "Is a daily backup due?" (reconciles first so backups made by an earlier database state count). */
+  function dailyBackupDue(): boolean {
+    if (!s.core.settings.section('backup').dailyDatabaseBackup) return false;
+    try {
+      reconcile();
+    } catch (e) {
+      log.warn('Abgleich der Sicherungsordner fehlgeschlagen', { error: errorMessage(e) });
+    }
+    const since = startOfDay(s.core.clock.now());
+    return !db.get("SELECT 1 FROM backups WHERE kind = 'database' AND created_at >= ? LIMIT 1", [since]);
   }
 
   function scheduleRestart(): boolean {
@@ -469,6 +528,11 @@ export function createBackupService(s: Services, options: BackupServiceOptions =
     let target: string;
     if (opts.targetDir !== undefined && opts.targetDir.trim() !== '') {
       if (!isAbsolute(opts.targetDir)) throw validation('Bitte einen vollständigen Zielordner angeben.');
+      try {
+        validateRawPath(opts.targetDir, platform);
+      } catch (e) {
+        throw validation(`Dieser Zielordner kann nicht verwendet werden: ${errorMessage(e).replace(ROOT_REJECT_PREFIX, '')}`);
+      }
       target = resolve(opts.targetDir);
     } else {
       const base = join(projectsDir(), `${safeFolderName(name)} (Wiederherstellung ${folderDate(s.core.clock.now())})`);
@@ -520,6 +584,7 @@ export function createBackupService(s: Services, options: BackupServiceOptions =
       unlinkWithRetry(manifestPathFor(row.path));
     } else {
       unlinkWithRetry(row.path);
+      if (row.kind === 'database') unlinkWithRetry(`${row.path}-wal`); // raw safety copy of an unmerged WAL (app.ts)
     }
   }
 
@@ -578,7 +643,7 @@ export function createBackupService(s: Services, options: BackupServiceOptions =
       log.info('Sicherung gelöscht', { id, kind: row.kind });
     },
 
-    applyRetention() {
+    applyRetention(opts = {}) {
       try {
         reconcile();
       } catch (e) {
@@ -615,7 +680,7 @@ export function createBackupService(s: Services, options: BackupServiceOptions =
       }
       if (deleted > 0) log.info('Alte Sicherungen gelöscht', { deleted });
       let blobs = 0;
-      if (settings.snapshotRetentionDays > 0) {
+      if (settings.snapshotRetentionDays > 0 && opts.journal !== false) {
         try {
           blobs = s.journal.pruneSnapshots(now - settings.snapshotRetentionDays * DAY_MS);
         } catch (e) {
@@ -626,16 +691,11 @@ export function createBackupService(s: Services, options: BackupServiceOptions =
     },
 
     maybeDailyBackup() {
-      if (!s.core.settings.section('backup').dailyDatabaseBackup) return null;
-      try {
-        reconcile();
-      } catch (e) {
-        log.warn('Abgleich der Sicherungsordner fehlgeschlagen', { error: errorMessage(e) });
-      }
-      const since = startOfDay(s.core.clock.now());
-      const exists = db.get("SELECT 1 FROM backups WHERE kind = 'database' AND created_at >= ? LIMIT 1", [since]);
-      if (exists) return null;
-      return createDatabaseBackup('täglich');
+      return dailyBackupDue() ? createDatabaseBackup('täglich') : null;
+    },
+
+    async maybeDailyBackupAsync() {
+      return dailyBackupDue() ? createDatabaseBackupAsync('täglich') : null;
     },
 
     async exportData(sections, path, opts) {

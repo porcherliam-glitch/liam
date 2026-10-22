@@ -11,7 +11,7 @@
 //   getMockCalls('tasks.pause')          // -> [{ method, params }]
 import { RpcContract, type RpcMethod, type RpcParams, type RpcParsedParams, type RpcResult } from '@shared/rpc';
 import type { AnyNovaEvent, NovaEventMap, NovaEventType } from '@shared/events';
-import type { BridgeRpcResult, DaemonConnectionState, NovaBridge } from '@shared/bridge';
+import type { AutostartSupport, BridgeRpcResult, DaemonConnectionState, LocalBackupFile, NovaBridge, UnsavedChangesAction, UnsavedChangesInfo, UnsavedChangesResult } from '@shared/bridge';
 import type {
   AgentRun,
   AgentStep,
@@ -105,6 +105,11 @@ let intervals: Array<ReturnType<typeof setInterval>> = [];
 let connection: DaemonConnectionState = connectedState();
 /** Tasks paused by a global work.pause (restored by work.resume). */
 let pausedByWork = new Set<string>();
+/** What the renderer last reported via app.setUnsavedChanges (main's quit question). */
+let unsavedInfo: UnsavedChangesInfo = { count: 0, files: [] };
+/** Handlers registered with app.onUnsavedChangesRequest (the latest one answers, like the preload). */
+const unsavedHandlers: Array<(action: UnsavedChangesAction) => Promise<UnsavedChangesResult>> = [];
+let autostartSupport: AutostartSupport = { supported: true, reason: null };
 let liveTick = 0;
 
 function connectedState(): DaemonConnectionState {
@@ -133,7 +138,42 @@ export function resetMockData(now: number = Date.now()): void {
   mockCalls.length = 0;
   pausedByWork = new Set();
   liveTick = 0;
+  unsavedInfo = { count: 0, files: [] };
+  autostartSupport = { supported: true, reason: null };
   setConnection(connectedState(), false);
+}
+
+/** Last unsaved-changes report of the renderer (tests). */
+export function getMockUnsavedChanges(): UnsavedChangesInfo {
+  return { ...unsavedInfo, files: [...unsavedInfo.files] };
+}
+
+/** Simulates main's request before quitting (save / discard / persist) – answered like the preload does. */
+export async function requestMockUnsavedChanges(action: UnsavedChangesAction): Promise<UnsavedChangesResult> {
+  const handler = unsavedHandlers.at(-1);
+  if (!handler) return { ok: false, failed: [] };
+  try {
+    return await handler(action);
+  } catch {
+    return { ok: false, failed: [] };
+  }
+}
+
+/** Simulates a start without installation (autostart not available). */
+export function setMockAutostartSupport(support: AutostartSupport): void {
+  autostartSupport = { ...support };
+}
+
+/** Database backups main finds on disk while the daemon cannot start (demo). */
+function mockLocalBackups(): LocalBackupFile[] {
+  const dir = 'C:\\Users\\Demo\\AppData\\Local\\NOVA AI\\backups';
+  return db.backups
+    .filter((b) => b.kind === 'database')
+    .sort((a, b) => b.createdAt - a.createdAt)
+    .map((b, i) => {
+      const name = `nova-${new Date(b.createdAt).toISOString().replace(/[:.]/g, '-')}-${i}.db`;
+      return { path: `${dir}\\${name}`, name, sizeBytes: b.sizeBytes, createdAt: b.createdAt };
+    });
 }
 
 /** Emits an event to all onEvent listeners (ts/seq are filled in when omitted). */
@@ -2192,6 +2232,18 @@ export const mockBridge: NovaBridge = {
       setConnection({ ...connection, state: 'stopped', message: 'Der Hintergrunddienst wurde beendet.', since: now(), daemonPid: null });
       return { ...connection };
     },
+    listBackups: async () => mockLocalBackups(),
+    restoreBackup: async (path) => {
+      if (connection.state === 'connected') return { ok: false, message: 'Der Hintergrunddienst läuft. Sicherungen lassen sich dann unter „Einstellungen › Speicher & Backups“ einspielen.' };
+      if (!mockLocalBackups().some((b) => b.path === path)) return { ok: false, message: 'Es lassen sich nur automatische Sicherungen von NOVA aus dem Ordner „backups“ einspielen.' };
+      setConnection({ ...connectedState(), daemonPid: db.daemon.pid + 1 });
+      return { ok: true, message: 'Die Sicherung wurde eingespielt und der Hintergrunddienst läuft wieder.' };
+    },
+    createDiagnostics: async () => ({
+      ok: true,
+      message: 'Das Diagnose-Paket wurde erstellt und im Explorer markiert.',
+      path: 'C:\\Users\\Demo\\AppData\\Local\\NOVA AI\\diagnostics\\diagnose-ohne-start.json',
+    }),
   },
   app: {
     version: async () => '0.1.0',
@@ -2212,8 +2264,20 @@ export const mockBridge: NovaBridge = {
     saveFile: async (opts) => opts?.defaultPath ?? 'C:\\Users\\Demo\\Documents\\NOVA Export\\nova-export.json',
     getAutostart: async () => db.autostart,
     setAutostart: async (enabled) => {
+      if (!autostartSupport.supported) return false;
       db.autostart = enabled;
       return enabled;
+    },
+    getAutostartSupport: async () => ({ ...autostartSupport }),
+    setUnsavedChanges: async (info) => {
+      unsavedInfo = { count: info.count, files: [...info.files] };
+    },
+    onUnsavedChangesRequest(handler) {
+      unsavedHandlers.push(handler);
+      return () => {
+        const i = unsavedHandlers.lastIndexOf(handler);
+        if (i >= 0) unsavedHandlers.splice(i, 1);
+      };
     },
     quit: async () => {},
     onNavigate(listener) {

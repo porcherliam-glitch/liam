@@ -29,17 +29,21 @@ export function isReadOnly(path: string): boolean {
   }
 }
 
-export function renameWithRetry(from: string, to: string): void {
+/** Runs a synchronous file operation, retrying the transient Windows lock errors (antivirus, indexer, editors). */
+export function withFsRetry<T>(fn: () => T): T {
   for (let i = 0; ; i++) {
     try {
-      renameSync(from, to);
-      return;
+      return fn();
     } catch (e) {
       const code = (e as NodeJS.ErrnoException).code ?? '';
       if (!RETRYABLE.has(code) || i >= RETRY_DELAYS_MS.length) throw e;
       sleepSync(RETRY_DELAYS_MS[i]);
     }
   }
+}
+
+export function renameWithRetry(from: string, to: string): void {
+  withFsRetry(() => renameSync(from, to));
 }
 
 export function unlinkWithRetry(path: string): void {

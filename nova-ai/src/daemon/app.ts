@@ -1,14 +1,30 @@
 // Daemon composition root: single-instance lock, pending DB restore, Services container, recovery, RPC server,
 // maintenance timer and graceful shutdown with hard deadlines.
+// Key decisions:
+// - Pending DB restore (restore-pending.json, before the DB is opened): the backup is copied next to nova.db, fsynced
+//   and checked, the current DB's WAL is merged (or kept raw next to the safety copy), a raw safety copy is made and
+//   the copy is renamed over nova.db (atomic, with retries for Windows locks) – a crash at any point leaves either the
+//   old or the restored database, never a mix. A failed restore does not block the start: NOVA runs on with the
+//   unchanged data and reports the failure (error + notification); a successful one is confirmed by a notification.
+// - Maintenance (daily backup, retention, checkpoint/history/snapshot pruning, PRAGMA optimize, VACUUM) starts 60 s
+//   after the daemon is ready and yields to the event loop between steps; the backup copy and the snapshot blob walk
+//   run asynchronously and VACUUM only while no agent runs, so RPC, SSE and agents keep responding. A failing
+//   maintenance step is a warning error (resolved by the next successful run), not the daemon's lastError – that is
+//   reserved for startup steps that leave the daemon degraded.
 // Used by src/daemon/index.ts (process entry) and by integration tests (in-process).
-import { copyFileSync, existsSync, readFileSync, unlinkSync } from 'node:fs';
-import { join } from 'node:path';
+import { closeSync, copyFileSync, existsSync, fsyncSync, openSync, readFileSync, readSync, rmSync, statSync } from 'node:fs';
+import { basename, join } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 import type { DaemonStatus } from '@shared/schemas';
 import type { Services } from './contracts';
 import { createCore } from './core/context';
 import { createNotificationService } from './core/notifications';
 import { canonicalDataDir, dataPaths, defaultEndpoint, type DataPaths } from './core/paths';
-import { NovaError, errorMessage } from './core/errors';
+import { NovaError, errorMessage, isNovaError } from './core/errors';
+import { renameWithRetry, unlinkWithRetry, withFsRetry } from './core/fs-atomic';
+import { parseDatabaseBackupName } from './backup/names';
+import type { BackupServiceImpl } from './backup/backup-service';
+import type { ChangeJournalImpl } from './changes/journal';
 import { acquireInstanceLock, type InstanceLock } from './core/instance-lock';
 import { refreshWindowsPath } from './core/child-env';
 import { clearCrashReport } from './core/crash';
@@ -57,6 +73,8 @@ export interface StartDaemonOptions {
   secretScheme?: 'memory' | 'aes-local';
   /** Called when shutdown finished (process entry exits here). `restart` = the daemon should be started again. */
   onExit?: (code: number, restart: boolean) => void;
+  /** Delay of the first maintenance run after the daemon is ready (default 60 s; tests use small values). */
+  maintenanceDelayMs?: number;
 }
 
 export interface DaemonApp {
@@ -66,31 +84,119 @@ export interface DaemonApp {
   dataDir: string;
   status(): DaemonStatus;
   stop(reason: string, opts?: { restart?: boolean; fast?: boolean }): Promise<void>;
+  /** Runs one maintenance pass now (also used by tests); resolves at once when one is already running. */
+  runMaintenance(): Promise<void>;
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const MAINTENANCE_DELAY_MS = 60_000;
 
 function stampNow(): string {
   return new Date().toISOString().replace(/[:.]/g, '-');
 }
 
-/** Applies a database restore requested by BackupService.restore (before the DB is opened). */
-function applyRestorePending(paths: DataPaths): string | null {
-  if (!existsSync(paths.restorePending)) return null;
+/** Lets pending I/O (RPC requests, SSE, timers) run before the next chunk of synchronous work. */
+const yieldToEventLoop = () => new Promise<void>((resolve) => setImmediate(resolve));
+
+export interface RestoreOutcome {
+  /** Backup that was swapped in, or null. */
+  restoredFrom: string | null;
+  /** German reason when a requested restore was NOT applied (the old database stays in place). */
+  failure: string | null;
+  /** Backup the request named (for messages), when readable. */
+  requested: string | null;
+}
+
+function isSqliteFile(file: string): boolean {
+  const header = Buffer.alloc(16);
+  const fd = openSync(file, 'r');
   try {
-    const { backupPath } = JSON.parse(readFileSync(paths.restorePending, 'utf8')) as { backupPath?: string };
-    if (!backupPath || !existsSync(backupPath)) throw new Error('Sicherungsdatei nicht gefunden');
-    if (existsSync(paths.db)) copyFileSync(paths.db, join(paths.backups, `nova-${stampNow()}-vor-wiederherstellung.db`));
-    for (const suffix of ['-wal', '-shm']) if (existsSync(paths.db + suffix)) unlinkSync(paths.db + suffix);
-    copyFileSync(backupPath, paths.db);
-    return backupPath;
+    readSync(fd, header, 0, 16, 0);
   } finally {
-    try {
-      unlinkSync(paths.restorePending);
-    } catch {
-      /* ignore */
-    }
+    closeSync(fd);
   }
+  return header.toString('latin1') === 'SQLite format 3\u0000';
+}
+
+function fsyncFile(file: string): void {
+  const fd = openSync(file, 'r+');
+  try {
+    fsyncSync(fd);
+  } finally {
+    closeSync(fd);
+  }
+}
+
+/** Merges the WAL of the (closed) database into the main file. False when that is impossible (locked, damaged). */
+function mergeWal(dbFile: string): boolean {
+  if (!existsSync(`${dbFile}-wal`)) return true;
+  try {
+    const conn = new DatabaseSync(dbFile);
+    try {
+      const r = conn.prepare('PRAGMA wal_checkpoint(TRUNCATE)').get() as { busy?: number } | undefined;
+      return Number(r?.busy ?? 0) === 0;
+    } finally {
+      conn.close();
+    }
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Applies a database restore requested by BackupService.restore (or `--restore-db`) before the DB is opened.
+ * Crash-safe (see header); never throws – a failure is returned and leaves the current database untouched.
+ */
+export function applyRestorePending(paths: DataPaths): RestoreOutcome {
+  if (!existsSync(paths.restorePending)) return { restoredFrom: null, failure: null, requested: null };
+  let requested: string | null = null;
+  try {
+    const parsed = JSON.parse(readFileSync(paths.restorePending, 'utf8')) as { backupPath?: unknown };
+    requested = typeof parsed.backupPath === 'string' && parsed.backupPath.trim() !== '' ? parsed.backupPath : null;
+  } catch {
+    requested = null;
+  }
+  const tmp = `${paths.db}.restore-tmp`;
+  let failure: string | null = null;
+  try {
+    if (!requested) throw new Error('Die Angaben zur Wiederherstellung sind unvollständig.');
+    const backupPath = requested;
+    if (!existsSync(backupPath) || !statSync(backupPath).isFile()) throw new Error('Die Sicherungsdatei wurde nicht gefunden.');
+    // 1. Copy next to the database and make it durable – until the rename below the current database stays as it is.
+    rmSync(tmp, { force: true });
+    withFsRetry(() => copyFileSync(backupPath, tmp));
+    fsyncFile(tmp);
+    if (!isSqliteFile(tmp)) throw new Error('Die Sicherungsdatei ist keine NOVA-Datenbank.');
+    if (existsSync(paths.db)) {
+      // 2. Raw safety copy of the current state (in addition to BackupService's copy made when the restore was asked
+      //    for). A WAL that cannot be merged (damaged database) is kept next to it instead of being lost.
+      const merged = mergeWal(paths.db);
+      const safety = join(paths.backups, `nova-${stampNow()}-vor-wiederherstellung.db`);
+      withFsRetry(() => copyFileSync(paths.db, safety));
+      if (!merged && existsSync(`${paths.db}-wal`)) withFsRetry(() => copyFileSync(`${paths.db}-wal`, `${safety}-wal`));
+    }
+    // 3. The old WAL/SHM must go BEFORE the swap (SQLite would replay an old WAL onto the restored file), then the
+    //    atomic rename replaces nova.db.
+    for (const suffix of ['-wal', '-shm']) unlinkWithRetry(paths.db + suffix);
+    renameWithRetry(tmp, paths.db);
+  } catch (e) {
+    failure = errorMessage(e);
+    rmSync(tmp, { force: true });
+  }
+  try {
+    unlinkWithRetry(paths.restorePending); // never retried at every start: the outcome is reported instead
+  } catch {
+    /* ignore */
+  }
+  return failure === null ? { restoredFrom: requested, failure: null, requested } : { restoredFrom: null, failure, requested };
+}
+
+/** "vom 22.10.2026, 08:00" for a backup file name, or an empty string. */
+function backupDateText(file: string | null): string {
+  if (!file) return '';
+  const ts = parseDatabaseBackupName(basename(file))?.createdAt ?? null;
+  if (ts === null) return '';
+  return ` vom ${new Date(ts).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`;
 }
 
 const TIMED_OUT: unique symbol = Symbol('timed out');
@@ -123,7 +229,8 @@ export async function startDaemon(opts: StartDaemonOptions): Promise<DaemonApp> 
   try {
     // 2. Previous run left its lock file behind → it did not shut down cleanly.
     const leftover = readLock(paths);
-    const restoredFrom = applyRestorePending(paths);
+    const restore = applyRestorePending(paths);
+    const restoredFrom = restore.restoredFrom;
 
     // 3. Database + core (backup before migrating an existing DB).
     const { core, migration } = createCore({
@@ -214,6 +321,35 @@ export async function startDaemon(opts: StartDaemonOptions): Promise<DaemonApp> 
     s.tasks = createTaskService(s);
     s.work = createWorkCycle(s);
 
+    // Outcome of a requested database restore: never silent.
+    if (restore.failure !== null) {
+      log.error('Datenbank-Wiederherstellung fehlgeschlagen', { backup: restore.requested, error: restore.failure });
+      const when = backupDateText(restore.requested);
+      core.errors.report({
+        code: 'INTERNAL',
+        severity: 'warning',
+        title: 'Datensicherung nicht eingespielt',
+        whatHappened: `Die angeforderte Wiederherstellung der Datensicherung${when} wurde nicht durchgeführt: ${restore.failure} NOVA arbeitet mit dem bisherigen, unveränderten Stand weiter.`,
+        attempted: ['Datensicherung beim Start eingespielt'],
+        projectSafe: true,
+        autoFixable: false,
+        userAction: 'Die Wiederherstellung unter „Einstellungen → Sicherungen“ erneut starten. Hält ein anderes Programm (z. B. ein Virenscanner) die Datei fest, kurz warten und es dann erneut versuchen.',
+        details: restore.requested ? `Sicherung: ${restore.requested}` : null,
+        dedupeKey: 'database-restore-failed',
+      });
+      s.notifications.notify({ level: 'error', category: 'error', title: 'Datensicherung nicht eingespielt', body: 'Die Wiederherstellung wurde nicht durchgeführt. NOVA arbeitet mit dem bisherigen Stand weiter. Details stehen bei den Fehlern.', projectId: null, taskId: null });
+    } else if (restoredFrom) {
+      core.errors.resolveWhere({ dedupeKey: 'database-restore-failed' });
+      s.notifications.notify({
+        level: 'success',
+        category: 'info',
+        title: 'Datensicherung eingespielt',
+        body: `Die Datensicherung${backupDateText(restoredFrom)} wurde eingespielt. Der vorherige Stand wurde vorher gesichert.`,
+        projectId: null,
+        taskId: null,
+      });
+    }
+
     // 5. Version change → data backup before anything else changes data ("Vor Updates muss NOVA interne Daten sichern").
     const prevVersion = core.db.get<{ value: string }>("SELECT value FROM meta WHERE key = 'app_version'")?.value ?? null;
     if (prevVersion && prevVersion !== core.version) {
@@ -271,38 +407,83 @@ export async function startDaemon(opts: StartDaemonOptions): Promise<DaemonApp> 
       }
     }
 
-    // 7. Maintenance (start + every 24 h).
-    const maintenance = async () => {
-      const settings = core.settings.get();
-      const retentionDays = settings.diagnostics.historyRetentionDays;
-      await step('Tägliche Sicherung', () => s.backups.maybeDailyBackup());
-      await step('Aufbewahrung', () => s.backups.applyRetention());
-      if (settings.backup.snapshotRetentionDays > 0) {
-        // keeps the newest checkpoints of every project and its latest verified one regardless of age
-        const cutoff = core.clock.now() - settings.backup.snapshotRetentionDays * DAY_MS;
-        await step('Prüfpunkte bereinigen', () => (s.checkpoints as CheckpointServiceImpl).prune(cutoff));
-      }
-      if (retentionDays > 0) {
-        const cutoff = core.clock.now() - retentionDays * DAY_MS;
-        await step('Verlauf bereinigen', () => {
-          s.runs.prune(cutoff);
-          s.processes.prune(cutoff);
-          s.checks.prune(cutoff);
-          s.approvals.prune(cutoff);
-          core.errors.prune(cutoff);
-          s.notifications.prune(cutoff);
+    // 7. Maintenance (60 s after the start + every 24 h). Failures are warnings (resolved by the next good run).
+    let maintenanceBusy = false;
+    const maintenanceStep = async (name: string, fn: () => unknown) => {
+      if (state !== 'running') return; // shutting down: the database is about to close
+      const dedupeKey = `maintenance:${name}`;
+      try {
+        await fn();
+        core.errors.resolveWhere({ dedupeKey });
+      } catch (e) {
+        log.error(`Wartungsschritt fehlgeschlagen: ${name}`, { error: errorMessage(e) });
+        const diskFull = isNovaError(e) && e.code === 'DISK_FULL';
+        core.errors.report({
+          code: diskFull ? 'DISK_FULL' : 'INTERNAL',
+          severity: 'warning',
+          title: `Wartung fehlgeschlagen: ${name}`,
+          whatHappened: `Ein Wartungsschritt des Hintergrunddienstes ist fehlgeschlagen (${name}): ${errorMessage(e)} NOVA arbeitet normal weiter und versucht es beim nächsten Wartungslauf erneut.`,
+          attempted: [`Wartung: ${name}`],
+          projectSafe: true,
+          autoFixable: true,
+          userAction: diskFull ? 'Bitte auf dem Laufwerk des NOVA-Datenordners Speicherplatz freigeben.' : null,
+          details: errorMessage(e),
+          dedupeKey,
         });
       }
-      await step('Datenbank optimieren', () => {
-        core.db.exec('PRAGMA optimize;');
-        const pages = Number(core.db.get<{ page_count: number }>('PRAGMA page_count')?.page_count ?? 0);
-        const free = Number(core.db.get<{ freelist_count: number }>('PRAGMA freelist_count')?.freelist_count ?? 0);
-        if (pages > 0 && free / pages > 0.2) core.db.exec('VACUUM;');
-      });
+      await yieldToEventLoop();
     };
-    // First run only after the RPC server is up (below): the daily backup and VACUUM must not delay the start.
+    const maintenance = async () => {
+      if (maintenanceBusy || state !== 'running') return;
+      maintenanceBusy = true;
+      try {
+        const settings = core.settings.get();
+        const retentionDays = settings.diagnostics.historyRetentionDays;
+        const backups = s.backups as BackupServiceImpl;
+        await maintenanceStep('Tägliche Sicherung', () => backups.maybeDailyBackupAsync());
+        if (settings.backup.snapshotRetentionDays > 0) {
+          // Before the journal prune, which keeps exactly what the remaining checkpoints need. Keeps the newest
+          // checkpoints of every project and its latest verified one regardless of age.
+          const cutoff = core.clock.now() - settings.backup.snapshotRetentionDays * DAY_MS;
+          await maintenanceStep('Prüfpunkte bereinigen', () => (s.checkpoints as CheckpointServiceImpl).prune(cutoff));
+        }
+        await maintenanceStep('Aufbewahrung', () => backups.applyRetention({ journal: false }));
+        if (settings.backup.snapshotRetentionDays > 0) {
+          const cutoff = core.clock.now() - settings.backup.snapshotRetentionDays * DAY_MS;
+          await maintenanceStep('Dateistände bereinigen', () => (s.journal as ChangeJournalImpl).pruneSnapshotsAsync(cutoff));
+        }
+        if (retentionDays > 0) {
+          const cutoff = core.clock.now() - retentionDays * DAY_MS;
+          await maintenanceStep('Verlauf bereinigen', async () => {
+            for (const prune of [
+              () => s.runs.prune(cutoff),
+              () => s.processes.prune(cutoff),
+              () => s.checks.prune(cutoff),
+              () => s.approvals.prune(cutoff),
+              () => core.errors.prune(cutoff),
+              () => s.notifications.prune(cutoff),
+            ]) {
+              prune();
+              await yieldToEventLoop();
+            }
+          });
+        }
+        await maintenanceStep('Datenbank optimieren', () => {
+          core.db.exec('PRAGMA optimize;');
+          const pages = Number(core.db.get<{ page_count: number }>('PRAGMA page_count')?.page_count ?? 0);
+          const free = Number(core.db.get<{ freelist_count: number }>('PRAGMA freelist_count')?.freelist_count ?? 0);
+          // VACUUM rewrites the whole database synchronously: only while no agent works (otherwise next run).
+          if (pages > 0 && free / pages > 0.2 && s.work.activeRunCount() === 0) core.db.exec('VACUUM;');
+        });
+      } catch (e) {
+        log.error('Wartung abgebrochen', { error: errorMessage(e) });
+      } finally {
+        maintenanceBusy = false;
+      }
+    };
     const maintenanceTimer = setInterval(() => void maintenance(), DAY_MS);
     maintenanceTimer.unref();
+    let firstMaintenance: NodeJS.Timeout | null = null;
 
     // 8. RPC.
     let stopping: Promise<void> | null = null;
@@ -313,6 +494,7 @@ export async function startDaemon(opts: StartDaemonOptions): Promise<DaemonApp> 
       token: '',
       dataDir,
       status,
+      runMaintenance: () => maintenance(),
       stop: (reason, o) => {
         if (o?.restart) restartAfterStop = true;
         if (!stopping) stopping = shutdown(reason, o?.fast ?? false);
@@ -348,7 +530,10 @@ export async function startDaemon(opts: StartDaemonOptions): Promise<DaemonApp> 
     core.bus.emit('daemon.status', status());
     log.info('NOVA-Hintergrunddienst bereit', { endpoint, recovered });
     if (opts.echoLogs === 'startup') core.logs.configure({ echo: false });
-    void maintenance();
+    // Not right away: the first minutes after a start (UI connecting, tasks resuming) must not wait for the daily
+    // backup, the pruning or VACUUM.
+    firstMaintenance = setTimeout(() => void maintenance(), opts.maintenanceDelayMs ?? MAINTENANCE_DELAY_MS);
+    firstMaintenance.unref();
 
     async function shutdown(reason: string, fast: boolean): Promise<void> {
       log.info('NOVA-Hintergrunddienst fährt herunter', { reason });
@@ -368,6 +553,7 @@ export async function startDaemon(opts: StartDaemonOptions): Promise<DaemonApp> 
         }
       };
       clearInterval(maintenanceTimer);
+      if (firstMaintenance) clearTimeout(firstMaintenance);
       core.operations.cancelAll();
       await timed('Arbeitszyklus', fast ? 1500 : 12_000, () => s.work.shutdown(fast ? 1000 : 10_000));
       await timed('Vorschau', 5000, () => s.preview.stopAll());
