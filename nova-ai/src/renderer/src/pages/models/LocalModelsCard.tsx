@@ -157,7 +157,7 @@ export function LocalModelsCard({ status, models, running, selection, onSuggest 
         confirmLabel="Löschen"
         loading={del.loading}
         onCancel={() => setToDelete(null)}
-        onConfirm={() => toDelete && del.run({ model: toDelete.id })}
+        onConfirm={() => (toDelete ? del.run({ model: toDelete.id }) : undefined)}
         message={
           <>
             <p>
