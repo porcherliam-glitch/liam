@@ -35,6 +35,7 @@ export const MIGRATIONS: Migration[] = [
           technologies TEXT NOT NULL DEFAULT '[]',
           status TEXT NOT NULL DEFAULT 'active',
           template_id TEXT,
+          origin TEXT NOT NULL DEFAULT 'new',            -- new | open | import
           config TEXT NOT NULL,
           work_state TEXT NOT NULL DEFAULT 'stopped',   -- running | paused | stopped
           git_available INTEGER NOT NULL DEFAULT 0,

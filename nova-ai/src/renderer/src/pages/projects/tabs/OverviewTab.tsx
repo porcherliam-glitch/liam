@@ -4,7 +4,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { Archive, ArchiveRestore, ArrowRight, Bot, CircleCheck, CircleSlash, Code, FileDiff, FlaskConical, Hammer, Lightbulb, Target, Trash2, TriangleAlert, Zap } from 'lucide-react';
 import type { CheckKind, CheckRun, ProjectSummary } from '@shared/schemas';
-import { Badge, Button, Card, ConfirmDialog, EmptyState, ErrorState, LoadingState, StatusBadge, Tooltip } from '../../../components/ui';
+import { Badge, Button, Card, ConfirmDialog, ErrorState, LoadingState, StatusBadge, Tooltip } from '../../../components/ui';
 import { CheckStatusBadge, ErrorCard, RelativeTime, RoleBadge, RunDuration, RunStatusBadge } from '../../../components/common';
 import { useLiveRuns, useLiveTasks } from '../../../components/project';
 import { useMutation, useRpc } from '../../../hooks/useRpc';
@@ -16,32 +16,11 @@ import { paths, type ProjectTab } from '../../../lib/paths';
 import { ProjectInfoCard } from './ProjectInfoCard';
 import { ProjectConfigForm } from './ProjectConfigForm';
 import { PlanGoalDialog } from './PlanGoalDialog';
+import { commandFor, missingCommandText } from './checkCommands';
 
 export interface OverviewTabProps {
   project: ProjectSummary;
   onTab: (tab: ProjectTab) => void;
-}
-
-/** German sentence for a missing check command (UI-SPEC: honest text instead of a fake button). */
-export function missingCommandText(kind: CheckKind): string {
-  const what: Record<CheckKind, string> = {
-    test: 'kein Testbefehl',
-    build: 'kein Build-Befehl',
-    lint: 'kein Lint-Befehl',
-    typecheck: 'kein Befehl für die Typprüfung',
-    e2e: 'kein Befehl für Oberflächentests',
-    security: 'kein Befehl für die Sicherheitsprüfung',
-    runtime: 'kein Start- oder Entwicklungsbefehl',
-    package: 'kein Befehl zum Paketbau',
-  };
-  return `Für dieses Projekt ist ${what[kind]} eingerichtet – Prüfung nicht möglich`;
-}
-
-/** Command used for a check kind (runtime uses run, else dev). */
-export function commandFor(project: Pick<ProjectSummary, 'config'>, kind: CheckKind): string | null {
-  const c = project.config.commands;
-  if (kind === 'runtime') return c.run ?? c.dev ?? null;
-  return c[kind] ?? null;
 }
 
 export function OverviewTab({ project, onTab }: OverviewTabProps) {
@@ -72,6 +51,7 @@ function QuickActions({ project, onTab }: OverviewTabProps) {
   const [goal, setGoal] = useState('');
   const work = useDaemonStore((s) => s.work);
   const projectWork = work?.projects.find((p) => p.projectId === project.id);
+  const [runningKind, setRunningKind] = useState<CheckKind | null>(null);
   const runCheck = useMutation('checks.run', {
     onSuccess: (c) =>
       toast.show({
@@ -86,10 +66,19 @@ function QuickActions({ project, onTab }: OverviewTabProps) {
   const idleReason = projectWork?.idleReason ?? null;
   const suggestion = projectWork?.suggestion ?? null;
 
+  const startCheck = async (kind: CheckKind) => {
+    setRunningKind(kind);
+    try {
+      await runCheck.run({ projectId: project.id, kind });
+    } finally {
+      setRunningKind(null);
+    }
+  };
+
   const checkButton = (kind: 'test' | 'build', label: string, icon: typeof FlaskConical) => {
     const cmd = commandFor(project, kind);
     const button = (
-      <Button icon={icon} disabled={!cmd || runCheck.loading} loading={runCheck.loading && runCheck.error === null && false} onClick={() => void runCheck.run({ projectId: project.id, kind })}>
+      <Button icon={icon} disabled={!cmd || (runCheck.loading && runningKind !== kind)} loading={runningKind === kind} onClick={() => void startCheck(kind)}>
         {label}
       </Button>
     );
@@ -356,4 +345,3 @@ function ManageCard({ project }: { project: ProjectSummary }) {
   );
 }
 
-export { EmptyState };

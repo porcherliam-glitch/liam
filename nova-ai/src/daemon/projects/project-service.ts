@@ -46,6 +46,7 @@ interface ProjectRow {
   technologies: string;
   status: string;
   template_id: string | null;
+  origin: string;
   config: string;
   work_state: string;
   git_available: number;
@@ -164,6 +165,7 @@ export function createProjectService(s: Services, opts: ProjectServiceOptions = 
       technologies: fromJson<string[]>(r.technologies, []),
       status: r.status === 'archived' ? 'archived' : 'active',
       templateId: r.template_id,
+      origin: r.origin === 'open' || r.origin === 'import' ? r.origin : 'new',
       config: parseStoredConfig(fromJson<unknown>(r.config, null), kind, autoCommitDefault()),
       workState: workState.success ? workState.data : 'stopped',
       gitAvailable: bool(r.git_available),
@@ -231,9 +233,9 @@ export function createProjectService(s: Services, opts: ProjectServiceOptions = 
   function insertProject(p: Project, key: string): void {
     try {
       db.run(
-        `INSERT INTO projects(id, name, description, path, path_key, kind, technologies, status, template_id, config, work_state, git_available, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [p.id, p.name, p.description, p.path, key, p.kind, toJson(p.technologies), p.status, p.templateId, toJson(p.config), p.workState, int(p.gitAvailable), p.createdAt, p.updatedAt],
+        `INSERT INTO projects(id, name, description, path, path_key, kind, technologies, status, template_id, origin, config, work_state, git_available, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [p.id, p.name, p.description, p.path, key, p.kind, toJson(p.technologies), p.status, p.templateId, p.origin, toJson(p.config), p.workState, int(p.gitAvailable), p.createdAt, p.updatedAt],
       );
     } catch (e) {
       if (isUniqueViolation(e)) throw validation('Dieser Ordner kann nicht als Projektordner verwendet werden: Er ist bereits als Projekt eingetragen.');
@@ -320,7 +322,7 @@ export function createProjectService(s: Services, opts: ProjectServiceOptions = 
     }
   }
 
-  function newProject(input: { name: string; description: string; path: string; kind: ProjectKind; technologies: string[]; templateId: string | null; config: ProjectConfig; workState: Project['workState'] }): Project {
+  function newProject(input: { name: string; description: string; path: string; kind: ProjectKind; technologies: string[]; templateId: string | null; config: ProjectConfig; workState: Project['workState']; origin: Project['origin'] }): Project {
     const now = s.core.clock.now();
     return {
       id: newId('prj'),
@@ -331,6 +333,7 @@ export function createProjectService(s: Services, opts: ProjectServiceOptions = 
       technologies: input.technologies,
       status: 'active',
       templateId: input.templateId,
+      origin: input.origin,
       config: validateConfig(input.config),
       workState: input.workState,
       gitAvailable: false,
@@ -401,6 +404,7 @@ export function createProjectService(s: Services, opts: ProjectServiceOptions = 
       templateId: template.info.id,
       config,
       workState: 'running',
+      origin: 'new',
     });
     insertProject(project, pathKey(realRoot, platform));
     emitUpdated(project);
@@ -455,6 +459,7 @@ export function createProjectService(s: Services, opts: ProjectServiceOptions = 
       templateId: null,
       config,
       workState: 'stopped',
+      origin: input.mode === 'import' ? 'import' : 'open',
     });
     insertProject(project, pathKey(root, platform));
     emitUpdated(project);

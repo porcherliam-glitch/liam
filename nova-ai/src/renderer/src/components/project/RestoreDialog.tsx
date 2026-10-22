@@ -126,7 +126,7 @@ export function RestoreDialog({ open, onClose, target, label, mode = 'preview', 
             <FileList title="Wird wiederhergestellt" tone="ok" items={plan.restored.map((p) => ({ path: p }))} />
           )}
           {plan.conflicts.length > 0 && <FileList title="Konflikte – bleiben unverändert" tone="warn" items={plan.conflicts.map((c) => ({ path: c.path, note: c.reason }))} />}
-          {plan.skipped.length > 0 && <FileList title="Übersprungen" tone="muted" items={plan.skipped.map((p) => ({ path: p }))} />}
+          {plan.skipped.length > 0 && <FileList title="Übersprungen – bitte selbst prüfen" tone="muted" items={plan.skipped.map((s) => ({ path: s.path, note: s.reason }))} />}
           {step === 'confirm' && gitAvailable && !nothing && (
             <Checkbox checked={commit} onChange={setCommit} label="Als Git-Commit festhalten" description="Nur die wiederhergestellten Dateien werden committet." />
           )}
@@ -166,7 +166,7 @@ function ResultView({ result }: { result: RestoreResult }) {
       </p>
       {result.restored.length > 0 && <FileList title="Wiederhergestellt" tone="ok" items={result.restored.map((p) => ({ path: p }))} />}
       {result.conflicts.length > 0 && <FileList title="Nicht angefasst (eigene Änderungen)" tone="warn" items={result.conflicts.map((c) => ({ path: c.path, note: c.reason }))} />}
-      {result.skipped.length > 0 && <FileList title="Übersprungen" tone="muted" items={result.skipped.map((p) => ({ path: p }))} />}
+      {result.skipped.length > 0 && <FileList title="Übersprungen – bitte selbst prüfen" tone="muted" items={result.skipped.map((s) => ({ path: s.path, note: s.reason }))} />}
       {result.commit && <CodeBlock label="Git-Commit" code={result.commit} />}
       {result.checkpointId && (
         <p className="text-xs text-muted">Ein Wiederherstellungspunkt „Vor der Wiederherstellung“ wurde angelegt. Darüber lässt sich dieser Schritt rückgängig machen.</p>

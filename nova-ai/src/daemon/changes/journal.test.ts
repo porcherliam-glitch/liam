@@ -179,7 +179,8 @@ describe('ChangeJournal.revert', () => {
     const res = await h.s.journal.revert({ projectId: h.project.id, projectRoot: h.root, taskId: 'task_a' });
     expect(res.conflicts).toEqual([{ path: 'm.txt', reason: 'Sicherung nicht mehr vorhanden' }]);
     expect(res.skipped).toHaveLength(1);
-    expect(res.skipped[0]).toMatch(/^untracked\.txt – .*rückgängig/);
+    expect(res.skipped[0].path).toBe('untracked.txt');
+    expect(res.skipped[0].reason).toMatch(/rückgängig/);
     expect(readFileSync(join(h.root, 'untracked.txt'), 'utf8')).toBe('after!!');
   });
 

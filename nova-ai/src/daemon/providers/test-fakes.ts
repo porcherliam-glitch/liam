@@ -56,6 +56,18 @@ export function fakeApprovals(): FakeApprovals {
     consumeCalls,
     checkCalls,
     fingerprint,
+    peek(req): ApprovalCheck | null {
+      const fp = fingerprint(req.kind, req.projectId, req.subject);
+      const fpGlobal = fingerprint(req.kind, null, req.subject);
+      if (ruleList.some((r) => r.fingerprint === fp || r.fingerprint === fpGlobal)) return { state: 'approved', approval: null, viaRule: true };
+      const taskId = req.taskId ?? null;
+      const same = rows.filter((r) => r.fingerprint === fp && r.taskId === taskId);
+      const approved = same.find((r) => r.status === 'approved' && r.scope === 'once' && !r.consumed);
+      if (approved) return { state: 'approved', approval: strip(approved), viaRule: false };
+      const pending = same.find((r) => r.status === 'pending');
+      if (pending) return { state: 'pending', approval: strip(pending) };
+      return null;
+    },
     check(req): ApprovalCheck {
       checkCalls.push(req);
       const fp = fingerprint(req.kind, req.projectId, req.subject);

@@ -14,6 +14,7 @@ const project: Project = {
   technologies: ['javascript'],
   status: 'active',
   templateId: 'web-game',
+  origin: 'new',
   config: defaultConfig(),
   workState: 'running',
   gitAvailable: true,

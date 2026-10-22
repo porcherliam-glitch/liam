@@ -52,8 +52,9 @@ function relatesTo(projectId: string) {
 export default function ProjectDetailPage() {
   const { projectId = '' } = useParams();
   const [params, setParams] = useSearchParams();
-  const tab = parseTab(params.get('tab'));
   const highlightTask = params.get('task');
+  // A task link without an explicit tab opens the task list.
+  const tab = parseTab(params.get('tab') ?? (highlightTask ? 'tasks' : null));
   const navigate = useNavigate();
   const project = useRpc('projects.get', projectId ? { id: projectId } : null, { refetchOn: PROJECT_EVENTS, eventFilter: relatesTo(projectId) });
 
@@ -104,7 +105,7 @@ export default function ProjectDetailPage() {
   return (
     <Page title={p.name} back={back}>
       <div className="space-y-4">
-        <ProjectHeader project={p} onChanged={() => void project.refetch()} />
+        <ProjectHeader project={p} showStudio={tab !== 'overview'} onChanged={() => void project.refetch()} />
         <Tabs label="Projektbereiche" idBase="project" items={items} value={tab} onChange={setTab} />
         <TabPanel idBase="project" id={tab}>
           {tab === 'overview' && <OverviewTab project={p} onTab={setTab} />}
@@ -120,7 +121,7 @@ export default function ProjectDetailPage() {
   );
 }
 
-function ProjectHeader({ project, onChanged }: { project: ProjectSummary; onChanged: () => void }) {
+function ProjectHeader({ project, showStudio, onChanged }: { project: ProjectSummary; showStudio: boolean; onChanged: () => void }) {
   const navigate = useNavigate();
   const kind = metaOf(PROJECT_KIND, project.kind);
   const { done, total } = progressCounts(project);
@@ -158,9 +159,11 @@ function ProjectHeader({ project, onChanged }: { project: ProjectSummary; onChan
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {project.status === 'active' && <ProjectWorkToggle project={project} showPause />}
-          <Button icon={Code} onClick={() => navigate(paths.studio(project.id))}>
-            Studio öffnen
-          </Button>
+          {showStudio && (
+            <Button icon={Code} onClick={() => navigate(paths.studio(project.id))}>
+              Studio öffnen
+            </Button>
+          )}
         </div>
       </div>
       {project.pathMissing && (

@@ -40,6 +40,7 @@ function insertProject(core: TestCore['core'], dir: string, patch: Omit<Partial<
     technologies: [],
     status: 'active',
     templateId: null,
+    origin: 'new',
     workState: 'stopped',
     gitAvailable: false,
     createdAt: Date.now(),

@@ -43,6 +43,7 @@ const PROJECT = {
   technologies: [],
   status: 'active',
   templateId: null,
+  origin: 'new',
   config: {
     commands: { install: null, dev: null, build: null, test: null, lint: null, typecheck: null, e2e: null, security: null, package: null, run: null },
     preview: { kind: 'none', entry: null, url: null },

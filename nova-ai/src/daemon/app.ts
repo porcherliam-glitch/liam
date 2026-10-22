@@ -248,6 +248,9 @@ export async function startDaemon(opts: StartDaemonOptions): Promise<DaemonApp> 
     await step('Aufgaben', async () => {
       recovered.tasks = (await s.work.recover()).tasks;
     });
+    // Optional lifecycle hooks of modules (timers, lazy subscriptions) beyond the contracts.
+    const lifecycle = (svc: unknown) => svc as { start?: () => void; stop?: () => void | Promise<void> };
+    for (const svc of [s.budget, s.providers, s.ollama]) lifecycle(svc).start?.();
     s.resources.start();
     s.updates.start();
     for (const p of s.projects.list()) {
@@ -320,7 +323,7 @@ export async function startDaemon(opts: StartDaemonOptions): Promise<DaemonApp> 
     backupsWithRestart.setRestartHandler?.(() => setTimeout(() => void app.stop('Datenbank-Wiederherstellung', { restart: true }), 200));
 
     app.token = generateToken();
-    const server = await startRpcServer({ endpoint, token: app.token, router, bus: core.bus, log: log.child('server'), version: core.version, instanceId: core.instanceId });
+    const server = await startRpcServer({ endpoint, token: app.token, tokenPath: paths.token, router, bus: core.bus, log: log.child('server'), version: core.version, instanceId: core.instanceId });
     writeToken(paths, app.token);
     writeLock(paths, { pid: process.pid, instanceId: core.instanceId, endpoint, startedAt, version: core.version });
     clearCrashReport(paths.crash);
@@ -356,6 +359,7 @@ export async function startDaemon(opts: StartDaemonOptions): Promise<DaemonApp> 
       await timed('Dateiüberwachung', 2000, () => s.watcher.unwatchAll());
       await timed('Prozesse', fast ? 2000 : 5000, () => s.processes.shutdown());
       await timed('Ressourcen', 2000, () => s.resources.stop());
+      for (const svc of [s.ollama, s.providers, s.budget]) await timed('Modelle', 2000, () => lifecycle(svc).stop?.());
       await timed('Updates', 1000, () => s.updates.stop());
       await timed('Server', 5000, () => server.close());
       clearTimeout(deadline);

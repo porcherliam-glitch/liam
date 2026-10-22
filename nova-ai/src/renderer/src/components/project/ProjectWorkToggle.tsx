@@ -36,15 +36,15 @@ export function markProjectTrusted(projectId: string): void {
 }
 
 /**
- * Projects created with "Öffnen"/"Importieren" start with work stopped and without a template. Before work is enabled
- * the first time for such a project, the trust warning is shown (once per project).
+ * Projects created with "Öffnen"/"Importieren" (origin open/import) start with work stopped. Before work is enabled the
+ * first time for such a project, the trust warning is shown (once per project, remembered locally).
  */
-export function needsTrustConfirmation(project: Pick<Project, 'id' | 'templateId' | 'workState'>): boolean {
-  return project.workState === 'stopped' && project.templateId === null && !readTrusted().includes(project.id);
+export function needsTrustConfirmation(project: Pick<Project, 'id' | 'origin' | 'workState'>): boolean {
+  return project.workState === 'stopped' && (project.origin === 'open' || project.origin === 'import') && !readTrusted().includes(project.id);
 }
 
 export interface ProjectWorkToggleProps {
-  project: Pick<Project, 'id' | 'name' | 'workState' | 'templateId'>;
+  project: Pick<Project, 'id' | 'name' | 'workState' | 'origin'>;
   /** Show the state text next to the switch (default true). */
   showState?: boolean;
   /** Also offer "Pausieren" while the project works (project header). */
@@ -112,7 +112,9 @@ export function ProjectWorkToggle({ project, showState = true, showPause = false
         message={
           <>
             <p>{TRUST_PROJECT_TEXT}</p>
-            <p className="mt-2 text-muted">„{project.name}“ wurde aus einem vorhandenen Ordner oder Repository übernommen.</p>
+            <p className="mt-2 text-muted">
+              „{project.name}“ wurde {project.origin === 'import' ? 'aus einem Git-Repository importiert' : 'aus einem vorhandenen Ordner übernommen'}. Diese Frage erscheint nur beim ersten Einschalten.
+            </p>
           </>
         }
         confirmLabel="Projekt vertrauen und einschalten"

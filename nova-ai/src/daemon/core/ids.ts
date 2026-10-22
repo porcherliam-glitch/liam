@@ -3,7 +3,7 @@ import { randomBytes } from 'node:crypto';
 
 export type IdPrefix =
   | 'prj' | 'task' | 'run' | 'apr' | 'rule' | 'prov' | 'use' | 'mem' | 'chk' | 'proc'
-  | 'term' | 'crun' | 'err' | 'bak' | 'pull' | 'ntf' | 'inst' | 'req';
+  | 'term' | 'crun' | 'err' | 'bak' | 'pull' | 'ntf' | 'inst' | 'req' | 'note' | 'resv';
 
 export function newId(prefix: IdPrefix): string {
   const time = Date.now().toString(36);

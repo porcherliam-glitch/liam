@@ -30,6 +30,7 @@ function makeProject(dir: string, patch: Omit<Partial<Project>, 'config'> & { co
     technologies: [],
     status: 'active',
     templateId: null,
+    origin: 'new',
     workState: 'stopped',
     gitAvailable: false,
     createdAt: 0,

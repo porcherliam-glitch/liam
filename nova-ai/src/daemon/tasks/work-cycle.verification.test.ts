@@ -271,7 +271,7 @@ describe('planner and integration pass', () => {
           { key: 'a', title: 'Spielfeld', description: 'Canvas anlegen', role: 'coder', kind: 'code', dependsOn: [], priority: 1, acceptance: 'Feld sichtbar', files: ['src/board.js'] },
           { key: 'b', title: 'Tests', description: '', role: 'tester', kind: 'test', dependsOn: ['a', 'unbekannt', 'b'], priority: 1, acceptance: null, files: ['tests\\board.test.js'] },
         ],
-        memory: [{ kind: 'decision', title: 'Canvas', content: 'Wir nutzen Canvas statt DOM.' }],
+        memory: [{ kind: 'decision', title: 'Canvas', content: 'Wir nutzen Canvas statt DOM.', tags: [] }],
       }),
     );
     // child b (tester) → orchestrator test passes; integration: build passes, test fails; fix → second integration passes.

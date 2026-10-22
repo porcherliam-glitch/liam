@@ -178,6 +178,8 @@ export interface ApprovalService {
    *           (emits 'approval.updated' + notification category 'approval').
    */
   check(req: ApprovalRequest): ApprovalCheck;
+  /** Like check() but never creates or modifies anything; null when no rule/approval exists for the request. */
+  peek(req: ApprovalRequest): ApprovalCheck | null;
   /** Atomically marks a 'once' approval as used. Call BEFORE executing the approved action (never reused after a crash). */
   consume(approvalId: string): void;
   /** Marks a denied approval as acknowledged so the same action can be requested again later. */
@@ -339,7 +341,7 @@ export interface ModelClient {
    * rejected), VRAM_INSUFFICIENT (details.alternatives), APPROVAL_REQUIRED (details.approvalId, when the only remaining
    * candidates wait for an approval), BUDGET_EXCEEDED / PAID_NOT_APPROVED / PRICE_UNKNOWN (when that is the only reason).
    */
-  resolve(role: AgentRole, opts?: { projectId?: string | null; exclude?: ModelRef[]; preferred?: ModelRef | null }): Promise<ResolvedModel>;
+  resolve(role: AgentRole, opts?: { projectId?: string | null; exclude?: ModelRef[]; preferred?: ModelRef | null; taskId?: string | null; runId?: string | null }): Promise<ResolvedModel>;
   /**
    * Chat with automatic fallback: on MODEL_UNAVAILABLE / OLLAMA_UNREACHABLE / PROVIDER_ERROR(5xx/network) /
    * BUDGET_EXCEEDED the next allowed candidate is tried; PROVIDER_RATE_LIMIT honours Retry-After (≤ 120 s) and per
@@ -458,6 +460,7 @@ export interface ChangeJournal {
    * modify/delete are revertible only if a before blob exists (git: file was clean → blob from `git show HEAD:path`).
    * Calls tasks.addFiles, emits files.changed {actor:'nova'}.
    */
+  /** `before` must be the SAME Map object returned by scanState (extra data is attached to it) – pass it back even when the command failed or timed out. */
   recordCommandChanges(input: { projectId: string; projectRoot: string; taskId: string | null; runId: string | null; before: FileStateMap }): Promise<ChangeRecord[]>;
   list(filter: { projectId: string; taskId?: string; path?: string; afterId?: number; includeReverted?: boolean; limit?: number }): ChangeRecord[];
   get(id: number): ChangeRecord | null;
@@ -473,7 +476,7 @@ export interface ChangeJournal {
    * untouched); not revertible → skipped with reason; missing blob → conflict "Sicherung nicht mehr vorhanden".
    * Reverts are journaled (source 'restore'). Never touches files NOVA did not change. dryRun reports only.
    */
-  revert(input: { projectId: string; projectRoot: string; afterId?: number; taskId?: string; dryRun?: boolean }): Promise<{ restored: string[]; conflicts: { path: string; reason: string }[]; skipped: string[] }>;
+  revert(input: { projectId: string; projectRoot: string; afterId?: number; taskId?: string; dryRun?: boolean }): Promise<{ restored: string[]; conflicts: { path: string; reason: string }[]; skipped: { path: string; reason: string }[] }>;
   /** Delete snapshot blobs no longer referenced by non-reverted changes and older than the cutoff. */
   pruneSnapshots(olderThanMs: number): number;
   /** Paths the journal wrote in the last `withinMs` (watcher suppression). */
@@ -672,7 +675,7 @@ export const PlanOutputSchema = zod.object({
   summary: zod.string(),
   tasks: zod.array(PlanTaskSchema).max(15),
   memory: zod
-    .array(zod.object({ kind: zod.enum(['goal', 'decision', 'requirement', 'convention', 'question', 'next_step', 'note']), title: zod.string(), content: zod.string() }))
+    .array(zod.object({ kind: zod.enum(['goal', 'decision', 'requirement', 'convention', 'question', 'next_step', 'note']), title: zod.string(), content: zod.string(), tags: zod.array(zod.string()).default([]) }))
     .default([]),
 });
 export type PlanOutput = z.infer<typeof PlanOutputSchema>;
@@ -755,6 +758,8 @@ export interface AgentRoleModule {
   toolNames: string[];
   /** Parses/validates the finish tool data into the role output (throws on invalid data; message goes back to the model). */
   parseOutput(data: unknown): AgentOutput;
+  /** Optional honesty gate: returns a German/English correction for the model when the output is not credible (e.g. tester reports results without running checks). */
+  checkFinish?(output: AgentOutput, ctx: { toolsUsed: string[] }): string | null;
 }
 
 export interface RunStore {
@@ -915,7 +920,11 @@ export interface GitService {
   /** Only https://, ssh://, git@host: URLs; `git clone --end-of-options <url> <dir>`; host must pass assertHostAllowed (else network approval). */
   clone(url: string, dir: string, signal?: AbortSignal, onProgress?: (percent: number | null, message: string) => void): Promise<void>;
   showFile(root: string, ref: string, path: string): Promise<Buffer | null>;
-  /** Paths (rel) that are clean (tracked, unmodified) – used by the journal to snapshot before commands. */
+  /**
+   * Paths that are clean (tracked, unmodified) – used by the journal to snapshot before commands. Must handle up to
+   * 50 000 paths without putting them on argv (e.g. `git ls-files -z` + `git status --porcelain=v1 -z`, intersected in
+   * memory). All paths in GitService (status files, showFile, isClean) are relative to the `root` passed in, with '/'.
+   */
   isClean(root: string, paths: string[]): Promise<Set<string>>;
 }
 

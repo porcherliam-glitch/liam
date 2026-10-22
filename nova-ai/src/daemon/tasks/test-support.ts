@@ -78,6 +78,7 @@ export class FakeProjects {
       technologies: patch.technologies ?? [],
       status: patch.status ?? 'active',
       templateId: null,
+      origin: 'new',
       config: patch.config ?? defaultConfig(),
       workState: patch.workState ?? 'running',
       gitAvailable: false,

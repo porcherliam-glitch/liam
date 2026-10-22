@@ -712,7 +712,7 @@ export function createChangeJournal(s: Services, opts: ChangeJournalOptions = {}
       const rows = db.all<ChangeRow>(`SELECT * FROM changes WHERE ${where.join(' AND ')} ORDER BY id DESC`, params);
       const restored = new Set<string>();
       const conflicts: { path: string; reason: string }[] = [];
-      const skipped: string[] = [];
+      const skipped: { path: string; reason: string }[] = [];
       const blocked = new Set<string>();
       const simulated = new Map<string, string | null>();
       const dry = input.dryRun === true;
@@ -734,7 +734,7 @@ export function createChangeJournal(s: Services, opts: ChangeJournalOptions = {}
       for (const row of rows) {
         if (blocked.has(row.path_key)) continue;
         if (row.revertible !== 1) {
-          skipped.push(`${row.path} – Änderung durch einen Befehl ohne Sicherung des vorherigen Stands; kann nicht automatisch rückgängig gemacht werden`);
+          skipped.push({ path: row.path, reason: 'Änderung durch einen Befehl ohne Sicherung des vorherigen Stands – kann nicht automatisch rückgängig gemacht werden. Bitte manuell prüfen.' });
           blocked.add(row.path_key);
           continue;
         }

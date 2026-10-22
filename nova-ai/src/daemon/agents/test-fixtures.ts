@@ -47,6 +47,7 @@ export function insertProjectAndTask(core: CoreContext, overrides: Partial<Task>
     technologies: ['javascript'],
     status: 'active',
     templateId: null,
+    origin: 'new',
     config: defaultConfig(),
     workState: 'running',
     gitAvailable: true,

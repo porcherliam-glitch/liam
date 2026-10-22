@@ -34,7 +34,7 @@ const PATTERNS: Array<{ re: RegExp; replace: string }> = [
   { re: /(:\/\/[^/\s:@]+:)[^@\s/]+(?=@)/g, replace: `$1${REDACTED}` }, // URL userinfo password
   // KEY=value / "key": "value" / Authorization: Bearer x – also DB_PASSWORD=, STRIPE_SECRET=, MY_API_KEY=, AUTH_TOKEN=
   {
-    re: /((?:[A-Za-z0-9]+[_-])*(?:api[_-]?key|apikey|access[_-]?key|secret(?:[_-]?key)?|token|password|passwd|pwd|credentials?|auth(?:orization)?)(?:[_-][A-Za-z0-9]+)*["']?\s*[:=]\s*["']?)(?:(?:Bearer|Basic)\s+)?[^\s"',;]{6,}/gi,
+    re: /((?:[A-Za-z0-9]{1,40}[_-]){0,6}(?:api[_-]?key|apikey|access[_-]?key|secret(?:[_-]?key)?|token|password|passwd|pwd|credentials?|auth(?:orization)?)(?:[_-][A-Za-z0-9]{1,40}){0,6}["']?\s*[:=]\s*["']?)(?:(?:Bearer|Basic)\s+)?[^\s"',;]{6,}/gi,
     replace: `$1${REDACTED}`,
   },
 ];

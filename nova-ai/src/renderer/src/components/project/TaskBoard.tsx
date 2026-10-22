@@ -1,6 +1,6 @@
 // Task board used by the project "Aufgaben" tab and the global "Aufgaben" page: filters (project, status, role,
 // text), sorting, status groups, expandable rows with controls, and the create/edit dialog.
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import { ChevronDown, ChevronRight, GitFork, ListPlus, ListTodo, Search } from 'lucide-react';
 import type { AgentRole, Task } from '@shared/schemas';
@@ -44,6 +44,8 @@ export interface TaskBoardProps {
   gitAvailable?: boolean;
   /** Key prefix for remembered filters. */
   storageKey?: string;
+  /** Extra buttons next to "Aufgabe anlegen" (e.g. "Ziel planen"). */
+  extraActions?: ReactNode;
 }
 
 const STATUS_FILTERS: Array<{ value: TaskStatusFilter; label: string }> = [
@@ -63,7 +65,7 @@ const SORTS: Array<{ value: TaskSort; label: string }> = [
 
 const ROLES: AgentRole[] = ['planner', 'coder', 'tester', 'reviewer'];
 
-export function TaskBoard({ projectId, highlightTaskId, gitAvailable, storageKey = projectId ? 'tasks.project' : 'tasks.global' }: TaskBoardProps) {
+export function TaskBoard({ projectId, highlightTaskId, gitAvailable, storageKey = projectId ? 'tasks.project' : 'tasks.global', extraActions }: TaskBoardProps) {
   const tasks = useLiveTasks(projectId);
   const projects = useProjects();
   const projectNames = useMemo(() => new Map((projects.data ?? []).map((p) => [p.id, p.name])), [projects.data]);
@@ -179,6 +181,7 @@ export function TaskBoard({ projectId, highlightTaskId, gitAvailable, storageKey
           options={STATUS_FILTERS.map((f) => ({ value: f.value, label: f.label, count: counts[f.value] }))}
         />
         <div className="ml-auto flex flex-wrap items-end gap-2">
+          {extraActions}
           <Button variant="primary" icon={ListPlus} onClick={() => setDialog({ task: null })}>
             Aufgabe anlegen
           </Button>

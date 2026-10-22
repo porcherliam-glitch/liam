@@ -80,6 +80,8 @@ export const ProjectSchema = z.object({
   technologies: z.array(z.string()),
   status: ProjectStatus,
   templateId: z.string().nullable(),
+  /** How the project came to NOVA: new (template/description/wizard), open (existing folder), import (git clone). */
+  origin: z.enum(['new', 'open', 'import']),
   config: ProjectConfigSchema,
   /**
    * Autonomous work for this project: running = the scheduler starts queued tasks; paused = runs of this project
@@ -842,7 +844,8 @@ export type Checkpoint = z.infer<typeof CheckpointSchema>;
 export const RestoreResultSchema = z.object({
   restored: z.array(z.string()), // paths restored
   conflicts: z.array(z.object({ path: z.string(), reason: z.string() })), // skipped, user changed the file
-  skipped: z.array(z.string()),
+  /** Changes that were not restored, with a German reason (e.g. "Durch einen Befehl geändert – bitte manuell prüfen"). */
+  skipped: z.array(z.object({ path: z.string(), reason: z.string() })),
   commit: z.string().nullable(), // git commit created for the restore, if any
   checkpointId: z.string().nullable(), // pre_restore checkpoint so the restore itself can be undone
 });

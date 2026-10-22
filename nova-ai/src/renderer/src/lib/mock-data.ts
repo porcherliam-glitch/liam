@@ -1487,14 +1487,14 @@ export function clampToPlatform(_body: Phaser.Physics.Arcade.Body): void {}
     { id: 'bak_3', kind: 'project_snapshot', path: 'C:\\Users\\Demo\\AppData\\Roaming\\NOVA AI\\backups\\Pixel-Abenteuer-2026-10-20', sizeBytes: 1.6 * MB, reason: 'manuell', projectId: PIXEL, createdAt: ago(2 * DAY) },
   ];
 
+  // Same ids, names and tools as the daemon templates (src/daemon/projects/templates).
   const templates: ProjectTemplateInfo[] = [
-    { id: 'web-vite-ts', name: 'Webanwendung', description: 'Moderne Webseite mit Vite und TypeScript – mit Live-Vorschau im Studio.', kind: 'web', technologies: ['TypeScript', 'Vite'], requiredTools: ['node', 'npm'], previewKind: 'browser-dev-server', missingTools: [] },
-    { id: 'web-game-phaser', name: 'Browser-Spiel (2D)', description: '2D-Spiel mit Phaser 3, läuft direkt im Browser und in der Vorschau.', kind: 'web', technologies: ['TypeScript', 'Vite', 'Phaser 3'], requiredTools: ['node', 'npm'], previewKind: 'browser-dev-server', missingTools: [] },
-    { id: 'node-api', name: 'REST-API (Node.js)', description: 'Server mit Express und SQLite, inklusive Tests mit Vitest.', kind: 'backend', technologies: ['Node.js', 'Express', 'SQLite'], requiredTools: ['node', 'npm'], previewKind: 'browser-dev-server', missingTools: [] },
-    { id: 'python-cli', name: 'Python-Programm', description: 'Kommandozeilenprogramm in Python mit pytest.', kind: 'generic', technologies: ['Python', 'pytest'], requiredTools: ['python'], previewKind: 'desktop-run', missingTools: [] },
-    { id: 'unity-urp', name: 'Unity-Projekt (3D, URP)', description: 'Leeres Unity-Projekt mit Universal Render Pipeline und Ordnerstruktur.', kind: 'unity', technologies: ['Unity 6.6', 'C#', 'URP'], requiredTools: ['unity'], previewKind: 'engine-external', missingTools: [] },
-    { id: 'godot-2d', name: 'Godot-Spiel (2D)', description: '2D-Spiel mit Godot 4 und GDScript.', kind: 'godot', technologies: ['Godot 4', 'GDScript'], requiredTools: ['godot'], previewKind: 'engine-external', missingTools: ['godot'] },
-    { id: 'dotnet-desktop', name: 'Desktop-Anwendung (.NET)', description: 'Windows-Programm mit WPF und C#.', kind: 'desktop', technologies: ['C#', '.NET 8', 'WPF'], requiredTools: ['dotnet'], previewKind: 'desktop-run', missingTools: ['dotnet'] },
+    { id: 'web-app', name: 'Webanwendung', description: 'Webanwendung mit HTML, CSS und JavaScript – ohne zusätzliche Pakete, mit Tests und Live-Vorschau.', kind: 'web', technologies: ['HTML', 'CSS', 'JavaScript'], requiredTools: ['node'], previewKind: 'browser-dev-server', missingTools: [] },
+    { id: 'web-game', name: 'Browserspiel', description: 'Spiel für den Browser mit HTML, CSS und JavaScript (Canvas) – ohne zusätzliche Pakete, mit Tests und Live-Vorschau.', kind: 'web', technologies: ['HTML', 'CSS', 'JavaScript', 'Canvas'], requiredTools: ['node'], previewKind: 'browser-dev-server', missingTools: [] },
+    { id: 'backend-api', name: 'Backend / API (Node.js)', description: 'REST-API mit Datenbank nur mit Node.js-Bordmitteln (node:http, node:sqlite) – ohne npm-Pakete, mit Tests.', kind: 'backend', technologies: ['Node.js', 'REST', 'SQLite'], requiredTools: ['node'], previewKind: 'browser-dev-server', missingTools: [] },
+    { id: 'unity', name: 'Unity-Projekt', description: 'Unity-Projekt (C#) mit kleinem Startspiel, EditMode-Tests und Windows-Build – wird in Unity geöffnet.', kind: 'unity', technologies: ['Unity', 'C#'], requiredTools: ['unity'], previewKind: 'engine-external', missingTools: [] },
+    { id: 'desktop-dotnet', name: 'Windows-Desktop-Anwendung (WPF, .NET 8)', description: 'Windows-Programm mit WPF und C# auf .NET 8, Logik-Bibliothek und xUnit-Tests – startet in einem eigenen Fenster.', kind: 'desktop', technologies: ['C#', '.NET 8', 'WPF', 'xUnit'], requiredTools: ['dotnet'], previewKind: 'desktop-run', missingTools: ['dotnet'] },
+    { id: 'empty', name: 'Leeres Projekt', description: 'Nur README und .gitignore – für eigene Projektarten oder um bei null anzufangen.', kind: 'generic', technologies: [], requiredTools: [], previewKind: 'none', missingTools: [] },
   ];
 
   const roles: AgentRoleInfo[] = [
