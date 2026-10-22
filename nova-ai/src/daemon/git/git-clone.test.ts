@@ -1,15 +1,17 @@
 // GitService.clone: URL rules (no network contact for rejected URLs), non-empty targets, host policy with network
 // approvals (pending/denied/rule), and real clones over HTTPS from a 127.0.0.1 server with a throw-away self-signed
 // certificate (git's dumb HTTP protocol): success with progress, "not found" with cleanup, and abort with cleanup.
-// The HTTPS cases need the openssl CLI to create the certificate and are skipped without it.
+// The HTTPS cases need the openssl CLI to create the certificate and are skipped without it. SSH clones use a fake
+// `ssh` script on PATH that records its arguments (non-interactive BatchMode unless the user configured an own ssh).
 import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { execFileSync } from 'node:child_process';
 import { createServer, type Server } from 'node:https';
-import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { join, normalize } from 'node:path';
 import type { AddressInfo } from 'node:net';
 import { tempDir } from '../../../tests/helpers/core';
 import { gitFixture, type GitFixture } from './test-support';
+import { SSH_BATCH_COMMAND, createGitService } from './git-service';
 
 // Never let a proxy from the environment take part in local test clones.
 const NO_PROXY_ENV = { HTTPS_PROXY: '', https_proxy: '', HTTP_PROXY: '', http_proxy: '', ALL_PROXY: '', all_proxy: '', NO_PROXY: '*', no_proxy: '*' };
@@ -131,6 +133,57 @@ describe('clone – validation and host policy (no network)', () => {
     // … a host matching "*.example.invalid" does not; the (impossible) connection fails afterwards.
     await expect(f.git.clone('https://git.example.invalid:1/x.git', join(f.dir, 'b'))).rejects.toMatchObject({ code: 'GIT_ERROR' });
     expect(f.approvals.requests.length).toBe(before);
+  });
+});
+
+/** Writes an executable fake ssh into `bin` that logs its arguments to `log` and fails like a rejected key. */
+function fakeSsh(bin: string, name: string, log: string): string {
+  mkdirSync(bin, { recursive: true });
+  const file = join(bin, name);
+  writeFileSync(file, `#!/bin/sh\nprintf '%s\\n' "${name}" "$@" > '${log}'\necho 'git@127.0.0.1: Permission denied (publickey).' >&2\nexit 255\n`);
+  chmodSync(file, 0o755);
+  return file;
+}
+
+describe.skipIf(process.platform === 'win32' || !!process.env.GIT_SSH_COMMAND || !!process.env.GIT_SSH)('clone over ssh (fake ssh on PATH)', () => {
+  /** Fixture plus a GitService whose PATH starts with a bin folder holding the fake `ssh`. */
+  function sshFixture(extraEnv: Record<string, string> = {}) {
+    f = gitFixture({ extraEnv: NO_PROXY_ENV });
+    const bin = join(f.dir, 'bin');
+    const log = join(f.dir, 'ssh.log');
+    fakeSsh(bin, 'ssh', log);
+    const git = createGitService(f.s, { gitPath: 'git', extraEnv: { ...f.env, PATH: `${bin}:${process.env.PATH ?? ''}`, ...extraEnv } });
+    return { fx: f, git, bin, log };
+  }
+
+  it('runs ssh non-interactively (BatchMode) and maps a rejected key to a German sign-in error', async () => {
+    const { fx, git, log } = sshFixture();
+    const target = join(fx.dir, 'ssh-target');
+    await expect(git.clone('ssh://git@127.0.0.1/team/app.git', target)).rejects.toMatchObject({ code: 'GIT_ERROR', message: expect.stringContaining('Anmeldung') });
+    const args = readFileSync(log, 'utf8').split('\n');
+    expect(args[0]).toBe('ssh');
+    expect(args).toContain('BatchMode=yes');
+    expect(args).toContain('ConnectTimeout=30');
+    expect(args.some((a) => a.includes('git-upload-pack'))).toBe(true);
+    expect(existsSync(target)).toBe(false);
+    expect(SSH_BATCH_COMMAND).toContain('BatchMode=yes');
+  });
+
+  it('respects an ssh command the user configured (core.sshCommand or GIT_SSH_COMMAND)', async () => {
+    const { fx, git, bin, log } = sshFixture();
+    const own = fakeSsh(bin, 'own-ssh', log);
+    fx.sh(fx.dir, 'config', '--global', 'core.sshCommand', own);
+    await expect(git.clone('git@127.0.0.1:team/app.git', join(fx.dir, 't1'))).rejects.toMatchObject({ code: 'GIT_ERROR' });
+    let args = readFileSync(log, 'utf8').split('\n');
+    expect(args[0]).toBe('own-ssh');
+    expect(args).not.toContain('BatchMode=yes');
+
+    fx.sh(fx.dir, 'config', '--global', '--unset', 'core.sshCommand');
+    const viaEnv = createGitService(fx.s, { gitPath: 'git', extraEnv: { ...fx.env, PATH: `${bin}:${process.env.PATH ?? ''}`, GIT_SSH_COMMAND: own } });
+    await expect(viaEnv.clone('git@127.0.0.1:team/app.git', join(fx.dir, 't2'))).rejects.toMatchObject({ code: 'GIT_ERROR' });
+    args = readFileSync(log, 'utf8').split('\n');
+    expect(args[0]).toBe('own-ssh');
+    expect(args).not.toContain('BatchMode=yes');
   });
 });
 

@@ -1,6 +1,6 @@
 // Export/import: format v1 without secrets, export targets, a full round trip into a fresh data dir, and every import
 // rule (existing ids / path_key collisions / unsafe or overlapping folders skipped with German warnings, projects
-// stopped without allowedCommands, task status normalization, dependency filtering, memory redaction, providers not
+// stopped without allowedCommands, task status normalization, dependency/parent filtering, memory redaction, providers not
 // approved and without secret options, permissions/network/budgets never imported, invalid items skipped, one
 // transaction with rollback, events only after the commit).
 import { afterEach, describe, expect, it } from 'vitest';
@@ -35,8 +35,8 @@ function seed(h: BackupHarness): { root: string } {
     dependsOn: ['task_1', 'task_gone'],
     description: 'Nutze OPENAI_API_KEY=sk-proj-abcdefghijklmnopqrstuvwxyz123456 zum Testen',
   });
-  h.addTask({ id: 'task_3', projectId: 'prj_a', title: 'Wartet', status: 'waiting_approval' });
-  h.addTask({ id: 'task_4', projectId: 'prj_a', title: 'Pausiert', status: 'paused' });
+  h.addTask({ id: 'task_3', projectId: 'prj_a', title: 'Wartet', status: 'waiting_approval', parentId: 'task_gone' });
+  h.addTask({ id: 'task_4', projectId: 'prj_a', title: 'Pausiert', status: 'paused', parentId: 'task_1' });
   h.addMemory({ id: 'mem_1', projectId: 'prj_a', title: 'Ziel', content: 'Ein Spiel bauen' });
   h.addMemory({ id: 'mem_g', projectId: null, title: 'Global', content: 'token: ghp_abcdefghijklmnopqrstuvwxyz0123456789' });
   h.addProvider({ id: 'openrouter', name: 'OpenRouter', paid: true, approved: true, options: { organization: 'org-1', apiKey: 'sk-should-never-leave' } });
@@ -103,8 +103,8 @@ describe('importData', () => {
     const t2 = dst.s.tasks.get('task_2')!;
     expect(t2).toMatchObject({ status: 'queued', blocker: null, startRequested: false, dependsOn: ['task_1'] });
     expect(t2.description).not.toContain('sk-proj-abcdefghijklmnopqrstuvwxyz123456');
-    expect(dst.s.tasks.get('task_3')?.status).toBe('queued');
-    expect(dst.s.tasks.get('task_4')?.status).toBe('paused');
+    expect(dst.s.tasks.get('task_3')).toMatchObject({ status: 'queued', parentId: null });
+    expect(dst.s.tasks.get('task_4')).toMatchObject({ status: 'paused', parentId: 'task_1' });
     expect(dst.s.tasks.get('task_1')?.status).toBe('done');
     const provider = dst.s.providers.getConfig('openrouter')!;
     expect(provider).toMatchObject({ approved: false, paid: true, options: { organization: 'org-1' } });
@@ -118,6 +118,7 @@ describe('importData', () => {
     expect(r.warnings.join('\n')).toMatch(/Ollama.*bereits vorhanden/);
     expect(r.warnings.join('\n')).toMatch(/API-Schlüssel neu eingeben/);
     expect(r.warnings.join('\n')).toMatch(/Abhängigkeiten zu fehlenden Aufgaben/);
+    expect(r.warnings.join('\n')).toMatch(/Wartet.*ohne übergeordnete Aufgabe/);
     // Events after the commit, git re-detected, folder watched.
     const types = events.map((e) => e.type);
     expect(types).toContain('project.updated');

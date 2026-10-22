@@ -304,6 +304,8 @@ export function useEditorTabs(projectId: string): EditorTabsApi {
         size: file.size,
         hash: file.hash,
         savedContent: file.content,
+        // A tab that has not been shown yet has no editor model: it must start with the new content as well.
+        initialContent: file.content,
         dirty: false,
         deleted: false,
         external: null,

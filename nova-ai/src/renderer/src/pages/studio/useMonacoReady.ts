@@ -21,7 +21,10 @@ export function useMonacoReady(): MonacoState {
         if (!cancelled) setMonaco(m);
       })
       .catch((e: unknown) => {
-        if (!cancelled) setError(e instanceof Error ? e.message : 'Der Editor konnte nicht geladen werden.');
+        if (cancelled) return;
+        // The technical reason (English, from the bundler) goes to the console; the user gets a German hint.
+        console.error('Monaco could not be loaded', e);
+        setError('Die Editor-Bausteine konnten nicht geladen werden. Bitte erneut versuchen – hilft das nicht, NOVA neu starten.');
       });
     return () => {
       cancelled = true;

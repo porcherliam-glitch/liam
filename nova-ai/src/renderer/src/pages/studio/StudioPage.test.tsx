@@ -130,6 +130,21 @@ describe('StudioPage', () => {
     expect(modelValue(modelUri(PIXEL, 'src/main.ts'))).toBe('eigene Arbeit\n');
   });
 
+  it('shows the new content of a tab that changed on disk before it was ever shown', async () => {
+    localStorage.setItem(`nova.studio.tabs.${PIXEL}`, JSON.stringify({ paths: ['src/main.ts', 'src/game/player.ts'], active: 'src/main.ts' }));
+    renderWithRouter(<StudioPage />, studioRoute());
+    await screen.findByTestId('monaco-editor');
+    const playerTab = await screen.findByRole('tab', { name: /^src\/game\/player\.ts/ });
+    await waitFor(() => expect(getMockCalls('files.read').some((c) => c.params.path === 'src/game/player.ts')).toBe(true));
+    const reads = getMockCalls('files.read').length;
+    getMockDb().files[PIXEL]['src/game/player.ts'] = 'Neue Fassung von NOVA\n';
+    act(() => emitMockEvent({ type: 'files.changed', payload: { projectId: PIXEL, paths: ['src/game/player.ts'], actor: 'nova' } }));
+    await waitFor(() => expect(getMockCalls('files.read').length).toBeGreaterThan(reads));
+    await userEvent.click(playerTab);
+    await waitFor(() => expect((screen.getByTestId('monaco-editor') as HTMLTextAreaElement).value).toBe('Neue Fassung von NOVA\n'));
+    expect(screen.queryByText('1 ungespeicherte Datei')).toBeNull();
+  });
+
   it('asks before closing a tab with unsaved changes', async () => {
     const editor = await openEditor('?file=src%2Fmain.ts');
     fireEvent.change(editor, { target: { value: 'ungespeichert' } });
@@ -220,6 +235,11 @@ describe('StudioPage', () => {
     expect(panel.className).toContain('hidden');
     fireEvent.keyDown(window, { key: 'j', ctrlKey: true });
     expect(panel.className).not.toContain('hidden');
+
+    // Strg+Ö (German keyboards) opens the terminal.
+    fireEvent.keyDown(window, { key: 'ö', code: 'Semicolon', ctrlKey: true });
+    expect(screen.getByRole('tab', { name: /Terminal/ }).getAttribute('aria-selected')).toBe('true');
+    expect(await screen.findByRole('region', { name: 'Terminal' })).toBeTruthy();
   });
 
   it('tells when the project does not exist', async () => {

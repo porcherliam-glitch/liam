@@ -16,7 +16,10 @@
 //   commit uses `-c user.name="NOVA AI" -c user.email="nova@localhost"` for that commit only.
 // - clone: only https://, ssh:// and git@host: URLs (no credentials in the URL), GIT_ALLOW_PROTOCOL=https:ssh, no
 //   submodules, host checked against settings.network.allowedHosts (otherwise a 'network' approval), progress
-//   parsed from --progress, abort kills the process tree and removes the partial clone.
+//   parsed from --progress, abort kills the process tree and removes the partial clone. The daemon has no console,
+//   so ssh runs with BatchMode=yes (unless the user configured an own ssh command) and a stalled HTTPS transfer is
+//   aborted after 5 minutes without data; HTTPS sign-in goes through the user's credential helper (Git Credential
+//   Manager), terminal prompts are disabled.
 // - Never push, reset, clean, checkout or rewrite history.
 // Honest limit: git hooks of a repository (pre-commit, commit-msg …) run with the user's rights when NOVA commits.
 import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, readlinkSync, realpathSync, rmSync, statSync } from 'node:fs';
@@ -69,6 +72,14 @@ export const MAX_STATUS_FILES = 20_000;
 const MAX_UNIFIED_CHARS = 2 * 1024 * 1024;
 const ARGV_PATHS_LIMIT = 8000;
 const NULL_SHA = '0000000000000000000000000000000000000000';
+/** ssh for clones without a user-configured ssh command: never prompts, gives up on unreachable hosts after 30 s. */
+export const SSH_BATCH_COMMAND = 'ssh -o BatchMode=yes -o ConnectTimeout=30';
+/**
+ * Clone-only config: no submodules; an HTTPS transfer that delivers less than 1 byte/s for 5 minutes counts as
+ * stalled and is aborted (servers send keep-alives while they prepare large packs), instead of waiting for the 2 h
+ * overall timeout.
+ */
+export const CLONE_CONFIG = ['-c', 'submodule.recurse=false', '-c', 'http.lowSpeedLimit=1', '-c', 'http.lowSpeedTime=300'];
 
 interface RepoInfo {
   /** Top level as printed by git. */
@@ -576,11 +587,37 @@ export function createGitService(s: Services, options: GitServiceOptions = {}): 
     });
   }
 
+  /**
+   * Extra environment for a clone. SSH URLs get a non-interactive ssh (BatchMode: no password/passphrase/host-key
+   * prompt can block the daemon, which has no console) unless the user configured an own ssh command
+   * (GIT_SSH_COMMAND / GIT_SSH in the environment or core.sshCommand in the git config) – that one is respected.
+   */
+  async function cloneEnv(url: string, cwd: string): Promise<Record<string, string>> {
+    const env: Record<string, string> = { GIT_ALLOW_PROTOCOL: 'https:ssh' };
+    if (/^https:\/\//i.test(url)) return env;
+    const inherited: Record<string, string | undefined> = { ...process.env, ...(options.extraEnv ?? {}) };
+    if (inherited.GIT_SSH_COMMAND?.trim() || inherited.GIT_SSH?.trim()) return env;
+    try {
+      const cfg = await runner.run(['config', '--get', 'core.sshCommand'], { cwd, timeoutMs: 15_000 });
+      if (cfg.code === 0 && cfg.stdout.trim() !== '') return env;
+    } catch (e) {
+      log.debug('core.sshCommand nicht lesbar – nutze nicht-interaktives ssh', { error: errorMessage(e) });
+    }
+    env.GIT_SSH_COMMAND = SSH_BATCH_COMMAND;
+    return env;
+  }
+
   function cloneErrorMessage(r: GitRawResult): string {
     const err = r.stderr;
     if (r.timedOut) return 'Zeitüberschreitung beim Klonen des Repositorys.';
-    if (/Authentication failed|could not read Username|terminal prompts disabled|Permission denied \(publickey|Host key verification failed|could not read Password/i.test(err)) {
+    if (/Host key verification failed|REMOTE HOST IDENTIFICATION HAS CHANGED/i.test(err)) {
+      return 'Der SSH-Schlüssel des Git-Servers ist noch nicht bekannt oder hat sich geändert. Bitte die Verbindung einmal im Terminal prüfen (z. B. „ssh -T git@<Server>“) und den Server bestätigen.';
+    }
+    if (/Authentication failed|could not read Username|terminal prompts disabled|Permission denied \(publickey|could not read Password/i.test(err)) {
       return 'Die Anmeldung beim Git-Server ist fehlgeschlagen. Bitte die Zugangsdaten (Git Credential Manager) oder den SSH-Schlüssel prüfen.';
+    }
+    if (/Operation too slow|Connection timed out during banner exchange/i.test(err)) {
+      return 'Der Git-Server antwortet nicht mehr (Zeitüberschreitung). Bitte später erneut versuchen.';
     }
     if (/Repository not found|does not appear to be a git repository|not found/i.test(err)) return 'Das Repository wurde nicht gefunden. Bitte die Adresse prüfen.';
     if (/Could not resolve host|Failed to connect|Connection timed out|Connection refused|unable to access|Network is unreachable/i.test(err)) {
@@ -804,14 +841,15 @@ export function createGitService(s: Services, options: GitServiceOptions = {}): 
       let lastEmit = 0;
       let lastMessage = '';
       onProgress?.(0, 'Verbindung wird aufgebaut …');
+      const env = await cloneEnv(url, parent);
       let r: GitRawResult;
       try {
-        r = await runner.raw(['-c', 'submodule.recurse=false', 'clone', '--progress', '--no-recurse-submodules', '--end-of-options', url, dir], {
+        r = await runner.raw([...CLONE_CONFIG, 'clone', '--progress', '--no-recurse-submodules', '--end-of-options', url, dir], {
           cwd: parent,
           write: true,
           timeoutMs: CLONE_TIMEOUT_MS,
           signal,
-          env: { GIT_ALLOW_PROTOCOL: 'https:ssh' },
+          env,
           onStderr: (chunk) => {
             if (!onProgress) return;
             for (const p of split(chunk)) {

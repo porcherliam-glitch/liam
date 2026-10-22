@@ -1,12 +1,13 @@
 // "Änderungen": files changed by NOVA (files.changed) or open git changes, with a Monaco diff per file
-// (files.diff / git.diff), a per-task filter and the change history of the selected file.
+// (files.diff / git.diff), a per-task filter and the change history of the selected file. A single entry of the
+// history can be compared up to now (files.diff with changeId) or on its own (before/after via files.snapshot).
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { Bot, Columns2, Code, FileDiff, GitBranch, GitCompareArrows, Hand, Rows2 } from 'lucide-react';
 import type { ChangedFile, ChangeRecord, Task } from '@shared/schemas';
 import type { AnyNovaEvent } from '@shared/events';
 import { Badge, Button, EmptyState, ErrorState, IconButton, LoadingState, SegmentedControl, Select, StatusBadge } from '../../../components/ui';
-import { useMutation, useRpc, type UseRpcResult } from '../../../hooks';
+import { useMutation, useRpc, useSupports, type UseRpcResult } from '../../../hooks';
 import { cn } from '../../../lib/cn';
 import { formatRelativeTime, truncate } from '../../../lib/format';
 import { CHANGE_OP, metaOf, toneClasses } from '../../../lib/labels';
@@ -35,12 +36,17 @@ export interface ChangesPanelProps {
 
 const ALL = '__all__';
 
+/** Compare a chosen history entry with the current state ("since") or show only that one change ("only"). */
+type CompareMode = 'since' | 'only';
+
 export function ChangesPanel({ projectId, changed, tasks, onOpenFile, focusRequest, stacked }: ChangesPanelProps) {
   const [source, setSource] = useState<ChangesSource>('nova');
   const [taskFilter, setTaskFilter] = useState<string>(ALL);
   const [selected, setSelected] = useState<string | null>(null);
   const [changeId, setChangeId] = useState<string>(ALL);
   const [sideBySide, setSideBySide] = useState(true);
+  const [compareMode, setCompareMode] = useState<CompareMode>('since');
+  const canSnapshot = useSupports('files.snapshot');
 
   const git = useRpc('git.status', source === 'git' ? { projectId } : null, {
     refetchOn: ['files.changed'],
@@ -84,20 +90,53 @@ export function ChangesPanel({ projectId, changed, tasks, onOpenFile, focusReque
     eventFilter: (e) => e.type === 'files.changed' && e.payload.projectId === projectId,
   });
   const novaHistory = (history.data ?? []).filter((r) => r.actor === 'nova' && !r.reverted && (taskFilter === ALL || r.taskId === taskFilter));
+  const selectedRecord = source === 'nova' && changeId !== ALL ? (novaHistory.find((r) => String(r.id) === changeId) ?? null) : null;
+  // "Nur diese Änderung": the stored versions before and after that one change (null hash = file did not exist).
+  const single = canSnapshot && compareMode === 'only' && selectedRecord !== null;
+  const beforeHash = single ? (selectedRecord?.beforeHash ?? null) : null;
+  const afterHash = single ? (selectedRecord?.afterHash ?? null) : null;
+  const beforeSnap = useRpc('files.snapshot', beforeHash ? { projectId, hash: beforeHash } : null);
+  const afterSnap = useRpc('files.snapshot', afterHash ? { projectId, hash: afterHash } : null);
 
   const fileEvent = (e: AnyNovaEvent) =>
     e.type === 'files.changed' && e.payload.projectId === projectId && !!effectiveSelected && e.payload.paths.includes(effectiveSelected);
   const novaDiff = useRpc(
     'files.diff',
-    source === 'nova' && effectiveSelected
+    source === 'nova' && effectiveSelected && !single
       ? { projectId, path: effectiveSelected, ...(taskFilter !== ALL ? { taskId: taskFilter } : {}), ...(changeId !== ALL ? { changeId: Number(changeId) } : {}) }
       : null,
     { refetchOn: ['files.changed'], eventFilter: fileEvent },
   );
   const gitDiff = useRpc('git.diff', source === 'git' && effectiveSelected ? { projectId, path: effectiveSelected } : null, { refetchOn: ['files.changed'], eventFilter: fileEvent });
 
-  const diff = source === 'nova' ? novaDiff.data : gitDiff.data?.[0];
-  const diffState = source === 'nova' ? novaDiff : gitDiff;
+  // One view model for the three sources (NOVA diff, git diff, single change from snapshots).
+  let diff: { original: string; modified: string; binary: boolean } | undefined;
+  let diffError: unknown = null;
+  let diffLoading = false;
+  let retryDiff: () => void;
+  if (single) {
+    const beforeMissing = beforeHash !== null && beforeSnap.data === undefined;
+    const afterMissing = afterHash !== null && afterSnap.data === undefined;
+    diffError = (beforeMissing && beforeSnap.error) || (afterMissing && afterSnap.error) || null;
+    diffLoading = beforeMissing || afterMissing;
+    diff = diffLoading
+      ? undefined
+      : {
+          original: beforeHash ? (beforeSnap.data?.content ?? '') : '',
+          modified: afterHash ? (afterSnap.data?.content ?? '') : '',
+          binary: Boolean((beforeHash && beforeSnap.data?.binary) || (afterHash && afterSnap.data?.binary)),
+        };
+    retryDiff = () => {
+      if (beforeSnap.error) void beforeSnap.refetch();
+      if (afterSnap.error) void afterSnap.refetch();
+    };
+  } else {
+    const state = source === 'nova' ? novaDiff : gitDiff;
+    diff = source === 'nova' ? novaDiff.data : gitDiff.data?.[0];
+    diffError = state.error;
+    diffLoading = state.loading;
+    retryDiff = () => void state.refetch();
+  }
 
   const list =
     source === 'nova' ? (
@@ -150,24 +189,30 @@ export function ChangesPanel({ projectId, changed, tasks, onOpenFile, focusReque
   let diffBody;
   if (!effectiveSelected) {
     diffBody = <EmptyState compact icon={FileDiff} title="Datei auswählen" description="Links eine Datei auswählen, um die Unterschiede zu sehen." />;
-  } else if (diffState.error && !diff) {
-    diffBody = <ErrorState compact error={diffState.error} title="Der Vergleich konnte nicht geladen werden" onRetry={() => void diffState.refetch()} />;
+  } else if (diffError && !diff) {
+    diffBody = <ErrorState compact error={diffError} title="Der Vergleich konnte nicht geladen werden" onRetry={retryDiff} />;
   } else if (!diff) {
-    diffBody = diffState.loading ? <LoadingState compact label="Vergleich wird geladen …" /> : <EmptyState compact icon={FileDiff} title="Keine Unterschiede gefunden" />;
+    diffBody = diffLoading ? <LoadingState compact label="Vergleich wird geladen …" /> : <EmptyState compact icon={FileDiff} title="Keine Unterschiede gefunden" />;
   } else if (diff.binary) {
     diffBody = <EmptyState compact icon={FileDiff} title="Keine Textdatei" description="Für Bilder und andere Binärdateien ist kein Textvergleich möglich." />;
   } else if (diff.original === diff.modified) {
     diffBody = <EmptyState compact icon={FileDiff} title="Keine Unterschiede" description="Der aktuelle Stand entspricht dem Vergleichsstand." />;
   } else {
-    const originalLabel = source === 'git' ? 'Letzter Commit' : changeId !== ALL ? 'Vor dieser Änderung' : taskFilter !== ALL ? 'Vor der Aufgabe' : 'Vor den Änderungen von NOVA';
+    let originalLabel = source === 'git' ? 'Letzter Commit' : changeId !== ALL ? 'Vor dieser Änderung' : taskFilter !== ALL ? 'Vor der Aufgabe' : 'Vor den Änderungen von NOVA';
+    let modifiedLabel = selectedNova?.op === 'delete' ? 'Gelöscht' : 'Aktueller Stand';
+    if (diff.original === '' && selectedNova?.op === 'create' && !single) originalLabel = 'Neu angelegt (vorher leer)';
+    if (single) {
+      originalLabel = beforeHash ? 'Vor dieser Änderung' : 'Neu angelegt (vorher leer)';
+      modifiedLabel = afterHash ? 'Nach dieser Änderung' : 'Gelöscht';
+    }
     diffBody = (
       <DiffView
         key={`${source}|${effectiveSelected}`}
         original={diff.original}
         modified={diff.modified}
         language={languageForPath(effectiveSelected)}
-        originalLabel={diff.original === '' && selectedNova?.op === 'create' ? 'Neu angelegt (vorher leer)' : originalLabel}
-        modifiedLabel={selectedNova?.op === 'delete' ? 'Gelöscht' : 'Aktueller Stand'}
+        originalLabel={originalLabel}
+        modifiedLabel={modifiedLabel}
         sideBySide={sideBySide}
         label={`Vergleich von ${effectiveSelected}`}
       />
@@ -211,6 +256,8 @@ export function ChangesPanel({ projectId, changed, tasks, onOpenFile, focusReque
               history={source === 'nova' ? novaHistory : []}
               changeId={changeId}
               onChangeId={setChangeId}
+              compareMode={canSnapshot && selectedRecord ? compareMode : null}
+              onCompareMode={setCompareMode}
               sideBySide={sideBySide}
               onToggleSideBySide={() => setSideBySide((v) => !v)}
               onOpenFile={onOpenFile}
@@ -284,12 +331,15 @@ interface DiffHeaderProps {
   history: ChangeRecord[];
   changeId: string;
   onChangeId: (id: string) => void;
+  /** null = no single history entry selected (or the daemon cannot read older versions). */
+  compareMode: CompareMode | null;
+  onCompareMode: (mode: CompareMode) => void;
   sideBySide: boolean;
   onToggleSideBySide: () => void;
   onOpenFile: (path: string) => void;
 }
 
-function DiffHeader({ projectId, path, file, gitCode, taskTitles, history, changeId, onChangeId, sideBySide, onToggleSideBySide, onOpenFile }: DiffHeaderProps) {
+function DiffHeader({ projectId, path, file, gitCode, taskTitles, history, changeId, onChangeId, compareMode, onCompareMode, sideBySide, onToggleSideBySide, onOpenFile }: DiffHeaderProps) {
   const git = gitStatusInfo(gitCode);
   return (
     <div className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-b border-border px-3 py-1.5">
@@ -335,6 +385,18 @@ function DiffHeader({ projectId, path, file, gitCode, taskTitles, history, chang
               })),
             ]}
             containerClassName="w-60"
+          />
+        )}
+        {compareMode && (
+          <SegmentedControl
+            size="sm"
+            label="Art des Vergleichs"
+            value={compareMode}
+            onChange={onCompareMode}
+            options={[
+              { value: 'since', label: 'Bis heute' },
+              { value: 'only', label: 'Nur diese Änderung' },
+            ]}
           />
         )}
         <IconButton icon={sideBySide ? Rows2 : Columns2} label={sideBySide ? 'Untereinander vergleichen' : 'Nebeneinander vergleichen'} size="sm" onClick={onToggleSideBySide} />

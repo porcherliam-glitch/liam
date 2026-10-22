@@ -60,7 +60,15 @@ export function EditorTabBar({ tabs, activePath, novaChanged, onSelect, onClose 
   if (tabs.length === 0) return null;
 
   return (
-    <div role="tablist" aria-label="Geöffnete Dateien" className="flex h-9 shrink-0 items-stretch overflow-x-auto overflow-y-hidden border-b border-border bg-surface [scrollbar-width:none]">
+    <div
+      role="tablist"
+      aria-label="Geöffnete Dateien"
+      // The scrollbar is hidden: the mouse wheel scrolls the tab strip sideways.
+      onWheel={(e) => {
+        if (e.deltaY !== 0 && e.deltaX === 0) e.currentTarget.scrollLeft += e.deltaY;
+      }}
+      className="flex h-9 shrink-0 items-stretch overflow-x-auto overflow-y-hidden border-b border-border bg-surface [scrollbar-width:none]"
+    >
       {tabs.map((tab) => {
         const active = tab.path === activePath;
         const name = fileName(tab.path);

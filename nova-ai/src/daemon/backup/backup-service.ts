@@ -374,7 +374,7 @@ export function createBackupService(s: Services, options: BackupServiceOptions =
   // ------------------------------------------------------------------------------------------------ snapshots
 
   function projectsDir(): string {
-    const configured = s.core.settings.section('general').projectsDir;
+    const configured = s.core.settings.section('general').projectsDir.trim();
     if (configured && isAbsolute(configured)) return configured;
     return join(options.homeDir ?? homedir(), 'NOVA Projekte');
   }

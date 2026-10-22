@@ -12,8 +12,8 @@
 //   basic root safety rules or overlapping a registered project are skipped; imported projects start with work
 //   state "stopped" (the UI shows the honest-limits warning before work is enabled), gitAvailable is re-detected
 //   and project.config.allowedCommands is NOT taken over (a permission); tasks with status running /
-//   waiting_approval / interrupted become queued, startRequested is cleared and dependencies on unknown tasks are
-//   dropped; memory content is redacted again; providers get approved=false (Ollama rows keep the registry
+//   waiting_approval / interrupted become queued, startRequested is cleared and dependencies on / parents that are
+//   unknown tasks (or tasks of another project) are dropped; memory content is redacted again; providers get approved=false (Ollama rows keep the registry
 //   invariant paid=false/approved=true – they never cost money) and need their API keys re-entered; the settings
 //   sections permissions, network and budgets are never imported.
 import { existsSync, readFileSync, statSync } from 'node:fs';
@@ -421,9 +421,13 @@ export async function importData(deps: DataIoDeps, path: string, opts: IoOptions
       }
       const dependsOn = t.dependsOn.filter((d) => (existingTasks.get(d) ?? incoming.get(d)) === t.projectId && d !== t.id);
       if (dependsOn.length < t.dependsOn.length) warnings.add('Aufgaben', `Bei Aufgabe „${label(t.title)}“ wurden Abhängigkeiten zu fehlenden Aufgaben entfernt.`);
+      const parentKnown = t.parentId !== null && t.parentId !== t.id && (existingTasks.get(t.parentId) ?? incoming.get(t.parentId)) === t.projectId;
+      const parentId = parentKnown ? t.parentId : null;
+      if (t.parentId !== null && !parentKnown) warnings.add('Aufgaben', `Aufgabe „${label(t.title)}“ wird ohne übergeordnete Aufgabe übernommen (diese fehlt im Import).`);
       const normalize = t.status === 'running' || t.status === 'waiting_approval' || t.status === 'interrupted';
       const task: Task = {
         ...t,
+        parentId,
         dependsOn,
         status: normalize ? 'queued' : t.status,
         blocker: normalize ? null : t.blocker,

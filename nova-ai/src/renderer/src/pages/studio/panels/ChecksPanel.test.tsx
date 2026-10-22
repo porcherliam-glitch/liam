@@ -4,7 +4,7 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { ProjectCommands } from '@shared/schemas';
 import { renderWithRouter, setupRendererTest } from '../../../lib/test-utils';
-import { getMockCalls, getMockDb, mockHandlers } from '../../../lib/mock-bridge';
+import { getMockCalls, getMockDb, mockBridge, mockHandlers } from '../../../lib/mock-bridge';
 import { useRpc } from '../../../hooks';
 import { useToastStore } from '../../../stores/toasts';
 import { ChecksPanel } from './ChecksPanel';
@@ -13,7 +13,7 @@ setupRendererTest();
 
 function Harness({ projectId, commands, onOpen }: { projectId: string; commands: ProjectCommands; onOpen: (path: string, line: number, column: number) => void }) {
   const runs = useRpc('checks.list', { projectId, limit: 50 }, { refetchOn: ['check.updated'] });
-  return <ChecksPanel projectId={projectId} commands={commands} runs={runs} onOpen={onOpen} />;
+  return <ChecksPanel projectId={projectId} projectRoot={'C:\\Projekte\\Pixel'} commands={commands} runs={runs} onOpen={onOpen} />;
 }
 
 function renderChecks(projectId = 'prj_pixel', commandPatch: Partial<ProjectCommands> = {}) {
@@ -69,6 +69,15 @@ describe('ChecksPanel', () => {
     await userEvent.click(toggles[0]);
     expect(toggles[0].getAttribute('aria-expanded')).toBe('true');
     expect(await screen.findByText(/Tests 2 failed \| 22 passed \(24\)/)).toBeTruthy();
+  });
+
+  it('lists the files a build produced and shows them in the Explorer', async () => {
+    const spy = vi.spyOn(mockBridge.app, 'showInFolder').mockResolvedValue(true);
+    renderChecks();
+    const artifacts = await screen.findByRole('list', { name: 'Erzeugte Dateien: Build' });
+    expect(within(artifacts).getByText('dist/assets/index-4f1c2a.js')).toBeTruthy();
+    await userEvent.click(within(artifacts).getByRole('button', { name: 'dist/index.html im Explorer zeigen' }));
+    expect(spy).toHaveBeenCalledWith('C:\\Projekte\\Pixel\\dist\\index.html');
   });
 
   it('shows an empty state without runs', async () => {

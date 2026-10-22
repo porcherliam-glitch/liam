@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderWithRouter, setupRendererTest } from '../../../lib/test-utils';
-import { getMockCalls, mockHandlers, MockRpcError } from '../../../lib/mock-bridge';
+import { getMockCalls, getMockDb, mockHandlers, MockRpcError } from '../../../lib/mock-bridge';
 import { useRpc } from '../../../hooks';
 import { ChangesPanel, type ChangesFocusRequest } from './ChangesPanel';
 
@@ -61,6 +61,39 @@ describe('ChangesPanel', () => {
     expect(option).toBeTruthy();
     await userEvent.selectOptions(select, option!.value);
     await waitFor(() => expect(getMockCalls('files.diff').at(-1)?.params).toEqual({ projectId: 'prj_pixel', path: 'src/game/player.ts', changeId: Number(option!.value) }));
+  });
+
+  it('shows a single change from the history on its own with the stored versions', async () => {
+    const before = 'a'.repeat(64);
+    const after = 'b'.repeat(64);
+    const db = getMockDb();
+    const record = db.changes.filter((c) => c.projectId === 'prj_pixel' && c.path === 'src/game/player.ts').sort((x, y) => y.ts - x.ts)[0];
+    Object.assign(record, { beforeHash: before, afterHash: after });
+    mockHandlers.set('files.snapshot', ({ hash }) => ({ content: hash === before ? 'const speed = 1;' : 'const speed = 2;', binary: false }));
+    renderChanges('prj_pixel', { path: 'src/game/player.ts', token: 1 });
+    await userEvent.selectOptions(await screen.findByRole('combobox', { name: 'Vergleichsstand' }), String(record.id));
+    await userEvent.click(await screen.findByRole('radio', { name: 'Nur diese Änderung' }));
+    await waitFor(() => expect(getMockCalls('files.snapshot').map((c) => c.params)).toEqual(expect.arrayContaining([{ projectId: 'prj_pixel', hash: before }, { projectId: 'prj_pixel', hash: after }])));
+    const diff = await screen.findByTestId('diff-editor');
+    await waitFor(() => expect(diff.querySelector('[data-side="modified"]')?.textContent).toBe('const speed = 2;'));
+    expect(diff.querySelector('[data-side="original"]')?.textContent).toBe('const speed = 1;');
+    expect(screen.getByText('Nach dieser Änderung')).toBeTruthy();
+
+    await userEvent.click(screen.getByRole('radio', { name: 'Bis heute' }));
+    await waitFor(() => expect(getMockCalls('files.diff').at(-1)?.params).toEqual({ projectId: 'prj_pixel', path: 'src/game/player.ts', changeId: record.id }));
+  });
+
+  it('says when an older version is no longer stored', async () => {
+    const record = getMockDb().changes.filter((c) => c.projectId === 'prj_pixel' && c.path === 'src/game/player.ts').sort((x, y) => y.ts - x.ts)[0];
+    Object.assign(record, { beforeHash: 'c'.repeat(64), afterHash: 'd'.repeat(64) });
+    mockHandlers.set('files.snapshot', () => {
+      throw new MockRpcError('NOT_FOUND', 'Diese Dateiversion ist nicht mehr gespeichert.');
+    });
+    renderChanges('prj_pixel', { path: 'src/game/player.ts', token: 1 });
+    await userEvent.selectOptions(await screen.findByRole('combobox', { name: 'Vergleichsstand' }), String(record.id));
+    await userEvent.click(await screen.findByRole('radio', { name: 'Nur diese Änderung' }));
+    expect(await screen.findByText('Diese Dateiversion ist nicht mehr gespeichert.')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Erneut versuchen/ })).toBeTruthy();
   });
 
   it('shows open git changes with git.diff', async () => {

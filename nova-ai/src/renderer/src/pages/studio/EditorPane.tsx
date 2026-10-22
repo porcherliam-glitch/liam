@@ -450,7 +450,8 @@ function Welcome({ hasTabs }: { hasTabs: boolean }) {
           ['Strg+Umschalt+S', 'Alle Dateien speichern'],
           ['Strg+Umschalt+F', 'Im Projekt suchen'],
           ['Strg+B', 'Dateibaum ein-/ausblenden'],
-          ['Strg+J', 'Unteren Bereich ein-/ausblenden'],
+          ['Strg+J', 'Werkzeugbereich ein-/ausblenden'],
+          ['Strg+Ö', 'Terminal öffnen'],
         ].map(([keys, label]) => (
           <div key={keys} className="contents">
             <dt className="text-right">

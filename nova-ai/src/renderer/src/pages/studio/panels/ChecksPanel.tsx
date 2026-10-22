@@ -2,20 +2,23 @@
 // run/cancel checks and "Reparatur-Aufgabe anlegen".
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { ChevronRight, CircleCheck, CircleX, FileWarning, ListChecks, Play, Square, Wrench } from 'lucide-react';
+import { ChevronRight, CircleCheck, CircleX, FileWarning, FolderOpen, ListChecks, Package, Play, Square, Wrench } from 'lucide-react';
 import type { CheckKind, CheckRun, ProjectCommands } from '@shared/schemas';
 import { CheckStatusBadge, RelativeTime } from '../../../components/common';
-import { Button, CodeBlock, EmptyState, ErrorState, LoadingState } from '../../../components/ui';
+import { Button, CodeBlock, EmptyState, ErrorState, IconButton, LoadingState } from '../../../components/ui';
 import { useMutation, type UseRpcResult } from '../../../hooks';
+import { getBridge } from '../../../lib/api';
 import { cn } from '../../../lib/cn';
-import { formatDuration } from '../../../lib/format';
+import { formatBytes, formatDuration } from '../../../lib/format';
 import { CHECK_KIND, metaOf } from '../../../lib/labels';
 import { paths } from '../../../lib/paths';
 import { toast } from '../../../stores/toasts';
-import { latestFailures, latestRunsByKind } from '../studio-utils';
+import { absolutePath, latestFailures, latestRunsByKind } from '../studio-utils';
 
 export interface ChecksPanelProps {
   projectId: string;
+  /** Absolute project folder (artifacts: "Im Explorer zeigen"). */
+  projectRoot: string;
   commands: ProjectCommands | null;
   runs: UseRpcResult<'checks.list'>;
   onOpen: (path: string, line: number, column: number) => void;
@@ -69,7 +72,10 @@ function countsText(run: CheckRun): string {
   return parts.join(' · ');
 }
 
-export function ChecksPanel({ projectId, commands, runs, onOpen }: ChecksPanelProps) {
+/** Artifacts shown per run before "+ N weitere". */
+const ARTIFACTS_SHOWN = 5;
+
+export function ChecksPanel({ projectId, projectRoot, commands, runs, onOpen }: ChecksPanelProps) {
   const navigate = useNavigate();
   const [openOutput, setOpenOutput] = useState<Set<string>>(() => new Set());
   const [starting, setStarting] = useState<CheckKind | null>(null);
@@ -93,6 +99,13 @@ export function ChecksPanel({ projectId, commands, runs, onOpen }: ChecksPanelPr
   const failures = latestFailures(all);
   const runningKinds = new Set(all.filter((r) => r.status === 'running').map((r) => r.kind));
   const actions = RUN_ACTIONS.filter((a) => a.kind !== 'typecheck' || commandFor(commands, 'typecheck'));
+
+  const showInExplorer = async (path: string) => {
+    const ok = await getBridge()
+      ?.app.showInFolder(absolutePath(projectRoot, path))
+      .catch(() => false);
+    if (!ok) toast.error('Konnte den Explorer nicht öffnen', 'Die Datei wurde nicht gefunden – vielleicht wurde sie inzwischen gelöscht.');
+  };
 
   const toggleOutput = (id: string) =>
     setOpenOutput((s) => {
@@ -228,6 +241,26 @@ export function ChecksPanel({ projectId, commands, runs, onOpen }: ChecksPanelPr
                     </div>
                   </div>
                   {r.message && <p className="px-2.5 pb-1.5 text-xs text-muted">{r.message}</p>}
+                  {r.artifacts.length > 0 && (
+                    <div className="px-2.5 pb-1.5">
+                      <p className="flex items-center gap-1 text-xs text-muted">
+                        <Package aria-hidden className="h-3.5 w-3.5" />
+                        {r.artifacts.length === 1 ? 'Erzeugte Datei' : `Erzeugte Dateien (${r.artifacts.length})`}
+                      </p>
+                      <ul aria-label={`Erzeugte Dateien: ${kind.label}`} className="mt-0.5">
+                        {r.artifacts.slice(0, ARTIFACTS_SHOWN).map((a) => (
+                          <li key={a.path} className="flex items-center gap-2 text-xs">
+                            <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-text/90" title={a.path}>
+                              {a.path}
+                            </span>
+                            <span className="shrink-0 text-subtle tabular-nums">{formatBytes(a.sizeBytes)}</span>
+                            <IconButton icon={FolderOpen} label={`${a.path} im Explorer zeigen`} size="sm" onClick={() => void showInExplorer(a.path)} />
+                          </li>
+                        ))}
+                      </ul>
+                      {r.artifacts.length > ARTIFACTS_SHOWN && <p className="text-[11px] text-subtle">+ {r.artifacts.length - ARTIFACTS_SHOWN} weitere</p>}
+                    </div>
+                  )}
                   {r.command && !outputOpen && <p className="truncate px-2.5 pb-1.5 font-mono text-[11px] text-subtle" title={r.command}>{r.command}</p>}
                   {outputOpen && (
                     <div className="px-2.5 pb-2">

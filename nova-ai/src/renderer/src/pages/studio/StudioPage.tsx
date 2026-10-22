@@ -91,7 +91,9 @@ export default function StudioPage() {
   useEffect(() => {
     if (!fileParam || !projectReady) return;
     const line = Number.parseInt(lineParam ?? '', 10);
-    open(fileParam, { line: Number.isFinite(line) && line > 0 ? line : null });
+    // Paths from error messages may use Windows separators or a leading "./".
+    const path = fileParam.replace(/\\/g, '/').replace(/^(\.\/)+/, '');
+    if (path) open(path, { line: Number.isFinite(line) && line > 0 ? line : null });
     setSearchParams(
       (prev) => {
         const next = new URLSearchParams(prev);
@@ -251,7 +253,8 @@ function StudioWorkspace({ project, editor }: StudioWorkspaceProps) {
       } else if (!e.shiftKey && key === 'b') {
         e.preventDefault();
         setTreeVisible(!treeVisible);
-      } else if (!e.shiftKey && (e.key === '`' || e.code === 'Backquote')) {
+      } else if (!e.shiftKey && (e.key === '`' || e.code === 'Backquote' || key === 'ö')) {
+        // Strg+Ö on German keyboards (the key VS Code uses there), Strg+` elsewhere.
         e.preventDefault();
         showPanel('terminal');
       }
@@ -441,7 +444,7 @@ function StudioWorkspace({ project, editor }: StudioWorkspaceProps) {
                   {id === 'changes' && (
                     <ChangesPanel projectId={projectId} changed={changed} tasks={tasks.data ?? []} onOpenFile={(path) => open(path)} focusRequest={changesFocus} stacked={right} />
                   )}
-                  {id === 'checks' && <ChecksPanel projectId={projectId} commands={project.config.commands} runs={checks} onOpen={openAt} />}
+                  {id === 'checks' && <ChecksPanel projectId={projectId} projectRoot={project.path} commands={project.config.commands} runs={checks} onOpen={openAt} />}
                   {id === 'terminal' && <TerminalPanel projectId={projectId} projectRoot={project.path} active={panelVisible && panel === 'terminal'} />}
                   {id === 'preview' && <PreviewPanel projectId={projectId} projectKind={project.kind} integrations={integrations.data} />}
                 </div>

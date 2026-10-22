@@ -278,7 +278,9 @@ export function FileTree({ projectId, projectRoot, activePath, dirtyPaths, onOpe
   };
 
   const showInExplorer = async (path: string) => {
-    const ok = await getBridge()?.app.showInFolder(absolutePath(projectRoot, path));
+    const ok = await getBridge()
+      ?.app.showInFolder(absolutePath(projectRoot, path))
+      .catch(() => false);
     if (!ok) toast.error('Konnte den Explorer nicht öffnen', 'Der Pfad wurde nicht gefunden.');
   };
 
