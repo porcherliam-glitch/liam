@@ -33,7 +33,7 @@ dauert einige Minuten.
 Im Ordner `nova-ai` die Datei **`NOVA-STARTEN.cmd`** doppelklicken. Beim ersten Mal lädt sie die nötigen Pakete
 herunter (einige Minuten), danach startet NOVA direkt.
 
-Beide Dateien brauchen **Node.js** (Version 22 oder neuer). Fehlt es, bieten sie an, es mit `winget` zu installieren.
+Beide Dateien brauchen **Node.js** (Version 22.13 oder neuer). Fehlt es, bieten sie an, es mit `winget` zu installieren.
 
 ---
 
@@ -97,11 +97,12 @@ lokale Modell oder hält an.
 | Was | Ort |
 |---|---|
 | Datenbank, Protokolle, Sicherungen | `%LOCALAPPDATA%\NOVA AI` |
+| Fenstergröße und Oberflächen-Einstellungen | `%APPDATA%\NOVA AI` |
 | Deine Projekte | der Ordner, den du beim Anlegen wählst |
 | API-Schlüssel | verschlüsselt mit Windows-DPAPI (nur dein Windows-Konto kann sie lesen), nie in Protokollen oder Exporten |
 
-Beim Deinstallieren bleiben deine Daten und Projekte erhalten. Wer alles entfernen will, löscht danach den Ordner
-`%LOCALAPPDATA%\NOVA AI` von Hand.
+Beim Deinstallieren bleiben deine Daten und Projekte erhalten. Wer alles entfernen will, löscht danach die Ordner
+`%LOCALAPPDATA%\NOVA AI` und `%APPDATA%\NOVA AI` von Hand.
 
 ## 5. Updates
 
