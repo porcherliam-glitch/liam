@@ -20,7 +20,8 @@ async function renderPage() {
 describe('ModelsPage – Ollama and local models', () => {
   it('shows the Ollama status and the installed models with capabilities and fit check', async () => {
     await renderPage();
-    expect(screen.getByText('Läuft')).toBeTruthy();
+    const ollamaCard = screen.getByRole('heading', { name: 'Lokale Modelle mit Ollama' }).closest('section') as HTMLElement;
+    expect(within(ollamaCard).getByText('Läuft')).toBeTruthy();
     expect(screen.getByText('Version 0.12.6')).toBeTruthy();
     expect(screen.getByText('Ollama ist bereit')).toBeTruthy();
     const table = screen.getByRole('table', { name: 'Installierte lokale Modelle' });

@@ -40,11 +40,15 @@ import type {
   Operation,
   ProviderConfig,
   TaskKind,
+  ThreeDJob,
+  ThreeDModel,
   WorkStatus,
 } from '@shared/schemas';
 import { SettingsSchema } from '@shared/settings';
 import { APPROVAL_KINDS_ONCE_ONLY } from '@shared/schemas';
-import { commands as mockCommands, createMockDb, DAY, GB, HOUR, languageOf, MB, MIN, mockHash, type MockDb, OLLAMA } from './mock-data';
+import { commands as mockCommands, createMockDb, DAY, GB, HOUR, languageOf, MB, MIN, mockHash, type MockDb, OLLAMA, threeDFileKey, threeDModelOf } from './mock-data';
+import { DEMO_CRATE_GLB_BASE64, DEMO_REFERENCE_PNG_BASE64 } from './mock-threed-assets';
+import { formatBytes } from './format';
 
 // ---------------------------------------------------------------------------
 // Public test API
@@ -106,6 +110,8 @@ let connection: DaemonConnectionState = connectedState();
 /** Tasks paused by a global work.pause (restored by work.resume). */
 let pausedByWork = new Set<string>();
 let liveTick = 0;
+/** One pending tick of the simulated 3D job queue at a time (live mode only). */
+let threeDTickScheduled = false;
 
 function connectedState(): DaemonConnectionState {
   return {
@@ -133,7 +139,9 @@ export function resetMockData(now: number = Date.now()): void {
   mockCalls.length = 0;
   pausedByWork = new Set();
   liveTick = 0;
+  threeDTickScheduled = false;
   setConnection(connectedState(), false);
+  scheduleThreeDTick();
 }
 
 /** Emits an event to all onEvent listeners (ts/seq are filled in when omitted). */
@@ -807,7 +815,8 @@ function liveAgentTick(): void {
 }
 
 function liveOperationTick(): void {
-  for (const o of db.operations.filter((x) => x.status === 'running')) {
+  // 3D model downloads have their own simulation (simulateThreeDDownload).
+  for (const o of db.operations.filter((x) => x.status === 'running' && x.kind !== 'threed_download')) {
     const progress = Math.min(100, (o.progress ?? 0) + 4 + Math.round(Math.random() * 4));
     if (progress >= 100) {
       Object.assign(o, { status: 'done', progress: 100, endedAt: now(), message: 'Fertig' });
@@ -846,11 +855,162 @@ function startLive(): void {
       liveOperationTick();
     }, 1500),
   );
+  scheduleThreeDTick();
+  for (const opId of Object.keys(db.threeD.downloads)) simulateThreeDDownload(opId);
 }
 
 function stopLive(): void {
   for (const i of intervals) clearInterval(i);
   intervals = [];
+}
+
+// --- 3D workshop ------------------------------------------------------------------
+
+const THREED_MAX_IMAGE_BYTES = 20 * 1024 * 1024;
+const THREED_DEMO_VERSION = '0.42.0';
+const THREED_AUTO_MODELS_DIR = 'C:\\Users\\Demo\\Documents\\ComfyUI\\models';
+
+function threeDModels(): ThreeDModel[] {
+  return db.threeD.catalog.map((e) => threeDModelOf(e, db.threeD.presentFiles));
+}
+
+function threeDModel(id: string): ThreeDModel {
+  const m = threeDModels().find((x) => x.id === id);
+  if (!m) throw notFound('Das 3D-Modell');
+  return m;
+}
+
+function threeDJob(id: string): ThreeDJob {
+  const j = db.threeD.jobs.find((x) => x.id === id);
+  if (!j) throw notFound('Der 3D-Auftrag');
+  return j;
+}
+
+function touchThreeDJob(j: ThreeDJob, patch: Partial<ThreeDJob>): ThreeDJob {
+  Object.assign(j, patch);
+  emit('threed.job', j);
+  return j;
+}
+
+/** Decoded size of a base64 string. */
+function base64Size(b64: string): number {
+  const pad = b64.endsWith('==') ? 2 : b64.endsWith('=') ? 1 : 0;
+  return Math.floor((b64.length * 3) / 4) - pad;
+}
+
+/** Image type from the first bytes (like the daemon: PNG, JPEG and WebP only). */
+function sniffImage(b64: string): { ext: string; mimeType: string } | null {
+  let head: string;
+  try {
+    head = atob(b64.slice(0, 24));
+  } catch {
+    return null;
+  }
+  const byte = (i: number) => head.charCodeAt(i);
+  if (byte(0) === 0x89 && head.slice(1, 4) === 'PNG') return { ext: 'png', mimeType: 'image/png' };
+  if (byte(0) === 0xff && byte(1) === 0xd8 && byte(2) === 0xff) return { ext: 'jpg', mimeType: 'image/jpeg' };
+  if (head.slice(0, 4) === 'RIFF' && head.slice(8, 12) === 'WEBP') return { ext: 'webp', mimeType: 'image/webp' };
+  return null;
+}
+
+/** Base file name like the daemon: no characters Windows forbids, lower case, dashes. */
+function threeDName(input: string | undefined, prompt: string | undefined): string {
+  const source = input?.trim() || prompt?.split(/\s+/).slice(0, 3).join('-') || 'modell';
+  const cleaned = source.replace(/[<>:"/\\|?*\u0000-\u001f]+/g, '').replace(/\s+/g, '-').toLowerCase().slice(0, 80);
+  return cleaned || 'modell';
+}
+
+/** Where a job's files go: the project's output folder (numeric suffix instead of overwriting) or NOVA's 3D library. */
+function threeDOutput(job: ThreeDJob): { outputPath: string; outputRel: string | null; refImage: string } {
+  if (!job.projectId) {
+    const dir = `${db.daemon.dataDir}\\3d\\${job.id}`;
+    return { outputPath: `${dir}\\${job.name}.glb`, outputRel: null, refImage: `${dir}\\${job.name}.png` };
+  }
+  const p = project(job.projectId);
+  const folder = db.settings.threeD.outputFolder.replace(/^\/+|\/+$/g, '');
+  const taken = new Set(db.threeD.jobs.filter((j) => j.projectId === job.projectId && j.outputRel).map((j) => j.outputRel));
+  let base = job.name;
+  for (let i = 2; taken.has(`${folder}/${base}.glb`); i++) base = `${job.name}-${i}`;
+  const winFolder = folder.replace(/\//g, '\\');
+  return { outputPath: `${p.path}\\${winFolder}\\${base}.glb`, outputRel: `${folder}/${base}.glb`, refImage: `${p.path}\\${winFolder}\\${base}.png` };
+}
+
+/** Phase plan of a job: [phase, progress at the end of the phase]. */
+function threeDPhases(mode: ThreeDJob['mode']): Array<[string, number]> {
+  return mode === 'text'
+    ? [['Bild wird erzeugt', 20], ['Bild wird übertragen', 24], ['Form wird berechnet', 65], ['Textur wird gebacken', 94], ['Modell wird gespeichert', 100]]
+    : [['Bild wird übertragen', 5], ['Form wird berechnet', 58], ['Textur wird gebacken', 94], ['Modell wird gespeichert', 100]];
+}
+
+function scheduleThreeDTick(): void {
+  if (!options.live || threeDTickScheduled) return;
+  if (!db.threeD.jobs.some((j) => j.status === 'running' || j.status === 'queued')) return;
+  threeDTickScheduled = true;
+  liveLater(1100, () => {
+    threeDTickScheduled = false;
+    threeDTick();
+    scheduleThreeDTick();
+  });
+}
+
+/** Simulated ComfyUI queue: one job at a time, weighted phases, outputs like the daemon. */
+function threeDTick(): void {
+  let job = db.threeD.jobs.find((j) => j.status === 'running');
+  if (!job) {
+    job = db.threeD.jobs.filter((j) => j.status === 'queued').sort((a, b) => a.createdAt - b.createdAt)[0];
+    if (!job) return;
+    if (db.settings.threeD.unloadLanguageModels && db.ollamaRunning.length > 0) {
+      log('info', 'threed', `Sprachmodelle entladen, damit der Grafikspeicher reicht: ${db.ollamaRunning.map((r) => r.model).join(', ')}`);
+      db.ollamaRunning = [];
+    }
+    const [phase] = threeDPhases(job.mode)[0];
+    touchThreeDJob(job, { status: 'running', phase, progress: 0, startedAt: now() });
+    return;
+  }
+  const progress = Math.min(100, (job.progress ?? 0) + 3 + Math.round(Math.random() * 4));
+  if (progress >= 100) {
+    const out = threeDOutput(job);
+    touchThreeDJob(job, {
+      status: 'done', phase: null, progress: 100, outputPath: out.outputPath, outputRel: out.outputRel, endedAt: now(),
+      imagePath: job.mode === 'text' ? out.refImage : job.imagePath,
+    });
+    if (job.projectId && out.outputRel) emit('files.changed', { projectId: job.projectId, paths: [out.outputRel], actor: 'nova' });
+    log('info', 'threed', `3D-Modell gespeichert: ${out.outputPath}`);
+    return;
+  }
+  const phase = threeDPhases(job.mode).find(([, end]) => progress < end)?.[0] ?? 'Modell wird gespeichert';
+  touchThreeDJob(job, { progress, phase });
+}
+
+function simulateThreeDDownload(opId: string): void {
+  liveLater(800, () => {
+    const op = db.operations.find((o) => o.id === opId);
+    const modelId = db.threeD.downloads[opId];
+    if (!op || !modelId) return;
+    if (op.status !== 'running') {
+      delete db.threeD.downloads[opId];
+      return;
+    }
+    const model = threeDModel(modelId);
+    const missing = model.files.filter((f) => !f.present);
+    const total = missing.reduce((s, f) => s + f.sizeBytes, 0);
+    const progress = Math.min(100, (op.progress ?? 0) + 4 + Math.round(Math.random() * 5));
+    if (progress >= 100) {
+      for (const f of missing) db.threeD.presentFiles.add(threeDFileKey(f));
+      delete db.threeD.downloads[opId];
+      Object.assign(op, { status: 'done', progress: 100, endedAt: now(), message: `${model.name} ist installiert.` });
+      emit('operation.updated', op);
+      emit('threed.models.changed', {});
+      log('info', 'threed', `3D-Modell heruntergeladen: ${model.name}`);
+      return;
+    }
+    const done = Math.round((total * progress) / 100);
+    let acc = 0;
+    const current = missing.find((f) => (acc += f.sizeBytes) > done) ?? missing[missing.length - 1];
+    Object.assign(op, { progress, message: `${formatBytes(done)} von ${formatBytes(total)} · ${current?.name ?? ''}` });
+    emit('operation.updated', op);
+    simulateThreeDDownload(opId);
+  });
 }
 
 function newTask(t: Partial<Task> & Pick<Task, 'projectId' | 'title' | 'kind' | 'role'>): Task {
@@ -1511,6 +1671,147 @@ const handlers: HandlerMap = {
         : 'Passt voraussichtlich nicht vollständig in den Grafikspeicher. Teile laufen dann auf dem Prozessor und sind deutlich langsamer.',
       alternatives: fits ? [] : ['qwen2.5-coder:14b', 'qwen2.5-coder:7b'],
     };
+  },
+  // --- 3D workshop ---------------------------------------------------------------
+  'threed.status': ({ refresh }) => {
+    if (refresh) db.threeD.status.checkedAt = now();
+    return db.threeD.status;
+  },
+  'threed.configure': ({ engineUrl, modelsDir }) => {
+    const issues: Array<{ path: string[]; message: string }> = [];
+    const url = engineUrl?.trim().replace(/\/+$/, '');
+    const dir = modelsDir?.trim();
+    if (url && !/^https?:\/\/(127(\.\d{1,3}){3}|localhost|\[::1\])(:\d{1,5})?$/i.test(url)) {
+      issues.push({ path: ['engineUrl'], message: 'Nur Adressen auf diesem PC sind erlaubt, zum Beispiel http://127.0.0.1:8188.' });
+    }
+    if (dir && !/[\\/]models$/i.test(dir.replace(/[\\/]+$/, ''))) {
+      issues.push({ path: ['modelsDir'], message: 'In diesem Ordner fehlen die typischen Unterordner von ComfyUI (checkpoints, vae, diffusion_models). Bitte den Ordner „models“ von ComfyUI wählen.' });
+    }
+    if (issues.length > 0) throw new MockRpcError('VALIDATION', issues[0].message, { issues });
+    if (url !== undefined) db.settings.threeD.engineUrl = url;
+    if (dir !== undefined) db.settings.threeD.modelsDir = dir;
+    emit('settings.updated', db.settings);
+    const st = db.threeD.status;
+    const baseUrl = db.settings.threeD.engineUrl || 'http://127.0.0.1:8000';
+    const reachable = st.installed && /:(8000|8188)$/.test(baseUrl);
+    Object.assign(st, {
+      baseUrl,
+      running: reachable,
+      version: reachable ? THREED_DEMO_VERSION : null,
+      supports3d: reachable,
+      modelsDir: db.settings.threeD.modelsDir || THREED_AUTO_MODELS_DIR,
+      message: reachable ? `ComfyUI läuft (Version ${THREED_DEMO_VERSION}) und kann 3D-Modelle erzeugen.` : `Unter ${baseUrl} antwortet kein ComfyUI. Bitte ComfyUI starten oder die Adresse prüfen.`,
+      checkedAt: now(),
+    });
+    emit('threed.status', st);
+    log('info', 'threed', 'Einstellungen der 3D-Werkstatt geprüft und gespeichert');
+    return st;
+  },
+  'threed.models': () => threeDModels(),
+  'threed.downloadModel': ({ id }) => {
+    const m = threeDModel(id);
+    if (!db.threeD.status.modelsDir) throw new MockRpcError('VALIDATION', 'NOVA kennt den Modellordner von ComfyUI noch nicht. Bitte zuerst den Ordner „models“ wählen.');
+    if (m.installed) throw conflict(`${m.name} ist bereits vollständig installiert.`);
+    const runningId = Object.keys(db.threeD.downloads).find((opId) => db.threeD.downloads[opId] === id && db.operations.some((o) => o.id === opId && o.status === 'running'));
+    const running = runningId ? db.operations.find((o) => o.id === runningId) : undefined;
+    if (running) return running;
+    const op: Operation = {
+      id: nid('op'), kind: 'threed_download', projectId: null, title: `${m.name} herunterladen`, status: 'running', progress: 0,
+      message: `0 B von ${formatBytes(m.missingBytes)}`, cancellable: true, error: null, startedAt: now(), endedAt: null,
+    };
+    db.operations.push(op);
+    db.threeD.downloads[op.id] = id;
+    emit('operation.updated', op);
+    log('info', 'threed', `Download gestartet: ${m.name} (${formatBytes(m.missingBytes)})`);
+    simulateThreeDDownload(op.id);
+    return op;
+  },
+  'threed.deleteModel': ({ id }) => {
+    const entry = db.threeD.catalog.find((e) => e.id === id);
+    if (!entry) throw notFound('Das 3D-Modell');
+    const inUse = db.threeD.jobs.some((j) => j.status === 'running' && (j.model === id || (id === 'z_image_turbo' && j.mode === 'text')));
+    if (inUse) throw conflict('Das Modell wird gerade von einem laufenden Auftrag benutzt. Bitte warten oder den Auftrag abbrechen.');
+    if (Object.entries(db.threeD.downloads).some(([opId, m]) => m === id && db.operations.some((o) => o.id === opId && o.status === 'running'))) {
+      throw conflict('Das Modell wird gerade heruntergeladen. Bitte zuerst den Download abbrechen.');
+    }
+    const neededByOthers = new Set(threeDModels().filter((m) => m.id !== id && m.installed).flatMap((m) => m.files.map(threeDFileKey)));
+    for (const f of entry.files) if (!neededByOthers.has(threeDFileKey(f))) db.threeD.presentFiles.delete(threeDFileKey(f));
+    emit('threed.models.changed', {});
+    log('info', 'threed', `3D-Modell gelöscht: ${entry.name}`);
+    return { ok: true as const };
+  },
+  'threed.generate': (input) => {
+    const st = db.threeD.status;
+    if (!st.running) {
+      throw new MockRpcError('TOOL_MISSING', st.installed ? 'ComfyUI läuft nicht. Bitte ComfyUI starten und es dann noch einmal versuchen.' : 'ComfyUI ist nicht installiert. Die 3D-Werkstatt zeigt, wie es geht.');
+    }
+    if (!st.supports3d) throw new MockRpcError('TOOL_MISSING', `Diese ComfyUI-Version (${st.version ?? 'unbekannt'}) kann noch keine 3D-Modelle erzeugen. Bitte ComfyUI aktualisieren.`);
+    const model = input.model ?? db.settings.threeD.defaultModel;
+    const quality = input.quality ?? db.settings.threeD.defaultQuality;
+    const models = threeDModels();
+    const generator = models.find((m) => m.id === model);
+    if (!generator?.installed) throw new MockRpcError('MODEL_UNAVAILABLE', `${generator?.name ?? model} ist noch nicht vollständig heruntergeladen. Bitte unter „Modelle“ › „3D-Modelle“ herunterladen.`);
+    if (input.mode === 'text' && !models.find((m) => m.id === 'z_image_turbo')?.installed) {
+      throw new MockRpcError('MODEL_UNAVAILABLE', 'Für „Text zu 3D“ fehlt noch Z-Image Turbo. Bitte unter „Modelle“ › „3D-Modelle“ herunterladen.');
+    }
+    if (input.projectId) project(input.projectId);
+    const id = nid('job3d');
+    let imagePath: string | null = null;
+    if (input.mode === 'image') {
+      if (input.imageBase64) {
+        if (base64Size(input.imageBase64) > THREED_MAX_IMAGE_BYTES) throw new MockRpcError('VALIDATION', 'Das Bild ist größer als 20 MB. Bitte ein kleineres Bild wählen.');
+        const kind = sniffImage(input.imageBase64);
+        if (!kind) throw new MockRpcError('VALIDATION', 'Nur PNG-, JPEG- oder WebP-Bilder werden unterstützt.');
+        imagePath = `${db.daemon.dataDir}\\3d\\${id}\\eingabe.${kind.ext}`;
+        db.threeD.images[id] = { dataBase64: input.imageBase64, mimeType: kind.mimeType };
+      } else if (input.imagePath) {
+        imagePath = input.projectId && !/^[a-zA-Z]:\\|^\\\\/.test(input.imagePath) ? `${project(input.projectId).path}\\${input.imagePath.replace(/\//g, '\\')}` : input.imagePath;
+      }
+    }
+    const job: ThreeDJob = {
+      id, projectId: input.projectId ?? null, taskId: null, mode: input.mode, prompt: input.mode === 'text' ? (input.prompt ?? null) : null, imagePath,
+      model, quality, seed: input.seed ?? Math.floor(Math.random() * 2_147_483_647), name: threeDName(input.name, input.prompt),
+      status: 'queued', phase: 'Wartet', progress: null, outputPath: null, outputRel: null, error: null, createdAt: now(), startedAt: null, endedAt: null,
+    };
+    db.threeD.jobs.push(job);
+    emit('threed.job', job);
+    log('info', 'threed', `3D-Auftrag angelegt: ${job.name} (${job.mode === 'text' ? 'Text zu 3D' : 'Bild zu 3D'}, ${model}, ${quality})`);
+    scheduleThreeDTick();
+    return job;
+  },
+  'threed.jobs': ({ projectId, limit }) =>
+    db.threeD.jobs
+      .filter((j) => !projectId || j.projectId === projectId)
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .slice(0, limit),
+  'threed.job': ({ id }) => threeDJob(id),
+  'threed.cancel': ({ id }) => {
+    const j = threeDJob(id);
+    if (j.status === 'queued' || j.status === 'running') {
+      touchThreeDJob(j, { status: 'cancelled', endedAt: now() });
+      log('info', 'threed', `3D-Auftrag abgebrochen: ${j.name}`);
+    }
+    return j;
+  },
+  'threed.deleteJob': ({ id, deleteFiles }) => {
+    const j = threeDJob(id);
+    if (j.status === 'queued' || j.status === 'running') throw conflict('Der Auftrag läuft noch. Bitte ihn zuerst abbrechen.');
+    db.threeD.jobs = db.threeD.jobs.filter((x) => x.id !== id);
+    delete db.threeD.images[id];
+    if (deleteFiles && j.projectId && j.outputRel) emit('files.changed', { projectId: j.projectId, paths: [j.outputRel], actor: 'nova' });
+    log('info', 'threed', `3D-Auftrag entfernt: ${j.name}${deleteFiles ? ' (mit Dateien)' : ''}`);
+    return { ok: true as const };
+  },
+  'threed.readFile': ({ id, kind }) => {
+    const j = threeDJob(id);
+    if (kind === 'model') {
+      if (j.status !== 'done' || !j.outputPath) throw notFound('Die 3D-Datei');
+      return { dataBase64: DEMO_CRATE_GLB_BASE64, mimeType: 'model/gltf-binary', sizeBytes: base64Size(DEMO_CRATE_GLB_BASE64) };
+    }
+    if (!j.imagePath) throw notFound('Das Bild dieses Auftrags');
+    const own = db.threeD.images[id];
+    if (own) return { ...own, sizeBytes: base64Size(own.dataBase64) };
+    return { dataBase64: DEMO_REFERENCE_PNG_BASE64, mimeType: 'image/png', sizeBytes: base64Size(DEMO_REFERENCE_PNG_BASE64) };
   },
   'budget.status': () => budgetStatus(),
   'budget.usage': ({ from, to, projectId, limit }) =>

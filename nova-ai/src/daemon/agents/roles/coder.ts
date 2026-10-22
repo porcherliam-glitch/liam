@@ -1,6 +1,8 @@
 // Coder role module: implements a task with small, inspected and verified file changes.
 // Key decisions:
-// - Tools per SPEC §6.3 table; finish tool `finish` → CoderOutputSchema ({summary, status done|blocked, blocker, notes}).
+// - Tools per SPEC §6.3 table plus generate_3d_model (3D workshop, docs/SPEC-3D.md §6; the tool itself refuses with a
+//   clear error when agents may not generate or ComfyUI/models are missing); finish tool `finish` → CoderOutputSchema
+//   ({summary, status done|blocked, blocker, notes}).
 // - The prompt drives the loop "inspect → small edit → run checks → fix → review diff → finish" and tells the model
 //   how to use edit_file correctly (exact oldText without read_file line numbers), which is the most common failure
 //   of small models.
@@ -22,6 +24,7 @@ export const CODER_TOOLS = [
   'memory_search',
   'memory_note',
   'ask_user',
+  'generate_3d_model',
 ];
 const FINISH = 'finish';
 

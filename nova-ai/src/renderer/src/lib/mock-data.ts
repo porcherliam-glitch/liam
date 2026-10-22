@@ -35,6 +35,9 @@ import type {
   ResourceSnapshot,
   Task,
   TerminalSession,
+  ThreeDEngineStatus,
+  ThreeDJob,
+  ThreeDModel,
   UsageRecord,
   Verification,
   WorkCycleState,
@@ -107,6 +110,8 @@ export interface MockDb {
   gitRepos: Record<string, boolean>;
   workState: WorkCycleState;
   daemon: DaemonStatus;
+  /** 3D-Werkstatt: ComfyUI status, model catalog (file presence by "folder/name") and jobs. */
+  threeD: MockThreeD;
   autostart: boolean;
   nextStepId: number;
   nextChangeId: number;
@@ -485,6 +490,168 @@ namespace Aetherfall.SaveSystem
 // ---------------------------------------------------------------------------
 // Builder
 // ---------------------------------------------------------------------------
+
+/** One catalog entry of the mock: everything except the derived install state. */
+export type MockThreeDCatalogEntry = Omit<ThreeDModel, 'installed' | 'totalBytes' | 'missingBytes' | 'files'> & {
+  files: Array<Omit<ThreeDModel['files'][number], 'present'>>;
+};
+
+export interface MockThreeD {
+  status: ThreeDEngineStatus;
+  catalog: MockThreeDCatalogEntry[];
+  /** Present model files as "folder/name" (shared files count once). */
+  presentFiles: Set<string>;
+  jobs: ThreeDJob[];
+  /** Running model downloads: operation id → model id. */
+  downloads: Record<string, ThreeDModel['id']>;
+  /** Images pasted/dropped in the UI per job (returned by threed.readFile kind "image"). */
+  images: Record<string, { dataBase64: string; mimeType: string }>;
+}
+
+const HF = 'https://huggingface.co';
+const hfFile = (repo: string, path: string, sizeBytes: number) => {
+  const slash = path.lastIndexOf('/');
+  const folderPath = path.slice(0, slash);
+  return { name: path.slice(slash + 1), folder: folderPath.replace(/^split_files\//, ''), url: `${HF}/${repo}/resolve/main/${path}`, sizeBytes, sha256: null };
+};
+
+/** Shared files of TRELLIS.2 and Pixal3D (SPEC-3D §3). */
+const DINO = hfFile('Comfy-Org/Pixal3D', 'clip_vision/dino_v3_L_naf_fp32.safetensors', 1_215_214_176);
+const SHAPE_VAE = hfFile('Comfy-Org/Pixal3D', 'vae/trellis_2_shape_vae_bf16.safetensors', 1_095_844_024);
+const TEXTURE_VAE = hfFile('Comfy-Org/Pixal3D', 'vae/trellis_2_texture_vae_bf16.safetensors', 948_461_364);
+const BIREFNET = hfFile('Comfy-Org/BiRefNet', 'background_removal/birefnet.safetensors', 444_473_596);
+
+/** The 3D model catalog with the exact files and sizes of SPEC-3D §3. */
+export function threeDCatalog(): MockThreeDCatalogEntry[] {
+  return [
+    {
+      id: 'trellis2',
+      name: 'TRELLIS.2',
+      purpose: 'image_to_3d',
+      description: 'Macht aus einem Bild ein 3D-Modell mit Textur. Der empfohlene Standard für „Bild zu 3D“.',
+      license: 'MIT',
+      source: 'microsoft/TRELLIS.2-4B · BiRefNet (MIT)',
+      vramRecommendedBytes: 10 * GB,
+      files: [hfFile('Comfy-Org/TRELLIS.2', 'diffusion_models/trellis_2_int8_convrot.safetensors', 5_253_048_192), DINO, SHAPE_VAE, TEXTURE_VAE, BIREFNET],
+    },
+    {
+      id: 'pixal3d',
+      name: 'Pixal3D',
+      purpose: 'image_to_3d',
+      description: 'Alternative für „Bild zu 3D“, oft mit feineren Details. Teilt sich einige Dateien mit TRELLIS.2.',
+      license: 'MIT',
+      source: 'TencentARC/Pixal3D · MoGe (MIT)',
+      vramRecommendedBytes: 10 * GB,
+      files: [
+        hfFile('Comfy-Org/Pixal3D', 'diffusion_models/pixal3d_int8_convrot.safetensors', 5_584_555_824),
+        hfFile('Comfy-Org/MoGe', 'geometry_estimation/moge_2_vitl_normal_fp16.safetensors', 661_859_924),
+        DINO,
+        SHAPE_VAE,
+        TEXTURE_VAE,
+        BIREFNET,
+      ],
+    },
+    {
+      id: 'z_image_turbo',
+      name: 'Z-Image Turbo',
+      purpose: 'text_to_image',
+      description: 'Erzeugt aus einer Beschreibung ein Bild. Wird für „Text zu 3D“ gebraucht.',
+      license: 'Apache-2.0',
+      source: 'Tongyi-MAI/Z-Image-Turbo',
+      vramRecommendedBytes: 12 * GB,
+      files: [
+        hfFile('Comfy-Org/z_image_turbo', 'split_files/diffusion_models/z_image_turbo_int8_convrot.safetensors', 6_201_001_296),
+        hfFile('Comfy-Org/z_image_turbo', 'split_files/text_encoders/qwen_3_4b_fp8_mixed.safetensors', 5_631_994_051),
+        hfFile('Comfy-Org/z_image_turbo', 'split_files/vae/ae.safetensors', 335_304_388),
+      ],
+    },
+  ];
+}
+
+export const threeDFileKey = (f: { folder: string; name: string }) => `${f.folder}/${f.name}`;
+
+/** Catalog entry + file presence → the ThreeDModel the daemon reports. */
+export function threeDModelOf(entry: MockThreeDCatalogEntry, present: Set<string>): ThreeDModel {
+  const files = entry.files.map((f) => ({ ...f, present: present.has(threeDFileKey(f)) }));
+  const totalBytes = files.reduce((sum, f) => sum + f.sizeBytes, 0);
+  const missingBytes = files.filter((f) => !f.present).reduce((sum, f) => sum + f.sizeBytes, 0);
+  return { ...entry, files, installed: missingBytes === 0, totalBytes, missingBytes };
+}
+
+function buildThreeD(now: number, dataDir: string): MockThreeD {
+  const ago = (ms: number) => now - ms;
+  const catalog = threeDCatalog();
+  // TRELLIS.2 and Z-Image Turbo are installed; Pixal3D only has the files it shares with TRELLIS.2.
+  const presentFiles = new Set<string>([...catalog[0].files, ...catalog[2].files].map(threeDFileKey));
+  const aether = 'C:\\Users\\Demo\\Desktop\\Aetherfall';
+  const pixel = 'C:\\Users\\Demo\\Documents\\NOVA Projekte\\Pixel-Abenteuer';
+  const lib = `${dataDir}\\3d`;
+  const job = (j: Partial<ThreeDJob> & Pick<ThreeDJob, 'id' | 'mode' | 'name' | 'status' | 'createdAt'>): ThreeDJob => ({
+    projectId: null,
+    taskId: null,
+    prompt: null,
+    imagePath: null,
+    model: 'trellis2',
+    quality: 'standard',
+    seed: 421_337,
+    phase: null,
+    progress: null,
+    outputPath: null,
+    outputRel: null,
+    error: null,
+    startedAt: null,
+    endedAt: null,
+    ...j,
+  });
+  return {
+    status: {
+      installed: true,
+      running: true,
+      baseUrl: 'http://127.0.0.1:8000',
+      version: '0.42.0',
+      supports3d: true,
+      modelsDir: 'C:\\Users\\Demo\\Documents\\ComfyUI\\models',
+      gpu: { name: 'NVIDIA GeForce RTX 4080', vramTotalBytes: 16 * GB, vramFreeBytes: 13.1 * GB },
+      message: 'ComfyUI läuft (Version 0.42.0) und kann 3D-Modelle erzeugen.',
+      checkedAt: ago(15_000),
+    },
+    catalog,
+    presentFiles,
+    downloads: {},
+    images: {},
+    jobs: [
+      job({
+        id: 'job3d_laterne', projectId: PIXEL, mode: 'image', name: 'laterne', imagePath: `${lib}\\job3d_laterne\\eingabe.png`, quality: 'draft', seed: 77_812,
+        status: 'running', phase: 'Form wird berechnet', progress: 46, createdAt: ago(95_000), startedAt: ago(80_000),
+      }),
+      job({
+        id: 'job3d_truhe', mode: 'text', name: 'schatztruhe', prompt: 'Eine kleine Schatztruhe aus dunklem Holz mit goldenen Beschlägen', quality: 'high', seed: 1_204,
+        status: 'queued', phase: 'Wartet', createdAt: ago(40_000),
+      }),
+      job({
+        id: 'job3d_kiste', projectId: AETHER, mode: 'text', name: 'holzkiste', prompt: 'Eine alte Holzkiste mit Eisenbeschlägen, leicht verwittert',
+        imagePath: `${aether}\\assets\\3d\\holzkiste.png`, status: 'done', progress: 100,
+        outputPath: `${aether}\\assets\\3d\\holzkiste.glb`, outputRel: 'assets/3d/holzkiste.glb',
+        createdAt: ago(3 * HOUR), startedAt: ago(3 * HOUR - 20_000), endedAt: ago(3 * HOUR - 20_000 - 4 * MIN - 12_000),
+      }),
+      job({
+        id: 'job3d_vase', mode: 'image', name: 'vase', imagePath: `${lib}\\job3d_vase\\eingabe.png`, model: 'trellis2', quality: 'standard', seed: 9_001,
+        status: 'done', progress: 100, outputPath: `${lib}\\job3d_vase\\vase.glb`,
+        createdAt: ago(DAY + 2 * HOUR), startedAt: ago(DAY + 2 * HOUR - 5_000), endedAt: ago(DAY + 2 * HOUR - 5_000 - 3 * MIN - 40_000),
+      }),
+      job({
+        id: 'job3d_drache', mode: 'image', name: 'drache', imagePath: `${lib}\\job3d_drache\\eingabe.png`, quality: 'high', seed: 3_141,
+        status: 'failed', phase: 'Form wird berechnet', progress: 38,
+        error: 'Zu wenig Grafikspeicher (Out of memory) beim Berechnen der Form. Bitte andere Programme schließen, die die Grafikkarte nutzen, die Qualität „Entwurf“ wählen oder „Sprachmodelle vorher entladen“ einschalten.',
+        createdAt: ago(DAY + 5 * HOUR), startedAt: ago(DAY + 5 * HOUR - 4_000), endedAt: ago(DAY + 5 * HOUR - 4_000 - 2 * MIN),
+      }),
+      job({
+        id: 'job3d_stuhl', mode: 'text', name: 'stuhl', prompt: 'Ein schlichter Holzstuhl im skandinavischen Stil', quality: 'draft', seed: 55,
+        status: 'cancelled', phase: 'Bild wird erzeugt', progress: 12, createdAt: ago(2 * DAY), startedAt: ago(2 * DAY - 3_000), endedAt: ago(2 * DAY - 3_000 - 40_000),
+      }),
+    ],
+  };
+}
 
 export function createMockDb(now: number = Date.now()): MockDb {
   const ago = (ms: number) => now - ms;
@@ -1470,6 +1637,11 @@ export function clampToPlatform(_body: Phaser.Physics.Arcade.Body): void {}
       id: 'playwright', name: 'Playwright', category: 'testing', available: false, version: '1.48.2', message: 'Playwright ist vorhanden, aber es ist noch kein Browser für Oberflächentests installiert.',
       installHint: { command: 'npx playwright install chromium', url: 'https://playwright.dev/docs/browsers', requiresAdmin: false },
     }),
+    integ({
+      id: 'comfyui', name: 'ComfyUI', category: 'ai', available: true, version: '0.42.0', path: 'C:\\Users\\Demo\\AppData\\Local\\Programs\\ComfyUI\\ComfyUI.exe',
+      message: 'ComfyUI Desktop ist installiert. Es führt die 3D-Modelle der 3D-Werkstatt aus.',
+      installHint: { command: 'winget install -e --id Comfy.ComfyUI-Desktop', url: 'https://www.comfy.org/download', requiresAdmin: false },
+    }),
     integ({ id: 'winget', name: 'winget', category: 'package_manager', available: true, version: '1.9.25200', path: 'C:\\Users\\Demo\\AppData\\Local\\Microsoft\\WindowsApps\\winget.exe', message: 'Der Windows-Paketmanager ist verfügbar.' }),
   ];
 
@@ -1606,6 +1778,7 @@ export function clampToPlatform(_body: Phaser.Physics.Arcade.Body): void {}
       secretStore: { scheme: 'dpapi', secure: true },
       methods: [...RPC_METHODS],
     },
+    threeD: buildThreeD(now, 'C:\\Users\\Demo\\AppData\\Roaming\\NOVA AI'),
     autostart: false,
     nextStepId: stepId,
     nextChangeId: changeId,
@@ -1618,7 +1791,7 @@ function buildLogs(now: number): LogEntry[] {
     [3 * HOUR + 12 * MIN, 'info', 'daemon', 'Hintergrunddienst gestartet (Version 0.1.0, PID 14872)'],
     [3 * HOUR + 12 * MIN, 'info', 'db', 'Datenbank geöffnet (Schema-Version 3, WAL)'],
     [3 * HOUR + 11 * MIN, 'warn', 'recovery', '1 unterbrochene Aufgabe gefunden: Portal zwischen Dorf und Gruft verbinden', { taskId: 'task_ae1' }],
-    [3 * HOUR + 11 * MIN, 'info', 'integrations', '14 Werkzeuge geprüft, 10 verfügbar'],
+    [3 * HOUR + 11 * MIN, 'info', 'integrations', '15 Werkzeuge geprüft, 11 verfügbar'],
     [3 * HOUR + 10 * MIN, 'info', 'ollama', 'Ollama erreichbar (0.12.6), 3 Modelle installiert'],
     [3 * HOUR + 10 * MIN, 'debug', 'resources', 'GPU erkannt: NVIDIA GeForce RTX 4080 (16 GB, nvidia-smi)'],
     [2 * HOUR, 'warn', 'ollama', 'Ollama antwortet nicht – neuer Versuch in 5 Sekunden', { attempt: 1 }],

@@ -21,6 +21,9 @@ import { AutostartControl, DiagnosticsPanel, RelatedLink, UpdatesPanel } from '.
 import { rpcIssues } from './shared/forms';
 import { Notice } from './shared/ui';
 import { useSettingsDraft } from './useSettingsDraft';
+import { saveThreeDPatch } from '../threed/threedSettings';
+import { EngineSummary } from '../threed/ThreeDSettingsCard';
+import { useEngineStatus, useThreeDSupported } from '../threed/useThreeD';
 
 const RELATED = [
   { to: paths.models, label: 'Modelle und Anbieter', icon: Cpu },
@@ -31,7 +34,11 @@ const RELATED = [
 
 export default function SettingsPage() {
   const [params] = useSearchParams();
-  const section = sectionById(params.get('section'));
+  const threeDSupported = useThreeDSupported();
+  // The 3D section only exists when the connected daemon offers the 3D workshop.
+  const sections = threeDSupported ? SECTIONS : SECTIONS.filter((s) => s.id !== 'threed');
+  const requested = sectionById(params.get('section'));
+  const section = sections.includes(requested) ? requested : sections[0];
   const settings = useRpc('settings.get', undefined, { refetchOn: ['settings.updated'] });
   const secureStore = useDaemonStore((s) => s.status?.secretStore.secure ?? null);
   const draft = useSettingsDraft(settings.data);
@@ -62,7 +69,7 @@ export default function SettingsPage() {
     }
     setSaving(s.id);
     try {
-      const result = await update.runAsync(patch);
+      const result = s.id === 'threed' ? await saveThreeDPatch(patch) : await update.runAsync(patch);
       settings.setData(result);
       draft.discard(s.fields);
       clearErrors(
@@ -99,7 +106,7 @@ export default function SettingsPage() {
       <div className="grid gap-5 md:grid-cols-[220px_minmax(0,1fr)]">
         <nav aria-label="Einstellungsbereiche" className="md:sticky md:top-0 md:self-start">
           <ul className="flex gap-1 overflow-x-auto pb-1 md:flex-col md:overflow-visible md:pb-0">
-            {SECTIONS.map((s) => {
+            {sections.map((s) => {
               const active = s.id === section.id;
               const dirty = settings.data ? draft.anyDirty(s.fields) : false;
               const Icon = s.icon;
@@ -219,9 +226,17 @@ function SectionIntro({ section, settings, onSettingsSaved }: { section: Section
       );
     case 'background':
       return <AutostartControl savedValue={settings.background.autostart} onSettingsSaved={onSettingsSaved} />;
+    case 'threed':
+      return <ThreeDIntro />;
     default:
       return null;
   }
+}
+
+/** Current ComfyUI state above the 3D fields (shows right away whether a changed address or folder works). */
+function ThreeDIntro() {
+  const engine = useEngineStatus();
+  return <EngineSummary engine={engine} />;
 }
 
 /** Section-specific links below the fields. */
@@ -243,6 +258,12 @@ function SectionOutro({ section }: { section: SectionDef }) {
       return (
         <p className="text-xs text-muted">
           Die aktuelle Auslastung zeigt die <RelatedLink to={paths.dashboard}>Übersicht</RelatedLink>
+        </p>
+      );
+    case 'threed':
+      return (
+        <p className="text-xs text-muted">
+          Die 3D-Modelle selbst (Herunterladen, Löschen) stehen unter <RelatedLink to={paths.models3d}>Modelle › 3D-Modelle</RelatedLink>
         </p>
       );
     default:

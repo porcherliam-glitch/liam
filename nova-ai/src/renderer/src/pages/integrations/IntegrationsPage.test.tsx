@@ -22,7 +22,7 @@ describe('IntegrationsPage', () => {
     await renderPage();
     expect(screen.getByRole('heading', { name: /Versionsverwaltung/ })).toBeTruthy();
     expect(screen.getByRole('heading', { name: /Spiel-Engines/ })).toBeTruthy();
-    expect(screen.getByText(/von 14/)).toBeTruthy();
+    expect(screen.getByText(/von 15/)).toBeTruthy();
     const git = card('Git');
     expect(within(git).getByText('Verfügbar')).toBeTruthy();
     expect(within(git).getByText('Version 2.47.1')).toBeTruthy();

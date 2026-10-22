@@ -14,6 +14,7 @@ import {
   uninstallMockBridge,
 } from './mock-bridge';
 import { AETHER, PIXEL, REZEPT } from './mock-data';
+import { DEMO_REFERENCE_PNG_BASE64 } from './mock-threed-assets';
 
 type ParamsFn = () => unknown;
 
@@ -81,6 +82,17 @@ const SAMPLE: Record<RpcMethod, unknown | ParamsFn> = {
   'ollama.delete': { model: 'nomic-embed-text:latest' },
   'ollama.running': undefined,
   'ollama.fit': { model: 'qwen2.5-coder:32b' },
+  'threed.status': { refresh: true },
+  'threed.configure': { modelsDir: 'D:\\ComfyUI\\models' },
+  'threed.models': undefined,
+  'threed.downloadModel': { id: 'pixal3d' },
+  'threed.deleteModel': { id: 'z_image_turbo' },
+  'threed.generate': { mode: 'image', imageBase64: DEMO_REFERENCE_PNG_BASE64, name: 'kiste', projectId: PIXEL },
+  'threed.jobs': {},
+  'threed.job': { id: 'job3d_kiste' },
+  'threed.cancel': { id: 'job3d_truhe' },
+  'threed.deleteJob': { id: 'job3d_stuhl', deleteFiles: true },
+  'threed.readFile': { id: 'job3d_kiste', kind: 'model' },
   'budget.status': undefined,
   'budget.usage': {},
   'budget.setLimits': { dailyLimitUsd: 3 },

@@ -31,6 +31,7 @@ import { createRunStore, createAgentRunner, registerAgentsRpc } from './agents';
 import { createTaskService, createWorkCycle, registerTasksRpc } from './tasks';
 import { createGitService, createCheckpointService, createBackupService, registerGitRpc, type CheckpointServiceImpl } from './git';
 import { createMemoryService, registerMemoryRpc } from './memory';
+import { createThreeDService, createGenerate3dModelTool, registerThreeDRpc, type ThreeDServiceImpl } from './threed';
 import { createProjectService, createTemplateRegistry, createProjectDetector, createCheckService, createPreviewService, registerProjectsRpc } from './projects';
 import {
   createSecretStore,
@@ -187,6 +188,7 @@ export async function startDaemon(opts: StartDaemonOptions): Promise<DaemonApp> 
     s.providers = createProviderRegistry(s);
     s.models = createModelClient(s);
     s.ollama = createOllamaService(s);
+    s.threed = createThreeDService(s);
     s.pathGuard = createPathGuard(s);
     s.journal = createChangeJournal(s);
     s.locks = createFileLockService(s);
@@ -196,6 +198,7 @@ export async function startDaemon(opts: StartDaemonOptions): Promise<DaemonApp> 
     s.watcher = createFileWatcher(s);
     s.files = createFileService(s);
     s.tools = createToolRegistry(s);
+    s.tools.register(createGenerate3dModelTool(s));
     s.memory = createMemoryService(s);
     s.git = createGitService(s);
     s.checkpoints = createCheckpointService(s);
@@ -257,6 +260,7 @@ export async function startDaemon(opts: StartDaemonOptions): Promise<DaemonApp> 
     await step('Aufgaben', async () => {
       recovered.tasks = (await s.work.recover()).tasks;
     });
+    await step('3D-Werkstatt', () => s.threed.recover());
     // Optional lifecycle hooks of modules (timers, lazy subscriptions) beyond the contracts.
     const lifecycle = (svc: unknown) => svc as { start?: () => void; stop?: () => void | Promise<void> };
     for (const svc of [s.budget, s.providers, s.ollama]) lifecycle(svc).start?.();
@@ -291,6 +295,7 @@ export async function startDaemon(opts: StartDaemonOptions): Promise<DaemonApp> 
           s.approvals.prune(cutoff);
           core.errors.prune(cutoff);
           s.notifications.prune(cutoff);
+          (s.threed as ThreeDServiceImpl).prune(cutoff);
         });
       }
       await step('Datenbank optimieren', () => {
@@ -333,6 +338,7 @@ export async function startDaemon(opts: StartDaemonOptions): Promise<DaemonApp> 
     registerMemoryRpc(router, s);
     registerProjectsRpc(router, s);
     registerEnvRpc(router, s);
+    registerThreeDRpc(router, s);
     const backupsWithRestart = s.backups as Services['backups'] & { setRestartHandler?: (fn: () => void) => void };
     backupsWithRestart.setRestartHandler?.(() => setTimeout(() => void app.stop('Datenbank-Wiederherstellung', { restart: true }), 200));
 
@@ -370,6 +376,7 @@ export async function startDaemon(opts: StartDaemonOptions): Promise<DaemonApp> 
       clearInterval(maintenanceTimer);
       core.operations.cancelAll();
       await timed('Arbeitszyklus', fast ? 1500 : 12_000, () => s.work.shutdown(fast ? 1000 : 10_000));
+      await timed('3D-Werkstatt', fast ? 1500 : 8000, () => s.threed.shutdown());
       await timed('Vorschau', 5000, () => s.preview.stopAll());
       await timed('Terminals', 5000, () => s.terminals.closeAll());
       await timed('Dateiüberwachung', 2000, () => s.watcher.unwatchAll());

@@ -1,0 +1,241 @@
+{
+ "_source": "Real GET /history/<prompt_id> entries from the CPU-mode ComfyUI 0.42.0 of VERIFICATION.md (\"prompt\" removed, tracebacks shortened). save3d: Load3D(cube.obj) -> Get3DComponents -> MeshSmoothNormals -> MeshToFile3D -> Save3DAdvanced (same output tail as the template); saveImage: EmptyImage -> SaveImage; executionError: converted TRELLIS.2 prompt with empty dummy weights; interrupted: POST /interrupt during a slow job.",
+ "save3d": {
+  "promptId": "86bf10db-ccfb-46cf-ae5f-7efe281d3918",
+  "entry": {
+   "outputs": {
+    "5": {
+     "3d": [
+      {
+       "filename": "job_demo_00001.glb",
+       "subfolder": "nova",
+       "type": "output"
+      }
+     ],
+     "camera_info": [
+      null
+     ],
+     "model_3d_info": []
+    }
+   },
+   "status": {
+    "status_str": "success",
+    "completed": true,
+    "messages": [
+     [
+      "execution_start",
+      {
+       "prompt_id": "86bf10db-ccfb-46cf-ae5f-7efe281d3918",
+       "timestamp": 1792693502059
+      }
+     ],
+     [
+      "execution_cached",
+      {
+       "nodes": [],
+       "prompt_id": "86bf10db-ccfb-46cf-ae5f-7efe281d3918",
+       "timestamp": 1792693502062
+      }
+     ],
+     [
+      "execution_success",
+      {
+       "prompt_id": "86bf10db-ccfb-46cf-ae5f-7efe281d3918",
+       "timestamp": 1792693502154
+      }
+     ]
+    ]
+   },
+   "meta": {
+    "5": {
+     "node_id": "5",
+     "display_node": "5",
+     "parent_node": null,
+     "real_node_id": "5"
+    }
+   }
+  }
+ },
+ "saveImage": {
+  "promptId": "32b45338-6dff-4ecd-812c-d14d3a05fb0f",
+  "entry": {
+   "outputs": {
+    "2": {
+     "images": [
+      {
+       "filename": "control-ok_00001_.png",
+       "subfolder": "nova",
+       "type": "output",
+       "metadata": {
+        "kind": "image",
+        "width": 64,
+        "height": 64
+       }
+      }
+     ]
+    }
+   },
+   "status": {
+    "status_str": "success",
+    "completed": true,
+    "messages": [
+     [
+      "execution_start",
+      {
+       "prompt_id": "32b45338-6dff-4ecd-812c-d14d3a05fb0f",
+       "timestamp": 1792693451476
+      }
+     ],
+     [
+      "execution_cached",
+      {
+       "nodes": [],
+       "prompt_id": "32b45338-6dff-4ecd-812c-d14d3a05fb0f",
+       "timestamp": 1792693451476
+      }
+     ],
+     [
+      "execution_success",
+      {
+       "prompt_id": "32b45338-6dff-4ecd-812c-d14d3a05fb0f",
+       "timestamp": 1792693451483
+      }
+     ]
+    ]
+   },
+   "meta": {
+    "2": {
+     "node_id": "2",
+     "display_node": "2",
+     "parent_node": null,
+     "real_node_id": "2"
+    }
+   }
+  }
+ },
+ "executionError": {
+  "promptId": "7da1efde-3bb6-4d2d-92f3-50a273cc172e",
+  "entry": {
+   "outputs": {},
+   "status": {
+    "status_str": "error",
+    "completed": false,
+    "messages": [
+     [
+      "execution_start",
+      {
+       "prompt_id": "7da1efde-3bb6-4d2d-92f3-50a273cc172e",
+       "timestamp": 1792693388226
+      }
+     ],
+     [
+      "execution_cached",
+      {
+       "nodes": [],
+       "prompt_id": "7da1efde-3bb6-4d2d-92f3-50a273cc172e",
+       "timestamp": 1792693388242
+      }
+     ],
+     [
+      "execution_error",
+      {
+       "prompt_id": "7da1efde-3bb6-4d2d-92f3-50a273cc172e",
+       "node_id": "117",
+       "node_type": "VAELoader",
+       "executed": [],
+       "exception_message": "Error while deserializing header: header too small\n",
+       "exception_type": "safetensors._safetensors_rust.SafetensorError",
+       "traceback": [
+        "  File \"ComfyUI/comfy/utils.py\", line 186, in load_torch_file\n    raise e\n",
+        "  File \"ComfyUI/comfy/utils.py\", line 170, in load_torch_file\n    with safetensors.safe_open(ckpt, framework=\"pt\", device=device.type) as f:\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n"
+       ],
+       "current_inputs": {},
+       "current_outputs": [
+        "118",
+        "98",
+        "147",
+        "322",
+        "312",
+        "186",
+        "125",
+        "210",
+        "93",
+        "126",
+        "117",
+        "279",
+        "3",
+        "202",
+        "224",
+        "260",
+        "91",
+        "40",
+        "196",
+        "192",
+        "12",
+        "299",
+        "108",
+        "193",
+        "119",
+        "241",
+        "87",
+        "23",
+        "199",
+        "285",
+        "238",
+        "15",
+        "122",
+        "92",
+        "233",
+        "94",
+        "18"
+       ],
+       "timestamp": 1792693388246
+      }
+     ]
+    ]
+   },
+   "meta": {}
+  }
+ },
+ "interrupted": {
+  "promptId": "117d060b-ab3e-4a2d-8265-4a9d7eb2147d",
+  "entry": {
+   "outputs": {},
+   "status": {
+    "status_str": "error",
+    "completed": false,
+    "messages": [
+     [
+      "execution_start",
+      {
+       "prompt_id": "117d060b-ab3e-4a2d-8265-4a9d7eb2147d",
+       "timestamp": 1792693451888
+      }
+     ],
+     [
+      "execution_cached",
+      {
+       "nodes": [],
+       "prompt_id": "117d060b-ab3e-4a2d-8265-4a9d7eb2147d",
+       "timestamp": 1792693451914
+      }
+     ],
+     [
+      "execution_interrupted",
+      {
+       "prompt_id": "117d060b-ab3e-4a2d-8265-4a9d7eb2147d",
+       "node_id": "3",
+       "node_type": "ImageBlur",
+       "executed": [
+        "2",
+        "1"
+       ],
+       "timestamp": 1792693473338
+      }
+     ]
+    ]
+   },
+   "meta": {}
+  }
+ }
+}

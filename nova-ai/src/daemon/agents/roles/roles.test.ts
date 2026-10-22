@@ -57,7 +57,7 @@ describe('built-in role modules', () => {
   it('use the authoritative tool table and distinct finish tools', () => {
     const roles = Object.fromEntries(builtinRoles().map((r) => [r.info.role, r]));
     expect(roles.planner.toolNames).toEqual(['list_files', 'read_file', 'search_files', 'memory_search', 'memory_note', 'ask_user']);
-    expect(roles.coder.toolNames).toEqual(['list_files', 'read_file', 'search_files', 'write_file', 'edit_file', 'delete_file', 'run_command', 'run_checks', 'git_diff', 'memory_search', 'memory_note', 'ask_user']);
+    expect(roles.coder.toolNames).toEqual(['list_files', 'read_file', 'search_files', 'write_file', 'edit_file', 'delete_file', 'run_command', 'run_checks', 'git_diff', 'memory_search', 'memory_note', 'ask_user', 'generate_3d_model']);
     expect(roles.tester.toolNames).toEqual(['list_files', 'read_file', 'search_files', 'write_file', 'edit_file', 'run_command', 'run_checks', 'git_diff', 'memory_search', 'memory_note', 'ask_user']);
     expect(roles.reviewer.toolNames).toEqual(['list_files', 'read_file', 'search_files', 'git_diff', 'run_checks', 'memory_search', 'memory_note']);
     expect(roles.planner.finishTool.name).toBe('submit_plan');

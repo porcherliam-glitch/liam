@@ -26,6 +26,8 @@ export const WINGET_PACKAGES: Record<string, WingetPackage> = {
   powershell: { id: 'Microsoft.PowerShell', userScope: false, requiresAdmin: true },
   windows_terminal: { id: 'Microsoft.WindowsTerminal', userScope: false, requiresAdmin: false },
   ollama: { id: 'Ollama.Ollama', userScope: false, requiresAdmin: false },
+  // Comfy Desktop: per-user NSIS installer (no UAC prompt); the manifest's scope is not pinned, so no --scope.
+  comfyui: { id: 'Comfy.ComfyUI-Desktop', userScope: false, requiresAdmin: false },
   unity: { id: 'Unity.UnityHub', userScope: false, requiresAdmin: true },
   godot: { id: 'GodotEngine.GodotEngine', userScope: false, requiresAdmin: false },
   vscode: { id: 'Microsoft.VisualStudioCode', userScope: true, requiresAdmin: false },

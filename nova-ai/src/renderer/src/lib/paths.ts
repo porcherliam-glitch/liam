@@ -22,7 +22,11 @@ export const paths = {
   agents: '/agents',
   tasks: '/tasks',
   approvals: '/approvals',
+  /** 3D-Werkstatt (local text/image → 3D through ComfyUI). */
+  threed: '/threed',
   models: '/models',
+  /** Models page scrolled to the "3D-Modelle" card. */
+  models3d: '/models?section=3d',
   costs: '/costs',
   knowledge: '/knowledge',
   integrations: '/integrations',

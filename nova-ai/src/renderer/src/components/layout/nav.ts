@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { BookOpen, Bot, Coins, Cpu, FolderKanban, LayoutDashboard, ListTodo, ScrollText, Settings, ShieldQuestion, Wrench } from 'lucide-react';
+import { BookOpen, Bot, Box, Coins, Cpu, FolderKanban, LayoutDashboard, ListTodo, ScrollText, Settings, ShieldQuestion, Wrench } from 'lucide-react';
 import { paths } from '../../lib/paths';
 
 export interface NavItem {
@@ -28,6 +28,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { path: paths.agents, label: 'Agenten', icon: Bot },
       { path: paths.tasks, label: 'Aufgaben', icon: ListTodo },
       { path: paths.approvals, label: 'Freigaben', icon: ShieldQuestion, badge: 'approvals' },
+      { path: paths.threed, label: '3D-Werkstatt', icon: Box },
     ],
   },
   {

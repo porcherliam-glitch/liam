@@ -17,6 +17,7 @@ import {
   wingetModule,
 } from './modules-tools';
 import { godotModule, unityModule, unrealModule } from './modules-engines';
+import { comfyuiModule } from './modules-comfyui';
 
 const FACTORIES: Record<(typeof BUILTIN_INTEGRATIONS)[number], (deps: ModuleDeps) => IntegrationModule> = {
   git: gitModule,
@@ -27,6 +28,7 @@ const FACTORIES: Record<(typeof BUILTIN_INTEGRATIONS)[number], (deps: ModuleDeps
   powershell: powershellModule,
   windows_terminal: windowsTerminalModule,
   ollama: ollamaModule,
+  comfyui: comfyuiModule,
   unity: unityModule,
   unreal: unrealModule,
   godot: godotModule,

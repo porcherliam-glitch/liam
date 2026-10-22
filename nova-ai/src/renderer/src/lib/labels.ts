@@ -46,6 +46,7 @@ import {
   Globe,
   Hammer,
   Hourglass,
+  ImageIcon,
   Info,
   KeyRound,
   Lightbulb,
@@ -58,6 +59,7 @@ import {
   ShieldEllipsis,
   OctagonAlert,
   Package,
+  Paintbrush,
   Pause,
   Play,
   Plug,
@@ -68,6 +70,7 @@ import {
   Save,
   Scale,
   Server,
+  Shapes,
   ShieldAlert,
   ShieldCheck,
   ShieldQuestion,
@@ -81,6 +84,7 @@ import {
   Terminal,
   Trash2,
   TriangleAlert,
+  Type,
   Unplug,
   Upload,
   UserRound,
@@ -125,6 +129,10 @@ import type {
   Task,
   TaskKind,
   TaskStatus,
+  ThreeDGenerator,
+  ThreeDJob,
+  ThreeDModel,
+  ThreeDQuality,
   Verification,
   WorkCycleState,
 } from '@shared/schemas';
@@ -491,6 +499,7 @@ export const INTEGRATION_NAME: Record<string, string> = {
   vscode: 'Visual Studio Code',
   playwright: 'Playwright',
   winget: 'winget',
+  comfyui: 'ComfyUI',
 };
 
 // ---------------------------------------------------------------------------
@@ -567,6 +576,7 @@ export const OPERATION_KIND: Record<Operation['kind'], EnumMeta> = {
   restore: { label: 'Wiederherstellung', tone: 'warning', icon: RotateCcw },
   install: { label: 'Installation', tone: 'warning', icon: Download },
   diagnostics: { label: 'Diagnose-Paket', tone: 'neutral', icon: Bug },
+  threed_download: { label: '3D-Modell herunterladen', tone: 'violet', icon: Box },
 };
 
 export const OPERATION_STATUS: Record<Operation['status'], EnumMeta> = {
@@ -594,6 +604,55 @@ export const CHANGE_SOURCE: Record<ChangeRecord['source'], EnumMeta> = {
   command: { label: 'Agent (Befehl)', tone: 'violet', icon: Terminal },
   user: { label: 'Von Hand', tone: 'neutral', icon: UserRound },
   restore: { label: 'Wiederherstellung', tone: 'warning', icon: RotateCcw },
+};
+
+// ---------------------------------------------------------------------------
+// 3D-Werkstatt
+// ---------------------------------------------------------------------------
+
+export const THREED_JOB_STATUS: Record<ThreeDJob['status'], EnumMeta> = {
+  queued: { label: 'Wartet', tone: 'neutral', icon: Clock, description: 'Wartet, bis die Grafikkarte frei ist. Es läuft immer nur ein Auftrag.' },
+  running: { label: 'Läuft', tone: 'blue', icon: LoaderCircle, spin: true, description: 'ComfyUI erzeugt gerade das 3D-Modell.' },
+  done: { label: 'Fertig', tone: 'success', icon: CircleCheck, description: 'Das 3D-Modell ist gespeichert.' },
+  failed: { label: 'Fehlgeschlagen', tone: 'danger', icon: CircleX, description: 'Das 3D-Modell konnte nicht erzeugt werden – siehe Grund.' },
+  cancelled: { label: 'Abgebrochen', tone: 'neutral', icon: CircleSlash, description: 'Wurde gestoppt.' },
+};
+
+/** Phase texts the daemon sends (SPEC-3D §5) with a matching icon. Unknown phases fall back via phaseMeta(). */
+export const THREED_PHASE: Record<string, EnumMeta> = {
+  Wartet: { label: 'Wartet', tone: 'neutral', icon: Clock },
+  'Bild wird erzeugt': { label: 'Bild wird erzeugt', tone: 'violet', icon: ImageIcon, description: 'Aus der Beschreibung entsteht zuerst ein Bild.' },
+  'Bild wird übertragen': { label: 'Bild wird übertragen', tone: 'blue', icon: Upload },
+  'Form wird berechnet': { label: 'Form wird berechnet', tone: 'blue', icon: Shapes },
+  'Textur wird gebacken': { label: 'Textur wird gebacken', tone: 'violet', icon: Paintbrush, description: 'Farben und Oberflächen werden auf das Modell übertragen.' },
+  'Modell wird gespeichert': { label: 'Modell wird gespeichert', tone: 'info', icon: Save },
+};
+
+/** Phase of a 3D job (known phases get an icon, others are shown as sent). */
+export function phaseMeta(phase: string | null | undefined): EnumMeta {
+  if (!phase) return { label: '–', tone: 'neutral', icon: CircleHelp };
+  return THREED_PHASE[phase] ?? { label: phase, tone: 'blue', icon: LoaderCircle };
+}
+
+export const THREED_QUALITY: Record<ThreeDQuality, EnumMeta> = {
+  draft: { label: 'Entwurf', tone: 'neutral', icon: Shapes, description: 'Schnell, gröbere Form (200.000 Flächen, Texturen 1.024 Pixel). Gut zum Ausprobieren.' },
+  standard: { label: 'Standard', tone: 'blue', icon: Box, description: 'Ausgewogen (700.000 Flächen, Texturen 2.048 Pixel). Für die meisten Objekte richtig.' },
+  high: { label: 'Hoch', tone: 'violet', icon: Sparkles, description: 'Feine Details (1,5 Mio. Flächen, Texturen 4.096 Pixel). Dauert deutlich länger und braucht mehr Grafikspeicher.' },
+};
+
+export const THREED_GENERATOR: Record<ThreeDGenerator, EnumMeta> = {
+  trellis2: { label: 'TRELLIS.2', tone: 'violet', icon: Box, description: 'Zuverlässiger Standard für Bild zu 3D (Microsoft, MIT-Lizenz).' },
+  pixal3d: { label: 'Pixal3D', tone: 'blue', icon: Box, description: 'Alternative, oft mit feineren Details (TencentARC, MIT-Lizenz).' },
+};
+
+export const THREED_MODE: Record<ThreeDJob['mode'], EnumMeta> = {
+  text: { label: 'Text zu 3D', tone: 'violet', icon: Type, description: 'Aus einer Beschreibung entsteht zuerst ein Bild, daraus das 3D-Modell.' },
+  image: { label: 'Bild zu 3D', tone: 'blue', icon: ImageIcon, description: 'Aus einem eigenen Bild entsteht das 3D-Modell.' },
+};
+
+export const THREED_MODEL_PURPOSE: Record<ThreeDModel['purpose'], EnumMeta> = {
+  image_to_3d: { label: 'Bild zu 3D', tone: 'violet', icon: Box },
+  text_to_image: { label: 'Text zu Bild', tone: 'blue', icon: ImageIcon, description: 'Wird für „Text zu 3D“ gebraucht: es erzeugt zuerst ein Bild aus der Beschreibung.' },
 };
 
 /** Where the user can fix a blocked task (Task.blockerCode). */

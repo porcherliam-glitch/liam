@@ -1,5 +1,5 @@
 // Integrations sub-module of env: IntegrationService with the built-in IntegrationModules (git, node, npm, python,
-// dotnet, powershell, windows_terminal, ollama, unity, unreal, godot, vscode, playwright, winget) and its RPC methods.
+// dotnet, powershell, windows_terminal, ollama, comfyui, unity, unreal, godot, vscode, playwright, winget) and its RPC methods.
 export { createIntegrationService, INTEGRATION_CACHE_MS, userProgramEnv } from './integration-service';
 export type { IntegrationServiceImpl, IntegrationServiceOptions, SpawnDetached } from './integration-service';
 export { createBuiltinModules } from './builtins';

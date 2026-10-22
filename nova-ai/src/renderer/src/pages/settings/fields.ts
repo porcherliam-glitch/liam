@@ -2,9 +2,9 @@
 // settings section has a German label and a short help text here (models → Modelle page, budgets → Kosten page).
 // Field paths are "section.key"; one UI section may combine fields of several settings sections.
 import type { LucideIcon } from 'lucide-react';
-import { Bell, Bot, Brain, Database, Gauge, Globe, Power, RefreshCw, Settings2, ShieldCheck, Stethoscope } from 'lucide-react';
+import { Bell, Bot, Box, Brain, Database, Gauge, Globe, Power, RefreshCw, Settings2, ShieldCheck, Stethoscope } from 'lucide-react';
 import type { Settings, SettingsSection } from '@shared/settings';
-import { isHttpUrl, numberToInput, parseNumber, type NumberRule } from './shared/forms';
+import { isHttpUrl, isLocalUrl, numberToInput, parseNumber, type NumberRule } from './shared/forms';
 
 export type FieldPath = `${SettingsSection}.${string}`;
 
@@ -54,7 +54,7 @@ export type FieldDef = SwitchField | NumberField | TextField | FolderField | Lis
 /** Draft value of a field: switches boolean, lists string[], everything else the text typed by the user. */
 export type DraftValue = boolean | string | string[];
 
-export type SectionId = 'general' | 'agents' | 'resources' | 'permissions' | 'network' | 'notifications' | 'backup' | 'background' | 'updates' | 'diagnostics' | 'memory';
+export type SectionId = 'general' | 'agents' | 'resources' | 'permissions' | 'network' | 'notifications' | 'backup' | 'background' | 'updates' | 'diagnostics' | 'memory' | 'threed';
 
 export interface SectionDef {
   id: SectionId;
@@ -67,6 +67,26 @@ export interface SectionDef {
 /** Shell metacharacters that prevent automatic approval (settings.ts PermissionSettingsSchema). */
 const SHELL_META = /[&|<>^%!();$`]/;
 const HOST_PATTERN = /^(\*\.)?[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*(:\d{1,5})?$/i;
+
+/** ComfyUI address: empty (auto-detect) or a local http(s) URL (the daemon only talks to local addresses). */
+export function validateEngineUrl(value: string): string | undefined {
+  const v = value.trim();
+  if (!v) return undefined;
+  if (!isHttpUrl(v)) return 'Bitte eine Adresse wie http://127.0.0.1:8188 eingeben oder das Feld leer lassen.';
+  if (!isLocalUrl(v)) return 'Nur Adressen auf diesem PC sind erlaubt (127.0.0.1 oder localhost).';
+  return undefined;
+}
+
+/** Project-relative output folder with forward slashes, inside the project. */
+export function validateProjectFolder(value: string): string | undefined {
+  const v = value.trim();
+  if (!v) return 'Bitte einen Ordner angeben, zum Beispiel assets/3d.';
+  if (v.includes('\\')) return 'Bitte / statt \\ verwenden, zum Beispiel assets/3d.';
+  if (/^[a-zA-Z]:/.test(v) || v.startsWith('/')) return 'Bitte einen Ordner innerhalb des Projekts angeben (ohne Laufwerk und ohne / am Anfang).';
+  if (v.split('/').some((part) => part === '..')) return 'Der Ordner muss innerhalb des Projekts liegen („..“ ist nicht erlaubt).';
+  if (/[<>:"|?*\u0000-\u001f]/.test(v)) return 'Diese Zeichen sind in Ordnernamen nicht erlaubt: < > : " | ? *';
+  return undefined;
+}
 
 export const NETWORK_LIMITS_TEXT =
   'Ist „Netzwerkzugriff für Agenten“ aus, fragt NOVA vor Befehlen mit bekanntem Netzwerkzugriff nach (z. B. npm install, curl, git clone). Programme und Tests, die selbst Verbindungen aufbauen, kann NOVA technisch nicht blockieren.';
@@ -250,6 +270,62 @@ export const SECTIONS: SectionDef[] = [
       { path: 'memory.useGlobalKnowledge', kind: 'switch', label: 'Wissensdatenbank verwenden', help: 'Teilbare Erkenntnisse aus der projektübergreifenden Wissensdatenbank helfen auch in anderen Projekten.', dependsOn: 'memory.enabled' },
       { path: 'memory.autoShareAgentInsights', kind: 'switch', label: 'Erkenntnisse von Agenten automatisch teilen', help: 'Aus = von Agenten notierte Erkenntnisse bleiben im Projekt, bis sie von Hand geteilt werden (empfohlen).', dependsOn: 'memory.enabled' },
       { path: 'memory.maxContextEntries', kind: 'number', label: 'Einträge pro Agentenauftrag (höchstens)', help: 'So viele Gedächtniseinträge bekommt ein Agent höchstens mit. Mehr = mehr Kontext, aber längere Anfragen (0 bis 50).', rule: { min: 0, max: 50, int: true }, dependsOn: 'memory.enabled' },
+    ],
+  },
+  {
+    id: 'threed',
+    label: '3D-Werkstatt',
+    icon: Box,
+    description: 'Wo ComfyUI läuft, wohin NOVA die 3D-Modelle lädt und wie neue 3D-Modelle erzeugt werden.',
+    fields: [
+      {
+        path: 'threeD.engineUrl',
+        kind: 'text',
+        label: 'Adresse von ComfyUI',
+        help: 'Leer = automatisch suchen (http://127.0.0.1:8000 für ComfyUI Desktop, http://127.0.0.1:8188 für die portable Version). Nur Adressen auf diesem PC sind erlaubt. NOVA prüft die Adresse beim Speichern.',
+        placeholder: 'automatisch suchen',
+        mono: true,
+        validate: validateEngineUrl,
+      },
+      {
+        path: 'threeD.modelsDir',
+        kind: 'folder',
+        label: 'Modellordner von ComfyUI',
+        help: 'Der Ordner „models“ von ComfyUI – er enthält Unterordner wie checkpoints, vae und diffusion_models. Dorthin lädt NOVA die 3D-Modelle. Leer = automatisch erkennen. NOVA prüft den Ordner beim Speichern.',
+        placeholder: 'automatisch erkennen',
+      },
+      {
+        path: 'threeD.defaultModel',
+        kind: 'select',
+        label: 'Generator (Voreinstellung)',
+        help: 'Wird bei neuen Aufträgen vorausgewählt.',
+        options: [
+          { value: 'trellis2', label: 'TRELLIS.2 (empfohlen)' },
+          { value: 'pixal3d', label: 'Pixal3D' },
+        ],
+      },
+      {
+        path: 'threeD.defaultQuality',
+        kind: 'select',
+        label: 'Qualität (Voreinstellung)',
+        help: '„Entwurf“ ist schnell, „Hoch“ zeigt feine Details, dauert aber deutlich länger.',
+        options: [
+          { value: 'draft', label: 'Entwurf' },
+          { value: 'standard', label: 'Standard' },
+          { value: 'high', label: 'Hoch' },
+        ],
+      },
+      {
+        path: 'threeD.outputFolder',
+        kind: 'text',
+        label: 'Ordner im Projekt',
+        help: 'Hier speichert NOVA 3D-Modelle innerhalb eines Projekts, mit / getrennt – zum Beispiel assets/3d oder Assets/Models für Unity.',
+        placeholder: 'assets/3d',
+        mono: true,
+        validate: validateProjectFolder,
+      },
+      { path: 'threeD.unloadLanguageModels', kind: 'switch', label: 'Sprachmodelle vorher entladen', help: 'Gibt vor jedem 3D-Auftrag den Grafikspeicher frei, den Ollama belegt. Agenten arbeiten währenddessen eventuell langsamer.' },
+      { path: 'threeD.agentsMayGenerate', kind: 'switch', label: 'Agenten dürfen 3D-Modelle erzeugen', help: 'Der Programmierer-Agent kann mit dem Werkzeug „generate_3d_model“ selbst 3D-Modelle für ein Projekt erzeugen. Sie landen im Ordner oben.' },
     ],
   },
 ];

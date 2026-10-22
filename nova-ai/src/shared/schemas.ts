@@ -1057,6 +1057,7 @@ export const BUILTIN_INTEGRATIONS = [
   'powershell',
   'windows_terminal',
   'ollama',
+  'comfyui',
   'unity',
   'unreal',
   'godot',
