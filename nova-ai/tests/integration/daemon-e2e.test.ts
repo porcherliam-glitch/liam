@@ -34,6 +34,11 @@ async function waitFor<T>(fn: () => Promise<T | null | undefined | false>, timeo
   throw new Error(`Timeout waiting for ${label}${last ? `: ${String(last)}` : ''}`);
 }
 
+/** Windows needs a named pipe, POSIX a socket file in the temp dir. */
+function socketPath(name: string): string {
+  return process.platform === 'win32' ? `\\\\.\\pipe\\nova-e2e-${process.pid}-${name}` : join(base, `${name}.sock`);
+}
+
 function toolNames(req: FakeOllamaChatRequest): string[] {
   return req.tools.map((t) => t.function.name);
 }
@@ -61,7 +66,7 @@ async function shutdown(): Promise<void> {
 beforeAll(async () => {
   base = mkdtempSync(join(tmpdir(), 'nova-e2e-'));
   dataDir = join(base, 'data');
-  endpoint = join(base, 'd.sock');
+  endpoint = socketPath('d');
   fake = await startFakeOllama({ models: [{ name: MODEL, parameterSize: '7.6B', capabilities: ['completion', 'tools'] }] });
   await boot();
 }, 60_000);
@@ -81,7 +86,7 @@ describe('NOVA daemon end-to-end', { timeout: 120_000 }, () => {
     const st = await client.rpc('daemon.status', {});
     expect(st.state === 'running' || st.state === 'paused').toBe(true);
     expect(st.methods.length).toBeGreaterThan(100);
-    await expect(startDaemon({ dataDir, endpoint: join(base, 'other.sock'), secretScheme: 'memory' })).rejects.toMatchObject({ code: 'CONFLICT' });
+    await expect(startDaemon({ dataDir, endpoint: socketPath('other'), secretScheme: 'memory' })).rejects.toMatchObject({ code: 'CONFLICT' });
     // the running daemon is untouched
     expect((await client.rpc('daemon.status', {})).instanceId).toBe(st.instanceId);
   });
