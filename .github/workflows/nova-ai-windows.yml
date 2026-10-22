@@ -54,7 +54,9 @@ jobs:
       - name: Tests (Vitest)
         id: tests
         continue-on-error: true
-        run: npx vitest run --reporter=default --reporter=junit --outputFile.junit=test-results/vitest-junit.xml
+        # 2 workers: on the 4-core runner more parallel test files starve vitest's own worker RPC
+        # ("Timeout calling onTaskUpdate") although every test passes
+        run: npx vitest run --maxWorkers=2 --reporter=default --reporter=junit --outputFile.junit=test-results/vitest-junit.xml
 
       - name: Bauen
         run: node scripts/build.mjs
