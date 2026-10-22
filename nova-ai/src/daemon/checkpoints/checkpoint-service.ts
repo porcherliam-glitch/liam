@@ -8,7 +8,9 @@
 // - Verification marker: post_task = the task's verification (patched by WorkCycle before afterTask); every other
 //   kind = "latest checks newer than the last journaled change" (passed / failed / not_run).
 // - Commits (afterTask, restore with commit=true) leave out files modified by someone else since NOVA's last write
-//   (modifiedSinceNova), sensitive files (.env, keys …) and files that look like they contain a credential
+//   (modifiedSinceNova), files whose latest NOVA change was only detected after an agent command (origin uncertain:
+//   the user may have saved them in another program meanwhile – warning, never committed under NOVA's name),
+//   sensitive files (.env, keys …) and files that look like they contain a credential
 //   (SECRET_IN_CODE warning error, file skipped). afterTask commits only when project.config.autoCommit and the
 //   verification allows it (passed, or not failed when settings.agents.commitOnlyWhenVerified is off). A failing
 //   commit (e.g. a rejecting git hook) never fails the task: a GIT_ERROR warning is reported and the post_task
@@ -238,6 +240,41 @@ export function createCheckpointService(s: Services): CheckpointServiceImpl {
     });
   }
 
+  /** Keys of paths whose newest committed, not reverted NOVA change was recorded after an agent command. */
+  function commandDetectedKeys(projectId: string): Set<string> {
+    const out = new Set<string>();
+    const seen = new Set<string>();
+    const rows = db.all<{ path_key: string; source: string }>(
+      "SELECT path_key, source FROM changes WHERE project_id = ? AND state = 'committed' AND actor = 'nova' AND reverted = 0 ORDER BY id DESC LIMIT 50000",
+      [projectId],
+    );
+    for (const r of rows) {
+      const k = key(r.path_key);
+      if (seen.has(k)) continue;
+      seen.add(k);
+      if (r.source === 'command') out.add(k);
+    }
+    return out;
+  }
+
+  function reportCommandFiles(project: Project, taskId: string | null, files: string[], context: string): void {
+    const shown = files.slice(0, 10).join(', ') + (files.length > 10 ? ` und ${files.length - 10} weitere` : '');
+    s.core.errors.report({
+      code: 'GIT_ERROR',
+      severity: 'warning',
+      title: 'Von Befehlen geänderte Dateien nicht committet',
+      whatHappened: `${files.length === 1 ? 'Eine Datei wurde' : `${files.length} Dateien wurden`} nicht automatisch committet (${context}): ${shown}. Sie wurden geändert, während ein Befehl von NOVA lief – ob die Änderung vom Befehl oder von Ihnen in einem anderen Programm stammt, lässt sich nicht sicher erkennen.`,
+      projectId: project.id,
+      taskId,
+      attempted: [`Automatischer Git-Commit (${context})`],
+      projectSafe: true,
+      autoFixable: false,
+      userAction: 'Die Dateien sind unverändert gespeichert. Bitte prüfen und bei Bedarf selbst committen.',
+      related: { checkRunId: null, runId: null, approvalId: null, file: files[0] ?? null, line: null },
+      dedupeKey: `command-files-not-committed:${project.id}`,
+    });
+  }
+
   /** Commits the given project-relative paths (filtered); never throws – problems become warnings. */
   async function commitFiltered(project: Project, taskId: string | null, paths: string[], message: string, context: string): Promise<string | null> {
     let repo = false;
@@ -258,7 +295,16 @@ export function createCheckpointService(s: Services): CheckpointServiceImpl {
     const unique = [...new Map(paths.map((p) => [key(p), p.replace(/\\/g, '/')])).values()];
     const notModified = unique.filter((p) => !modified.has(key(p)));
     if (notModified.length < unique.length) log.info('Vom Benutzer geänderte Dateien werden nicht committet', { count: unique.length - notModified.length });
-    const { ok, secret } = filterSecrets(project.path, notModified);
+    let byCommand = new Set<string>();
+    try {
+      byCommand = commandDetectedKeys(project.id);
+    } catch (e) {
+      log.warn('Herkunft der Änderungen nicht ermittelbar – kein Commit', { error: errorMessage(e) });
+      return null;
+    }
+    const certain = notModified.filter((p) => !byCommand.has(key(p)));
+    if (certain.length < notModified.length) reportCommandFiles(project, taskId, notModified.filter((p) => byCommand.has(key(p))), context);
+    const { ok, secret } = filterSecrets(project.path, certain);
     if (secret.length > 0) reportSecrets(project, taskId, secret, context);
     if (ok.length === 0) return null;
     try {

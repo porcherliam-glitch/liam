@@ -5,7 +5,8 @@
 //   > maxCpuPercent or free RAM < minFreeRamMb → no new starts (allowed = activeRuns). Otherwise maxParallelAgents.
 //   Snapshots older than 60 s (monitor stopped) are ignored – no decisions on stale numbers.
 // - allowedFor(model): only local Ollama providers matter. A model that is already loaded is always ok; otherwise the
-//   VRAM usage of the largest GPU must be ≤ maxVramPercent. Unknown GPU data → ok (fit checks live in OllamaService).
+//   VRAM usage of the largest GPU without the VRAM of loaded Ollama models (Ollama swaps them out) must be
+//   ≤ maxVramPercent. Unknown GPU data → ok (fit checks live in OllamaService).
 // - canStartProcess(): counts running processes of kind command/test/build/install/terminal (dev servers and previews
 //   do not count) against resources.maxProcesses, bounded by processes.runningCount() (live processes of THIS daemon),
 //   so stale 'running' rows of a crashed instance can never block new processes.
@@ -132,7 +133,9 @@ export function createConcurrencyGovernor(s: Services, opts: ConcurrencyGovernor
       const gpus = snap.gpus.filter((g) => g.vramTotalBytes !== null && g.vramTotalBytes > 0 && g.vramUsedBytes !== null);
       if (gpus.length === 0) return { ok: true, reason: null };
       const main = gpus.reduce((a, b) => ((b.vramTotalBytes ?? 0) > (a.vramTotalBytes ?? 0) ? b : a));
-      const pct = ((main.vramUsedBytes ?? 0) / (main.vramTotalBytes ?? 1)) * 100;
+      // VRAM of loaded Ollama models is not "busy": Ollama unloads idle models when another one needs the space.
+      const ollamaVram = snap.ollamaLoaded.reduce((sum, m) => sum + Math.max(0, m.vramBytes), 0);
+      const pct = (Math.max(0, (main.vramUsedBytes ?? 0) - ollamaVram) / (main.vramTotalBytes ?? 1)) * 100;
       const limit = settings().resources.maxVramPercent;
       if (pct > limit) {
         return {

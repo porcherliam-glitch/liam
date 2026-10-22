@@ -1,9 +1,11 @@
 // Orchestrator – pure helpers for verification (SPEC §6.5 "Verification from REAL results only"), failure signatures,
 // the extra context handed to agents and the descriptions of fix tasks.
 // Key decisions:
-// - A verification is built ONLY from CheckRuns and reviewer verdicts. passed = at least one executed check passed and
-//   none failed; failed = any check failed or could not run (status error); unavailable = nothing executable
-//   (skipped checks carry a German reason, the UI shows "nicht geprüft").
+// - A verification is built ONLY from CheckRuns and reviewer verdicts. passed = at least one entry backed by a real
+//   CheckRun passed (and the caller's proof rule accepts it) and none failed; failed = any check failed or could not
+//   run (status error) – a reviewer's "changes_requested" also fails; unavailable = nothing executable (skipped checks
+//   carry a German reason, the UI shows "nicht geprüft"). A reviewer verdict alone never yields passed: the same model
+//   family judging its own work is not a check (MASTERPROMPT §13).
 // - Failure signature = sha1 over the sorted per-check signatures: CheckRun.failureSignature when present, otherwise a
 //   normalized hash of the first failure message; review failures hash their findings (severity|file|message, line
 //   numbers excluded because they shift between attempts).
@@ -15,7 +17,7 @@ import type { NovaErrorInfo } from '@shared/errors';
 import type { PlanOutput, ReviewOutput } from '../contracts';
 import { redactString } from '../core/redact';
 import type { FailureRecord } from './task-store';
-import { CHECK_LABELS, REVIEW_CHECK, shorten } from './texts';
+import { CHANGES_CHECK, CHECK_LABELS, REVIEW_CHECK, shorten } from './texts';
 
 export type VerificationCheck = Verification['checks'][number];
 
@@ -116,9 +118,18 @@ export function isFailedEntry(e: VerificationCheck): boolean {
   return e.status === 'failed' || e.status === 'error';
 }
 
-export function computeVerificationStatus(checks: VerificationCheck[]): Verification['status'] {
+/** A passed entry backed by a real CheckRun (reviewer verdicts and skipped checks have no CheckRun). */
+export function isExecutedPass(e: VerificationCheck): boolean {
+  return e.status === 'passed' && e.checkRunId !== null;
+}
+
+/**
+ * Status from REAL results only (see header). `proves` narrows which executed passes count as evidence for the task
+ * (e.g. only test runs for a tester task, none for a coder task that changed no file).
+ */
+export function computeVerificationStatus(checks: VerificationCheck[], proves: (e: VerificationCheck) => boolean = () => true): Verification['status'] {
   if (checks.some(isFailedEntry)) return 'failed';
-  if (checks.some((c) => c.status === 'passed')) return 'passed';
+  if (checks.some((c) => isExecutedPass(c) && proves(c))) return 'passed';
   return 'unavailable';
 }
 
@@ -222,6 +233,9 @@ export function buildRetryContext(input: {
         out.push(`  - [${f.severity}] ${f.file ? `${f.file}${f.line !== null ? `:${f.line}` : ''} – ` : ''}${shorten(f.message, 400)}`);
       }
     }
+  }
+  if (input.verification.checks.some((c) => c.name === CHANGES_CHECK)) {
+    out.push('- Note: the previous attempt did not change any file. Implement the task with write_file/edit_file before you finish.');
   }
   out.push('Fix the cause of these failures. Inspect the failing output and the relevant files before changing code, and run the checks yourself before you finish.');
   if (input.differentApproach) {

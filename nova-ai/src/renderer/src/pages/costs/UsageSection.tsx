@@ -8,7 +8,7 @@ import { Badge, Card, type Column, EmptyState, ErrorState, LoadingState, Segment
 import { useRpc, useSupports } from '../../hooks';
 import { formatDateTime, formatDuration, formatTokens, formatUsd, splitModelRef } from '../../lib/format';
 import { paths } from '../../lib/paths';
-import { dayLabel, PERIOD_OPTIONS, periodStart, type Period } from './costUtils';
+import { dayLabel, PERIOD_OPTIONS, periodStart, USAGE_REFRESH, type Period } from './costUtils';
 
 type GroupBy = 'provider' | 'model' | 'project' | 'day';
 const GROUP_OPTIONS: Array<{ value: GroupBy; label: string }> = [
@@ -44,8 +44,8 @@ export function UsageSection({ projectNames, providerNames }: UsageSectionProps)
   const from = useMemo(() => periodStart(period), [period]);
   const supportsBreakdown = useSupports('budget.breakdown');
 
-  const breakdown = useRpc('budget.breakdown', supportsBreakdown ? { from, groupBy } : null, { refetchOn: ['budget.updated'], keepPreviousData: true });
-  const usage = useRpc('budget.usage', { from, projectId: projectId || undefined, limit: 500 }, { refetchOn: ['budget.updated'], keepPreviousData: true });
+  const breakdown = useRpc('budget.breakdown', supportsBreakdown ? { from, groupBy } : null, { ...USAGE_REFRESH, keepPreviousData: true });
+  const usage = useRpc('budget.usage', { from, projectId: projectId || undefined, limit: 500 }, { ...USAGE_REFRESH, keepPreviousData: true });
 
   const providerLabel = (id: string) => providerNames.get(id) ?? id;
   const projectLabel = (id: string | null) => (id ? (projectNames.get(id) ?? 'Entferntes Projekt') : 'Ohne Projekt');

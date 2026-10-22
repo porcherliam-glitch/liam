@@ -21,6 +21,58 @@ export interface DaemonConnectionState {
   endpoint: string;
   /** Automatic restart attempts since the last successful connection. */
   restartAttempts: number;
+  /**
+   * Recovery actions main can run itself while the daemon cannot start (from a fresh crash report, e.g. a damaged
+   * database): 'restore_backup' = daemon.listBackups/restoreBackup, 'create_diagnostics' = daemon.createDiagnostics.
+   */
+  recovery?: DaemonRecoveryAction[];
+}
+
+export type DaemonRecoveryAction = 'restore_backup' | 'create_diagnostics';
+
+/** A database backup in <dataDir>/backups that main can restore while the daemon cannot start. */
+export interface LocalBackupFile {
+  path: string;
+  /** File name, e.g. nova-2026-10-22T03-00-00-000Z-taeglich.db */
+  name: string;
+  sizeBytes: number;
+  /** Last modification time (ms). */
+  createdAt: number;
+}
+
+/** Result of a recovery action run by main (German message for a toast). */
+export interface RecoveryResult {
+  ok: boolean;
+  message: string;
+  /** Created file (diagnostics bundle). */
+  path?: string | null;
+}
+
+/** Why "Mit Windows starten" cannot be used (null = available). */
+export type AutostartUnavailableReason = 'not-installed' | 'platform';
+
+export interface AutostartSupport {
+  supported: boolean;
+  reason: AutostartUnavailableReason | null;
+}
+
+/** Unsaved editor changes (studio drafts) the renderer reports to main for the quit confirmation. */
+export interface UnsavedChangesInfo {
+  count: number;
+  /** Display names ("Projekt › src/app.ts"), at most 20. */
+  files: string[];
+}
+
+/**
+ * What main asks the renderer to do with unsaved editor changes before the UI quits:
+ * save = save all, discard = drop them, persist = keep a recovery copy (quit without asking: Windows shutdown, setup).
+ */
+export type UnsavedChangesAction = 'save' | 'discard' | 'persist';
+
+export interface UnsavedChangesResult {
+  ok: boolean;
+  /** Display names of files that could not be saved (action 'save'). */
+  failed: string[];
 }
 
 export type BridgeRpcResult =
@@ -44,6 +96,12 @@ export interface NovaBridge {
     restart(): Promise<DaemonConnectionState>;
     /** Graceful daemon shutdown (all background work stops). */
     stop(): Promise<DaemonConnectionState>;
+    /** Database backups on disk, newest first (recovery while the daemon cannot start). */
+    listBackups(): Promise<LocalBackupFile[]>;
+    /** Checks a backup from listBackups, queues it for the next daemon start and restarts the daemon. */
+    restoreBackup(path: string): Promise<RecoveryResult>;
+    /** Diagnostics bundle without the daemon (log files, crash report); shows it in Explorer. */
+    createDiagnostics(): Promise<RecoveryResult>;
   };
   app: {
     version(): Promise<string>;
@@ -59,6 +117,12 @@ export interface NovaBridge {
     saveFile(options?: { title?: string; defaultPath?: string; filters?: FileDialogFilter[] }): Promise<string | null>;
     getAutostart(): Promise<boolean>;
     setAutostart(enabled: boolean): Promise<boolean>;
+    /** Whether autostart can be used at all (not in a start without installation, see NOVA-STARTEN.cmd). */
+    getAutostartSupport(): Promise<AutostartSupport>;
+    /** Reports unsaved editor changes; main asks before quitting while count > 0. */
+    setUnsavedChanges(info: UnsavedChangesInfo): Promise<void>;
+    /** Handles main's request to save/discard/persist unsaved changes before quitting. Returns an unsubscribe function. */
+    onUnsavedChangesRequest(handler: (action: UnsavedChangesAction) => Promise<UnsavedChangesResult>): () => void;
     /** Closes the UI. The daemon keeps running if settings.background.keepRunningWhenUiClosed. */
     quit(): Promise<void>;
     /** Main asks the renderer to navigate (e.g. notification click). */
@@ -89,6 +153,16 @@ export const IPC = {
   saveFile: 'nova:save-file',
   getAutostart: 'nova:get-autostart',
   setAutostart: 'nova:set-autostart',
+  getAutostartSupport: 'nova:get-autostart-support',
   quit: 'nova:quit',
   navigate: 'nova:navigate',
+  daemonListBackups: 'nova:daemon-list-backups',
+  daemonRestoreBackup: 'nova:daemon-restore-backup',
+  daemonDiagnostics: 'nova:daemon-diagnostics',
+  /** renderer → main: current unsaved editor changes (UnsavedChangesInfo). */
+  setUnsavedChanges: 'nova:set-unsaved-changes',
+  /** main → renderer: { id, action: UnsavedChangesAction }. */
+  unsavedChangesRequest: 'nova:unsaved-changes-request',
+  /** renderer → main: { id, ...UnsavedChangesResult } answering unsavedChangesRequest. */
+  unsavedChangesResult: 'nova:unsaved-changes-result',
 } as const;

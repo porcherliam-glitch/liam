@@ -18,6 +18,8 @@ export const CHECK_LABELS: Record<CheckKind, string> = {
 };
 
 export const REVIEW_CHECK = 'Review';
+/** Pseudo check of a coder task that changed no file (never counts as evidence). */
+export const CHANGES_CHECK = 'Änderungen';
 export const INTEGRATION_BUILD = 'Integration: Build';
 export const INTEGRATION_TESTS = 'Integration: Tests';
 export const INTERRUPTED_AFTER_RESTART = 'Nach Neustart unterbrochen – bitte prüfen';
@@ -67,6 +69,14 @@ export function blockerShortReason(code: string | null): string {
       return 'Die maximale Anzahl an Arbeitsschritten wurde erreicht.';
     case 'REPEATED_FAILURE':
       return 'Derselbe Fehler ist wiederholt aufgetreten.';
+    case 'APPROVAL_DENIED':
+      return 'Eine nötige Freigabe wurde abgelehnt.';
+    case 'COMMAND_BLOCKED':
+      return 'Ein nötiger Befehl ist durch die Sicherheitsregeln gesperrt.';
+    case 'FILE_IN_USE':
+      return 'Das Projekt ist in einem anderen Programm geöffnet.';
+    case 'NOT_FOUND':
+      return 'Der Projektordner wurde nicht gefunden.';
     default:
       return 'Die Aufgabe kann im Moment nicht fortgesetzt werden.';
   }
@@ -104,7 +114,7 @@ export function blockerUserAction(code: string | null): string {
     case 'AGENT_BLOCKED':
       return 'Bitte die Erklärung des Agenten lesen, die Aufgabe anpassen oder einen Hinweis geben und die Aufgabe erneut starten.';
     case 'AGENT_STEP_LIMIT':
-      return 'Bitte die Aufgabe in kleinere Schritte aufteilen oder mit einem Hinweis erneut starten.';
+      return 'Mit „Starten“ arbeitet der Agent mit neuen Schritten am bisherigen Stand weiter, mit „Wiederholen“ beginnt er von vorn. Ist die Aufgabe sehr groß, hilft es, sie in kleinere Aufgaben aufzuteilen.';
     default:
       return 'Bitte die Details prüfen und die Aufgabe erneut starten.';
   }
@@ -129,6 +139,11 @@ export function blockerTitle(code: string | null): string {
       return 'Kostenpflichtiges Modell nicht nutzbar';
     case 'TOOL_MISSING':
       return 'Werkzeug fehlt';
+    case 'APPROVAL_DENIED':
+    case 'COMMAND_BLOCKED':
+    case 'FILE_IN_USE':
+    case 'NOT_FOUND':
+      return 'Prüfung konnte nicht laufen';
     default:
       return 'Aufgabe blockiert';
   }
@@ -141,7 +156,7 @@ export function verificationLabel(status: string): string {
     case 'failed':
       return 'Prüfung fehlgeschlagen';
     case 'unavailable':
-      return 'nicht geprüft (keine ausführbare Prüfung vorhanden)';
+      return 'nicht automatisch geprüft (keine echte Prüfung hat das Ergebnis bestätigt)';
     default:
       return 'noch nicht geprüft';
   }

@@ -73,10 +73,17 @@ export function formatClock(ms: Maybe<number>): string {
   return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${ss}` : `${m}:${ss}`;
 }
 
-/** Relative time: "gerade eben", "vor 5 Min.", "vor 2 Std.", "gestern", "vor 3 Tagen", later a date. */
-export function formatRelativeTime(ts: Maybe<number>, now: number = Date.now()): string {
+/** Future offsets up to this size count as "gerade eben" for past events (clock skew between daemon and UI). */
+const PAST_EVENT_SKEW_MS = 60_000;
+
+/**
+ * Relative time: "gerade eben", "vor 5 Min.", "vor 2 Std.", "gestern", "vor 3 Tagen", later a date.
+ * `pastEvent: true` (measured/recorded timestamps such as createdAt or checkedAt) never shows "gleich": a timestamp
+ * slightly ahead of `now` is clock skew or a render tick lagging behind, not a future event.
+ */
+export function formatRelativeTime(ts: Maybe<number>, now: number = Date.now(), opts: { pastEvent?: boolean } = {}): string {
   if (ts == null || !Number.isFinite(ts)) return DASH;
-  const diff = now - ts;
+  const diff = opts.pastEvent && ts > now && ts - now <= PAST_EVENT_SKEW_MS ? 0 : now - ts;
   const future = diff < 0;
   const sec = Math.abs(diff) / 1000;
   if (sec < 45) return future ? 'gleich' : 'gerade eben';

@@ -5,7 +5,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { existsSync, mkdirSync, readFileSync, writeFileSync, utimesSync, statSync, readdirSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import { createHarness, type Harness } from '../tools/files/test-support';
-import { createChangeJournal, type JournalCrashStage } from './journal';
+import { NOT_REVERTIBLE_REASON, commandChangeReason, createChangeJournal, type ChangeJournalImpl, type JournalCrashStage } from './journal';
 import { sha256 } from './blob-store';
 
 let h: Harness;
@@ -124,7 +124,7 @@ describe('ChangeJournal crash safety', () => {
 });
 
 describe('ChangeJournal.revert', () => {
-  it('reverts newest first, journals restores (actor nova, source restore, task null) and marks rows reverted', async () => {
+  it('restores the state at the cursor with one journaled restore per file (actor nova, source restore, task null) and marks rows reverted', async () => {
     h = createHarness();
     writeFileSync(join(h.root, 'a.txt'), 'v0');
     const base = { projectId: h.project.id, projectRoot: h.root, actor: 'nova' as const, taskId: 'task_a' };
@@ -140,7 +140,8 @@ describe('ChangeJournal.revert', () => {
     expect(readFileSync(join(h.root, 'a.txt'), 'utf8')).toBe('v0');
     expect(existsSync(join(h.root, 'b/new.txt'))).toBe(false);
     const restores = h.s.journal.list({ projectId: h.project.id }).filter((c) => c.source === 'restore');
-    expect(restores.length).toBe(3);
+    expect(restores.length).toBe(2); // a.txt v2 → v0 in ONE write, b/new.txt deleted
+    expect(restores.find((c) => c.path === 'a.txt')).toMatchObject({ beforeHash: sha256('v2'), afterHash: sha256('v0') });
     expect(restores.every((c) => c.actor === 'nova' && c.taskId === null)).toBe(true);
     expect(h.s.journal.list({ projectId: h.project.id, includeReverted: true }).filter((c) => c.reverted)).toHaveLength(3);
     // nothing NOVA changed is shown any more
@@ -195,8 +196,101 @@ describe('ChangeJournal.revert', () => {
   });
 });
 
+describe('ChangeJournal.revert to a checkpoint after earlier restores (regressions)', () => {
+  const read = (h: Harness, rel: string) => (existsSync(join(h.root, rel)) ? readFileSync(join(h.root, rel), 'utf8') : null);
+  const restoreTo = (h: Harness, afterId: number, dryRun = false) => h.s.journal.revert({ projectId: h.project.id, projectRoot: h.root, afterId, dryRun });
+
+  it('restoring the same checkpoint twice keeps the checkpoint state (no toggling back to NOVA\'s changes)', async () => {
+    h = createHarness();
+    writeFileSync(join(h.root, 'a.txt'), 'A');
+    const base = { projectId: h.project.id, projectRoot: h.root, actor: 'nova' as const, taskId: 'task_a' };
+    const x = h.s.journal.maxId(h.project.id);
+    await h.s.journal.writeFile({ ...base, relPath: 'a.txt', content: 'B' });
+    await h.s.journal.writeFile({ ...base, relPath: 'new.txt', content: 'N' });
+    await restoreTo(h, x);
+    expect([read(h, 'a.txt'), read(h, 'new.txt')]).toEqual(['A', null]);
+    expect(await restoreTo(h, x, true)).toEqual({ restored: [], conflicts: [], skipped: [] });
+    expect(await restoreTo(h, x)).toEqual({ restored: [], conflicts: [], skipped: [] });
+    expect([read(h, 'a.txt'), read(h, 'new.txt')]).toEqual(['A', null]);
+    // a later task changes the file again; restoring X once more lands on X, not on the first task's content
+    await h.s.journal.writeFile({ ...base, taskId: 'task_b', relPath: 'a.txt', content: 'C' });
+    const r = await restoreTo(h, x);
+    expect(r).toEqual({ restored: ['a.txt'], conflicts: [], skipped: [] });
+    expect([read(h, 'a.txt'), read(h, 'new.txt')]).toEqual(['A', null]);
+  });
+
+  it('step-wise restore: undo the last task, then the one before – lands on the older state without false conflicts', async () => {
+    h = createHarness();
+    writeFileSync(join(h.root, 'app.js'), 'A');
+    const base = { projectId: h.project.id, projectRoot: h.root, actor: 'nova' as const };
+    const p1 = h.s.journal.maxId(h.project.id);
+    await h.s.journal.writeFile({ ...base, taskId: 'task_1', relPath: 'app.js', content: 'B' });
+    const p2 = h.s.journal.maxId(h.project.id);
+    await h.s.journal.writeFile({ ...base, taskId: 'task_2', relPath: 'app.js', content: 'C' });
+    await restoreTo(h, p2);
+    expect(read(h, 'app.js')).toBe('B');
+    const preview = await restoreTo(h, p1, true);
+    expect(preview).toEqual({ restored: ['app.js'], conflicts: [], skipped: [] });
+    expect(await restoreTo(h, p1)).toEqual({ restored: ['app.js'], conflicts: [], skipped: [] });
+    expect(read(h, 'app.js')).toBe('A');
+    // and the pre_restore checkpoint of that restore still brings task 1's state back
+    const restoreRow = h.s.journal.list({ projectId: h.project.id, includeReverted: true })[0];
+    expect(restoreRow.source).toBe('restore');
+    await restoreTo(h, restoreRow.id - 1);
+    expect(read(h, 'app.js')).toBe('B');
+  });
+
+  it('restoring a checkpoint after "undo task" does not replay the task undo', async () => {
+    h = createHarness();
+    writeFileSync(join(h.root, 'k.txt'), 'A');
+    const x = h.s.journal.maxId(h.project.id);
+    await h.s.journal.writeFile({ projectId: h.project.id, projectRoot: h.root, relPath: 'k.txt', content: 'B', actor: 'nova', taskId: 'task_a' });
+    await h.s.journal.revert({ projectId: h.project.id, projectRoot: h.root, taskId: 'task_a' });
+    expect(read(h, 'k.txt')).toBe('A');
+    expect(await restoreTo(h, x)).toEqual({ restored: [], conflicts: [], skipped: [] });
+    expect(read(h, 'k.txt')).toBe('A');
+  });
+
+  it('stops at a change made outside NOVA between two NOVA writes and keeps it (conflict for the older NOVA part)', async () => {
+    h = createHarness();
+    writeFileSync(join(h.root, 's.txt'), 'A');
+    const base = { projectId: h.project.id, projectRoot: h.root, actor: 'nova' as const, taskId: 'task_a' };
+    const x = h.s.journal.maxId(h.project.id);
+    await h.s.journal.writeFile({ ...base, relPath: 's.txt', content: 'B' });
+    writeFileSync(join(h.root, 's.txt'), 'U (VS Code)'); // not journaled
+    await h.s.journal.writeFile({ ...base, relPath: 's.txt', content: 'C' });
+    const r = await restoreTo(h, x);
+    expect(r.restored).toEqual(['s.txt']);
+    expect(r.conflicts).toEqual([{ path: 's.txt', reason: expect.stringContaining('von Hand oder mit einem anderen Programm') }]);
+    expect(read(h, 's.txt')).toBe('U (VS Code)');
+    // the same for a change through the editor (actor user)
+    await h.s.journal.writeFile({ ...base, relPath: 's.txt', content: 'D' });
+    await h.s.journal.writeFile({ projectId: h.project.id, projectRoot: h.root, relPath: 's.txt', content: 'E (Editor)', actor: 'user' });
+    await h.s.journal.writeFile({ ...base, relPath: 's.txt', content: 'F' });
+    const cursor = h.s.journal.list({ projectId: h.project.id, includeReverted: true })[2].id - 1; // before "D"
+    const r2 = await restoreTo(h, cursor);
+    expect(r2.restored).toEqual(['s.txt']);
+    expect(r2.conflicts).toHaveLength(1);
+    expect(read(h, 's.txt')).toBe('E (Editor)');
+  });
+
+  it('a later restore across a command change stops there (skipped) and still undoes the newer tool writes', async () => {
+    h = createHarness();
+    writeFileSync(join(h.root, 'c.txt'), 'A');
+    const x = h.s.journal.maxId(h.project.id);
+    const before = await h.s.journal.scanState(h.root);
+    writeFileSync(join(h.root, 'c.txt'), 'by command');
+    await h.s.journal.recordCommandChanges({ projectId: h.project.id, projectRoot: h.root, taskId: 'task_a', runId: 'run_1', before });
+    await h.s.journal.writeFile({ projectId: h.project.id, projectRoot: h.root, relPath: 'c.txt', content: 'by tool', actor: 'nova', taskId: 'task_a' });
+    const r = await restoreTo(h, x);
+    expect(r.restored).toEqual(['c.txt']);
+    expect(r.skipped).toEqual([{ path: 'c.txt', reason: NOT_REVERTIBLE_REASON }]); // untracked: no before snapshot
+    expect(read(h, 'c.txt')).toBe('by command');
+  });
+});
+
 describe('ChangeJournal command changes', () => {
-  it('records creates (revertible), git-clean modifications (revertible via HEAD blob) and untracked deletes (not revertible)', async () => {
+  it('records creates, git-clean modifications (before = HEAD blob) and untracked deletes (not revertible); revert never resets them (origin uncertain)', async () => {
     h = createHarness();
     writeFileSync(join(h.root, 'tracked.txt'), 'line1\r\nline2\r\n'); // working tree with CRLF (autocrlf)
     writeFileSync(join(h.root, 'loose.txt'), 'loose');
@@ -221,11 +315,69 @@ describe('ChangeJournal command changes', () => {
     expect(byPath['loose.txt']).toMatchObject({ op: 'delete', revertible: false, beforeHash: null });
     expect(h.addedFiles.get('task_a')?.sort()).toEqual(['gen.txt', 'loose.txt', 'tracked.txt']);
     expect(events).toEqual([{ projectId: h.project.id, paths: ['gen.txt', 'loose.txt', 'tracked.txt'], actor: 'nova' }]);
-    const res = await h.s.journal.revert({ projectId: h.project.id, projectRoot: h.root, taskId: 'task_a' });
-    expect(res.restored.sort()).toEqual(['gen.txt', 'tracked.txt']);
-    expect(readFileSync(join(h.root, 'tracked.txt'), 'utf8')).toBe('line1\r\nline2\r\n');
-    expect(existsSync(join(h.root, 'gen.txt'))).toBe(false);
-    expect(res.skipped).toHaveLength(1);
+    // A tree diff cannot tell the command's writes from files the user saved meanwhile: skipped with the reason.
+    for (const res of [
+      await h.s.journal.revert({ projectId: h.project.id, projectRoot: h.root, taskId: 'task_a' }),
+      await h.s.journal.revert({ projectId: h.project.id, projectRoot: h.root, afterId: 0 }),
+    ]) {
+      expect(res.restored).toEqual([]);
+      expect(res.conflicts).toEqual([]);
+      const skipped = Object.fromEntries(res.skipped.map((x) => [x.path, x.reason]));
+      expect(Object.keys(skipped).sort()).toEqual(['gen.txt', 'loose.txt', 'tracked.txt']);
+      expect(skipped['gen.txt']).toBe(commandChangeReason('create'));
+      expect(skipped['tracked.txt']).toBe(commandChangeReason('modify'));
+      expect(skipped['loose.txt']).toBe(NOT_REVERTIBLE_REASON);
+    }
+    expect(readFileSync(join(h.root, 'tracked.txt'), 'utf8')).toBe('formatted\r\n');
+    expect(readFileSync(join(h.root, 'gen.txt'), 'utf8')).toBe('generated');
+  });
+
+  it('never deletes or resets a file the user created or saved in another program while a command ran', async () => {
+    h = createHarness();
+    writeFileSync(join(h.root, 'README.md'), 'readme v1');
+    h.git.repo = true;
+    h.git.clean.add('README.md');
+    h.git.head.set('README.md', Buffer.from('readme v1'));
+    const cursor = h.s.journal.maxId(h.project.id); // pre_task checkpoint
+    await h.s.journal.writeFile({ projectId: h.project.id, projectRoot: h.root, relPath: 'src/app.ts', content: 'by tool', actor: 'nova', taskId: 'task_a' });
+    const before = await h.s.journal.scanState(h.root);
+    // meanwhile in VS Code: a new notes file and an edit of a git-clean file
+    writeFileSync(join(h.root, 'my-notes.md'), 'meine Ideen');
+    writeFileSync(join(h.root, 'README.md'), 'readme v1 + Notiz vom Benutzer');
+    await h.s.journal.recordCommandChanges({ projectId: h.project.id, projectRoot: h.root, taskId: 'task_a', runId: 'run_1', before });
+    const preview = await h.s.journal.revert({ projectId: h.project.id, projectRoot: h.root, afterId: cursor, dryRun: true });
+    expect(preview.restored).toEqual(['src/app.ts']);
+    expect(preview.skipped.map((x) => x.path).sort()).toEqual(['README.md', 'my-notes.md']);
+    for (const res of [
+      await h.s.journal.revert({ projectId: h.project.id, projectRoot: h.root, taskId: 'task_a' }),
+      await h.s.journal.revert({ projectId: h.project.id, projectRoot: h.root, afterId: cursor }),
+    ]) {
+      expect(res.restored).not.toContain('my-notes.md');
+      expect(res.restored).not.toContain('README.md');
+    }
+    expect(existsSync(join(h.root, 'src/app.ts'))).toBe(false); // NOVA's own tool write is undone
+    expect(readFileSync(join(h.root, 'my-notes.md'), 'utf8')).toBe('meine Ideen');
+    expect(readFileSync(join(h.root, 'README.md'), 'utf8')).toBe('readme v1 + Notiz vom Benutzer');
+  });
+
+  it('persists a "command running" marker per scan; a leftover marker (crash during the command) is reported at startup', async () => {
+    h = createHarness();
+    (h.s.projects as unknown as { list: () => unknown[] }).list = () => [h.project];
+    const markerDir = join(h.t.core.paths.runState, 'commands');
+    const before = await h.s.journal.scanState(h.root);
+    expect(readdirSync(markerDir)).toHaveLength(1);
+    await h.s.journal.recordCommandChanges({ projectId: h.project.id, projectRoot: h.root, taskId: 'task_a', runId: 'run_1', before });
+    expect(readdirSync(markerDir)).toHaveLength(0);
+    // the daemon is killed while the next command runs: the marker stays
+    await h.s.journal.scanState(h.root);
+    expect(readdirSync(markerDir)).toHaveLength(1);
+    const fresh = createChangeJournal(h.s);
+    expect(fresh.recoverPending()).toBe(0);
+    expect(readdirSync(markerDir)).toHaveLength(0);
+    const reported = h.t.core.errors.list().filter((e) => e.code === 'INTERRUPTED');
+    expect(reported).toHaveLength(1);
+    expect(reported[0]).toMatchObject({ projectId: h.project.id, severity: 'warning', title: 'Befehl unterbrochen – Änderungen nicht protokolliert' });
+    expect(reported[0].whatHappened).toMatch(/nicht protokolliert/);
   });
 
   it('makes command changes to files NOVA wrote this session revertible (hash + snapshot at scan time)', async () => {
@@ -315,6 +467,37 @@ describe('ChangeJournal queries and maintenance', () => {
     expect(h.s.journal.pruneSnapshots(30 * 24 * 3600 * 1000)).toBe(0);
     expect(readdirSync(h.t.core.paths.snapshots).length).toBeGreaterThan(0);
     expect(statSync(blobPath(h, young)).isFile()).toBe(true);
+  });
+
+  it('deletes old rows no checkpoint can restore across and their blobs; keeps everything a remaining checkpoint needs', async () => {
+    h = createHarness();
+    const base = { projectId: h.project.id, projectRoot: h.root, actor: 'nova' as const, taskId: 'task_a' };
+    for (let i = 1; i <= 20; i++) await h.s.journal.writeFile({ ...base, relPath: 'big.txt', content: `version ${i}` });
+    // the oldest remaining checkpoint was created after version 15
+    const cursor = h.s.journal.list({ projectId: h.project.id }).find((c) => c.afterHash === sha256('version 15'))!.id;
+    h.t.core.db.exec('PRAGMA foreign_keys = OFF'); // the harness project has no row in "projects"
+    h.t.core.db.run(
+      "INSERT INTO checkpoints(id, project_id, task_id, kind, label, git_head, git_commit, change_cursor, verification, created_at) VALUES ('chk_1', ?, NULL, 'manual', 'x', NULL, NULL, ?, NULL, 1)",
+      [h.project.id, cursor],
+    );
+    const future = Date.now() + 365 * 24 * 3600 * 1000; // every row and blob counts as "old"
+    expect(h.s.journal.pruneSnapshots(future)).toBe(14); // blobs of versions 1…14 are history only
+    const left = h.s.journal.list({ projectId: h.project.id, includeReverted: true });
+    expect(left.map((c) => c.afterHash)).toEqual([16, 17, 18, 19, 20].reverse().map((i) => sha256(`version ${i}`)));
+    for (let i = 15; i <= 20; i++) expect(h.s.journal.readSnapshot(sha256(`version ${i}`))?.toString()).toBe(`version ${i}`);
+    // the checkpoint still restores exactly
+    const r = await h.s.journal.revert({ projectId: h.project.id, projectRoot: h.root, afterId: cursor });
+    expect(r).toEqual({ restored: ['big.txt'], conflicts: [], skipped: [] });
+    expect(readFileSync(join(h.root, 'big.txt'), 'utf8')).toBe('version 15');
+    // without any checkpoint, rows older than the cutoff are history only; pending rows are never touched
+    h.t.core.db.run('DELETE FROM checkpoints');
+    h.t.core.db.run(
+      "INSERT INTO changes(project_id, path, op, before_hash, after_hash, actor, source, revertible, state, path_key, ts, reverted) VALUES (?, 'p.txt', 'create', NULL, 'x', 'nova', 'tool', 1, 'pending', 'p.txt', 1, 0)",
+      [h.project.id],
+    );
+    await (h.s.journal as ChangeJournalImpl).pruneSnapshotsAsync(future);
+    expect(h.t.core.db.all<{ state: string }>('SELECT state FROM changes')).toEqual([{ state: 'pending' }]);
+    expect(h.s.journal.readSnapshot(sha256('version 20'))).toBeNull();
   });
 
   it('uses lower-case path keys on Windows (platform injection)', async () => {

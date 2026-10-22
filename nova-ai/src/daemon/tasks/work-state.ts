@@ -8,7 +8,9 @@
 //   run is done, run the verification again) and 'review' (checks are stored in task.verification, run/resume the
 //   reviewer pass). Written when a run pauses/waits/blocks (resumable)/is interrupted and when verification starts;
 //   cleared on fresh restarts and when a task finishes. Survives restarts, so a decided approval or an interrupted
-//   verification is never lost.
+//   verification is never lost. `userResume` marks a continuation kept for a blocker that is NOT resumed
+//   automatically (step limit, a check that could not run because of the environment): only an explicit user start
+//   continues it.
 // All values are small JSON documents; every change is a synchronous read-modify-write (single-threaded daemon).
 import type { AgentRole, WorkCycleState } from '@shared/schemas';
 import type { Db } from '../db/database';
@@ -23,6 +25,8 @@ export interface Continuation {
   role: AgentRole;
   /** Approval the run waits for (waiting_approval); used to re-queue the task when it is decided or expired. */
   approvalId?: string | null;
+  /** Kept for a non-auto-resumable blocker; continued only by an explicit user start (see header). */
+  userResume?: boolean;
 }
 
 const KEY_STATE = 'work_state';
@@ -57,12 +61,13 @@ export class WorkStateStore {
       runId: typeof c.runId === 'string' && c.runId ? c.runId : null,
       role: c.role,
       approvalId: typeof c.approvalId === 'string' && c.approvalId ? c.approvalId : null,
+      userResume: c.userResume === true,
     };
   }
 
   setContinuation(taskId: string, c: Continuation): void {
     const all = this.continuations();
-    all[taskId] = { phase: c.phase, runId: c.runId, role: c.role, approvalId: c.approvalId ?? null };
+    all[taskId] = { phase: c.phase, runId: c.runId, role: c.role, approvalId: c.approvalId ?? null, ...(c.userResume ? { userResume: true } : {}) };
     writeMeta(this.db, KEY_CONT, all);
   }
 

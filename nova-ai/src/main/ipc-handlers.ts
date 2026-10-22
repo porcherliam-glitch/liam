@@ -8,8 +8,20 @@
 // - openExternal: http/https only, at most 10 per 10 s (protects against a page spamming browser tabs).
 // - openPath only opens existing DIRECTORIES (files are never executed); showInFolder accepts files and folders.
 // - Dialogs are modal to the app window; invalid default paths are dropped instead of failing the dialog.
+// - Recovery (restore a backup / diagnostics while the daemon cannot start) is done by main itself (recovery.ts);
+//   the backup path is checked there (only NOVA's own backups).
+// - Unsaved-changes reports and answers are validated and passed to the quit guard (unsaved-guard.ts).
 import { z } from 'zod';
-import { IPC, type BridgeRpcResult, type DaemonConnectionState } from '@shared/bridge';
+import {
+  IPC,
+  type AutostartSupport,
+  type BridgeRpcResult,
+  type DaemonConnectionState,
+  type LocalBackupFile,
+  type RecoveryResult,
+  type UnsavedChangesInfo,
+  type UnsavedChangesResult,
+} from '@shared/bridge';
 import type { RpcMethod } from '@shared/rpc';
 import { handleBridgeRpc } from './rpc-bridge';
 import { validateExternalUrl, validateLocalPath } from './security';
@@ -56,6 +68,16 @@ export interface IpcDeps {
   showSaveDialog(req: SaveDialogRequest): Promise<{ canceled: boolean; filePath?: string }>;
   getAutostart(): boolean;
   setAutostart(enabled: boolean): Promise<boolean>;
+  getAutostartSupport(): AutostartSupport;
+  recovery: {
+    listBackups(): Promise<LocalBackupFile[]>;
+    restoreBackup(path: unknown): Promise<RecoveryResult>;
+    createDiagnostics(): Promise<RecoveryResult>;
+  };
+  unsaved: {
+    update(info: UnsavedChangesInfo): void;
+    resolve(id: string, result: UnsavedChangesResult): void;
+  };
   requestQuit(): void;
   log: MainLogger;
   now?: () => number;
@@ -78,7 +100,13 @@ export const INVOKE_CHANNELS = [
   IPC.saveFile,
   IPC.getAutostart,
   IPC.setAutostart,
+  IPC.getAutostartSupport,
   IPC.quit,
+  IPC.daemonListBackups,
+  IPC.daemonRestoreBackup,
+  IPC.daemonDiagnostics,
+  IPC.setUnsavedChanges,
+  IPC.unsavedChangesResult,
 ] as const;
 
 export type InvokeChannel = (typeof INVOKE_CHANNELS)[number];
@@ -101,6 +129,17 @@ const DialogOptionsSchema = z
   .optional();
 
 type DialogOptions = z.infer<typeof DialogOptionsSchema>;
+
+const UnsavedInfoSchema = z.object({
+  count: z.number().int().min(0).max(100_000),
+  files: z.array(z.string().max(300)).max(20),
+});
+
+const UnsavedResultSchema = z.object({
+  id: z.string().min(1).max(64),
+  ok: z.boolean(),
+  failed: z.array(z.string().max(300)).max(20),
+});
 
 function parseDialogOptions(raw: unknown, platform: NodeJS.Platform): { title?: string; defaultPath?: string; filters?: Array<{ name: string; extensions: string[] }> } {
   const parsed = DialogOptionsSchema.safeParse(raw ?? undefined);
@@ -196,6 +235,22 @@ export function createIpcHandlers(deps: IpcDeps): Record<InvokeChannel, IpcHandl
     [IPC.setAutostart]: async (enabled) => {
       if (typeof enabled !== 'boolean') return deps.getAutostart();
       return deps.setAutostart(enabled);
+    },
+    [IPC.getAutostartSupport]: async () => deps.getAutostartSupport(),
+    [IPC.daemonListBackups]: async () => deps.recovery.listBackups(),
+    [IPC.daemonRestoreBackup]: async (path) => deps.recovery.restoreBackup(path),
+    [IPC.daemonDiagnostics]: async () => deps.recovery.createDiagnostics(),
+    [IPC.setUnsavedChanges]: async (raw) => {
+      const parsed = UnsavedInfoSchema.safeParse(raw);
+      if (!parsed.success) throw new Error(TEXTS.invalidParamsPrefix);
+      deps.unsaved.update(parsed.data);
+      return undefined;
+    },
+    [IPC.unsavedChangesResult]: async (raw) => {
+      const parsed = UnsavedResultSchema.safeParse(raw);
+      if (!parsed.success) throw new Error(TEXTS.invalidParamsPrefix);
+      deps.unsaved.resolve(parsed.data.id, { ok: parsed.data.ok, failed: parsed.data.failed });
+      return undefined;
     },
     [IPC.quit]: async () => {
       // Answer first, then quit (the renderer's promise should settle before the window goes away).

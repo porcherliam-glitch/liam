@@ -9,7 +9,12 @@
 //   ApprovalService (network rules); user-triggered installs do not. Failure → status error "Abhängigkeiten konnten
 //   nicht installiert werden".
 // - Status comes from exit codes; parsers only add counts and failure locations. A test run without any test is
-//   'skipped' (never reported as passed). Unknown command (exit 127 POSIX / 9009 cmd.exe) → error with a German hint.
+//   'skipped' (never reported as passed), also when the runner exits non-zero for "no tests" (pytest 5, vitest/jest/
+//   mocha 1). Unknown command (exit 127 POSIX / 9009 cmd.exe) → error with a German hint.
+// - Errors caused by the environment rather than the project code (install waits for an approval / was denied /
+//   blocked by policy, program not found, project folder missing, Unity has the project open) carry an "env:…"
+//   failureSignature; checkEnvironmentProblem() decodes it so the work cycle waits/blocks instead of asking an agent
+//   to "fix" code.
 // - dotnet test gets `--logger trx --results-directory <dataDir>/check-results/<id>` (English output via env);
 //   Unity uses the editor matching ProjectSettings/ProjectVersion.txt and its NUnit XML results file.
 // - Runtime check: starts run/dev up to 30 s; passes when a web URL on loopback answers 2xx or the process is still
@@ -32,7 +37,7 @@ import { removeDirWithRetry } from '../core/fs-atomic';
 import { isUnityBatchCommand, isUnityProjectOpen, readUnityVersion, replaceUnityExecutable, unityResultsPath } from '../projects/unity';
 import { getCheck, insertCheck, rowToCheck, updateCheck, type CheckRow } from './check-store';
 import { findArtifacts } from './glob';
-import { failureSignature, mergeParsed, parseCheckOutput, parseNunitXml, parseTrx, stripAnsi, type ParseContext, type ParsedCheck } from './parsers';
+import { failureSignature, mergeParsed, noTestsFound, parseCheckOutput, parseNunitXml, parseTrx, stripAnsi, type ParseContext, type ParsedCheck } from './parsers';
 
 export interface CheckServiceOptions {
   platform?: NodeJS.Platform;
@@ -66,10 +71,57 @@ const NO_COMMAND: Record<CheckKind, string> = {
 };
 
 const CANCELLED_MSG = 'Die Prüfung wurde abgebrochen.';
+const NO_TESTS_MSG = 'Es wurden keine Tests gefunden – der Testbefehl lief ohne einen einzigen Test.';
 const INSTALL_FAILED = 'Abhängigkeiten konnten nicht installiert werden';
 const TAIL_LINES = 200;
 const LOOPBACK_URL_PATTERN = 'https?://(?:localhost|127\\.0\\.0\\.1|\\[::1\\])(?::\\d+)?[^\\s"\'<>]*';
 const DEP_SKIP = new Set(['node_modules', '.git', 'bin', 'obj', 'dist', 'out', 'Library', 'Temp', '.venv', 'venv', '__pycache__']);
+
+/** Why a check could not run when the cause is the environment, not the project code (see header). */
+export type CheckEnvironmentProblem =
+  | { kind: 'approval'; approvalId: string }
+  | { kind: 'approval_denied' }
+  | { kind: 'command_blocked' }
+  | { kind: 'tool_missing'; program: string | null }
+  | { kind: 'project_missing' }
+  | { kind: 'engine_open' };
+
+const ENV_PREFIX = 'env:';
+
+function envSignature(p: CheckEnvironmentProblem): string {
+  if (p.kind === 'approval') return `${ENV_PREFIX}approval:${p.approvalId}`;
+  if (p.kind === 'tool_missing') return `${ENV_PREFIX}tool_missing:${p.program ?? ''}`;
+  return `${ENV_PREFIX}${p.kind}`;
+}
+
+/** Decodes the environment problem of an error CheckRun; null for real failures and all other statuses. */
+export function checkEnvironmentProblem(run: Pick<CheckRun, 'status' | 'failureSignature'>): CheckEnvironmentProblem | null {
+  const sig = run.failureSignature;
+  if (run.status !== 'error' || !sig || !sig.startsWith(ENV_PREFIX)) return null;
+  const rest = sig.slice(ENV_PREFIX.length);
+  const sep = rest.indexOf(':');
+  const kind = sep === -1 ? rest : rest.slice(0, sep);
+  const arg = sep === -1 ? '' : rest.slice(sep + 1);
+  switch (kind) {
+    case 'approval':
+      return arg ? { kind: 'approval', approvalId: arg } : null;
+    case 'tool_missing':
+      return { kind: 'tool_missing', program: arg || null };
+    case 'approval_denied':
+    case 'command_blocked':
+    case 'project_missing':
+    case 'engine_open':
+      return { kind };
+    default:
+      return null;
+  }
+}
+
+/** "C:\Tools\dotnet.exe" and "dotnet" name the same program (case-insensitive, Windows executable extensions). */
+function programKey(program: string): string {
+  const base = program.trim().replace(/^"|"$/g, '').split(/[\\/]/).pop() ?? '';
+  return base.toLowerCase().replace(/\.(exe|cmd|bat|com)$/, '');
+}
 
 function tail(text: string): string {
   const lines = stripAnsi(text).split('\n');
@@ -287,7 +339,7 @@ export function createCheckService(s: Services, opts: CheckServiceOptions = {}):
     if (!reason) return null;
     if (actor !== 'user') {
       const decision = s.policy.evaluate({ projectId: project.id, projectRoot: project.path, command: cmd, config: project.config, taskId: run.taskId });
-      if (decision.action === 'block') return { status: 'error', message: `${INSTALL_FAILED}: ${decision.reason}` };
+      if (decision.action === 'block') return { status: 'error', message: `${INSTALL_FAILED}: ${decision.reason}`, failureSignature: envSignature({ kind: 'command_blocked' }) };
       if (decision.action === 'approve') {
         const check = s.approvals.check({
           projectId: project.id,
@@ -300,11 +352,15 @@ export function createCheckService(s: Services, opts: CheckServiceOptions = {}):
           details: { checkRunId: run.id, reason },
         });
         if (check.state === 'pending') {
-          return { status: 'error', message: `${INSTALL_FAILED}: Die Installation wartet auf eine Freigabe (siehe „Freigaben“). Danach die Prüfung erneut starten.` };
+          return {
+            status: 'error',
+            message: `${INSTALL_FAILED}: Die Installation wartet auf eine Freigabe (siehe „Freigaben“). Danach die Prüfung erneut starten.`,
+            failureSignature: envSignature({ kind: 'approval', approvalId: check.approval.id }),
+          };
         }
         if (check.state === 'denied') {
           s.approvals.acknowledgeDenial(check.approval.id);
-          return { status: 'error', message: `${INSTALL_FAILED}: Die Installation wurde abgelehnt.` };
+          return { status: 'error', message: `${INSTALL_FAILED}: Die Installation wurde abgelehnt.`, failureSignature: envSignature({ kind: 'approval_denied' }) };
         }
         if (check.approval && !check.viaRule) s.approvals.consume(check.approval.id);
       }
@@ -468,7 +524,11 @@ export function createCheckService(s: Services, opts: CheckServiceOptions = {}):
     };
     try {
       if (!isDirectory(root)) {
-        return finish({ status: 'error', message: 'Der Projektordner wurde nicht gefunden. Wurde er verschoben? In den Projekteinstellungen kann der neue Ort eingetragen werden.' });
+        return finish({
+          status: 'error',
+          message: 'Der Projektordner wurde nicht gefunden. Wurde er verschoben? In den Projekteinstellungen kann der neue Ort eingetragen werden.',
+          failureSignature: envSignature({ kind: 'project_missing' }),
+        });
       }
       if (signal.aborted) return finish({ status: 'cancelled', message: CANCELLED_MSG });
       let command = run.command;
@@ -489,7 +549,7 @@ export function createCheckService(s: Services, opts: CheckServiceOptions = {}):
               : 'Es wurde kein Unity-Editor gefunden. Bitte Unity über Unity Hub installieren.',
           });
         }
-        if (isUnityProjectOpen(root, platform)) return finish({ status: 'error', message: 'Projekt ist in Unity geöffnet – bitte Unity schließen.' });
+        if (isUnityProjectOpen(root, platform)) return finish({ status: 'error', message: 'Projekt ist in Unity geöffnet – bitte Unity schließen.', failureSignature: envSignature({ kind: 'engine_open' }) });
         command = replaceUnityExecutable(command, exe);
       }
 
@@ -559,6 +619,8 @@ export function createCheckService(s: Services, opts: CheckServiceOptions = {}):
       const missing = commandNotFound(code, result.output, platform);
       let status: CheckStatus;
       let message: string | null = null;
+      let envProblem: CheckEnvironmentProblem | null = null;
+      const isTestKind = run.kind === 'test' || run.kind === 'e2e';
       if (result.cancelled || signal.aborted) {
         status = 'cancelled';
         message = CANCELLED_MSG;
@@ -569,6 +631,9 @@ export function createCheckService(s: Services, opts: CheckServiceOptions = {}):
         // a missing program means the check could not run at all – never "tests failed"
         status = 'error';
         message = `Der Befehl „${missing.program ?? firstToken(command)}“ wurde nicht gefunden. Ist das benötigte Werkzeug installiert? (Einstellungen → Werkzeuge)`;
+        // Only the configured program itself is a missing tool. A program a script calls (npm test → 'vitest' not
+        // recognized) is usually a missing project dependency, which an agent can fix – that stays a normal error.
+        if (!missing.program || programKey(missing.program) === programKey(firstToken(command))) envProblem = { kind: 'tool_missing', program: missing.program ?? firstToken(command) };
       } else if (unity && run.kind === 'test' && !unityResults) {
         status = parsed.failures.length > 0 ? 'failed' : 'error';
         message =
@@ -580,15 +645,19 @@ export function createCheckService(s: Services, opts: CheckServiceOptions = {}):
         message = 'Unity konnte die Tests nicht ausführen (Exit-Code 3). Details stehen in der Ausgabe.';
       } else if (code === 0) {
         status = (parsed.failed ?? 0) > 0 ? 'failed' : 'passed';
+      } else if (isTestKind && !(parsed.failed ?? 0) && !(parsed.passed ?? 0) && noTestsFound(result.output)) {
+        // "no tests" is not a failure: pytest exits 5, vitest/jest/mocha exit 1 (without --passWithNoTests)
+        status = 'skipped';
+        message = NO_TESTS_MSG;
       } else {
         status = 'failed';
       }
       if (status === 'failed' && !message) {
         message = parsed.failed && parsed.failed > 0 ? `${parsed.failed} ${parsed.failed === 1 ? 'Test ist' : 'Tests sind'} fehlgeschlagen.` : `Fehlgeschlagen (Exit-Code ${code ?? 'unbekannt'}).`;
       }
-      if (status === 'passed' && (run.kind === 'test' || run.kind === 'e2e') && parsed.passed !== null && (parsed.passed ?? 0) + (parsed.failed ?? 0) + (parsed.skipped ?? 0) === 0) {
+      if (status === 'passed' && isTestKind && parsed.passed !== null && (parsed.passed ?? 0) + (parsed.failed ?? 0) + (parsed.skipped ?? 0) === 0) {
         status = 'skipped';
-        message = 'Es wurden keine Tests gefunden – der Testbefehl lief ohne einen einzigen Test.';
+        message = NO_TESTS_MSG;
       }
 
       const artifacts =
@@ -602,7 +671,8 @@ export function createCheckService(s: Services, opts: CheckServiceOptions = {}):
         passed: parsed.passed,
         failed: parsed.failed,
         skipped: parsed.skipped,
-        failures: status === 'passed' ? [] : parsed.failures,
+        failures: status === 'passed' || status === 'skipped' ? [] : parsed.failures,
+        ...(envProblem ? { failureSignature: envSignature(envProblem) } : {}),
         artifacts,
       });
     } catch (e) {

@@ -1,9 +1,13 @@
 // AgentRunner: the agent loop (SPEC §4.4 + §6.4). One RunExecution per run()/resume.
 // Key decisions:
 // - Loop per step: abort check → pause check → mode switch → task-edit message + user notes → step limit → context
-//   compaction (75 % of the window) → persist → models.chat (retries 1 s / 4 s / 10 s or Retry-After for retryable
-//   provider errors) → parse tool calls (native, or the JSON protocol for models without tool support) → execute the
-//   calls sequentially → persist after every call. A "step" is one model call (run.stepCount, maxStepsPerRun).
+//   compaction (prompt budget = window − output reserve, see context-window.ts) → persist → models.chat (retries
+//   1 s / 4 s / 10 s or Retry-After for retryable provider errors) → parse tool calls (native, or the JSON protocol for
+//   models without tool support) → execute the calls sequentially → persist after every call. A "step" is one model
+//   call (run.stepCount, maxStepsPerRun).
+// - Context: tool results are capped to a quarter of the prompt budget; the token estimate is corrected upwards with
+//   the input tokens the provider reports (never below chars / 3.5, at most ×2). If even the compacted conversation
+//   does not fit, the request is still sent and the activity log says so once (window too small for NOVA's prompt).
 // - Native tool calling when ResolvedModel.supportsTools, else the JSON protocol (tools + JSON schemas listed in the
 //   system prompt, json:true, first balanced JSON object, correction message, 3 consecutive failures → failed
 //   AGENT_BAD_OUTPUT). Native text answers get up to 3 reminders; a JSON tool call written as plain text in native
@@ -11,19 +15,26 @@
 //   the history is converted and the mode switches at the next step boundary.
 // - Tool calls outside role.toolNames (plus the finish tool) are rejected back to the model. Arguments are validated
 //   with the tool's zod schema before describe()/execute; validation errors go back to the model as tool errors.
+// - Repetition: the same call (tool + arguments after validation) with the same result counted within the last 12
+//   completed calls; a successful call that changed files forgets the other calls (the project changed, re-reading
+//   is legitimate). From the 3rd repetition on the tool result carries a note to the model, at the 5th the run stops
+//   blocked AGENT_LOOP with a German explanation (not resumable – a restart or another model is needed).
 // - inFlight is set before every tool execution and persisted BEFORE non-readOnly tools; it is cleared when the
 //   result is persisted. Abort with reason NovaError INTERRUPTED keeps inFlight (resume: readOnly → run again,
 //   otherwise the "Interrupted by a restart …" tool result + an error step); any other abort reason → cancelled.
 // - approval_required → waiting_approval (the call stays at the head of the queue and is executed again on resume);
 //   needs_input → blocked NEEDS_INPUT; models APPROVAL_REQUIRED → waiting_approval and the model call repeats.
-//   NO_MODEL, VRAM_INSUFFICIENT, BUDGET_EXCEEDED, PAID_NOT_APPROVED, PRICE_UNKNOWN, MODEL_UNAVAILABLE, PROVIDER_AUTH
-//   → blocked (state saved); OLLAMA_UNREACHABLE after retries → blocked; other retryable errors after retries → failed.
+//   NO_MODEL, VRAM_INSUFFICIENT, BUDGET_EXCEEDED, PAID_NOT_APPROVED, PRICE_UNKNOWN, MODEL_UNAVAILABLE, PROVIDER_AUTH,
+//   APPROVAL_DENIED (cloud data denied for this task) → blocked (state saved); OLLAMA_UNREACHABLE after retries →
+//   blocked; other retryable errors after retries → failed. models.resolve gets the task id, so it fails the same way
+//   as models.chat (e.g. on a denied cloud-data approval).
 // - Finish tool → role.parseOutput (+ optional checkFinish honesty gate of the built-in roles); up to 2 correction
 //   retries, then failed AGENT_BAD_OUTPUT.
 // - Resume: role changed / state missing → fresh run (old run marked cancelled); edited task → message to the model +
 //   rebuilt system prompt; unconsumed user notes → "Note from the user: …" at every step boundary, then consumed.
 // - The runner never writes the tasks table (only task notes consumption via TaskService). activeMs counts only the
 //   time this process actually executed the run.
+import { createHash } from 'node:crypto';
 import { RESUMABLE_BLOCKER_CODES } from '@shared/errors';
 import type { AgentRole, AgentRun, AgentRunStatus, AgentStepKind, MemoryEntry, TaskNote } from '@shared/schemas';
 import type {
@@ -48,7 +59,16 @@ import { redactString } from '../core/redact';
 import { sleep as coreSleep } from '../core/time';
 import { builtinRoles } from './roles';
 import { finishToolSpec, formatIssues, type NovaRoleModule } from './roles/common';
-import { COMPACT_AT_RATIO, KEEP_LAST_MESSAGES, compactMessages, contextWindow, estimateTokens } from './context-window';
+import {
+  KEEP_LAST_MESSAGES,
+  TOOL_RESULT_MAX_CHARS,
+  capToolResult,
+  compactMessages,
+  contextWindow,
+  estimateTokens,
+  promptBudget,
+  toolResultMaxChars,
+} from './context-window';
 import { findFirstJsonObject, interpretToolCall, normalizeToolName, parseJsonToolCall } from './json-protocol';
 import { convertMessages, formatJsonToolResult, freshState, parseRunState, snapshotOf, type RunState, type TaskSnapshot } from './state';
 
@@ -57,7 +77,14 @@ const MAX_RETRY_AFTER_MS = 120_000;
 const MAX_BAD_OUTPUT = 3;
 const MAX_TEXT_REMINDERS = 3;
 const MAX_FINISH_RETRIES = 2;
-const TOOL_RESULT_MAX_CHARS = 16_000;
+/** Same call + same result: note to the model from this count on, stop (AGENT_LOOP) at LOOP_STOP_AT. */
+const LOOP_HINT_AT = 3;
+const LOOP_STOP_AT = 5;
+/** Completed tool calls considered for the repetition count. */
+const LOOP_WINDOW = 12;
+/** Reported input tokens only calibrate the estimate for prompts of at least this size (estimated tokens). */
+const CALIBRATE_MIN_TOKENS = 1000;
+const MAX_TOKEN_FACTOR = 2;
 export const INTERRUPTED_TOOL_TEXT = 'Interrupted by a restart; the action may be partially done. Inspect the current state before continuing.';
 const TRUNCATED_HINT =
   'Your answer was cut off because it was too long. Keep each answer short: write big files in smaller parts (create the file with write_file, then add the rest with edit_file).';
@@ -73,6 +100,7 @@ const BLOCKING_MODEL_CODES = new Set([
   'PROVIDER_AUTH',
   'RESOURCE_LIMIT',
   'DISK_FULL',
+  'APPROVAL_DENIED',
 ]);
 const RETRYABLE_MODEL_CODES = new Set(['PROVIDER_ERROR', 'PROVIDER_RATE_LIMIT', 'OLLAMA_UNREACHABLE']);
 const BLOCK_AFTER_RETRIES = new Set(['OLLAMA_UNREACHABLE']);
@@ -137,11 +165,17 @@ function fmtSeconds(ms: number): string {
   return `${(ms / 1000).toLocaleString('de-DE', { maximumFractionDigits: 1 })} s`;
 }
 
-function capContent(content: string): string {
-  if (content.length <= TOOL_RESULT_MAX_CHARS) return content;
-  const head = content.slice(0, 12_000);
-  const tail = content.slice(-3_000);
-  return `${head}\n[… ${content.length - 15_000} characters omitted by NOVA …]\n${tail}`;
+/** JSON with sorted object keys (argument comparison independent of key order). */
+function stableJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(',')}]`;
+  if (value && typeof value === 'object') {
+    const obj = value as Record<string, unknown>;
+    return `{${Object.keys(obj)
+      .sort()
+      .map((k) => `${JSON.stringify(k)}:${stableJson(obj[k])}`)
+      .join(',')}}`;
+  }
+  return JSON.stringify(value) ?? 'null';
 }
 
 function detailsOf(e: unknown): Record<string, unknown> | null {
@@ -194,6 +228,14 @@ class RunExecution {
   private lastTruncated = false;
   private readonly injectedNotes = new Set<string>();
   private readonly finishName: string;
+  /** Correction of the chars / 3.5 estimate from reported input tokens (≥ 1, only grows). */
+  private tokenFactor = 1;
+  /** Estimated tokens of the request currently sent to the model. */
+  private sentEstimate = 0;
+  /** The "window too small" note was already added to the activity log in this execution. */
+  private contextWarned = false;
+  /** Fingerprints (tool, arguments, result) of the latest completed tool calls, oldest first. */
+  private recentCalls: string[] = [];
 
   constructor(
     private readonly env: Env,
@@ -252,7 +294,7 @@ class RunExecution {
       this.state.model ?? (this.run.providerId && this.run.modelId ? { providerId: this.run.providerId, modelId: this.run.modelId } : null);
     for (let attempt = 0; ; attempt++) {
       try {
-        const r = await s.models.resolve(this.run.role, { projectId: this.input.project.id, preferred });
+        const r = await s.models.resolve(this.run.role, { projectId: this.input.project.id, preferred, taskId: this.input.task.id, runId: this.run.id });
         this.resolved = r;
         this.state.model = r.ref;
         this.setMode(r.supportsTools ? 'native' : 'json');
@@ -317,6 +359,8 @@ class RunExecution {
     for (let attempt = 0; ; attempt++) {
       if (this.aborted()) return { outcome: this.abortOutcome() };
       this.updateRun({ lastAction: `Wartet auf eine Antwort von ${this.state.model?.modelId ?? 'dem Modell'}` });
+      const tools = this.state.mode === 'native' ? this.specs() : undefined;
+      this.sentEstimate = estimateTokens(this.state.messages, tools);
       try {
         const result = await s.models.chat({
           role: this.run.role,
@@ -324,7 +368,7 @@ class RunExecution {
           taskId: this.input.task.id,
           runId: this.run.id,
           messages: this.state.messages.slice(),
-          tools: this.state.mode === 'native' ? this.specs() : undefined,
+          tools,
           json: this.state.mode === 'json' ? true : undefined,
           signal: this.input.signal,
           preferred: this.state.model,
@@ -401,6 +445,7 @@ class RunExecution {
   private async handleResponse(result: ModelChatResult): Promise<AgentRunOutcome | null> {
     const requestedMode = this.state.mode;
     this.lastTruncated = result.finishReason === 'length' || result.finishReason === 'max_tokens';
+    this.calibrate(result.usage);
     this.resolved = result.resolved;
     this.state.model = result.resolved.ref;
     this.updateRun({
@@ -551,26 +596,28 @@ class RunExecution {
     const { s } = this.env;
     if (call.name === this.finishName) return this.handleFinish(call);
     if (!call.name || !this.role.toolNames.includes(call.name)) {
-      this.completeCall(
-        call,
-        `Error: the tool "${call.name}" is not available for your role. Available tools: ${[...this.role.toolNames, this.finishName].join(', ')}.`,
-        true,
-      );
+      const content = `Error: the tool "${call.name}" is not available for your role. Available tools: ${[...this.role.toolNames, this.finishName].join(', ')}.`;
+      const n = this.trackRepeat(call.name, call.arguments, content, true, false);
+      this.completeCall(call, content, true, this.loopNote(call.name, n));
       this.step('error', `Das Modell wollte ein Werkzeug verwenden, das für diese Rolle nicht erlaubt ist: ${call.name || '(ohne Namen)'}`, { tool: call.name });
-      return null;
+      return this.loopOutcome(`nicht erlaubtes Werkzeug ${call.name || '(ohne Namen)'}`, n);
     }
     const tool = s.tools.get(call.name);
     if (!tool) {
-      this.completeCall(call, `Error: the tool "${call.name}" is not available right now. Use another tool.`, true);
+      const content = `Error: the tool "${call.name}" is not available right now. Use another tool.`;
+      const n = this.trackRepeat(call.name, call.arguments, content, true, false);
+      this.completeCall(call, content, true, this.loopNote(call.name, n));
       this.step('error', `Das Werkzeug „${call.name}“ ist nicht verfügbar.`, { tool: call.name });
-      return null;
+      return this.loopOutcome(`nicht verfügbares Werkzeug ${call.name}`, n);
     }
     const parsed = tool.schema.safeParse(call.arguments);
     if (!parsed.success) {
       const hint = this.lastTruncated ? `\n${TRUNCATED_HINT}` : '';
-      this.completeCall(call, `Error: invalid arguments for ${call.name}: ${formatIssues(parsed.error)}. Check the argument names and types and call the tool again.${hint}`, true);
+      const content = `Error: invalid arguments for ${call.name}: ${formatIssues(parsed.error)}. Check the argument names and types and call the tool again.${hint}`;
+      const n = this.trackRepeat(call.name, call.arguments, content, true, false);
+      this.completeCall(call, content, true, this.loopNote(call.name, n));
       this.step('error', `Ungültige Angaben für das Werkzeug ${call.name} – Hinweis an das Modell gesendet.`, { tool: call.name, args: call.arguments });
-      return null;
+      return this.loopOutcome(`ungültiger Aufruf von ${call.name}`, n);
     }
     const description = this.describe(tool, parsed.data, call.name);
     this.updateRun({ lastAction: description });
@@ -605,20 +652,23 @@ class RunExecution {
       }
       case 'ok': {
         this.markUsed(call.name);
-        if (result.filesChanged && result.filesChanged.length > 0) this.addFiles(result.filesChanged);
-        this.completeCall(call, result.content, false);
+        const files = result.filesChanged ?? [];
+        if (files.length > 0) this.addFiles(files);
+        const n = this.trackRepeat(call.name, parsed.data, result.content, false, files.length > 0);
+        this.completeCall(call, result.content, false, this.loopNote(call.name, n));
         this.step('tool_result', `${description} – erledigt`, { content: excerpt(result.content, 1500), filesChanged: result.filesChanged ?? [] });
-        return null;
+        return this.loopOutcome(description, n);
       }
       default: {
         this.markUsed(call.name);
         const content = result.status === 'error' ? result.content : String((result as { content?: unknown }).content ?? '');
-        this.completeCall(call, `Error: ${content}`, true);
+        const n = this.trackRepeat(call.name, parsed.data, content, true, false);
+        this.completeCall(call, `Error: ${content}`, true, this.loopNote(call.name, n));
         this.step('tool_result', `${description} – fehlgeschlagen: ${firstLine(content, 200)}`, {
           content: excerpt(content, 1500),
           code: result.status === 'error' ? (result.code ?? null) : null,
         });
-        return null;
+        return this.loopOutcome(description, n);
       }
     }
   }
@@ -653,9 +703,43 @@ class RunExecution {
     return this.doneOutcome(output, summary);
   }
 
-  /** Appends the tool result, removes the call from the queue, clears inFlight and persists. */
-  private completeCall(call: ChatToolCall, content: string, isError: boolean): void {
-    const text = capContent(content) || '(empty result)';
+  /**
+   * Records a completed tool call and returns how often exactly this call (tool + arguments) with exactly this result
+   * occurs among the latest LOOP_WINDOW calls. A successful call that changed files forgets the other calls.
+   */
+  private trackRepeat(name: string, args: unknown, content: string, isError: boolean, changedFiles: boolean): number {
+    const key = createHash('sha256').update(`${name}\u0000${stableJson(args)}\u0000${isError ? 'error' : 'ok'}\u0000${content}`).digest('hex');
+    if (changedFiles) this.recentCalls = this.recentCalls.filter((k) => k === key);
+    this.recentCalls.push(key);
+    if (this.recentCalls.length > LOOP_WINDOW) this.recentCalls.shift();
+    return this.recentCalls.filter((k) => k === key).length;
+  }
+
+  /** Note appended to the tool result for the model while the repetition is below the stop threshold. */
+  private loopNote(name: string, n: number): string | undefined {
+    if (n < LOOP_HINT_AT || n >= LOOP_STOP_AT) return undefined;
+    return `\n\n[NOVA: You have now made exactly this call (${name || 'this tool'} with the same arguments) ${n} times and got the same result every time. Repeating it will not change anything. Use the result you already have, try a different approach, or call ${this.finishName} and explain honestly what blocks you.]`;
+  }
+
+  /** Activity note when the model repeats itself; blocked AGENT_LOOP at the stop threshold. */
+  private loopOutcome(description: string, n: number): AgentRunOutcome | null {
+    if (n >= LOOP_STOP_AT) {
+      return this.blockedOutcome(
+        'AGENT_LOOP',
+        `Das Modell wiederholt immer wieder dieselbe Aktion („${oneLine(description, 200)}“, ${n}-mal mit demselben Ergebnis) und kommt nicht weiter. NOVA hat den Lauf angehalten, damit keine Zeit verschwendet wird. Ein anderes Modell ist vermutlich besser geeignet: bitte unter „Modelle“ ein anderes Modell wählen oder die Aufgabe mit einem Hinweis erneut starten.`,
+      );
+    }
+    if (n >= LOOP_HINT_AT) {
+      this.step('error', `Das Modell wiederholt dieselbe Aktion (${oneLine(description, 200)}, ${n}-mal mit demselben Ergebnis) – Hinweis an das Modell gesendet.`, {
+        repeats: n,
+      });
+    }
+    return null;
+  }
+
+  /** Appends the tool result (capped to the context budget, plus an optional note), dequeues the call and persists. */
+  private completeCall(call: ChatToolCall, content: string, isError: boolean, note?: string): void {
+    const text = (capToolResult(content, this.toolResultCap()) || '(empty result)') + (note ?? '');
     if (this.state.mode === 'native' && this.isNativeCall(call.id)) this.state.messages.push({ role: 'tool', toolCallId: call.id, name: call.name, content: text });
     else this.state.messages.push({ role: 'user', content: formatJsonToolResult(call.name, text, isError) });
     const idx = this.state.queue.findIndex((c) => c.id === call.id);
@@ -812,25 +896,54 @@ class RunExecution {
     if (edited) this.step('message', 'Die geänderte Aufgabe wurde an den Agenten übergeben.', { title: task.title });
   }
 
+  /** Corrects the token estimate upwards when the provider reports more input tokens than estimated. */
+  private calibrate(usage: ModelChatResult['usage']): void {
+    if (!usage.usageReported || !(usage.inputTokens > 0) || this.sentEstimate < CALIBRATE_MIN_TOKENS) return;
+    const ratio = usage.inputTokens / this.sentEstimate;
+    if (ratio > this.tokenFactor) this.tokenFactor = Math.min(MAX_TOKEN_FACTOR, ratio);
+  }
+
+  /** Window and prompt budget (in chars / 3.5 estimate units, i.e. already divided by the calibration factor). */
+  private promptLimit(): { window: number; budget: number; limit: number } | null {
+    if (!this.resolved) return null;
+    const m = this.env.s.core.settings.get().models;
+    const window = contextWindow(this.resolved, m.ollamaNumCtx);
+    const budget = promptBudget(window, m.maxOutputTokens);
+    return { window, budget, limit: Math.floor(budget / this.tokenFactor) };
+  }
+
+  private toolResultCap(): number {
+    const p = this.promptLimit();
+    return p ? toolResultMaxChars(p.limit) : TOOL_RESULT_MAX_CHARS;
+  }
+
   private compactIfNeeded(): void {
-    if (!this.resolved) return;
-    const window = contextWindow(this.resolved, this.env.s.core.settings.get().models.ollamaNumCtx);
-    const limit = Math.floor(window * COMPACT_AT_RATIO);
+    const p = this.promptLimit();
+    if (!p) return;
+    const { window, budget, limit } = p;
     const tools = this.state.mode === 'native' ? this.specs() : undefined;
     if (estimateTokens(this.state.messages, tools) <= limit) return;
     const r = compactMessages(this.state.messages, { limitTokens: limit, keepLast: KEEP_LAST_MESSAGES, tools });
+    const f = this.tokenFactor;
     if (r.changed) {
       this.state.messages = r.messages;
       this.state.compactions += 1;
-      this.step('status', `Der Gesprächsverlauf wurde gekürzt, damit er in das Kontextfenster des Modells passt (etwa ${fmtInt(r.before)} → ${fmtInt(r.after)} Tokens).`, {
-        level: r.level,
-        before: r.before,
-        after: r.after,
-        window,
-      });
+      this.step(
+        'status',
+        `Der Gesprächsverlauf wurde gekürzt, damit er in das Kontextfenster des Modells passt (etwa ${fmtInt(r.before * f)} → ${fmtInt(r.after * f)} Tokens).`,
+        { level: r.level, before: r.before, after: r.after, limit, window, tokenFactor: f },
+      );
     }
     if (r.after > limit) {
-      this.env.log.warn('Gesprächsverlauf passt trotz Kürzung nicht vollständig ins Kontextfenster', { runId: this.run.id, estimate: r.after, limit });
+      this.env.log.warn('Gesprächsverlauf passt trotz Kürzung nicht vollständig ins Kontextfenster', { runId: this.run.id, estimate: r.after, limit, window });
+      if (!this.contextWarned) {
+        this.contextWarned = true;
+        this.step(
+          'error',
+          `Die Arbeitsanweisungen passen selbst nach dem Kürzen nicht vollständig in das Kontextfenster des Modells (etwa ${fmtInt(r.after * f)} Tokens, Platz ist für etwa ${fmtInt(budget)}). Das Modell kann dadurch Teile der Anweisungen übersehen. Abhilfe: unter „Modelle“ die Kontextgröße erhöhen oder ein Modell mit größerem Kontextfenster wählen.`,
+          { estimate: r.after, limit, window },
+        );
+      }
     }
   }
 

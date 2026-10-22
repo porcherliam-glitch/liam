@@ -166,6 +166,29 @@ describe('budget service', () => {
     expect(notifications.sent.find((n) => n.category === 'blocker')?.projectId).toBe('A');
   });
 
+  it('R5-1: every active project is listed with its limit and remaining budget, even without paid usage', () => {
+    const { budget, core } = setup({ projects: { prj_rezept: 5, prj_pixel: null, prj_alt: 2 } });
+    const insert = (id: string, status: string) =>
+      core.db.run('INSERT INTO projects (id, name, path, path_key, kind, status, config, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)', [id, id, `/p/${id}`, `/p/${id}`, 'node', status, '{}', 1, 1]);
+    insert('prj_rezept', 'active');
+    insert('prj_pixel', 'active');
+    insert('prj_alt', 'archived');
+    const st = budget.status();
+    expect(st.perProject.map((p) => p.projectId)).toEqual(['prj_pixel', 'prj_rezept']);
+    expect(st.perProject.find((p) => p.projectId === 'prj_rezept')).toEqual({
+      projectId: 'prj_rezept',
+      limitUsd: 5,
+      spentMonthUsd: 0,
+      remainingUsd: 5,
+      paidPaused: false,
+      containsEstimates: false,
+    });
+    expect(st.perProject.find((p) => p.projectId === 'prj_pixel')).toMatchObject({ limitUsd: null, remainingUsd: null });
+    // An archived project appears again as soon as it has paid usage this month.
+    budget.record(paidUsage(0.5, { projectId: 'prj_alt' }));
+    expect(budget.status().perProject.find((p) => p.projectId === 'prj_alt')).toMatchObject({ limitUsd: 2, spentMonthUsd: 0.5, remainingUsd: 1.5 });
+  });
+
   it('a project limit refuses a call that does not fit without pausing', () => {
     const { budget } = setup({ projects: { A: 0.05 } });
     expect(() => budget.reserve(reserveInput(100, 'A'))).toThrow(/Projektbudget reicht/);

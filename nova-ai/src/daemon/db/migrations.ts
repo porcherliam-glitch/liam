@@ -1,6 +1,12 @@
 // Versioned schema migrations. Never edit a released migration; append a new one.
-// The runner creates a database backup before applying migrations to an existing database.
+// The runner creates a database backup before applying migrations to an existing database. A database written by a
+// NEWER NOVA version (schema_version > LATEST_SCHEMA_VERSION, e.g. after installing an older setup.exe over a newer
+// one) is refused before anything is written: the old code must never run against an unknown schema.
+import { NovaError } from '../core/errors';
 import type { Db } from './database';
+
+/** Error code of a database that belongs to a newer NOVA version (the daemon start is refused). */
+export const SCHEMA_TOO_NEW = 'SCHEMA_TOO_NEW';
 
 export interface Migration {
   version: number;
@@ -395,6 +401,13 @@ export interface MigrationResult {
  */
 export function migrate(db: Db, beforeMigrate?: (fromVersion: number) => void): MigrationResult {
   const from = getSchemaVersion(db);
+  if (from > LATEST_SCHEMA_VERSION) {
+    throw new NovaError(
+      SCHEMA_TOO_NEW,
+      `Die NOVA-Daten stammen von einer neueren NOVA-Version (Datenbankversion ${from}, diese Version kennt nur bis ${LATEST_SCHEMA_VERSION}). Bitte die neuere NOVA-Version wieder installieren – die Daten wurden nicht verändert.`,
+      { severity: 'critical', userAction: 'Die neuere NOVA-Version installieren.', projectSafe: true },
+    );
+  }
   const pending = MIGRATIONS.filter((m) => m.version > from);
   if (pending.length > 0 && from > 0 && beforeMigrate) beforeMigrate(from);
   const applied: string[] = [];

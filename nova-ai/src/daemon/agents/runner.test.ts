@@ -1,9 +1,11 @@
 import { describe, it, expect, afterEach } from 'vitest';
+import { RESUMABLE_BLOCKER_CODES } from '@shared/errors';
 import type { AgentRole, Project, Task } from '@shared/schemas';
 import { createTestCore, type TestCore } from '../../../tests/helpers/core';
 import { makeServices } from '../../../tests/helpers/services';
-import type { AgentRunInput, ChatMessage, Services } from '../contracts';
+import type { AgentRunInput, ChatMessage, ModelChatInput, Services } from '../contracts';
 import { NovaError } from '../core/errors';
+import { estimateTokens, promptBudget, toolResultMaxChars } from './context-window';
 import { createRunStore } from './run-store';
 import { createAgentRunner, INTERRUPTED_TOOL_TEXT } from './runner';
 import type { RunState } from './state';
@@ -18,6 +20,7 @@ import {
   tc,
   text,
   type FakeModels,
+  type FakeResponse,
   type FakeTasks,
   type FakeTools,
 } from './test-fixtures';
@@ -526,7 +529,8 @@ describe('AgentRunner – interruption and cancellation', () => {
 
 describe('AgentRunner – limits, errors and context', () => {
   it('blocks with AGENT_STEP_LIMIT and grants a new budget on resume', async () => {
-    const fm = fakeModels({ script: Array.from({ length: 5 }, () => tc('list_files', { path: '.' })) });
+    // Different folders: distinct steps, not a repetition (that would end with AGENT_LOOP).
+    const fm = fakeModels({ script: Array.from({ length: 5 }, (_, i) => tc('list_files', { path: `src/part${i}` })) });
     const h = setup({ fm });
     t!.core.settings.update({ agents: { maxStepsPerRun: 5 } });
     const first = await h.s.agents.run(h.input());
@@ -613,6 +617,157 @@ describe('AgentRunner – limits, errors and context', () => {
     expect(tools[tools.length - 1].content).toBe(big); // recent results stay verbatim
     expect(h.s.runs.steps(out.runId).some((st) => st.kind === 'status' && st.summary.includes('gekürzt'))).toBe(true);
     expect(h.s.runs.loadState<RunState>(out.runId)!.compactions).toBeGreaterThan(0);
+  });
+});
+
+describe('AgentRunner – denied cloud data', () => {
+  it('blocks (not fails) with APPROVAL_DENIED from resolve or chat and resolves with the task id', async () => {
+    const denied = () => novaError('APPROVAL_DENIED', 'Das Senden von Projektdaten an „Cloud“ wurde für diese Aufgabe abgelehnt.');
+    const fm = fakeModels();
+    fm.setResolveError(denied());
+    const h = setup({ fm });
+    const first = await h.s.agents.run(h.input());
+    expect(first).toMatchObject({ status: 'blocked', code: 'APPROVAL_DENIED' });
+    expect(h.s.runs.get(first.runId)!.blocker).toContain('abgelehnt');
+    expect(h.fm.resolveCalls[0]).toMatchObject({ role: 'coder', taskId: h.task.id });
+    expect(h.fm.calls).toHaveLength(0);
+
+    fm.setResolveError(null);
+    h.fm.push(denied());
+    const second = await h.s.agents.run(h.input());
+    expect(second).toMatchObject({ status: 'blocked', code: 'APPROVAL_DENIED' });
+    expect(h.s.runs.get(second.runId)!.errorCode).toBe('APPROVAL_DENIED');
+  });
+});
+
+describe('AgentRunner – repeated identical calls', () => {
+  const hintText = 'You have now made exactly this call';
+
+  it('sends a note from the 3rd identical call with the same result and stops with AGENT_LOOP at the 5th', async () => {
+    const fm = fakeModels({ script: Array.from({ length: 60 }, () => tc('read_file', { path: 'src/game.js' })) });
+    const h = setup({ fm });
+    const out = await h.s.agents.run(h.input());
+    expect(out).toMatchObject({ status: 'blocked', code: 'AGENT_LOOP' });
+    expect(h.fm.calls).toHaveLength(5); // not 40 (maxStepsPerRun)
+    if (out.status !== 'blocked') return;
+    expect(out.reason).toContain('wiederholt immer wieder dieselbe Aktion („Liest src/game.js“, 5-mal mit demselben Ergebnis)');
+    expect(out.reason).toContain('anderes Modell');
+    expect(out.reason).not.toContain('zu groß');
+    expect(RESUMABLE_BLOCKER_CODES).not.toContain('AGENT_LOOP');
+    // Feedback first: the 3rd and 4th results carry the note, the model saw it before the run stopped.
+    const results = toolMessages(h.fm.calls[4].messages);
+    expect(results.map((m) => m.content.includes(hintText))).toEqual([false, false, true, true]);
+    expect(results[2].content).toContain('3 times');
+    expect(results[2].content.startsWith('1| content of src/game.js')).toBe(true);
+    const notes = h.s.runs.steps(out.runId).filter((st) => st.kind === 'error' && st.summary.startsWith('Das Modell wiederholt dieselbe Aktion'));
+    expect(notes).toHaveLength(2);
+    expect(h.s.runs.get(out.runId)!.errorCode).toBe('AGENT_LOOP');
+  });
+
+  it('detects the same failing edit retried between identical reads', async () => {
+    const ft = standardTools({ write_file: () => ({ status: 'error', content: 'Die Datei ist gesperrt (FILE_LOCKED).' }) });
+    const pair = () => [tc('read_file', { path: 'src/game.js' }), tc('write_file', { content: 'x', path: 'src/game.js' })];
+    const fm = fakeModels({ script: Array.from({ length: 10 }, pair).flat() });
+    const h = setup({ fm, ft });
+    const out = await h.s.agents.run(h.input());
+    expect(out).toMatchObject({ status: 'blocked', code: 'AGENT_LOOP' });
+    expect(h.fm.calls).toHaveLength(9);
+    // Argument order does not matter; the failing write got its note too.
+    const writes = toolMessages(h.fm.calls[8].messages).filter((m) => m.name === 'write_file');
+    expect(writes.map((m) => m.content.includes(hintText))).toEqual([false, false, true, true]);
+  });
+
+  it('repeated calls to a tool the role does not have also end in AGENT_LOOP', async () => {
+    const fm = fakeModels({ script: Array.from({ length: 10 }, () => tc('delete_everything', { path: '.' })) });
+    const h = setup({ fm });
+    const out = await h.s.agents.run(h.input());
+    expect(out).toMatchObject({ status: 'blocked', code: 'AGENT_LOOP' });
+    expect(h.fm.calls).toHaveLength(5);
+  });
+
+  it('does not count repeats with different results or after the project changed', async () => {
+    let n = 0;
+    const ft = standardTools({ run_command: () => ({ status: 'ok', content: `Lauf ${++n}` }) });
+    const script = [
+      ...Array.from({ length: 6 }, () => tc('run_command', { command: 'npm test' })), // different output every time
+      ...['a', 'b', 'c', 'd', 'e'].flatMap((f) => [tc('read_file', { path: 'src/game.js' }), tc('write_file', { path: `src/${f}.js`, content: f })]),
+      tc('read_file', { path: 'src/game.js' }),
+      finishCoder(),
+    ];
+    const fm = fakeModels({ script });
+    const h = setup({ fm, ft });
+    const out = await h.s.agents.run(h.input());
+    expect(out.status).toBe('done');
+    expect(h.fm.calls).toHaveLength(18);
+    expect(toolMessages(lastMessages(h.fm)).some((m) => m.content.includes(hintText))).toBe(false);
+  });
+});
+
+describe('AgentRunner – 16k context window', () => {
+  for (const supportsTools of [true, false]) {
+    it(`keeps every request inside a 16k Ollama window incl. the answer reserve (${supportsTools ? 'native tools' : 'JSON protocol'})`, async () => {
+      let h!: Harness;
+      let reads = 0;
+      const ft = standardTools({
+        read_file: (a) => {
+          reads++;
+          if (reads === 3) h.tasks.addUserNote(h.task.id, 'Bitte das Canvas-Element verwenden.');
+          return { status: 'ok', content: `FILE ${String(a.path)}\n${'Zeile mit Code; '.repeat(3750)}\nENDE ${String(a.path)}` }; // 60 000 chars
+        },
+      });
+      const call = (name: string, args: Record<string, unknown>) => (supportsTools ? tc(name, args) : text(JSON.stringify({ tool: name, arguments: args })));
+      const finish = { summary: 'Der Punktestand wird angezeigt. Alle Tests laufen.', status: 'done', blocker: null, notes: null };
+      const script = [...Array.from({ length: 6 }, (_, i) => call('read_file', { path: `src/f${i}.js` })), call('finish', finish)];
+      const fm = fakeModels({ script, contextLength: 32768, supportsTools, type: 'ollama' });
+      h = setup({ fm, ft });
+      expect(t!.core.settings.get().models).toMatchObject({ ollamaNumCtx: 16384, maxOutputTokens: 4096 });
+      const out = await h.s.agents.run(h.input());
+      expect(out.status).toBe('done');
+      const budget = promptBudget(16384, 4096);
+      const system = h.fm.calls[0].messages[0];
+      const task = h.fm.calls[0].messages[1];
+      for (const [i, call] of h.fm.calls.entries()) {
+        expect(estimateTokens(call.messages, call.tools)).toBeLessThanOrEqual(budget);
+        // The task goal and the latest instructions are never cut.
+        expect(call.messages[0]).toEqual(system);
+        expect(call.messages[1]).toEqual(task);
+        if (i >= 3) expect(call.messages.filter((m) => m.role === 'user' && m.content === 'Note from the user: Bitte das Canvas-Element verwenden.')).toHaveLength(1);
+        if (i === 0) continue;
+        // The newest tool result is present with its beginning and its end (cut in the middle at most).
+        const results = call.messages.filter((m) => m.role === 'tool' || (m.role === 'user' && m.content.startsWith('[tool result: ')));
+        const newest = results[results.length - 1].content;
+        expect(newest).toContain(`FILE src/f${i - 1}.js`);
+        expect(newest).toContain(`ENDE src/f${i - 1}.js`);
+        expect(newest.length).toBeLessThanOrEqual(toolResultMaxChars(budget) + 40);
+      }
+      expect(h.s.runs.steps(out.runId).some((st) => st.kind === 'error' && st.summary.includes('Kontextfenster'))).toBe(false);
+    });
+  }
+
+  it('corrects the estimate with the reported input tokens', async () => {
+    const big = 'y'.repeat(9000);
+    const ft = standardTools({ read_file: (a) => ({ status: 'ok', content: `${String(a.path)}\n${big}` }) });
+    // The provider counts 1.6× the chars/3.5 estimate (e.g. code): the runner must plan with that.
+    const reported =
+      (item: FakeResponse) =>
+      (input: ModelChatInput): FakeResponse => ({ ...item, inputTokens: Math.ceil(estimateTokens(input.messages, input.tools) * 1.6) });
+    const script = [...Array.from({ length: 6 }, (_, i) => reported(tc('read_file', { path: `src/f${i}.js` }))), reported(finishCoder())];
+    const fm = fakeModels({ script, contextLength: 32768, type: 'ollama' });
+    const h = setup({ fm, ft });
+    const out = await h.s.agents.run(h.input());
+    expect(out.status).toBe('done');
+    const budget = promptBudget(16384, 4096);
+    for (const call of h.fm.calls.slice(1)) expect(estimateTokens(call.messages, call.tools) * 1.6).toBeLessThanOrEqual(budget + 2);
+  });
+
+  it('tells the user once when even the compacted prompt does not fit the window', async () => {
+    const fm = fakeModels({ script: [tc('list_files', { path: '.' }), tc('read_file', { path: 'a.js' }), finishCoder()], contextLength: 2048, type: 'ollama' });
+    const h = setup({ fm });
+    const out = await h.s.agents.run(h.input());
+    expect(out.status).toBe('done');
+    const warnings = h.s.runs.steps(out.runId).filter((st) => st.kind === 'error' && st.summary.includes('Kontextfenster'));
+    expect(warnings).toHaveLength(1);
+    expect(warnings[0].summary).toContain('Kontextgröße erhöhen');
   });
 });
 

@@ -200,6 +200,46 @@ describe('ollama service – models, pull, delete', () => {
     expect(ollama.pulls()).toEqual([]);
   });
 
+  it('R4-11: stops a pull whose remaining size does not fit on the drive (plus the reserve)', async () => {
+    let free = () => 5 * GB;
+    const disks: string[] = [];
+    const { ollama, fake, pullEvents, core } = await setup({ service: { diskFree: (p) => (disks.push(p), { path: '/models', freeBytes: free() }), pullDiskCheckIntervalMs: 0 } });
+    expect(core.settings.section('resources').minFreeDiskMb).toBe(1024);
+    fake.pullScript('qwen2.5-coder:14b', [
+      { status: 'pulling manifest' },
+      { status: 'pulling abc', digest: 'sha256:abc', total: 9 * GB, completed: 0 },
+      { status: 'pulling abc', digest: 'sha256:abc', total: 9 * GB, completed: 1 * GB },
+      { status: 'success' },
+    ]);
+    const big = ollama.pull('qwen2.5-coder:14b');
+    await until(() => ollama.pulls().find((p) => p.id === big.id)?.status === 'failed');
+    const failed = ollama.pulls().find((p) => p.id === big.id)!;
+    expect(failed.error).toContain('Zu wenig Speicherplatz');
+    expect(failed.error).toContain('braucht noch ca. 9,0 GB');
+    expect(failed.error).toContain('nur 5,0 GB frei');
+    expect(failed.completedBytes).toBe(0); // stopped at the first size report, before Ollama wrote the data
+    expect(disks.length).toBeGreaterThan(0);
+    expect(pullEvents.some((p) => p.id === big.id && p.status === 'done')).toBe(false);
+
+    // Enough space at the start, but the drive fills up during the pull (other programs) → stopped at the re-check.
+    fake.pullScript('mid:7b', [
+      { status: 'pulling def', digest: 'sha256:def', total: 4 * GB, completed: 0 },
+      { status: 'pulling def', digest: 'sha256:def', total: 4 * GB, completed: 1 * GB },
+      { status: 'pulling def', digest: 'sha256:def', total: 4 * GB, completed: 2 * GB },
+      { status: 'success' },
+    ]);
+    const mid = ollama.pull('mid:7b');
+    free = () => ((ollama.pulls().find((p) => p.id === mid.id)?.completedBytes ?? 0) >= 1 * GB ? 2 * GB : 12 * GB);
+    await until(() => ollama.pulls().find((p) => p.id === mid.id)?.status === 'failed');
+    expect(ollama.pulls().find((p) => p.id === mid.id)).toMatchObject({ completedBytes: 1 * GB, error: expect.stringContaining('braucht noch ca. 3,0 GB') });
+
+    // Enough space: the pull completes.
+    free = () => 20 * GB;
+    fake.pullScript('ok:7b', [{ status: 'pulling ghi', digest: 'sha256:ghi', total: 4 * GB, completed: 4 * GB }, { status: 'success' }]);
+    const ok = ollama.pull('ok:7b');
+    await until(() => ollama.pulls().find((p) => p.id === ok.id)?.status === 'done');
+  });
+
   it('delete removes the model and emits ollama.models.changed', async () => {
     const { ollama, fake, changed } = await setup({ models: ['a:1b', 'b:1b'] });
     await ollama.delete('a:1b');
@@ -243,6 +283,24 @@ describe('ollama service – VRAM fit', () => {
     expect(large.fits).toBe(false);
     expect(small.estimated).toBe(true);
     expect(small.message).toContain('(geschätzt)');
+  });
+
+  it('R4-10: VRAM held by other loaded Ollama models counts as available (Ollama unloads them)', async () => {
+    const { ollama, resources } = await setup({ models });
+    const coderLoaded = { model: 'medium:7b', sizeBytes: 6 * GB, vramBytes: 6 * GB, expiresAt: null, contextLength: 4096 };
+    // 16 GB GPU, 8 GB in use – 6 GB of it by the idle 7B model of the other agent.
+    resources.set(snapshotWithGpu({ totalBytes: 16 * GB, usedBytes: 8 * GB }, [coderLoaded]));
+    const big = await ollama.fit('big:14b', 4096);
+    expect(big.fits).toBe(true);
+    expect(big.availableBytes).toBe(14 * GB);
+    expect(big.message).toContain('davon 6,0 GB von anderen geladenen Modellen, die Ollama bei Bedarf entlädt');
+    // VRAM used by other programs is not reclaimable: never more than the GPU has, and a real shortage stays one.
+    resources.set(snapshotWithGpu({ totalBytes: 12 * GB, usedBytes: 11.5 * GB }, [{ ...coderLoaded, vramBytes: 1 * GB }]));
+    const short = await ollama.fit('big:14b', 4096);
+    expect(short.fits).toBe(false);
+    expect(short.availableBytes).toBe(1.5 * GB);
+    resources.set(snapshotWithGpu({ totalBytes: 8 * GB, usedBytes: null, estimated: true }, [coderLoaded]));
+    expect((await ollama.fit('small:1b', 4096)).availableBytes).toBe(8 * GB);
   });
 
   it('unknown without GPU data; a model already loaded in VRAM fits', async () => {

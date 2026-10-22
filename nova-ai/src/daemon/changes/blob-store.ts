@@ -8,6 +8,7 @@
 //   blob that was just (re)used must not disappear between "blob written" and "row inserted".
 import { createHash } from 'node:crypto';
 import { createReadStream, existsSync, readFileSync, readdirSync, rmdirSync, statSync, utimesSync } from 'node:fs';
+import { readdir, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { atomicWriteFile, unlinkWithRetry } from '../core/fs-atomic';
 import { NovaError } from '../core/errors';
@@ -51,7 +52,17 @@ export interface BlobStore {
   read(hash: string): Buffer | null;
   /** Deletes blobs not in `referenced` whose mtime is older than cutoffMs, plus stale temp files. Returns deleted blobs. */
   prune(referenced: Set<string>, cutoffMs: number): number;
+  /**
+   * prune() with asynchronous directory reads and stats (the event loop stays responsive on large stores). The check
+   * "mtime older than the cutoff" and the unlink of one blob still run back to back, so a blob that put() refreshed
+   * meanwhile is never deleted.
+   */
+  pruneAsync(referenced: Set<string>, cutoffMs: number): Promise<number>;
 }
+
+const isBlobName = (name: string) => SHA256_HEX.test(name);
+const isTempName = (name: string) => name.startsWith('.') && name.endsWith('.tmp~');
+const isSubdirName = (name: string) => /^[a-f0-9]{2}$/.test(name);
 
 export function createBlobStore(dir: string, onCorrupt?: (hash: string) => void): BlobStore {
   const pathFor = (hash: string) => join(dir, hash.slice(0, 2), hash);
@@ -111,7 +122,7 @@ export function createBlobStore(dir: string, onCorrupt?: (hash: string) => void)
         return 0;
       }
       for (const sub of subdirs) {
-        if (!/^[a-f0-9]{2}$/.test(sub)) continue;
+        if (!isSubdirName(sub)) continue;
         const subPath = join(dir, sub);
         let names: string[];
         try {
@@ -122,9 +133,8 @@ export function createBlobStore(dir: string, onCorrupt?: (hash: string) => void)
         let remaining = names.length;
         for (const name of names) {
           const file = join(subPath, name);
-          const isBlob = SHA256_HEX.test(name);
-          const isTemp = name.startsWith('.') && name.endsWith('.tmp~');
-          if (!isBlob && !isTemp) continue;
+          const isBlob = isBlobName(name);
+          if (!isBlob && !isTempName(name)) continue;
           if (isBlob && referenced.has(name)) continue;
           try {
             if (statSync(file).mtimeMs >= cutoffMs) continue;
@@ -138,6 +148,50 @@ export function createBlobStore(dir: string, onCorrupt?: (hash: string) => void)
         if (remaining === 0) {
           try {
             rmdirSync(subPath);
+          } catch {
+            /* not empty (concurrent put) or locked */
+          }
+        }
+      }
+      return deleted;
+    },
+    async pruneAsync(referenced, cutoffMs) {
+      let deleted = 0;
+      let subdirs: string[];
+      try {
+        subdirs = await readdir(dir);
+      } catch {
+        return 0;
+      }
+      for (const sub of subdirs) {
+        if (!isSubdirName(sub)) continue;
+        const subPath = join(dir, sub);
+        let names: string[];
+        try {
+          names = await readdir(subPath);
+        } catch {
+          continue;
+        }
+        let remaining = names.length;
+        for (const name of names) {
+          const file = join(subPath, name);
+          const isBlob = isBlobName(name);
+          if (!isBlob && !isTempName(name)) continue;
+          if (isBlob && referenced.has(name)) continue;
+          try {
+            // cheap async pre-check; the decisive check runs synchronously right before the unlink
+            if ((await stat(file)).mtimeMs >= cutoffMs) continue;
+            if (statSync(file).mtimeMs >= cutoffMs) continue;
+            unlinkWithRetry(file);
+            remaining--;
+            if (isBlob) deleted++;
+          } catch {
+            /* in use or vanished: try again at the next maintenance run */
+          }
+        }
+        if (remaining === 0) {
+          try {
+            rmdirSync(subPath); // synchronous: cannot interleave with a put() that just checked the folder exists
           } catch {
             /* not empty (concurrent put) or locked */
           }

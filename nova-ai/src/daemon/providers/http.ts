@@ -10,6 +10,14 @@
 // - details.retryable marks transient failures (5xx, network, timeout, 408, 429) that justify a retry/fallback.
 // - API keys travel only in request headers. Provider error texts are redacted and truncated before they are stored
 //   in error details; URLs never contain secrets.
+// - Default transport is providerFetch (node:http/https), NOT the global fetch: undici's built-in 300 s
+//   headersTimeout/bodyTimeout would cut off non-streaming model answers that take longer than 5 minutes (slow GPU,
+//   CPU offload, queued second agent), whatever settings.agents.modelTimeoutSec says. The only limits are the
+//   caller's AbortSignal / request timeout and a 10 s connect timeout.
+import { Agent as HttpAgent, request as httpRequest, type IncomingMessage } from 'node:http';
+import { Agent as HttpsAgent, request as httpsRequest } from 'node:https';
+import { pipeline, type Readable } from 'node:stream';
+import { constants as zlibConstants, createBrotliDecompress, createGunzip } from 'node:zlib';
 import { NovaError } from '../core/errors';
 import { redactString } from '../core/redact';
 
@@ -57,8 +65,12 @@ export interface HttpTextResponse {
 
 const MAX_TIMER_MS = 2_147_483_647;
 
+/** Error code of providerFetch's connect timeout (nothing was sent, like a refused connection). */
+export const CONNECT_TIMEOUT_CODE = 'CONNECT_TIMEOUT';
+
 /** Network error codes that occur before any byte of the request reached the server. */
 const CONNECT_CODES = new Set([
+  CONNECT_TIMEOUT_CODE,
   'ECONNREFUSED',
   'ENOTFOUND',
   'EAI_AGAIN',
@@ -420,3 +432,231 @@ export async function requestNdjson(ctx: HttpContext, req: HttpRequest, onLine: 
 export function joinUrl(base: string, path: string): string {
   return `${base.replace(/\/+$/, '')}/${path.replace(/^\/+/, '')}`;
 }
+
+// ---------------------------------------------------------------------------------------------------------------
+// providerFetch: fetch-compatible transport without built-in response timeouts
+// ---------------------------------------------------------------------------------------------------------------
+
+const CONNECT_TIMEOUT_MS = 10_000;
+const MAX_REDIRECTS = 5;
+const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
+const NULL_BODY_STATUSES = new Set([204, 205, 304]);
+/** Headers kept when a redirect leaves the origin; credentials (authorization, x-api-key, custom key headers) are dropped. */
+const CROSS_ORIGIN_SAFE_HEADERS = new Set(['accept', 'accept-encoding', 'accept-language', 'content-type', 'user-agent']);
+/** Valid HTTP reason phrase (anything else is dropped instead of making the Response constructor throw). */
+const REASON_PHRASE = /^[\t\x20-\x7e\x80-\xff]*$/;
+// Idle keep-alive sockets close after 4 s (like undici). Node only destroys FREE sockets on this timeout; a socket
+// with a request in flight merely emits an ignored 'timeout' event, so long answers are not affected.
+const httpAgent = new HttpAgent({ keepAlive: true, timeout: 4_000 });
+const httpsAgent = new HttpsAgent({ keepAlive: true, timeout: 4_000 });
+
+function abortReason(signal: AbortSignal): unknown {
+  return signal.reason ?? new DOMException('This operation was aborted', 'AbortError');
+}
+
+function requestBody(body: RequestInit['body']): Buffer | undefined {
+  if (body === undefined || body === null) return undefined;
+  if (typeof body === 'string') return Buffer.from(body, 'utf8');
+  if (body instanceof Uint8Array) return Buffer.from(body.buffer, body.byteOffset, body.byteLength);
+  if (body instanceof ArrayBuffer) return Buffer.from(body);
+  throw new TypeError('providerFetch supports string and byte bodies only');
+}
+
+function decoderFor(encoding: string): NodeJS.ReadWriteStream | null {
+  // Lenient flush modes (like undici) so a gzip stream without proper trailer still yields its data.
+  if (encoding === 'gzip' || encoding === 'x-gzip') return createGunzip({ flush: zlibConstants.Z_SYNC_FLUSH, finishFlush: zlibConstants.Z_SYNC_FLUSH });
+  if (encoding === 'br') return createBrotliDecompress();
+  return null;
+}
+
+interface PreparedRequest {
+  url: URL;
+  method: string;
+  headers: Record<string, string>;
+  body: Buffer | undefined;
+  signal: AbortSignal | undefined;
+}
+
+/** Method, body and headers for the next hop of a redirect (fetch semantics, credentials only within the origin). */
+function redirectRequest(prev: PreparedRequest, status: number, next: URL): PreparedRequest {
+  let method = prev.method;
+  let body = prev.body;
+  const headers = { ...prev.headers };
+  if ((status === 303 && method !== 'GET' && method !== 'HEAD') || ((status === 301 || status === 302) && method === 'POST')) {
+    method = 'GET';
+    body = undefined;
+    delete headers['content-type'];
+  }
+  const sameOrigin = next.origin === prev.url.origin || (next.hostname === prev.url.hostname && next.protocol === 'https:');
+  if (!sameOrigin) for (const key of Object.keys(headers)) if (!CROSS_ORIGIN_SAFE_HEADERS.has(key)) delete headers[key];
+  return { url: next, method, headers, body, signal: prev.signal };
+}
+
+function send(prep: PreparedRequest, redirects: number): Promise<Response> {
+  return new Promise<Response>((resolve, reject) => {
+    const { url, method, signal } = prep;
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+      reject(new TypeError(`providerFetch: unsupported protocol ${url.protocol}`));
+      return;
+    }
+    if (signal?.aborted) {
+      reject(abortReason(signal));
+      return;
+    }
+    const secure = url.protocol === 'https:';
+    const headers = { ...prep.headers };
+    if (prep.body) headers['content-length'] = String(prep.body.length);
+    const req = (secure ? httpsRequest : httpRequest)(url, { method, headers, agent: secure ? httpsAgent : httpAgent });
+
+    let settled = false;
+    let res: IncomingMessage | null = null;
+    let connectTimer: NodeJS.Timeout | null = null;
+    let failBody: ((e: unknown) => void) | null = null;
+    const clearConnect = () => {
+      if (connectTimer) clearTimeout(connectTimer);
+      connectTimer = null;
+    };
+    const detach = () => signal?.removeEventListener('abort', onAbort);
+    // Terminal failure: rejects the pending promise, or errors the body stream once the Response was handed out.
+    const fail = (e: unknown) => {
+      clearConnect();
+      detach();
+      if (!settled) {
+        settled = true;
+        reject(e);
+      } else {
+        failBody?.(e);
+      }
+    };
+    function onAbort() {
+      fail(abortReason(signal!));
+      req.destroy();
+      res?.destroy();
+    }
+    signal?.addEventListener('abort', onAbort, { once: true });
+    req.on('error', fail);
+    req.on('socket', (socket) => {
+      if (!socket.connecting) return; // reused keep-alive socket
+      connectTimer = setTimeout(() => {
+        const e = Object.assign(new Error(`Connection to ${url.host} not established within ${CONNECT_TIMEOUT_MS / 1000} s`), { code: CONNECT_TIMEOUT_CODE });
+        fail(e);
+        req.destroy(e);
+      }, CONNECT_TIMEOUT_MS);
+      socket.once(secure ? 'secureConnect' : 'connect', clearConnect);
+    });
+
+    req.on('response', (incoming) => {
+      clearConnect();
+      res = incoming;
+      const status = incoming.statusCode ?? 0;
+      const location = incoming.headers.location;
+      if (REDIRECT_STATUSES.has(status) && location && redirects < MAX_REDIRECTS) {
+        incoming.resume();
+        detach();
+        settled = true;
+        let next: URL;
+        try {
+          next = new URL(location, url);
+        } catch (e) {
+          reject(e);
+          return;
+        }
+        send(redirectRequest(prep, status, next), redirects + 1).then(resolve, reject);
+        return;
+      }
+      if (status < 200 || status > 599) {
+        fail(new TypeError(`providerFetch: invalid HTTP status ${status}`));
+        incoming.destroy();
+        return;
+      }
+      const responseHeaders = new Headers();
+      const raw = incoming.rawHeaders;
+      for (let i = 0; i + 1 < raw.length; i += 2) {
+        try {
+          responseHeaders.append(raw[i], raw[i + 1]);
+        } catch {
+          /* header with characters the Headers class rejects – skipped */
+        }
+      }
+      let body: ReadableStream<Uint8Array> | null = null;
+      if (method === 'HEAD' || NULL_BODY_STATUSES.has(status)) {
+        detach();
+        incoming.resume();
+      } else {
+        const decoder = decoderFor(String(incoming.headers['content-encoding'] ?? '').trim().toLowerCase());
+        const source: Readable = decoder ? (pipeline(incoming, decoder, () => undefined) as unknown as Readable) : incoming;
+        let done = false;
+        body = new ReadableStream<Uint8Array>(
+          {
+            start(controller) {
+              failBody = (e) => {
+                if (done) return;
+                done = true;
+                try {
+                  controller.error(e);
+                } catch {
+                  /* already closed */
+                }
+              };
+              source.on('data', (chunk: Buffer) => {
+                if (done) return;
+                controller.enqueue(new Uint8Array(chunk));
+                if ((controller.desiredSize ?? 1) <= 0) source.pause();
+              });
+              source.once('end', () => {
+                if (done) return;
+                done = true;
+                detach();
+                controller.close();
+              });
+              source.once('error', fail);
+              source.once('close', () => {
+                if (!done) fail(Object.assign(new Error('Connection closed before the response was complete'), { code: 'ECONNRESET' }));
+              });
+            },
+            pull() {
+              source.resume();
+            },
+            cancel() {
+              done = true;
+              detach();
+              req.destroy();
+              source.destroy();
+            },
+          },
+          { highWaterMark: 64 * 1024, size: (chunk) => chunk.byteLength },
+        );
+      }
+      const statusText = incoming.statusMessage && REASON_PHRASE.test(incoming.statusMessage) ? incoming.statusMessage : '';
+      settled = true;
+      resolve(new Response(body, { status, statusText, headers: responseHeaders }));
+    });
+
+    if (prep.body) req.end(prep.body);
+    else req.end();
+  });
+}
+
+/**
+ * fetch-compatible HTTP client over node:http/https for all provider calls (Ollama, OpenAI-compatible, Anthropic).
+ * Unlike the global fetch (undici: 300 s headersTimeout and bodyTimeout) it has no response timeout of its own, so a
+ * non-streaming answer may take as long as the caller allows (settings.agents.modelTimeoutSec, up to 60 min).
+ * Supported: string/URL input, string or byte bodies, AbortSignal, gzip/br decoding, up to 5 redirects (credentials
+ * are only forwarded within the origin or to https on the same host), keep-alive, 10 s connect timeout.
+ */
+export const providerFetch: typeof fetch = (input, init = {}) => {
+  if (typeof input !== 'string' && !(input instanceof URL)) return Promise.reject(new TypeError('providerFetch accepts URL strings only'));
+  let prep: PreparedRequest;
+  try {
+    const headers: Record<string, string> = {};
+    new Headers(init.headers).forEach((value, key) => {
+      headers[key] = value;
+    });
+    headers['accept-encoding'] ??= 'gzip, br';
+    headers['user-agent'] ??= 'node';
+    prep = { url: new URL(input), method: (init.method ?? 'GET').toUpperCase(), headers, body: requestBody(init.body), signal: init.signal ?? undefined };
+  } catch (e) {
+    return Promise.reject(e);
+  }
+  return send(prep, 0);
+};

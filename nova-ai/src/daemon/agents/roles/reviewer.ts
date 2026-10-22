@@ -5,6 +5,8 @@
 // - parseOutput normalises findings (numeric line strings, empty file → null, severity aliases) and rejects the
 //   contradiction "approve" with critical/major findings.
 // - checkFinish requires that the reviewer actually looked at the changes (git_diff or read_file) before submitting.
+// - An empty diff is never approved by default: when the task needed code changes, "no changes" is a finding. The
+//   work cycle does not treat any verdict as a passed check anyway (only real CheckRuns prove a task).
 import { ReviewOutputSchema, type AgentOutput } from '../../contracts';
 import { buildRolePrompt, dropNullKeys, formatIssues, isRecord, lowerCase, requireRecord, toNumber, usedAny, type NovaRoleModule } from './common';
 
@@ -85,7 +87,7 @@ export function createReviewerRole(): NovaRoleModule {
         ],
         finishName: FINISH,
         canRunCommands: false,
-        blockedHint: `If you cannot review (for example there are no changes), call ${FINISH} with verdict "approve" or "changes_requested" as appropriate and explain the situation in German in the summary.`,
+        blockedHint: `If git_diff shows no changes, do not approve by default: when the task required code changes, use verdict "changes_requested" with a major finding that the required change is missing; otherwise read the relevant files and review them. If you cannot review at all (for example git_diff and read_file fail), use "changes_requested" and explain the situation in German in the summary.`,
       });
     },
     parseOutput(data): AgentOutput {

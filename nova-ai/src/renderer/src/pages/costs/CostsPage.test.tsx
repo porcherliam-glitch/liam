@@ -1,9 +1,10 @@
 /** @vitest-environment jsdom */
-import { screen, waitFor, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { renderWithRouter, setupRendererTest } from '../../lib/test-utils';
-import { getMockCalls, getMockDb, mockHandlers, MockRpcError } from '../../lib/mock-bridge';
+import type { AgentStep } from '@shared/schemas';
+import { emitMockEvent, getMockCalls, getMockDb, mockHandlers, MockRpcError } from '../../lib/mock-bridge';
 import { api } from '../../lib/api';
 import { useToastStore } from '../../stores/toasts';
 import CostsPage from './CostsPage';
@@ -110,6 +111,32 @@ describe('CostsPage', () => {
     expect(await within(breakdown).findByText('qwen/qwen3-coder (OpenRouter)')).toBeTruthy();
     await userEvent.selectOptions(await screen.findByLabelText('Projekt filtern'), 'prj_rezept');
     await waitFor(() => expect(getMockCalls('budget.usage').at(-1)?.params).toMatchObject({ projectId: 'prj_rezept' }));
+  });
+
+  it('R5-6: refreshes tokens, runtime and calls after every finished model call, also local ones', async () => {
+    await renderPage();
+    await screen.findByRole('table', { name: 'Einzelne Modellaufrufe' });
+    const counts = () => ['budget.status', 'budget.usage', 'budget.breakdown'].map((m) => getMockCalls(m as 'budget.status').length);
+    const base = await api('budget.status');
+    mockHandlers.set('budget.status', () => ({ ...base, tokensToday: { input: 2_100_000, output: 540_000 } }));
+    const before = counts();
+    const step: AgentStep = { id: 991, runId: 'run_x', taskId: 'tsk_x', projectId: 'prj_pixel', ts: Date.now(), kind: 'tool_call', summary: 'Datei gelesen', data: null };
+    act(() => emitMockEvent({ type: 'run.step', payload: step }));
+    await new Promise((r) => setTimeout(r, 1200));
+    expect(counts()).toEqual(before);
+    // A local Ollama call: no budget.updated from the daemon, only the model_call step.
+    act(() => emitMockEvent({ type: 'run.step', payload: { ...step, id: 992, kind: 'model_call', summary: 'Modell qwen2.5-coder:7b: 1 Werkzeugaufruf' } }));
+    await waitFor(() => expect(counts().every((n, i) => n === before[i] + 1)).toBe(true), { timeout: 3000 });
+    expect(await screen.findByText('2,6 Mio.')).toBeTruthy();
+  });
+
+  it('R5-1: the per-project empty state does not claim there are no projects when there are', async () => {
+    const base = await api('budget.status');
+    mockHandlers.set('budget.status', () => ({ ...base, perProject: [] }));
+    await renderPage();
+    const table = screen.getByRole('table', { name: 'Budget pro Projekt' });
+    expect(within(table).getByText('Keine aktiven Projekte')).toBeTruthy();
+    expect(screen.queryByText('Noch keine Projekte')).toBeNull();
   });
 
   it('shows empty states without usage', async () => {

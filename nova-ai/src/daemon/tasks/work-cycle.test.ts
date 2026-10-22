@@ -52,7 +52,7 @@ describe('scheduling', () => {
     const p = quiet();
     const gates = [gate(), gate(), gate()];
     const ts = gates.map((g, i) => {
-      const t = task(p.id, `T${i}`);
+      const t = task(p.id, `T${i}`, { plannedFiles: [`src/t${i}.js`] });
       h.agents.on({ taskId: t.id }, g.script);
       return t;
     });
@@ -70,6 +70,29 @@ describe('scheduling', () => {
     gates[2].release();
     await h.work.idle();
     expect(ts.map((t) => status(t.id))).toEqual(['done', 'done', 'done']);
+  });
+
+  it('runs tasks of one project in parallel only when both declare disjoint plannedFiles (planner runs exempt)', async () => {
+    h = createHarness();
+    h.governor.allowedN = 4;
+    const p = quiet();
+    const g = { a: gate(), b: gate(), c: gate(), plan: gate() };
+    const a = task(p.id, 'A');
+    const b = task(p.id, 'B', { plannedFiles: ['src/b.js'] });
+    const c = task(p.id, 'C', { plannedFiles: ['src/c.js'] });
+    const plan = task(p.id, 'Plan', { kind: 'plan', role: 'planner' });
+    for (const [t, gg] of [[a, g.a], [b, g.b], [c, g.c], [plan, g.plan]] as const) h.agents.on({ taskId: t.id }, gg.script);
+    await h.work.tick();
+    // A has no plannedFiles: it may touch any file and its checks would measure B's/C's half-finished changes.
+    expect([a, b, c, plan].map((t) => status(t.id))).toEqual(['running', 'queued', 'queued', 'running']);
+    g.a.release();
+    await waitFor(() => status(a.id) === 'done');
+    await h.work.tick();
+    expect([b, c].map((t) => status(t.id))).toEqual(['running', 'running']);
+    g.b.release();
+    g.c.release();
+    g.plan.release(outcomes.plan({}));
+    await h.work.idle();
   });
 
   it('does not run tasks of one project with overlapping plannedFiles in parallel', async () => {
@@ -121,9 +144,9 @@ describe('pause, resume, stop', () => {
     h = createHarness();
     h.governor.allowedN = 3;
     const p = quiet();
-    const a = task(p.id, 'A');
-    const b = task(p.id, 'B');
-    const c = task(p.id, 'C');
+    const a = task(p.id, 'A', { plannedFiles: ['src/a.js'] });
+    const b = task(p.id, 'B', { plannedFiles: ['src/b.js'] });
+    const c = task(p.id, 'C', { plannedFiles: ['src/c.js'] });
     h.agents.on({ taskId: a.id }, stepping(outcomes.coderDone()));
     h.agents.on({ taskId: b.id }, stepping(outcomes.coderDone()));
     h.work.pauseTask(c.id);
@@ -445,19 +468,38 @@ describe('failures, retries, dependencies', () => {
     expect(h.checkpoints.created).toHaveLength(1);
   });
 
-  it('reports non-resumable blockers once per task and releases locks', async () => {
-    h = createHarness();
+  it('AGENT_STEP_LIMIT: reported once, never auto-resumed; "Starten" continues the same run (no fresh attempt)', async () => {
+    h = createHarness({ work: { tickIntervalMs: 3_600_000, recheckIntervalMs: 3_600_000, wakeDelayMs: 0, recheckDelayMs: 0 } });
     const p = quiet();
     const t = task(p.id, 'A');
     h.agents.on({ taskId: t.id }, outcomes.blocked('AGENT_STEP_LIMIT', 'Zu viele Schritte.'));
-    await h.drain();
-    expect(h.tasks.require(t.id)).toMatchObject({ status: 'blocked', blockerCode: 'AGENT_STEP_LIMIT' });
+    h.work.startLoop();
+    await waitFor(() => status(t.id) === 'blocked');
+    await h.work.idle();
+    expect(h.tasks.require(t.id)).toMatchObject({ status: 'blocked', blockerCode: 'AGENT_STEP_LIMIT', attempts: 1 });
     expect(h.locks.released).toContain(t.id);
+    expect(h.core.errors.list()[0]).toMatchObject({ code: 'AGENT_STEP_LIMIT', autoFixable: false, userAction: expect.stringContaining('„Starten“') });
+    // re-checks (models, integrations, timer) never continue it on their own
+    h.core.bus.emit('provider.updated', { id: 'x' } as ProviderConfig);
+    h.core.bus.emit('integrations.updated', []);
+    await h.work.idle();
+    expect(status(t.id)).toBe('blocked');
+    expect(h.agents.callsFor(t.id)).toHaveLength(1);
     h.agents.on({ taskId: t.id }, outcomes.blocked('AGENT_STEP_LIMIT', 'Wieder zu viele Schritte.'));
     h.work.startTask(t.id);
-    await h.drain();
+    await waitFor(() => h.agents.callsFor(t.id).length === 2 && status(t.id) === 'blocked');
+    await h.work.idle();
     expect(h.core.errors.list({ includeResolved: true }).filter((e) => e.taskId === t.id && !e.resolvedAt)).toHaveLength(1);
-    expect(h.agents.callsFor(t.id)[1].resumeRunId).toBeNull();
+    const calls = h.agents.callsFor(t.id);
+    // the runner grants a new step budget when it resumes an AGENT_STEP_LIMIT run (runner.prepareResume)
+    expect(calls[1].resumeRunId).toBe(calls[0].runId);
+    expect(h.tasks.require(t.id).attempts).toBe(1);
+    // "Wiederholen" still starts over
+    h.agents.on({ taskId: t.id }, outcomes.coderDone());
+    h.work.retryTask(t.id);
+    await waitFor(() => status(t.id) === 'done');
+    await h.work.idle();
+    expect(h.agents.callsFor(t.id)[2].resumeRunId).toBeNull();
   });
 });
 
@@ -465,8 +507,8 @@ describe('recovery and shutdown', () => {
   it('shutdown marks running tasks interrupted (not cancelled) and recover() resumes them', async () => {
     h = createHarness();
     const p = quiet();
-    const a = task(p.id, 'A');
-    const b = task(p.id, 'B');
+    const a = task(p.id, 'A', { plannedFiles: ['src/a.js'] });
+    const b = task(p.id, 'B', { plannedFiles: ['src/b.js'] });
     h.agents.on({ taskId: a.id }, stepping(outcomes.coderDone()));
     const g = gate(); // ignores pause flags → aborted with INTERRUPTED after the timeout
     h.agents.on({ taskId: b.id }, g.script);

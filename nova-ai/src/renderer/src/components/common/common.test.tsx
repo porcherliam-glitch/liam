@@ -12,6 +12,7 @@ import { WorkControls } from './WorkControls';
 import { DaemonBanner } from './DaemonBanner';
 import { ModelBadge, PriorityBadge, TaskStatusBadge, VerificationBadge } from './StatusBadges';
 import { PrioritySelect } from './PrioritySelect';
+import { RelativeTime } from './RelativeTime';
 
 setupRendererTest();
 
@@ -134,6 +135,23 @@ describe('DaemonBanner', () => {
     expect(screen.getByText(/Der Dienst konnte nicht gestartet werden\./)).toBeTruthy();
     await userEvent.click(screen.getByRole('button', { name: /Dienst neu starten/ }));
     await waitFor(() => expect(screen.queryByText('Der Hintergrunddienst ist nicht erreichbar')).toBeNull());
+  });
+});
+
+describe('RelativeTime', () => {
+  it('a just-measured timestamp reads "gerade eben", never "gleich" (R5-4)', () => {
+    // Fresh resource snapshot / "Zuletzt geprüft": recorded now or a few hundred ms ahead (clock of the daemon).
+    render(
+      <>
+        <RelativeTime ts={Date.now()} prefix="A" />
+        <RelativeTime ts={Date.now() + 800} prefix="B" />
+        <RelativeTime ts={Date.now() - 5 * 60_000} prefix="C" />
+      </>,
+    );
+    expect(screen.getByText('A gerade eben')).toBeTruthy();
+    expect(screen.getByText('B gerade eben')).toBeTruthy();
+    expect(screen.getByText('C vor 5 Min.')).toBeTruthy();
+    expect(screen.queryByText(/gleich/)).toBeNull();
   });
 });
 

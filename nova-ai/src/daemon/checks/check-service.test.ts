@@ -11,7 +11,7 @@ import { defaultConfig, mergeConfig } from '../projects/config';
 import { createWebAppTemplate } from '../projects/templates/web-app';
 import { createWebGameTemplate } from '../projects/templates/web-game';
 import { fakeApprovals, fakeIntegrations, fakePolicy, scriptedProcesses, shellProcesses, type ScriptedResult } from '../projects/test-support';
-import { createCheckService, missingDependencyMarker } from './check-service';
+import { checkEnvironmentProblem, createCheckService, missingDependencyMarker } from './check-service';
 
 let t: TestCore;
 const cleanups: (() => void)[] = [];
@@ -129,6 +129,26 @@ describe('CheckService basics', () => {
     expect(r.message).toMatch(/keine Tests gefunden/);
   });
 
+  it('"no tests" with a non-zero exit code (pytest 5, vitest/jest/mocha 1) is skipped, not failed', async () => {
+    const outputs: [string, number, string][] = [
+      ['pytest -q', 5, '\n============================ no tests ran in 0.01s =============================\n'],
+      ['npx vitest run', 1, ' RUN  v3.2.7 C:/Projekte/spiel\n\nNo test files found, exiting with code 1\n\ninclude: **/*.{test,spec}.?(c|m)[jt]s?(x)\n'],
+      ['npx jest', 1, 'No tests found, exiting with code 1\nRun with `--passWithNoTests` to exit with code 0\n'],
+      ['npx mocha', 1, 'Error: No test files found: "test"\n'],
+    ];
+    for (const [command, exitCode, output] of outputs) {
+      const { checks, add } = setup({ platform: 'win32', script: [{ match: /./, result: { exitCode, output } }] });
+      const p = add(root(), { config: { commands: { test: command } } });
+      const r = await checks.run({ projectId: p.id, kind: 'test' });
+      expect(r, command).toMatchObject({ status: 'skipped', message: expect.stringMatching(/keine Tests gefunden/), failures: [], failureSignature: null });
+      t.cleanup();
+    }
+    // a real failure that merely mentions the phrase stays failed
+    const { checks, add } = setup({ script: [{ match: /./, result: { exitCode: 1, output: ' Test Files  1 failed (1)\n      Tests  1 failed | 2 passed (3)\nNo tests found in helper\n' } }] });
+    const p = add(root(), { config: { commands: { test: 'npx vitest run' } } });
+    expect((await checks.run({ projectId: p.id, kind: 'test' })).status).toBe('failed');
+  });
+
   it('unknown command → error (exit 127 POSIX, 9009 cmd.exe)', async () => {
     // The shell decides the code: /bin/sh answers 127, cmd.exe 9009 – the platform is injected so both run on every host.
     const posix = setup({ platform: 'linux', script: [{ match: /./, result: { exitCode: 127, output: 'sh: 1: pytest: not found' } }] });
@@ -136,19 +156,25 @@ describe('CheckService basics', () => {
     const r = await posix.checks.run({ projectId: p.id, kind: 'test' });
     expect(r.status).toBe('error');
     expect(r.message).toMatch(/„pytest“ wurde nicht gefunden/);
-    expect(r.failureSignature).toMatch(/^[0-9a-f]{16}$/);
+    // the configured program is missing → an environment problem (the work cycle blocks TOOL_MISSING, no code retry)
+    expect(checkEnvironmentProblem(r)).toEqual({ kind: 'tool_missing', program: 'pytest' });
     t.cleanup();
     const win = setup({ platform: 'win32', script: [{ match: /./, result: { exitCode: 9009, output: "'dotnet' is not recognized as an internal or external command," } }] });
     const p2 = win.add(root(), { config: { commands: { build: 'dotnet build' } } });
     const r2 = await win.checks.run({ projectId: p2.id, kind: 'build' });
     expect(r2.status).toBe('error');
     expect(r2.message).toMatch(/„dotnet“ wurde nicht gefunden/);
+    expect(checkEnvironmentProblem(r2)).toEqual({ kind: 'tool_missing', program: 'dotnet' });
     t.cleanup();
     // Real cmd.exe returns 1 (not 9009) inside the "chcp 65001>nul & …" wrapper and inside npm scripts: its own
     // message decides – and names the missing program, which may differ from the configured command.
     const winScript = setup({ platform: 'win32', script: [{ match: /./, result: { exitCode: 1, output: "> app@1.0.0 test\r\n> vitest run\r\n\r\n'vitest' is not recognized as an internal or external command,\r\noperable program or batch file." } }] });
     const p4 = winScript.add(root(), { config: { commands: { test: 'npm test' } } });
-    expect(await winScript.checks.run({ projectId: p4.id, kind: 'test' })).toMatchObject({ status: 'error', message: expect.stringMatching(/„vitest“ wurde nicht gefunden/) });
+    const r4 = await winScript.checks.run({ projectId: p4.id, kind: 'test' });
+    expect(r4).toMatchObject({ status: 'error', message: expect.stringMatching(/„vitest“ wurde nicht gefunden/) });
+    // a program called by the script (not the configured one) is usually a missing dependency an agent can fix
+    expect(checkEnvironmentProblem(r4)).toBeNull();
+    expect(r4.failureSignature).toMatch(/^[0-9a-f]{16}$/);
     t.cleanup();
     const winDe = setup({ platform: 'win32', script: [{ match: /./, result: { exitCode: 1, output: 'Der Befehl "pytest" ist entweder falsch geschrieben oder\r\nkonnte nicht gefunden werden.' } }] });
     const p5 = winDe.add(root(), { config: { commands: { test: 'pytest -q' } } });
@@ -214,6 +240,7 @@ describe('CheckService basics', () => {
     const r = await checks.run({ projectId: p.id, kind: 'test' });
     expect(r.status).toBe('error');
     expect(r.message).toMatch(/Projektordner wurde nicht gefunden/);
+    expect(checkEnvironmentProblem(r)).toEqual({ kind: 'project_missing' });
   });
 
   it('records artifacts after a passed build', async () => {
@@ -296,6 +323,7 @@ describe('install-first rule', () => {
     const r = await checks.run({ projectId: p.id, kind: 'test', actor: 'agent', taskId: 'task_9' });
     expect(r.status).toBe('error');
     expect(r.message).toMatch(/wartet auf eine Freigabe/);
+    expect(checkEnvironmentProblem(r)).toEqual({ kind: 'approval', approvalId: 'apr_1' });
     expect(approvals.requests[0]).toMatchObject({ kind: 'network', subject: 'npm ci', taskId: 'task_9' });
     expect((processes as ReturnType<typeof scriptedProcesses>).runs).toHaveLength(0);
   });
@@ -314,6 +342,30 @@ describe('install-first rule', () => {
     const p2 = blocked.add(dir, { config: { commands: { install: 'npm ci', test: 'npm test' } } });
     const r2 = await blocked.checks.run({ projectId: p2.id, kind: 'test', actor: 'agent' });
     expect(r2).toMatchObject({ status: 'error', message: 'Abhängigkeiten konnten nicht installiert werden: Verboten' });
+    expect(checkEnvironmentProblem(r2)).toEqual({ kind: 'command_blocked' });
+    t.cleanup();
+    const denied = setup({
+      extra: {
+        approvals: fakeApprovals('denied') as unknown as ApprovalService,
+        policy: fakePolicy({ action: 'approve', kind: 'network', reason: 'Netzwerk', consequences: 'Lädt Pakete', subject: 'npm ci' }) as unknown as CommandPolicy,
+      },
+    });
+    const p3 = denied.add(dir, { config: { commands: { install: 'npm ci', test: 'npm test' } } });
+    const r3 = await denied.checks.run({ projectId: p3.id, kind: 'test', actor: 'agent' });
+    expect(r3).toMatchObject({ status: 'error', message: expect.stringMatching(/abgelehnt/) });
+    expect(checkEnvironmentProblem(r3)).toEqual({ kind: 'approval_denied' });
+  });
+
+  it('a failed installation is no environment problem (the dependency list may be wrong)', async () => {
+    const dir = root();
+    npmProject(dir);
+    const { checks, add } = setup({ script: [{ match: /npm ci/, result: { exitCode: 1, output: 'npm ERR! 404 gibtsnicht' } }] });
+    const p = add(dir, { config: { commands: { install: 'npm ci', test: 'npm test' } } });
+    const r = await checks.run({ projectId: p.id, kind: 'test', actor: 'agent' });
+    expect(r.status).toBe('error');
+    expect(checkEnvironmentProblem(r)).toBeNull();
+    expect(checkEnvironmentProblem({ status: 'failed', failureSignature: 'env:engine_open' })).toBeNull();
+    expect(checkEnvironmentProblem({ status: 'error', failureSignature: 'env:unbekannt' })).toBeNull();
   });
 });
 
@@ -341,6 +393,7 @@ describe('Unity and dotnet specifics', () => {
     const p = add(dir, { kind: 'unity', config: { commands: { test: UNITY_CMD } } });
     const r = await checks.run({ projectId: p.id, kind: 'test' });
     expect(r).toMatchObject({ status: 'error', message: 'Projekt ist in Unity geöffnet – bitte Unity schließen.' });
+    expect(checkEnvironmentProblem(r)).toEqual({ kind: 'engine_open' });
     expect((processes as ReturnType<typeof scriptedProcesses>).runs).toHaveLength(0);
   });
 

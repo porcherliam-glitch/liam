@@ -1,6 +1,8 @@
 // Crash-safe file writes for every module (journal, token, lock, exports, run-state, snapshots, diagnostics).
 // Temp file in the same directory (name ignored by Unity/watchers), fsync, rename with retries for the Windows
-// EPERM/EBUSY/EACCES cases (antivirus, indexer, editors, OneDrive).
+// EPERM/EBUSY/EACCES cases (antivirus, indexer, editors, OneDrive). A failed write never leaves its temp file behind
+// (e.g. ENOSPC halfway through). The in-place fallback (rename impossible) is not crash-safe; the change journal
+// disables it for project files (allowInPlace: false → FILE_IN_USE).
 import { openSync, writeSync, fsyncSync, closeSync, renameSync, unlinkSync, statSync, existsSync, mkdirSync, rmSync, ftruncateSync } from 'node:fs';
 import { dirname, basename, join } from 'node:path';
 import { randomBytes } from 'node:crypto';
@@ -68,12 +70,26 @@ export interface AtomicWriteOptions {
   fsync?: boolean;
   /** POSIX file mode for new files (ignored on Windows). */
   mode?: number;
+  /**
+   * Rewrite the target in place when the rename keeps failing (default true). Not atomic: a crash or write error in
+   * the middle leaves a torn file – pass false where that is worse than failing with FILE_IN_USE.
+   */
+  allowInPlace?: boolean;
+}
+
+function removeQuietly(path: string): void {
+  try {
+    unlinkSync(path);
+  } catch {
+    /* ignore */
+  }
 }
 
 /**
  * Writes data atomically: temp file + fsync + rename (with retries). If the rename keeps failing but the target is
- * writable in place, falls back to an in-place rewrite (logged by the caller via the returned flag).
- * Throws FILE_IN_USE (German) for read-only targets or when nothing works.
+ * writable in place, falls back to an in-place rewrite (logged by the caller via the returned flag) unless
+ * opts.allowInPlace is false. Throws FILE_IN_USE (German) for read-only targets or when nothing works; a failed write
+ * of the temp file (disk full …) rethrows its error after removing the temp file.
  */
 export function atomicWriteFile(target: string, data: string | Buffer, opts: AtomicWriteOptions = {}): { inPlaceFallback: boolean } {
   const buf = typeof data === 'string' ? Buffer.from(data, 'utf8') : data;
@@ -85,19 +101,28 @@ export function atomicWriteFile(target: string, data: string | Buffer, opts: Ato
   const tmp = tempNameFor(target);
   const fd = openSync(tmp, 'w', opts.mode ?? 0o644);
   try {
-    writeAllSync(fd, buf);
-    if (opts.fsync !== false) fsyncSync(fd);
-  } finally {
-    closeSync(fd);
+    try {
+      writeAllSync(fd, buf);
+      if (opts.fsync !== false) fsyncSync(fd);
+    } finally {
+      closeSync(fd);
+    }
+  } catch (e) {
+    removeQuietly(tmp); // a half-written temp file must not stay next to the target (and keep the space occupied)
+    throw e;
   }
   try {
     renameWithRetry(tmp, target);
     return { inPlaceFallback: false };
   } catch (e) {
-    try {
-      unlinkSync(tmp);
-    } catch {
-      /* ignore */
+    removeQuietly(tmp);
+    if (opts.allowInPlace === false) {
+      if (!RETRYABLE.has((e as NodeJS.ErrnoException).code ?? '')) throw e;
+      throw new NovaError('FILE_IN_USE', 'Die Datei ist schreibgeschützt oder von einem anderen Programm geöffnet.', {
+        severity: 'warning',
+        details: { path: target, error: (e as Error).message },
+        cause: e,
+      });
     }
     // Last resort: rewrite in place (not atomic, but keeps working when a viewer holds the file without delete share).
     try {

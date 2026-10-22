@@ -10,7 +10,8 @@ export interface RelativeTimeProps {
 }
 
 /**
- * "vor 5 Min." – updates itself every 30 s; full date as tooltip.
+ * "vor 5 Min." for a past event (created, checked, measured …) – updates itself every 30 s; full date as tooltip.
+ * A just-recorded timestamp always reads "gerade eben" (never "gleich", which would sound like a future event).
  * @example <RelativeTime ts={task.updatedAt} />
  */
 export function RelativeTime({ ts, prefix, className }: RelativeTimeProps) {
@@ -19,7 +20,7 @@ export function RelativeTime({ ts, prefix, className }: RelativeTimeProps) {
   return (
     <time dateTime={new Date(ts).toISOString()} title={formatFullDate(ts)} className={cn('whitespace-nowrap', className)}>
       {prefix ? `${prefix} ` : ''}
-      {formatRelativeTime(ts, Math.max(now, Date.now() - 1000))}
+      {formatRelativeTime(ts, Math.max(now, Date.now()), { pastEvent: true })}
     </time>
   );
 }
