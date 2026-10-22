@@ -91,8 +91,15 @@ function applyRestorePending(paths: DataPaths): string | null {
   }
 }
 
-function withTimeout<T>(p: Promise<T> | T, ms: number): Promise<T | undefined> {
-  return Promise.race([Promise.resolve(p), new Promise<undefined>((r) => setTimeout(() => r(undefined), ms).unref())]);
+const TIMED_OUT: unique symbol = Symbol('timed out');
+
+function withTimeout<T>(p: Promise<T> | T, ms: number): Promise<T | typeof TIMED_OUT> {
+  let timer: NodeJS.Timeout | undefined;
+  const timeout = new Promise<typeof TIMED_OUT>((r) => {
+    timer = setTimeout(() => r(TIMED_OUT), ms);
+    timer.unref();
+  });
+  return Promise.race([Promise.resolve(p), timeout]).finally(() => clearTimeout(timer));
 }
 
 export async function startDaemon(opts: StartDaemonOptions): Promise<DaemonApp> {
@@ -346,7 +353,7 @@ export async function startDaemon(opts: StartDaemonOptions): Promise<DaemonApp> 
       const timed = async (name: string, ms: number, fn: () => unknown) => {
         try {
           const r = await withTimeout(Promise.resolve().then(fn), ms);
-          if (r === undefined) log.warn(`Herunterfahren: Zeitlimit für ${name}`);
+          if (r === TIMED_OUT) log.warn(`Herunterfahren: Zeitlimit für ${name}`);
         } catch (e) {
           log.warn(`Beim Herunterfahren fehlgeschlagen: ${name}`, { error: errorMessage(e) });
         }
