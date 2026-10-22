@@ -1,14 +1,13 @@
 // Backups (UI-SPEC §4 / §7): list, "Jetzt sichern", project snapshot, restore (database: daemon restarts;
 // project snapshot: copied into a new folder) and delete. Long calls show their operation progress.
 import { useState } from 'react';
-import { Archive, Database, FolderOpen, FolderSearch, History, Pause, RotateCcw, Save, Trash2 } from 'lucide-react';
+import { Archive, Database, FolderOpen, FolderSearch, History, RotateCcw, Save, Trash2 } from 'lucide-react';
 import type { BackupInfo } from '@shared/schemas';
 import { Button, Card, type Column, ConfirmDialog, Dialog, EmptyState, ErrorState, IconButton, LoadingState, Select, StatusBadge, Table } from '../../../components/ui';
 import { RelativeTime } from '../../../components/common';
 import { useMutation, useProjectNames, useProjects, useRpc, useSupports } from '../../../hooks';
 import { basename, formatBytes } from '../../../lib/format';
 import { BACKUP_KIND, metaOf } from '../../../lib/labels';
-import { useDaemonStore } from '../../../stores/daemon';
 import { toast } from '../../../stores/toasts';
 import { chooseDirectory, dialogUnavailable, openFolder, revealInExplorer } from '../shared/files';
 import { OperationProgress, useTrackedOperation } from '../shared/OperationProgress';
@@ -158,14 +157,6 @@ function RestoreDialog({ backup, projectName, onClose }: { backup: BackupInfo | 
   });
   const op = useTrackedOperation(['backup_restore'], restore.loading);
   const isDb = backup?.kind === 'database';
-  // The daemon refuses a database restore while agents work (CONFLICT): say so up front and offer to pause.
-  const work = useDaemonStore((s) => s.work);
-  const activeRuns = work?.activeRuns ?? 0;
-  const blockedByWork = isDb && activeRuns > 0;
-  const pause = useMutation('work.pause', {
-    errorToast: 'Die Arbeit konnte nicht pausiert werden',
-    onSuccess: (w) => useDaemonStore.getState().setWork(w),
-  });
 
   const close = () => {
     if (restore.loading) return;
@@ -193,7 +184,7 @@ function RestoreDialog({ backup, projectName, onClose }: { backup: BackupInfo | 
           <Button onClick={close} disabled={restore.loading}>
             Abbrechen
           </Button>
-          <Button variant="primary" loading={restore.loading} disabled={blockedByWork} onClick={() => backup && void restore.run({ id: backup.id, ...(targetDir ? { targetDir } : {}) })}>
+          <Button variant="primary" loading={restore.loading} onClick={() => backup && void restore.run({ id: backup.id, ...(targetDir ? { targetDir } : {}) })}>
             {isDb ? 'Einspielen und neu starten' : 'Wiederherstellen'}
           </Button>
         </>
@@ -203,22 +194,7 @@ function RestoreDialog({ backup, projectName, onClose }: { backup: BackupInfo | 
         {isDb ? (
           <>
             <p>Alle NOVA-Daten (Projekte, Aufgaben, Einstellungen, Gedächtnis) werden auf den Stand dieser Sicherung zurückgesetzt. Der aktuelle Stand wird vorher automatisch gesichert.</p>
-            <Notice tone="warning">NOVA startet dafür den Hintergrunddienst neu. Projektdateien bleiben unverändert.</Notice>
-            {blockedByWork && (
-              <Notice
-                tone="danger"
-                title={activeRuns === 1 ? 'Gerade arbeitet ein Agent' : `Gerade arbeiten ${activeRuns} Agenten`}
-                actions={
-                  work?.state === 'running' ? (
-                    <Button size="sm" icon={Pause} loading={pause.loading} onClick={() => void pause.run({})}>
-                      Arbeit pausieren
-                    </Button>
-                  ) : undefined
-                }
-              >
-                Während Agenten arbeiten, lässt sich die Datenbank nicht wiederherstellen. Bitte zuerst die Arbeit pausieren und warten, bis die laufenden Schritte beendet sind – danach lässt sich die Sicherung hier einspielen.
-              </Notice>
-            )}
+            <Notice tone="warning">NOVA startet dafür den Hintergrunddienst neu. Laufende Aufgaben werden an einem sicheren Punkt angehalten. Projektdateien bleiben unverändert.</Notice>
           </>
         ) : (
           <>

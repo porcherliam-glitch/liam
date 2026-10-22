@@ -3,7 +3,7 @@ import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { renderWithRouter, setupRendererTest } from '../../lib/test-utils';
-import { getMockCalls, getMockDb, mockHandlers, MockRpcError, setMockAutostartSupport } from '../../lib/mock-bridge';
+import { getMockCalls, getMockDb, mockHandlers, MockRpcError } from '../../lib/mock-bridge';
 import { useDaemonStore } from '../../stores/daemon';
 import { useToastStore } from '../../stores/toasts';
 import SettingsPage from './SettingsPage';
@@ -165,18 +165,6 @@ describe('SettingsPage – immediate controls', () => {
     await waitFor(() => expect(getMockCalls('settings.update')[0]?.params).toEqual({ background: { autostart: true } }));
     await waitFor(() => expect(lastToast()?.title).toBe('NOVA startet jetzt mit Windows'));
     expect(screen.getByRole('switch', { name: 'Mit Windows starten' }).getAttribute('aria-checked')).toBe('true');
-  });
-
-  it('a start without installation explains that autostart needs the installed version (R6-7)', async () => {
-    setMockAutostartSupport({ supported: false, reason: 'not-installed' });
-    await renderSection('background');
-    expect(await screen.findByText(/Nur in der installierten Version verfügbar/)).toBeTruthy();
-    const toggle = screen.getByRole('switch', { name: 'Mit Windows starten' }) as HTMLButtonElement;
-    expect(toggle.disabled).toBe(true);
-    expect(screen.queryByText(/Windows-Einstellungen/)).toBeNull();
-    await userEvent.click(toggle);
-    expect(getMockDb().autostart).toBe(false);
-    expect(getMockCalls('settings.update')).toHaveLength(0);
   });
 
   it('checks for updates and never installs automatically', async () => {

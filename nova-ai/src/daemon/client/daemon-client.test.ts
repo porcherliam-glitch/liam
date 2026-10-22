@@ -121,9 +121,7 @@ describe('DaemonClient.rpc', () => {
     expect(err.message).toBe('Andere Aufgaben hängen von dieser Aufgabe ab.');
     expect(err.details).toEqual({ dependents: ['t2'] });
     expect(err.reason).toBeNull();
-    // The NovaErrorInfo of the daemon (severity, project safety, what to do, …) travels along unchanged (R5-3).
-    expect(err.error).toMatchObject({ code: 'CONFLICT', severity: 'blocker', whatHappened: 'Andere Aufgaben hängen von dieser Aufgabe ab.', taskId: 't1', projectSafe: true });
-    expect(err.toJSON()).toEqual({ code: 'CONFLICT', message: 'Andere Aufgaben hängen von dieser Aufgabe ab.', details: { dependents: ['t2'] }, error: err.error });
+    expect(err.toJSON()).toEqual({ code: 'CONFLICT', message: 'Andere Aufgaben hängen von dieser Aufgabe ab.', details: { dependents: ['t2'] } });
     const validation = await rejection(c.rpc('tasks.delete', { id: 5 as unknown as string }));
     expect(validation.code).toBe('VALIDATION');
   });

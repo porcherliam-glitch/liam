@@ -5,20 +5,14 @@
 // - Never fails as a whole: every part is computed in its own try/catch; a failing source yields null / [] / 0 for
 //   that part only. `daemon` and `work` are required by the schema, so they fall back to a minimal honest status
 //   (state 'error' with the failure as lastError) instead of failing the call.
-// - The numbers match the pages they link to: openTasks = every task that is not done/cancelled (the "Offen" filter of
-//   the task board, failed tasks included); errors = all open errors (the UI counts them), bounded only as a safety
-//   net far above what deduplicated errors reach in practice.
 import type { DaemonStatus, WorkStatus } from '@shared/schemas';
 import type { RpcResult } from '@shared/rpc';
 import type { Services } from '../contracts';
 import { errorMessage } from '../core/errors';
 import { LATEST_SCHEMA_VERSION } from '../db/migrations';
-import { readMeta } from './task-store';
+import { OPEN_STATUSES, readMeta } from './task-store';
 
 type DashboardSummary = RpcResult<'dashboard.summary'>;
-
-/** Safety bound of the error list (open errors are deduplicated per task/subject, so real counts stay far below). */
-const MAX_OPEN_ERRORS = 500;
 
 function attempt<T>(s: Services, what: string, fn: () => T, fallback: T): T {
   try {
@@ -83,7 +77,7 @@ export function buildDashboardSummary(s: Services): DashboardSummary {
   const openTasks = attempt(
     s,
     'offene Aufgaben',
-    () => Number(s.core.db.get<{ n: number }>("SELECT COUNT(*) AS n FROM tasks WHERE status NOT IN ('done', 'cancelled')")?.n ?? 0),
+    () => Number(s.core.db.get<{ n: number }>(`SELECT COUNT(*) AS n FROM tasks WHERE status IN (${OPEN_STATUSES.map(() => '?').join(',')})`, OPEN_STATUSES)?.n ?? 0),
     0,
   );
 
@@ -133,7 +127,7 @@ export function buildDashboardSummary(s: Services): DashboardSummary {
     openTasks,
     recentBuilds: attempt(s, 'letzte Builds', () => s.checks.recent(['build', 'package'], 10, 'passed'), []),
     failedTests: attempt(s, 'fehlgeschlagene Tests', () => s.checks.currentFailures(10), []),
-    errors: attempt(s, 'Fehler', () => s.core.errors.list({ limit: MAX_OPEN_ERRORS }), []),
+    errors: attempt(s, 'Fehler', () => s.core.errors.list({ limit: 20 }), []),
     pendingApprovals: attempt(s, 'Freigaben', () => s.approvals.pendingCount(), 0),
     unreadNotifications: attempt(s, 'Benachrichtigungen', () => s.notifications.unreadCount(), 0),
     activeOperations: attempt(s, 'Vorgänge', () => s.core.operations.list(true), []),

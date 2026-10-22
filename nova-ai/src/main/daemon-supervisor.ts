@@ -15,21 +15,13 @@
 //   restart, at most 3 per 5 minutes (RestartBudget), then state error; if the daemon announced a planned stop
 //   (daemon.status 'stopping' that this UI did not request – CLI --stop-daemon, database restore, another client)
 //   NOVA waits up to 30 s for a self-restart and otherwise shows "stopped" instead of fighting the stop.
-//   A daemon that still holds the endpoint but no longer answers (handshake timeouts, e.g. a blocked event loop) is
-//   given 2 minutes; then the state becomes error ("reagiert nicht", diagnostics offered) while NOVA keeps checking
-//   slowly and reconnects as soon as it answers again.
 //
 // Key decisions:
 // - All lifecycle operations run strictly one after another (promise queue); restart()/stop()/dispose() bump a
 //   generation counter so long waits of an older operation end early and never overwrite newer state.
 // - Every collaborator (probe, spawn, client, crash report, start log, clock) is injectable for deterministic tests.
-// - The supervisor kills a daemon process it spawned itself only as the last resort after a graceful
-//   daemon.shutdown did not free the endpoint. A hung daemon from an earlier UI session ("Dienst neu starten") is
-//   only killed after its identity is verified: pid AND OS creation time from daemon.lock (pids are reused).
-// - Quit/stop while a self-spawned daemon is still starting (endpoint not bound yet): wait for it briefly and send
-//   daemon.shutdown, otherwise end the child – it must not come up afterwards and run without the UI.
-// - Failures carry `recovery` actions main can run without the daemon (diagnostics; restoring a backup when the
-//   crash report says the database is damaged).
+// - The supervisor only kills a daemon process it spawned itself, and only as the last resort after a graceful
+//   daemon.shutdown did not free the endpoint (never by pid from a file: pids are reused).
 // - rpc() waits up to 15 s while the daemon is starting/connecting instead of failing immediately, so the first
 //   renderer requests after app start succeed; a request is retried only when it provably never reached the daemon.
 // - Windows: the daemon is spawned directly (Chromium's handles are not inheritable). Linux/macOS: Chromium leaves
@@ -39,8 +31,7 @@
 //   spawn when bash is missing.
 import { spawn as nodeSpawn, type SpawnOptions } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import type { DaemonConnectionState, DaemonConnectionStateName, DaemonRecoveryAction } from '@shared/bridge';
+import type { DaemonConnectionState, DaemonConnectionStateName } from '@shared/bridge';
 import type { AnyNovaEvent } from '@shared/events';
 import type { RpcMethod, RpcParams, RpcResult } from '@shared/rpc';
 import type { DaemonCrashReport } from '@shared/schemas';
@@ -48,8 +39,6 @@ import { DaemonClient, DaemonRpcError, type SubscriptionState } from '../daemon/
 import { probeEndpoint, type DetailedProbe } from '../daemon/server/probe';
 import { readCrashReport } from '../daemon/core/crash';
 import { isDroppedEnvVar } from '../daemon/core/child-env';
-import { readLock } from '../daemon/server/lock';
-import { createProcessTree } from '../daemon/processes/process-tree';
 import { RestartBudget } from './restart-budget';
 import { closeQuietly, prepareStartLog, readStartLogSince, type PreparedStartLog } from './start-log';
 import { createMainLogger, errorText, type MainLogger } from './log';
@@ -93,11 +82,6 @@ export interface SupervisorDeps {
   now(): number;
   sleep(ms: number): Promise<void>;
   env(): NodeJS.ProcessEnv;
-  /**
-   * Ends a hung daemon that this UI did not spawn: pid + start time from daemon.lock, verified against the OS process
-   * creation time. Resolves true when a matching process was found and killed.
-   */
-  killRecordedDaemon(): Promise<boolean>;
 }
 
 export interface DaemonSupervisorOptions {
@@ -107,8 +91,6 @@ export interface DaemonSupervisorOptions {
   tokenPath: string;
   crashPath: string;
   startLogPath: string;
-  /** <dataDir>/daemon.lock (pid + start time of the running daemon; default: next to the token file). */
-  lockPath?: string;
   /** out/daemon/index.cjs (dev) or <resources>/app.asar.unpacked/out/daemon/index.cjs (packaged). */
   daemonEntry: string;
   /** process.execPath (the Electron binary; runs the daemon with ELECTRON_RUN_AS_NODE=1). */
@@ -128,10 +110,6 @@ export interface DaemonSupervisorOptions {
   lossCheckDelayMs?: number;
   selfRespawnGraceMs?: number;
   autoRestartBackoffMs?: number;
-  /** How long a daemon may hold the endpoint without answering before the state becomes error (default 2 min). */
-  hungTimeoutMs?: number;
-  /** Re-check interval while a hung daemon is reported (default 10 s). */
-  hungRecheckMs?: number;
   connectWaitMs?: number;
   shutdownRpcTimeoutMs?: number;
   restartBudget?: RestartBudget;
@@ -144,7 +122,7 @@ export interface SupervisorRpcOptions {
   waitForConnectionMs?: number;
 }
 
-const defaultDeps: Omit<SupervisorDeps, 'killRecordedDaemon'> = {
+const defaultDeps: SupervisorDeps = {
   probe: async (endpoint, tokenPath, timeoutMs) => probeEndpoint(endpoint, tokenPath, timeoutMs),
   spawn: (command, args, options) => nodeSpawn(command, args, options),
   createClient: (opts) => new DaemonClient(opts),
@@ -182,23 +160,8 @@ function isUnreachable(e: unknown): boolean {
   return e instanceof DaemonRpcError && (e.reason === 'unreachable' || e.reason === 'token_missing');
 }
 
-/** Default killRecordedDaemon: daemon.lock → identity check (pid + creation time) → kill the process tree. */
-export function killRecordedDaemonDefault(o: { lockPath: string; endpoint: string; platform: NodeJS.Platform; log: MainLogger }): Promise<boolean> {
-  const lock = readLock({ lock: o.lockPath });
-  if (!lock || lock.endpoint !== o.endpoint || lock.pid === process.pid) return Promise.resolve(false);
-  const log = { ...o.log, child: () => log };
-  const tree = createProcessTree({ platform: o.platform, log });
-  return tree
-    .killRecorded([{ pid: lock.pid, startedAt: lock.startedAt }])
-    .then((found) => found[0] === true)
-    .catch((e: unknown) => {
-      o.log.warn('Hängender Hintergrunddienst konnte nicht beendet werden', { error: errorText(e) });
-      return false;
-    });
-}
-
 export class DaemonSupervisor {
-  private readonly o: Required<Omit<DaemonSupervisorOptions, 'deps' | 'log' | 'restartBudget' | 'platform' | 'posixShell' | 'lockPath'>>;
+  private readonly o: Required<Omit<DaemonSupervisorOptions, 'deps' | 'log' | 'restartBudget' | 'platform' | 'posixShell'>>;
   private readonly platform: NodeJS.Platform;
   private readonly posixShell: string | null;
   private readonly deps: SupervisorDeps;
@@ -222,10 +185,6 @@ export class DaemonSupervisor {
   private versionRespawnTried = false;
   private lossCheckPending = false;
   private restartAttempts = 0;
-  /** Since when the endpoint is held by a daemon that does not answer (handshake timeouts); null = answering. */
-  private unresponsiveSince: number | null = null;
-  /** State error because the daemon hangs: keep re-checking and reconnect when it answers again. */
-  private hung = false;
 
   constructor(opts: DaemonSupervisorOptions) {
     this.o = {
@@ -245,18 +204,11 @@ export class DaemonSupervisor {
       lossCheckDelayMs: opts.lossCheckDelayMs ?? 1_000,
       selfRespawnGraceMs: opts.selfRespawnGraceMs ?? 30_000,
       autoRestartBackoffMs: opts.autoRestartBackoffMs ?? 2_000,
-      hungTimeoutMs: opts.hungTimeoutMs ?? 120_000,
-      hungRecheckMs: opts.hungRecheckMs ?? 10_000,
       connectWaitMs: opts.connectWaitMs ?? 15_000,
       shutdownRpcTimeoutMs: opts.shutdownRpcTimeoutMs ?? 10_000,
     };
+    this.deps = { ...defaultDeps, ...opts.deps };
     this.platform = opts.platform ?? process.platform;
-    const lockPath = opts.lockPath ?? join(dirname(opts.tokenPath), 'daemon.lock');
-    this.deps = {
-      ...defaultDeps,
-      killRecordedDaemon: () => killRecordedDaemonDefault({ lockPath, endpoint: this.o.endpoint, platform: this.platform, log: this.log }),
-      ...opts.deps,
-    };
     this.posixShell =
       this.platform === 'win32' ? null : opts.posixShell !== undefined ? opts.posixShell : this.deps.fileExists('/bin/bash') ? '/bin/bash' : null;
     this.log = opts.log ?? createMainLogger({ file: null });
@@ -309,12 +261,10 @@ export class DaemonSupervisor {
       this.budget.reset();
       this.versionRespawnTried = false;
       this.restartAttempts = 0;
-      this.hung = false;
-      this.unresponsiveSince = null;
       this.setState('starting', TEXTS.restarting, { daemonPid: null, daemonVersion: null });
       const probe = await this.probeOnce();
       if (!this.alive(g)) return this.state();
-      if (probe.status === 'ours' || this.client || this.isHungProbe(probe) || this.spawnedChildRunning()) {
+      if (probe.status === 'ours' || this.client) {
         const gone = await this.shutdownAndWait(g, 'restart');
         if (!this.alive(g)) return this.state();
         if (!gone) {
@@ -338,8 +288,6 @@ export class DaemonSupervisor {
     this.intentionalStop = true;
     return this.enqueue(async () => {
       if (!this.alive(g)) return this.state();
-      this.hung = false;
-      this.unresponsiveSince = null;
       this.setState(this.st.state, TEXTS.stopping);
       const gone = await this.shutdownAndWait(g, reason);
       if (!this.alive(g)) return this.state();
@@ -352,34 +300,21 @@ export class DaemonSupervisor {
 
   /**
    * Fire-and-forget style shutdown request for app quit / Windows session end: sends daemon.shutdown (if a daemon
-   * is reachable) without waiting for the process to exit, and suppresses automatic restarts from now on. A daemon
-   * this UI spawned that is still starting is waited for within `timeoutMs` and ended when it does not listen by then.
-   * Resolves true when the daemon acknowledged the request (or the still-starting own process was ended).
+   * is reachable) without waiting for the process to exit, and suppresses automatic restarts from now on.
+   * Resolves true when the daemon acknowledged the request.
    */
   async requestShutdown(reason: string, timeoutMs = 5_000): Promise<boolean> {
     this.intentionalStop = true;
-    const deadline = this.deps.now() + timeoutMs;
     let client = this.client;
     let temp = false;
     if (!client) {
-      let probe = await this.probeOnce();
-      // A daemon this UI spawned a moment ago may not listen yet (cold start): wait for it within the time limit.
-      while (probe.status !== 'ours' && !this.client && this.spawnedChildRunning() && this.deps.now() < deadline) {
-        await this.deps.sleep(this.o.pollIntervalMs);
-        probe = await this.probeOnce();
-      }
-      client = this.client;
-      if (!client) {
-        if (probe.status !== 'ours') {
-          // Still not answering: end our own starting child, otherwise it comes up after the UI is gone.
-          return this.killSpawnedChild('Hintergrunddienst startet noch – selbst gestarteter Prozess wird beim Beenden gestoppt');
-        }
-        client = this.deps.createClient({ endpoint: this.o.endpoint, tokenPath: this.o.tokenPath });
-        temp = true;
-      }
+      const probe = await this.probeOnce();
+      if (probe.status !== 'ours') return false;
+      client = this.deps.createClient({ endpoint: this.o.endpoint, tokenPath: this.o.tokenPath });
+      temp = true;
     }
     try {
-      await client.rpc('daemon.shutdown', { reason }, { timeoutMs: Math.max(1_000, deadline - this.deps.now()) });
+      await client.rpc('daemon.shutdown', { reason }, { timeoutMs });
       this.log.info('Hintergrunddienst zum Beenden aufgefordert', { reason });
       return true;
     } catch (e) {
@@ -431,11 +366,7 @@ export class DaemonSupervisor {
     return run;
   }
 
-  private setState(
-    state: DaemonConnectionStateName,
-    message: string,
-    extra: Partial<Pick<DaemonConnectionState, 'daemonPid' | 'daemonVersion' | 'recovery'>> = {},
-  ): void {
+  private setState(state: DaemonConnectionStateName, message: string, extra: Partial<Pick<DaemonConnectionState, 'daemonPid' | 'daemonVersion'>> = {}): void {
     if (this.disposed) return;
     const next: DaemonConnectionState = {
       state,
@@ -445,8 +376,6 @@ export class DaemonSupervisor {
       daemonVersion: extra.daemonVersion !== undefined ? extra.daemonVersion : this.st.daemonVersion,
       endpoint: this.o.endpoint,
       restartAttempts: this.restartAttempts,
-      // Recovery actions belong to one failure only: never carried over to the next state.
-      ...(extra.recovery && extra.recovery.length > 0 ? { recovery: [...extra.recovery] } : {}),
     };
     const prev = this.st;
     this.st = next;
@@ -455,8 +384,7 @@ export class DaemonSupervisor {
       prev.message === next.message &&
       prev.daemonPid === next.daemonPid &&
       prev.daemonVersion === next.daemonVersion &&
-      prev.restartAttempts === next.restartAttempts &&
-      (prev.recovery ?? []).join() === (next.recovery ?? []).join()
+      prev.restartAttempts === next.restartAttempts
     ) {
       return;
     }
@@ -470,15 +398,11 @@ export class DaemonSupervisor {
     }
   }
 
-  /**
-   * Sets state error (no daemon) and returns false for `return this.fail(...)` chains. Diagnostics without the daemon
-   * are always offered; `recovery` adds further actions (restoring a backup after a database failure).
-   */
-  private fail(g: number, message: string, recovery: DaemonRecoveryAction[] = []): false {
+  /** Sets state error (no daemon) and returns false for `return this.fail(...)` chains. */
+  private fail(g: number, message: string): false {
     if (this.alive(g)) {
       this.log.error('Hintergrunddienst nicht verfügbar', { message });
-      const actions: DaemonRecoveryAction[] = [...new Set<DaemonRecoveryAction>([...recovery, 'create_diagnostics'])];
-      this.setState('error', message, { daemonPid: null, daemonVersion: null, recovery: actions });
+      this.setState('error', message, { daemonPid: null, daemonVersion: null });
     }
     return false;
   }
@@ -498,30 +422,6 @@ export class DaemonSupervisor {
 
   private isTransientForeign(p: ProbeOutcome): boolean {
     return p.unverifiedNova || p.handshake === 'mismatch' || p.handshake === 'timeout';
-  }
-
-  /** The endpoint answers the connection but not the handshake in time: a NOVA daemon that hangs (or is very busy). */
-  private isHungProbe(p: ProbeOutcome): boolean {
-    return p.status === 'foreign' && p.handshake === 'timeout';
-  }
-
-  /** A daemon this UI spawned that has not exited (it may still be starting and not listen yet). */
-  private spawnedChildRunning(): boolean {
-    const c = this.spawned;
-    return !!c && !this.spawnedExited && c.exitCode === null;
-  }
-
-  /** Ends the self-spawned daemon process (handle-based: no pid reuse risk). True when one was running. */
-  private killSpawnedChild(why: string): boolean {
-    const child = this.spawned;
-    if (!child || !this.spawnedChildRunning()) return false;
-    this.log.warn(why, { pid: child.pid ?? null });
-    try {
-      child.kill();
-    } catch {
-      /* gone */
-    }
-    return true;
   }
 
   /** Probe → attach / spawn / foreign handling. Returns true when connected. */
@@ -569,8 +469,6 @@ export class DaemonSupervisor {
     this.intentionalStop = false;
     this.externalStopSeen = false;
     this.restartAttempts = 0;
-    this.hung = false;
-    this.unresponsiveSince = null;
     this.setState('connected', message, { daemonPid: health.pid, daemonVersion: health.version });
     return true;
   }
@@ -667,8 +565,7 @@ export class DaemonSupervisor {
           return this.connectToRunning(g);
         }
         if (ended.code === 4) return this.fail(g, TEXTS.foreign);
-        const details = this.describeStartDetails(spawnedAt, startLog?.offset ?? null);
-        return this.fail(g, [TEXTS.earlyExit(ended.code, ended.signal), ...details.parts].join(' '), details.recovery);
+        return this.fail(g, this.describeEarlyExit(ended.code, ended.signal, spawnedAt, startLog?.offset ?? null));
       }
       if (this.deps.now() >= deadline) break;
       await this.deps.sleep(this.o.pollIntervalMs);
@@ -681,25 +578,25 @@ export class DaemonSupervisor {
         /* gone */
       }
     }
-    const details = this.describeStartDetails(spawnedAt, startLog?.offset ?? null);
-    return this.fail(g, [TEXTS.startTimeout(Math.round(this.o.healthTimeoutMs / 1000)), ...details.parts].join(' '), details.recovery);
+    const extra = this.describeStartDetails(spawnedAt, startLog?.offset ?? null);
+    return this.fail(g, [TEXTS.startTimeout(Math.round(this.o.healthTimeoutMs / 1000)), ...extra].join(' '));
   }
 
-  private describeStartDetails(spawnedAt: number, offset: number | null): { parts: string[]; recovery: DaemonRecoveryAction[] } {
+  private describeStartDetails(spawnedAt: number, offset: number | null): string[] {
     const parts: string[] = [];
-    const recovery: DaemonRecoveryAction[] = [];
     const crash = this.deps.readCrashReport(this.o.crashPath);
     if (crash && crash.ts >= spawnedAt - 5_000) {
       parts.push(TEXTS.crashReport(crash.message, crash.code));
-      if (crash.suggestedActions.includes('restore_backup')) {
-        parts.push(TEXTS.crashHintRestore);
-        recovery.push('restore_backup');
-      }
+      if (crash.suggestedActions.includes('restore_backup')) parts.push(TEXTS.crashHintRestore);
     }
     const tail = offset !== null ? this.deps.readStartLogSince(this.o.startLogPath, offset) : '';
     if (tail) parts.push(TEXTS.lastOutput(tail));
     parts.push(TEXTS.startLogHint(this.o.startLogPath));
-    return { parts, recovery };
+    return parts;
+  }
+
+  private describeEarlyExit(code: number | null, signal: string | null, spawnedAt: number, offset: number | null): string {
+    return [TEXTS.earlyExit(code, signal), ...this.describeStartDetails(spawnedAt, offset)].join(' ');
   }
 
   /** After exit code 3: another daemon owns the data dir – wait until it answers. */
@@ -730,56 +627,35 @@ export class DaemonSupervisor {
     }
   }
 
-  /**
-   * daemon.shutdown + wait until the endpoint is free. Last resorts when the daemon does not go: kill the self-spawned
-   * process, or – for a hung daemon of an earlier UI session – the process recorded in daemon.lock (identity verified).
-   */
+  /** daemon.shutdown + wait until the endpoint is free; kills a self-spawned, unresponsive daemon as last resort. */
   private async shutdownAndWait(g: number, reason: string): Promise<boolean> {
     let client = this.client;
     let temp = false;
     if (!client) {
-      let probe = await this.probeOnce();
-      if (probe.status === 'none' && this.spawnedChildRunning()) {
-        // Our daemon is still starting: wait until it listens (then stop it properly) or end it.
-        const deadline = this.deps.now() + this.o.vanishTimeoutMs;
-        while (probe.status === 'none' && this.spawnedChildRunning() && this.deps.now() < deadline) {
-          await this.deps.sleep(this.o.pollIntervalMs);
-          if (!this.alive(g)) return false;
-          probe = await this.probeOnce();
-        }
-        if (!this.alive(g)) return false;
-        if (probe.status === 'none' && this.killSpawnedChild('Hintergrunddienst startet nicht fertig – selbst gestarteter Prozess wird beendet')) {
-          return this.waitForVanish(g, 5_000);
-        }
-      }
+      const probe = await this.probeOnce();
       if (probe.status === 'none') return true;
-      if (probe.status === 'ours') {
-        client = this.deps.createClient({ endpoint: this.o.endpoint, tokenPath: this.o.tokenPath });
-        temp = true;
-      } else if (!this.isHungProbe(probe)) {
-        return false; // a foreign program: never touched
-      }
+      if (probe.status !== 'ours') return false;
+      client = this.deps.createClient({ endpoint: this.o.endpoint, tokenPath: this.o.tokenPath });
+      temp = true;
     }
-    if (client) {
-      try {
-        await client.rpc('daemon.shutdown', { reason }, { timeoutMs: this.o.shutdownRpcTimeoutMs });
-      } catch (e) {
-        if (!isUnreachable(e)) this.log.warn('daemon.shutdown fehlgeschlagen', { reason, error: errorText(e) });
-      } finally {
-        if (temp) client.close();
-      }
+    try {
+      await client.rpc('daemon.shutdown', { reason }, { timeoutMs: this.o.shutdownRpcTimeoutMs });
+    } catch (e) {
+      if (!isUnreachable(e)) this.log.warn('daemon.shutdown fehlgeschlagen', { reason, error: errorText(e) });
+    } finally {
+      if (temp) client.close();
     }
     if (await this.waitForVanish(g)) return true;
     if (!this.alive(g)) return false;
-    if (this.killSpawnedChild('Hintergrunddienst reagiert nicht – selbst gestarteter Prozess wird beendet')) return this.waitForVanish(g, 5_000);
-    const last = await this.probeOnce();
-    if (!this.alive(g)) return false;
-    if (last.status === 'none') return true;
-    if (last.status === 'ours' || this.isHungProbe(last)) {
-      this.log.warn('Hintergrunddienst reagiert nicht – Prozess aus daemon.lock wird nach Prüfung beendet');
-      const killed = await this.deps.killRecordedDaemon().catch(() => false);
-      if (!this.alive(g)) return false;
-      if (killed) return this.waitForVanish(g, 5_000);
+    const child = this.spawned;
+    if (child && !this.spawnedExited && child.exitCode === null) {
+      this.log.warn('Hintergrunddienst reagiert nicht – selbst gestarteter Prozess wird beendet', { pid: child.pid ?? null });
+      try {
+        child.kill();
+      } catch {
+        /* gone */
+      }
+      return this.waitForVanish(g, 5_000);
     }
     return false;
   }
@@ -822,7 +698,7 @@ export class DaemonSupervisor {
   private handleSubscriptionState(subId: number, s: SubscriptionState, info?: string): void {
     if (subId !== this.subSeq || this.disposed) return;
     if (s === 'connected') {
-      if (this.st.state === 'reconnecting' || this.hung) {
+      if (this.st.state === 'reconnecting') {
         const g = this.gen;
         void this.enqueue(() => this.verifyAfterReconnect(g));
       }
@@ -849,14 +725,12 @@ export class DaemonSupervisor {
 
   private async verifyAfterReconnect(g: number): Promise<boolean> {
     const client = this.client;
-    if (!this.alive(g) || (this.st.state !== 'reconnecting' && !this.hung) || !client) return false;
+    if (!this.alive(g) || this.st.state !== 'reconnecting' || !client) return false;
     try {
       const h = await client.health();
       if (!this.alive(g)) return false;
       if (h.instanceId !== this.connectedInstanceId || h.version !== this.o.appVersion) return this.attach(g, h);
       this.restartAttempts = 0;
-      this.hung = false;
-      this.unresponsiveSince = null;
       this.setState('connected', TEXTS.connected, { daemonPid: h.pid, daemonVersion: h.version });
       return true;
     } catch {
@@ -866,39 +740,25 @@ export class DaemonSupervisor {
   }
 
   private async lossCheck(g: number): Promise<boolean> {
-    const watching = () => this.alive(g) && !this.intentionalStop && (this.st.state === 'reconnecting' || (this.hung && this.st.state === 'error'));
-    if (!watching()) return false;
+    if (!this.alive(g) || this.st.state !== 'reconnecting' || this.intentionalStop) return false;
     const probe = await this.probeOnce();
-    if (!watching()) return false;
+    if (!this.alive(g) || this.st.state !== 'reconnecting' || this.intentionalStop) return false;
     if (probe.status === 'ours' && probe.health) {
-      this.unresponsiveSince = null;
-      // A different instance answers (self-restart, restore), or it answers again after hanging → fresh client.
-      // Same instance → the event stream reconnects on its own (DaemonClient backoff); check again later.
-      if (probe.health.instanceId !== this.connectedInstanceId || this.hung) return this.attach(g, probe.health);
+      // A different instance answers (self-restart, restore) → fresh client. Same instance → the event stream
+      // reconnects on its own (DaemonClient backoff); check again later.
+      if (probe.health.instanceId !== this.connectedInstanceId) return this.attach(g, probe.health);
       this.scheduleLossCheck(this.o.lossCheckDelayMs * 5);
       return false;
     }
     if (probe.status === 'foreign') {
       if (this.isTransientForeign(probe)) {
-        // Endpoint held, but no (valid) answer: usually a daemon that is busy or restarting. Not forever, though.
-        const now = this.deps.now();
-        this.unresponsiveSince ??= now;
-        if (!this.hung && now - this.unresponsiveSince >= this.o.hungTimeoutMs) {
-          this.hung = true;
-          this.log.error('Hintergrunddienst reagiert nicht mehr', { seconds: Math.round((now - this.unresponsiveSince) / 1000), handshake: probe.handshake });
-          this.setState('error', TEXTS.daemonHung, { daemonPid: null, recovery: ['create_diagnostics'] });
-        }
-        this.scheduleLossCheck(this.hung ? this.o.hungRecheckMs : this.o.lossCheckDelayMs);
+        this.scheduleLossCheck(this.o.lossCheckDelayMs);
         return false;
       }
-      this.hung = false;
-      this.unresponsiveSince = null;
       this.detach();
       return this.fail(g, TEXTS.foreign);
     }
     // Nothing listens any more: the daemon process is gone.
-    this.hung = false;
-    this.unresponsiveSince = null;
     this.detach();
     if (this.externalStopSeen) return this.awaitSelfRespawn(g);
     return this.autoRestart(g);

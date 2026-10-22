@@ -12,8 +12,6 @@ import { writeCrashReport, readCrashReport } from './core/crash';
 import { atomicWriteFile } from './core/fs-atomic';
 import { redact } from './core/redact';
 import { NOVA_VERSION } from './core/context';
-import { SCHEMA_TOO_NEW } from './db/migrations';
-import type { DaemonCrashReport } from '@shared/schemas';
 
 function arg(name: string): string | undefined {
   const i = process.argv.indexOf(name);
@@ -34,7 +32,7 @@ let app: DaemonApp | null = null;
 let exitCode = 0;
 let phase: 'startup' | 'instance_lock' | 'database_open' | 'migration' | 'runtime' = 'startup';
 
-function crash(code: string, message: string, err: unknown, actions?: DaemonCrashReport['suggestedActions']): void {
+function crash(code: string, message: string, err: unknown): void {
   try {
     const paths = dataPaths(canonicalDataDir(dataDirInput));
     writeCrashReport(paths.crash, {
@@ -45,8 +43,7 @@ function crash(code: string, message: string, err: unknown, actions?: DaemonCras
       message,
       details: err instanceof Error ? `${err.message}\n${err.stack ?? ''}` : errorMessage(err),
       logFile: join(paths.logs, 'daemon.log'),
-      suggestedActions:
-        actions ?? (phase === 'database_open' || phase === 'migration' ? ['restore_backup', 'create_diagnostics', 'open_logs'] : ['retry', 'create_diagnostics', 'open_logs']),
+      suggestedActions: phase === 'database_open' || phase === 'migration' ? ['restore_backup', 'create_diagnostics', 'open_logs'] : ['retry', 'create_diagnostics', 'open_logs'],
     });
   } catch {
     /* data dir itself unusable */
@@ -134,13 +131,6 @@ async function main(): Promise<void> {
       process.exit(4);
     }
     const msg = errorMessage(e);
-    if (isNovaError(e) && e.code === SCHEMA_TOO_NEW) {
-      // Data of a newer NOVA version: the crash report must name the fix (install the newer version), not a restore.
-      phase = 'migration';
-      crash(e.code, e.message, e, ['open_logs', 'create_diagnostics']);
-      process.stderr.write(`NOVA daemon failed to start: ${msg}\n`);
-      process.exit(1);
-    }
     if (/database|sqlite|malformed|SQLITE/i.test(msg)) phase = 'database_open';
     crash(isNovaError(e) ? e.code : 'INTERNAL', 'Der NOVA-Hintergrunddienst konnte nicht starten.', e);
     process.stderr.write(`NOVA daemon failed to start: ${msg}\n${e instanceof Error ? e.stack : ''}\n`);

@@ -7,32 +7,19 @@
 //   A tick is a synchronous pass (no busy loop): it blocks queued tasks with failed dependencies, then starts ready
 //   tasks by priority while governor.allowed(activeRunCount) leaves free slots. A queued task starts iff global state =
 //   running AND (project.workState = running OR task.startRequested); archived projects never start work; two tasks
-//   of one project run in parallel only when BOTH declare plannedFiles and those (plus already changed files) do not
-//   overlap – a task without plannedFiles can touch anything, and its checks would measure the other task's
-//   half-finished changes (read-only planner runs are exempt); at most one run per task.
+//   of one project whose plannedFiles (or already changed files) overlap never run in parallel; at most one run per task.
 // - Every run has its own AbortController and pause flags (user pause, work.pause scopes, shutdown). Abort reasons:
 //   NovaError CANCELLED (stopTask → cancelled, work.stop → queued) or NovaError INTERRUPTED (shutdown → interrupted).
 // - Resume vs fresh: a task is resumed iff it has a persisted continuation (written when its run paused, waited for an
 //   approval, blocked with a RESUMABLE_BLOCKER_CODE, was interrupted, or while it was being verified). Fresh runs count
-//   as attempts; the pre_task checkpoint is created only before the first fresh run (attempts = 0). AGENT_STEP_LIMIT and
-//   checks that could not run because of the environment keep a `userResume` continuation: not auto-unblocked, but an
-//   explicit user start continues the same run (new step budget) or only the verification instead of starting over.
-// - Verification uses REAL results only: 'passed' needs a passed CheckRun, a reviewer verdict alone gives at most
-//   'unavailable' ("nicht automatisch geprüft"), so checkpoints.afterTask neither marks such a state verified nor
-//   commits it while commitOnlyWhenVerified is on. Coder: build (web/desktop/backend) → test (testAfterChange) →
-//   typecheck/lint when configured; missing commands are listed as 'skipped' with a German reason; after a failed build
-//   the remaining checks are skipped. A code/fix/test/custom task that changed no file gets an 'Änderungen' entry and is
-//   never 'passed' (the checks still run). Reviewer pass (reviewChanges): a SEPARATE agent run with role 'reviewer' on
-//   the same task (no extra review task) – only when the checks did not fail and files changed. Tester: CheckRuns of
-//   this task started during the run; without a test/e2e run among them the orchestrator runs the test check itself;
-//   only test/e2e results prove a tester task (no test command → unavailable). Review task: approve → unavailable,
-//   changes_requested → failed verification + fix task with the findings. Plan task: unavailable. The verification is
-//   patched BEFORE checkpoints.afterTask.
-// - A check that could not run because of the environment (CheckService "env:" signature) never starts a coder retry:
-//   install approval pending → waiting_approval and the verification re-runs after the decision; missing program →
-//   blocked TOOL_MISSING (auto-unblock); denied/blocked install, Unity open, project folder missing → blocked with a
-//   user action, "Starten" re-runs only the verification. In the integration pass: no fix task, an error report, and a
-//   re-run once the approval is decided, after integrations.updated or at most every 10 minutes.
+//   as attempts; the pre_task checkpoint is created only before the first fresh run (attempts = 0).
+// - Verification uses REAL results only. Coder: build (web/desktop/backend) → test (testAfterChange) → typecheck/lint
+//   when configured; missing commands are listed as 'skipped' with a German reason; after a failed build the remaining
+//   checks are skipped. Reviewer pass (reviewChanges): a SEPARATE agent run with role 'reviewer' on the same task
+//   (no extra review task) – only when the checks did not fail. Tester: only CheckRuns of this task started during the
+//   run; none → the orchestrator runs the test check itself; no test command → unavailable. Review task: the verdict;
+//   changes_requested completes the review task with a failed verification and creates a fix task with the findings.
+//   Plan task: unavailable. The verification is patched BEFORE checkpoints.afterTask.
 // - Failed verification: failure signature history (internal column) → after maxIdenticalFailures identical signatures
 //   the next attempt gets "take a different approach" plus the previous attempts; the next identical failure blocks
 //   with REPEATED_FAILURE (error report names checkpoints.latestVerified). Otherwise the task is re-queued (fresh run,
@@ -50,16 +37,12 @@
 // - Notifications: generic German bodies (project name only). NEEDS_INPUT is notified only when the ask_user tool did
 //   not already notify within the last 2 minutes (no double toasts). DEPENDENCY_FAILED neither reports nor notifies
 //   (the root failure already did).
-// - recover()/shutdown() exactly per SPEC §6.5; work.status is emitted whenever the computed status changes. After a
-//   database restore (recover({ restoredFrom })) the restored agent conversations are stale against the current project
-//   files: nothing is resumed automatically; running/interrupted/waiting tasks are paused for review with a fresh start,
-//   and a warning explains that NOVA's later file changes are no longer journaled.
-import type { AgentRole, AgentRun, Approval, CheckKind, CheckRun, Project, ProjectSummary, Task, TaskKind, TaskNote, TaskStatus, Verification, WorkStatus } from '@shared/schemas';
+// - recover()/shutdown() exactly per SPEC §6.5; work.status is emitted whenever the computed status changes.
+import type { AgentRole, AgentRun, Approval, CheckKind, CheckRun, Project, ProjectSummary, Task, TaskNote, TaskStatus, Verification, WorkStatus } from '@shared/schemas';
 import { BUILTIN_INTEGRATIONS } from '@shared/schemas';
 import { RESUMABLE_BLOCKER_CODES } from '@shared/errors';
 import type { AgentRunOutcome, PlanOutput, ReviewOutput, Services, TesterOutput, WorkCycle } from '../contracts';
 import { NovaError, conflict, errorMessage, isNovaError, notFound, validation } from '../core/errors';
-import { checkEnvironmentProblem, type CheckEnvironmentProblem } from '../checks/check-service';
 import { OPEN_STATUSES, TERMINAL_STATUSES, dedupePaths, emptyVerification, keysOverlap, pathKey, readFailures, rowToTask, writeFailures, type TaskRow } from './task-store';
 import {
   buildRetryContext,
@@ -84,7 +67,6 @@ import {
   type VerificationCheck,
 } from './verification';
 import {
-  CHANGES_CHECK,
   INTEGRATION_BUILD,
   INTEGRATION_TESTS,
   INTERRUPTED_AFTER_RESTART,
@@ -98,11 +80,6 @@ import {
 } from './texts';
 import { WorkStateStore, type Continuation, type ContinuationPhase } from './work-state';
 import { idleReason, type IdleInput } from './work-status';
-
-/** recover() after a database restore (app.ts passes the backup it applied before opening the database). */
-export interface RecoverOptions {
-  restoredFrom?: string | null;
-}
 
 export interface WorkCycleOptions {
   /** Scheduler tick interval (default 1000 ms; SPEC: timers ≥ 1 s). */
@@ -143,13 +120,6 @@ const RISKY_RESTART_KINDS = ['publish', 'delete', 'install', 'admin', 'system_ch
 const MODEL_CODES = ['NO_MODEL', 'MODEL_UNAVAILABLE', 'OLLAMA_UNREACHABLE', 'VRAM_INSUFFICIENT', 'BUDGET_EXCEEDED', 'PAID_NOT_APPROVED', 'PRICE_UNKNOWN', 'APPROVAL_REQUIRED'];
 const BUILD_KINDS = ['web', 'desktop', 'backend'];
 const INTEGRATION_NAMES = [INTEGRATION_BUILD, INTEGRATION_TESTS];
-/** Coder task kinds whose result must be a file change; without one the verification is never 'passed'. */
-const CHANGE_KINDS: TaskKind[] = ['code', 'fix', 'test', 'custom'];
-const TEST_CHECK_NAMES = [checkName('test'), checkName('e2e')];
-const NO_CHANGES_TEXT = 'Der Agent hat keine Datei geändert – ob die Aufgabe umgesetzt ist, lässt sich nicht automatisch bestätigen.';
-/** Earliest automatic re-run of an integration pass that could not run because of the environment. */
-const ENV_RECHECK_MS = 10 * 60_000;
-const RESTORED_BLOCKER = 'Nach Datenbank-Wiederherstellung angehalten – bitte prüfen und neu starten';
 
 const isResumable = (code: string | null | undefined): boolean => !!code && RESUMABLE_BLOCKER_CODES.includes(code);
 
@@ -244,7 +214,7 @@ function isInterruptReason(reason: unknown): boolean {
   return isNovaError(reason) && reason.code === 'INTERRUPTED';
 }
 
-export function createWorkCycle(s: Services, options: WorkCycleOptions = {}): WorkCycle & { recover(opts?: RecoverOptions): Promise<{ tasks: number }> } {
+export function createWorkCycle(s: Services, options: WorkCycleOptions = {}): WorkCycle {
   const core = s.core;
   const db = core.db;
   const log = core.log.child('work');
@@ -464,28 +434,21 @@ export function createWorkCycle(s: Services, options: WorkCycleOptions = {}): Wo
     return list;
   }
 
-  /** Text overrides for a blocker whose code is shared with other causes (e.g. a check that could not run). */
-  interface BlockTexts {
-    userAction?: string;
-    title?: string;
-    shortReason?: string;
-  }
-
-  function reportBlocked(task: Task, code: string, reason: string, runId: string | null, texts: BlockTexts = {}): void {
+  function reportBlocked(task: Task, code: string, reason: string, runId: string | null, userAction?: string): void {
     if (code === 'NEEDS_INPUT' || code === 'DEPENDENCY_FAILED') return;
     safe(
       () =>
         core.errors.report({
           code,
           severity: 'blocker',
-          title: texts.title ?? blockerTitle(code),
+          title: blockerTitle(code),
           whatHappened: `Die Aufgabe „${task.title}“ ist blockiert: ${reason}`,
           projectId: task.projectId,
           taskId: task.id,
           attempted: attemptsList(task),
           projectSafe: true,
           autoFixable: isResumable(code),
-          userAction: texts.userAction ?? blockerUserAction(code),
+          userAction: userAction ?? blockerUserAction(code),
           details: reason,
           related: { checkRunId: null, runId: runId || null, approvalId: null, file: null, line: null },
           dedupeKey: `task:${task.id}`,
@@ -494,18 +457,14 @@ export function createWorkCycle(s: Services, options: WorkCycleOptions = {}): Wo
     );
   }
 
-  function notifyBlocked(task: Task, code: string, shortReason?: string): void {
+  function notifyBlocked(task: Task, code: string): void {
     if (code === 'DEPENDENCY_FAILED') return;
     if (code === 'NEEDS_INPUT' && recentNotification(task.id, 'blocker', 120_000)) return;
-    const body = `Eine Aufgabe im Projekt „${projectName(task.projectId)}“ kann nicht weiterarbeiten: ${shortReason ?? blockerShortReason(code)}`;
-    // The same blocker of the same task (e.g. a model that is still missing after an auto-unblock) toasts once per 30 min.
-    const recent = safe(() => s.notifications.list({ limit: 50 })) ?? [];
-    if (recent.some((n) => n.taskId === task.id && n.category === 'blocker' && n.body === body && now() - n.ts < 30 * 60_000)) return;
     notify({
       level: 'warning',
       category: 'blocker',
       title: code === 'NEEDS_INPUT' ? 'Rückfrage des Agenten' : 'Aufgabe blockiert',
-      body,
+      body: `Eine Aufgabe im Projekt „${projectName(task.projectId)}“ kann nicht weiterarbeiten: ${blockerShortReason(code)}`,
       projectId: task.projectId,
       taskId: task.id,
     });
@@ -633,14 +592,14 @@ export function createWorkCycle(s: Services, options: WorkCycleOptions = {}): Wo
     return cancelTask(task, 'Vom Benutzer gestoppt.');
   }
 
-  function blockTask(task: Task, code: string, reason: string, runId: string | null, cont: Continuation | null, texts: BlockTexts = {}): void {
+  function blockTask(task: Task, code: string, reason: string, runId: string | null, cont: Continuation | null, opts2: { userAction?: string } = {}): void {
     const resumable = isResumable(code);
-    if (cont && (resumable || cont.userResume)) setContinuation(task.id, cont);
+    if (resumable && cont) setContinuation(task.id, cont);
     else if (!resumable) store.clearContinuation(task.id);
     const t = patchTask(task.id, { status: 'blocked', blocker: shorten(reason, 4000) || blockerShortReason(code), blockerCode: code }) ?? task;
     if (!resumable) releaseLocks(task.id);
-    reportBlocked(t, code, reason, runId, texts);
-    notifyBlocked(t, code, texts.shortReason);
+    reportBlocked(t, code, reason, runId, opts2.userAction);
+    notifyBlocked(t, code);
     requestWake();
   }
 
@@ -676,8 +635,7 @@ export function createWorkCycle(s: Services, options: WorkCycleOptions = {}): Wo
         return;
       }
       case 'blocked':
-        // Step limit: keep the run so "Starten" continues it with a new step budget instead of starting over.
-        return blockTask(task, outcome.code, outcome.reason, outcome.runId || null, outcome.code === 'AGENT_STEP_LIMIT' ? { ...cont, userResume: true } : cont);
+        return blockTask(task, outcome.code, outcome.reason, outcome.runId || null, cont);
       case 'failed':
         return failTask(task, outcome.code || 'INTERNAL', outcome.reason, outcome.runId || null);
       case 'cancelled':
@@ -930,16 +888,9 @@ export function createWorkCycle(s: Services, options: WorkCycleOptions = {}): Wo
     const checks = await runCoderChecks(ctx, t, proj);
     t = getTask(t.id) ?? t;
     if (!checks) return applyAbort(ctx, t, { phase: 'verify', runId: coderRunId, role: t.role });
-    const env = environmentProblem(checks);
-    if (env) return holdVerification(ctx, t, checks, coderRunId, env);
-    // task.files is written by the tools (journal) for file tools and run_command alike, across all attempts.
-    const unchanged = t.role === 'coder' && CHANGE_KINDS.includes(t.kind) && t.files.length === 0;
-    if (unchanged) checks.unshift(skippedEntry(CHANGES_CHECK, NO_CHANGES_TEXT));
     if (proj.config.reviewChanges) {
       if (checks.some(isFailedEntry)) {
         checks.push(skippedEntry(REVIEW_CHECK, 'Übersprungen, weil andere Prüfungen fehlgeschlagen sind.'));
-      } else if (unchanged) {
-        checks.push(skippedEntry(REVIEW_CHECK, 'Übersprungen, weil keine Datei geändert wurde.'));
       } else {
         t = patchTask(t.id, { verification: { status: 'not_run', checks } }) ?? t;
         return reviewPass(ctx, t, proj, checks, null, summary);
@@ -984,115 +935,28 @@ export function createWorkCycle(s: Services, options: WorkCycleOptions = {}): Wo
     const latestByKind = new Map<CheckKind, CheckRun>();
     for (const c of [...all].sort((a, b) => b.startedAt - a.startedAt)) {
       if (c.taskId !== t.id || c.startedAt < since || c.status === 'running' || c.status === 'cancelled') continue;
-      // A check that could not start because of the environment is no result (it is repeated below if needed).
-      if (checkEnvironmentProblem(c)) continue;
       if (!latestByKind.has(c.kind)) latestByKind.set(c.kind, c);
     }
-    const entries = [...latestByKind.values()].sort((a, b) => a.startedAt - b.startedAt).map((c) => entryFromCheckRun(checkName(c.kind), c));
-    if (!latestByKind.has('test') && !latestByKind.has('e2e')) {
-      if (project.config.commands.test) {
-        // Lint/build/runtime runs of the agent do not show that the tests pass: NOVA runs the test check itself.
-        const r = await runCheck(ctx, ctx.controller.signal, project.id, t.id, 'test', checkName('test'));
-        t = getTask(t.id) ?? t;
-        if (!r) return applyAbort(ctx, t, { phase: 'verify', runId, role: t.role });
-        entries.push(r.entry);
-      } else {
-        entries.unshift(skippedEntry(checkName('test'), 'Kein Testbefehl eingerichtet – das Ergebnis kann nicht automatisch geprüft werden.'));
-      }
+    let entries: VerificationCheck[];
+    if (latestByKind.size) {
+      entries = [...latestByKind.values()].sort((a, b) => a.startedAt - b.startedAt).map((c) => entryFromCheckRun(checkName(c.kind), c));
+    } else if (project.config.commands.test) {
+      const r = await runCheck(ctx, ctx.controller.signal, project.id, t.id, 'test', checkName('test'));
+      t = getTask(t.id) ?? t;
+      if (!r) return applyAbort(ctx, t, { phase: 'verify', runId, role: t.role });
+      entries = [r.entry];
+    } else {
+      entries = [skippedEntry(checkName('test'), 'Kein Testbefehl eingerichtet – das Ergebnis kann nicht automatisch geprüft werden.')];
     }
-    const env = environmentProblem(entries);
-    if (env) return holdVerification(ctx, t, entries, runId, env);
     if (output?.passed === true && computeVerificationStatus(entries) === 'failed') {
       safe(() => s.runs.addStep(runId, 'error', 'Der Testagent hat Erfolg gemeldet, die echte Prüfung ist aber fehlgeschlagen.', { checks: entries.map((e) => ({ name: e.name, status: e.status })) }), 'Fehlerschritt');
     }
     return finalizeVerification(ctx, t, project, entries, summary, runId);
   }
 
-  /** Which executed passes count as evidence: tests for tester tasks, nothing when the coder changed no file. */
-  function proofFor(task: Task, checks: VerificationCheck[]): (e: VerificationCheck) => boolean {
-    if (checks.some((c) => c.name === CHANGES_CHECK)) return () => false;
-    if (task.role === 'tester') return (e) => TEST_CHECK_NAMES.includes(e.name);
-    return () => true;
-  }
-
-  /** First entry whose CheckRun could not run because of the environment (approval, missing tool, Unity open …). */
-  function environmentProblem(entries: VerificationCheck[]): { entry: VerificationCheck; problem: CheckEnvironmentProblem; ranAt: number } | null {
-    for (const e of entries) {
-      if (e.status !== 'error' || !e.checkRunId) continue;
-      const run = safe(() => s.checks.get(e.checkRunId!));
-      const problem = run ? checkEnvironmentProblem(run) : null;
-      if (run && problem) return { entry: e, problem, ranAt: run.startedAt };
-    }
-    return null;
-  }
-
-  /** Error code, German reason and user action for a check that could not run because of the environment. */
-  function environmentAdvice(
-    entry: VerificationCheck,
-    problem: CheckEnvironmentProblem,
-    thenStart = 'und die Aufgabe dann mit „Starten“ weiterprüfen lassen. Die Änderungen des Agenten bleiben erhalten.',
-  ): { code: string; reason: string; userAction: string; title: string; shortReason: string } {
-    const reason = `Die Prüfung „${entry.name}“ konnte nicht laufen: ${entry.details ?? 'Die Prüfung konnte nicht ausgeführt werden.'}`;
-    const advice = adviceFor(problem, reason, thenStart);
-    const title = problem.kind === 'tool_missing' ? blockerTitle(advice.code) : 'Prüfung konnte nicht laufen';
-    const shortReason = problem.kind === 'approval_denied' ? 'Die Installation der Abhängigkeiten für eine Prüfung wurde abgelehnt.' : blockerShortReason(advice.code);
-    return { ...advice, title, shortReason };
-  }
-
-  function adviceFor(problem: CheckEnvironmentProblem, reason: string, thenStart: string): { code: string; reason: string; userAction: string } {
-    switch (problem.kind) {
-      case 'approval':
-        return { code: 'APPROVAL_REQUIRED', reason, userAction: 'Bitte unter „Freigaben“ über die Installation der Abhängigkeiten entscheiden. NOVA prüft danach automatisch weiter.' };
-      case 'tool_missing':
-        return {
-          code: 'TOOL_MISSING',
-          reason,
-          userAction: `Bitte das fehlende Werkzeug${problem.program ? ` („${problem.program}“)` : ''} unter „Werkzeuge“ installieren oder seinen Pfad eintragen. NOVA prüft danach automatisch weiter.`,
-        };
-      case 'approval_denied':
-        return { code: 'APPROVAL_DENIED', reason, userAction: `Die Installation der Abhängigkeiten wurde abgelehnt. Bitte die Abhängigkeiten selbst installieren (z. B. im Terminal) oder die Installation erlauben ${thenStart}` };
-      case 'command_blocked':
-        return { code: 'COMMAND_BLOCKED', reason, userAction: `Der Installationsbefehl ist durch die Sicherheitsregeln gesperrt. Bitte die Abhängigkeiten selbst installieren oder die Regeln in den Einstellungen anpassen ${thenStart}` };
-      case 'engine_open':
-        return { code: 'FILE_IN_USE', reason, userAction: `Bitte Unity schließen ${thenStart}` };
-      case 'project_missing':
-        return { code: 'NOT_FOUND', reason, userAction: `Bitte den Projektordner wiederherstellen oder in den Projekteinstellungen den neuen Ort eintragen ${thenStart}` };
-    }
-  }
-
-  /**
-   * The verification could not run because of the environment: no coder retry. Waits for the install approval, or
-   * blocks with a continuation that re-runs only the verification (TOOL_MISSING auto-unblocks, the rest on "Starten").
-   */
-  function holdVerification(ctx: RunCtx, task: Task, checks: VerificationCheck[], runId: string, env: { entry: VerificationCheck; problem: CheckEnvironmentProblem }): void {
-    if (ctx.finalized) return;
-    const t = patchTask(task.id, { verification: { status: 'not_run', checks } }) ?? task;
-    const cont: Continuation = { phase: 'verify', runId, role: t.role };
-    const p = env.problem;
-    if (p.kind === 'approval') {
-      setContinuation(t.id, { ...cont, approvalId: p.approvalId });
-      const approval = safe(() => s.approvals.get(p.approvalId));
-      patchTask(t.id, {
-        status: 'waiting_approval',
-        blocker: `Wartet auf Freigabe: ${approval?.title ?? 'Abhängigkeiten installieren'} – danach prüft NOVA die Änderungen automatisch.`,
-        blockerCode: null,
-      });
-      log.info('Prüfung wartet auf eine Freigabe', { taskId: t.id, approvalId: p.approvalId });
-      // Decided (or gone) between the check and now → onDecision may have missed it; re-queue here.
-      if (!approval || approval.status !== 'pending') {
-        const fresh = getTask(t.id);
-        if (fresh) requeueForResume(fresh);
-      }
-      return;
-    }
-    const advice = environmentAdvice(env.entry, p);
-    log.info('Prüfung konnte wegen der Umgebung nicht laufen – kein neuer Agentenlauf', { taskId: t.id, code: advice.code });
-    blockTask(t, advice.code, advice.reason, runId, isResumable(advice.code) ? cont : { ...cont, userResume: true }, { userAction: advice.userAction, title: advice.title, shortReason: advice.shortReason });
-  }
-
   async function finalizeVerification(ctx: RunCtx, task: Task, project: Project, checks: VerificationCheck[], summary: string, runId: string | null): Promise<void> {
     if (ctx.finalized) return;
-    const verification: Verification = { status: computeVerificationStatus(checks, proofFor(task, checks)), checks };
+    const verification: Verification = { status: computeVerificationStatus(checks), checks };
     if (verification.status === 'failed') return handleFailedVerification(task, verification, summary, runId);
     return succeedTask(ctx, task, project, verification, summary);
   }
@@ -1145,7 +1009,7 @@ export function createWorkCycle(s: Services, options: WorkCycleOptions = {}): Wo
     t = getTask(t.id) ?? t;
     rememberSuccess(t, verification);
     safe(() => core.errors.resolveWhere({ taskId: t.id }), 'Fehler auflösen');
-    const phrase = verification.status === 'passed' ? 'alle Prüfungen bestanden' : verification.status === 'unavailable' ? uncheckedPhrase(verification) : 'Prüfung fehlgeschlagen';
+    const phrase = verification.status === 'passed' ? 'alle Prüfungen bestanden' : verification.status === 'unavailable' ? 'keine automatische Prüfung möglich' : 'Prüfung fehlgeschlagen';
     notify({
       level: 'success',
       category: 'task_done',
@@ -1159,16 +1023,9 @@ export function createWorkCycle(s: Services, options: WorkCycleOptions = {}): Wo
     afterTerminal(t.id);
   }
 
-  function uncheckedPhrase(verification: Verification): string {
-    if (verification.checks.some((c) => c.name === CHANGES_CHECK)) return 'keine Datei geändert, nicht automatisch geprüft';
-    if (verification.checks.some((c) => c.name === REVIEW_CHECK && c.status === 'passed')) return 'nur vom Review-Agenten durchgesehen, nicht automatisch geprüft';
-    return 'keine automatische Prüfung möglich';
-  }
-
   async function finishReviewTask(ctx: RunCtx, task: Task, project: Project, review: ReviewOutput): Promise<void> {
     const entry = reviewEntry(review);
-    // approve → unavailable (a verdict is no check), changes_requested → failed.
-    const verification: Verification = { status: computeVerificationStatus([entry]), checks: [entry] };
+    const verification: Verification = { status: review.verdict === 'approve' ? 'passed' : 'failed', checks: [entry] };
     if (review.verdict === 'approve') return succeedTask(ctx, task, project, verification, review.summary);
     let fix: Task | null = null;
     try {
@@ -1307,21 +1164,12 @@ export function createWorkCycle(s: Services, options: WorkCycleOptions = {}): Wo
     startIntegration(parent);
   }
 
-  /** An integration check blocked by the environment may be repeated: approval decided, tool installed, or 10 min later. */
-  function environmentGone(problem: CheckEnvironmentProblem, ranAt: number, triggers: Set<string>): boolean {
-    if (problem.kind === 'approval') return safe(() => s.approvals.get(problem.approvalId))?.status !== 'pending';
-    if (problem.kind === 'tool_missing' && triggers.has('integrations')) return true;
-    return now() - ranAt >= ENV_RECHECK_MS;
-  }
-
-  function integrationNeeded(parent: Task, triggers: Set<string>): boolean {
+  function integrationNeeded(parent: Task): boolean {
     const { done, children } = allChildrenDone(parent.id);
     if (!done) return false;
     const entries = parent.verification.checks.filter((c) => INTEGRATION_NAMES.includes(c.name));
     if (!entries.length) return true;
     if (entries.some((e) => e.status === 'running' || e.status === 'cancelled')) return true;
-    const env = environmentProblem(entries);
-    if (env && environmentGone(env.problem, env.ranAt, triggers)) return true;
     const lastChild = Math.max(0, ...children.map((c) => c.finishedAt ?? 0));
     const ranAt = Math.max(0, ...entries.map((e) => (e.checkRunId ? (safe(() => s.checks.get(e.checkRunId!))?.startedAt ?? 0) : 0)));
     return ranAt > 0 && lastChild > ranAt;
@@ -1391,10 +1239,8 @@ export function createWorkCycle(s: Services, options: WorkCycleOptions = {}): Wo
     }
     const current = getTask(parent.id);
     if (!current) return;
-    const env = environmentProblem(entries);
     const verification = withIntegration(current.verification, entries);
-    patchTask(parent.id, { verification: env ? { ...verification, status: 'not_run' } : verification });
-    if (env) return onIntegrationBlocked(current, project, env);
+    patchTask(parent.id, { verification });
     const executed = entries.filter((e) => e.status !== 'skipped');
     if (executed.length) {
       addMemory({
@@ -1407,42 +1253,6 @@ export function createWorkCycle(s: Services, options: WorkCycleOptions = {}): Wo
     }
     if (entries.some(isFailedEntry)) onIntegrationFailed(current, project, entries, failedRuns);
     else safe(() => core.errors.resolveWhere({ dedupeKey: `integration:${parent.id}` }), 'Fehler auflösen');
-  }
-
-  /** The integration checks could not run because of the environment: no fix task (no agent can fix that). */
-  function onIntegrationBlocked(parent: Task, project: Project, env: { entry: VerificationCheck; problem: CheckEnvironmentProblem }): void {
-    const advice = environmentAdvice(env.entry, env.problem, '– NOVA wiederholt die Integrationsprüfung danach automatisch innerhalb von 10 Minuten.');
-    log.info('Integrationsprüfung konnte wegen der Umgebung nicht laufen', { taskId: parent.id, code: advice.code });
-    safe(
-      () =>
-        core.errors.report({
-          code: advice.code,
-          severity: 'blocker',
-          title: 'Integrationsprüfung konnte nicht laufen',
-          whatHappened: `Nach Abschluss aller Teilaufgaben von „${parent.title}“ sollte die gemeinsame Prüfung laufen. ${advice.reason}`,
-          projectId: parent.projectId,
-          taskId: parent.id,
-          attempted: ['Integrationsprüfung (Build und Tests) gestartet'],
-          projectSafe: true,
-          autoFixable: env.problem.kind === 'approval' || env.problem.kind === 'tool_missing',
-          userAction: advice.userAction,
-          details: env.entry.details,
-          related: { checkRunId: env.entry.checkRunId, runId: null, approvalId: env.problem.kind === 'approval' ? env.problem.approvalId : null, file: null, line: null },
-          dedupeKey: `integration:${parent.id}`,
-        }),
-      'Fehlerbericht',
-    );
-    // The approval request notifies by itself; repeated passes (every 10 min) must not toast again.
-    if (env.problem.kind !== 'approval' && !recentNotification(parent.id, 'blocker', 6 * 60 * 60_000)) {
-      notify({
-        level: 'warning',
-        category: 'blocker',
-        title: 'Integrationsprüfung konnte nicht laufen',
-        body: `Im Projekt „${project.name}“ konnte die gemeinsame Prüfung nicht laufen: ${advice.shortReason}`,
-        projectId: parent.projectId,
-        taskId: parent.id,
-      });
-    }
   }
 
   function onIntegrationFailed(parent: Task, project: Project, entries: VerificationCheck[], failedRuns: CheckRun[]): void {
@@ -1531,19 +1341,13 @@ export function createWorkCycle(s: Services, options: WorkCycleOptions = {}): Wo
     }
   }
 
-  /**
-   * Two runs of one project may overlap only when both tasks declare plannedFiles and those (plus already changed
-   * files) are disjoint. Without plannedFiles a task may touch any file and its checks would see the other run's
-   * half-finished changes. Planner runs only read and never conflict.
-   */
   function overlapsActive(task: Task): boolean {
-    if (task.role === 'planner') return false;
     const keys = taskKeys(task);
+    if (!keys.length) return false;
     for (const ctx of runs.values()) {
       if (ctx.projectId !== task.projectId || ctx.taskId === task.id) continue;
       const other = getTask(ctx.taskId);
-      if (!other || other.role === 'planner') continue;
-      if (!task.plannedFiles.length || !other.plannedFiles.length) return true;
+      if (!other) continue;
       const otherKeys = taskKeys(other);
       if (otherKeys.some((a) => keys.some((b) => keysOverlap(a, b)))) return true;
     }
@@ -1683,7 +1487,7 @@ export function createWorkCycle(s: Services, options: WorkCycleOptions = {}): Wo
         if (!p || p.role !== 'planner' || p.status !== 'done') continue;
         const project = safe(() => s.projects.get(p.projectId));
         if (!project || project.status !== 'active' || project.workState !== 'running') continue;
-        if (integrationNeeded(p, triggers)) startIntegration(p);
+        if (integrationNeeded(p)) startIntegration(p);
       }
     }
     requestWake();
@@ -1972,52 +1776,6 @@ export function createWorkCycle(s: Services, options: WorkCycleOptions = {}): Wo
     }
   }
 
-  /**
-   * After a database restore every saved conversation/verification is from the backup time, while the project files
-   * are newer (and NOVA's later changes are no longer journaled). Nothing continues automatically: affected tasks are
-   * paused for review and start fresh when the user resumes them.
-   */
-  function recoverAfterRestore(restoredFrom: string): { tasks: number } {
-    let count = 0;
-    const open = s.tasks.list({ status: ['running', 'interrupted', 'waiting_approval', 'queued', 'paused', 'blocked'], limit: 100000 });
-    for (const t of open) {
-      const inFlight = t.status === 'running' || t.status === 'interrupted' || t.status === 'waiting_approval';
-      if (!inFlight && !store.continuation(t.id)) continue;
-      count++;
-      store.forgetTask(t.id);
-      const run = safe(() => s.runs.latestForTask(t.id));
-      if (run && ['running', 'paused', 'waiting_approval', 'interrupted', 'blocked'].includes(run.status)) {
-        safe(() => s.runs.update(run.id, { status: 'cancelled', endedAt: now(), pendingApprovalId: null }), 'Lauf verwerfen');
-      }
-      expireApprovals(t.id);
-      releaseLocks(t.id);
-      patchTask(t.id, { status: 'paused', blocker: RESTORED_BLOCKER, blockerCode: 'INTERRUPTED', startRequested: false });
-    }
-    const name = restoredFrom.split(/[\\/]/).pop() || restoredFrom;
-    log.warn('Datenbank wiederhergestellt – Aufgaben werden nicht automatisch fortgesetzt', { tasks: count });
-    safe(
-      () =>
-        core.errors.report({
-          code: 'INTERRUPTED',
-          severity: 'warning',
-          title: 'Datenbank wiederhergestellt',
-          whatHappened: `NOVA hat die Datenbank aus der Sicherung „${name}“ wiederhergestellt.${
-            count ? ` ${count === 1 ? '1 Aufgabe, die damals in Arbeit war, wurde' : `${count} Aufgaben, die damals in Arbeit waren, wurden`} angehalten und nicht automatisch fortgesetzt, weil sich die Projektdateien seitdem verändert haben können.` : ''
-          } Änderungen, die NOVA nach dem Zeitpunkt der Sicherung an Projektdateien vorgenommen hat, stehen nicht mehr im Änderungsprotokoll und lassen sich nicht über NOVA rückgängig machen.`,
-          projectId: null,
-          taskId: null,
-          attempted: ['Datenbank aus der Sicherung übernommen', 'Unterbrochene Aufgaben angehalten statt fortgesetzt'],
-          projectSafe: true,
-          autoFixable: false,
-          userAction: 'Bitte die angehaltenen Aufgaben prüfen und mit „Fortsetzen“ neu starten. Den aktuellen Stand der Projektdateien bei Bedarf im Studio oder mit Git prüfen.',
-          details: null,
-          dedupeKey: 'database-restore',
-        }),
-      'Fehlerbericht',
-    );
-    return { tasks: count };
-  }
-
   // -------------------------------------------------------------------------------------------
   // Public API
   // -------------------------------------------------------------------------------------------
@@ -2052,7 +1810,7 @@ export function createWorkCycle(s: Services, options: WorkCycleOptions = {}): Wo
     }
   }
 
-  const work: WorkCycle & { recover(opts?: RecoverOptions): Promise<{ tasks: number }> } = {
+  const work: WorkCycle = {
     start(projectId) {
       if (projectId) setProjectState(projectId, 'running');
       else store.setGlobalState('running');
@@ -2115,8 +1873,7 @@ export function createWorkCycle(s: Services, options: WorkCycleOptions = {}): Wo
           return work.resumeTask(id);
         case 'blocked':
         case 'interrupted':
-          // A non-auto-resumable blocker continues only a deliberately kept (userResume) continuation.
-          if (t.status === 'blocked' && !isResumable(t.blockerCode) && !store.continuation(id)?.userResume) store.clearContinuation(id);
+          if (t.status === 'blocked' && !isResumable(t.blockerCode)) store.clearContinuation(id);
           store.forgetPaused(id);
           out = patchTask(id, { status: 'queued', startRequested: true, blocker: null, blockerCode: null, finishedAt: null });
           safe(() => core.errors.resolveWhere({ taskId: id }));
@@ -2306,19 +2063,13 @@ export function createWorkCycle(s: Services, options: WorkCycleOptions = {}): Wo
       return out;
     },
 
-    async recover(opts: RecoverOptions = {}) {
+    async recover() {
       ensureSubscriptions();
       let interrupted: AgentRun[] = [];
       try {
         interrupted = s.runs.markInterrupted();
       } catch (e) {
         log.warn('Unterbrochene Läufe konnten nicht markiert werden', { error: errorMessage(e) });
-      }
-      if (opts.restoredFrom) {
-        const res = recoverAfterRestore(opts.restoredFrom);
-        requestRecheck('recover');
-        emitStatusIfChanged();
-        return res;
       }
       const runByTask = new Map<string, AgentRun>();
       for (const r of interrupted) {

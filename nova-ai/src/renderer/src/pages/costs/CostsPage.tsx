@@ -10,15 +10,14 @@ import { useMutation, useProjectNames, useRpc } from '../../hooks';
 import { formatDuration, formatTokens, formatUsd } from '../../lib/format';
 import { paths } from '../../lib/paths';
 import { Notice } from '../settings/shared/ui';
-import { limitText, USAGE_REFRESH } from './costUtils';
+import { limitText } from './costUtils';
 import { LimitsCard } from './LimitsCard';
 import { UsageSection } from './UsageSection';
 
 type ProjectBudget = BudgetStatus['perProject'][number];
 
 export default function CostsPage() {
-  // Project changes: a new project or a changed project limit shows up in "Budget pro Projekt".
-  const budget = useRpc('budget.status', undefined, { ...USAGE_REFRESH, refetchOn: [...USAGE_REFRESH.refetchOn, 'project.updated', 'project.removed'] });
+  const budget = useRpc('budget.status', undefined, { refetchOn: ['budget.updated'] });
   const settings = useRpc('settings.get', undefined, { refetchOn: ['settings.updated'] });
   const providers = useRpc('providers.list', undefined, { refetchOn: ['provider.updated', 'provider.removed'] });
   const projectNames = useProjectNames();
@@ -208,7 +207,7 @@ function ProjectBudgetsCard({ budget, projectNames, onResume }: { budget: Budget
           rowKey={(p) => p.projectId}
           caption="Budget pro Projekt"
           dense
-          empty={<EmptyState compact icon={FolderKanban} title="Keine aktiven Projekte" description="Für jedes aktive Projekt stehen hier seine Grenze, der Verbrauch in diesem Monat und das verbleibende Budget." />}
+          empty={<EmptyState compact icon={FolderKanban} title="Noch keine Projekte" description="Sobald es Projekte gibt, steht hier ihr Verbrauch." />}
         />
       </div>
     </Card>

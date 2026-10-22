@@ -85,13 +85,6 @@ function makeDeps(over: Partial<IpcDeps> = {}) {
     showSaveDialog: vi.fn(async () => ({ canceled: false, filePath: '/home/ana/export.json' })),
     getAutostart: vi.fn(() => false),
     setAutostart: vi.fn(async (v: boolean) => v),
-    getAutostartSupport: vi.fn(() => ({ supported: false, reason: 'not-installed' as const })),
-    recovery: {
-      listBackups: vi.fn(async () => [{ path: '/d/backups/nova-1.db', name: 'nova-1.db', sizeBytes: 10, createdAt: 1 }]),
-      restoreBackup: vi.fn(async () => ({ ok: true, message: 'eingespielt' })),
-      createDiagnostics: vi.fn(async () => ({ ok: true, message: 'erstellt', path: '/d/diagnostics/x.json' })),
-    },
-    unsaved: { update: vi.fn(), resolve: vi.fn() },
     requestQuit: vi.fn(),
     log,
     ...over,
@@ -103,7 +96,7 @@ describe('bridge handlers', () => {
   it('covers every invoke channel of the bridge', () => {
     const { handlers } = makeDeps();
     expect(Object.keys(handlers).sort()).toEqual([...INVOKE_CHANNELS].sort());
-    const all = Object.values(IPC).filter((c) => c !== IPC.event && c !== IPC.daemonState && c !== IPC.navigate && c !== IPC.unsavedChangesRequest);
+    const all = Object.values(IPC).filter((c) => c !== IPC.event && c !== IPC.daemonState && c !== IPC.navigate);
     expect([...INVOKE_CHANNELS].sort()).toEqual(all.sort());
   });
 
@@ -192,34 +185,6 @@ describe('bridge handlers', () => {
     } finally {
       vi.useRealTimers();
     }
-  });
-});
-
-describe('recovery, autostart support and unsaved changes', () => {
-  it('autostart support tells the page why the switch is not available (R6-7)', async () => {
-    const { handlers } = makeDeps();
-    expect(await handlers[IPC.getAutostartSupport]()).toEqual({ supported: false, reason: 'not-installed' });
-  });
-
-  it('recovery actions are passed to main\'s recovery (R3-6)', async () => {
-    const { deps, handlers } = makeDeps();
-    expect(await handlers[IPC.daemonListBackups]()).toHaveLength(1);
-    expect(await handlers[IPC.daemonRestoreBackup]('/d/backups/nova-1.db')).toEqual({ ok: true, message: 'eingespielt' });
-    expect(deps.recovery.restoreBackup).toHaveBeenCalledWith('/d/backups/nova-1.db');
-    expect(await handlers[IPC.daemonDiagnostics]()).toMatchObject({ ok: true, path: '/d/diagnostics/x.json' });
-  });
-
-  it('validates unsaved-changes reports and answers (R5-2)', async () => {
-    const { deps, handlers } = makeDeps();
-    await handlers[IPC.setUnsavedChanges]({ count: 2, files: ['Web › src/a.ts', 'Web › src/b.ts'] });
-    expect(deps.unsaved.update).toHaveBeenCalledWith({ count: 2, files: ['Web › src/a.ts', 'Web › src/b.ts'] });
-    await expect(handlers[IPC.setUnsavedChanges]({ count: -1, files: [] })).rejects.toThrow();
-    await expect(handlers[IPC.setUnsavedChanges]({ count: 1, files: 'x' })).rejects.toThrow();
-    await handlers[IPC.unsavedChangesResult]({ id: 'u1', ok: false, failed: ['Web › src/a.ts'] });
-    expect(deps.unsaved.resolve).toHaveBeenCalledWith('u1', { ok: false, failed: ['Web › src/a.ts'] });
-    await expect(handlers[IPC.unsavedChangesResult]({ id: 7, ok: true, failed: [] })).rejects.toThrow();
-    expect(deps.unsaved.update).toHaveBeenCalledTimes(1);
-    expect(deps.unsaved.resolve).toHaveBeenCalledTimes(1);
   });
 });
 

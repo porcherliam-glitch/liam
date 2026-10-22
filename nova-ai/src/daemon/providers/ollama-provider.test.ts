@@ -1,6 +1,6 @@
 // Tests for the Ollama ModelProvider against the fake Ollama server: model listing (capabilities, context length,
 // pre-0.6 servers), message/tool-call mapping both ways, usage, error classification and abort handling.
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import type { ProviderConfig } from '@shared/schemas';
 import { nullLogger } from '../core/logger';
 import { NovaError } from '../core/errors';
@@ -12,7 +12,6 @@ import { providerErrorDetails } from './http';
 
 let ollama: FakeOllama | null = null;
 afterEach(async () => {
-  vi.useRealTimers();
   await ollama?.close();
   ollama = null;
 });
@@ -130,36 +129,6 @@ describe('ollama provider', () => {
     const e2 = (await p.chat({ model: 'm:1b', messages: [{ role: 'user', content: 'x' }], signal: pre.signal }).catch((x: unknown) => x)) as NovaError;
     expect(e2.code).toBe('CANCELLED');
     expect(providerErrorDetails(e2)).toMatchObject({ requestSent: false, billable: false });
-  });
-
-  it('R4-4: a chat answer after more than 5 minutes arrives when modelTimeoutSec allows it (default transport)', async () => {
-    ollama = await startFakeOllama({ models: ['qwen2.5-coder:14b'] });
-    let received: () => void = () => undefined;
-    let release: () => void = () => undefined;
-    const receivedP = new Promise<void>((r) => (received = r));
-    ollama.queueChat(async () => {
-      received();
-      await new Promise<void>((r) => (release = r));
-      return { content: 'fertig nach 320 s' };
-    });
-    // No fetch injected: exactly the transport the daemon uses in production.
-    const p = ollamaFactory.create(cfg(ollama.url), deps);
-    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date'] });
-    // Like ModelClient.attempt: settings.agents.modelTimeoutSec (default 600) as AbortSignal.
-    const modelTimeout = new AbortController();
-    const timer = setTimeout(() => modelTimeout.abort(new DOMException('Zeitüberschreitung', 'TimeoutError')), 600_000);
-    let state = 'pending';
-    const chat = p.chat({ model: 'qwen2.5-coder:14b', messages: [{ role: 'user', content: 'Schreibe die Datei.' }], signal: modelTimeout.signal });
-    chat.then(
-      () => (state = 'resolved'),
-      (e: unknown) => (state = `rejected: ${(e as Error).message}`),
-    );
-    await receivedP;
-    await vi.advanceTimersByTimeAsync(320_000);
-    expect(state).toBe('pending');
-    release();
-    await expect(chat).resolves.toMatchObject({ content: 'fertig nach 320 s' });
-    clearTimeout(timer);
   });
 
   it('health reports version', async () => {

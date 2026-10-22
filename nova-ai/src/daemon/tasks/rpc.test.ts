@@ -197,19 +197,4 @@ describe('dashboard.summary', () => {
     expect(res.budget?.spentMonthUsd).toBe(2);
     expect(res.models).toEqual({ local: { status: ollama, modelCount: 2 }, cloud: [health('openai')], defaultModel: 'ollama-local/qwen2.5-coder:7b' });
   });
-
-  it('counts like the pages it links to: all open errors (not the newest 20), failed tasks are open', async () => {
-    h = createHarness();
-    const p = h.projects.add({ kind: 'generic', config: defaultConfig({ testAfterChange: false }) });
-    for (let i = 0; i < 35; i++) h.core.errors.report({ code: 'X', severity: i < 30 ? 'warning' : 'blocker', title: `Fehler ${i}`, whatHappened: 'y', dedupeKey: `e${i}` });
-    const failed = h.tasks.create({ projectId: p.id, title: 'Fehlgeschlagen' } as never);
-    h.tasks.patch(failed.id, { status: 'failed' });
-    const done = h.tasks.create({ projectId: p.id, title: 'Erledigt' } as never);
-    h.tasks.patch(done.id, { status: 'done' });
-    h.tasks.create({ projectId: p.id, title: 'Wartet' } as never);
-    const res = RpcContract['dashboard.summary'].result.parse(buildDashboardSummary(h.s));
-    expect(res.errors).toHaveLength(35);
-    expect(res.errors.filter((e) => e.severity === 'blocker')).toHaveLength(5);
-    expect(res.openTasks).toBe(2);
-  });
 });

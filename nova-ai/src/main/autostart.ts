@@ -2,14 +2,12 @@
 // Key decisions:
 // - Supported on Windows (HKCU\…\CurrentVersion\Run, value name = AUTOSTART_NAME = the AppUserModelId, which the
 //   NSIS uninstaller removes again) and macOS. Linux has no login item API in Electron → reported as unsupported.
-// - Only packaged builds register themselves: a development build or a start without installation (NOVA-STARTEN.cmd)
-//   would register electron.exe without the app path. The settings page shows that instead of a switch that fails.
+// - Only packaged builds register themselves: a development build would register electron.exe without the app path.
 // - get() on Windows also honours the "disabled in Task Manager" state (executableWillLaunchAtLogin=false).
 // - reconcile(desired) runs once with the daemon's settings.background.autostart after start: it re-registers when
 //   the Run value is missing or points to an old install path, and removes it when the setting is off. It never
 //   touches the Task-Manager "deactivated" flag of an existing entry (that is the user's explicit choice).
 // - Errors are logged and reported as "not enabled"; autostart must never break the app.
-import type { AutostartSupport, AutostartUnavailableReason } from '@shared/bridge';
 import type { MainLogger } from './log';
 import { errorText } from './log';
 
@@ -33,22 +31,7 @@ export class AutostartManager {
   constructor(private readonly o: AutostartOptions) {}
 
   supported(): boolean {
-    return this.unsupportedReason() === null;
-  }
-
-  /**
-   * Why autostart cannot be used: 'not-installed' for a start without installation (NOVA-STARTEN.cmd runs the
-   * unpacked app – there is no NOVA program file that Windows could start), 'platform' on Linux. null = available.
-   */
-  unsupportedReason(): AutostartUnavailableReason | null {
-    if (this.o.platform !== 'win32' && this.o.platform !== 'darwin') return 'platform';
-    return this.o.isPackaged ? null : 'not-installed';
-  }
-
-  /** For the settings page (window.nova.app.getAutostartSupport). */
-  support(): AutostartSupport {
-    const reason = this.unsupportedReason();
-    return { supported: reason === null, reason };
+    return this.o.isPackaged && (this.o.platform === 'win32' || this.o.platform === 'darwin');
   }
 
   private query(): { openAtLogin: boolean; willLaunch: boolean } | null {

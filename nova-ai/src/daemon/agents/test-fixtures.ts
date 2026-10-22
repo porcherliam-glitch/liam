@@ -142,7 +142,7 @@ export interface FakeModels {
   models: ModelClient;
   /** Deep copies of every chat input. */
   calls: ModelChatInput[];
-  resolveCalls: Array<{ role: string; preferred: unknown; taskId: string | null }>;
+  resolveCalls: Array<{ role: string; preferred: unknown }>;
   /** Items still in the script. */
   remaining(): number;
   push(...items: ScriptItem[]): void;
@@ -154,14 +154,14 @@ export interface FakeModels {
 export function fakeModels(opts: { supportsTools?: boolean; contextLength?: number | null; script?: ScriptItem[]; type?: 'ollama' | 'openai_compatible' } = {}): FakeModels {
   const script: ScriptItem[] = [...(opts.script ?? [])];
   const calls: ModelChatInput[] = [];
-  const resolveCalls: Array<{ role: string; preferred: unknown; taskId: string | null }> = [];
+  const resolveCalls: Array<{ role: string; preferred: unknown }> = [];
   let resolveError: Error | null = null;
   let seq = 0;
   let supportsTools = opts.supportsTools;
   const base = () => resolvedModel({ supportsTools, contextLength: opts.contextLength, type: opts.type });
   const models: ModelClient = {
     async resolve(role, o) {
-      resolveCalls.push({ role, preferred: o?.preferred ?? null, taskId: o?.taskId ?? null });
+      resolveCalls.push({ role, preferred: o?.preferred ?? null });
       if (resolveError) throw resolveError;
       return base();
     },

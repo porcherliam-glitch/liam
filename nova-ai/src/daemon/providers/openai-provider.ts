@@ -15,7 +15,7 @@ import type { ModelCapability, ModelInfo, ModelPricing, ProviderConfig, Provider
 import type { ChatMessage, ChatRequest, ChatResponse, ChatToolCall, ModelProvider, ProviderFactory, ProviderFactoryDeps } from '../contracts';
 import { isLocalEndpoint } from '../core/net';
 import { errorMessage } from '../core/errors';
-import { invalidResponse, joinUrl, providerError, providerErrorDetails, providerFetch, requestJson, type HttpContext } from './http';
+import { invalidResponse, joinUrl, providerError, providerErrorDetails, requestJson, type HttpContext } from './http';
 import { newToolCallId, toArgumentsObject } from './ollama-provider';
 
 const CHAT_SAFETY_TIMEOUT_MS = 60 * 60 * 1000;
@@ -135,7 +135,7 @@ class OpenAiCompatibleProvider implements ModelProvider {
     private readonly deps: ProviderFactoryDeps,
   ) {
     this.id = cfg.id;
-    this.ctx = { fetch: deps.fetch ?? providerFetch, label: cfg.name, family: 'cloud', providerId: cfg.id };
+    this.ctx = { fetch: deps.fetch ?? fetch, label: cfg.name, family: 'cloud', providerId: cfg.id };
   }
 
   config(): ProviderConfig {

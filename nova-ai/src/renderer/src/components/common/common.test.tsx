@@ -1,5 +1,5 @@
 /** @vitest-environment jsdom */
-import { act, render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { renderWithRouter, RouterWrapper, setupRendererTest } from '../../lib/test-utils';
@@ -12,7 +12,6 @@ import { WorkControls } from './WorkControls';
 import { DaemonBanner } from './DaemonBanner';
 import { ModelBadge, PriorityBadge, TaskStatusBadge, VerificationBadge } from './StatusBadges';
 import { PrioritySelect } from './PrioritySelect';
-import { RelativeTime } from './RelativeTime';
 
 setupRendererTest();
 
@@ -135,54 +134,6 @@ describe('DaemonBanner', () => {
     expect(screen.getByText(/Der Dienst konnte nicht gestartet werden\./)).toBeTruthy();
     await userEvent.click(screen.getByRole('button', { name: /Dienst neu starten/ }));
     await waitFor(() => expect(screen.queryByText('Der Hintergrunddienst ist nicht erreichbar')).toBeNull());
-  });
-
-  it('damaged database: restores a checked backup and creates diagnostics without the service (R3-6)', async () => {
-    renderWithRouter(<DaemonBanner />);
-    await waitFor(() => expect(useDaemonStore.getState().connection?.state).toBe('connected'));
-    act(() =>
-      setMockConnection({
-        state: 'error',
-        message: 'Der NOVA-Hintergrunddienst konnte nicht starten. Die Datenbank ist möglicherweise beschädigt.',
-        recovery: ['restore_backup', 'create_diagnostics'],
-      }),
-    );
-    await userEvent.click(await screen.findByRole('button', { name: /Diagnose erstellen/ }));
-    await waitFor(() => expect(useToastStore.getState().toasts.at(-1)?.title).toBe('Diagnose-Paket erstellt'));
-    await userEvent.click(screen.getByRole('button', { name: /Datensicherung einspielen/ }));
-    const dialog = await screen.findByRole('dialog', { name: 'Datensicherung einspielen' });
-    const radios = await within(dialog).findAllByRole('radio');
-    expect(radios.length).toBeGreaterThan(0);
-    expect((radios[0] as HTMLInputElement).checked).toBe(true); // newest first, preselected
-    await userEvent.click(within(dialog).getByRole('button', { name: /Prüfen, einspielen und neu starten/ }));
-    await waitFor(() => expect(useDaemonStore.getState().connection?.state).toBe('connected'));
-    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
-    expect(useToastStore.getState().toasts.at(-1)?.title).toBe('Datensicherung eingespielt');
-  });
-
-  it('offers no backup restore for other start errors', async () => {
-    renderWithRouter(<DaemonBanner />);
-    await waitFor(() => expect(useDaemonStore.getState().connection?.state).toBe('connected'));
-    act(() => setMockConnection({ state: 'error', message: 'Startet nicht.', recovery: ['create_diagnostics'] }));
-    expect(await screen.findByRole('button', { name: /Diagnose erstellen/ })).toBeTruthy();
-    expect(screen.queryByRole('button', { name: /Datensicherung einspielen/ })).toBeNull();
-  });
-});
-
-describe('RelativeTime', () => {
-  it('a just-measured timestamp reads "gerade eben", never "gleich" (R5-4)', () => {
-    // Fresh resource snapshot / "Zuletzt geprüft": recorded now or a few hundred ms ahead (clock of the daemon).
-    render(
-      <>
-        <RelativeTime ts={Date.now()} prefix="A" />
-        <RelativeTime ts={Date.now() + 800} prefix="B" />
-        <RelativeTime ts={Date.now() - 5 * 60_000} prefix="C" />
-      </>,
-    );
-    expect(screen.getByText('A gerade eben')).toBeTruthy();
-    expect(screen.getByText('B gerade eben')).toBeTruthy();
-    expect(screen.getByText('C vor 5 Min.')).toBeTruthy();
-    expect(screen.queryByText(/gleich/)).toBeNull();
   });
 });
 

@@ -494,13 +494,6 @@ export function createBudgetService(s: Services): BudgetServiceImpl {
       }
       const globalPause = pausedInfo(null);
       const projectIds = new Set<string>();
-      // Every active project (its own limit and remaining budget are shown even without paid usage, MASTERPROMPT §15),
-      // plus archived/removed ones that spent money this month, are paused or have a call in flight.
-      try {
-        for (const r of db.all<{ id: string }>("SELECT id FROM projects WHERE status = 'active'")) projectIds.add(r.id);
-      } catch (e) {
-        log.warn('Projektliste für das Budget nicht lesbar', { error: errorMessage(e) });
-      }
       for (const r of db.all<{ project_id: string }>('SELECT DISTINCT project_id FROM usage_records WHERE paid = 1 AND ts >= ? AND project_id IS NOT NULL', [month])) {
         projectIds.add(r.project_id);
       }

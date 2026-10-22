@@ -2,14 +2,12 @@
 // reasons, fallback, rate limits, cloud-data approvals + redaction, paid gating, parallel budget use, usage booking,
 // VRAM fit and governor checks. Cloud endpoints are https URLs rewritten to the local fake server by an injected fetch.
 import { afterEach, describe, expect, it } from 'vitest';
-import { RESUMABLE_BLOCKER_CODES } from '@shared/errors';
 import type { ModelRef } from '@shared/schemas';
 import { createTestCore, type TestCore } from '../../../tests/helpers/core';
 import { makeServices } from '../../../tests/helpers/services';
 import { startFakeOllama, type FakeOllama, type FakeOllamaModel } from '../../../tests/fakes/fake-ollama';
 import { startFakeOpenAi, type FakeOpenAi } from '../../../tests/fakes/fake-openai';
 import { unusedLocalUrl } from '../../../tests/fakes/fake-http';
-import { createApprovalService } from '../approvals/approval-service';
 import { NovaError } from '../core/errors';
 import { _clearRegisteredSecrets } from '../core/redact';
 import type { ConcurrencyGovernor, ModelChatInput, OllamaFit, OllamaService } from '../contracts';
@@ -324,61 +322,6 @@ describe('model client – cloud data, approvals and redaction', () => {
     select({ defaultModel: C('gpt-test') });
     expect((await models.resolve('coder', { projectId: 'P', taskId: 't' })).ref).toEqual(C('gpt-test'));
     expect(approvals.rows).toHaveLength(0);
-  });
-});
-
-describe('model client – denied cloud-data approval (real approval service)', () => {
-  async function deniedSetup(fallbacks: ModelRef[] = []) {
-    const h = await setup();
-    const approvals = createApprovalService(h.s);
-    h.s.approvals = approvals;
-    await h.addCloud(false);
-    h.select({ defaultModel: C('gpt-test'), fallbacks });
-    const input = chatInput({ projectId: 'P', taskId: 'task_1' });
-    const first = await caught(h.models.chat(input));
-    expect(first.code).toBe('APPROVAL_REQUIRED');
-    const firstId = (first.details as { approvalId: string }).approvalId;
-    approvals.decide(firstId, 'deny', 'once');
-    return { ...h, approvals, input, firstId };
-  }
-
-  it('resolve(taskId) and chat() fail with the non-resumable APPROVAL_DENIED (no NO_MODEL auto-unblock loop); a restart asks again', async () => {
-    const { models, approvals, cloud, input, firstId } = await deniedSetup();
-    // The runner resolves with the task id when it resumes after the decision: same verdict as chat().
-    const e = await caught(models.resolve('coder', { projectId: 'P', taskId: 'task_1' }));
-    expect(e.code).toBe('APPROVAL_DENIED');
-    expect(RESUMABLE_BLOCKER_CODES).not.toContain(e.code); // the work cycle does not re-run the task every minute
-    expect(e.message).toContain('Das Senden von Projektdaten an „Cloud“ wurde für diese Aufgabe abgelehnt.');
-    expect(e.message).toContain('gpt-test (Cloud)');
-    expect(e.message).not.toContain('Kein verwendbares Modell');
-    expect(e.userAction).toContain('lokales Modell');
-    expect(cloud.chatRequests()).toHaveLength(0);
-    // The denial was handed to the caller (who blocks the task): a restart creates a new question instead of failing.
-    expect(approvals.get(firstId)!.status).toBe('denied');
-    const again = await caught(models.chat(input));
-    expect(again.code).toBe('APPROVAL_REQUIRED');
-    const againId = (again.details as { approvalId: string }).approvalId;
-    expect(againId).not.toBe(firstId);
-    // Nothing new is asked as long as that question is open.
-    expect((await caught(models.chat(input))).details).toMatchObject({ approvalId: againId });
-    expect(approvals.list({ status: 'pending' })).toHaveLength(1);
-  });
-
-  it('chat() reports the denial itself, also together with other reasons', async () => {
-    const { models, input } = await deniedSetup([L('fehlt:7b')]);
-    const e = await caught(models.chat(input));
-    expect(e.code).toBe('APPROVAL_DENIED');
-    expect(e.message).toContain('Geprüft wurden:');
-    expect(e.message).toContain('gpt-test (Cloud): Das Senden von Projektdaten an „Cloud“ wurde für diese Aufgabe abgelehnt.');
-    expect(e.message).toContain('fehlt:7b (Ollama (lokal)): Das Modell ist in Ollama nicht installiert');
-  });
-
-  it('with a usable fallback the denial stays valid for the task and nobody is asked again', async () => {
-    const { models, approvals, input, ollama, cloud } = await deniedSetup([L('qwen2.5-coder:7b')]);
-    ollama.setDefaultChat({ content: 'lokal' });
-    for (let i = 0; i < 3; i++) expect((await models.chat(input)).resolved.ref).toEqual(L('qwen2.5-coder:7b'));
-    expect(approvals.list({ status: 'pending' })).toHaveLength(0);
-    expect(cloud.chatRequests()).toHaveLength(0);
   });
 });
 

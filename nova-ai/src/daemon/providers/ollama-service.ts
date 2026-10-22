@@ -11,15 +11,10 @@
 //   pulled returns the running pull), governor.canWrite on the Ollama models folder before starting, progress
 //   aggregated over all layers, events throttled to ≥ 250 ms, idle timeout 10 min, cancel via AbortController,
 //   'ollama.models.changed' after success. Finished pulls are kept for 1 h (max 50).
-// - Disk space during a pull (local Ollama only): as soon as Ollama reports layer sizes, and again at most every 5 s,
-//   free space on the models drive must cover the bytes still to download (of all running pulls) plus
-//   settings.resources.minFreeDiskMb; otherwise the pull is stopped with DISK_FULL before the drive runs full.
 // - fit(): required ≈ size × 1.2 + KV cache (2 × layers × KV heads × head dim × 2 bytes × num_ctx; 64 KiB per token
-//   when the model metadata is missing), available = free VRAM of the GPU with the largest VRAM plus the VRAM held by
-//   loaded Ollama models (the model itself and others – Ollama unloads idle models when a new one needs the space),
-//   capped at the GPU total, from a fresh resources.sample(). fits=null without GPU data. A model already fully loaded in VRAM fits. estimated=true
-//   when GPU numbers or model metadata are estimates. Alternatives: installed completion models that fit, smallest
-//   first.
+//   when the model metadata is missing), available = free VRAM of the GPU with the largest VRAM from
+//   resources.latest(). fits=null without GPU data. A model already fully loaded in VRAM fits. estimated=true when
+//   GPU numbers or model metadata are estimates. Alternatives: installed completion models that fit, smallest first.
 // - lastStatus() never touches the network; a 60 s background refresh (unref'd timer) runs after start() or the first
 //   lastStatus() call.
 import { existsSync } from 'node:fs';
@@ -32,8 +27,7 @@ import { findExecutable as coreFindExecutable } from '../core/exec';
 import { newId } from '../core/ids';
 import { isLocalEndpoint } from '../core/net';
 import { redactString } from '../core/redact';
-import { defaultDiskDeps, diskUsage } from '../resources/disk';
-import { providerErrorDetails, providerFetch } from './http';
+import { providerErrorDetails } from './http';
 import {
   DEFAULT_OLLAMA_URL,
   OllamaApi,
@@ -59,10 +53,6 @@ export interface OllamaServiceOptions {
   pullIdleTimeoutMs?: number;
   /** Minimum time between two progress events of one pull (default 250 ms). */
   pullEventIntervalMs?: number;
-  /** Free space of the drive holding a path (default: statfs); null = unknown. */
-  diskFree?: (path: string) => { path: string; freeBytes: number } | null;
-  /** Minimum time between two disk-space checks of a running pull (default 5 s; new layer sizes are checked at once). */
-  pullDiskCheckIntervalMs?: number;
 }
 
 export interface OllamaServiceImpl extends OllamaService {
@@ -75,14 +65,11 @@ export interface OllamaServiceImpl extends OllamaService {
 const MAX_CONCURRENT_PULLS = 2;
 const KV_FALLBACK_BYTES_PER_TOKEN = 64 * 1024;
 const GiB = 1024 ** 3;
-const MiB = 1024 ** 2;
 
 interface PullEntry {
   pull: OllamaPull;
   controller: AbortController;
   cancelRequested: boolean;
-  /** Bytes still to download over all layers Ollama has announced so far. */
-  remainingBytes: number;
 }
 
 export function formatGb(bytes: number): string {
@@ -106,7 +93,7 @@ export function requiredVramBytes(detail: Pick<OllamaModelDetail, 'kv' | 'info'>
 export function createOllamaService(s: Services, options: OllamaServiceOptions = {}): OllamaServiceImpl {
   const core = s.core;
   const log = core.log.child('ollama');
-  const fetchImpl = options.fetch ?? providerFetch;
+  const fetchImpl = options.fetch ?? fetch;
   const platform = () => options.platform ?? core.platform;
   const env = () => options.env ?? process.env;
   const fileExists = options.fileExists ?? ((p: string) => existsSync(p));
@@ -114,8 +101,6 @@ export function createOllamaService(s: Services, options: OllamaServiceOptions =
   const home = options.homedir ?? osHomedir;
   const idleTimeout = options.pullIdleTimeoutMs ?? 10 * 60_000;
   const eventInterval = options.pullEventIntervalMs ?? 250;
-  const diskCheckInterval = options.pullDiskCheckIntervalMs ?? 5_000;
-  const diskFree = options.diskFree ?? ((p: string) => diskUsage(p, defaultDiskDeps(process.platform)));
   const pulls = new Map<string, PullEntry>();
   let last: OllamaStatus | null = null;
   let binaryCache: { at: number; path: string | null } | null = null;
@@ -258,42 +243,16 @@ export function createOllamaService(s: Services, options: OllamaServiceOptions =
     return candidates.find((c) => fileExists(c)) ?? h;
   };
 
-  /** Throws DISK_FULL when the models drive cannot hold what the running pulls still download plus the reserve. */
-  const ensureDiskSpace = (entry: PullEntry) => {
-    if (!isLocalEndpoint(baseUrl())) return; // the model is stored on the Ollama host, not on this PC
-    let needed = 0;
-    let others = 0;
-    for (const e of pulls.values()) {
-      if (e.pull.status !== 'running' || e.remainingBytes <= 0) continue;
-      needed += e.remainingBytes;
-      if (e !== entry) others++;
-    }
-    if (needed <= 0) return;
-    const disk = diskFree(modelsDir());
-    if (!disk) return;
-    const minMb = core.settings.section('resources').minFreeDiskMb;
-    if (disk.freeBytes - needed >= minMb * MiB) return;
-    const where = platform() === 'win32' ? `auf dem Laufwerk ${disk.path}` : `auf dem Datenträger von ${disk.path}`;
-    const together = others > 0 ? ` (zusammen mit dem anderen laufenden Download ca. ${formatGb(needed)})` : '';
-    throw new NovaError(
-      'DISK_FULL',
-      `Zu wenig Speicherplatz: „${entry.pull.model}“ braucht noch ca. ${formatGb(entry.remainingBytes)}${together}, ${where} sind nur ${formatGb(disk.freeBytes)} frei (mindestens ${minMb.toLocaleString('de-DE')} MB sollen frei bleiben). Der Download wurde angehalten, bevor das Laufwerk voll ist – bitte Speicherplatz freigeben und erneut starten.`,
-      { severity: 'blocker', userAction: 'Speicherplatz freigeben und den Download erneut starten.' },
-    );
-  };
-
   const runPull = async (entry: PullEntry) => {
     const p = entry.pull;
     const layers = new Map<string, { total: number; completed: number }>();
     let lastEmit = 0;
-    let lastDiskCheck = 0;
     let success = false;
     try {
       await api().pull(p.model, entry.controller.signal, idleTimeout, (ev) => {
         const phaseChanged = typeof ev.status === 'string' && ev.status !== p.phase;
         if (typeof ev.status === 'string') p.phase = ev.status;
         if (ev.digest && typeof ev.total === 'number' && ev.total > 0) {
-          const newLayer = !layers.has(ev.digest);
           layers.set(ev.digest, { total: ev.total, completed: Math.min(ev.total, typeof ev.completed === 'number' ? ev.completed : 0) });
           let total = 0;
           let completed = 0;
@@ -304,12 +263,6 @@ export function createOllamaService(s: Services, options: OllamaServiceOptions =
           p.totalBytes = total;
           p.completedBytes = completed;
           p.percent = total > 0 ? Math.min(100, Math.round((completed / total) * 1000) / 10) : null;
-          entry.remainingBytes = Math.max(0, total - completed);
-          const t = Date.now();
-          if (newLayer || t - lastDiskCheck >= diskCheckInterval) {
-            lastDiskCheck = t;
-            ensureDiskSpace(entry);
-          }
         }
         if (ev.status === 'success') success = true;
         p.updatedAt = core.clock.now();
@@ -395,7 +348,6 @@ export function createOllamaService(s: Services, options: OllamaServiceOptions =
         pull: { id: newId('pull'), model, status: 'running', phase: 'starting', completedBytes: null, totalBytes: null, percent: null, error: null, startedAt: now, updatedAt: now },
         controller: new AbortController(),
         cancelRequested: false,
-        remainingBytes: 0,
       };
       pulls.set(entry.pull.id, entry);
       emitPull(entry);
@@ -456,33 +408,21 @@ export function createOllamaService(s: Services, options: OllamaServiceOptions =
       const target = details.find((d) => d.info.id === model) ?? details.find((d) => sameOllamaModel(d.info.id, model));
       if (!target) throw new NovaError('MODEL_UNAVAILABLE', `Das Modell „${model}“ ist nicht installiert.`, { severity: 'warning' });
       const required = requiredVramBytes(target, ctx);
-      // A fresh sample: GPU numbers are probed only rarely while the PC is idle (ResourceMonitor), and a VRAM decision
-      // must not rest on numbers that are minutes old.
       let snap = null;
       try {
-        snap = await s.resources.sample();
+        snap = s.resources.latest();
       } catch (e) {
         log.debug('Ressourcendaten nicht verfügbar', { error: errorMessage(e) });
-        try {
-          snap = s.resources.latest();
-        } catch {
-          snap = null;
-        }
       }
-      const loadedModels = snap?.ollamaLoaded ?? [];
-      const loaded = loadedModels.find((r) => sameOllamaModel(r.model, target.info.id)) ?? null;
-      // VRAM of OTHER loaded Ollama models is reclaimable: Ollama unloads them when a new model needs the space.
-      const reclaimable = loadedModels.filter((r) => r !== loaded).reduce((sum, r) => sum + Math.max(0, r.vramBytes), 0);
+      const loaded = snap?.ollamaLoaded.find((r) => sameOllamaModel(r.model, target.info.id)) ?? null;
       const gpu = (snap?.gpus ?? [])
         .filter((g) => typeof g.vramTotalBytes === 'number' && g.vramTotalBytes > 0)
         .sort((a, b) => (b.vramTotalBytes ?? 0) - (a.vramTotalBytes ?? 0))[0];
-      // Free VRAM + memory the model itself already occupies + other Ollama models (never more than the GPU has).
-      const usable = (total: number): number => Math.min(total, Math.max(0, total - (gpu?.vramUsedBytes ?? 0)) + (loaded?.vramBytes ?? 0) + reclaimable);
       if (loaded && loaded.sizeBytes > 0 && loaded.vramBytes >= loaded.sizeBytes) {
         return {
           fits: true,
           requiredBytes: required.bytes,
-          availableBytes: gpu?.vramTotalBytes != null ? usable(gpu.vramTotalBytes) : null,
+          availableBytes: gpu?.vramTotalBytes != null ? Math.max(0, gpu.vramTotalBytes - (gpu.vramUsedBytes ?? 0)) + loaded.vramBytes : null,
           estimated: required.estimated || Boolean(gpu?.estimated),
           message: 'Das Modell ist bereits vollständig im Grafikspeicher geladen.',
           alternatives: [],
@@ -503,14 +443,15 @@ export function createOllamaService(s: Services, options: OllamaServiceOptions =
         return {
           fits: null,
           requiredBytes: null,
-          availableBytes: usable(gpu.vramTotalBytes),
+          availableBytes: Math.max(0, gpu.vramTotalBytes - (gpu.vramUsedBytes ?? 0)),
           estimated: true,
           message: 'Die Modellgröße ist unbekannt – ob das Modell in den Grafikspeicher passt, lässt sich nicht abschätzen.',
           alternatives: [],
         };
       }
       const usedEstimated = gpu.vramUsedBytes == null;
-      const available = usable(gpu.vramTotalBytes);
+      let available = Math.max(0, gpu.vramTotalBytes - (gpu.vramUsedBytes ?? 0));
+      if (loaded) available += loaded.vramBytes; // memory the model already occupies is reused
       const estimated = required.estimated || gpu.estimated || usedEstimated;
       const fits = required.bytes <= available;
       const alternatives = details
@@ -520,10 +461,9 @@ export function createOllamaService(s: Services, options: OllamaServiceOptions =
         .sort((a, b) => (a.d.info.sizeBytes ?? 0) - (b.d.info.sizeBytes ?? 0) || a.req - b.req)
         .map((x) => x.d.info.id);
       const est = estimated ? ' (geschätzt)' : '';
-      const swap = reclaimable > 0 ? `, davon ${formatGb(Math.min(reclaimable, available))} von anderen geladenen Modellen, die Ollama bei Bedarf entlädt` : '';
       const message = fits
-        ? `Passt in den Grafikspeicher: benötigt ca. ${formatGb(required.bytes)}, frei ${formatGb(available)}${est}${swap}.`
-        : `Passt nicht in den Grafikspeicher: benötigt ca. ${formatGb(required.bytes)}, frei nur ${formatGb(available)}${est}${swap}.${
+        ? `Passt in den Grafikspeicher: benötigt ca. ${formatGb(required.bytes)}, frei ${formatGb(available)}${est}.`
+        : `Passt nicht in den Grafikspeicher: benötigt ca. ${formatGb(required.bytes)}, frei nur ${formatGb(available)}${est}.${
             alternatives.length ? ` Kleinere installierte Modelle, die passen: ${alternatives.slice(0, 5).join(', ')}.` : ' Ein kleineres Modell oder eine geringere Kontextgröße wählen.'
           }`;
       return { fits, requiredBytes: required.bytes, availableBytes: available, estimated, message, alternatives };

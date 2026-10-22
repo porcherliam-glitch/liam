@@ -2,7 +2,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { ArrowRight, Copy, Download, FolderSearch, PackageCheck, RefreshCw, Save, ScrollText, Stethoscope } from 'lucide-react';
-import type { AutostartSupport } from '@shared/bridge';
 import type { Settings } from '@shared/settings';
 import type { RpcResult } from '@shared/rpc';
 import { Badge, Button, Card, copyToClipboard, KeyValue, Spinner, Switch } from '../../../components/ui';
@@ -28,7 +27,6 @@ export interface AutostartControlProps {
 export function AutostartControl({ savedValue, onSettingsSaved }: AutostartControlProps) {
   const [actual, setActual] = useState<boolean | null>(null);
   const [unavailable, setUnavailable] = useState(false);
-  const [support, setSupport] = useState<AutostartSupport | null>(null);
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
@@ -42,16 +40,10 @@ export function AutostartControl({ savedValue, onSettingsSaved }: AutostartContr
       .getAutostart()
       .then((v) => !cancelled && setActual(v))
       .catch(() => !cancelled && setUnavailable(true));
-    // Older preloads have no getAutostartSupport: then the switch behaves as before.
-    bridge.app
-      .getAutostartSupport?.()
-      .then((s) => !cancelled && setSupport(s))
-      .catch(() => undefined);
     return () => {
       cancelled = true;
     };
   }, []);
-  const notSupported = support !== null && !support.supported;
 
   const toggle = async (enabled: boolean) => {
     const bridge = getBridge();
@@ -70,27 +62,21 @@ export function AutostartControl({ savedValue, onSettingsSaved }: AutostartContr
     }
   };
 
-  const checked = notSupported ? false : (actual ?? savedValue);
+  const checked = actual ?? savedValue;
   return (
     <div className="rounded-lg border border-border bg-surface-2/40 p-3">
       <div className="flex items-start justify-between gap-3">
         <Switch
           checked={checked}
           onChange={(v) => void toggle(v)}
-          disabled={busy || unavailable || notSupported}
+          disabled={busy || unavailable}
           label="Mit Windows starten"
           description="NOVA startet nach der Anmeldung unsichtbar im Infobereich und arbeitet an freigegebenen Projekten weiter."
         />
-        {busy ? <Spinner size="sm" /> : notSupported ? <Badge tone="neutral">nicht verfügbar</Badge> : <Badge tone="neutral">sofort wirksam</Badge>}
+        {busy ? <Spinner size="sm" /> : <Badge tone="neutral">sofort wirksam</Badge>}
       </div>
-      {notSupported && support?.reason === 'not-installed' && (
-        <p className="mt-2 text-xs text-muted">
-          Nur in der installierten Version verfügbar. NOVA wurde ohne Installation gestartet (zum Beispiel über „NOVA-STARTEN.cmd“) – dafür kann Windows keinen Autostart-Eintrag anlegen. Für den Autostart NOVA mit dem Setup installieren.
-        </p>
-      )}
-      {notSupported && support?.reason === 'platform' && <p className="mt-2 text-xs text-muted">Auf diesem Betriebssystem kann NOVA den Autostart nicht einrichten.</p>}
       {unavailable && <p className="mt-2 text-xs text-warning-fg">Der Autostart lässt sich hier gerade nicht abfragen. Bitte NOVA neu starten.</p>}
-      {!notSupported && actual !== null && actual !== savedValue && !busy && <p className="mt-2 text-xs text-muted">Hinweis: Laut Windows ist der Autostart {actual ? 'eingeschaltet' : 'ausgeschaltet'}.</p>}
+      {actual !== null && actual !== savedValue && !busy && <p className="mt-2 text-xs text-muted">Hinweis: Laut Windows ist der Autostart {actual ? 'eingeschaltet' : 'ausgeschaltet'}.</p>}
     </div>
   );
 }

@@ -10,12 +10,8 @@
 //   only) VRAM fit (ollama.fit, cached 60 s) and governor.allowedFor. The approval is checked last so the user is
 //   only asked for a provider whose model can actually be used.
 // - Cloud data approval (sensitive_data, subject `cloud:<providerId>`): chat() always uses approvals.check with the
-//   task id (never consume). resolve() without a task id only peeks (rules + existing pending approvals) and never
-//   creates an approval; with `taskId` (the agent runner passes it) it runs the same check as chat().
-// - A denied cloud approval skips that candidate (the denial stays valid for the task). When no candidate is usable
-//   and a denial is among the reasons, chat()/resolve() throw APPROVAL_DENIED (not NO_MODEL): the code is not
-//   resumable, so the work cycle does not auto-unblock and re-run the task every minute. At that moment the denial is
-//   acknowledged, so restarting the task asks the user again instead of failing at once.
+//   task id (never consume). resolve() has no task id in the contract: without one it only peeks (rules + existing
+//   pending approvals) and never creates an approval; callers may pass `taskId` (contract change requested).
 // - Non-local providers receive deep-redacted messages and tool arguments.
 // - Fallback to the next candidate on MODEL_UNAVAILABLE, OLLAMA_UNREACHABLE, retryable PROVIDER_ERROR (5xx, network,
 //   timeout), PROVIDER_AUTH (reported as error) and BUDGET_EXCEEDED from a racing reservation. 429 waits for
@@ -318,9 +314,7 @@ export function createModelClient(s: Services, options: ModelClientOptions = {})
       if (a.state === 'pending') {
         return reject(ref, cfg, 'APPROVAL_REQUIRED', `Wartet auf die Freigabe, Projektdaten an „${cfg.name}“ zu senden.`, { approvalId: a.approvalId });
       }
-      if (a.state === 'denied') {
-        return reject(ref, cfg, 'APPROVAL_DENIED', `Das Senden von Projektdaten an „${cfg.name}“ wurde für diese Aufgabe abgelehnt.`, { approvalId: a.approvalId });
-      }
+      if (a.state === 'denied') return reject(ref, cfg, 'APPROVAL_DENIED', `Das Senden von Projektdaten an „${cfg.name}“ wurde für diese Aufgabe abgelehnt.`);
     }
     let contextLength = info?.contextLength ?? null;
     if (cfg.type === 'ollama') {
@@ -381,31 +375,6 @@ export function createModelClient(s: Services, options: ModelClientOptions = {})
       });
     }
     if (!rejections.length) return noModelConfigured();
-    const denied = rejections.filter((r) => r.code === 'APPROVAL_DENIED');
-    if (denied.length) {
-      // The caller blocks the task on this error; acknowledging lets a restart of the task ask the user again.
-      for (const r of denied) {
-        if (!r.approvalId) continue;
-        try {
-          s.approvals.acknowledgeDenial(r.approvalId);
-        } catch (e) {
-          log.warn('Abgelehnte Freigabe konnte nicht als gesehen markiert werden', { approvalId: r.approvalId, error: errorMessage(e) });
-        }
-      }
-      const what =
-        rejections.length === 1
-          ? `${denied[0].reason} Ohne diese Freigabe kann ${denied[0].label} nicht verwendet werden, und es ist kein anderes Modell ausgewählt.`
-          : `Das Senden von Projektdaten an einen Cloud-Anbieter wurde für diese Aufgabe abgelehnt, und kein anderes ausgewähltes Modell ist verwendbar. Geprüft wurden:\n${lines}`;
-      return new NovaError(
-        'APPROVAL_DENIED',
-        `${what}\nBitte unter „Modelle“ ein lokales Modell auswählen und die Aufgabe erneut starten – oder die Aufgabe erneut starten und die Freigabe erteilen.`,
-        {
-          severity: 'blocker',
-          details,
-          userAction: 'Unter „Modelle“ ein lokales Modell auswählen und die Aufgabe erneut starten – oder die Aufgabe erneut starten und die Freigabe erteilen.',
-        },
-      );
-    }
     const codes = new Set(rejections.map((r) => r.code));
     if (codes.size === 1) {
       const code = rejections[0].code;

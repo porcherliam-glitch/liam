@@ -1,16 +1,5 @@
-// Helpers for the costs page: time ranges, limit modes, labels for breakdown keys, refresh events.
-import type { AnyNovaEvent, NovaEventType } from '@shared/events';
+// Helpers for the costs page: time ranges, limit modes, labels for breakdown keys.
 import { formatDate, formatUsd } from '../../lib/format';
-
-/**
- * Re-fetch triggers for usage numbers (tokens, runtime, calls): budget.updated comes only for paid calls and limit
- * changes, so every finished model call (run.step of kind model_call, also local Ollama calls) refreshes as well.
- */
-export const USAGE_REFRESH = {
-  refetchOn: ['budget.updated', 'run.step'] as readonly NovaEventType[],
-  eventFilter: (e: AnyNovaEvent): boolean => e.type !== 'run.step' || e.payload.kind === 'model_call',
-  debounceMs: 1000,
-};
 
 export type Period = 'today' | '7d' | 'month' | '30d';
 

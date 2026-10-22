@@ -23,8 +23,6 @@ function task(projectId: string, title: string, patch: Record<string, unknown> =
   return h.tasks.create({ projectId, title, ...patch } as never);
 }
 
-const status = (id: string) => h.tasks.require(id).status;
-
 const failTest = (signature: string, message = 'expected 2 got 3'): Partial<CheckRun> => ({
   status: 'failed',
   passed: 2,
@@ -190,8 +188,7 @@ describe('reviewer pass', () => {
     expect(calls[2].extraContext).toContain('[major] src/login.js:9 – Passwort wird im Klartext geloggt');
     const done = h.tasks.require(t.id);
     expect(done.status).toBe('done');
-    // no executable check: the approving review alone is no proof
-    expect(done.verification).toMatchObject({ status: 'unavailable', checks: [{ name: 'Review', status: 'passed' }] });
+    expect(done.verification).toMatchObject({ status: 'passed', checks: [{ name: 'Review', status: 'passed' }] });
   });
 
   it('pauses during the reviewer pass and resumes the reviewer run (no new coder run)', async () => {
@@ -210,7 +207,7 @@ describe('reviewer pass', () => {
     const calls = h.agents.callsFor(t.id);
     expect(calls.map((c) => c.roleUsed)).toEqual(['coder', 'reviewer', 'reviewer']);
     expect(calls[2].resumeRunId).toBe(calls[1].runId);
-    expect(h.tasks.require(t.id)).toMatchObject({ status: 'done', attempts: 1, verification: { status: 'unavailable', checks: [{ name: 'Review', status: 'passed' }] } });
+    expect(h.tasks.require(t.id)).toMatchObject({ status: 'done', attempts: 1, verification: { status: 'passed' } });
   });
 
   it('completes a review task with changes_requested and creates a fix task with the findings', async () => {
@@ -285,7 +282,7 @@ describe('planner and integration pass', () => {
     const children = h.tasks.list({ parentId: plan.id } as never).filter((c) => c.source === 'planner');
     expect(children.map((c) => c.title)).toEqual(['Spielfeld', 'Tests']);
     const [a, b] = children;
-    expect(a).toMatchObject({ parentId: plan.id, plannedFiles: ['src/board.js'], files: ['src/main.js'], acceptance: 'Feld sichtbar', status: 'done' });
+    expect(a).toMatchObject({ parentId: plan.id, plannedFiles: ['src/board.js'], files: [], acceptance: 'Feld sichtbar', status: 'done' });
     expect(a.description).toBe('Canvas anlegen\n\nVoraussichtlich betroffene Dateien: src/board.js');
     expect(b).toMatchObject({ dependsOn: [a.id], plannedFiles: ['tests/board.test.js'], role: 'tester', status: 'done' });
     expect(h.memory.added.find((m) => m.input.kind === 'decision')).toMatchObject({ source: 'system', input: { taskId: plan.id, content: 'Wir nutzen Canvas statt DOM.' } });
@@ -367,275 +364,6 @@ describe('interrupted verification', () => {
     expect(h.agents.calls).toHaveLength(1);
     expect(h.checks.calls).toHaveLength(2);
     expect(h.tasks.require(t.id)).toMatchObject({ status: 'done', verification: { status: 'passed' }, attempts: 1 });
-  });
-});
-
-describe('honest verification (no proof → never "Geprüft")', () => {
-  it('a reviewer verdict alone never makes a task "passed" – coder task without commands and planned review task', async () => {
-    h = createHarness();
-    const p = h.projects.add({ kind: 'web', name: 'Spiel', config: defaultConfig({ reviewChanges: true }) });
-    const t = task(p.id, 'Highscore speichern');
-    h.agents.on({ taskId: t.id, role: 'reviewer' }, outcomes.review({ verdict: 'approve', summary: 'Keine Änderungen gefunden.' }));
-    await h.drain();
-    const done = h.tasks.require(t.id);
-    expect(done.status).toBe('done');
-    expect(done.verification).toMatchObject({
-      status: 'unavailable',
-      checks: [
-        { name: 'Build', status: 'skipped' },
-        { name: 'Tests', status: 'skipped' },
-        { name: 'Review', status: 'passed' },
-      ],
-    });
-    expect(h.checks.calls).toHaveLength(0);
-    // the post_task checkpoint is not marked verified (and therefore not auto-committed with commitOnlyWhenVerified)
-    expect(h.checkpoints.afterTaskCalls[0].verification.status).toBe('unavailable');
-    expect(h.notifications.list_[0].body).toBe('Eine Aufgabe im Projekt „Spiel“ ist fertig – nur vom Review-Agenten durchgesehen, nicht automatisch geprüft.');
-
-    const review = task(p.id, 'Code prüfen', { kind: 'review', role: 'reviewer' });
-    h.agents.on({ taskId: review.id }, outcomes.review({ verdict: 'approve', summary: 'Keine Probleme gefunden.' }));
-    await h.drain();
-    expect(h.tasks.require(review.id)).toMatchObject({ status: 'done', verification: { status: 'unavailable', checks: [{ name: 'Review', status: 'passed' }] } });
-
-    // with a real passed check the approving review completes a passed verification
-    const p2 = h.projects.add({ kind: 'generic', config: defaultConfig({ reviewChanges: true, commands: { test: 'npm test' } }) });
-    const t2 = task(p2.id, 'Mit Tests');
-    h.agents.on({ taskId: t2.id, role: 'reviewer' }, outcomes.review({ verdict: 'approve' }));
-    await h.drain();
-    expect(h.tasks.require(t2.id).verification).toMatchObject({ status: 'passed', checks: [{ name: 'Tests', status: 'passed' }, { name: 'Review', status: 'passed' }] });
-  });
-
-  it('a tester task needs a real test run: the agent\'s lint/runtime runs alone never pass it', async () => {
-    h = createHarness();
-    const p = h.projects.add({ kind: 'generic', config: defaultConfig({ commands: { test: 'npm test', lint: 'npm run lint' } }) });
-    const t = task(p.id, 'Tests schreiben', { kind: 'test', role: 'tester', maxAttempts: 1 });
-    h.agents.on({ taskId: t.id }, async (i, run) => {
-      await h.checks.run({ projectId: p.id, kind: 'lint', taskId: t.id, actor: 'agent' });
-      return outcomes.testerDone(true, 'Alle Tests bestanden.')(i, run);
-    });
-    h.checks.queue('test', failTest('sig-t'));
-    await h.drain();
-    expect(h.checks.calls.map((c) => [c.kind, c.actor])).toEqual([
-      ['lint', 'agent'],
-      ['test', 'system'],
-    ]);
-    expect(h.tasks.require(t.id)).toMatchObject({ status: 'failed', verification: { status: 'failed' } });
-    expect(h.tasks.require(t.id).verification.checks.map((c) => [c.name, c.status])).toEqual([
-      ['Lint', 'passed'],
-      ['Tests', 'failed'],
-    ]);
-
-    // the same with passing tests → passed
-    const t2 = task(p.id, 'Noch mehr Tests', { kind: 'test', role: 'tester' });
-    h.agents.on({ taskId: t2.id }, async (i, run) => {
-      await h.checks.run({ projectId: p.id, kind: 'runtime', taskId: t2.id, actor: 'agent' });
-      return outcomes.testerDone(true)(i, run);
-    });
-    await h.drain();
-    expect(h.tasks.require(t2.id).verification).toMatchObject({ status: 'passed', checks: [{ name: 'Laufzeitprüfung', status: 'passed' }, { name: 'Tests', status: 'passed' }] });
-
-    // no test command: a passed lint run is no proof for a test task
-    const p3 = h.projects.add({ kind: 'generic', config: defaultConfig({ commands: { lint: 'npm run lint' } }) });
-    const t3 = task(p3.id, 'Tests', { kind: 'test', role: 'tester' });
-    h.agents.on({ taskId: t3.id }, async (i, run) => {
-      await h.checks.run({ projectId: p3.id, kind: 'lint', taskId: t3.id, actor: 'agent' });
-      return outcomes.testerDone(true)(i, run);
-    });
-    await h.drain();
-    expect(h.tasks.require(t3.id)).toMatchObject({ status: 'done', verification: { status: 'unavailable', checks: [{ name: 'Tests', status: 'skipped' }, { name: 'Lint', status: 'passed' }] } });
-  });
-
-  it('a coder task that changed no file is never "passed" and not reviewed; a build task proves itself by the build', async () => {
-    h = createHarness();
-    const p = h.projects.add({ kind: 'web', name: 'Spiel', config: defaultConfig({ reviewChanges: true, commands: { build: 'npm run build', test: 'npm test' } }) });
-    const t = task(p.id, 'Highscore speichern');
-    h.agents.on({ taskId: t.id }, outcomes.coderDone('Die Funktion ist umgesetzt und alle Tests laufen.', []));
-    await h.drain();
-    const done = h.tasks.require(t.id);
-    expect(done.status).toBe('done');
-    expect(done.verification.status).toBe('unavailable');
-    expect(done.verification.checks.map((c) => [c.name, c.status])).toEqual([
-      ['Änderungen', 'skipped'],
-      ['Build', 'passed'],
-      ['Tests', 'passed'],
-      ['Review', 'skipped'],
-    ]);
-    expect(done.verification.checks[0].details).toContain('keine Datei geändert');
-    expect(h.agents.calls.map((c) => c.roleUsed)).toEqual(['coder']);
-    expect(h.checkpoints.afterTaskCalls[0].verification.status).toBe('unavailable');
-    expect(h.notifications.list_[0].body).toBe('Eine Aufgabe im Projekt „Spiel“ ist fertig – keine Datei geändert, nicht automatisch geprüft.');
-
-    // a failed check without changes still retries, and the retry context names the missing change
-    const p2 = h.projects.add({ kind: 'generic', config: defaultConfig({ commands: { test: 'npm test' } }) });
-    const t2 = task(p2.id, 'Fehler beheben', { kind: 'fix' });
-    h.agents.on({ taskId: t2.id }, outcomes.coderDone('Behoben.', []));
-    h.checks.queue('test', failTest('sig-x'));
-    await h.drain();
-    expect(h.agents.callsFor(t2.id)[1].extraContext).toContain('did not change any file');
-    expect(h.tasks.require(t2.id)).toMatchObject({ status: 'done', verification: { status: 'passed' } });
-
-    const p3 = h.projects.add({ kind: 'web', config: defaultConfig({ commands: { build: 'npm run build' }, testAfterChange: false }) });
-    const b = task(p3.id, 'Projekt bauen', { kind: 'build' });
-    h.agents.on({ taskId: b.id }, outcomes.coderDone('Gebaut.', []));
-    await h.drain();
-    expect(h.tasks.require(b.id).verification).toMatchObject({ status: 'passed', checks: [{ name: 'Build', status: 'passed' }] });
-  });
-});
-
-describe('checks that could not run because of the environment', () => {
-  const loopOpts = { tickIntervalMs: 3_600_000, recheckIntervalMs: 3_600_000, wakeDelayMs: 0, recheckDelayMs: 0 };
-  const envError = (signature: string, message: string): Partial<CheckRun> => ({ status: 'error', passed: null, failed: null, failureSignature: signature, message });
-
-  it('install approval pending: the task waits, no coder retry; after the decision only the verification runs again', async () => {
-    h = createHarness();
-    const p = h.projects.add({ kind: 'generic', name: 'Shop', config: defaultConfig({ commands: { test: 'npm test' } }) });
-    const t = task(p.id, 'A');
-    const approval = h.approvals.add({ id: 'apr_install', projectId: p.id, taskId: t.id, title: 'Abhängigkeiten installieren' });
-    h.checks.queue('test', envError('env:approval:apr_install', 'Abhängigkeiten konnten nicht installiert werden: Die Installation wartet auf eine Freigabe (siehe „Freigaben“).'));
-    await h.drain();
-    const waiting = h.tasks.require(t.id);
-    expect(waiting).toMatchObject({ status: 'waiting_approval', attempts: 1, verification: { status: 'not_run' } });
-    expect(waiting.blocker).toContain('Abhängigkeiten installieren');
-    expect(h.agents.calls).toHaveLength(1);
-    expect(h.core.errors.list().filter((e) => e.taskId === t.id)).toHaveLength(0);
-    expect(h.work.status().idleReason).toBe('1 Aufgabe wartet auf Freigabe');
-    h.approvals.decide(approval.id, 'approve');
-    await h.drain();
-    expect(h.tasks.require(t.id)).toMatchObject({ status: 'done', attempts: 1, verification: { status: 'passed', checks: [{ name: 'Tests', status: 'passed' }] } });
-    expect(h.agents.calls).toHaveLength(1);
-    expect(h.checks.calls.map((c) => c.kind)).toEqual(['test', 'test']);
-  });
-
-  it('missing program: blocked TOOL_MISSING (no coder retry), the verification re-runs after integrations.updated', async () => {
-    h = createHarness({ work: loopOpts });
-    const p = h.projects.add({ kind: 'generic', config: defaultConfig({ commands: { test: 'pytest -q' } }) });
-    const t = task(p.id, 'A');
-    h.checks.queue('test', envError('env:tool_missing:pytest', 'Der Befehl „pytest“ wurde nicht gefunden. Ist das benötigte Werkzeug installiert? (Einstellungen → Werkzeuge)'));
-    h.work.startLoop();
-    await waitFor(() => status(t.id) === 'blocked');
-    await h.work.idle();
-    expect(h.tasks.require(t.id)).toMatchObject({ blockerCode: 'TOOL_MISSING', attempts: 1 });
-    expect(h.core.errors.list()[0]).toMatchObject({ code: 'TOOL_MISSING', autoFixable: true, userAction: expect.stringContaining('„pytest“') });
-    h.core.bus.emit('integrations.updated', []);
-    await waitFor(() => status(t.id) === 'done');
-    await h.work.idle();
-    expect(h.agents.calls).toHaveLength(1);
-    expect(h.tasks.require(t.id)).toMatchObject({ attempts: 1, verification: { status: 'passed' } });
-    expect(h.core.errors.countOpen()).toBe(0);
-  });
-
-  it('Unity open: blocked with a user action, never auto-resumed; "Starten" re-runs only the verification', async () => {
-    h = createHarness({ work: loopOpts });
-    const p = h.projects.add({ kind: 'unity', config: defaultConfig({ commands: { test: 'Unity.exe -batchmode -runTests' } }) });
-    const t = task(p.id, 'A');
-    h.checks.queue('test', envError('env:engine_open', 'Projekt ist in Unity geöffnet – bitte Unity schließen.'));
-    h.work.startLoop();
-    await waitFor(() => status(t.id) === 'blocked');
-    await h.work.idle();
-    expect(h.tasks.require(t.id)).toMatchObject({ blockerCode: 'FILE_IN_USE', attempts: 1 });
-    expect(h.core.errors.list()[0]).toMatchObject({ code: 'FILE_IN_USE', title: 'Prüfung konnte nicht laufen', userAction: expect.stringContaining('Unity schließen') });
-    h.core.bus.emit('integrations.updated', []);
-    await h.work.idle();
-    expect(status(t.id)).toBe('blocked');
-    h.work.startTask(t.id);
-    await waitFor(() => status(t.id) === 'done');
-    await h.work.idle();
-    expect(h.agents.calls).toHaveLength(1);
-    expect(h.tasks.require(t.id)).toMatchObject({ attempts: 1, verification: { status: 'passed' } });
-  });
-
-  it('tester: a test run that could not start is repeated after the approval instead of counting as a result', async () => {
-    h = createHarness();
-    const p = h.projects.add({ kind: 'generic', config: defaultConfig({ commands: { test: 'npm test' } }) });
-    const t = task(p.id, 'Tests', { kind: 'test', role: 'tester' });
-    const approval = h.approvals.add({ id: 'apr_t', projectId: p.id, taskId: t.id });
-    h.agents.on({ taskId: t.id }, async (i, run) => {
-      await h.checks.run({ projectId: p.id, kind: 'test', taskId: t.id, actor: 'agent' });
-      return outcomes.testerDone(null, 'Die Tests konnten nicht laufen.')(i, run);
-    });
-    h.checks.queue('test', envError('env:approval:apr_t', 'wartet auf eine Freigabe'), envError('env:approval:apr_t', 'wartet auf eine Freigabe'));
-    await h.drain();
-    expect(h.tasks.require(t.id).status).toBe('waiting_approval');
-    h.approvals.decide(approval.id, 'approve');
-    await h.drain();
-    expect(h.agents.calls).toHaveLength(1);
-    expect(h.tasks.require(t.id)).toMatchObject({ status: 'done', verification: { status: 'passed', checks: [{ name: 'Tests', status: 'passed' }] } });
-    expect(h.checks.calls.map((c) => c.actor)).toEqual(['agent', 'system', 'system']);
-  });
-
-  it('integration pass: no fix task, an error report, and a re-run once the approval is decided', async () => {
-    h = createHarness({ work: loopOpts });
-    const p = h.projects.add({ kind: 'generic', name: 'Spiel', config: defaultConfig({ testAfterChange: false, commands: { build: 'npm run build', test: 'npm test' } }) });
-    const plan = task(p.id, 'Plan', { kind: 'plan', role: 'planner' });
-    h.agents.on({ taskId: plan.id }, outcomes.plan({ tasks: [{ key: 'a', title: 'Teil', description: '', role: 'coder', kind: 'code', dependsOn: [], priority: 1, acceptance: null, files: [] }] }));
-    // like CheckService: the install approval is requested while the integration build runs
-    h.checks.queue('build', () => {
-      h.approvals.add({ id: 'apr_int', projectId: p.id, taskId: plan.id });
-      return envError('env:approval:apr_int', 'wartet auf eine Freigabe');
-    });
-    h.work.startLoop();
-    await waitFor(() => h.core.errors.list().some((e) => e.title === 'Integrationsprüfung konnte nicht laufen'));
-    await h.work.idle();
-    expect(h.tasks.list().filter((x) => x.kind === 'fix')).toHaveLength(0);
-    expect(h.tasks.require(plan.id).verification.status).toBe('not_run');
-    expect(h.core.errors.list().find((e) => e.title === 'Integrationsprüfung konnte nicht laufen')).toMatchObject({ code: 'APPROVAL_REQUIRED', related: { approvalId: 'apr_int' } });
-    // still pending: a re-check does not repeat it
-    h.core.bus.emit('approval.updated', h.approvals.get('apr_int')!);
-    await h.work.idle();
-    expect(h.checks.calls.filter((c) => c.taskId === plan.id).map((c) => c.kind)).toEqual(['build']);
-    h.approvals.decide('apr_int', 'approve');
-    h.core.bus.emit('approval.updated', h.approvals.get('apr_int')!);
-    await waitFor(() => h.tasks.require(plan.id).verification.status === 'passed');
-    await h.work.idle();
-    expect(h.checks.calls.filter((c) => c.taskId === plan.id).map((c) => c.kind)).toEqual(['build', 'build', 'test']);
-    expect(h.core.errors.countOpen()).toBe(0);
-  });
-});
-
-describe('recover after a database restore', () => {
-  it('pauses tasks that were in flight at backup time instead of resuming their stale conversations', async () => {
-    h = createHarness();
-    const p = h.projects.add({ kind: 'generic', config: defaultConfig({ testAfterChange: false }) });
-    const running = task(p.id, 'Lief gerade');
-    const waiting = task(p.id, 'Wartete auf Freigabe');
-    const fresh = task(p.id, 'Noch nicht begonnen');
-    h.tasks.patch(running.id, { status: 'running', attempts: 1 });
-    h.tasks.patch(waiting.id, { status: 'waiting_approval', attempts: 1 });
-    const r1 = h.runs.create({ taskId: running.id, projectId: p.id, role: 'coder' });
-    const r2 = h.runs.create({ taskId: waiting.id, projectId: p.id, role: 'coder' });
-    const apr = h.approvals.add({ projectId: p.id, taskId: waiting.id });
-    h.runs.update(r2.id, { status: 'waiting_approval', pendingApprovalId: apr.id });
-    const work2 = createWorkCycle(h.s);
-    extra.push(work2);
-    h.s.work = work2;
-    const res = await work2.recover({ restoredFrom: 'C:\\Users\\Lena\\AppData\\Roaming\\NOVA\\backups\\nova-2026-10-20.db' });
-    expect(res).toEqual({ tasks: 2 });
-    for (const t of [running, waiting]) {
-      expect(h.tasks.require(t.id)).toMatchObject({ status: 'paused', blockerCode: 'INTERRUPTED', blocker: expect.stringContaining('Datenbank-Wiederherstellung') });
-    }
-    expect(status(fresh.id)).toBe('queued');
-    expect([h.runs.get(r1.id)?.status, h.runs.get(r2.id)?.status]).toEqual(['cancelled', 'cancelled']);
-    expect(h.approvals.get(apr.id)?.status).toBe('expired');
-    const warning = h.core.errors.list().find((e) => e.title === 'Datenbank wiederhergestellt')!;
-    expect(warning).toMatchObject({ severity: 'warning', projectId: null });
-    expect(warning.whatHappened).toContain('„nova-2026-10-20.db“');
-    expect(warning.whatHappened).not.toContain('Lena');
-    expect(warning.whatHappened).toContain('nicht mehr im Änderungsprotokoll');
-    for (let i = 0; i < 3; i++) {
-      await work2.tick();
-      await work2.idle();
-    }
-    expect(h.agents.callsFor(running.id)).toHaveLength(0);
-    expect(h.agents.callsFor(waiting.id)).toHaveLength(0);
-    expect(status(fresh.id)).toBe('done');
-    // the user resumes it explicitly → a fresh run, not the stale conversation
-    work2.resumeTask(running.id);
-    for (let i = 0; i < 3; i++) {
-      await work2.tick();
-      await work2.idle();
-    }
-    expect(status(running.id)).toBe('done');
-    expect(h.agents.callsFor(running.id)[0].resumeRunId).toBeNull();
   });
 });
 

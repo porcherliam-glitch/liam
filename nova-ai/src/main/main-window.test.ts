@@ -130,7 +130,6 @@ function setup(over: { saved?: { x: number; y: number; width: number; height: nu
   const onCloseRequest = vi.fn(() => 'handled' as const);
   const onSessionEnd = vi.fn();
   const openExternal = vi.fn();
-  const onRendererReset = vi.fn();
   const ctl = new MainWindowController({
     appUrl: 'app://nova/index.html',
     appOrigin: 'app://nova',
@@ -142,11 +141,10 @@ function setup(over: { saved?: { x: number; y: number; width: number; height: nu
     onCloseRequest,
     onSessionEnd,
     openExternal,
-    onRendererReset,
   });
   ctl.create();
   const win = h.created[0] as FakeWin;
-  return { ctl, win, onCloseRequest, onSessionEnd, openExternal, onRendererReset, uiState, writes };
+  return { ctl, win, onCloseRequest, onSessionEnd, openExternal, uiState, writes };
 }
 
 function navEvent(url: string, isMainFrame = true) {
@@ -290,27 +288,6 @@ describe('MainWindowController', () => {
       win.webContents.emit('render-process-gone', {}, { reason: 'clean-exit', exitCode: 0 });
       vi.advanceTimersByTime(1100);
       expect(win.webContents.reloads).toBe(3);
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it('reports a renderer reset (crash or new main document) but not hash navigations or preview frames (R5-2)', () => {
-    vi.useFakeTimers();
-    try {
-      const { ctl, win, onRendererReset } = setup();
-      // Only a loaded page can receive the quit question.
-      expect(ctl.trySendLoaded(IPC.unsavedChangesRequest, { id: 'u1', action: 'save' })).toBe(false);
-      ctl.show();
-      win.webContents.emit('did-finish-load');
-      expect(ctl.trySendLoaded(IPC.unsavedChangesRequest, { id: 'u1', action: 'save' })).toBe(true);
-      win.webContents.emit('did-start-navigation', { isMainFrame: true, isSameDocument: true, url: 'app://nova/index.html#/studio' });
-      win.webContents.emit('did-start-navigation', { isMainFrame: false, isSameDocument: false, url: 'http://127.0.0.1:5173/' });
-      expect(onRendererReset).not.toHaveBeenCalled();
-      win.webContents.emit('did-start-navigation', { isMainFrame: true, isSameDocument: false, url: 'app://nova/index.html' });
-      expect(onRendererReset).toHaveBeenCalledTimes(1);
-      win.webContents.emit('render-process-gone', {}, { reason: 'crashed', exitCode: 1 });
-      expect(onRendererReset).toHaveBeenCalledTimes(2);
     } finally {
       vi.useRealTimers();
     }

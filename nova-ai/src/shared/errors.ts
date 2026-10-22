@@ -66,8 +66,6 @@ export const ErrorCodes = {
   BUILD_FAILED: 'BUILD_FAILED',
   REPEATED_FAILURE: 'REPEATED_FAILURE',
   AGENT_STEP_LIMIT: 'AGENT_STEP_LIMIT',
-  /** The model repeats the same tool call with the same result (runner loop detection). */
-  AGENT_LOOP: 'AGENT_LOOP',
   AGENT_BAD_OUTPUT: 'AGENT_BAD_OUTPUT',
   GIT_ERROR: 'GIT_ERROR',
   RESTORE_CONFLICT: 'RESTORE_CONFLICT',

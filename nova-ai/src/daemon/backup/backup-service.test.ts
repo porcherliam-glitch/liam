@@ -3,7 +3,7 @@
 // delete, retention (count/age/newest kept/pending kept/per-project snapshots/journal prune), daily backup, project
 // snapshots (skip rules, manifest, progress, abort, size cap) and restoring a snapshot into a NEW folder only.
 import { afterEach, describe, expect, it } from 'vitest';
-import { existsSync, mkdirSync, readFileSync, readdirSync, symlinkSync, unlinkSync, utimesSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, unlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { LATEST_SCHEMA_VERSION } from '../db/migrations';
@@ -153,23 +153,6 @@ describe('retention and daily backup', () => {
     expect(existsSync(b.path)).toBe(true);
   });
 
-  it('maintenance variants: the daily backup is made in a worker thread, retention can leave the journal prune to the caller', async () => {
-    h = backupHarness();
-    h.t.core.db.run("INSERT INTO meta(key, value) VALUES ('probe', 'aus dem Worker')");
-    const first = await h.backups.maybeDailyBackupAsync();
-    expect(first?.reason).toBe('täglich');
-    const copy = new DatabaseSync(first!.path, { readOnly: true });
-    expect(copy.prepare("SELECT value FROM meta WHERE key = 'probe'").get()).toMatchObject({ value: 'aus dem Worker' });
-    copy.close();
-    expect(h.backups.validateDatabaseFile(first!.path)).toEqual({ schemaVersion: LATEST_SCHEMA_VERSION });
-    expect(await h.backups.maybeDailyBackupAsync()).toBeNull();
-    h.t.core.settings.update({ backup: { snapshotRetentionDays: 60 } });
-    h.backups.applyRetention({ journal: false });
-    expect(h.pruned).toEqual([]);
-    h.backups.applyRetention();
-    expect(h.pruned).toHaveLength(1);
-  });
-
   it('creates the daily backup once per day and not when disabled', () => {
     h = backupHarness();
     const first = h.backups.maybeDailyBackup();
@@ -257,31 +240,6 @@ describe('project snapshots', () => {
     await expect(h.backups.restore(info.id, { targetDir: join(info.path, 'x') })).rejects.toMatchObject({ code: 'VALIDATION' });
     await expect(h.backups.restore(info.id, { targetDir: empty })).rejects.toMatchObject({ code: 'VALIDATION', message: expect.stringContaining('nicht leer') });
     await expect(h.backups.restore(info.id, { targetDir: 'relativ' })).rejects.toMatchObject({ code: 'VALIDATION' });
-  });
-
-  it('compares restore targets canonically: a link spelling of the project or the data dir is refused', async () => {
-    h = backupHarness();
-    const { root } = project();
-    const info = await h.backups.snapshotProject('prj_1');
-    // A junction on Windows (no privilege needed), a symlink elsewhere – like an 8.3 short name, another spelling.
-    const viaProject = join(h.scratch, 'projekt-link');
-    symlinkSync(root, viaProject, 'junction');
-    const viaData = join(h.scratch, 'daten-link');
-    symlinkSync(h.t.core.paths.root, viaData, 'junction');
-    await expect(h.backups.restore(info.id, { targetDir: join(viaProject, 'neu') })).rejects.toMatchObject({ code: 'VALIDATION', message: expect.stringContaining('ursprünglichen Projektordner') });
-    await expect(h.backups.restore(info.id, { targetDir: join(viaData, 'neu') })).rejects.toMatchObject({ code: 'VALIDATION', message: expect.stringContaining('NOVA-Datenordner') });
-    expect(existsSync(join(root, 'neu'))).toBe(false);
-    expect(existsSync(join(h.t.core.paths.root, 'neu'))).toBe(false);
-    // Delete never follows a link out of the backup folders.
-    const outside = join(h.scratch, 'fremd');
-    mkdirSync(join(outside, 'kopie'), { recursive: true });
-    writeFileSync(join(outside, 'kopie', 'wichtig.txt'), 'x');
-    const linkInBackups = join(h.t.core.paths.backups, 'projects', 'link');
-    symlinkSync(outside, linkInBackups, 'junction');
-    h.t.core.db.run("INSERT INTO backups(id, kind, path, size_bytes, reason, project_id, created_at) VALUES ('bak_link', 'project_snapshot', ?, 0, 'x', 'prj_1', 1)", [join(linkInBackups, 'kopie')]);
-    h.backups.delete('bak_link');
-    expect(readFileSync(join(outside, 'kopie', 'wichtig.txt'), 'utf8')).toBe('x');
-    expect(h.backups.list().some((b) => b.id === 'bak_link')).toBe(false); // only the entry is removed
   });
 
   it('applies count retention per project for snapshots and deletes their manifests', async () => {

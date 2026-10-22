@@ -12,7 +12,6 @@ import {
   CLOSE_INHERITED_FDS_SCRIPT,
   DaemonSupervisor,
   daemonSpawnCommand,
-  killRecordedDaemonDefault,
   type DaemonChildLike,
   type DaemonClientLike,
   type ProbeOutcome,
@@ -85,11 +84,6 @@ class World {
   t = 1_000_000;
   daemon: FakeDaemon | null = null;
   foreign: false | 'transient' | 'hard' = false;
-  /** The daemon holds the endpoint but answers nothing (handshake and RPCs time out). */
-  hung = false;
-  /** Calls of the killRecordedDaemon dependency (daemon.lock identity kill); `recordedKill` decides the outcome. */
-  recordedKills = 0;
-  recordedKill: (w: World) => boolean = () => false;
   spawns: Array<{ command: string; args: string[]; options: SpawnOptions; child: FakeChild }> = [];
   clients: FakeClient[] = [];
   crash: DaemonCrashReport | null = null;
@@ -138,7 +132,6 @@ class World {
     return {
       probe: async (): Promise<ProbeOutcome> => {
         await tick();
-        if (this.hung && this.daemon) return { status: 'foreign', health: null, unverifiedNova: false, handshake: 'timeout', detail: 'timeout' };
         if (this.foreign) {
           return { status: 'foreign', health: null, unverifiedNova: false, handshake: this.foreign === 'transient' ? 'mismatch' : 'foreign', detail: 'x' };
         }
@@ -169,10 +162,6 @@ class World {
         await tick();
       },
       env: () => this.env,
-      killRecordedDaemon: async () => {
-        this.recordedKills++;
-        return this.recordedKill(this);
-      },
     };
   }
 }
@@ -189,7 +178,6 @@ class FakeClient implements DaemonClientLike {
     const d = this.world.daemon;
     if (this.closed) throw new DaemonRpcError('DAEMON_UNAVAILABLE', 'closed', { reason: 'closed' });
     if (!d) throw new DaemonRpcError('DAEMON_UNAVAILABLE', 'nicht erreichbar', { reason: 'unreachable' });
-    if (this.world.hung) throw new DaemonRpcError('DAEMON_UNAVAILABLE', 'keine Antwort', { reason: 'timeout' });
     return d;
   }
 
@@ -549,209 +537,6 @@ describe('DaemonSupervisor – connection loss and automatic restarts', () => {
     await until(() => sup.state().state === 'connected' && sup.state().daemonPid === 11);
     expect(world.spawns).toHaveLength(0);
     sup.dispose();
-  });
-});
-
-describe('DaemonSupervisor – quitting while the daemon is still starting (R6-6)', () => {
-  it('requestShutdown() waits for its own starting daemon and sends daemon.shutdown', async () => {
-    const world = new World();
-    // Cold Windows start: the spawned daemon binds its endpoint only after 3 s.
-    let started: FakeDaemon | null = null;
-    world.onSpawn = (child, w) => w.after(3_000, () => (started = w.startDaemon('1.0.0', child.pid)));
-    const { sup } = makeSupervisor(world);
-    void sup.start();
-    await until(() => sup.state().state === 'starting' && world.spawns.length === 1);
-    expect(await sup.requestShutdown('ui-closed', 5_000)).toBe(true);
-    expect(started).not.toBeNull();
-    expect(started!.rpcs).toContainEqual({ method: 'daemon.shutdown', params: { reason: 'ui-closed' } });
-    await until(() => world.daemon === null);
-    expect(world.spawns[0].child.killed).toBe(false);
-    sup.dispose();
-    // Nothing restarts it afterwards.
-    for (let i = 0; i < 50; i++) await tick();
-    expect(world.spawns).toHaveLength(1);
-    expect(world.daemon).toBeNull();
-  });
-
-  it('requestShutdown() ends its own child when it does not listen within the time limit', async () => {
-    const world = new World();
-    world.onSpawn = (child, w) => w.after(60_000, () => w.startDaemon('1.0.0', child.pid));
-    const { sup } = makeSupervisor(world);
-    void sup.start();
-    await until(() => sup.state().state === 'starting' && world.spawns.length === 1);
-    await sup.requestShutdown('ui-closed', 5_000);
-    expect(world.spawns[0].child.killed).toBe(true);
-    sup.dispose();
-  });
-
-  it('requestShutdown() leaves a daemon alone that this UI did not start', async () => {
-    const world = new World();
-    const { sup } = makeSupervisor(world);
-    expect(await sup.requestShutdown('ui-closed', 1_000)).toBe(false);
-    expect(world.spawns).toHaveLength(0);
-  });
-
-  it('stop() while starting does not report "stopped" for a daemon that comes up afterwards', async () => {
-    const world = new World();
-    world.onSpawn = (child, w) => {
-      w.after(2_000, () => w.startDaemon('1.0.0', child.pid));
-      const origKill = child.kill.bind(child);
-      child.kill = () => {
-        w.killDaemon();
-        return origKill();
-      };
-    };
-    const { sup } = makeSupervisor(world);
-    void sup.start();
-    await until(() => sup.state().state === 'starting' && world.spawns.length === 1);
-    const s = await sup.stop('os-shutdown');
-    expect(s.state).toBe('stopped');
-    // Time goes on: the spawned process must not come up afterwards and run without the UI.
-    await world.deps().sleep!(10_000);
-    for (let i = 0; i < 50; i++) await tick();
-    expect(world.daemon).toBeNull();
-  });
-});
-
-describe('DaemonSupervisor – hung daemon (R6-5)', () => {
-  it('a daemon that holds the endpoint but never answers ends in state error with diagnostics, not endless reconnecting', async () => {
-    const world = new World();
-    world.startDaemon('1.0.0', 10);
-    const { sup, states } = makeSupervisor(world, { hungTimeoutMs: 120_000, hungRecheckMs: 10_000 });
-    await sup.start();
-    world.hung = true;
-    for (const sub of world.daemon!.subscribers) sub.onState?.('reconnecting', 'idle timeout');
-    await until(() => sup.state().state === 'error', 20_000);
-    const s = sup.state();
-    expect(s.message).toBe(TEXTS.daemonHung);
-    expect(s.recovery).toEqual(['create_diagnostics']);
-    expect(states.map((x) => x.state)).toContain('reconnecting');
-    expect(world.t - states.find((x) => x.state === 'reconnecting')!.since).toBeGreaterThanOrEqual(120_000);
-    expect(world.spawns).toHaveLength(0);
-    await expect(sup.rpc('daemon.status', undefined, { waitForConnectionMs: 0 })).rejects.toMatchObject({ message: TEXTS.daemonHung });
-    // It answers again: NOVA reconnects on its own.
-    world.hung = false;
-    await until(() => sup.state().state === 'connected', 20_000);
-    expect(sup.state().recovery).toBeUndefined();
-    sup.dispose();
-  });
-
-  it('"Dienst neu starten" ends a hung daemon of an earlier session after the identity check and starts a new one', async () => {
-    const world = new World();
-    world.startDaemon('1.0.0', 10);
-    world.hung = true;
-    world.recordedKill = (w) => {
-      w.killDaemon();
-      w.hung = false;
-      return true;
-    };
-    const { sup } = makeSupervisor(world, { vanishTimeoutMs: 1_000 });
-    const s = await sup.restart();
-    expect(world.recordedKills).toBe(1);
-    expect(s.state).toBe('connected');
-    expect(s.daemonPid).not.toBe(10);
-    expect(world.spawns).toHaveLength(1);
-    sup.dispose();
-  });
-
-  it('when the identity check fails nothing is killed and the error stays honest', async () => {
-    const world = new World();
-    world.startDaemon('1.0.0', 10);
-    world.hung = true;
-    const { sup } = makeSupervisor(world, { vanishTimeoutMs: 1_000 });
-    const s = await sup.restart();
-    expect(world.recordedKills).toBe(1);
-    expect(s.state).toBe('error');
-    expect(s.message).toBe(TEXTS.stopFailed);
-    expect(world.daemon).not.toBeNull();
-    expect(world.spawns).toHaveLength(0);
-  });
-
-  it('a hard foreign endpoint is never killed', async () => {
-    const world = new World();
-    world.foreign = 'hard';
-    const { sup } = makeSupervisor(world, { vanishTimeoutMs: 1_000 });
-    await sup.restart();
-    expect(world.recordedKills).toBe(0);
-    expect(sup.state().message).toBe(TEXTS.foreign);
-  });
-});
-
-describe('killRecordedDaemonDefault (daemon.lock identity kill)', () => {
-  const log = { debug() {}, info() {}, warn() {}, error() {} };
-
-  it('does nothing without a matching lock file', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'nova-lock-'));
-    try {
-      const lockPath = join(dir, 'daemon.lock');
-      expect(await killRecordedDaemonDefault({ lockPath, endpoint: '/x/daemon.sock', platform: process.platform, log })).toBe(false);
-      writeFileSync(lockPath, JSON.stringify({ pid: 999_999, instanceId: 'i', endpoint: '/other.sock', startedAt: Date.now(), version: '1' }));
-      expect(await killRecordedDaemonDefault({ lockPath, endpoint: '/x/daemon.sock', platform: process.platform, log })).toBe(false);
-      writeFileSync(lockPath, JSON.stringify({ pid: process.pid, instanceId: 'i', endpoint: '/x/daemon.sock', startedAt: Date.now(), version: '1' }));
-      expect(await killRecordedDaemonDefault({ lockPath, endpoint: '/x/daemon.sock', platform: process.platform, log })).toBe(false);
-    } finally {
-      rmSync(dir, { recursive: true, force: true });
-    }
-  });
-
-  it.skipIf(process.platform === 'win32')('kills the recorded process only when its creation time matches (pids are reused)', async () => {
-    const dir = mkdtempSync(join(tmpdir(), 'nova-lock-'));
-    const startedAt = Date.now();
-    const child = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 60000)'], { detached: true, stdio: 'ignore' });
-    const exited = new Promise<void>((r) => child.once('exit', () => r()));
-    try {
-      const lockPath = join(dir, 'daemon.lock');
-      const endpoint = join(dir, 'daemon.sock');
-      // Same pid, but recorded an hour later: another process that reused the pid → untouched.
-      writeFileSync(lockPath, JSON.stringify({ pid: child.pid, instanceId: 'i', endpoint, startedAt: startedAt + 3_600_000, version: '1' }));
-      expect(await killRecordedDaemonDefault({ lockPath, endpoint, platform: process.platform, log })).toBe(false);
-      expect(child.exitCode).toBeNull();
-      writeFileSync(lockPath, JSON.stringify({ pid: child.pid, instanceId: 'i', endpoint, startedAt, version: '1' }));
-      expect(await killRecordedDaemonDefault({ lockPath, endpoint, platform: process.platform, log })).toBe(true);
-      await exited;
-    } finally {
-      try {
-        child.kill('SIGKILL');
-      } catch {
-        /* gone */
-      }
-      rmSync(dir, { recursive: true, force: true });
-    }
-  });
-});
-
-describe('DaemonSupervisor – recovery actions (R3-6)', () => {
-  it('a database failure at start offers restoring a backup and diagnostics; other failures only diagnostics', async () => {
-    const world = new World();
-    world.onSpawn = (child, w) => {
-      w.crash = {
-        ts: w.t,
-        version: '1.0.0',
-        phase: 'database_open',
-        code: 'INTERNAL',
-        message: 'Der NOVA-Hintergrunddienst konnte nicht starten.',
-        details: 'database disk image is malformed',
-        logFile: '/data/logs/daemon.log',
-        suggestedActions: ['restore_backup', 'create_diagnostics', 'open_logs'],
-      };
-      child.exit(1);
-    };
-    const { sup } = makeSupervisor(world);
-    const s = await sup.start();
-    expect(s.state).toBe('error');
-    expect(s.message).toContain(TEXTS.crashHintRestore);
-    expect(s.recovery).toEqual(['restore_backup', 'create_diagnostics']);
-
-    const other = new World();
-    other.onSpawn = (child) => child.exit(1);
-    const o = makeSupervisor(other).sup;
-    expect((await o.start()).recovery).toEqual(['create_diagnostics']);
-    // The next state (e.g. after a successful restart) carries no recovery actions any more.
-    other.onSpawn = (child, w) => {
-      w.startDaemon('1.0.0', child.pid);
-    };
-    expect((await o.restart()).recovery).toBeUndefined();
-    o.dispose();
   });
 });
 

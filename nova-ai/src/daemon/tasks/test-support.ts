@@ -262,13 +262,12 @@ function isInterrupt(reason: unknown): boolean {
 }
 
 export const outcomes = {
-  /** Coder finished; `files` are recorded on the task like the tools do (pass [] for "changed nothing"). */
-  coderDone: (summary = 'Änderung umgesetzt.', files: string[] = ['src/main.js']) => (_i: AgentRunInput, run: AgentRun): AgentRunOutcome => ({
+  coderDone: (summary = 'Änderung umgesetzt.') => (_i: AgentRunInput, run: AgentRun): AgentRunOutcome => ({
     status: 'done',
     runId: run.id,
     summary,
     output: { role: 'coder', result: { summary, status: 'done', blocker: null, notes: null } },
-    files,
+    files: [],
   }),
   coderBlocked: (blocker: string) => (_i: AgentRunInput, run: AgentRun): AgentRunOutcome => ({
     status: 'done',
@@ -347,8 +346,6 @@ export class FakeAgents {
   /** Fallback when no script matches. */
   fallback: AgentScript = outcomes.coderDone();
   model = { providerId: 'ollama-local', modelId: 'qwen2.5-coder:7b' };
-  /** Records changed files on the task (the real tools do this through the journal → tasks.addFiles). */
-  recordFiles: ((taskId: string, files: string[]) => void) | null = null;
 
   constructor(private runStore: FakeRunStore) {}
 
@@ -374,10 +371,6 @@ export class FakeAgents {
     const entry = idx >= 0 ? this.scripts[idx] : null;
     if (entry?.once) this.scripts.splice(idx, 1);
     const outcome = await (entry?.fn ?? this.fallback)(input, run);
-    if (outcome.status === 'done' && outcome.files.length) {
-      this.recordFiles?.(input.task.id, outcome.files);
-      this.runStore.update(run.id, { files: outcome.files });
-    }
     const status: AgentRunStatus = outcome.status === 'done' ? 'done' : outcome.status;
     this.runStore.update(run.id, {
       status,
@@ -741,7 +734,6 @@ export function createHarness(opts: { work?: WorkCycleOptions; services?: Partia
   });
   const tasks = createTaskService(s);
   s.tasks = tasks;
-  agents.recordFiles = (taskId, files) => tasks.addFiles(taskId, files);
   const work = createWorkCycle(s, opts.work);
   s.work = work;
   const h: Harness = {

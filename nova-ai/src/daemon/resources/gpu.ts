@@ -7,9 +7,6 @@
 // - Stale-while-revalidate: sample() never waits for a slow probe once a result exists; refreshes are single-flight and
 //   abortable (stop()).
 // - nvidia-smi location is cached for 10 minutes; while nothing works the probe is retried every 60 s.
-// - Probing costs a process start (nvidia-smi, or a Windows PowerShell + WMI query). The fast intervals apply only
-//   while someone needs current GPU numbers (isStale(true): agents running, UI request, VRAM check – decided by the
-//   ResourceMonitor); otherwise at most one probe every 2 minutes.
 import type { GpuInfo } from '@shared/schemas';
 import { parseNvidiaSmiCsv, parseWindowsGpuJson, WINDOWS_GPU_SCRIPT } from './parsers';
 import { pathModule } from './disk';
@@ -43,8 +40,6 @@ export const NVIDIA_SMI_ARGS = ['--query-gpu=name,utilization.gpu,memory.total,m
 export const NVIDIA_INTERVAL_MS = 3_000;
 export const WINDOWS_GPU_INTERVAL_MS = 10_000;
 export const NONE_RETRY_MS = 60_000;
-/** Probe interval while nobody needs current GPU numbers (idle PC, UI closed). */
-export const IDLE_GPU_INTERVAL_MS = 120_000;
 const NVIDIA_PATH_TTL_MS = 10 * 60_000;
 
 function envGet(env: Record<string, string | undefined>, name: string): string | undefined {
@@ -72,12 +67,11 @@ export class GpuProber {
     this.controller = new AbortController();
   }
 
-  /** wanted = someone needs current numbers now (fast intervals); otherwise IDLE_GPU_INTERVAL_MS. */
-  isStale(wanted = true): boolean {
+  isStale(): boolean {
     if (!this.state) return true;
     const age = this.deps.now() - this.state.at;
     const interval = this.state.mode === 'nvidia' ? NVIDIA_INTERVAL_MS : this.state.mode === 'windows' ? WINDOWS_GPU_INTERVAL_MS : NONE_RETRY_MS;
-    return age >= (wanted ? interval : Math.max(interval, IDLE_GPU_INTERVAL_MS));
+    return age >= interval;
   }
 
   /** Single-flight refresh. */

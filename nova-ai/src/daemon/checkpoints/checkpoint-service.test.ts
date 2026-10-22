@@ -1,7 +1,7 @@
 // CheckpointService with a real GitService on a temp repository and hand-written fakes for the journal, tasks, checks
 // and projects: markers, list/latestVerified, preview/restore (CONFLICT while running, pre_restore first, commits
 // without modifiedSinceNova/secret files, restoredAt, RESTORE_CONFLICT report), afterTask commit rules (autoCommit,
-// verification, commitOnlyWhenVerified, secrets, sensitive files, command-detected files, hook failures) and prune.
+// verification, commitOnlyWhenVerified, secrets, sensitive files, hook failures) and prune.
 import { afterEach, describe, expect, it } from 'vitest';
 import { chmodSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -274,36 +274,6 @@ describe('afterTask', () => {
     expect(secrets[0]).toMatchObject({ severity: 'warning', taskId: 'task_1' });
     expect(secrets[0].whatHappened).toContain('src/config.js');
     expect(secrets[0].whatHappened).toContain('.env');
-  });
-
-  it('never auto-commits files whose latest NOVA change was only detected after a command (origin uncertain) and reports them', async () => {
-    const c = setup();
-    c.f.write(c.root, 'src/login.js', 'export const x = 1;\n');
-    c.f.write(c.root, 'notes.md', 'saved in VS Code while npm test ran\n');
-    c.f.write(c.root, 'src/app.js', 'written by the tool, then changed during a command\n');
-    c.f.write(c.root, 'src/b.js', 'changed during a command, then rewritten by the tool\n');
-    const row = (path: string, source: string) =>
-      c.f.t.core.db.run(
-        "INSERT INTO changes(project_id, task_id, path, op, before_hash, after_hash, actor, source, revertible, state, path_key, ts, reverted) VALUES ('prj_1', 'task_1', ?, 'modify', 'a', 'b', 'nova', ?, 1, 'committed', ?, 1, 0)",
-        [path, source, path],
-      );
-    row('src/login.js', 'tool');
-    row('notes.md', 'command');
-    row('src/app.js', 'tool');
-    row('src/app.js', 'command');
-    row('src/b.js', 'command');
-    row('src/b.js', 'tool');
-    const task = makeTask('prj_1', { files: ['src/login.js', 'notes.md', 'src/app.js', 'src/b.js'] });
-    const cp = await c.cps.afterTask(task);
-    expect(cp?.gitCommit).toMatch(/^[0-9a-f]{40}$/);
-    expect(c.f.sh(c.root, 'show', '--name-only', '--format=%s', 'HEAD').trim().split('\n')).toEqual(['NOVA: Login bauen', '', 'src/b.js', 'src/login.js']);
-    const warn = c.f.t.core.errors.list({ projectId: 'prj_1' }).filter((e) => e.title === 'Von Befehlen geänderte Dateien nicht committet');
-    expect(warn).toHaveLength(1);
-    expect(warn[0]).toMatchObject({ severity: 'warning', taskId: 'task_1', projectSafe: true });
-    expect(warn[0].whatHappened).toContain('notes.md');
-    expect(warn[0].whatHappened).toContain('src/app.js');
-    expect(warn[0].whatHappened).not.toContain('src/b.js');
-    expect(c.f.sh(c.root, 'status', '--porcelain')).toContain('notes.md');
   });
 
   it('does not commit failed tasks, nor unverified ones while commitOnlyWhenVerified is on', async () => {

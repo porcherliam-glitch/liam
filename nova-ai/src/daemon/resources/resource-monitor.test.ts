@@ -3,9 +3,9 @@ import type { CpuInfo } from 'node:os';
 import type { OllamaRunningModel, ResourceSnapshot } from '@shared/schemas';
 import { createTestCore, type TestCore } from '../../../tests/helpers/core';
 import { makeServices } from '../../../tests/helpers/services';
-import type { OllamaService, ProcessManager, WorkCycle } from '../contracts';
-import { createResourceMonitor, GPU_DEMAND_WINDOW_MS, HISTORY_MS, type ResourceMonitorOptions, type ResourceMonitorImpl } from './resource-monitor';
-import { IDLE_GPU_INTERVAL_MS, NVIDIA_SMI_ARGS, type ProbeRunResult } from './gpu';
+import type { OllamaService, ProcessManager } from '../contracts';
+import { createResourceMonitor, HISTORY_MS, type ResourceMonitorOptions, type ResourceMonitorImpl } from './resource-monitor';
+import { NVIDIA_SMI_ARGS, type ProbeRunResult } from './gpu';
 import { WINDOWS_GPU_SCRIPT } from './parsers';
 
 let t: TestCore | null = null;
@@ -30,7 +30,6 @@ interface Harness {
   setOllama(fn: () => Promise<OllamaRunningModel[]>): void;
   setTool(fn: (file: string, args: string[]) => Promise<ProbeRunResult>): void;
   setPs(fn: () => Promise<ProbeRunResult>): void;
-  setActiveRuns(n: number): void;
 }
 
 function setup(o: Partial<ResourceMonitorOptions> & { platform?: NodeJS.Platform; nvidia?: string | null } = {}): Harness {
@@ -49,9 +48,7 @@ function setup(o: Partial<ResourceMonitorOptions> & { platform?: NodeJS.Platform
     },
   } as unknown as OllamaService;
   const processes = { runningCount: () => 3 } as unknown as ProcessManager;
-  let activeRuns = 0;
-  const work = { activeRunCount: () => activeRuns } as unknown as WorkCycle;
-  const s = makeServices(t.core, { ollama, processes, work });
+  const s = makeServices(t.core, { ollama, processes });
   const monitor = createResourceMonitor(s, {
     platform: o.platform ?? 'linux',
     cpus: () => cpus,
@@ -106,9 +103,6 @@ function setup(o: Partial<ResourceMonitorOptions> & { platform?: NodeJS.Platform
     },
     setPs: (fn) => {
       psFn = fn;
-    },
-    setActiveRuns: (n) => {
-      activeRuns = n;
     },
   };
 }
@@ -178,73 +172,12 @@ describe('ResourceMonitor', () => {
     expect(h.calls.ps).toHaveLength(1);
     used = 2 * GB;
     h.advance(7000);
-    // Background samples never wait: the refresh starts, the cached value is served.
-    const stale = await h.monitor.sampleInBackground();
+    const stale = await h.monitor.sample(); // refresh starts in the background, the cached value is served
     expect(h.calls.ps).toHaveLength(2);
     expect(stale.gpus[0].vramUsedBytes).toBe(1 * GB);
     await flush();
     h.advance(1000);
-    expect((await h.monitor.sampleInBackground()).gpus[0].vramUsedBytes).toBe(2 * GB);
-    // An explicit sample (UI request, VRAM check) waits for a stale probe and returns the fresh value.
-    used = 3 * GB;
-    h.advance(10_000);
-    expect((await h.monitor.sample()).gpus[0].vramUsedBytes).toBe(3 * GB);
-    expect(h.calls.ps).toHaveLength(3);
-  });
-
-  it('R6-3: without demand the timer probes the GPU only every 2 minutes; runs or explicit requests restore the fast interval', async () => {
-    const h = setup({ platform: 'win32', nvidia: null });
-    h.setPs(async () => ({
-      code: 0,
-      stdout: JSON.stringify({ engines: [], memory: [{ n: 'luid_0x0_0x1_phys_0', d: GB }], adapters: [{ name: 'Intel UHD', qw: 2 * GB, mem: null }], countersAvailable: true }),
-      stderr: '',
-    }));
-    const tick = async (ms: number) => {
-      h.advance(ms);
-      await h.monitor.sampleInBackground();
-      await flush();
-    };
-    await tick(0); // first sample (daemon start)
-    expect(h.calls.ps).toHaveLength(1);
-    // Idle PC, UI closed: 3-second ticks for almost 2 minutes start no PowerShell.
-    for (let i = 0; i < 39; i++) await tick(3000);
-    expect(h.calls.ps).toHaveLength(1);
-    await tick(3000); // 120 s since the last probe
-    expect(h.calls.ps).toHaveLength(2);
-    // An agent run is active: every 10 s again.
-    h.setActiveRuns(1);
-    for (let i = 0; i < 4; i++) await tick(3000);
-    expect(h.calls.ps).toHaveLength(3);
-    h.setActiveRuns(0);
-    await tick(12_000);
-    expect(h.calls.ps).toHaveLength(3);
-    // A UI request (resources.snapshot → sample()) keeps the fast interval for one minute, then it is idle again.
-    await h.monitor.sample();
-    const afterRequest = h.calls.ps.length;
-    await tick(10_000);
-    expect(h.calls.ps).toHaveLength(afterRequest + 1);
-    const lastProbe = h.calls.ps.length;
-    await tick(GPU_DEMAND_WINDOW_MS); // demand window over: no probe although 60 s passed
-    await tick(IDLE_GPU_INTERVAL_MS - GPU_DEMAND_WINDOW_MS - 1000);
-    expect(h.calls.ps).toHaveLength(lastProbe);
-    await tick(1000);
-    expect(h.calls.ps).toHaveLength(lastProbe + 1);
-  });
-
-  it('R6-3: nvidia-smi is not started every 3 s while idle either', async () => {
-    const h = setup();
-    await h.monitor.sampleInBackground();
-    await flush();
-    for (let i = 0; i < 20; i++) {
-      h.advance(3000);
-      await h.monitor.sampleInBackground();
-      await flush();
-    }
-    expect(h.calls.tool).toHaveLength(1);
-    h.setActiveRuns(2);
-    h.advance(3000);
-    await h.monitor.sampleInBackground();
-    expect(h.calls.tool).toHaveLength(2);
+    expect((await h.monitor.sample()).gpus[0].vramUsedBytes).toBe(2 * GB);
   });
 
   it('Windows: nvidia-smi from the default path is preferred over WMI', async () => {

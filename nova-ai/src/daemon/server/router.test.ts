@@ -1,9 +1,7 @@
-// Tests for the RPC router: validation (German issues), NOT_FOUND, error mapping (incl. the NovaErrorInfo of every error
-// answer), result checks, registration rules.
+// Tests for the RPC router: validation (German issues), NOT_FOUND, error mapping, result checks, registration rules.
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
-import { NovaErrorInfoSchema } from '@shared/errors';
-import { createRpcRouter, ERROR_TITLES, ROUTER_MESSAGES, rpcErrorInfo } from './router';
+import { createRpcRouter, ROUTER_MESSAGES } from './router';
 import { captureLogger } from './test-helpers';
 import { NovaError } from '../core/errors';
 import { germanIssueMessage, summarizeIssues, toGermanIssues } from './validation-de';
@@ -59,11 +57,7 @@ describe('createRpcRouter', () => {
   it('answers NOT_FOUND for unknown and for unregistered methods', async () => {
     const router = createRpcRouter(captureLogger().log);
     const unknown = await router.handle({ id: 'n1', method: 'does.not.exist' });
-    expect(unknown).toEqual({
-      id: 'n1',
-      ok: false,
-      error: { code: 'NOT_FOUND', message: ROUTER_MESSAGES.notFound, details: { method: 'does.not.exist' }, error: expect.objectContaining({ code: 'NOT_FOUND', severity: 'warning', userAction: ROUTER_MESSAGES.actionNotFound }) },
-    });
+    expect(unknown).toEqual({ id: 'n1', ok: false, error: { code: 'NOT_FOUND', message: ROUTER_MESSAGES.notFound, details: { method: 'does.not.exist' } } });
     const unregistered = await router.handle({ id: 'n2', method: 'tasks.list' });
     expect(!unregistered.ok && unregistered.error).toMatchObject({ code: 'NOT_FOUND', message: 'Diese Funktion ist in dieser Version nicht verfügbar.' });
     const prototypeKey = await router.handle({ id: 'n3', method: 'toString' });
@@ -76,12 +70,7 @@ describe('createRpcRouter', () => {
       throw new NovaError('CONFLICT', 'Die Aufgabe läuft gerade.', { details: { apiKey: 'sk-ant-abcdefghijklmnopqrstuvwxyz', taskId: 't1' } });
     });
     const res = await router.handle({ id: 'e1', method: 'tasks.get', params: { id: 't1' } });
-    expect(res).toEqual({
-      id: 'e1',
-      ok: false,
-      error: { code: 'CONFLICT', message: 'Die Aufgabe läuft gerade.', details: { apiKey: '[GEHEIM]', taskId: 't1' }, error: expect.objectContaining({ code: 'CONFLICT' }) },
-    });
-    expect(!res.ok && JSON.stringify(res.error.error)).not.toContain('sk-ant-');
+    expect(res).toEqual({ id: 'e1', ok: false, error: { code: 'CONFLICT', message: 'Die Aufgabe läuft gerade.', details: { apiKey: '[GEHEIM]', taskId: 't1' } } });
   });
 
   it('maps unknown errors to INTERNAL with the redacted message and logs them', async () => {
@@ -113,8 +102,7 @@ describe('createRpcRouter', () => {
     const zodRes = await router.handle({ id: 'z', method: 'tasks.get', params: { id: 't' } });
     expect(!zodRes.ok && zodRes.error).toMatchObject({ code: 'VALIDATION', message: 'Die Daten sind ungültig: name: Mindestens 3 Zeichen erforderlich.' });
     const abortRes = await router.handle({ id: 'c', method: 'tasks.list' });
-    expect(!abortRes.ok && abortRes.error).toMatchObject({ code: 'CANCELLED', message: 'Der Vorgang wurde abgebrochen.', error: { severity: 'warning', userAction: null } });
-    expect(!abortRes.ok && abortRes.error.details).toBeUndefined();
+    expect(!abortRes.ok && abortRes.error).toEqual({ code: 'CANCELLED', message: 'Der Vorgang wurde abgebrochen.' });
   });
 
   it('logs result contract mismatches without failing the call (only when validation is on)', async () => {
@@ -139,75 +127,6 @@ describe('createRpcRouter', () => {
     expect(() => router.register('tasks.list', () => [])).toThrow(/bereits registriert/);
     expect(() => router.register('nope.method' as 'tasks.list', () => [])).toThrow(/Unbekannte RPC-Methode/);
     expect(router.registered()).toEqual(['daemon.logs', 'tasks.list']);
-  });
-
-  // R5-3: errors of user-started actions must reach the UI with the full error model (MASTERPROMPT §19).
-  it('sends the NovaErrorInfo of a NovaError: severity, project safety, self-repair, what to do, where', async () => {
-    const router = createRpcRouter(captureLogger().log);
-    router.register('git.status', () => {
-      throw new NovaError('GIT_ERROR', 'Git verweigert den Zugriff auf „C:\\Repo“ („dubious ownership“).', {
-        severity: 'warning',
-        userAction: 'Im Terminal ausführen: git config --global --add safe.directory C:/Repo',
-        details: { approvalId: 'apr_1', path: 'C:\\Repo', token: 'sk-ant-abcdefghijklmnopqrstuvwxyz' },
-      });
-    });
-    router.register('tasks.retry', () => {
-      throw new NovaError('RESOURCE_LIMIT', 'Kein Prozessplatz frei.', { severity: 'retryable', autoFixable: true, projectSafe: false });
-    });
-    const before = Date.now();
-    const res = await router.handle({ id: 'g1', method: 'git.status', params: { projectId: 'prj_1' } });
-    expect(res.ok).toBe(false);
-    if (res.ok) return;
-    expect(res.error.code).toBe('GIT_ERROR');
-    const info = NovaErrorInfoSchema.parse(res.error.error);
-    expect(info).toMatchObject({
-      code: 'GIT_ERROR',
-      severity: 'warning',
-      title: ERROR_TITLES.GIT_ERROR,
-      whatHappened: 'Git verweigert den Zugriff auf „C:\\Repo“ („dubious ownership“).',
-      projectId: 'prj_1',
-      taskId: null,
-      attempted: [],
-      projectSafe: true,
-      autoFixable: false,
-      userAction: 'Im Terminal ausführen: git config --global --add safe.directory C:/Repo',
-      related: { approvalId: 'apr_1', checkRunId: null, runId: null, file: null, line: null },
-      resolvedAt: null,
-    });
-    expect(info.id).toMatch(/^rpc_/);
-    expect(info.createdAt).toBeGreaterThanOrEqual(before);
-    expect(info.details).toContain('RPC: git.status');
-    expect(info.details).toContain('[GEHEIM]');
-    expect(info.details).not.toContain('sk-ant-');
-
-    const retry = await router.handle({ id: 'r1', method: 'tasks.retry', params: { id: 'task_9' } });
-    const retryInfo = !retry.ok ? NovaErrorInfoSchema.parse(retry.error.error) : null;
-    expect(retryInfo).toMatchObject({ severity: 'retryable', autoFixable: true, projectSafe: false, userAction: null, taskId: 'task_9', projectId: null, related: null });
-  });
-
-  it('sends a NovaErrorInfo for validation, internal and unknown-method errors too', async () => {
-    const router = createRpcRouter(captureLogger().log);
-    router.register('tasks.get', () => {
-      throw new TypeError('kaputt');
-    });
-    const internal = await router.handle({ id: 'i', method: 'tasks.get', params: { id: 'task_1' } });
-    const internalInfo = !internal.ok ? NovaErrorInfoSchema.parse(internal.error.error) : null;
-    expect(internalInfo).toMatchObject({ code: 'INTERNAL', severity: 'blocker', title: 'Interner Fehler', userAction: ROUTER_MESSAGES.actionInternal, taskId: 'task_1' });
-    expect(internalInfo?.details).toContain('kaputt');
-
-    const invalid = await router.handle({ id: 'v', method: 'tasks.get', params: { id: 5 } });
-    const invalidInfo = !invalid.ok ? NovaErrorInfoSchema.parse(invalid.error.error) : null;
-    expect(invalidInfo).toMatchObject({ code: 'VALIDATION', severity: 'warning', userAction: ROUTER_MESSAGES.actionCheckInput, taskId: null });
-    expect(invalidInfo?.whatHappened).toBe('Die Eingabe ist ungültig: id: Text erwartet, Zahl erhalten.');
-
-    const unknown = await router.handle({ id: 'u', method: 'nope' });
-    expect(!unknown.ok && NovaErrorInfoSchema.parse(unknown.error.error)).toMatchObject({ code: 'NOT_FOUND', title: 'Nicht gefunden', details: 'RPC: nope' });
-  });
-
-  it('rpcErrorInfo falls back to a generic title and caps long details', () => {
-    const info = rpcErrorInfo({ code: 'SOMETHING_NEW', message: 'Neu.', severity: 'critical', details: 'x'.repeat(10_000) }, 'daemon.logs', undefined, 1000);
-    expect(info).toMatchObject({ title: 'Fehler', severity: 'critical', createdAt: 1000, projectId: null, taskId: null });
-    expect(info.details!.length).toBeLessThan(4100);
   });
 
   it('supports async handlers and string ids of other types', async () => {

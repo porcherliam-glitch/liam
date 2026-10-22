@@ -598,18 +598,6 @@ export function mergeParsed(parts: ParsedCheck[]): ParsedCheck | null {
   return { framework: parts[0].framework, passed: sum('passed'), failed: sum('failed'), skipped: sum('skipped'), failures: parts.flatMap((p) => p.failures).slice(0, MAX_FAILURES) };
 }
 
-// ------------------------------------------------------------------------------------------------ no tests
-
-/**
- * True when a test runner reports that it found no tests at all: pytest "no tests ran" (exit 5), vitest/mocha
- * "No test files found", jest "No tests found" and Playwright "Error: No tests found" (exit 1 without
- * --passWithNoTests).
- */
-export function noTestsFound(rawOutput: string): boolean {
-  const text = stripAnsi(rawOutput);
-  return /^=+ no tests ran in [\d.]+s =+$/m.test(text) || /^\s*(?:Error:\s*)?No test files found\b/im.test(text) || /^\s*(?:Error:\s*)?No tests found\b/im.test(text);
-}
-
 // ------------------------------------------------------------------------------------------------ dispatcher
 
 const TEST_PARSERS = [parseVitest, parseJest, parseNodeTest, parsePytest, parseDotnetTest, parseMocha];

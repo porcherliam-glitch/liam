@@ -5,11 +5,8 @@
 //   subdirectory of a larger repository: porcelain paths (top-level relative) are re-based with
 //   `rev-parse --show-prefix`, blob specs use `<ref>:./<path>` and diffs use `--relative`.
 // - Read-only calls use GIT_OPTIONAL_LOCKS=0. Mutating calls (init, add/commit, safe.directory) are serialized per
-//   canonical repository root. A lock file counts as stale only when it is older than 60 s, no NOVA git process works
-//   on that repo AND no git process runs on the computer at all: git holds index.lock for as long as its process
-//   lives (e.g. `git commit` while the user writes the message in an editor), so the age alone proves nothing. A stale
-//   lock is removed with a warning and the command is retried once; otherwise the lock is retried every second, at
-//   most 5 times, then GIT_ERROR. If running processes cannot be listed, the lock is never removed.
+//   canonical repository root. A stale lock file (no NOVA git process for that repo, older than 60 s) is removed
+//   with a warning and the command is retried once; a fresh lock is retried every second, at most 5 times.
 // - "dubious ownership": GIT_ERROR plus a security_config approval for
 //   `git config --global --add safe.directory <path>`. NOVA never adds it on its own; only an approved request is
 //   executed (immediately via approvals.onDecision, or on the next git call that finds the approval).
@@ -30,8 +27,7 @@ import { homedir } from 'node:os';
 import { dirname, isAbsolute, join, posix, win32 } from 'node:path';
 import type { Approval, FileDiff, GitCommit, GitStatus } from '@shared/schemas';
 import type { ApprovalRequest, GitService, Services } from '../contracts';
-import { buildChildEnv } from '../core/child-env';
-import { execTool, runPowerShell, type ExecToolResult } from '../core/exec';
+import type { ExecToolResult } from '../core/exec';
 import { NovaError, errorMessage, isNovaError, validation } from '../core/errors';
 import { unlinkWithRetry } from '../core/fs-atomic';
 import { assertHostAllowed } from '../core/net';
@@ -65,8 +61,6 @@ export interface GitServiceOptions {
   lockRetryDelayMs?: number;
   /** Retries for a fresh lock (default 5). */
   lockRetries?: number;
-  /** "Does any git process run on this computer?" (tests); default lists processes, true when that fails. */
-  gitProcessRunning?: () => Promise<boolean>;
 }
 
 /** Max files with full content in one diff() result (the rest is listed by the caller's own means). */
@@ -139,28 +133,6 @@ export function unifiedForNewFile(path: string, content: string, binary: boolean
   return text;
 }
 
-/**
- * Is any git process running on this computer (any repository, any user tool)? Windows: Get-Process via runPowerShell
- * (count only, no localized text); elsewhere `ps -A -o comm=`. Unknown (listing failed) counts as running.
- */
-export async function anyGitProcessRunning(platform: NodeJS.Platform = process.platform): Promise<boolean> {
-  try {
-    if (platform === 'win32') {
-      const r = await runPowerShell('@(Get-Process -Name git -ErrorAction SilentlyContinue).Count', { timeoutMs: 15_000 });
-      const n = Number.parseInt(r.stdout.trim(), 10);
-      return r.code !== 0 || !Number.isFinite(n) || n > 0;
-    }
-    const r = await execTool('ps', ['-A', '-o', 'comm='], { timeoutMs: 10_000, platform, env: buildChildEnv({ LC_ALL: 'C' }, platform) });
-    if (r.code !== 0) return true;
-    return r.stdout.split(/\r?\n/).some((line) => {
-      const name = line.trim().split('/').pop() ?? '';
-      return name === 'git' || name.startsWith('git-');
-    });
-  } catch {
-    return true;
-  }
-}
-
 export function createGitService(s: Services, options: GitServiceOptions = {}): GitService {
   const platform = options.platform ?? s.core.platform;
   const ci = platform === 'win32';
@@ -169,7 +141,6 @@ export function createGitService(s: Services, options: GitServiceOptions = {}): 
   const staleLockMs = options.staleLockMs ?? 60_000;
   const lockRetryDelayMs = options.lockRetryDelayMs ?? 1000;
   const lockRetries = options.lockRetries ?? 5;
-  const gitProcessRunning = options.gitProcessRunning ?? (() => anyGitProcessRunning(platform));
   const mutex = new KeyedMutex();
   const repoCache = new Map<string, { info: RepoInfo | null; at: number }>();
   let gitPathCache: { value: string; at: number } | null = null;
@@ -373,18 +344,13 @@ export function createGitService(s: Services, options: GitServiceOptions = {}): 
         st = undefined;
       }
       if (st && insideGitDir && !removedStale && now() - st.mtimeMs > staleLockMs && mutex.holders(info.key) <= 1) {
-        if (await gitProcessRunning()) {
-          // e.g. the user's `git commit` waiting for the commit message: its lock is legitimately held.
-          log.info('Git-Sperrdatei ist älter als 60 Sekunden, aber ein Git-Prozess läuft – sie bleibt bestehen', { lock: lockPath });
-        } else {
-          try {
-            unlinkWithRetry(lockPath);
-            removedStale = true;
-            log.warn('Veraltete Git-Sperrdatei entfernt (kein Git-Prozess aktiv, älter als 60 Sekunden)', { lock: lockPath });
-            continue;
-          } catch (e) {
-            log.warn('Veraltete Git-Sperrdatei konnte nicht entfernt werden', { lock: lockPath, error: errorMessage(e) });
-          }
+        try {
+          unlinkWithRetry(lockPath);
+          removedStale = true;
+          log.warn('Veraltete Git-Sperrdatei entfernt (kein Git-Vorgang von NOVA aktiv, älter als 60 Sekunden)', { lock: lockPath });
+          continue;
+        } catch (e) {
+          log.warn('Veraltete Git-Sperrdatei konnte nicht entfernt werden', { lock: lockPath, error: errorMessage(e) });
         }
       }
       if (attempt >= lockRetries) {

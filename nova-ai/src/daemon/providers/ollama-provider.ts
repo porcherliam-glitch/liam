@@ -7,14 +7,13 @@
 //   is false and the ModelClient estimates the missing number.
 // - Connection refused → OLLAMA_UNREACHABLE, 404 → MODEL_UNAVAILABLE (classification in http.ts).
 // - A default chat timeout of 60 min is a safety net only; the ModelClient passes a signal with the configured
-//   settings.agents.modelTimeoutSec. The default transport (providerFetch) has no response timeout of its own, so an
-//   answer that takes longer than 5 minutes is not cut off by undici's headersTimeout.
+//   settings.agents.modelTimeoutSec.
 import { randomBytes } from 'node:crypto';
 import type { ModelInfo, ProviderConfig, ProviderHealth } from '@shared/schemas';
 import type { ChatMessage, ChatRequest, ChatResponse, ChatToolCall, ModelProvider, ProviderFactory, ProviderFactoryDeps } from '../contracts';
 import { isLocalEndpoint } from '../core/net';
 import { errorMessage } from '../core/errors';
-import { invalidResponse, providerErrorDetails, providerFetch } from './http';
+import { invalidResponse, providerErrorDetails } from './http';
 import { OllamaApi, listOllamaModels } from './ollama-api';
 
 const CHAT_SAFETY_TIMEOUT_MS = 60 * 60 * 1000;
@@ -107,7 +106,7 @@ class OllamaProvider implements ModelProvider {
     private readonly deps: ProviderFactoryDeps,
   ) {
     this.id = cfg.id;
-    this.api = new OllamaApi(cfg.baseUrl, deps.fetch ?? providerFetch, cfg.id);
+    this.api = new OllamaApi(cfg.baseUrl, deps.fetch ?? fetch, cfg.id);
   }
 
   config(): ProviderConfig {

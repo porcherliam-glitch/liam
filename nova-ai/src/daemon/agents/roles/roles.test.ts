@@ -194,8 +194,5 @@ describe('built-in role modules', () => {
     expect(reviewer.checkFinish!(out, { toolsUsed: ['git_diff'] })).toBeNull();
     const p = reviewer.systemPrompt({ project, task, memory: [], platform: 'win32' });
     for (const word of ['Correctness', 'Security', 'Incomplete work', 'Regressions']) expect(p).toContain(word);
-    // an empty diff is not approved by default (the old hint told the model to approve "no changes")
-    expect(p).toContain('If git_diff shows no changes, do not approve by default');
-    expect(p).not.toMatch(/there are no changes\), call submit_review with verdict "approve"/);
   });
 });

@@ -9,12 +9,9 @@
 //     app:// scheme, AppUserModelId 'ai.nova.studio', canonical data dir, then on ready: protocol handler + CSP,
 //     permission/download denial, window (hidden and not loaded with `--hidden`), tray, IPC, supervisor.start().
 //   Close button: hide to the tray when background.closeToTray (first time: explanation toast), else quit the UI.
-//   Quit: unsaved studio edits are handled first (unsaved-guard.ts: ask "Speichern / Nicht speichern / Abbrechen";
-//     Windows shutdown and the setup never wait – the renderer keeps a recovery copy). Then "Oberfläche beenden"
-//     keeps the daemon running when background.keepRunningWhenUiClosed, otherwise daemon.shutdown; "NOVA vollständig
-//     beenden" always shuts it down. Windows logoff/shutdown (query-session-end) → recovery copy of unsaved edits +
-//     daemon.shutdown({ reason: 'os-shutdown' }).
-//   Daemon cannot start (e.g. damaged database): recovery.ts restores a checked backup / creates diagnostics.
+//   Quit: "Oberfläche beenden" keeps the daemon running when background.keepRunningWhenUiClosed, otherwise
+//     daemon.shutdown; "NOVA vollständig beenden" always shuts it down. Windows logoff/shutdown (query-session-end)
+//     → daemon.shutdown({ reason: 'os-shutdown' }).
 //
 // Key decisions:
 // - Development: NOVA_RENDERER_URL (loopback only, ignored when packaged) loads the Vite dev server; NOVA_DEV=1 adds
@@ -31,7 +28,6 @@ import type { WorkCycleState } from '@shared/schemas';
 import { DaemonClient } from '../daemon/client';
 import { probeEndpoint } from '../daemon/server/probe';
 import { canonicalDataDir, dataPaths, defaultDataDir, defaultEndpoint } from '../daemon/core/paths';
-import { LATEST_SCHEMA_VERSION } from '../daemon/db/migrations';
 import { parseCliArgs } from './cli';
 import { TEXTS } from './texts';
 import { createMainLogger, errorText, type MainLogger } from './log';
@@ -49,8 +45,6 @@ import { createIpcHandlers, registerIpcHandlers } from './ipc-handlers';
 import { decideCloseAction, decideDaemonShutdown, mergeQuitMode, type QuitMode } from './quit-policy';
 import { stopDaemonCli } from './stop-daemon';
 import { RestartBudget } from './restart-budget';
-import { createNodeRunner, DaemonRecovery } from './recovery';
-import { failedSaveQuestion, UNSAVED_CHOICES, UnsavedChangesGuard, unsavedQuestion, type QuestionBox } from './unsaved-guard';
 
 const cli = parseCliArgs(process.argv);
 const isDev = !app.isPackaged && process.env.NOVA_DEV === '1';
@@ -225,24 +219,10 @@ function runUi(dataDir: string, log: MainLogger): void {
     tokenPath: paths.token,
     crashPath: paths.crash,
     startLogPath: paths.startLog,
-    lockPath: paths.lock,
     daemonEntry: appPaths.daemonEntry,
     execPath: process.execPath,
     appVersion,
     log,
-  });
-  const recovery = new DaemonRecovery({
-    dataDir,
-    backupsDir: paths.backups,
-    diagnosticsDir: paths.diagnostics,
-    daemonEntry: appPaths.daemonEntry,
-    latestSchemaVersion: LATEST_SCHEMA_VERSION,
-    platform: process.platform,
-    log,
-    runNode: createNodeRunner({ execPath: process.execPath, cwd: dataDir }),
-    connection: () => supervisor.state(),
-    restartDaemon: () => supervisor.restart(),
-    showItemInFolder: (p) => shell.showItemInFolder(p),
   });
   const autostart = new AutostartManager({ platform: process.platform, isPackaged: app.isPackaged, execPath: process.execPath, api: app, log });
   const background = new BackgroundSettingsCache({
@@ -263,7 +243,7 @@ function runUi(dataDir: string, log: MainLogger): void {
     shell.openExternal(url).catch((e: unknown) => log.warn('Externer Link konnte nicht geöffnet werden', { error: errorText(e) }));
   };
 
-  let quitPhase: 'running' | 'confirming' | 'finalizing' | 'done' = 'running';
+  let quitPhase: 'running' | 'finalizing' | 'done' = 'running';
   let quitMode: QuitMode | null = null;
   let sessionShutdownSent = false;
   let sessionEndTimer: NodeJS.Timeout | null = null;
@@ -283,20 +263,6 @@ function runUi(dataDir: string, log: MainLogger): void {
     log,
   });
 
-  const showQuestion = async (box: QuestionBox, signal: AbortSignal): Promise<number> => {
-    const parent = windowCtl.browserWindow();
-    const r = parent ? await dialog.showMessageBox(parent, { ...box, signal }) : await dialog.showMessageBox({ ...box, signal });
-    return r.response;
-  };
-  const unsaved = new UnsavedChangesGuard({
-    send: (id, action) => windowCtl.trySendLoaded(IPC.unsavedChangesRequest, { id, action }),
-    ask: async (info, signal) => UNSAVED_CHOICES[await showQuestion(unsavedQuestion(info), signal)] ?? 'cancel',
-    askAfterFailedSave: async (failed, answered, signal) => ((await showQuestion(failedSaveQuestion(failed, answered), signal)) === 0 ? 'quit' : 'cancel'),
-    flushStorage: async () => session.defaultSession.flushStorageData(),
-    showWindow: () => windowCtl.show(),
-    log,
-  });
-
   const maybeShowCloseToTrayHint = () => {
     if (uiState.get().closeToTrayHintShown) return;
     uiState.update({ closeToTrayHintShown: true });
@@ -313,7 +279,7 @@ function runUi(dataDir: string, log: MainLogger): void {
     log,
     onCloseRequest: () => {
       if (quitPhase === 'done') return 'allow';
-      if (quitPhase !== 'running') return 'handled';
+      if (quitPhase === 'finalizing') return 'handled';
       const decision = decideCloseAction({ quitting: false, closeToTray: background.get().closeToTray, trayAvailable: tray.available() });
       if (decision === 'hide') {
         windowCtl.hide();
@@ -325,9 +291,7 @@ function runUi(dataDir: string, log: MainLogger): void {
     },
     onSessionEnd: (phase) => {
       if (phase === 'query') {
-        // Windows asks whether the session may end: write the recovery copy of unsaved edits and stop the daemon now
-        // (after WM_ENDSESSION there is no time left).
-        void unsaved.persistNow();
+        // Windows asks whether the session may end: stop the daemon now (after WM_ENDSESSION there is no time left).
         if (!sessionShutdownSent) {
           sessionShutdownSent = true;
           log.info('Windows wird abgemeldet oder heruntergefahren – Hintergrunddienst wird beendet');
@@ -348,7 +312,6 @@ function runUi(dataDir: string, log: MainLogger): void {
       requestQuit('os-shutdown');
     },
     openExternal: openExternalSafe,
-    onRendererReset: () => unsaved.rendererReset(),
   });
 
   const workAction = async (method: 'work.pause' | 'work.resume' | 'work.start') => {
@@ -427,16 +390,6 @@ function runUi(dataDir: string, log: MainLogger): void {
         return parent ? dialog.showSaveDialog(parent, req) : dialog.showSaveDialog(req);
       },
       getAutostart: () => autostart.get(),
-      getAutostartSupport: () => autostart.support(),
-      recovery: {
-        listBackups: () => recovery.listBackups(),
-        restoreBackup: (p) => recovery.restoreBackup(p),
-        createDiagnostics: () => recovery.createDiagnostics(),
-      },
-      unsaved: {
-        update: (info) => unsaved.update(info),
-        resolve: (id, result) => unsaved.resolve(id, result),
-      },
       setAutostart: async (enabled) => {
         const result = autostart.set(enabled);
         // Keep settings.background.autostart in sync (best effort; the OS registration is the source of truth).
@@ -519,7 +472,10 @@ function runUi(dataDir: string, log: MainLogger): void {
     log.info('Oberfläche wird beendet', { mode, daemonShutdown: decision.shutdown });
     if (decision.shutdown && !(mode === 'os-shutdown' && sessionShutdownSent)) await supervisor.requestShutdown(decision.reason, 5_000);
   };
-  const finishQuit = () => {
+  app.on('before-quit', (e) => {
+    if (quitPhase === 'done') return;
+    e.preventDefault();
+    if (quitPhase === 'finalizing') return;
     quitPhase = 'finalizing';
     const mode = quitMode ?? 'ui';
     void withTimeout(finalizeQuit(mode), 10_000)
@@ -531,32 +487,6 @@ function runUi(dataDir: string, log: MainLogger): void {
         tray.destroy();
         uiState.flush();
         app.quit();
-      });
-  };
-  app.on('before-quit', (e) => {
-    if (quitPhase === 'done') return;
-    e.preventDefault();
-    if (quitPhase === 'confirming') {
-      // Windows shutdown or the setup while the unsaved-changes question is open: do not wait for the person.
-      if (quitMode === 'os-shutdown' || quitMode === 'installer') unsaved.interrupt();
-      return;
-    }
-    if (quitPhase === 'finalizing') return;
-    // The main process closes the window itself (no beforeunload): unsaved studio edits are handled here first.
-    quitPhase = 'confirming';
-    void unsaved
-      .confirmQuit(quitMode ?? 'ui')
-      .catch((err: unknown) => {
-        log.error('Rückfrage vor dem Beenden fehlgeschlagen', { error: errorText(err) });
-        return true;
-      })
-      .then((proceed) => {
-        if (proceed) {
-          finishQuit();
-          return;
-        }
-        quitPhase = 'running';
-        quitMode = null;
       });
   });
 

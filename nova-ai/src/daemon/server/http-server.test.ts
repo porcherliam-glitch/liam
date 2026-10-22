@@ -113,11 +113,7 @@ describe('routing and RPC', () => {
     expect(ok.json()).toEqual({ id: 'x1', ok: true, result: [{ ts: 1, level: 'info', scope: 'test', msg: 'limit=3' }] });
     const err = await rawRequest({ endpoint: ts.endpoint, method: 'POST', path: '/rpc', headers: auth(), body: rpcBody('tasks.get', { id: 't9' }, 'x2') });
     expect(err.status).toBe(200);
-    expect(err.json()).toEqual({
-      id: 'x2',
-      ok: false,
-      error: { code: 'NOT_FOUND', message: 'Aufgabe wurde nicht gefunden (t9).', error: expect.objectContaining({ code: 'NOT_FOUND', whatHappened: 'Aufgabe wurde nicht gefunden (t9).', taskId: 't9' }) },
-    });
+    expect(err.json()).toEqual({ id: 'x2', ok: false, error: { code: 'NOT_FOUND', message: 'Aufgabe wurde nicht gefunden (t9).' } });
     const missing = await rawRequest({ endpoint: ts.endpoint, method: 'POST', path: '/rpc', headers: auth(), body: rpcBody('projects.list', undefined, 'x3') });
     expect((missing.json() as { error: { message: string } }).error.message).toBe('Diese Funktion ist in dieser Version nicht verfügbar.');
   });

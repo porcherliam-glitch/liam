@@ -42,25 +42,9 @@ describe('window.nova bridge', () => {
   it('has exactly the shape of NovaBridge', () => {
     const { nova } = setup();
     expect(Object.keys(nova).sort()).toEqual(['app', 'daemon', 'invoke', 'onEvent']);
-    expect(Object.keys(nova.daemon).sort()).toEqual(['createDiagnostics', 'listBackups', 'onState', 'restart', 'restoreBackup', 'state', 'stop']);
+    expect(Object.keys(nova.daemon).sort()).toEqual(['onState', 'restart', 'state', 'stop']);
     expect(Object.keys(nova.app).sort()).toEqual(
-      [
-        'getAutostart',
-        'getAutostartSupport',
-        'onNavigate',
-        'onUnsavedChangesRequest',
-        'openExternal',
-        'openPath',
-        'platform',
-        'quit',
-        'saveFile',
-        'selectDirectory',
-        'selectFile',
-        'setAutostart',
-        'setUnsavedChanges',
-        'showInFolder',
-        'version',
-      ].sort(),
+      ['getAutostart', 'onNavigate', 'openExternal', 'openPath', 'platform', 'quit', 'saveFile', 'selectDirectory', 'selectFile', 'setAutostart', 'showInFolder', 'version'].sort(),
     );
     expect(nova.app.platform).toBe('win32');
   });
@@ -95,11 +79,6 @@ describe('window.nova bridge', () => {
     await nova.app.getAutostart();
     await nova.app.setAutostart(true);
     await nova.app.quit();
-    await nova.daemon.listBackups();
-    await nova.daemon.restoreBackup('C:\\Daten\\backups\\nova-1.db');
-    await nova.daemon.createDiagnostics();
-    await nova.app.getAutostartSupport();
-    await nova.app.setUnsavedChanges({ count: 2.7, files: ['A › x.ts', 7 as unknown as string] });
     expect(ipc.invoked.map((i) => i.channel)).toEqual([
       IPC.daemonGetState,
       IPC.daemonRestart,
@@ -114,49 +93,10 @@ describe('window.nova bridge', () => {
       IPC.getAutostart,
       IPC.setAutostart,
       IPC.quit,
-      IPC.daemonListBackups,
-      IPC.daemonRestoreBackup,
-      IPC.daemonDiagnostics,
-      IPC.getAutostartSupport,
-      IPC.setUnsavedChanges,
     ]);
-    expect(ipc.invoked.find((i) => i.channel === IPC.setUnsavedChanges)?.args).toEqual([{ count: 2, files: ['A › x.ts'] }]);
-    expect(ipc.invoked.find((i) => i.channel === IPC.daemonRestoreBackup)?.args).toEqual(['C:\\Daten\\backups\\nova-1.db']);
     expect(ipc.invoked.find((i) => i.channel === IPC.selectFile)?.args).toEqual([{ filters: [{ name: 'JSON', extensions: ['json'] }] }]);
     expect(ipc.invoked.find((i) => i.channel === IPC.saveFile)?.args).toEqual([undefined]);
     expect(ipc.invoked.find((i) => i.channel === IPC.setAutostart)?.args).toEqual([true]);
-  });
-
-  it('answers unsaved-changes requests from main with the latest handler, also without handler or on errors', async () => {
-    const { ipc, nova } = setup();
-    const results = () => ipc.invoked.filter((i) => i.channel === IPC.unsavedChangesResult).map((i) => i.args[0]);
-    ipc.emit(IPC.unsavedChangesRequest, { id: 'q1', action: 'save' });
-    await vi.waitFor(() => expect(results()).toEqual([{ id: 'q1', ok: false, failed: [] }]));
-    const first = vi.fn(async () => ({ ok: true, failed: [] }));
-    const second = vi.fn(async () => ({ ok: false, failed: ['A › x.ts'] }));
-    nova.app.onUnsavedChangesRequest(first);
-    const off = nova.app.onUnsavedChangesRequest(second);
-    ipc.emit(IPC.unsavedChangesRequest, { id: 'q2', action: 'save' });
-    await vi.waitFor(() => expect(results()).toHaveLength(2));
-    expect(second).toHaveBeenCalledWith('save');
-    expect(first).not.toHaveBeenCalled();
-    expect(results()[1]).toEqual({ id: 'q2', ok: false, failed: ['A › x.ts'] });
-    off();
-    ipc.emit(IPC.unsavedChangesRequest, { id: 'q3', action: 'persist' });
-    await vi.waitFor(() => expect(results()).toHaveLength(3));
-    expect(first).toHaveBeenCalledWith('persist');
-    expect(results()[2]).toEqual({ id: 'q3', ok: true, failed: [] });
-    nova.app.onUnsavedChangesRequest(async () => {
-      throw new Error('kaputt');
-    });
-    ipc.emit(IPC.unsavedChangesRequest, { id: 'q4', action: 'discard' });
-    await vi.waitFor(() => expect(results()).toHaveLength(4));
-    expect(results()[3]).toEqual({ id: 'q4', ok: false, failed: [] });
-    // Malformed requests are ignored.
-    ipc.emit(IPC.unsavedChangesRequest, { id: 'q5', action: 'format-disk' });
-    ipc.emit(IPC.unsavedChangesRequest, 'save');
-    await new Promise((r) => setTimeout(r, 10));
-    expect(results()).toHaveLength(4);
   });
 
   it('event listeners get the payload only (never the IPC event) and can unsubscribe', () => {

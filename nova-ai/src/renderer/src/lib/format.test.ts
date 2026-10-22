@@ -46,20 +46,6 @@ describe('format', () => {
     expect(formatRelativeTime(now + 10 * 60_000, now)).toBe('in 10 Min.');
   });
 
-  it('never calls a just-recorded past event "gleich" (R5-4)', () => {
-    const now = Date.UTC(2026, 9, 22, 12, 0, 0);
-    // Without the flag a timestamp a moment ahead is a future event ("wird gleich entladen").
-    expect(formatRelativeTime(now + 500, now)).toBe('gleich');
-    // Measured timestamps (resource snapshot, "Zuletzt geprüft") that are a few ms/s ahead of the render tick or of
-    // a slightly different daemon clock are "gerade eben".
-    expect(formatRelativeTime(now + 500, now, { pastEvent: true })).toBe('gerade eben');
-    expect(formatRelativeTime(now + 59_000, now, { pastEvent: true })).toBe('gerade eben');
-    expect(formatRelativeTime(now, now, { pastEvent: true })).toBe('gerade eben');
-    expect(formatRelativeTime(now - 5 * 60_000, now, { pastEvent: true })).toBe('vor 5 Min.');
-    // A timestamp far in the future is not skew: shown as such.
-    expect(formatRelativeTime(now + 10 * 60_000, now, { pastEvent: true })).toBe('in 10 Min.');
-  });
-
   it('formats money, percent and tokens', () => {
     expect(n(formatUsd(0.42))).toBe('0,42 $');
     expect(n(formatUsd(0.0031))).toBe('0,0031 $');

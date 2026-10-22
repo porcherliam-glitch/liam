@@ -16,7 +16,8 @@ Stand: 22.10.2026, Version 0.1.0. Was fertig ist und was noch fehlt, steht ehrli
 1. `NOVA-AI-Setup-0.1.0.exe` doppelklicken.
 2. Windows zeigt eventuell „Der Computer wurde durch Windows geschützt“. Das liegt daran, dass die Datei nicht
    kostenpflichtig signiert ist. Auf **Weitere Informationen** und dann **Trotzdem ausführen** klicken.
-3. Ordner wählen (Vorschlag übernehmen ist in Ordnung) und **Installieren** klicken.
+3. Den **vorgeschlagenen Ordner übernehmen** und **Installieren** klicken. Bitte keinen eigenen Ordner wählen (siehe
+   [TASKS.md](TASKS.md), offener Punkt R6-1).
 4. Das Installationsprogramm fragt, ob es eine Verknüpfung auf dem Desktop anlegen soll. Im Startmenü steht NOVA AI
    immer.
 

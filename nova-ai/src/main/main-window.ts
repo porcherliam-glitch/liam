@@ -43,8 +43,6 @@ export interface MainWindowOptions {
   /** Windows logoff/shutdown (query-session-end or session-end). */
   onSessionEnd(phase: 'query' | 'end'): void;
   openExternal(url: string): void;
-  /** The page's in-memory state is gone (renderer crashed, or the main frame loads anew). */
-  onRendererReset?(): void;
 }
 
 export class MainWindowController {
@@ -174,23 +172,12 @@ export class MainWindowController {
    * load there is no page and messages are dropped.
    */
   send(channel: string, payload: unknown): void {
-    this.trySend(channel, payload);
-  }
-
-  /** Like send(), but only to a fully loaded page; returns whether the message was handed over. */
-  trySendLoaded(channel: string, payload: unknown): boolean {
-    return this.loadState === 'loaded' && this.trySend(channel, payload);
-  }
-
-  private trySend(channel: string, payload: unknown): boolean {
     const w = this.win;
-    if (!w || w.isDestroyed() || this.loadState === 'none' || w.webContents.isCrashed()) return false;
+    if (!w || w.isDestroyed() || this.loadState === 'none' || w.webContents.isCrashed()) return;
     try {
       w.webContents.send(channel, payload);
-      return true;
     } catch (e) {
       this.o.log.debug('Nachricht an die Oberfläche fehlgeschlagen', { channel, error: errorText(e) });
-      return false;
     }
   }
 
@@ -317,11 +304,6 @@ export class MainWindowController {
     wc.on('did-start-loading', () => {
       if (this.loadState === 'loaded') this.loadState = 'loading';
     });
-    wc.on('did-start-navigation', (details) => {
-      // A new document in the main frame (reload): the page's in-memory state starts empty. HashRouter navigations
-      // are same-document and preview iframes are subframes – neither counts.
-      if (details.isMainFrame && !details.isSameDocument) this.o.onRendererReset?.();
-    });
     wc.on('did-finish-load', () => {
       this.loadState = 'loaded';
       const nav = this.pendingNavigation;
@@ -338,7 +320,6 @@ export class MainWindowController {
     });
     wc.on('render-process-gone', (_e, details) => {
       log.error('Oberflächenprozess beendet', { reason: details.reason, exitCode: details.exitCode });
-      this.o.onRendererReset?.();
       if (details.reason === 'clean-exit' || win.isDestroyed()) return;
       if (!this.crashBudget.tryConsume(Date.now())) {
         log.error('Oberfläche wird nach mehreren Abstürzen nicht erneut geladen');

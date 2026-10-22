@@ -1,34 +1,8 @@
 // Thin wrapper around node:sqlite (built into Node >= 22.13 and Electron >= 35; no native build needed).
 // WAL mode + synchronous=FULL: no committed transaction is lost on crash or power loss (write volume is low).
-// backupToAsync runs VACUUM INTO on a second, read-only connection in a worker thread (a consistent WAL snapshot), so
-// the daily backup of a large database does not freeze the daemon's event loop; where the worker cannot run it falls
-// back to the synchronous backupTo.
 import { DatabaseSync, type StatementSync } from 'node:sqlite';
-import { mkdirSync, existsSync, rmSync } from 'node:fs';
+import { mkdirSync, existsSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { Worker } from 'node:worker_threads';
-
-/** Worker source (eval'd, CommonJS): VACUUM INTO on its own read-only connection. */
-const BACKUP_WORKER = `(() => {
-  const { parentPort, workerData } = require('node:worker_threads');
-  let db;
-  try {
-    const { DatabaseSync } = require('node:sqlite');
-    db = new DatabaseSync(workerData.file, { readOnly: true });
-    db.exec('PRAGMA busy_timeout = 5000;');
-  } catch (e) {
-    parentPort.postMessage({ ok: false, unavailable: true, message: String((e && e.message) || e) });
-    return;
-  }
-  try {
-    db.prepare('VACUUM INTO ?').run(workerData.target);
-    parentPort.postMessage({ ok: true });
-  } catch (e) {
-    parentPort.postMessage({ ok: false, unavailable: false, message: String((e && e.message) || e) });
-  } finally {
-    try { db.close(); } catch {}
-  }
-})();`;
 
 export type SqlValue = string | number | bigint | null | Uint8Array;
 export type SqlParams = SqlValue[] | Record<string, SqlValue>;
@@ -104,54 +78,6 @@ export class Db {
     const dir = dirname(target);
     if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
     this.raw.prepare('VACUUM INTO ?').run(target);
-  }
-
-  /**
-   * backupTo without blocking the event loop (worker thread, separate read-only connection). Rejects with the SQLite
-   * error (disk full …); runs backupTo synchronously when no worker can be used (in-memory database, no worker
-   * support, node:sqlite unavailable in workers).
-   */
-  backupToAsync(target: string): Promise<void> {
-    if (this.file === ':memory:') {
-      this.backupTo(target);
-      return Promise.resolve();
-    }
-    const dir = dirname(target);
-    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-    return new Promise<void>((resolve, reject) => {
-      let settled = false;
-      const fallback = () => {
-        if (settled) return;
-        settled = true;
-        try {
-          rmSync(target, { force: true }); // a worker that died midway may have left a partial file
-          this.backupTo(target);
-          resolve();
-        } catch (e) {
-          reject(e);
-        }
-      };
-      let worker: Worker;
-      try {
-        worker = new Worker(BACKUP_WORKER, { eval: true, workerData: { file: this.file, target } });
-      } catch {
-        fallback();
-        return;
-      }
-      worker.once('message', (m: { ok: boolean; unavailable?: boolean; message?: string }) => {
-        if (m.ok) {
-          settled = true;
-          resolve();
-        } else if (m.unavailable) {
-          fallback();
-        } else {
-          settled = true;
-          reject(new Error(m.message ?? 'VACUUM INTO fehlgeschlagen'));
-        }
-      });
-      worker.once('error', () => fallback());
-      worker.once('exit', () => fallback());
-    });
   }
 
   close(): void {

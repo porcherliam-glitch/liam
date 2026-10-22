@@ -1,5 +1,5 @@
 // Checks part of the projects module (re-exported by src/daemon/projects/index.ts).
-export { checkEnvironmentProblem, createCheckService, missingDependencyMarker, probeUrl, type CheckEnvironmentProblem, type CheckServiceOptions } from './check-service';
+export { createCheckService, missingDependencyMarker, probeUrl, type CheckServiceOptions } from './check-service';
 export { latestCheck, latestCheckActivity, getCheck, rowToCheck } from './check-store';
 export { findArtifacts, globToRegExp, matchesGlob, globStaticPrefix } from './glob';
 export {
@@ -10,7 +10,6 @@ export {
   parsePytest,
   parseDotnetTest,
   parseMocha,
-  noTestsFound,
   parseCompilerErrors,
   parseEslintStylish,
   parseGenericErrors,

@@ -42,7 +42,6 @@ import { TerminalPanel } from './panels/TerminalPanel';
 import { PanelTabs, panelTabsMode, type PanelTabItem } from './PanelTabs';
 import { Splitter } from './Splitter';
 import { latestFailures, markersForFile, projectRelativePath } from './studio-utils';
-import { setDraftProjectLabel } from './draft-store';
 import { useEditorTabs, type EditorTabsApi } from './useEditorTabs';
 import { useElementSize } from './useElementSize';
 
@@ -77,10 +76,6 @@ export default function StudioPage() {
   });
   const editor = useEditorTabs(projectId);
   const projectReady = project.data?.id === projectId;
-  const projectName = projectReady ? project.data?.name : undefined;
-  useEffect(() => {
-    if (projectName) setDraftProjectLabel(projectId, projectName);
-  }, [projectId, projectName]);
 
   // Changes by NOVA or other programs reach the open tabs (reload when clean, notice when there are unsaved edits).
   // The tree and the change lists refresh themselves through their own queries.
@@ -113,17 +108,14 @@ export default function StudioPage() {
     );
   }, [fileParam, lineParam, projectRoot, location.key, open, setSearchParams]);
 
-  // Unsaved edits survive leaving the studio and quitting NOVA (recovery copy) – say so when leaving with unsaved files.
+  // Unsaved edits survive leaving the studio (in memory) – say so when leaving with unsaved files.
   const unsavedRef = useRef(0);
   unsavedRef.current = editor.unsavedCount;
   useEffect(
     () => () => {
       const count = unsavedRef.current;
       if (count > 0) {
-        toast.info(
-          'Ungespeicherte Änderungen bleiben erhalten',
-          `${plural(count, 'Datei hat', 'Dateien haben')} ungespeicherte Änderungen. Sie sind beim nächsten Öffnen des Studios wieder da – auch nach einem Neustart. Vor dem Beenden fragt NOVA, ob gespeichert werden soll.`,
-        );
+        toast.info('Ungespeicherte Änderungen bleiben erhalten', `${plural(count, 'Datei hat', 'Dateien haben')} ungespeicherte Änderungen. Sie sind beim nächsten Öffnen des Studios wieder da, solange NOVA geöffnet bleibt.`);
       }
     },
     [projectId],

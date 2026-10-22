@@ -1,15 +1,11 @@
 // State of the open editor tabs: loading, dirty tracking, saving with conflict detection (expectedHash),
-// reloading after external changes (NOVA, other programs) and unsaved drafts that survive leaving the studio, a
-// renderer crash and quitting NOVA (draft-store.ts keeps a recovery copy; main asks before an interactive quit).
+// reloading after external changes (NOVA, other programs) and unsaved drafts that survive leaving the studio.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { FileContent } from '@shared/schemas';
 import { api, errorMessage, isRpcError } from '../../lib/api';
 import { toast } from '../../stores/toasts';
-import { deleteDraft, draftPaths, getDraft, registerLiveSaver, setDraft } from './draft-store';
 import { disposeModel, disposeProjectModels, setModelContent } from './editor-models';
 import { MAX_EDITABLE_BYTES } from './studio-utils';
-
-export { resetDrafts, unsavedDraftCount } from './draft-store';
 
 export type ChangeActor = 'nova' | 'user' | 'external';
 
@@ -52,6 +48,33 @@ export interface OpenOptions {
   column?: number | null;
   /** Do not focus/activate (used when restoring tabs). */
   background?: boolean;
+}
+
+interface Draft {
+  content: string;
+  baseHash: string | null;
+}
+
+/** Unsaved edits per project and file. Kept in memory while the app runs, so leaving the studio loses nothing. */
+const drafts = new Map<string, Map<string, Draft>>();
+
+function projectDrafts(projectId: string): Map<string, Draft> {
+  let map = drafts.get(projectId);
+  if (!map) {
+    map = new Map();
+    drafts.set(projectId, map);
+  }
+  return map;
+}
+
+/** Number of unsaved files of a project (also for files whose tab is not open). */
+export function unsavedDraftCount(projectId: string): number {
+  return drafts.get(projectId)?.size ?? 0;
+}
+
+/** Clears all drafts (tests). */
+export function resetDrafts(): void {
+  drafts.clear();
 }
 
 const TABS_KEY = (projectId: string) => `nova.studio.tabs.${projectId}`;
@@ -173,8 +196,9 @@ export function useEditorTabs(projectId: string): EditorTabsApi {
   }, []);
 
   const updateDraft = useCallback((path: string, content: string, tab: EditorTab | undefined) => {
-    if (!tab || content === tab.savedContent) deleteDraft(projectRef.current, path);
-    else setDraft(projectRef.current, path, { content, baseHash: tab.hash });
+    const map = projectDrafts(projectRef.current);
+    if (!tab || content === tab.savedContent) map.delete(path);
+    else map.set(path, { content, baseHash: tab.hash });
   }, []);
 
   const load = useCallback(
@@ -183,7 +207,7 @@ export function useEditorTabs(projectId: string): EditorTabsApi {
       try {
         const file = await api('files.read', { projectId: pid, path });
         if (!mounted.current || pid !== projectRef.current || !tabsRef.current.some((t) => t.path === path)) return;
-        const stored = getDraft(pid, path);
+        const stored = projectDrafts(pid).get(path);
         const draft = stored && file.encoding !== 'binary' && stored.content !== file.content ? stored : null;
         const initialContent = draft ? draft.content : file.content;
         contentRef.current.set(path, initialContent);
@@ -201,11 +225,11 @@ export function useEditorTabs(projectId: string): EditorTabsApi {
           deleted: false,
           external: draft && draft.baseHash !== file.hash ? { hash: file.hash, deleted: false, actor: null } : null,
         });
-        if (!draft) deleteDraft(pid, path);
+        if (!draft) projectDrafts(pid).delete(path);
         else if (draft.baseHash === file.hash) toast.info('Ungespeicherte Änderungen wiederhergestellt', path);
       } catch (e) {
         if (!mounted.current || pid !== projectRef.current) return;
-        const draft = getDraft(pid, path);
+        const draft = projectDrafts(pid).get(path);
         if (isRpcError(e, 'NOT_FOUND') && draft) {
           // The file is gone, but there are unsaved edits: keep them so they can be saved again.
           contentRef.current.set(path, draft.content);
@@ -250,7 +274,7 @@ export function useEditorTabs(projectId: string): EditorTabsApi {
 
   const forceClose = useCallback(
     (path: string) => {
-      deleteDraft(projectRef.current, path);
+      projectDrafts(projectRef.current).delete(path);
       removeTab(path);
     },
     [removeTab],
@@ -269,7 +293,7 @@ export function useEditorTabs(projectId: string): EditorTabsApi {
   const applyDiskContent = useCallback(
     (path: string, file: FileContent, extra: Partial<EditorTab> = {}) => {
       contentRef.current.set(path, file.content);
-      deleteDraft(projectRef.current, path);
+      projectDrafts(projectRef.current).delete(path);
       // Update the state (and its ref) first, so the model change event sees the new saved content.
       patch(path, {
         status: 'ready',
@@ -420,8 +444,8 @@ export function useEditorTabs(projectId: string): EditorTabsApi {
       const wasActive = activeRef.current;
       for (const tab of affected) {
         const newPath = to + tab.path.slice(from.length);
-        if (tab.dirty) setDraft(pid, newPath, { content: contentRef.current.get(tab.path) ?? tab.savedContent, baseHash: tab.hash });
-        deleteDraft(pid, tab.path);
+        if (tab.dirty) projectDrafts(pid).set(newPath, { content: contentRef.current.get(tab.path) ?? tab.savedContent, baseHash: tab.hash });
+        projectDrafts(pid).delete(tab.path);
         removeTab(tab.path);
         open(newPath, { background: wasActive !== tab.path });
       }
@@ -448,8 +472,8 @@ export function useEditorTabs(projectId: string): EditorTabsApi {
     setActive(null);
     setReveal(null);
     const stored = readStoredTabs(projectId);
-    // Drafts include a recovery copy from an earlier session (crash, Windows shutdown, update): reopen those files.
-    const paths = [...new Set([...stored.paths, ...draftPaths(projectId)])];
+    const pending = projectDrafts(projectId);
+    const paths = [...new Set([...stored.paths, ...pending.keys()])];
     for (const p of paths) open(p, { background: true });
     const active = stored.active && paths.includes(stored.active) ? stored.active : (paths[0] ?? null);
     if (active) setActive(active);
@@ -459,21 +483,6 @@ export function useEditorTabs(projectId: string): EditorTabsApi {
       disposeProjectModels(projectId);
     };
   }, [projectId, open, setActive]);
-
-  // Main's "save before quitting" goes through the open editor of this project, so the tab state stays right.
-  useEffect(
-    () =>
-      registerLiveSaver(projectId, async () => {
-        const failed: string[] = [];
-        for (const tab of tabsRef.current) {
-          if (!tab.dirty) continue; // a deleted file without edits is never written back
-          const result = await save(tab.path);
-          if (result === 'conflict' || result === 'failed') failed.push(tab.path);
-        }
-        return failed;
-      }),
-    [projectId, save],
-  );
 
   // Remember open tabs per project (per-user convenience).
   useEffect(() => {

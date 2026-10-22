@@ -168,18 +168,6 @@ describe('ConcurrencyGovernor.allowedFor', () => {
     expect(blocked.reason).toContain('qwen2.5-coder:14b');
   });
 
-  it('R4-10: VRAM held by other loaded Ollama models does not block loading another model', () => {
-    const gpus = [{ name: 'RTX', vendor: 'nvidia' as const, utilPercent: 1, vramTotalBytes: 16 * GB, vramUsedBytes: 15.5 * GB, source: 'nvidia-smi', estimated: false }];
-    const { governor, setSnap } = setup({
-      snap: snapshot({ gpus, ollamaLoaded: [{ model: 'qwen2.5-coder:14b', sizeBytes: 13 * GB, vramBytes: 13 * GB, expiresAt: null, contextLength: 4096 }] }),
-      providers: [ollamaLocal],
-    });
-    expect(governor.allowedFor({ providerId: 'ollama-local', modelId: 'qwen2.5:7b' })).toEqual({ ok: true, reason: null });
-    // Other programs holding the VRAM still block.
-    setSnap(snapshot({ gpus, ollamaLoaded: [{ model: 'qwen2.5-coder:14b', sizeBytes: 1 * GB, vramBytes: 1 * GB, expiresAt: null, contextLength: 4096 }] }));
-    expect(governor.allowedFor({ providerId: 'ollama-local', modelId: 'qwen2.5:7b' })).toMatchObject({ ok: false, reason: expect.stringContaining('zu 91 % belegt') });
-  });
-
   it('unknown GPU data or free VRAM → ok', () => {
     const { governor, setSnap } = setup({ providers: [ollamaLocal] });
     expect(governor.allowedFor({ providerId: 'ollama-local', modelId: 'x' }).ok).toBe(true);

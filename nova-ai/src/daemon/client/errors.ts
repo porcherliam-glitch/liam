@@ -59,11 +59,8 @@ export class DaemonRpcError extends Error {
   }
 
   /** Plain JSON form (for IPC to the renderer: class instances do not survive structured cloning). */
-  toJSON(): { code: string; message: string; details?: unknown; error?: unknown } {
-    const json: { code: string; message: string; details?: unknown; error?: unknown } = { code: this.code, message: this.message };
-    if (this.details !== undefined) json.details = this.details;
-    if (this.error !== undefined) json.error = this.error;
-    return json;
+  toJSON(): { code: string; message: string; details?: unknown } {
+    return this.details === undefined ? { code: this.code, message: this.message } : { code: this.code, message: this.message, details: this.details };
   }
 }
 

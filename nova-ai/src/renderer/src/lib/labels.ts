@@ -615,11 +615,9 @@ export function blockerAction(code: string | null | undefined): BlockerAction | 
     case 'OLLAMA_UNREACHABLE':
       return { label: 'Modelle prüfen', path: '/models' };
     case 'BUDGET_EXCEEDED':
-      return { label: 'Kosten und Budget', path: '/costs' };
     case 'PAID_NOT_APPROVED':
     case 'PRICE_UNKNOWN':
-      // Prices and the paid-use approval are set per provider on the models page.
-      return { label: 'Modelle und Preise', path: '/models' };
+      return { label: 'Kosten und Budget', path: '/costs' };
     case 'APPROVAL_REQUIRED':
       return { label: 'Zur Freigabe', path: '/approvals' };
     case 'TOOL_MISSING':

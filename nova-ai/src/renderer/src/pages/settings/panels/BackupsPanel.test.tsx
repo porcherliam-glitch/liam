@@ -1,10 +1,9 @@
 /** @vitest-environment jsdom */
-import { act, screen, waitFor, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { renderWithRouter, setupRendererTest } from '../../../lib/test-utils';
 import { getMockCalls, getMockDb, mockHandlers, MockRpcError } from '../../../lib/mock-bridge';
-import { useDaemonStore } from '../../../stores/daemon';
 import { useToastStore } from '../../../stores/toasts';
 import { todayStamp } from '../shared/files';
 import { BackupsPanel } from './BackupsPanel';
@@ -43,7 +42,6 @@ describe('BackupsPanel', () => {
   });
 
   it('restores a database backup after confirmation (NOVA restarts)', async () => {
-    for (const r of getMockDb().runs) if (r.status === 'running') r.status = 'done';
     await renderBackups();
     const row = within(table()).getByText('Anlass: täglich').closest('tr')!;
     await userEvent.click(within(row).getByRole('button', { name: 'Wiederherstellen' }));
@@ -52,24 +50,6 @@ describe('BackupsPanel', () => {
     await userEvent.click(within(dialog).getByRole('button', { name: 'Einspielen und neu starten' }));
     await waitFor(() => expect(getMockCalls('backup.restore')[0]?.params).toEqual({ id: 'bak_1' }));
     await waitFor(() => expect(lastToast()).toMatchObject({ title: 'NOVA startet neu' }));
-  });
-
-  it('does not promise to stop running agents: restore is blocked until the work is paused and idle (R3-14)', async () => {
-    expect(getMockDb().runs.some((r) => r.status === 'running')).toBe(true);
-    await renderBackups();
-    await waitFor(() => expect(useDaemonStore.getState().work?.activeRuns).toBeGreaterThan(0));
-    const row = within(table()).getByText('Anlass: täglich').closest('tr')!;
-    await userEvent.click(within(row).getByRole('button', { name: 'Wiederherstellen' }));
-    const dialog = await screen.findByRole('dialog', { name: 'Datenbank-Sicherung einspielen?' });
-    expect(within(dialog).queryByText(/an einem sicheren Punkt angehalten/)).toBeNull();
-    expect(within(dialog).getByText(/Bitte zuerst die Arbeit pausieren/)).toBeTruthy();
-    expect((within(dialog).getByRole('button', { name: 'Einspielen und neu starten' }) as HTMLButtonElement).disabled).toBe(true);
-    await userEvent.click(within(dialog).getByRole('button', { name: /Arbeit pausieren/ }));
-    await waitFor(() => expect(getMockCalls('work.pause')).toHaveLength(1));
-    // Once the last run has finished, the restore can be started.
-    act(() => useDaemonStore.getState().setWork({ ...useDaemonStore.getState().work!, state: 'paused', activeRuns: 0 }));
-    expect((within(dialog).getByRole('button', { name: 'Einspielen und neu starten' }) as HTMLButtonElement).disabled).toBe(false);
-    expect(getMockCalls('backup.restore')).toHaveLength(0);
   });
 
   it('restores a project snapshot into a chosen folder', async () => {
