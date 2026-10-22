@@ -7,7 +7,7 @@ import { emitMockEvent, getMockCalls, getMockDb, mockHandlers, MockRpcError } fr
 import { FakeTerminal } from '../test-mocks';
 import { stripAnsi } from '../studio-utils';
 import { resetTerminalSessions } from '../terminal-session';
-import { shortCwd, TerminalPanel } from './TerminalPanel';
+import { isStudioShortcut, shortCwd, TerminalPanel } from './TerminalPanel';
 
 vi.mock('@monaco-editor/react', async () => (await import('../test-mocks')).monacoReactModule);
 vi.mock('../monaco-setup', async () => (await import('../test-mocks')).monacoSetupModule);
@@ -134,6 +134,32 @@ describe('TerminalPanel', () => {
     act(() => term.type('echo weg\r'));
     await waitFor(() => expect(term.text).toContain('Die Terminal-Sitzung war beendet.'));
     await waitFor(() => expect(getMockCalls('terminal.create')).toHaveLength(2));
+  });
+
+  it('leaves the studio shortcuts to the studio and copies a selection with Strg+C', async () => {
+    const { term } = await renderTerminal();
+    const key = (k: string, extra: Partial<KeyboardEvent> = {}) =>
+      ({ type: 'keydown', key: k, code: '', ctrlKey: true, metaKey: false, altKey: false, shiftKey: false, ...extra }) as KeyboardEvent;
+    expect(term.keyHandler?.(key('s'))).toBe(false);
+    expect(term.keyHandler?.(key('j'))).toBe(false);
+    expect(term.keyHandler?.(key('F', { shiftKey: true }))).toBe(false);
+    // Keys of the line editor stay in the terminal.
+    expect(term.keyHandler?.(key('l'))).toBe(true);
+    expect(term.keyHandler?.(key('c'))).toBe(true);
+    term.selection = 'v22.14.0';
+    expect(term.keyHandler?.(key('c'))).toBe(false);
+    expect(term.selection).toBe('');
+    expect(getMockCalls('terminal.interrupt')).toHaveLength(0);
+  });
+
+  it('recognizes the studio shortcuts', () => {
+    const base = { ctrlKey: true, metaKey: false, altKey: false, shiftKey: false, code: '' };
+    expect(isStudioShortcut({ ...base, key: 'ö' })).toBe(true);
+    expect(isStudioShortcut({ ...base, key: 'Dead', code: 'Backquote' })).toBe(true);
+    expect(isStudioShortcut({ ...base, key: 'b' })).toBe(true);
+    expect(isStudioShortcut({ ...base, key: 'f' })).toBe(false);
+    expect(isStudioShortcut({ ...base, key: 's', ctrlKey: false })).toBe(false);
+    expect(isStudioShortcut({ ...base, key: 's', altKey: true })).toBe(false);
   });
 
   it('shortens the prompt inside the project folder', () => {

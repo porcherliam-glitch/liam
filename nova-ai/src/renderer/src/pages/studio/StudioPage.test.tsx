@@ -52,6 +52,19 @@ describe('StudioPage', () => {
     expect(screen.getByRole('tab', { name: /src\/main\.ts \(von NOVA geändert\)/ }).getAttribute('aria-selected')).toBe('true');
   });
 
+  it('opens absolute paths inside the project folder from ?file= and refuses paths outside', async () => {
+    const absolute = 'C:\\Users\\Demo\\Documents\\NOVA Projekte\\Pixel-Abenteuer\\src\\game\\player.ts';
+    const editor = await openEditor(`?file=${encodeURIComponent(absolute)}&line=3`);
+    await waitFor(() => expect(editor.getAttribute('data-path')).toBe(modelUri(PIXEL, 'src/game/player.ts')));
+    await waitFor(() => expect(monacoLog.positions.at(-1)).toMatchObject({ uri: modelUri(PIXEL, 'src/game/player.ts'), lineNumber: 3 }));
+  });
+
+  it('warns about ?file= paths outside the project folder', async () => {
+    renderWithRouter(<StudioPage />, studioRoute(`?file=${encodeURIComponent('D:\\Anderswo\\geheim.txt')}`));
+    await waitFor(() => expect(useToastStore.getState().toasts.some((t) => t.title === 'Die Datei liegt nicht im Projektordner')).toBe(true));
+    expect(getMockCalls('files.read').some((c) => String(c.params.path).includes('geheim'))).toBe(false);
+  });
+
   it('saves with Strg+S using the hash of the loaded file', async () => {
     const original = pixelFile('src/main.ts');
     const editor = await openEditor('?file=src%2Fmain.ts');

@@ -80,6 +80,18 @@ export function shortCwd(cwd: string, projectRoot: string): string {
   return cwd;
 }
 
+/**
+ * Keys the terminal leaves to the studio (Strg+S, Strg+Umschalt+S, Strg+Umschalt+F, Strg+B, Strg+J, Strg+Ö/`):
+ * none of them has a meaning for the local line editor.
+ */
+export function isStudioShortcut(e: Pick<KeyboardEvent, 'ctrlKey' | 'metaKey' | 'altKey' | 'shiftKey' | 'key' | 'code'>): boolean {
+  if (!(e.ctrlKey || e.metaKey) || e.altKey) return false;
+  const key = e.key.toLowerCase();
+  if (key === 's') return true;
+  if (e.shiftKey) return key === 'f';
+  return key === 'b' || key === 'j' || key === 'ö' || key === '`' || e.code === 'Backquote';
+}
+
 type Status = 'connecting' | 'ready' | 'error';
 
 export function TerminalPanel({ projectId, projectRoot, active }: TerminalPanelProps) {
@@ -445,6 +457,8 @@ export function TerminalPanel({ projectId, projectRoot, active }: TerminalPanelP
         term.clearSelection();
         return false;
       }
+      // Studio shortcuts (save, search, toggle tree/panel) keep working while the terminal has the focus.
+      if (isStudioShortcut(e)) return false;
       return true;
     });
     const dataSub = term.onData((data) => handlers.current.handleData(data));

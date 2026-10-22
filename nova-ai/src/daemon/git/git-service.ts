@@ -367,7 +367,8 @@ export function createGitService(s: Services, options: GitServiceOptions = {}): 
   async function repoInfo(root: string, fresh = false): Promise<RepoInfo | null> {
     const cacheKey = canonical(root);
     const cached = repoCache.get(cacheKey);
-    if (!fresh && cached && now() - cached.at < 30_000) return cached.info;
+    // Repositories rarely disappear (30 s), but a folder may become one at any time (git init in the terminal): 5 s.
+    if (!fresh && cached && now() - cached.at < (cached.info ? 30_000 : 5_000)) return cached.info;
     const r = await call(root, ['rev-parse', '--show-toplevel', '--show-prefix', '--absolute-git-dir']);
     let info: RepoInfo | null = null;
     if (r.code === 0) {
@@ -678,7 +679,10 @@ export function createGitService(s: Services, options: GitServiceOptions = {}): 
         call(root, ['status', '--porcelain=v1', '-b', '-z', '--untracked-files=all', '--', '.'], { maxBuffer: BIG_BUFFER }),
         headOf(root),
       ]);
-      if (st.code !== 0) throw gitError('Der Git-Status konnte nicht gelesen werden', st);
+      if (st.code !== 0) {
+        if (!(await repoInfo(root, true))) return { ...EMPTY_STATUS }; // .git was removed meanwhile
+        throw gitError('Der Git-Status konnte nicht gelesen werden', st);
+      }
       const parsed = parseStatusZ(st.stdout, info.prefix, ci);
       if (parsed.entries.length > MAX_STATUS_FILES) log.info('Git-Status gekürzt', { total: parsed.entries.length, shown: MAX_STATUS_FILES });
       return {
@@ -893,12 +897,15 @@ export function createGitService(s: Services, options: GitServiceOptions = {}): 
       ensureRoot(root);
       const info = await repoInfo(root);
       if (!info) return out;
-      const [tracked, st] = await Promise.all([
-        lsTracked(root),
+      const [ls, st] = await Promise.all([
+        call(root, ['ls-files', '-z', '--cached', '--', '.'], { maxBuffer: BIG_BUFFER }),
         call(root, ['status', '--porcelain=v1', '-z', '--untracked-files=no', '--', '.'], { maxBuffer: BIG_BUFFER }),
       ]);
-      if (st.code !== 0) throw gitError('Der Git-Status konnte nicht gelesen werden', st);
-      const trackedSet = new Set(tracked.map(norm));
+      if (ls.code !== 0 || st.code !== 0) {
+        if (!(await repoInfo(root, true))) return out; // .git was removed meanwhile
+        throw gitError('Der Git-Status konnte nicht gelesen werden', ls.code !== 0 ? ls : st);
+      }
+      const trackedSet = new Set(splitZ(ls.stdout).map(norm));
       const dirty = new Set<string>();
       for (const e of parseStatusZ(st.stdout, info.prefix, ci).entries) {
         dirty.add(norm(e.path));

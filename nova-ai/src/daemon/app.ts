@@ -29,7 +29,7 @@ import {
 } from './tools';
 import { createRunStore, createAgentRunner, registerAgentsRpc } from './agents';
 import { createTaskService, createWorkCycle, registerTasksRpc } from './tasks';
-import { createGitService, createCheckpointService, createBackupService, registerGitRpc } from './git';
+import { createGitService, createCheckpointService, createBackupService, registerGitRpc, type CheckpointServiceImpl } from './git';
 import { createMemoryService, registerMemoryRpc } from './memory';
 import { createProjectService, createTemplateRegistry, createProjectDetector, createCheckService, createPreviewService, registerProjectsRpc } from './projects';
 import {
@@ -275,6 +275,11 @@ export async function startDaemon(opts: StartDaemonOptions): Promise<DaemonApp> 
       const retentionDays = settings.diagnostics.historyRetentionDays;
       await step('Tägliche Sicherung', () => s.backups.maybeDailyBackup());
       await step('Aufbewahrung', () => s.backups.applyRetention());
+      if (settings.backup.snapshotRetentionDays > 0) {
+        // keeps the newest checkpoints of every project and its latest verified one regardless of age
+        const cutoff = core.clock.now() - settings.backup.snapshotRetentionDays * DAY_MS;
+        await step('Prüfpunkte bereinigen', () => (s.checkpoints as CheckpointServiceImpl).prune(cutoff));
+      }
       if (retentionDays > 0) {
         const cutoff = core.clock.now() - retentionDays * DAY_MS;
         await step('Verlauf bereinigen', () => {

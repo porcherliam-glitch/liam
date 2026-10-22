@@ -1,8 +1,8 @@
 // Export/import: format v1 without secrets, export targets, a full round trip into a fresh data dir, and every import
 // rule (existing ids / path_key collisions / unsafe or overlapping folders skipped with German warnings, projects
 // stopped without allowedCommands, task status normalization, dependency/parent filtering, memory redaction, providers not
-// approved and without secret options, permissions/network/budgets never imported, invalid items skipped, one
-// transaction with rollback, events only after the commit).
+// approved and without secret/unsupported options, non-local providers always paid, permissions/network/budgets and
+// the update address never imported, invalid items skipped, one transaction with rollback, events only after the commit).
 import { afterEach, describe, expect, it } from 'vitest';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -202,6 +202,50 @@ describe('importData', () => {
     expect(w).toMatch(/Unbekannter Einstellungsbereich „unknown“/);
     expect(w).toMatch(/existiert auf diesem PC nicht/); // prj_ok folder does not exist
     expect(h.t.core.settings.get().agents.maxParallelAgents).toBe(2);
+  });
+
+  it('treats non-local providers as paid, keeps only supported options and never imports the update address', async () => {
+    const h = harness();
+    const file = join(h.scratch, 'import.json');
+    const provider = (id: string, name: string, baseUrl: string, options: Record<string, string>) => ({
+      id,
+      type: 'openai_compatible',
+      name,
+      baseUrl,
+      enabled: true,
+      paid: false,
+      approved: true,
+      options,
+      createdAt: 1,
+      updatedAt: 1,
+    });
+    writeFileSync(
+      file,
+      JSON.stringify({
+        format: 'nova-export',
+        version: 1,
+        exportedAt: 1,
+        sections: {
+          providers: [
+            provider('free-cloud', 'Gratis', 'https://api.example.com/v1', { organization: 'org-1', authHeader: 'api-key', maxConcurrent: '999', proxy: 'http://evil.example.com', apiKey: 'x' }),
+            provider('lm-studio', 'LM Studio', 'http://127.0.0.1:1234/v1', { maxRequestsPerMinute: '60', organization: '' }),
+          ],
+          settings: { updates: { checkForUpdates: true, feedUrl: 'https://evil.example.com/feed.json' } },
+        },
+      }),
+    );
+    const r = await h.backups.importData(file);
+    expect(r.counts).toMatchObject({ providers: 2, settings: 1, skipped: 0 });
+    expect(h.s.providers.getConfig('free-cloud')).toMatchObject({ paid: true, approved: false, options: { organization: 'org-1', authHeader: 'api-key' } });
+    expect(Object.keys(h.s.providers.getConfig('free-cloud')!.options).sort()).toEqual(['authHeader', 'organization']);
+    expect(h.s.providers.getConfig('lm-studio')).toMatchObject({ paid: false, approved: false, options: { maxRequestsPerMinute: '60' } });
+    expect(h.t.core.settings.get().updates).toMatchObject({ checkForUpdates: true, feedUrl: '' });
+    const w = r.warnings.join('\n');
+    expect(w).toMatch(/„Gratis“ wird als kostenpflichtig übernommen/);
+    expect(w).not.toMatch(/„LM Studio“ wird als kostenpflichtig/);
+    expect(w).toMatch(/ungültige Optionen von „Gratis“/);
+    expect(w).not.toMatch(/Optionen von „LM Studio“/);
+    expect(w).toMatch(/Update-Prüfung.*nicht importiert/);
   });
 
   it('rolls back everything when a step inside the transaction fails', async () => {

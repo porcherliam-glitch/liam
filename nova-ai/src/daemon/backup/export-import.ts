@@ -13,9 +13,12 @@
 //   state "stopped" (the UI shows the honest-limits warning before work is enabled), gitAvailable is re-detected
 //   and project.config.allowedCommands is NOT taken over (a permission); tasks with status running /
 //   waiting_approval / interrupted become queued, startRequested is cleared and dependencies on / parents that are
-//   unknown tasks (or tasks of another project) are dropped; memory content is redacted again; providers get approved=false (Ollama rows keep the registry
-//   invariant paid=false/approved=true – they never cost money) and need their API keys re-entered; the settings
-//   sections permissions, network and budgets are never imported.
+//   unknown tasks (or tasks of another project) are dropped; memory content is redacted again; providers get
+//   approved=false (Ollama rows keep the registry invariant paid=false/approved=true – they never cost money), a
+//   provider with a non-local address always counts as paid (a file cannot switch off the paid-usage approval and the
+//   budget), only the options the provider registry supports are taken over (same value rules) and API keys must be
+//   re-entered; the settings sections permissions, network and budgets are never imported, and neither is
+//   updates.feedUrl (an address NOVA would contact – a foreign file must not redirect the update check).
 import { existsSync, readFileSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { posix, win32 } from 'node:path';
@@ -36,7 +39,7 @@ import type { Logger } from '../core/logger';
 import { NovaError, errorMessage, validation } from '../core/errors';
 import { atomicWriteFile } from '../core/fs-atomic';
 import { isLocalEndpoint } from '../core/net';
-import { redact, redactString } from '../core/redact';
+import { containsSecret, redact, redactString } from '../core/redact';
 import { bool, fromJson, int, toJson } from '../db/database';
 import { exportFileName } from './names';
 
@@ -48,6 +51,8 @@ const NEVER_IMPORTED: SettingsSection[] = ['permissions', 'network', 'budgets'];
 const MAX_DETAILED_WARNINGS = 50;
 const PROVIDER_ID = /^[a-z0-9][a-z0-9-]*$/;
 const SECRET_OPTION_KEY = /(api[_-]?key|apikey|token|secret|passw(or)?d|authorization|cookie|credential)/i;
+/** Option keys the provider registry accepts (UpsertProviderInputSchema doc); anything else is never exported/imported. */
+const SUPPORTED_PROVIDER_OPTIONS = ['authHeader', 'maxConcurrent', 'maxRequestsPerMinute', 'organization'];
 
 export const ProviderExportSchema = ProviderConfigSchema.omit({ hasApiKey: true });
 export type ProviderExport = z.infer<typeof ProviderExportSchema>;
@@ -141,13 +146,44 @@ interface MemoryRow {
   updated_at: number;
 }
 
-function sanitizeOptions(options: Record<string, string>): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const [k, v] of Object.entries(options ?? {})) {
-    if (SECRET_OPTION_KEY.test(k) && k !== 'authHeader') continue;
-    out[k] = redactString(String(v));
+/** True when a provider option value passes the provider registry's rules for its key. */
+function validOptionValue(key: string, value: string): boolean {
+  if (/[\u0000-\u001f\u007f]/.test(value)) return false;
+  switch (key) {
+    case 'authHeader':
+      return /^[A-Za-z0-9-]{1,64}$/.test(value);
+    case 'maxConcurrent': {
+      const n = Number(value);
+      return Number.isInteger(n) && n >= 1 && n <= 64;
+    }
+    case 'maxRequestsPerMinute': {
+      const n = Number(value);
+      return Number.isInteger(n) && n >= 1 && n <= 100_000;
+    }
+    case 'organization':
+      return value.length <= 200;
+    default:
+      return false;
   }
-  return out;
+}
+
+/**
+ * Provider options that may leave/enter NOVA: supported keys only, valid values, nothing that looks like a credential
+ * (keys belong in the secret store). Empty values are dropped silently (the registry treats them as "not set").
+ */
+function sanitizeOptions(options: Record<string, string>): { options: Record<string, string>; dropped: number } {
+  const out: Record<string, string> = {};
+  let dropped = 0;
+  for (const [k, raw] of Object.entries(options ?? {})) {
+    const v = String(raw ?? '').trim();
+    if (v === '') continue;
+    if (!SUPPORTED_PROVIDER_OPTIONS.includes(k) || SECRET_OPTION_KEY.test(k) || containsSecret(v) || containsSecret(`${k}=${v}`) || !validOptionValue(k, v)) {
+      dropped++;
+      continue;
+    }
+    out[k] = v;
+  }
+  return { options: out, dropped };
 }
 
 function resolveExportTarget(path: string | undefined, defaultDir: string, platform: NodeJS.Platform, ts: number): string {
@@ -238,7 +274,7 @@ export async function exportData(deps: DataIoDeps, sections: string[], path: str
         enabled: p.enabled,
         paid: p.paid,
         approved: p.approved,
-        options: sanitizeOptions(p.options),
+        options: sanitizeOptions(p.options).options,
         createdAt: p.createdAt,
         updatedAt: p.updatedAt,
       }));
@@ -358,7 +394,15 @@ export async function importData(deps: DataIoDeps, path: string, opts: IoOptions
       warnings.add('Einstellungen', `Die Einstellungen „${section}“ sind ungültig und wurden nicht übernommen${parsed.success ? '' : ` (${zodIssues(parsed.error)})`}.`);
       continue;
     }
-    settingsPatch[section] = value as Record<string, unknown>;
+    const patch = { ...(value as Record<string, unknown>) };
+    if (section === 'updates' && 'feedUrl' in patch) {
+      const incoming = typeof patch.feedUrl === 'string' ? patch.feedUrl.trim() : '';
+      delete patch.feedUrl;
+      if (incoming !== '' && incoming !== s.core.settings.section('updates').feedUrl.trim()) {
+        warnings.add('Einstellungen', 'Die Adresse für die Update-Prüfung wird aus Sicherheitsgründen nicht importiert und bleibt unverändert.');
+      }
+    }
+    if (Object.keys(patch).length > 0) settingsPatch[section] = patch;
   }
   throwIfAborted(opts.signal);
 
@@ -513,12 +557,15 @@ export async function importData(deps: DataIoDeps, path: string, opts: IoOptions
         skip('Modellanbieter', `Modellanbieter „${label(p.name)}“ wurde übersprungen: Die Adresse muss https:// verwenden (oder lokal sein) und darf keine Zugangsdaten enthalten.`);
         continue;
       }
-      const options = sanitizeOptions(p.options);
-      if (Object.keys(options).length < Object.keys(p.options).length) warnings.add('Modellanbieter', `Vertrauliche Optionen von „${label(p.name)}“ wurden nicht übernommen.`);
+      const { options, dropped } = sanitizeOptions(p.options);
+      if (dropped > 0) warnings.add('Modellanbieter', `Vertrauliche, unbekannte oder ungültige Optionen von „${label(p.name)}“ wurden nicht übernommen.`);
       const ollama = p.type === 'ollama';
+      // A non-local provider always counts as paid: a (foreign) file must not bypass the paid-usage approval or the budget.
+      const paid = ollama ? false : p.paid || !isLocalEndpoint(p.baseUrl);
+      if (!ollama && paid && !p.paid) warnings.add('Modellanbieter', `Modellanbieter „${label(p.name)}“ wird als kostenpflichtig übernommen, weil er nicht auf diesem PC läuft.`);
       db.run(
         `INSERT INTO providers(id, type, name, base_url, enabled, paid, approved, options, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [p.id, p.type, p.name, p.baseUrl, int(p.enabled), int(ollama ? false : p.paid), int(ollama), toJson(options), p.createdAt, now],
+        [p.id, p.type, p.name, p.baseUrl, int(p.enabled), int(paid), int(ollama), toJson(options), p.createdAt, now],
       );
       existingProviders.add(p.id);
       imported.providers.push(p.id);

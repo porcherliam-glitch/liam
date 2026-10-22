@@ -25,7 +25,7 @@ import {
 import type { AnyNovaEvent } from '@shared/events';
 import type { ProjectSummary } from '@shared/schemas';
 import { Page } from '../../components/layout/Page';
-import { Button, EmptyState, ErrorState, IconButton, LoadingState, Tabs, tabId, tabPanelId, type TabItem } from '../../components/ui';
+import { Button, EmptyState, ErrorState, IconButton, LoadingState, tabId, tabPanelId } from '../../components/ui';
 import { useMutation, useNovaEvent, useRpc, useStoredState, useSupports } from '../../hooks';
 import { getBridge, isRpcError } from '../../lib/api';
 import { cn } from '../../lib/cn';
@@ -39,8 +39,9 @@ import { ChecksPanel } from './panels/ChecksPanel';
 import { PreviewPanel } from './panels/PreviewPanel';
 import { SearchPanel } from './panels/SearchPanel';
 import { TerminalPanel } from './panels/TerminalPanel';
+import { PanelTabs, panelTabsMode, type PanelTabItem } from './PanelTabs';
 import { Splitter } from './Splitter';
-import { latestFailures, markersForFile } from './studio-utils';
+import { latestFailures, markersForFile, projectRelativePath } from './studio-utils';
 import { useEditorTabs, type EditorTabsApi } from './useEditorTabs';
 import { useElementSize } from './useElementSize';
 
@@ -87,13 +88,15 @@ export default function StudioPage() {
   // same link works again and a later visit does not jump a second time.
   const fileParam = searchParams.get('file');
   const lineParam = searchParams.get('line');
+  const projectRoot = projectReady ? project.data?.path : undefined;
   const { open } = editor;
   useEffect(() => {
-    if (!fileParam || !projectReady) return;
+    if (!fileParam || projectRoot === undefined) return;
     const line = Number.parseInt(lineParam ?? '', 10);
-    // Paths from error messages may use Windows separators or a leading "./".
-    const path = fileParam.replace(/\\/g, '/').replace(/^(\.\/)+/, '');
+    // Paths from error messages may be absolute, use Windows separators or start with "./".
+    const path = projectRelativePath(fileParam, projectRoot);
     if (path) open(path, { line: Number.isFinite(line) && line > 0 ? line : null });
+    else toast.warning('Die Datei liegt nicht im Projektordner', fileParam);
     setSearchParams(
       (prev) => {
         const next = new URLSearchParams(prev);
@@ -103,7 +106,7 @@ export default function StudioPage() {
       },
       { replace: true },
     );
-  }, [fileParam, lineParam, projectReady, location.key, open, setSearchParams]);
+  }, [fileParam, lineParam, projectRoot, location.key, open, setSearchParams]);
 
   // Unsaved edits survive leaving the studio (in memory) – say so when leaving with unsaved files.
   const unsavedRef = useRef(0);
@@ -201,8 +204,8 @@ function StudioWorkspace({ project, editor }: StudioWorkspaceProps) {
   const panelWidthAuto = known ? clamp(Math.round(mainWidth * 0.42), PANEL_WIDTH_MIN, 560) : PANEL_WIDTH_DEFAULT;
   const panelHeightAuto = known ? clamp(Math.round(size.height * 0.36), PANEL_HEIGHT_MIN, 340) : PANEL_HEIGHT_DEFAULT;
   const panelSize = right ? clamp(panelWidth ?? panelWidthAuto, PANEL_WIDTH_MIN, panelWidthMax) : clamp(panelHeight ?? panelHeightAuto, PANEL_HEIGHT_MIN, panelHeightMax);
-  // Narrow panels show the tab labels without icons so all five tabs stay visible.
-  const compactTabs = known && (right ? panelSize : mainWidth) < 680;
+  // Narrow panels show the tabs with labels only or with icons only, so all five tools stay visible.
+  const tabsMode = panelTabsMode(known ? (right ? panelSize : mainWidth) : 0);
 
   const showPanel = useCallback(
     (id: StudioPanel) => {
@@ -294,13 +297,12 @@ function StudioWorkspace({ project, editor }: StudioWorkspaceProps) {
     if (!ok) toast.error('Ordner konnte nicht geöffnet werden', 'Der Projektordner existiert nicht oder ist nicht erreichbar.');
   };
 
-  const tabIcon = <T,>(icon: T) => (compactTabs ? undefined : icon);
-  const tabItems: Array<TabItem<StudioPanel>> = [
-    { id: 'search', label: 'Suche', icon: tabIcon(Search) },
-    { id: 'changes', label: 'Änderungen', icon: tabIcon(FileDiff), count: novaChanged.size || undefined },
-    { id: 'checks', label: 'Prüfungen', icon: tabIcon(FlaskConical), count: failureCount || undefined, countTone: 'danger' },
-    { id: 'terminal', label: 'Terminal', icon: tabIcon(SquareTerminal) },
-    { id: 'preview', label: 'Vorschau', icon: tabIcon(Eye) },
+  const tabItems: Array<PanelTabItem<StudioPanel>> = [
+    { id: 'search', label: 'Suche', icon: Search },
+    { id: 'changes', label: 'Änderungen', icon: FileDiff, count: novaChanged.size },
+    { id: 'checks', label: 'Prüfungen', icon: FlaskConical, count: failureCount, countTone: 'danger' },
+    { id: 'terminal', label: 'Terminal', icon: SquareTerminal },
+    { id: 'preview', label: 'Vorschau', icon: Eye },
   ];
 
   const PanelToggleIcon = right ? (panelVisible ? PanelRightClose : PanelRightOpen) : panelVisible ? PanelBottomClose : PanelBottomOpen;
@@ -418,7 +420,7 @@ function StudioWorkspace({ project, editor }: StudioWorkspaceProps) {
             className={cn('flex min-h-0 min-w-0 shrink-0 flex-col bg-surface', !panelVisible && 'hidden')}
           >
             <div className="flex shrink-0 items-end border-b border-border">
-              <Tabs label="Werkzeuge" idBase={PANEL_ID_BASE} items={tabItems} value={panel} onChange={showPanel} className="min-w-0 flex-1 border-b-0 px-1" />
+              <PanelTabs label="Werkzeuge" idBase={PANEL_ID_BASE} items={tabItems} value={panel} onChange={showPanel} mode={tabsMode} className="min-w-0 flex-1 px-1" />
               <div className="flex shrink-0 items-center gap-0.5 self-center pr-1">
                 <IconButton
                   icon={right ? ArrowDownToLine : ArrowRightToLine}

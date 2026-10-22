@@ -204,6 +204,20 @@ export function joinPath(dir: string, name: string): string {
   return dir ? `${dir}/${name}` : name;
 }
 
+/**
+ * Normalizes a file reference from a link or an error message to a project-relative path: forward slashes, no
+ * leading "./", and absolute paths inside the project folder made relative (case-insensitive, as on Windows).
+ * Returns null for empty input or absolute paths outside the project.
+ */
+export function projectRelativePath(input: string, projectRoot: string): string | null {
+  let path = input.trim().replace(/\\/g, '/');
+  const root = projectRoot.replace(/\\/g, '/').replace(/\/+$/, '');
+  if (root && path.toLowerCase().startsWith(`${root.toLowerCase()}/`)) path = path.slice(root.length + 1);
+  else if (/^[a-zA-Z]:\//.test(path) || path.startsWith('//') || (root.startsWith('/') && path.startsWith('/'))) return null;
+  path = path.replace(/^\/+/, '').replace(/^(\.\/)+/, '').replace(/\/{2,}/g, '/');
+  return path || null;
+}
+
 /** Absolute path of a project file for the OS (Explorer). */
 export function absolutePath(projectRoot: string, relPath: string): string {
   const windows = /^[a-zA-Z]:[\\/]/.test(projectRoot) || projectRoot.startsWith('\\\\');

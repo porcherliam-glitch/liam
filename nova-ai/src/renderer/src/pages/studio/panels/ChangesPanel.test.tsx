@@ -79,7 +79,7 @@ describe('ChangesPanel', () => {
     expect(diff.querySelector('[data-side="original"]')?.textContent).toBe('const speed = 1;');
     expect(screen.getByText('Nach dieser Änderung')).toBeTruthy();
 
-    await userEvent.click(screen.getByRole('radio', { name: 'Bis heute' }));
+    await userEvent.click(screen.getByRole('radio', { name: 'Bis jetzt' }));
     await waitFor(() => expect(getMockCalls('files.diff').at(-1)?.params).toEqual({ projectId: 'prj_pixel', path: 'src/game/player.ts', changeId: record.id }));
   });
 

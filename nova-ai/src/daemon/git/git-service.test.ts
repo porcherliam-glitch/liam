@@ -48,6 +48,17 @@ describe('GitService basics', () => {
     expect(await f.git.diff(plain, {})).toEqual([]);
     expect(await f.git.showFile(plain, 'HEAD', 'x.txt')).toBeNull();
   });
+
+  it('notices a removed .git folder although the repository was cached', async () => {
+    f = gitFixture();
+    const root = f.repo('gone', { files: { 'a.txt': 'a\n' } });
+    expect((await f.git.status(root)).isRepo).toBe(true);
+    expect(await f.git.isClean(root, ['a.txt'])).toEqual(new Set(['a.txt']));
+    rmSync(join(root, '.git'), { recursive: true, force: true });
+    expect((await f.git.status(root)).isRepo).toBe(false);
+    expect(await f.git.isClean(root, ['a.txt'])).toEqual(new Set());
+    expect(await f.git.isRepo(root)).toBe(false);
+  });
 });
 
 describe('status / head / showFile / isClean', () => {

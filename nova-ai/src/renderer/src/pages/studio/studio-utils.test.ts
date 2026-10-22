@@ -17,6 +17,7 @@ import {
   markersForFile,
   modelUri,
   porcelainCode,
+  projectRelativePath,
   regexError,
   stripAnsi,
   tailText,
@@ -116,6 +117,18 @@ describe('paths and names', () => {
     expect(absolutePath('C:\\Projekte\\Spiel\\', 'src/main.ts')).toBe('C:\\Projekte\\Spiel\\src\\main.ts');
     expect(absolutePath('/home/demo/spiel', 'src/main.ts')).toBe('/home/demo/spiel/src/main.ts');
     expect(absolutePath('C:\\Projekte\\Spiel', '')).toBe('C:\\Projekte\\Spiel');
+  });
+
+  it('turns file references from links and error messages into project-relative paths', () => {
+    const win = 'C:\\Projekte\\Spiel';
+    expect(projectRelativePath('src\\main.ts', win)).toBe('src/main.ts');
+    expect(projectRelativePath('./src/main.ts', win)).toBe('src/main.ts');
+    expect(projectRelativePath('c:\\projekte\\spiel\\src\\main.ts', win)).toBe('src/main.ts');
+    expect(projectRelativePath('D:\\Anderswo\\a.ts', win)).toBeNull();
+    expect(projectRelativePath('/src/main.ts', win)).toBe('src/main.ts');
+    expect(projectRelativePath('/home/me/spiel/src/a.ts', '/home/me/spiel/')).toBe('src/a.ts');
+    expect(projectRelativePath('/etc/passwd', '/home/me/spiel')).toBeNull();
+    expect(projectRelativePath('  ', win)).toBeNull();
   });
 
   it('validates new entry names with German messages', () => {

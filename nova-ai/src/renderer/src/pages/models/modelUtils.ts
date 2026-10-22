@@ -97,3 +97,26 @@ export function sameModelName(a: string, b: string): boolean {
   const norm = (s: string) => (s.includes(':') ? s : `${s}:latest`).toLowerCase();
   return norm(a.trim()) === norm(b.trim());
 }
+
+/** Context window as "32.768 Tokens" (beginners do not know the "32K" notation). */
+export function formatContext(tokens: number | null | undefined): string {
+  if (tokens == null || !Number.isFinite(tokens)) return '–';
+  return `${new Intl.NumberFormat('de-DE', { maximumFractionDigits: 0 }).format(tokens)} Tokens`;
+}
+
+/** Ref of a model as stored in the selection. */
+export function refOf(m: Pick<ModelInfo, 'providerId' | 'id'>): ModelRef {
+  return { providerId: m.providerId, modelId: m.id };
+}
+
+/** Where a model is used in the selection ("Standard", "Ersatz 2", "Prüfer" …) – empty when unused. */
+export function selectionRoles(ref: ModelRef, selection: { defaultModel: ModelRef | null; fallbacks: ModelRef[]; roleOverrides: Record<string, ModelRef | null> } | undefined, roleLabels: Record<string, string>): string[] {
+  if (!selection) return [];
+  const out: string[] = [];
+  if (sameRef(selection.defaultModel, ref)) out.push('Standard');
+  selection.fallbacks.forEach((f, i) => {
+    if (sameRef(f, ref)) out.push(`Ersatz ${i + 1}`);
+  });
+  for (const [role, r] of Object.entries(selection.roleOverrides)) if (sameRef(r, ref)) out.push(roleLabels[role] ?? role);
+  return out;
+}

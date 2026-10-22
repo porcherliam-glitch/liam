@@ -381,7 +381,7 @@ function DiffHeader({ projectId, path, file, gitCode, taskTitles, history, chang
               { value: ALL, label: 'Alle Änderungen von NOVA' },
               ...history.map((r) => ({
                 value: String(r.id),
-                label: `Seit ${formatRelativeTime(r.ts)}${r.taskId ? ` · ${truncate(taskTitles.get(r.taskId) ?? r.taskId, 32)}` : ''}`,
+                label: `Änderung ${formatRelativeTime(r.ts)}${r.taskId ? ` · ${truncate(taskTitles.get(r.taskId) ?? r.taskId, 32)}` : ''}`,
               })),
             ]}
             containerClassName="w-60"
@@ -394,7 +394,7 @@ function DiffHeader({ projectId, path, file, gitCode, taskTitles, history, chang
             value={compareMode}
             onChange={onCompareMode}
             options={[
-              { value: 'since', label: 'Bis heute' },
+              { value: 'since', label: 'Bis jetzt' },
               { value: 'only', label: 'Nur diese Änderung' },
             ]}
           />
