@@ -193,6 +193,16 @@ describe('ConcurrencyGovernor.canStartProcess / canWrite', () => {
     expect(governor.canStartProcess().ok).toBe(true);
   });
 
+  it('stale running rows of another instance never exceed the live process count', () => {
+    const { core } = setup();
+    core.settings.update({ resources: { maxProcesses: 2 } });
+    const rows = [proc('command'), proc('command'), proc('test')];
+    const blocked = createConcurrencyGovernor(makeServices(core, { processes: { list: () => rows, runningCount: () => 3 } as unknown as ProcessManager }), { platform: 'linux' });
+    expect(blocked.canStartProcess().ok).toBe(false);
+    const stale = createConcurrencyGovernor(makeServices(core, { processes: { list: () => rows, runningCount: () => 1 } as unknown as ProcessManager }), { platform: 'linux' });
+    expect(stale.canStartProcess()).toEqual({ ok: true, reason: null });
+  });
+
   it('checks free space of the nearest existing ancestor and caches for 5 s', () => {
     const { governor, setFree, advance, statfsCalls } = setup();
     expect(governor.canWrite('/data/projects/missing/file.txt')).toEqual({ ok: true, reason: null });

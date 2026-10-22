@@ -70,7 +70,7 @@ export function TaskNotes({ task, className }: TaskNotesProps) {
             Der Agent hat eine Frage
           </p>
           <p className="mt-1.5 text-[13px] whitespace-pre-wrap text-text">{question.text}</p>
-          {question.assumption && <p className="mt-1.5 text-xs text-muted">Ohne Antwort: {question.assumption}</p>}
+          {question.assumption && <p className="mt-1.5 text-xs text-muted">{/^ohne antwort/i.test(question.assumption) ? question.assumption : `Ohne Antwort geht der Agent so vor: ${question.assumption}`}</p>}
           {question.options.length > 0 && (
             <div className="mt-2.5 flex flex-wrap gap-2">
               {question.options.map((o) => (

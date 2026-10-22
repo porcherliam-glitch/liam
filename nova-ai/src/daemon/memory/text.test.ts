@@ -23,14 +23,22 @@ describe('extractTerms', () => {
   });
 
   it('keeps the longest terms of very long queries in original order', () => {
+    // 40 distinct words with lengths 3..12 (each length 4×). The 20 longest are exactly the words of length 8..12.
+    // (An earlier version of this test expected a minimum length of 9 – wrong: lengths 12, 11, 10 and 9 give only 16
+    // words, so 4 words of length 8 complete the 20.)
     const words = Array.from({ length: 40 }, (_, i) => 'w'.repeat(2 + (i % 10)) + String.fromCharCode(97 + (i % 26)));
+    expect(new Set(words).size).toBe(40);
     const terms = extractTerms(words.join(' '));
     expect(terms).toHaveLength(MAX_TERMS);
-    const lengths = terms.map((t) => t.length);
-    expect(Math.min(...lengths)).toBeGreaterThanOrEqual(9);
+    expect(terms).toEqual(words.filter((w) => w.length >= 8));
     // original order preserved
     const positions = terms.map((t) => words.indexOf(t));
     expect([...positions].sort((a, b) => a - b)).toEqual(positions);
+  });
+
+  it('prefers earlier terms when lengths tie at the cut-off', () => {
+    const words = Array.from({ length: MAX_TERMS + 5 }, (_, i) => `wort${String.fromCharCode(97 + (i % 26))}${String.fromCharCode(97 + Math.floor(i / 26))}`);
+    expect(extractTerms(words.join(' '))).toEqual(words.slice(0, MAX_TERMS));
   });
 
   it('normalises decomposed umlauts (NFD) to the composed form', () => {

@@ -8,6 +8,7 @@
 //   (3) the latest decided approval for fingerprint+taskId was denied and not acknowledged → denied;
 //   (4) a pending approval for fingerprint+taskId is reused, otherwise a new one is created ('approval.updated' event +
 //   notification category 'approval' with a generic German body – never the command, path or content).
+// - peek() runs the same lookup (1)–(4 without creating) read-only and returns null when nothing exists yet.
 // - consume() is a single conditional UPDATE (atomic): a 'once' approval can never run twice, also not after a crash.
 // - decide(): deny ignores the scope; 'always' is rejected (VALIDATION) for APPROVAL_KINDS_ONCE_ONLY and creates a
 //   rule scoped to the approval's project (global when the approval has no project). Other pending approvals that the
@@ -223,36 +224,51 @@ export function createApprovalService(s: Services, opts: ApprovalServiceOptions 
     if (expired.length) log.info('Offene Freigaben abgelaufen', { [column]: value, count: expired.length });
   };
 
+  /** Validates a request and computes its fingerprint (shared by check and peek). */
+  const parseRequest = (req: ApprovalRequest): { kind: ApprovalKind; projectId: string | null; taskId: string | null; fp: string } => {
+    const parsedKind = ApprovalKindSchema.safeParse(req?.kind);
+    if (!parsedKind.success) throw new NovaError('VALIDATION', 'Unbekannte Art von Freigabe.', { severity: 'warning', details: { kind: req?.kind } });
+    if (typeof req.subject !== 'string' || req.subject.trim() === '') {
+      throw new NovaError('VALIDATION', 'Für eine Freigabe fehlt die Beschreibung der Aktion.', { severity: 'warning' });
+    }
+    const kind = parsedKind.data;
+    const projectId = req.projectId ?? null;
+    return { kind, projectId, taskId: req.taskId ?? null, fp: fingerprint(kind, projectId, req.subject) };
+  };
+
+  /**
+   * Existing state for fingerprint + taskId (null-safe), without rules: an unconsumed approved 'once' approval →
+   * approved; the latest decision denied and not acknowledged → denied; a pending approval → pending; else null.
+   */
+  const existingDecision = (fp: string, taskId: string | null): ApprovalCheck | null => {
+    const once = db.get<ApprovalRow>(
+      "SELECT * FROM approvals WHERE fingerprint = ? AND task_id IS ? AND status = 'approved' AND scope = 'once' AND consumed_at IS NULL ORDER BY decided_at DESC, created_at DESC LIMIT 1",
+      [fp, taskId],
+    );
+    if (once) return { state: 'approved', approval: toApproval(once), viaRule: false };
+
+    const latest = db.get<ApprovalRow>(
+      "SELECT * FROM approvals WHERE fingerprint = ? AND task_id IS ? AND status IN ('approved', 'denied') ORDER BY decided_at DESC, created_at DESC LIMIT 1",
+      [fp, taskId],
+    );
+    if (latest && latest.status === 'denied' && latest.acknowledged_at === null) return { state: 'denied', approval: toApproval(latest) };
+
+    const pending = db.get<ApprovalRow>("SELECT * FROM approvals WHERE fingerprint = ? AND task_id IS ? AND status = 'pending' ORDER BY created_at DESC LIMIT 1", [fp, taskId]);
+    if (pending) return { state: 'pending', approval: toApproval(pending) };
+    return null;
+  };
+
   const service: ApprovalServiceImpl = {
     fingerprint,
 
     check(req: ApprovalRequest): ApprovalCheck {
-      const kind = ApprovalKindSchema.parse(req.kind);
-      if (typeof req.subject !== 'string' || req.subject.trim() === '') {
-        throw new NovaError('VALIDATION', 'Für eine Freigabe fehlt die Beschreibung der Aktion.', { severity: 'warning' });
-      }
-      const projectId = req.projectId ?? null;
-      const taskId = req.taskId ?? null;
-      const fp = fingerprint(kind, projectId, req.subject);
-
+      const { kind, projectId, taskId, fp } = parseRequest(req);
       if (matchingRule(kind, projectId, req.subject)) return { state: 'approved', approval: null, viaRule: true };
 
       let created: Approval | null = null;
       const result = db.transaction((): ApprovalCheck => {
-        const once = db.get<ApprovalRow>(
-          "SELECT * FROM approvals WHERE fingerprint = ? AND task_id IS ? AND status = 'approved' AND scope = 'once' AND consumed_at IS NULL ORDER BY decided_at DESC, created_at DESC LIMIT 1",
-          [fp, taskId],
-        );
-        if (once) return { state: 'approved', approval: toApproval(once), viaRule: false };
-
-        const latest = db.get<ApprovalRow>(
-          "SELECT * FROM approvals WHERE fingerprint = ? AND task_id IS ? AND status IN ('approved', 'denied') ORDER BY decided_at DESC, created_at DESC LIMIT 1",
-          [fp, taskId],
-        );
-        if (latest && latest.status === 'denied' && latest.acknowledged_at === null) return { state: 'denied', approval: toApproval(latest) };
-
-        const pending = db.get<ApprovalRow>("SELECT * FROM approvals WHERE fingerprint = ? AND task_id IS ? AND status = 'pending' ORDER BY created_at DESC LIMIT 1", [fp, taskId]);
-        if (pending) return { state: 'pending', approval: toApproval(pending) };
+        const existing = existingDecision(fp, taskId);
+        if (existing) return existing;
 
         const id = newId('apr');
         const now = core.clock.now();
@@ -284,6 +300,12 @@ export function createApprovalService(s: Services, opts: ApprovalServiceOptions 
         notifyPending(a);
       }
       return result;
+    },
+
+    peek(req: ApprovalRequest): ApprovalCheck | null {
+      const { kind, projectId, taskId, fp } = parseRequest(req);
+      if (matchingRule(kind, projectId, req.subject)) return { state: 'approved', approval: null, viaRule: true };
+      return existingDecision(fp, taskId);
     },
 
     consume(approvalId) {

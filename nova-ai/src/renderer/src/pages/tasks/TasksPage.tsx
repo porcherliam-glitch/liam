@@ -1,12 +1,15 @@
-// Temporary placeholder (foundation). Replaced by the page owner.
-import { ListTodo } from 'lucide-react';
+// Aufgaben (UI-SPEC §4): global task board across all projects – filters (project, status, role, text), sorting by
+// priority, priority selector, all task controls, details and the create/edit dialog (shared TaskBoard).
 import { Page } from '../../components/layout/Page';
-import { EmptyState } from '../../components/ui/EmptyState';
+import { TaskBoard } from '../../components/project';
 
 export default function TasksPage() {
   return (
-    <Page title="Aufgaben">
-      <EmptyState icon={ListTodo} title="Dieser Bereich wird gerade gebaut." description="Hier entsteht die Ansicht „Aufgaben“." />
+    <Page
+      title="Aufgaben"
+      description="Alle Aufgaben aller Projekte. Was Aufmerksamkeit braucht, steht oben – zum Beispiel blockierte Aufgaben oder Fragen der Agenten."
+    >
+      <TaskBoard storageKey="tasks.global" />
     </Page>
   );
 }

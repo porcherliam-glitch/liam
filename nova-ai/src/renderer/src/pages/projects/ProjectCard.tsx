@@ -84,10 +84,10 @@ export function ProjectCard({ project }: { project: ProjectSummary }) {
           <ProgressBar value={project.progress} label={`Fortschritt von ${project.name}`} showValue />
         </div>
 
-        <div className="grid grid-cols-3 gap-1.5 @sm:grid-cols-5">
+        <div className="grid grid-cols-3 gap-1.5 @md:grid-cols-5">
           <CountChip icon={ListTodo} label="Offen" value={project.openTasks} tone="violet" to={taskLink()} />
           <CountChip icon={LoaderCircle} label="Läuft" value={project.runningTasks} tone="blue" to={paths.project(project.id, { tab: 'agents' })} />
-          <CountChip icon={CircleX} label="Fehlgeschl." value={project.failedTasks} tone="danger" to={taskLink()} />
+          <CountChip icon={CircleX} label="Gescheitert" value={project.failedTasks} tone="danger" to={taskLink()} />
           <CountChip icon={Ban} label="Blockiert" value={project.blockedTasks} tone="warning" to={taskLink()} />
           <CountChip icon={CircleAlert} label="Fehler" value={project.openErrors} tone="danger" to={paths.project(project.id, { tab: 'errors' })} />
         </div>

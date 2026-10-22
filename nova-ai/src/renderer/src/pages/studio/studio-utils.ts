@@ -140,6 +140,45 @@ export function languageForPath(path: string): string {
   return (dot >= 0 && LANGUAGE_BY_EXT[name.slice(dot + 1)]) || 'plaintext';
 }
 
+const LANGUAGE_LABELS: Record<string, string> = {
+  typescript: 'TypeScript',
+  javascript: 'JavaScript',
+  json: 'JSON',
+  markdown: 'Markdown',
+  html: 'HTML',
+  css: 'CSS',
+  scss: 'SCSS',
+  less: 'Less',
+  csharp: 'C#',
+  python: 'Python',
+  java: 'Java',
+  go: 'Go',
+  rust: 'Rust',
+  cpp: 'C++',
+  c: 'C',
+  php: 'PHP',
+  ruby: 'Ruby',
+  shell: 'Shell',
+  powershell: 'PowerShell',
+  bat: 'Batch',
+  sql: 'SQL',
+  xml: 'XML',
+  yaml: 'YAML',
+  ini: 'INI',
+  lua: 'Lua',
+  swift: 'Swift',
+  kotlin: 'Kotlin',
+  dart: 'Dart',
+  dockerfile: 'Dockerfile',
+  plaintext: 'Nur Text',
+};
+
+/** Display name of a Monaco language id ("typescript" -> "TypeScript"). */
+export function languageLabel(id: string | null | undefined): string {
+  if (!id) return LANGUAGE_LABELS.plaintext;
+  return LANGUAGE_LABELS[id] ?? id.charAt(0).toUpperCase() + id.slice(1);
+}
+
 /** Last segment of a project-relative path. */
 export function fileName(path: string): string {
   const i = path.lastIndexOf('/');

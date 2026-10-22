@@ -18,6 +18,10 @@ export interface CodeEditorProps {
   reveal: RevealRequest | null;
   markers: readonly EditorMarker[];
   onChange: (path: string, value: string) => void;
+  /** Strg+S inside the editor. */
+  onSave?: () => void;
+  /** Cursor moved (1-based line/column). */
+  onCursorChange?: (line: number, column: number) => void;
 }
 
 const MARKER_SEVERITY: Record<EditorMarker['severity'], keyof typeof MonacoApi.MarkerSeverity> = {
@@ -31,7 +35,7 @@ const MARKER_SEVERITY: Record<EditorMarker['severity'], keyof typeof MonacoApi.M
  * Monaco editor for one file at a time (one model per path, so undo history and scroll position survive tab
  * switches). Jumps to `reveal` positions and shows NOVA's markers (check failures, review findings).
  */
-export function CodeEditor({ projectId, path, language, initialContent, readOnly, reveal, markers, onChange }: CodeEditorProps) {
+export function CodeEditor({ projectId, path, language, initialContent, readOnly, reveal, markers, onChange, onSave, onCursorChange }: CodeEditorProps) {
   const editorRef = useRef<MonacoApi.editor.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<Monaco | null>(null);
   const [ready, setReady] = useState(false);
@@ -39,6 +43,10 @@ export function CodeEditor({ projectId, path, language, initialContent, readOnly
   pathRef.current = path;
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
+  const onSaveRef = useRef(onSave);
+  onSaveRef.current = onSave;
+  const onCursorRef = useRef(onCursorChange);
+  onCursorRef.current = onCursorChange;
   const appliedReveal = useRef(0);
   const decorations = useRef<MonacoApi.editor.IEditorDecorationsCollection | null>(null);
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -76,6 +84,11 @@ export function CodeEditor({ projectId, path, language, initialContent, readOnly
   const handleMount = useCallback<OnMount>((editor, monaco) => {
     editorRef.current = editor;
     monacoRef.current = monaco as Monaco;
+    // Strg+S saves (Monaco would otherwise swallow the key while it has the focus).
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => onSaveRef.current?.());
+    editor.onDidChangeCursorPosition((e) => onCursorRef.current?.(e.position.lineNumber, e.position.column));
+    const position = editor.getPosition();
+    if (position) onCursorRef.current?.(position.lineNumber, position.column);
     setReady(true);
   }, []);
 

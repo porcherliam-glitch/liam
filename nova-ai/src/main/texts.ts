@@ -1,4 +1,4 @@
-// German user-facing texts of the Electron main process (tray, toasts, daemon connection states, dialogs).
+// German user-facing texts of the Electron main process (tray, toasts, daemon connection states, dialogs, CLI).
 // Key decision: one place for all main-process wording so the tone stays consistent (plain German, no jargon,
 // no "du"), and tests can assert on the exact texts.
 
@@ -44,7 +44,8 @@ export const TEXTS = {
   // IPC
   untrustedSender: 'Anfrage aus einem nicht vertrauenswürdigen Fenster abgelehnt.',
   unknownMethod: (method: string) => `Unbekannte Funktion „${method}“.`,
-  invalidParams: (method: string, details: string) => `Ungültige Angaben für „${method}“: ${details}`,
+  invalidMethod: 'Die Anfrage enthält keinen gültigen Funktionsnamen.',
+  invalidParamsPrefix: 'Die Angaben sind ungültig',
   internalBridgeError: 'Interner Fehler in der Verbindung zwischen Oberfläche und Hintergrunddienst.',
 
   // Tray
@@ -75,6 +76,20 @@ export const TEXTS = {
   closeToTrayBody:
     'Das Fenster wurde in den Infobereich der Taskleiste verkleinert. Über das NOVA-Symbol lässt sich NOVA wieder öffnen oder vollständig beenden.',
   workActionFailed: 'Die Arbeit konnte nicht umgeschaltet werden',
+
+  // Start-up problems (native error box before the window exists)
+  startupErrorTitle: 'NOVA AI kann nicht starten',
+  dataDirUnusable: (dir: string, reason: string) =>
+    `Der Datenordner „${dir}“ kann nicht verwendet werden: ${reason}\n\nBitte einen lokalen Ordner verwenden (nicht auf einem Netzlaufwerk) und NOVA erneut starten.`,
+
+  // CLI --stop-daemon (printed to stdout; the NSIS installer ignores it, a person running it by hand reads it)
+  cliNotRunning: 'Der NOVA-Hintergrunddienst läuft nicht.',
+  cliStopping: 'Der NOVA-Hintergrunddienst wird beendet …',
+  cliStopped: 'Der NOVA-Hintergrunddienst wurde beendet.',
+  cliStopTimeout: (seconds: number) =>
+    `Der NOVA-Hintergrunddienst hat sich nicht innerhalb von ${seconds} Sekunden beendet.`,
+  cliForeign: 'Der Kommunikationskanal wird von einem fremden Programm belegt. Der Hintergrunddienst wurde nicht beendet.',
+  cliDataDirError: (reason: string) => `Der Datenordner kann nicht verwendet werden: ${reason}`,
 
   // Application menu (development builds only)
   menuView: 'Ansicht',

@@ -2,13 +2,13 @@
 // text), sorting, status groups, expandable rows with controls, and the create/edit dialog.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
-import { ChevronDown, ChevronRight, GitFork, ListPlus, ListTodo, Search } from 'lucide-react';
+import { ArrowRight, ChevronDown, ChevronRight, CircleHelp, GitFork, ListPlus, ListTodo, Search } from 'lucide-react';
 import type { AgentRole, Task } from '@shared/schemas';
 import { useMutation } from '../../hooks/useRpc';
 import { useStoredState } from '../../hooks/useStoredState';
 import { useProjects } from '../../hooks/useProjects';
 import { cn } from '../../lib/cn';
-import { AGENT_ROLE, metaOf, TASK_KIND } from '../../lib/labels';
+import { AGENT_ROLE, blockerAction, metaOf, TASK_KIND } from '../../lib/labels';
 import { paths } from '../../lib/paths';
 import { Button } from '../ui/Button';
 import { Badge } from '../ui/Badge';
@@ -328,6 +328,7 @@ interface TaskRowProps {
 function TaskRow({ task, byId, expanded, highlighted, onToggle, projectName, onPriority, onEdit, onChanged, onDeleted, onSelectTask, gitAvailable, rowRef }: TaskRowProps) {
   const caps = taskCapabilities(task);
   const openDeps = openDependencies(task, byId);
+  const action = task.status === 'blocked' || task.status === 'waiting_approval' ? blockerAction(task.blockerCode) : null;
   const detailId = `task-detail-${task.id}`;
   return (
     <li
@@ -378,9 +379,23 @@ function TaskRow({ task, byId, expanded, highlighted, onToggle, projectName, onP
         </div>
       </div>
       {task.blocker && !expanded && ['blocked', 'failed', 'waiting_approval', 'interrupted'].includes(task.status) && (
-        <p className="truncate border-t border-border/60 px-3 py-1.5 pl-9 text-xs text-muted" title={task.blocker}>
-          {task.blocker}
-        </p>
+        <div className="flex min-w-0 items-center gap-3 border-t border-border/60 px-3 py-1.5 pl-9 text-xs">
+          <p className="min-w-0 flex-1 truncate text-muted" title={task.blocker}>
+            {task.blocker}
+          </p>
+          {action &&
+            (action.path ? (
+              <Link to={action.path} className="inline-flex shrink-0 items-center gap-1 font-medium">
+                {action.label}
+                <ArrowRight aria-hidden className="h-3 w-3" />
+              </Link>
+            ) : (
+              <button type="button" onClick={onToggle} className="inline-flex shrink-0 items-center gap-1 rounded font-medium text-warning-fg hover:underline">
+                <CircleHelp aria-hidden className="h-3.5 w-3.5" />
+                {action.label}
+              </button>
+            ))}
+        </div>
       )}
       {expanded && (
         <div id={detailId} className="border-t border-border px-4 py-3.5">

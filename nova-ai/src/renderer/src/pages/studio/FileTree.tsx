@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import type { FileNode } from '@shared/schemas';
 import { copyToClipboard, EmptyState, ErrorState, IconButton, LoadingState, Spinner } from '../../components/ui';
-import { useNovaEvent, useRpc } from '../../hooks';
+import { useNovaEvent, useRpc, useSupports } from '../../hooks';
 import { api, errorMessage, getBridge } from '../../lib/api';
 import { cn } from '../../lib/cn';
 import { formatBytes } from '../../lib/format';
@@ -65,6 +65,10 @@ function writeExpanded(projectId: string, expanded: ReadonlySet<string>): void {
 const rowId = (projectId: string, path: string) => `tree-${projectId}-${encodeURIComponent(path || '.')}`;
 
 export function FileTree({ projectId, projectRoot, activePath, dirtyPaths, onOpen, onRenamed, onDeleted, onOpenInVsCode }: FileTreeProps) {
+  // File operations of newer daemon versions are hidden when the connected daemon does not offer them.
+  const canMkdir = useSupports('files.mkdir');
+  const canRename = useSupports('files.rename');
+  const canDelete = useSupports('files.delete');
   const tree = useRpc('files.tree', { projectId, path: '', depth: 2 }, {
     refetchOn: ['files.changed'],
     eventFilter: (e) => e.type === 'files.changed' && e.payload.projectId === projectId,
@@ -167,8 +171,10 @@ export function FileTree({ projectId, projectRoot, activePath, dirtyPaths, onOpe
   }, [tree, refreshLoaded]);
 
   // Reveal the active file: expand its folders (loading them if necessary) and scroll it into view.
+  // Runs when the active file changes (not on every tree refresh, so folders the user closed stay closed).
+  const rootReady = root !== null;
   useEffect(() => {
-    if (!activePath || !root) return;
+    if (!activePath || !rootReady) return;
     let cancelled = false;
     void (async () => {
       const ancestors = ancestorPaths(activePath);
@@ -186,10 +192,13 @@ export function FileTree({ projectId, projectRoot, activePath, dirtyPaths, onOpe
     return () => {
       cancelled = true;
     };
-  }, [activePath, root, projectId, childrenKnown, loadDir]);
+  }, [activePath, rootReady, projectId, childrenKnown, loadDir]);
 
   const rows = useMemo(() => visibleRows(root, loaded, expanded), [root, loaded, expanded]);
-  const focusPath = focused && rows.some((r) => r.node.path === focused) ? focused : (activePath && rows.some((r) => r.node.path === activePath) ? activePath : rows[0]?.node.path ?? null);
+  const focusedVisible = focused && rows.some((r) => r.node.path === focused) ? focused : null;
+  const focusPath = focusedVisible ?? (activePath && rows.some((r) => r.node.path === activePath) ? activePath : (rows[0]?.node.path ?? null));
+  /** Where "Neue Datei"/"Neuer Ordner" in the toolbar create the entry: the row the user selected, else the open file's folder, else the project root. */
+  const targetPath = focusedVisible ?? activePath;
 
   const focusRow = (path: string) => {
     setFocused(path);
@@ -205,7 +214,10 @@ export function FileTree({ projectId, projectRoot, activePath, dirtyPaths, onOpe
 
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     if (!rows.length) return;
-    const index = Math.max(0, rows.findIndex((r) => r.node.path === focusPath));
+    // Act on the row that has the keyboard focus (falls back to the remembered row).
+    const targetRow = (e.target as HTMLElement).closest<HTMLElement>('[role="treeitem"]')?.dataset.path;
+    const current = targetRow !== undefined && rows.some((r) => r.node.path === targetRow) ? targetRow : focusPath;
+    const index = Math.max(0, rows.findIndex((r) => r.node.path === current));
     const row = rows[index];
     switch (e.key) {
       case 'ArrowDown':
@@ -242,10 +254,12 @@ export function FileTree({ projectId, projectRoot, activePath, dirtyPaths, onOpe
         activate(row);
         break;
       case 'F2':
+        if (!canRename) break;
         e.preventDefault();
         setAction({ kind: 'rename', path: row.node.path, type: row.node.type });
         break;
       case 'Delete':
+        if (!canDelete) break;
         e.preventDefault();
         setAction({ kind: 'delete', path: row.node.path, type: row.node.type });
         break;
@@ -275,33 +289,39 @@ export function FileTree({ projectId, projectRoot, activePath, dirtyPaths, onOpe
   };
 
   const menuEntries = (node: FileNode | null): ContextMenuEntry[] => {
+    const item = (entry: Omit<Extract<ContextMenuEntry, { type: 'item' }>, 'type'>, show = true): ContextMenuEntry[] => (show ? [{ type: 'item', ...entry }] : []);
+    const separator = (id: string): ContextMenuEntry[] => [{ type: 'separator', id }];
+    const dir = node ? (node.type === 'dir' ? node.path : null) : '';
+    const entries: ContextMenuEntry[] = [
+      ...(dir !== null
+        ? [
+            ...item({ id: 'new-file', label: 'Neue Datei …', icon: FilePlus, onSelect: () => setAction({ kind: 'newFile', dir }) }),
+            ...item({ id: 'new-folder', label: 'Neuer Ordner …', icon: FolderPlus, onSelect: () => setAction({ kind: 'newFolder', dir }) }, canMkdir),
+          ]
+        : []),
+      ...(node && node.type === 'file' ? item({ id: 'open', label: 'Öffnen', icon: Code, onSelect: () => onOpen(node.path) }) : []),
+    ];
     if (!node) {
-      return [
-        { type: 'item', id: 'new-file', label: 'Neue Datei …', icon: FilePlus, onSelect: () => setAction({ kind: 'newFile', dir: '' }) },
-        { type: 'item', id: 'new-folder', label: 'Neuer Ordner …', icon: FolderPlus, onSelect: () => setAction({ kind: 'newFolder', dir: '' }) },
-        { type: 'separator', id: 's1' },
-        { type: 'item', id: 'refresh', label: 'Aktualisieren', icon: RefreshCw, onSelect: refresh },
-        { type: 'item', id: 'explorer', label: 'Im Explorer zeigen', icon: FolderOpen, onSelect: () => void showInExplorer('') },
-      ];
-    }
-    const entries: ContextMenuEntry[] = [];
-    if (node.type === 'dir') {
       entries.push(
-        { type: 'item', id: 'new-file', label: 'Neue Datei …', icon: FilePlus, onSelect: () => setAction({ kind: 'newFile', dir: node.path }) },
-        { type: 'item', id: 'new-folder', label: 'Neuer Ordner …', icon: FolderPlus, onSelect: () => setAction({ kind: 'newFolder', dir: node.path }) },
+        ...separator('s1'),
+        ...item({ id: 'refresh', label: 'Aktualisieren', icon: RefreshCw, onSelect: refresh }),
+        ...item({ id: 'explorer', label: 'Im Explorer zeigen', icon: FolderOpen, onSelect: () => void showInExplorer('') }),
       );
-    } else {
-      entries.push({ type: 'item', id: 'open', label: 'Öffnen', icon: Code, onSelect: () => onOpen(node.path) });
+      return entries;
+    }
+    if (canRename || canDelete) {
+      entries.push(
+        ...separator('s1'),
+        ...item({ id: 'rename', label: 'Umbenennen …', icon: Pencil, shortcut: 'F2', onSelect: () => setAction({ kind: 'rename', path: node.path, type: node.type }) }, canRename),
+        ...item({ id: 'delete', label: 'Löschen …', icon: Trash2, shortcut: 'Entf', danger: true, onSelect: () => setAction({ kind: 'delete', path: node.path, type: node.type }) }, canDelete),
+      );
     }
     entries.push(
-      { type: 'separator', id: 's1' },
-      { type: 'item', id: 'rename', label: 'Umbenennen …', icon: Pencil, shortcut: 'F2', onSelect: () => setAction({ kind: 'rename', path: node.path, type: node.type }) },
-      { type: 'item', id: 'delete', label: 'Löschen …', icon: Trash2, shortcut: 'Entf', danger: true, onSelect: () => setAction({ kind: 'delete', path: node.path, type: node.type }) },
-      { type: 'separator', id: 's2' },
-      { type: 'item', id: 'copy', label: 'Pfad kopieren', icon: Copy, onSelect: () => void copyPath(node.path) },
-      { type: 'item', id: 'explorer', label: 'Im Explorer zeigen', icon: FolderOpen, onSelect: () => void showInExplorer(node.path) },
+      ...separator('s2'),
+      ...item({ id: 'copy', label: 'Pfad kopieren', icon: Copy, onSelect: () => void copyPath(node.path) }),
+      ...item({ id: 'explorer', label: 'Im Explorer zeigen', icon: FolderOpen, onSelect: () => void showInExplorer(node.path) }),
+      ...item({ id: 'vscode', label: 'In VS Code öffnen', icon: Code, onSelect: () => onOpenInVsCode?.(node.path) }, node.type === 'file' && !!onOpenInVsCode),
     );
-    if (node.type === 'file' && onOpenInVsCode) entries.push({ type: 'item', id: 'vscode', label: 'In VS Code öffnen', icon: Code, onSelect: () => onOpenInVsCode(node.path) });
     return entries;
   };
 
@@ -345,6 +365,7 @@ export function FileTree({ projectId, projectRoot, activePath, dirtyPaths, onOpe
               setFocused(row.node.path);
               activate(row);
             }}
+            onFocus={() => setFocused(row.node.path)}
             onContextMenu={(e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -366,8 +387,8 @@ export function FileTree({ projectId, projectRoot, activePath, dirtyPaths, onOpe
       <div className="flex h-9 shrink-0 items-center gap-0.5 border-b border-border pr-1 pl-3">
         <h2 className="min-w-0 flex-1 truncate text-[11px] font-semibold tracking-wide text-muted uppercase">Dateien</h2>
         {tree.refreshing && root && <Spinner size="xs" label="Wird aktualisiert" className="mr-1 text-muted" />}
-        <IconButton icon={FilePlus} label="Neue Datei" size="sm" onClick={() => setAction({ kind: 'newFile', dir: menuDirFor(focusPath, root, loaded) })} />
-        <IconButton icon={FolderPlus} label="Neuer Ordner" size="sm" onClick={() => setAction({ kind: 'newFolder', dir: menuDirFor(focusPath, root, loaded) })} />
+        <IconButton icon={FilePlus} label="Neue Datei" size="sm" onClick={() => setAction({ kind: 'newFile', dir: menuDirFor(targetPath, root, loaded) })} />
+        {canMkdir && <IconButton icon={FolderPlus} label="Neuer Ordner" size="sm" onClick={() => setAction({ kind: 'newFolder', dir: menuDirFor(targetPath, root, loaded) })} />}
         <IconButton icon={RefreshCw} label="Dateien aktualisieren" size="sm" onClick={refresh} />
         <IconButton icon={ChevronsDownUp} label="Alle Ordner einklappen" size="sm" onClick={collapseAll} disabled={expanded.size === 0} />
       </div>
@@ -434,11 +455,12 @@ interface TreeRowProps {
   dirty: boolean;
   loading: boolean;
   onClick: () => void;
+  onFocus: () => void;
   onContextMenu: (e: MouseEvent<HTMLDivElement>) => void;
   onMenuButton: (el: HTMLElement) => void;
 }
 
-function TreeRow({ projectId, row, active, focusable, dirty, loading, onClick, onContextMenu, onMenuButton }: TreeRowProps) {
+function TreeRow({ projectId, row, active, focusable, dirty, loading, onClick, onFocus, onContextMenu, onMenuButton }: TreeRowProps) {
   const { node, level, expanded } = row;
   const git = gitStatusInfo(node.gitStatus);
   const isDir = node.type === 'dir';
@@ -450,6 +472,7 @@ function TreeRow({ projectId, row, active, focusable, dirty, loading, onClick, o
   return (
     <div
       id={rowId(projectId, node.path)}
+      data-path={node.path}
       role="treeitem"
       aria-level={level}
       aria-expanded={isDir ? expanded : undefined}
@@ -459,6 +482,9 @@ function TreeRow({ projectId, row, active, focusable, dirty, loading, onClick, o
       tabIndex={focusable ? 0 : -1}
       title={`${node.path}${node.size != null && !isDir ? ` · ${formatBytes(node.size)}` : ''}`}
       onClick={onClick}
+      onFocus={(e) => {
+        if (e.target === e.currentTarget) onFocus();
+      }}
       onContextMenu={onContextMenu}
       className={cn(
         'group flex h-[26px] cursor-pointer items-center gap-1 pr-1 text-[13px] select-none focus-visible:outline-offset-[-2px]',

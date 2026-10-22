@@ -206,7 +206,7 @@ export function useEditorTabs(projectId: string): EditorTabsApi {
       const pid = projectRef.current;
       try {
         const file = await api('files.read', { projectId: pid, path });
-        if (pid !== projectRef.current || !tabsRef.current.some((t) => t.path === path)) return;
+        if (!mounted.current || pid !== projectRef.current || !tabsRef.current.some((t) => t.path === path)) return;
         const stored = projectDrafts(pid).get(path);
         const draft = stored && file.encoding !== 'binary' && stored.content !== file.content ? stored : null;
         const initialContent = draft ? draft.content : file.content;
@@ -228,7 +228,7 @@ export function useEditorTabs(projectId: string): EditorTabsApi {
         if (!draft) projectDrafts(pid).delete(path);
         else if (draft.baseHash === file.hash) toast.info('Ungespeicherte Änderungen wiederhergestellt', path);
       } catch (e) {
-        if (pid !== projectRef.current) return;
+        if (!mounted.current || pid !== projectRef.current) return;
         const draft = projectDrafts(pid).get(path);
         if (isRpcError(e, 'NOT_FOUND') && draft) {
           // The file is gone, but there are unsaved edits: keep them so they can be saved again.
@@ -323,7 +323,7 @@ export function useEditorTabs(projectId: string): EditorTabsApi {
       patch(path, { saving: true });
       try {
         const result = await api('files.write', { projectId: pid, path, content, expectedHash });
-        if (pid !== projectRef.current) return 'saved';
+        if (!mounted.current || pid !== projectRef.current) return 'saved';
         const current = contentRef.current.get(path) ?? content;
         patch(path, {
           saving: false,
@@ -377,9 +377,10 @@ export function useEditorTabs(projectId: string): EditorTabsApi {
       const pid = projectRef.current;
       try {
         const file = await api('files.read', { projectId: pid, path });
-        if (pid !== projectRef.current) return;
+        if (!mounted.current || pid !== projectRef.current) return;
         applyDiskContent(path, file, { reloaded: null });
       } catch (e) {
+        if (!mounted.current) return;
         if (isRpcError(e, 'NOT_FOUND')) {
           patch(path, { deleted: true, external: null });
           toast.warning('Die Datei gibt es nicht mehr', path);
@@ -416,13 +417,14 @@ export function useEditorTabs(projectId: string): EditorTabsApi {
         void (async () => {
           try {
             const file = await api('files.read', { projectId: pid, path: tab.path });
-            if (pid !== projectRef.current) return;
+            // An unmounted studio must not touch the editor models of a newly opened one.
+            if (!mounted.current || pid !== projectRef.current) return;
             const current = tabsRef.current.find((t) => t.path === tab.path);
             if (!current || current.saving || file.hash === current.hash) return;
             if (!current.dirty) applyDiskContent(tab.path, file, { reloaded: { at: Date.now(), actor } });
             else patch(tab.path, { external: { hash: file.hash, deleted: false, actor } });
           } catch (e) {
-            if (!isRpcError(e, 'NOT_FOUND')) return;
+            if (!mounted.current || !isRpcError(e, 'NOT_FOUND')) return;
             const current = tabsRef.current.find((t) => t.path === tab.path);
             if (!current || current.deleted) return;
             patch(tab.path, current.dirty ? { deleted: true, external: { hash: null, deleted: true, actor } } : { deleted: true });

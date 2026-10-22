@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { DiffEditor } from '@monaco-editor/react';
+import { useEffect, useMemo, useRef } from 'react';
+import { DiffEditor, type DiffOnMount } from '@monaco-editor/react';
 import type * as MonacoApi from 'monaco-editor';
 import { FileWarning } from 'lucide-react';
 import { Button, EmptyState, LoadingState } from '../../components/ui';
@@ -24,6 +24,24 @@ export interface DiffViewProps {
 /** Read-only Monaco diff (left: before, right: after) with labels above both sides. */
 export function DiffView({ original, modified, language, originalLabel, modifiedLabel, sideBySide = true, label, className }: DiffViewProps) {
   const { monaco, error, retry } = useMonacoReady();
+  // @monaco-editor/react disposes the models BEFORE the diff widget on unmount, which Monaco rejects
+  // ("TextModel got disposed before DiffEditorWidget model got reset"). The models are therefore kept by the
+  // library and disposed here right after the widget is gone.
+  const models = useRef<MonacoApi.editor.IDiffEditorModel | null>(null);
+  const onMount = useRef<DiffOnMount>((editor) => {
+    models.current = editor.getModel();
+  }).current;
+  useEffect(
+    () => () => {
+      const current = models.current;
+      models.current = null;
+      if (!current) return;
+      setTimeout(() => {
+        for (const model of [current.original, current.modified]) if (!model.isDisposed()) model.dispose();
+      }, 0);
+    },
+    [],
+  );
   const options = useMemo<MonacoApi.editor.IDiffEditorConstructionOptions>(
     () => ({
       readOnly: true,
@@ -94,6 +112,9 @@ export function DiffView({ original, modified, language, originalLabel, modified
             language={language || 'plaintext'}
             theme={NOVA_MONACO_THEME}
             options={options}
+            keepCurrentOriginalModel
+            keepCurrentModifiedModel
+            onMount={onMount}
             loading={<LoadingState label="Vergleich wird geladen …" compact />}
           />
         ) : (

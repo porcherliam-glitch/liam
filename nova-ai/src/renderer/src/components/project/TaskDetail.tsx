@@ -12,6 +12,7 @@ import { StatusBadge } from '../ui/Badge';
 import { KeyValue } from '../ui/KeyValue';
 import { ModelBadge, RoleBadge, TaskStatusBadge, VerificationBadge } from '../common/StatusBadges';
 import { RelativeTime } from '../common/RelativeTime';
+import { useSupports } from '../../stores/daemon';
 import { TaskActions } from './TaskActions';
 import { TaskNotes } from './TaskNotes';
 import { RestoreDialog } from './RestoreDialog';
@@ -46,7 +47,9 @@ export function TaskDetail({ task, byId, onEdit, onChanged, onDeleted, onSelectT
   const action = blockerAction(task.blockerCode);
   const showBlocker = !!task.blocker && ['blocked', 'failed', 'waiting_approval', 'interrupted', 'paused'].includes(task.status);
   const needsInput = task.status === 'blocked' && task.blockerCode === 'NEEDS_INPUT';
-  const blockerTone = task.status === 'waiting_approval' || task.status === 'interrupted' || task.status === 'paused' ? 'warning' : 'danger';
+  // Older daemons without the task conversation simply do not show it.
+  const notesSupported = useSupports('tasks.notes');
+  const blockerTone = needsInput || task.status === 'waiting_approval' || task.status === 'interrupted' || task.status === 'paused' ? 'warning' : 'danger';
 
   return (
     <div className="space-y-4">
@@ -64,7 +67,9 @@ export function TaskDetail({ task, byId, onEdit, onChanged, onDeleted, onSelectT
             <Ban aria-hidden className={cn('mt-0.5 h-4 w-4 shrink-0', blockerTone === 'warning' ? 'text-warning-fg' : 'text-danger-fg')} />
           )}
           <div className="min-w-0 flex-1">
-            <p className="text-xs font-semibold text-text">{task.status === 'waiting_approval' ? 'Wartet auf eine Entscheidung' : 'Warum geht es nicht weiter?'}</p>
+            <p className="text-xs font-semibold text-text">
+              {task.status === 'waiting_approval' ? 'Wartet auf eine Entscheidung' : needsInput ? 'Der Agent wartet auf eine Antwort' : 'Warum geht es nicht weiter?'}
+            </p>
             <p className="mt-0.5 text-[13px] text-text">{task.blocker}</p>
           </div>
           {action?.path && (
@@ -76,7 +81,7 @@ export function TaskDetail({ task, byId, onEdit, onChanged, onDeleted, onSelectT
         </div>
       )}
 
-      {needsInput && <TaskNotes task={task} />}
+      {needsInput && notesSupported && <TaskNotes task={task} />}
 
       <div className="grid gap-x-6 gap-y-4 md:grid-cols-2">
         <Block icon={FileCode} title="Beschreibung">
@@ -189,7 +194,7 @@ export function TaskDetail({ task, byId, onEdit, onChanged, onDeleted, onSelectT
         </Block>
       </div>
 
-      {!needsInput && <TaskNotes task={task} />}
+      {!needsInput && notesSupported && <TaskNotes task={task} />}
 
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
         <TaskActions task={task} variant="buttons" onEdit={onEdit} onChanged={onChanged} onDeleted={onDeleted} />

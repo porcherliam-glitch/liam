@@ -272,4 +272,36 @@ describe('ApprovalService', () => {
     expect(() => approvals.check(req({ subject: '   ' }))).toThrow(/Beschreibung der Aktion/);
     expect(() => approvals.check(req({ kind: 'bogus' as never }))).toThrow();
   });
+  it('peek never creates or changes anything and mirrors check()', () => {
+    const { approvals, events, sent, core } = setup();
+    expect(approvals.peek(req())).toBeNull();
+    expect(approvals.list()).toHaveLength(0);
+    expect(events).toHaveLength(0);
+    expect(sent).toHaveLength(0);
+
+    const p = approvals.check(req());
+    if (p.state !== 'pending') throw new Error('expected pending');
+    expect(approvals.peek(req())).toMatchObject({ state: 'pending', approval: { id: p.approval.id } });
+    expect(approvals.peek(req({ taskId: 'task_2' }))).toBeNull(); // reuse requires the same task
+    expect(approvals.list()).toHaveLength(1);
+
+    approvals.decide(p.approval.id, 'approve', 'once');
+    expect(approvals.peek(req())).toMatchObject({ state: 'approved', viaRule: false, approval: { id: p.approval.id } });
+    approvals.peek(req());
+    approvals.consume(p.approval.id); // peek did not consume it
+    expect(approvals.peek(req())).toBeNull();
+
+    const d = approvals.check(req({ subject: 'npm run nuke' }));
+    if (d.state !== 'pending') throw new Error('expected pending');
+    approvals.decide(d.approval.id, 'deny', 'once');
+    expect(approvals.peek(req({ subject: 'npm run nuke' }))).toMatchObject({ state: 'denied' });
+    expect(core.db.get<{ acknowledged_at: number | null }>('SELECT acknowledged_at FROM approvals WHERE id = ?', [d.approval.id])?.acknowledged_at).toBeNull();
+
+    const r = approvals.check(req({ kind: 'network', subject: 'Example.COM', taskId: 'task_9' }));
+    if (r.state !== 'pending') throw new Error('expected pending');
+    approvals.decide(r.approval.id, 'approve', 'always');
+    expect(approvals.peek(req({ kind: 'network', subject: 'example.com', taskId: null }))).toEqual({ state: 'approved', approval: null, viaRule: true });
+    expect(() => approvals.peek(req({ subject: '' }))).toThrow(/Beschreibung der Aktion/);
+    expect(() => approvals.peek(req({ kind: 'bogus' as never }))).toThrow(/Unbekannte Art/);
+  });
 });

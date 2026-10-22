@@ -16,24 +16,31 @@
 //   ("C++", "#") or the FTS search finds nothing, a LIKE substring search runs (it also finds parts of German
 //   compound words: "verbindung" → "Datenbankverbindung"). A broken FTS index is rebuilt once (at most every
 //   10 minutes) and the LIKE search is used meanwhile.
-// - contextFor: (1) goals, requirements, conventions, decisions of the project – kind priority, newest first;
-//   (2) FTS matches of the query inside the project; (3) if useGlobalKnowledge: shareable entries of the global
-//   knowledge base and shareable INSIGHTS of other projects that match the query, then the remaining shareable global
-//   entries (newest first). Other projects' insights that do not match the query are left out (noise), non-shareable
-//   entries of other projects never appear. Shared entries are anonymised (paths → <Projektpfad>, source project
-//   name/folder → <Projekt>). Limit = min(input.limit, settings.memory.maxContextEntries); up to a quarter of the
-//   slots is reserved for (2)/(3) when such entries exist, so many decisions cannot crowd out relevant matches.
-//   Every returned entry is redacted again (secrets registered after the entry was stored).
-// - removeProject deletes the non-shareable entries; the shareable ones stay (knowledge base) but references to the
-//   removed project (root folder, name) are replaced by placeholders first. Project name/path come from
-//   s.projects.get or – because ProjectService deletes its row before calling removeProject – from a small cache
-//   fed by 'project.updated' events and earlier lookups.
+// - contextFor (limit = min(input.limit, settings.memory.maxContextEntries)):
+//   (1) goals, requirements, conventions, decisions of the project – selected by kind priority and recency so that
+//       many planner assumptions cannot push the project goal out, then ordered newest first;
+//   (2) FTS matches of the query inside the project (any kind);
+//   (3) if useGlobalKnowledge: shareable global entries and shareable INSIGHTS of other projects – those matching
+//       the query first (bm25), then the newest shareable global entries, then the newest shareable insights of
+//       other projects. Non-shareable entries of other projects never appear.
+//   Up to a quarter of the slots is reserved for query matches of (2)/(3) when there are any; entries of (3) that do
+//   not match the query only fill slots that are left over. Shared entries are anonymised (absolute paths →
+//   <Projektpfad>, source project name/folder → <Projekt>), and every returned entry is redacted again (secrets
+//   registered after the entry was stored).
+// - Project names/paths for anonymisation come from s.projects.get, a cache fed by 'project.updated' events, and a
+//   one-time lazy warm-up via s.projects.list on the first read/write call (never in the factory). The cache matters
+//   for removeProject: ProjectService deletes its row before calling it.
+// - removeProject deletes the non-shareable entries; the shareable ones stay in the knowledge base (keeping their
+//   projectId, so they still count as "insights of another project"), but references to the removed project (root
+//   folder, name) are replaced by placeholders first.
 // - Export/import: JSON files (export-format.ts), written atomically; CPU work runs in chunks with event-loop yields
-//   and honours AbortSignal; an import is committed in ONE synchronous transaction at the end (all or nothing).
-//   Imports skip existing ids, exact duplicates, invalid entries, mainly-secret entries and entries of unknown
-//   projects (after trying to map them by folder or unique name).
+//   and honours AbortSignal; an import is committed in ONE synchronous transaction at the end (all or nothing); the
+//   memory.updated events of a large import are emitted in chunks with yields so the SSE stream can drain. Imports
+//   skip existing ids, exact duplicates, invalid entries, mainly-secret entries and entries of unknown projects
+//   (after trying to map them by folder or unique name). An explicit export path never overwrites a file that is
+//   not an earlier NOVA memory export (SPEC §3.6: user files are never overwritten outside the journal).
 import { createHash } from 'node:crypto';
-import { existsSync, statSync } from 'node:fs';
+import { closeSync, existsSync, openSync, readSync, statSync } from 'node:fs';
 import { readFile, stat } from 'node:fs/promises';
 import { isAbsolute, join, resolve } from 'node:path';
 import type { MemoryEntry, MemoryKind, MemorySearchResult, Project } from '@shared/schemas';
@@ -83,6 +90,8 @@ const FTS_REPAIR_INTERVAL_MS = 10 * 60 * 1000;
 const LIKE_MAX_TERMS = 6;
 const LIKE_MAX_PATTERNS = 24;
 const DAY_MS = 24 * 60 * 60 * 1000;
+/** memory.updated events emitted between two event-loop yields after an import. */
+const EMIT_CHUNK = 100;
 
 const yieldNow = () => new Promise<void>((r) => setImmediate(r));
 
@@ -101,8 +110,9 @@ function clampLimit(value: number | undefined, fallback: number, max: number): n
   return Math.max(0, Math.min(max, n));
 }
 
+/** Six significant digits (bm25 values of small collections are tiny, so fixed decimals would round them to 0). */
 function roundScore(n: number): number {
-  return Math.round(n * 1e6) / 1e6;
+  return Number.isFinite(n) && n !== 0 ? Number(n.toPrecision(6)) : 0;
 }
 
 function codePoints(s: string): number {
@@ -134,10 +144,12 @@ export function createMemoryService(s: Services, options: MemoryServiceOptions =
   const chunkSize = Math.max(1, options.chunkSize ?? 250);
   const projectCache = new Map<string, { name: string; path: string }>();
   let lastFtsRepairAt = Number.NEGATIVE_INFINITY;
+  let projectsWarmed = false;
 
-  // The bus is core: subscribing in the factory is allowed (contracts.ts header).
+  // The bus is core: subscribing in the factory is allowed (contracts.ts header). 'project.removed' is deliberately
+  // NOT used to evict: the cached name/path is still needed by removeProject (which evicts it itself), whatever order
+  // ProjectService uses for the event and the call.
   s.core.bus.on('project.updated', (p) => rememberProject(p));
-  s.core.bus.on('project.removed', ({ id }) => projectCache.delete(id));
 
   const settings = () => s.core.settings.section('memory');
   const now = () => s.core.clock.now();
@@ -154,6 +166,20 @@ export function createMemoryService(s: Services, options: MemoryServiceOptions =
       const oldest = projectCache.keys().next().value;
       if (oldest === undefined) break;
       projectCache.delete(oldest);
+    }
+  }
+
+  /**
+   * One-time warm-up of the project cache (name/path of every project) on the first service call after the daemon
+   * started, so removeProject can still anonymise references after ProjectService deleted the row.
+   */
+  function warmProjects(): void {
+    if (projectsWarmed) return;
+    projectsWarmed = true;
+    try {
+      for (const p of s.projects.list({ includeArchived: true })) rememberProject(p);
+    } catch (e) {
+      log.debug('Projektliste für das Gedächtnis nicht verfügbar', { error: errorMessage(e) });
     }
   }
 
@@ -184,7 +210,8 @@ export function createMemoryService(s: Services, options: MemoryServiceOptions =
       return store.fts(match, where, limit);
     } catch (e) {
       const message = errorMessage(e);
-      if (/malformed|corrupt|missing row|fts5/i.test(message) && now() - lastFtsRepairAt > FTS_REPAIR_INTERVAL_MS) {
+      const broken = /malformed|corrupt|missing row|fts5/i.test(message) && !/syntax error/i.test(message);
+      if (broken && now() - lastFtsRepairAt > FTS_REPAIR_INTERVAL_MS) {
         lastFtsRepairAt = now();
         try {
           store.rebuildIndex();
@@ -200,7 +227,12 @@ export function createMemoryService(s: Services, options: MemoryServiceOptions =
     }
   }
 
+  /** Snippet of the content around a hit, else of the title around a hit, else the beginning of the content. */
   function snippetFor(entry: MemoryEntry, needles: readonly string[]): string {
+    const lowered = needles.map((n) => n.toLowerCase()).filter(Boolean);
+    const hit = (text: string) => lowered.some((n) => text.toLowerCase().includes(n));
+    if (hit(entry.content)) return plainSnippet(entry.content, needles);
+    if (hit(entry.title)) return plainSnippet(entry.title, needles);
     return plainSnippet(entry.content, needles) || plainSnippet(entry.title, needles);
   }
 
@@ -229,7 +261,7 @@ export function createMemoryService(s: Services, options: MemoryServiceOptions =
         if (lowered.some((n) => title.includes(n))) points += 2;
         else if (lowered.some((n) => body.includes(n))) points += 1;
       }
-      // LIKE results always rank below FTS results: score in (0, 0.5].
+      // LIKE scores lie in (0, 0.5]; they are never mixed with bm25 scores in one result list.
       const score = roundScore((Math.max(points, 1) / (2 * groups.length)) * 0.5);
       return { ...entry, score, snippet: snippetFor(entry, needles) };
     });
@@ -273,6 +305,38 @@ export function createMemoryService(s: Services, options: MemoryServiceOptions =
     return p;
   }
 
+  /** True when the file starts like a NOVA memory export (only the first 4 KB are read). */
+  function isMemoryExportFile(p: string): boolean {
+    let fd: number | null = null;
+    try {
+      fd = openSync(p, 'r');
+      const buf = Buffer.alloc(4096);
+      const n = readSync(fd, buf, 0, buf.length, 0);
+      const head = buf.subarray(0, n).toString('utf8').replace(/^\uFEFF/, '').trimStart();
+      return head.startsWith('{') && new RegExp(`"format"\\s*:\\s*"${MEMORY_EXPORT_FORMAT}"`).test(head);
+    } catch {
+      return false;
+    } finally {
+      if (fd !== null) closeSync(fd);
+    }
+  }
+
+  /** An explicit export target may only replace an earlier NOVA memory export, never another file. */
+  function assertOverwritable(target: string): void {
+    let isFile: boolean;
+    try {
+      isFile = statSync(target).isFile();
+    } catch {
+      return; // does not exist yet
+    }
+    if (!isFile) throw validation('Am gewählten Speicherort gibt es bereits einen Eintrag mit diesem Namen. Bitte einen anderen Dateinamen wählen.', { path: target });
+    if (!isMemoryExportFile(target)) {
+      throw validation('Die gewählte Datei gibt es bereits, und sie ist kein NOVA-Gedächtnisexport. Sie wird nicht überschrieben – bitte einen anderen Dateinamen wählen.', {
+        path: target,
+      });
+    }
+  }
+
   function exportTarget(path: string | undefined, label: string, ts: number): string {
     const fileName = defaultExportFileName(label, ts);
     if (path === undefined || path.trim() === '') return uniquePath(join(s.core.paths.exports, fileName));
@@ -285,11 +349,14 @@ export function createMemoryService(s: Services, options: MemoryServiceOptions =
         isDirectory = false;
       }
     }
-    return isDirectory ? uniquePath(join(target, fileName)) : target;
+    if (isDirectory) return uniquePath(join(target, fileName));
+    assertOverwritable(target);
+    return target;
   }
 
   const service: MemoryServiceImpl = {
     list(filter = {}) {
+      warmProjects();
       const limit = clampLimit(filter.limit, 200, 2000);
       if (limit === 0) return [];
       const kind = filter.kind === undefined ? undefined : parseKind(filter.kind);
@@ -300,6 +367,7 @@ export function createMemoryService(s: Services, options: MemoryServiceOptions =
       const limit = clampLimit(opts.limit, 30, 200);
       const q = typeof query === 'string' ? query.trim() : '';
       if (limit === 0 || !q) return [];
+      warmProjects();
       const where = scopeSql(scopeOf(opts.projectId, opts.includeGlobal ?? true));
       const terms = extractTerms(q);
       const match = buildFtsQueryFromTerms(terms);
@@ -308,7 +376,7 @@ export function createMemoryService(s: Services, options: MemoryServiceOptions =
         if (hits && hits.length > 0) {
           return hits.map((h) => {
             const entry = toEntry(h.row);
-            return { ...entry, score: roundScore(-h.rank), snippet: h.snippet.trim() || snippetFor(entry, terms) };
+            return { ...entry, score: roundScore(-h.rank), snippet: h.snippet || snippetFor(entry, terms) };
           });
         }
       }
@@ -323,6 +391,7 @@ export function createMemoryService(s: Services, options: MemoryServiceOptions =
         throw validation('Agenten dürfen derzeit keine Gedächtniseinträge speichern (Einstellung „Agenten dürfen Einträge speichern“ ist aus).');
       }
       if (!input || typeof input !== 'object') throw validation('Ungültiger Gedächtniseintrag.');
+      warmProjects();
       const kind = parseKind(input.kind);
       const projectId = input.projectId ?? null;
       if (projectId !== null) {
@@ -436,7 +505,9 @@ export function createMemoryService(s: Services, options: MemoryServiceOptions =
     async exportTo(projectId, path, opts = {}) {
       const { signal, onProgress } = opts;
       checkAbort(signal);
-      const scope = scopeOf(projectId, true);
+      warmProjects();
+      // undefined = everything, null = global knowledge base, string = only that project (no shared global entries).
+      const scope = scopeOf(projectId, projectId === undefined);
       const info = typeof projectId === 'string' ? projectInfo(projectId) : null;
       const target = exportTarget(path, scopeFileLabel(projectId, info?.name ?? null), now());
       const rows: MemoryRow[] = store.listForExport(scope);
@@ -516,7 +587,7 @@ export function createMemoryService(s: Services, options: MemoryServiceOptions =
 
       let raw: unknown;
       try {
-        raw = JSON.parse(text.replace(/^﻿/, ''));
+        raw = JSON.parse(text.replace(/^\uFEFF/, ''));
       } catch {
         throw validation('Die Datei enthält kein gültiges JSON und kann nicht importiert werden.');
       }
@@ -630,7 +701,11 @@ export function createMemoryService(s: Services, options: MemoryServiceOptions =
       checkAbort(signal);
       onProgress?.(90, 'Einträge werden gespeichert …');
       const inserted = store.transaction(() => prepared.filter((entry) => store.insert(entry)));
-      for (const entry of inserted) emit(entry);
+      // Committed: from here on the import is not cancellable any more. Emit in chunks so the SSE stream can drain.
+      for (let i = 0; i < inserted.length; i += EMIT_CHUNK) {
+        for (const entry of inserted.slice(i, i + EMIT_CHUNK)) emit(entry);
+        if (i + EMIT_CHUNK < inserted.length) await yieldNow();
+      }
       const imported = inserted.length;
       const skipped = total - imported;
       onProgress?.(100, 'Import abgeschlossen');
@@ -641,44 +716,49 @@ export function createMemoryService(s: Services, options: MemoryServiceOptions =
     contextFor(input) {
       const cfg = settings();
       if (!cfg.enabled || !input || typeof input.projectId !== 'string' || !input.projectId) return [];
+      warmProjects();
       const projectId = input.projectId;
       const max = cfg.maxContextEntries;
       const cap = clampLimit(input.limit ?? max, max, max);
       if (cap === 0) return [];
       const match = buildFtsQuery(typeof input.query === 'string' ? input.query : '');
 
+      // (1) Core entries of the project (selection by kind priority + recency).
       const core = store.coreEntries(projectId, cap).map(toEntry);
-      const matches = match ? (safeFts(match, scopeSql({ type: 'project', projectId, includeSharedGlobal: false }), cap * 2) ?? []).map((h) => toEntry(h.row)) : [];
-      let shared: MemoryEntry[] = [];
+      const coreIds = new Set(core.map((e) => e.id));
+      // (2) Query matches inside the project.
+      const matches = match
+        ? (safeFts(match, scopeSql({ type: 'project', projectId, includeSharedGlobal: false }), cap * 2) ?? []).map((h) => toEntry(h.row)).filter((e) => !coreIds.has(e.id))
+        : [];
+      // (3) Shared knowledge: shareable global entries + shareable insights of OTHER projects.
+      let sharedMatched: MemoryEntry[] = [];
+      let sharedRecent: MemoryEntry[] = [];
       if (cfg.useGlobalKnowledge) {
         const sharedWhere = { sql: "e.shareable = 1 AND (e.project_id IS NULL OR (e.project_id <> ? AND e.kind = 'insight'))", params: [projectId] };
-        const matched = match ? (safeFts(match, sharedWhere, cap) ?? []).map((h) => toEntry(h.row)) : [];
-        const matchedIds = new Set(matched.map((e) => e.id));
-        shared = [...matched, ...store.sharedGlobal(cap).map(toEntry).filter((e) => !matchedIds.has(e.id))];
+        sharedMatched = match ? (safeFts(match, sharedWhere, cap) ?? []).map((h) => toEntry(h.row)) : [];
+        const matchedIds = new Set(sharedMatched.map((e) => e.id));
+        sharedRecent = [...store.sharedGlobal(cap).map(toEntry), ...store.sharedInsightsOfOthers(projectId, cap).map(toEntry)].filter((e) => !matchedIds.has(e.id));
       }
 
-      const coreIds = new Set(core.map((e) => e.id));
-      const otherAvailable = matches.filter((e) => !coreIds.has(e.id)).length + shared.length;
-      const reserve = Math.min(Math.ceil(cap / 4), otherAvailable);
-      const out: MemoryEntry[] = core.slice(0, Math.max(0, cap - reserve));
+      const reserve = Math.min(Math.ceil(cap / 4), matches.length + sharedMatched.length);
+      // Newest first (stable sort keeps the kind priority for equal timestamps).
+      const coreSelected = core.slice(0, Math.max(0, cap - reserve)).sort((a, b) => b.updatedAt - a.updatedAt);
+      const out: MemoryEntry[] = [...coreSelected];
       const seen = new Set(out.map((e) => e.id));
-      for (const e of matches) {
-        if (out.length >= cap) break;
-        if (seen.has(e.id)) continue;
+      const push = (e: MemoryEntry, shared: boolean) => {
+        if (out.length >= cap || seen.has(e.id)) return;
         seen.add(e.id);
-        out.push(e);
-      }
-      for (const e of shared) {
-        if (out.length >= cap) break;
-        if (seen.has(e.id)) continue;
-        seen.add(e.id);
-        out.push(anonymizeEntry(e));
-      }
+        out.push(shared ? anonymizeEntry(e) : e);
+      };
+      for (const e of matches) push(e, false);
+      for (const e of sharedMatched) push(e, true);
+      for (const e of sharedRecent) push(e, true);
       return out.map(redactEntry);
     },
 
     latestNextStep(projectId) {
       if (!settings().enabled || typeof projectId !== 'string' || !projectId) return null;
+      warmProjects();
       const row = store.latestOfKind(projectId, 'next_step');
       return row ? toEntry(row) : null;
     },

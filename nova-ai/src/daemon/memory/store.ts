@@ -7,8 +7,9 @@
 //   string = that project (optionally + SHAREABLE global entries). "allProjects" (projectId undefined with
 //   includeGlobal=false) excludes the global knowledge base.
 // - Ranking: bm25(memory_fts, 4, 1, 2) – title matches weigh 4×, tags 2×, content 1×. bm25 is negative (smaller =
-//   better); results expose score = -bm25 (larger = better). Snippets come from the content column via snippet()
-//   without highlight markers (plain text for the UI and for prompts).
+//   better); results expose score = -bm25 (larger = better). Snippets come from snippet() of the content column, or
+//   of the title column when only the title matched (decided with invisible control-character markers that are
+//   stripped again): plain text for the UI and for prompts, never HTML.
 // - SQL texts are static or built from a bounded set of shapes, so the Db statement cache stays small.
 import type { MemoryEntry, MemoryKind } from '@shared/schemas';
 import { MemoryKind as MemoryKindSchema } from '@shared/schemas';
@@ -74,7 +75,21 @@ export function scopeSql(scope: MemoryScope): { sql: string; params: SqlValue[] 
 export interface FtsHit {
   row: MemoryRow;
   rank: number;
+  /** Plain-text snippet ('' when neither title nor content produced one). */
   snippet: string;
+}
+
+const MARK_START = '\u0002';
+const MARK_END = '\u0003';
+const MARKS = /[\u0002\u0003]/g;
+
+/** Content snippet when the content matched, else the title snippet when the title matched, else the content start. */
+export function pickSnippet(contentSnippet: string | null, titleSnippet: string | null): string {
+  const content = contentSnippet ?? '';
+  const title = titleSnippet ?? '';
+  if (content.includes(MARK_START)) return content.replace(MARKS, '').trim();
+  if (title.includes(MARK_START)) return title.replace(MARKS, '').trim();
+  return content.replace(MARKS, '').trim();
 }
 
 const ENTRY_COLUMNS = 'e.id, e.project_id, e.kind, e.title, e.content, e.tags, e.source, e.shareable, e.task_id, e.created_at, e.updated_at';
@@ -169,7 +184,10 @@ export class MemoryStore {
     return this.db.all<MemoryRow>(`SELECT ${ENTRY_COLUMNS} FROM memory_entries e WHERE e.project_id = ? AND e.shareable = 1`, [projectId]);
   }
 
-  /** Goals, requirements, conventions and decisions of a project: kind priority, then most recent first. */
+  /**
+   * Goals, requirements, conventions and decisions of a project, SELECTED by kind priority (goal, requirement,
+   * convention, decision) and recency – the caller re-sorts the selection newest first for the prompt.
+   */
   coreEntries(projectId: string, limit: number): MemoryRow[] {
     return this.db.all<MemoryRow>(
       `SELECT ${ENTRY_COLUMNS} FROM memory_entries e
@@ -188,6 +206,16 @@ export class MemoryStore {
     );
   }
 
+  /** Shareable insights of every project except `projectId`, most recent first. */
+  sharedInsightsOfOthers(projectId: string, limit: number): MemoryRow[] {
+    return this.db.all<MemoryRow>(
+      `SELECT ${ENTRY_COLUMNS} FROM memory_entries e
+       WHERE e.project_id IS NOT NULL AND e.project_id <> ? AND e.shareable = 1 AND e.kind = 'insight'
+       ORDER BY e.updated_at DESC, e.rowid DESC LIMIT ?`,
+      [projectId, limit],
+    );
+  }
+
   latestOfKind(projectId: string, kind: MemoryKind): MemoryRow | undefined {
     return this.db.get<MemoryRow>(
       `SELECT ${ENTRY_COLUMNS} FROM memory_entries e WHERE e.project_id = ? AND e.kind = ? ORDER BY e.updated_at DESC, e.created_at DESC, e.rowid DESC LIMIT 1`,
@@ -197,15 +225,17 @@ export class MemoryStore {
 
   /** FTS5 search with bm25 ranking within an arbitrary WHERE fragment (alias e). Throws on SQLite errors. */
   fts(match: string, where: { sql: string; params: SqlValue[] }, limit: number): FtsHit[] {
-    const rows = this.db.all<MemoryRow & { bm: number; snip: string | null }>(
-      `SELECT ${ENTRY_COLUMNS}, bm25(memory_fts, 4.0, 1.0, 2.0) AS bm, snippet(memory_fts, 1, '', '', '…', 24) AS snip
+    const rows = this.db.all<MemoryRow & { bm: number; snip: string | null; tsnip: string | null }>(
+      `SELECT ${ENTRY_COLUMNS}, bm25(memory_fts, 4.0, 1.0, 2.0) AS bm,
+              snippet(memory_fts, 1, char(2), char(3), '…', 24) AS snip,
+              snippet(memory_fts, 0, char(2), char(3), '…', 24) AS tsnip
        FROM memory_fts JOIN memory_entries e ON e.rowid = memory_fts.rowid
        WHERE memory_fts MATCH ? AND ${where.sql}
        ORDER BY bm ASC, e.updated_at DESC
        LIMIT ?`,
       [match, ...where.params, limit],
     );
-    return rows.map((r) => ({ row: r, rank: Number(r.bm), snippet: r.snip ?? '' }));
+    return rows.map((r) => ({ row: r, rank: Number(r.bm), snippet: pickSnippet(r.snip, r.tsnip) }));
   }
 
   /** Substring search (title/content/tags) for the given LIKE patterns, OR-ed, most recent first. */

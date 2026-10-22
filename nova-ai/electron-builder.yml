@@ -1,0 +1,102 @@
+# electron-builder configuration of NOVA AI (UI-SPEC §5, SPEC §6.10).
+#
+# Build:  npm run dist:win   (node scripts/build.mjs && electron-builder --win nsis --x64)
+#         npm run dist:dir   (unpacked app for smoke tests; on Linux the "dir" target below)
+#
+# Key decisions:
+# - Everything the app needs is bundled by esbuild/Vite into out/** (no runtime node_modules, no native modules).
+#   The daemon bundle is unpacked from app.asar because a separate process (NOVA AI.exe with ELECTRON_RUN_AS_NODE=1)
+#   loads it from disk: <resources>/app.asar.unpacked/out/daemon/index.cjs.
+# - Electron fuses are flipped by electron-builder itself (`electronFuses`, built into electron-builder ≥ 24.13 via
+#   its bundled @electron/fuses – no afterPack hook and no extra dependency needed):
+#   RunAsNode ON (required: the daemon runs as `NOVA AI.exe` with ELECTRON_RUN_AS_NODE=1), NODE_OPTIONS and
+#   --inspect* OFF, file:// extra privileges OFF (the UI is served from app://nova), app code only from app.asar,
+#   cookie encryption ON. Embedded ASAR integrity validation stays OFF until the Windows build pipeline embeds the
+#   integrity hash (otherwise the exe refuses to start).
+# - Windows executable resources (icon, version info) are written with rcedit, which electron-builder runs through
+#   wine when cross-building on Linux/macOS. Build the Windows installer on Windows (or install wine); signing and
+#   resource editing are intentionally NOT disabled (no `signAndEditExecutable: false`).
+# - NSIS: assisted installer in German, per-user (no admin rights), installation directory selectable, start menu
+#   shortcut; the desktop shortcut is offered by build/installer.nsh (question, default "Nein" in silent mode) and
+#   removed again on uninstall. User data (%LOCALAPPDATA%\NOVA AI) and projects are never deleted. The installer and
+#   uninstaller stop the background service gracefully first (`NOVA AI.exe --stop-daemon`) and the uninstaller
+#   removes the autostart entry.
+# - Updates are never published or installed automatically (`publish: null`).
+
+appId: ai.nova.studio
+productName: NOVA AI
+copyright: Copyright © 2026 NOVA AI
+
+directories:
+  output: release
+  buildResources: build
+
+files:
+  - out/**
+  - package.json
+
+asar: true
+asarUnpack:
+  - out/daemon/**
+
+# Tray/window icons at runtime (build/ itself is not part of the packaged app files).
+extraResources:
+  - from: build/icon.ico
+    to: icon.ico
+  - from: build/icon.png
+    to: icon.png
+
+# No native modules anywhere: never rebuild anything.
+npmRebuild: false
+nodeGypRebuild: false
+buildDependenciesFromSource: false
+
+publish: null
+
+electronFuses:
+  runAsNode: true
+  enableNodeOptionsEnvironmentVariable: false
+  enableNodeCliInspectArguments: false
+  enableCookieEncryption: true
+  onlyLoadAppFromAsar: true
+  grantFileProtocolExtraPrivileges: false
+  enableEmbeddedAsarIntegrityValidation: false
+  loadBrowserProcessSpecificV8Snapshot: false
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: build/icon.ico
+  requestedExecutionLevel: asInvoker
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowElevation: false
+  allowToChangeInstallationDirectory: true
+  createStartMenuShortcut: true
+  createDesktopShortcut: false
+  shortcutName: NOVA AI
+  menuCategory: false
+  runAfterFinish: true
+  deleteAppDataOnUninstall: false
+  installerLanguages:
+    - de_DE
+  language: "1031"
+  displayLanguageSelector: false
+  multiLanguageInstaller: false
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+  uninstallDisplayName: NOVA AI
+  include: build/installer.nsh
+  artifactName: NOVA-AI-Setup-${version}.${ext}
+
+linux:
+  target:
+    - dir
+  icon: build/icon.png
+  category: Development
+  executableName: nova-ai
+  synopsis: Autonomes KI-Entwicklungsstudio

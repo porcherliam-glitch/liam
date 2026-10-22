@@ -15,7 +15,8 @@
 //   from the fixed package table and must match the approval's fingerprint – stored details are never executed.
 // - open(): resolves the file through PathGuard (inside the project), lets the module choose program + argv and spawns it
 //   detached as a user action. GUI programs are started with windowsHide:false (hiding them would hide their window);
-//   .cmd shims go through cmd.exe only with strictly validated arguments (same rule as core/exec execTool).
+//   .cmd shims go through cmd.exe only with strictly validated arguments (same rule as core/exec execTool). The
+//   environment is buildChildEnv without the CI/no-color switches (userProgramEnv).
 // - Emits 'integrations.updated' (full cached list) after list(refresh), setPath, installs and whenever a detection
 //   changes availability/version/path.
 import { spawn } from 'node:child_process';
@@ -68,6 +69,24 @@ interface IntegrationRow {
 /** Installs of one package that refresh several integrations. */
 const RELATED: Record<string, string[]> = { node: ['npm'], npm: ['node'] };
 
+/** Variables buildChildEnv forces for non-interactive tool runs; they must not leak into programs the user works in. */
+const TOOL_ONLY_ENV = ['CI', 'FORCE_COLOR', 'NO_COLOR', 'npm_config_yes', 'PYTHONUTF8', 'PYTHONIOENCODING', 'DOTNET_CLI_UI_LANGUAGE', 'VSLANG', 'DOTNET_NOLOGO', 'DOTNET_CLI_TELEMETRY_OPTOUT', 'GIT_TERMINAL_PROMPT'];
+
+/**
+ * Environment for programs the user opens (editor, terminal, engines): buildChildEnv (secret-free, no Electron
+ * internals, fresh Windows PATH) minus the CI/no-color switches – a VS Code or Windows Terminal started by NOVA must
+ * behave exactly like one started from the Start menu (its terminals would otherwise inherit CI=1).
+ */
+export function userProgramEnv(platform: NodeJS.Platform, base: Record<string, string | undefined> = process.env): Record<string, string> {
+  const env = buildChildEnv({}, platform);
+  for (const key of TOOL_ONLY_ENV) {
+    const original = base[key];
+    if (original === undefined) delete env[key];
+    else env[key] = original;
+  }
+  return env;
+}
+
 function createDefaultSpawn(platform: NodeJS.Platform): SpawnDetached {
   return (file, args, opts) =>
     new Promise<void>((resolve, reject) => {
@@ -95,7 +114,7 @@ function createDefaultSpawn(platform: NodeJS.Platform): SpawnDetached {
       try {
         child = spawn(cmd, argv, {
           cwd: opts.cwd,
-          env: buildChildEnv({}, platform), // also drops ELECTRON_RUN_AS_NODE (Electron apps like VS Code would start as Node)
+          env: userProgramEnv(platform), // also drops ELECTRON_RUN_AS_NODE (Electron apps like VS Code would start as Node)
           detached: true,
           stdio: 'ignore',
           windowsHide: hide,
@@ -333,6 +352,16 @@ export function createIntegrationService(s: Services, opts: IntegrationServiceOp
         notifySafe({ level: 'success', category: 'info', title: `„${mod.name}“ wurde installiert`, body: 'Das Werkzeug steht jetzt zur Verfügung.', projectId: null, taskId: null });
       } else if (outcome.rebootRequired) {
         notifySafe({ level: 'warning', category: 'info', title: `„${mod.name}“: Neustart nötig`, body: 'Windows muss neu gestartet werden, damit die Installation abgeschlossen ist.', projectId: null, taskId: null });
+      } else if (id === 'unity') {
+        // winget installs the Unity Hub; editors are installed inside the Hub (NOVA detects them afterwards).
+        notifySafe({
+          level: 'info',
+          category: 'info',
+          title: 'Unity Hub wurde installiert',
+          body: 'Unity-Editoren werden im Unity Hub installiert. Danach erkennt NOVA sie automatisch auf der Seite „Werkzeuge“.',
+          projectId: null,
+          taskId: null,
+        });
       } else {
         notifySafe({
           level: 'warning',

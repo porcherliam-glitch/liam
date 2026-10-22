@@ -7,7 +7,8 @@
 // - allowedFor(model): only local Ollama providers matter. A model that is already loaded is always ok; otherwise the
 //   VRAM usage of the largest GPU must be ≤ maxVramPercent. Unknown GPU data → ok (fit checks live in OllamaService).
 // - canStartProcess(): counts running processes of kind command/test/build/install/terminal (dev servers and previews
-//   do not count) against resources.maxProcesses.
+//   do not count) against resources.maxProcesses, bounded by processes.runningCount() (live processes of THIS daemon),
+//   so stale 'running' rows of a crashed instance can never block new processes.
 // - canWrite(absPath): statfs of the nearest existing ancestor, cached 5 s per path (bounded); unknown → ok.
 // - All reasons are German and contain no secrets.
 import type { ModelRef, ResourceSnapshot } from '@shared/schemas';
@@ -144,16 +145,21 @@ export function createConcurrencyGovernor(s: Services, opts: ConcurrencyGovernor
 
     canStartProcess() {
       const max = settings().resources.maxProcesses;
-      let count: number;
+      let listed: number | null = null;
+      let live: number | null = null;
       try {
-        count = s.processes.list({ includeExited: false }).filter((p) => p.status === 'running' && COUNTED_KINDS.has(p.kind)).length;
+        listed = s.processes.list({ includeExited: false }).filter((p) => p.status === 'running' && COUNTED_KINDS.has(p.kind)).length;
       } catch {
-        try {
-          count = s.processes.runningCount();
-        } catch {
-          count = 0;
-        }
+        listed = null;
       }
+      try {
+        live = s.processes.runningCount();
+      } catch {
+        live = null;
+      }
+      // Rows still marked running by a crashed previous daemon must never block forever: bound by this instance's live
+      // process count.
+      const count = listed !== null && live !== null ? Math.min(listed, live) : (listed ?? live ?? 0);
       if (count >= max) {
         return { ok: false, reason: `Es laufen bereits ${count} Prozesse (Grenze ${max}). Der nächste startet, sobald einer fertig ist.` };
       }

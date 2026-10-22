@@ -5,6 +5,7 @@ import { Button, Dialog, Textarea } from '../../../components/ui';
 import { useMutation } from '../../../hooks/useRpc';
 import { paths } from '../../../lib/paths';
 import { toast } from '../../../stores/toasts';
+import { useAutoFocusTarget } from '../../../components/project/useAutoFocusTarget';
 
 export interface PlanGoalDialogProps {
   open: boolean;
@@ -21,6 +22,7 @@ export function PlanGoalDialog({ open, onClose, projectId, projectName, initialG
   const [goal, setGoal] = useState(initialGoal);
   const [error, setError] = useState<string | null>(null);
   const plan = useMutation('tasks.plan', { errorToast: false });
+  const focus = useAutoFocusTarget<HTMLFormElement>();
 
   useEffect(() => {
     if (!open) return;
@@ -46,6 +48,7 @@ export function PlanGoalDialog({ open, onClose, projectId, projectName, initialG
 
   return (
     <Dialog
+      initialFocus={focus.target}
       open={open}
       onClose={() => !plan.loading && onClose()}
       dismissible={!plan.loading}
@@ -63,7 +66,7 @@ export function PlanGoalDialog({ open, onClose, projectId, projectName, initialG
         </>
       }
     >
-      <form id="plan-goal-form" onSubmit={(e) => void submit(e)} noValidate>
+      <form id="plan-goal-form" ref={focus.container} onSubmit={(e) => void submit(e)} noValidate>
         <Textarea
           label="Was soll als Nächstes erreicht werden?"
           required

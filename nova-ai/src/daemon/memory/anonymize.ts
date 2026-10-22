@@ -7,10 +7,15 @@
 //   project-relative tail is kept ("<Projektpfad>\src\game.js") because it is useful and not personal.
 // - Then generic absolute paths: Windows drive paths (C:\…, C:/…), UNC paths (\\server\share\…), POSIX paths below
 //   user/system roots (/home, /Users, /root, /mnt, /media, /Volumes, /tmp, /var, /opt, /srv, /private) and "~/…".
-//   Directory segments may contain single spaces when another separator follows ("C:\Users\Max Mustermann\x.txt");
-//   the last segment ends at whitespace. Trailing sentence punctuation stays outside the placeholder.
+//   Windows directory names may contain single spaces when exactly one separator follows ("C:\Users\Max
+//   Mustermann\x.txt"); POSIX directory names only when the continuation starts with an upper-case letter or digit
+//   ("/home/max/NOVA Projekte/x"), so German prose ("und/oder", "sowie ~/…") is not swallowed. The last segment ends
+//   at whitespace. Trailing sentence punctuation stays outside the placeholder.
 //   POSIX roots are an allow-list on purpose: REST routes like "/api/users" and URLs ("https://host/home/x") are
 //   technical knowledge and stay untouched.
+// - A path directly after a placeholder ("<Projektpfad>/tmp/x", JSON-escaped "<Projektpfad>\\cfg") is the
+//   project-relative tail of an already replaced root and is never replaced again ('>' is excluded in every
+//   look-behind).
 // - Names are replaced as whole words (Unicode-aware boundaries, case-insensitive, flexible inner whitespace); names
 //   shorter than 3 characters are not replaced (too many false hits). Existing placeholders are never rewritten.
 // - The functions are pure; the caller passes the platform (Windows branches are unit-tested on Linux).
@@ -28,18 +33,27 @@ export interface AnonymizeSource {
 const SEP = String.raw`[\\/]+`;
 /** One Windows path segment without spaces (characters not allowed in Windows file names are excluded). */
 const WIN_SEG = String.raw`[^\\/:*?"<>|\s]+`;
-const WIN_DIR = String.raw`${WIN_SEG}(?: ${WIN_SEG})*${SEP}`;
-const WIN_DRIVE_PATH = new RegExp(String.raw`(?<![\p{L}\p{N}_])[A-Za-z]:${SEP}(?:${WIN_DIR})*(?:${WIN_SEG})?`, 'gu');
-const UNC_PATH = new RegExp(String.raw`(?<![\p{L}\p{N}_\\/])\\\\[^\\/\s]+(?:${SEP}(?:${WIN_DIR})*(?:${WIN_SEG})?)?`, 'gu');
+/**
+ * A Windows directory: one segment plus separator(s), or several space-joined segments ("Max Mustermann") followed by
+ * exactly ONE separator that does not start a UNC path ("C:\a\b und \\server\x" is two paths, not one).
+ */
+const WIN_DIR = String.raw`(?:${WIN_SEG}${SEP}|${WIN_SEG}(?: ${WIN_SEG})+[\\/](?![\\/]))`;
+const WIN_DRIVE_PATH = new RegExp(String.raw`(?<![\p{L}\p{N}_>])[A-Za-z]:${SEP}(?:${WIN_DIR})*(?:${WIN_SEG})?`, 'gu');
+const UNC_PATH = new RegExp(String.raw`(?<![\p{L}\p{N}_\\/>])\\\\[^\\/\s]+(?:${SEP}(?:${WIN_DIR})*(?:${WIN_SEG})?)?`, 'gu');
 /** One POSIX path segment (conservative: stops at quotes, brackets, separators of prose). */
 const POSIX_SEG = String.raw`[^/\s"'<>|*?;,()\[\]{}]+`;
-const POSIX_DIR = String.raw`${POSIX_SEG}(?: ${POSIX_SEG})*/+`;
+/**
+ * Continuation of a POSIX directory name after a space: must start with an upper-case letter or digit
+ * ("NOVA Projekte/"), so prose like "a.txt und/oder" or "x.txt sowie ~/y" is not swallowed.
+ */
+const POSIX_CONT = String.raw`[\p{Lu}\p{N}][^/\s"'<>|*?;,()\[\]{}]*`;
+const POSIX_DIR = String.raw`${POSIX_SEG}(?: ${POSIX_CONT})*/+`;
 const POSIX_ROOTS = '(?:home|Users|root|mnt|media|Volumes|tmp|var|opt|srv|private)';
 const POSIX_PATH = new RegExp(
-  String.raw`(?<![\p{L}\p{N}_.:/~\\-])/${POSIX_ROOTS}(?![\p{L}\p{N}_-])(?:/+(?:${POSIX_DIR})*(?:${POSIX_SEG})?)?`,
+  String.raw`(?<![\p{L}\p{N}_.:/~\\>-])/${POSIX_ROOTS}(?![\p{L}\p{N}_-])(?:/+(?:${POSIX_DIR})*(?:${POSIX_SEG})?)?`,
   'gu',
 );
-const HOME_PATH = new RegExp(String.raw`(?<![\p{L}\p{N}_.:/~\\-])~/+(?:${POSIX_DIR})*(?:${POSIX_SEG})?`, 'gu');
+const HOME_PATH = new RegExp(String.raw`(?<![\p{L}\p{N}_.:/~\\>-])~/+(?:${POSIX_DIR})*(?:${POSIX_SEG})?`, 'gu');
 const TRAILING = /[.,;:!?)\]}'"»“”]+$/u;
 
 function escapeRegex(s: string): string {

@@ -14,6 +14,7 @@ import { Field, Input, Select, Textarea } from '../ui/Field';
 import { PrioritySelect } from '../common/PrioritySelect';
 import { TaskStatusBadge } from '../common/StatusBadges';
 import { dependentsClosure } from './taskRules';
+import { useAutoFocusTarget } from './useAutoFocusTarget';
 
 export interface TaskFormDialogProps {
   open: boolean;
@@ -62,6 +63,7 @@ export function TaskFormDialog({ open, onClose, projectId, defaultProjectId, tas
   const [form, setForm] = useState<FormState>(() => initialState(task, projectId ?? defaultProjectId));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
+  const focus = useAutoFocusTarget<HTMLFormElement>();
 
   // Reset whenever the dialog opens (or switches to another task).
   useEffect(() => {
@@ -134,6 +136,7 @@ export function TaskFormDialog({ open, onClose, projectId, defaultProjectId, tas
 
   return (
     <Dialog
+      initialFocus={focus.target}
       open={open}
       onClose={() => !saving && onClose()}
       dismissible={!saving}
@@ -152,7 +155,7 @@ export function TaskFormDialog({ open, onClose, projectId, defaultProjectId, tas
         </>
       }
     >
-      <form id="task-form" onSubmit={(e) => void submit(e)} className="space-y-4" noValidate>
+      <form id="task-form" ref={focus.container} onSubmit={(e) => void submit(e)} className="space-y-4" noValidate>
         {task?.status === 'paused' && (
           <p className="flex items-start gap-2 rounded-lg border border-info/30 bg-info/10 px-3 py-2 text-xs text-info-fg">
             <Info aria-hidden className="mt-0.5 h-3.5 w-3.5 shrink-0" />

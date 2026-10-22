@@ -1,5 +1,5 @@
 // Dialogs for user file operations in the studio tree: new file, new folder, rename, delete.
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { useLayoutEffect, useRef, useState, type FormEvent } from 'react';
 import { FilePlus, FolderPlus, Pencil, Trash2 } from 'lucide-react';
 import { Button, ConfirmDialog, Dialog, Input } from '../../components/ui';
 import { api, errorMessage, isRpcError } from '../../lib/api';
@@ -52,20 +52,18 @@ function NameDialog({
   const inputRef = useRef<HTMLInputElement>(null);
   const dir = action.kind === 'rename' ? parentPath(action.path) : action.dir;
 
-  useEffect(() => {
-    // Select the name without the extension when renaming a file.
-    const raf = requestAnimationFrame(() => {
-      const el = inputRef.current;
-      if (!el) return;
-      el.focus();
-      if (action.kind === 'rename' && action.type === 'file') {
-        const dot = initial.lastIndexOf('.');
-        el.setSelectionRange(0, dot > 0 ? dot : initial.length);
-      } else {
-        el.select();
-      }
-    });
-    return () => cancelAnimationFrame(raf);
+  // Focus right after mounting (not a frame later, so no typed character gets selected away).
+  // When renaming a file, the name without the extension is selected.
+  useLayoutEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    el.focus();
+    if (action.kind === 'rename' && action.type === 'file') {
+      const dot = initial.lastIndexOf('.');
+      el.setSelectionRange(0, dot > 0 ? dot : initial.length);
+    } else {
+      el.select();
+    }
   }, [action, initial]);
 
   const title = action.kind === 'newFile' ? 'Neue Datei' : action.kind === 'newFolder' ? 'Neuer Ordner' : action.type === 'dir' ? 'Ordner umbenennen' : 'Datei umbenennen';

@@ -3,14 +3,15 @@
 //
 // Key decisions:
 // - Layer 1 is core redactString() (registered secret values + well-known key formats + KEY=value patterns).
-// - Layer 2 adds German credential phrases the core patterns do not know ("Das Passwort lautet hunter2",
-//   "Kennwort: geheim123", "API-Schlüssel ist sk…"). Strong words (Passwort, Kennwort, PIN-Code …, also inside
-//   compounds like "Datenbankpasswort") followed by ':' or '=' always redact the value. After "ist"/"lautet", and for
+// - Layer 2 adds German credential phrases the core patterns do not know ("Das Passwort lautet hunter2", "Kennwort:
+//   geheim123", "API-Schlüssel ist sk…"). Strong words (Passwort, Kennwort, PIN-Code …, also inside compounds like
+//   "Datenbankpasswort") followed by ':', '=', "lautet" or "heißt" always redact the value. After "ist", and for
 //   credential words (API-Schlüssel, Lizenzschlüssel, Token, Geheimnis, Zugangsdaten …), only values that look like a
 //   credential are redacted: letters+digits, or real symbols (not just the identifier characters - _ .), or long
 //   random-looking mixed case. The plain word "Schlüssel" (also a dictionary/storage key in technical notes) only
 //   counts as a whole word and needs at least two digits mixed with letters or a real symbol, so "Der Schlüssel ist
-//   savegame-v2" and "Primärschlüssel ist user_id" stay intact. URLs and file names are never treated as credentials.
+//   savegame-v2" and "Primärschlüssel ist user_id" stay intact. URLs, file names and plain paths ("config/app.json")
+//   are never treated as credentials ("admin/Start#2024" is not a plain path).
 // - Layer 3 redacts random-looking tokens (≥ 32 chars of [A-Za-z0-9_-+=] with upper, lower and digits, Shannon entropy
 //   ≥ 3.8 and less than half of the characters inside word-like runs). Measured: camelCase identifiers score ≥ 0.65
 //   word share, random base64 tokens ≈ 0.2 (about 3 % of random 32-char tokens are missed – the core patterns cover
@@ -35,13 +36,20 @@ const STRONG_PHRASE = new RegExp(
   'giu',
 );
 const CREDENTIAL_PHRASE = new RegExp(
-  String.raw`((?<![\p{L}\p{N}_])(?:api-?schlüssel|api-?schluessel|zugangsschlüssel|zugangsschluessel|geheimschlüssel|geheimschluessel|lizenzschlüssel|lizenzschluessel|produktschlüssel|produktschluessel|geheimnis|token|zugangsdaten))${SEPARATOR}${QUOTE}(${VALUE_CHARS}{6,})`,
+  String.raw`((?<![\p{L}\p{N}_])(?:(?:api|zugangs|geheim|lizenz|produkt)-?(?:schlüssel|schluessel)|geheimnis|token|zugangsdaten))${SEPARATOR}${QUOTE}(${VALUE_CHARS}{6,})`,
   'giu',
 );
 /** The plain word "Schlüssel" as a whole word (compounds like "Primärschlüssel" are technical keys, not secrets). */
 const KEY_PHRASE = new RegExp(String.raw`((?<![\p{L}\p{N}_-])(?:schlüssel|schluessel))${SEPARATOR}${QUOTE}(${VALUE_CHARS}{6,})`, 'giu');
 const RANDOM_TOKEN = /(?<![A-Za-z0-9_\-+=])[A-Za-z0-9_\-+=]{32,}(?![A-Za-z0-9_\-+=])/g;
-const FILE_LIKE = /[\\/]|\.(?:json|env|txt|ya?ml|toml|ini|cfg|conf|config|js|mjs|cjs|ts|tsx|cs|py|ps1|bat|cmd|sh|md|xml|lock)$/i;
+const FILE_EXTENSION = /\.(?:json|env|txt|ya?ml|toml|ini|cfg|conf|config|js|mjs|cjs|ts|tsx|cs|py|ps1|bat|cmd|sh|md|xml|lock)$/i;
+/** Characters of plain paths: identifier characters plus separators, drive colon and tilde. */
+const PATH_CHARS_ONLY = /^[\p{L}\p{N}_.\-\\/:~]+$/u;
+
+/** File names and plain paths ("config/app.json", "src/v2/main") – but not "admin/Start#2024". */
+function looksLikePath(v: string): boolean {
+  return FILE_EXTENSION.test(v) || (/[\\/]/.test(v) && PATH_CHARS_ONLY.test(v));
+}
 const TRAILING_PUNCTUATION = /[.!?:)\]}]+$/;
 
 /** Words that do not count as meaningful text next to a redacted value. */
@@ -84,9 +92,10 @@ const REAL_SYMBOL = /[^\p{L}\p{N}\s_.-]/u;
  * needs at least two digits mixed with letters, a real symbol or a random-looking mixed-case value.
  */
 export function looksLikeCredential(value: string, strict = false): boolean {
+  if (value.includes(REDACTED)) return false;
   const v = value.replace(TRAILING_PUNCTUATION, '');
-  if (v.length < 6 || v.includes(REDACTED)) return false;
-  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(v) || FILE_LIKE.test(v)) return false;
+  if (v.length < 6) return false;
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(v) || looksLikePath(v)) return false;
   const digits = (v.match(/\p{N}/gu) ?? []).length;
   const hasLetter = /\p{L}/u.test(v);
   const hasSymbol = REAL_SYMBOL.test(v);
@@ -103,8 +112,9 @@ function replacePhrase(match: string, keyword: string, separator: string, quote:
   if (rawValue.includes(REDACTED)) return match;
   const trailing = TRAILING_PUNCTUATION.exec(rawValue)?.[0] ?? '';
   const value = trailing ? rawValue.slice(0, rawValue.length - trailing.length) : rawValue;
-  const isAssignment = /[:=]/.test(separator) && !/ist|lautet|heißt|heisst/i.test(separator);
-  const redact = mode === 'always' && isAssignment ? value.length >= 4 : looksLikeCredential(value, mode === 'strict');
+  // "Passwort: x", "Passwort = x", "Passwort lautet x" always carry the value; "Passwort ist …" may be prose.
+  const explicit = /[:=]|lautet|heißt|heisst/i.test(separator);
+  const redact = mode === 'always' && explicit ? value.length >= 4 : looksLikeCredential(value, mode === 'strict');
   return redact ? `${keyword}${separator}${quote}${REDACTED}${trailing}` : match;
 }
 

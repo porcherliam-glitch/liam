@@ -24,6 +24,11 @@
 //   daemon.shutdown did not free the endpoint (never by pid from a file: pids are reused).
 // - rpc() waits up to 15 s while the daemon is starting/connecting instead of failing immediately, so the first
 //   renderer requests after app start succeed; a request is retried only when it provably never reached the daemon.
+// - Windows: the daemon is spawned directly (Chromium's handles are not inheritable). Linux/macOS: Chromium leaves
+//   many descriptors without close-on-exec (GPU cache files, sockets, Electron's stdio pipes), and libuv does not
+//   close them in the child – the long-lived daemon would keep them open. There the daemon is started through
+//   `/bin/bash -c <close fds ≥ 3; exec "$0" "$@">` (same PID, same argv for the daemon), falling back to a direct
+//   spawn when bash is missing.
 import { spawn as nodeSpawn, type SpawnOptions } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import type { DaemonConnectionState, DaemonConnectionStateName } from '@shared/bridge';
@@ -92,6 +97,10 @@ export interface DaemonSupervisorOptions {
   execPath: string;
   appVersion: string;
   log?: MainLogger;
+  /** Defaults to process.platform (inject 'win32' in tests). */
+  platform?: NodeJS.Platform;
+  /** POSIX shell used to close inherited descriptors before exec (default /bin/bash if present; null = spawn directly). */
+  posixShell?: string | null;
   healthTimeoutMs?: number;
   pollIntervalMs?: number;
   probeTimeoutMs?: number;
@@ -128,12 +137,32 @@ const defaultDeps: SupervisorDeps = {
 
 type ExitInfo = { code: number | null; signal: NodeJS.Signals | null } | { error: Error };
 
+/**
+ * bash script: close every inherited descriptor ≥ 3, then exec the daemon ($0 = Electron binary, "$@" = its args).
+ * Uses /proc/$$/fd (Linux) or /dev/fd (macOS). Closing a descriptor that is already gone (the directory handle of
+ * the glob) is silently ignored by bash. stdin/stdout/stderr (the start log) stay untouched.
+ */
+export const CLOSE_INHERITED_FDS_SCRIPT =
+  'd=/proc/$$/fd; [ -d "$d" ] || d=/dev/fd; ' +
+  'for p in "$d"/*; do n=${p##*/}; case "$n" in ""|*[!0-9]*) continue;; esac; ' +
+  'if [ "$n" -gt 2 ]; then eval "exec $n>&-"; fi; done; ' +
+  'exec "$0" "$@"';
+
+/** Command line that starts the daemon (direct on Windows, through the descriptor-closing shell elsewhere). */
+export function daemonSpawnCommand(o: { execPath: string; daemonEntry: string; dataDir: string; posixShell: string | null }): { command: string; args: string[] } {
+  const daemonArgs = [o.daemonEntry, '--data-dir', o.dataDir];
+  if (!o.posixShell) return { command: o.execPath, args: daemonArgs };
+  return { command: o.posixShell, args: ['--norc', '--noprofile', '-c', CLOSE_INHERITED_FDS_SCRIPT, o.execPath, ...daemonArgs] };
+}
+
 function isUnreachable(e: unknown): boolean {
   return e instanceof DaemonRpcError && (e.reason === 'unreachable' || e.reason === 'token_missing');
 }
 
 export class DaemonSupervisor {
-  private readonly o: Required<Omit<DaemonSupervisorOptions, 'deps' | 'log' | 'restartBudget'>>;
+  private readonly o: Required<Omit<DaemonSupervisorOptions, 'deps' | 'log' | 'restartBudget' | 'platform' | 'posixShell'>>;
+  private readonly platform: NodeJS.Platform;
+  private readonly posixShell: string | null;
   private readonly deps: SupervisorDeps;
   private readonly log: MainLogger;
   private readonly budget: RestartBudget;
@@ -178,6 +207,9 @@ export class DaemonSupervisor {
       shutdownRpcTimeoutMs: opts.shutdownRpcTimeoutMs ?? 10_000,
     };
     this.deps = { ...defaultDeps, ...opts.deps };
+    this.platform = opts.platform ?? process.platform;
+    this.posixShell =
+      this.platform === 'win32' ? null : opts.posixShell !== undefined ? opts.posixShell : this.deps.fileExists('/bin/bash') ? '/bin/bash' : null;
     this.log = opts.log ?? createMainLogger({ file: null });
     this.budget = opts.restartBudget ?? new RestartBudget(3, 5 * 60_000);
     this.st = {
@@ -465,6 +497,11 @@ export class DaemonSupervisor {
       if (!/^NOVA_/i.test(k) && isDroppedEnvVar(k)) continue;
       env[k] = v;
     }
+    // A non-interactive bash would source $BASH_ENV / $ENV before exec – never run foreign startup files.
+    if (this.posixShell) {
+      delete env.BASH_ENV;
+      delete env.ENV;
+    }
     env.ELECTRON_RUN_AS_NODE = '1';
     return env;
   }
@@ -481,7 +518,8 @@ export class DaemonSupervisor {
     );
     let child: DaemonChildLike;
     try {
-      child = this.deps.spawn(this.o.execPath, [this.o.daemonEntry, '--data-dir', this.o.dataDir], {
+      const cmd = daemonSpawnCommand({ execPath: this.o.execPath, daemonEntry: this.o.daemonEntry, dataDir: this.o.dataDir, posixShell: this.posixShell });
+      child = this.deps.spawn(cmd.command, cmd.args, {
         cwd: this.o.dataDir,
         detached: true,
         windowsHide: true,

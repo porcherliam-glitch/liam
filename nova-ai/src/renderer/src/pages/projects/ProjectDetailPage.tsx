@@ -1,5 +1,6 @@
 // Project detail (UI-SPEC §4): header with path, progress and work control, plus the tabs
 // Übersicht · Aufgaben · Agenten · Änderungen · Prüfungen · Gedächtnis · Fehler (?tab=…, ?task=… highlights a task).
+import { useCallback, useSyncExternalStore } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router';
 import { Bot, Brain, CircleAlert, Code, FileDiff, FlaskConical, FolderOpen, FolderSearch, FolderX, LayoutDashboard, ListTodo } from 'lucide-react';
 import type { ProjectSummary } from '@shared/schemas';
@@ -23,6 +24,21 @@ import { MemoryTab } from './tabs/MemoryTab';
 import { ErrorsTab } from './tabs/ErrorsTab';
 
 const TABS: ProjectTab[] = ['overview', 'tasks', 'agents', 'changes', 'checks', 'memory', 'errors'];
+
+/** True while the media query matches (true when matchMedia is unavailable, e.g. in tests). */
+function useMediaQuery(query: string): boolean {
+  const subscribe = useCallback(
+    (onChange: () => void) => {
+      if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return () => {};
+      const mql = window.matchMedia(query);
+      mql.addEventListener('change', onChange);
+      return () => mql.removeEventListener('change', onChange);
+    },
+    [query],
+  );
+  const get = () => (typeof window === 'undefined' || typeof window.matchMedia !== 'function' ? true : window.matchMedia(query).matches);
+  return useSyncExternalStore(subscribe, get, get);
+}
 
 function parseTab(value: string | null): ProjectTab {
   return TABS.includes(value as ProjectTab) ? (value as ProjectTab) : 'overview';
@@ -57,6 +73,7 @@ export default function ProjectDetailPage() {
   const tab = parseTab(params.get('tab') ?? (highlightTask ? 'tasks' : null));
   const navigate = useNavigate();
   const project = useRpc('projects.get', projectId ? { id: projectId } : null, { refetchOn: PROJECT_EVENTS, eventFilter: relatesTo(projectId) });
+  const wideTabs = useMediaQuery('(min-width: 1280px)');
 
   const setTab = (next: ProjectTab) => {
     const sp = new URLSearchParams();
@@ -92,14 +109,16 @@ export default function ProjectDetailPage() {
   }
 
   const p = project.data;
+  // Narrow windows (down to 1100 px) drop the tab icons so all seven tabs fit without scrolling.
+  const icon = <T,>(i: T) => (wideTabs ? i : undefined);
   const items: Array<TabItem<ProjectTab>> = [
-    { id: 'overview', label: 'Übersicht', icon: LayoutDashboard },
-    { id: 'tasks', label: 'Aufgaben', icon: ListTodo, count: p.openTasks },
-    { id: 'agents', label: 'Agenten', icon: Bot, count: p.runningTasks || undefined },
-    { id: 'changes', label: 'Änderungen', icon: FileDiff },
-    { id: 'checks', label: 'Prüfungen', icon: FlaskConical },
-    { id: 'memory', label: 'Gedächtnis', icon: Brain },
-    { id: 'errors', label: 'Fehler', icon: CircleAlert, count: p.openErrors, countTone: 'danger' },
+    { id: 'overview', label: 'Übersicht', icon: icon(LayoutDashboard) },
+    { id: 'tasks', label: 'Aufgaben', icon: icon(ListTodo), count: p.openTasks },
+    { id: 'agents', label: 'Agenten', icon: icon(Bot), count: p.runningTasks || undefined },
+    { id: 'changes', label: 'Änderungen', icon: icon(FileDiff) },
+    { id: 'checks', label: 'Prüfungen', icon: icon(FlaskConical) },
+    { id: 'memory', label: 'Gedächtnis', icon: icon(Brain) },
+    { id: 'errors', label: 'Fehler', icon: icon(CircleAlert), count: p.openErrors, countTone: 'danger' },
   ];
 
   return (
@@ -110,7 +129,7 @@ export default function ProjectDetailPage() {
         <TabPanel idBase="project" id={tab}>
           {tab === 'overview' && <OverviewTab project={p} onTab={setTab} />}
           {tab === 'tasks' && <TasksTab project={p} highlightTaskId={highlightTask} />}
-          {tab === 'agents' && <AgentsTab project={p} />}
+          {tab === 'agents' && <AgentsTab project={p} onTab={setTab} />}
           {tab === 'changes' && <ChangesTab project={p} />}
           {tab === 'checks' && <ChecksTab project={p} onTab={setTab} />}
           {tab === 'memory' && <MemoryTab project={p} />}

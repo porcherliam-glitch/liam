@@ -17,30 +17,31 @@ export interface ProcessOutputProps {
 /** Live output of a process (processes.output + process.output events), auto-scrolling while at the bottom. */
 export function ProcessOutput({ processId, label, className }: ProcessOutputProps) {
   const initial = useRpc('processes.output', { id: processId, tailLines: 500 });
-  const [extra, setExtra] = useState('');
+  // Output streamed after the snapshot, tied to the snapshot it extends: a (re)loaded snapshot already contains
+  // everything streamed before, so older streamed text is dropped right away (no effect – nothing gets lost
+  // between the snapshot render and an effect).
+  const [streamed, setStreamed] = useState<{ base: unknown; text: string }>({ base: undefined, text: '' });
   const [info, setInfo] = useState<ProcessInfo | null>(null);
   const preRef = useRef<HTMLPreElement>(null);
   const stick = useRef(true);
+  const snapshotRef = useRef(initial.data);
+  snapshotRef.current = initial.data;
 
   useEffect(() => {
-    setExtra('');
     setInfo(null);
     stick.current = true;
   }, [processId]);
 
-  // A (re)loaded snapshot already contains everything that was streamed before.
-  useEffect(() => {
-    if (initial.data !== undefined) setExtra('');
-  }, [initial.data]);
-
   useNovaEvent('process.output', (p) => {
-    if (p.processId !== processId || initial.data === undefined) return;
-    setExtra((prev) => tailText(prev + p.data));
+    const base = snapshotRef.current;
+    if (p.processId !== processId || base === undefined) return;
+    setStreamed((prev) => ({ base, text: tailText((prev.base === base ? prev.text : '') + p.data) }));
   });
   useNovaEvent('process.updated', (p) => {
     if (p.id === processId) setInfo(p);
   });
 
+  const extra = streamed.base === initial.data ? streamed.text : '';
   const text = stripAnsi(tailText(`${initial.data?.output ?? ''}${extra}`));
 
   useLayoutEffect(() => {

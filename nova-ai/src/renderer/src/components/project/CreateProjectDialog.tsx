@@ -24,6 +24,7 @@ import { ProgressBar } from '../ui/ProgressBar';
 import { Checkbox } from '../ui/Switch';
 import { TabPanel, Tabs } from '../ui/Tabs';
 import { ChipsInput } from './ChipsInput';
+import { useAutoFocusTarget } from './useAutoFocusTarget';
 
 export interface CreateProjectDialogProps {
   open: boolean;
@@ -128,6 +129,7 @@ export function CreateProjectDialog({ open, onClose, onCreated }: CreateProjectD
   const [formError, setFormError] = useState<string | null>(null);
   const [operation, setOperation] = useState<Operation | null>(null);
   const submittedAt = useRef(0);
+  const focus = useAutoFocusTarget<HTMLFormElement>();
 
   useEffect(() => {
     if (!open) return;
@@ -312,6 +314,7 @@ export function CreateProjectDialog({ open, onClose, onCreated }: CreateProjectD
 
   return (
     <Dialog
+      initialFocus={focus.target}
       open={open}
       onClose={() => !busy && onClose()}
       dismissible={!busy}
@@ -321,7 +324,7 @@ export function CreateProjectDialog({ open, onClose, onCreated }: CreateProjectD
       description="Wie soll das Projekt entstehen? NOVA wählt sinnvolle Standards und fragt nur bei wichtigen Unklarheiten nach."
       footer={footer}
     >
-      <form id="create-project-form" onSubmit={(e) => void submit(e)} noValidate className="space-y-5">
+      <form id="create-project-form" ref={focus.container} onSubmit={(e) => void submit(e)} noValidate className="space-y-5">
         <Tabs label="Art der Projekterstellung" idBase="create-project" items={MODES} value={mode} onChange={switchMode} />
 
         <TabPanel idBase="create-project" id={mode} className="space-y-4">

@@ -9,6 +9,9 @@
 // - External links: http/https only, no credentials, no control characters, ≤ 2048 characters.
 // - openPath only opens existing directories; UNC (\\server\share) and device paths (\\?\, \\.\) are refused on
 //   Windows (no SMB/NTLM traffic to arbitrary hosts, no device namespace tricks).
+// - IPC senders must be the main frame of the app window on the app origin (isTrustedSender).
+// - Permissions: everything is denied, except Chromium's local-network-access family for the app origin itself
+//   (otherwise Local Network Access rules could block the loopback preview iframe of the studio).
 import { posix, win32 } from 'node:path';
 
 export const APP_SCHEME = 'app';
@@ -141,4 +144,46 @@ export function validateLocalPath(raw: unknown, opts: LocalPathOptions): string 
   }
   if (!posix.isAbsolute(raw)) return null;
   return posix.normalize(raw);
+}
+
+/** What main knows about the sender of an IPC message (taken from event.sender / event.senderFrame). */
+export interface IpcSenderInfo {
+  /** webContents.id of the sender. */
+  webContentsId: number;
+  /** URL of the sending frame (null when the frame is gone or navigating). */
+  frameUrl: string | null;
+  /** True when the sending frame is the top-level frame of its webContents. */
+  isMainFrame: boolean;
+}
+
+/**
+ * IPC sender validation (UI-SPEC §5): only the main frame of the app window, showing the app origin, may use the
+ * bridge. Preview iframes (loopback http) and any other webContents are rejected.
+ */
+export function isTrustedSender(info: IpcSenderInfo, expected: { webContentsId: number | null; appOrigin: string }): boolean {
+  if (expected.webContentsId === null || info.webContentsId !== expected.webContentsId) return false;
+  if (!info.isMainFrame || !info.frameUrl) return false;
+  return isAppUrl(info.frameUrl, expected.appOrigin);
+}
+
+/**
+ * Chromium permissions that are granted to the app origin only: Local Network Access checks may otherwise block the
+ * studio preview iframe (http://127.0.0.1:<port>) inside app://nova. Everything else is denied for everyone.
+ */
+const APP_ONLY_PERMISSIONS = new Set(['local-network-access', 'local-network', 'loopback-network']);
+
+/** Permission request/check policy: deny everything except loopback network access for the app origin itself. */
+export function isPermissionAllowed(permission: string, requestingUrl: string | null | undefined, appOrigin: string): boolean {
+  if (!APP_ONLY_PERMISSIONS.has(permission)) return false;
+  return typeof requestingUrl === 'string' && isAppUrl(requestingUrl, appOrigin);
+}
+
+/** Main-frame navigation policy: the window never leaves the app origin. */
+export function isAllowedMainFrameNavigation(url: string, appOrigin: string): boolean {
+  return isAppUrl(url, appOrigin);
+}
+
+/** Validates a path for navigation requests sent to the renderer (`nova:navigate`, HashRouter paths). */
+export function isValidRendererPath(path: unknown): path is string {
+  return typeof path === 'string' && path.startsWith('/') && !path.startsWith('//') && path.length <= 1000 && !CONTROL_CHARS.test(path);
 }
