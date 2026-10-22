@@ -61,6 +61,22 @@ describe('verification status', () => {
     expect(e).toMatchObject({ name: 'Review', status: 'failed', findings: [{ severity: 'major', file: 'src/a.ts', line: 4 }] });
     expect(reviewEntry({ verdict: 'approve', summary: 'ok', findings: [] }).status).toBe('passed');
   });
+
+  it('never reports passed from a reviewer verdict alone; the proof rule narrows which passes count', () => {
+    const approve = reviewEntry({ verdict: 'approve', summary: 'Sieht gut aus.', findings: [] });
+    const skipped = skippedEntry('Tests', 'Kein Testbefehl eingerichtet.');
+    expect(computeVerificationStatus([skipped, approve])).toBe('unavailable');
+    expect(computeVerificationStatus([approve])).toBe('unavailable');
+    expect(computeVerificationStatus([reviewEntry({ verdict: 'changes_requested', summary: 'x', findings: [] })])).toBe('failed');
+    const lint = entryFromCheckRun('Lint', run({ id: 'l', kind: 'lint', status: 'passed', failures: [], failed: 0 }));
+    const tests = entryFromCheckRun('Tests', run({ id: 't', status: 'passed', failures: [], failed: 0 }));
+    expect(computeVerificationStatus([lint, approve])).toBe('passed');
+    const onlyTests = (e: { name: string }) => e.name === 'Tests';
+    expect(computeVerificationStatus([lint], onlyTests)).toBe('unavailable');
+    expect(computeVerificationStatus([lint, tests], onlyTests)).toBe('passed');
+    expect(computeVerificationStatus([lint, tests], () => false)).toBe('unavailable');
+    expect(computeVerificationStatus([lint, entryFromCheckRun('Tests', run({}))], () => false)).toBe('failed');
+  });
 });
 
 describe('failure signatures', () => {

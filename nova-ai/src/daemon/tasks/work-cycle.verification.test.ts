@@ -568,8 +568,11 @@ describe('checks that could not run because of the environment', () => {
     const p = h.projects.add({ kind: 'generic', name: 'Spiel', config: defaultConfig({ testAfterChange: false, commands: { build: 'npm run build', test: 'npm test' } }) });
     const plan = task(p.id, 'Plan', { kind: 'plan', role: 'planner' });
     h.agents.on({ taskId: plan.id }, outcomes.plan({ tasks: [{ key: 'a', title: 'Teil', description: '', role: 'coder', kind: 'code', dependsOn: [], priority: 1, acceptance: null, files: [] }] }));
-    const approval = h.approvals.add({ id: 'apr_int', projectId: p.id, taskId: plan.id });
-    h.checks.queue('build', envError('env:approval:apr_int', 'wartet auf eine Freigabe'));
+    // like CheckService: the install approval is requested while the integration build runs
+    h.checks.queue('build', () => {
+      h.approvals.add({ id: 'apr_int', projectId: p.id, taskId: plan.id });
+      return envError('env:approval:apr_int', 'wartet auf eine Freigabe');
+    });
     h.work.startLoop();
     await waitFor(() => h.core.errors.list().some((e) => e.title === 'Integrationsprüfung konnte nicht laufen'));
     await h.work.idle();
@@ -577,12 +580,10 @@ describe('checks that could not run because of the environment', () => {
     expect(h.tasks.require(plan.id).verification.status).toBe('not_run');
     expect(h.core.errors.list().find((e) => e.title === 'Integrationsprüfung konnte nicht laufen')).toMatchObject({ code: 'APPROVAL_REQUIRED', related: { approvalId: 'apr_int' } });
     // still pending: a re-check does not repeat it
-    console.log('DBG before', JSON.stringify(h.checks.calls), JSON.stringify(h.tasks.require(plan.id).verification));
     h.core.bus.emit('approval.updated', h.approvals.get('apr_int')!);
     await h.work.idle();
-    console.log('DBG after', JSON.stringify(h.checks.calls));
     expect(h.checks.calls.filter((c) => c.taskId === plan.id).map((c) => c.kind)).toEqual(['build']);
-    h.approvals.decide(approval.id, 'approve');
+    h.approvals.decide('apr_int', 'approve');
     h.core.bus.emit('approval.updated', h.approvals.get('apr_int')!);
     await waitFor(() => h.tasks.require(plan.id).verification.status === 'passed');
     await h.work.idle();

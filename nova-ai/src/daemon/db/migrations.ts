@@ -404,7 +404,7 @@ export function migrate(db: Db, beforeMigrate?: (fromVersion: number) => void): 
   if (from > LATEST_SCHEMA_VERSION) {
     throw new NovaError(
       SCHEMA_TOO_NEW,
-      `Die NOVA-Daten stammen von einer neueren NOVA-Version (Datenbankversion ${from}, diese Version kennt nur bis ${LATEST_SCHEMA_VERSION}). Bitte die neuere NOVA-Version wieder installieren – die Daten wurden nicht verändert.`,
+      `Die NOVA-Daten stammen von einer neueren NOVA-Version (Datenbankversion ${from}, diese Version unterstützt höchstens ${LATEST_SCHEMA_VERSION}). Bitte die neuere NOVA-Version wieder installieren – die Daten wurden nicht verändert.`,
       { severity: 'critical', userAction: 'Die neuere NOVA-Version installieren.', projectSafe: true },
     );
   }
