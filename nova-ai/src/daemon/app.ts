@@ -300,7 +300,7 @@ export async function startDaemon(opts: StartDaemonOptions): Promise<DaemonApp> 
         if (pages > 0 && free / pages > 0.2) core.db.exec('VACUUM;');
       });
     };
-    await maintenance();
+    // First run only after the RPC server is up (below): the daily backup and VACUUM must not delay the start.
     const maintenanceTimer = setInterval(() => void maintenance(), DAY_MS);
     maintenanceTimer.unref();
 
@@ -348,6 +348,7 @@ export async function startDaemon(opts: StartDaemonOptions): Promise<DaemonApp> 
     core.bus.emit('daemon.status', status());
     log.info('NOVA-Hintergrunddienst bereit', { endpoint, recovered });
     if (opts.echoLogs === 'startup') core.logs.configure({ echo: false });
+    void maintenance();
 
     async function shutdown(reason: string, fast: boolean): Promise<void> {
       log.info('NOVA-Hintergrunddienst fährt herunter', { reason });

@@ -115,11 +115,13 @@ async function partService() {
   check(existsSync(daemonScript), 'Dienst-Skript liegt entpackt neben app.asar');
   const dataDir = join(workDir, 'service-data');
   let output = '';
+  const t0 = Date.now();
   const child = spawn(exe, [daemonScript, '--data-dir', dataDir, '--foreground'], { env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' }, stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true });
   child.stdout.on('data', (c) => (output += c));
   child.stderr.on('data', (c) => (output += c));
   try {
     const conn = await connect(dataDir, 90_000);
+    console.log(`     Dienst antwortet nach ${((Date.now() - t0) / 1000).toFixed(1)} s`);
     check(conn.endpoint.startsWith('\\\\.\\pipe\\'), `Kanal ist eine Named Pipe (${conn.endpoint})`);
     const status = await rpc(conn, 'daemon.status');
     check(status.platform === 'win32', `Plattform ${status.platform}`);
@@ -150,9 +152,11 @@ async function partService() {
 async function partApp() {
   console.log('--- 2. App mit Dienst-Aufsicht');
   const dataDir = join(workDir, 'app-data');
+  const t0 = Date.now();
   const app = spawn(exe, ['--data-dir', dataDir], { stdio: 'ignore', windowsHide: false });
   try {
     const conn = await connect(dataDir, 120_000);
+    console.log(`     Dienst der App antwortet nach ${((Date.now() - t0) / 1000).toFixed(1)} s`);
     const status = await rpc(conn, 'daemon.status');
     check(status.state === 'running' || status.state === 'paused', `App hat ihren Dienst gestartet (Zustand ${status.state}, PID ${status.pid})`);
     const stopper = spawn(exe, ['--stop-daemon', '--data-dir', dataDir], { stdio: 'ignore' });

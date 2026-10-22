@@ -101,6 +101,7 @@ export interface DaemonSupervisorOptions {
   platform?: NodeJS.Platform;
   /** POSIX shell used to close inherited descriptors before exec (default /bin/bash if present; null = spawn directly). */
   posixShell?: string | null;
+  /** How long a starting daemon may take to answer (cold Windows start: Defender scan, first PowerShell queries). */
   healthTimeoutMs?: number;
   pollIntervalMs?: number;
   probeTimeoutMs?: number;
@@ -195,7 +196,7 @@ export class DaemonSupervisor {
       daemonEntry: opts.daemonEntry,
       execPath: opts.execPath,
       appVersion: opts.appVersion,
-      healthTimeoutMs: opts.healthTimeoutMs ?? 20_000,
+      healthTimeoutMs: opts.healthTimeoutMs ?? 60_000,
       pollIntervalMs: opts.pollIntervalMs ?? 250,
       probeTimeoutMs: opts.probeTimeoutMs ?? 2_000,
       vanishTimeoutMs: opts.vanishTimeoutMs ?? 20_000,
