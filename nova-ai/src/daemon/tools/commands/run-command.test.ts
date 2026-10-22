@@ -236,11 +236,12 @@ describe('run_command', () => {
     expect(ok.content).toContain('Exit-Code: 0');
   });
 
-  it('hints at a real missing program on this platform (exit code 127 /bin/sh, 9009 cmd.exe)', async () => {
+  it('hints at a real missing program on this platform (exit code 127 /bin/sh, cmd.exe message)', async () => {
     const st = setup();
     const res = await createRunCommandTool(st.h.s).execute({ command: 'nova-gibt-es-nicht-4711 --version' }, st.h.ctx());
     expect(res).toMatchObject({ status: 'error', code: 'COMMAND_FAILED' });
-    expect(res.content).toContain(process.platform === 'win32' ? 'Exit-Code: 9009' : 'Exit-Code: 127');
+    // cmd.exe: 9009 alone, 1 inside the "chcp 65001>nul & …" wrapper – the hint comes from its error message then
+    expect(res.content).toMatch(process.platform === 'win32' ? /Exit-Code: (1|9009) / : /Exit-Code: 127 /);
     expect(res.content).toContain('Das Programm wurde nicht gefunden');
   });
 

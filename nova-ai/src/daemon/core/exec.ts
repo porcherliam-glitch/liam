@@ -144,3 +144,20 @@ export function quickVersion(file: string, args: string[], timeoutMs = 5000): Pr
     });
   });
 }
+
+/** cmd.exe's own "unknown command" messages (English, older and current German) with the program name. */
+const WINDOWS_NOT_FOUND =
+  /'([^'\r\n]+)' is not recognized as an internal or external command|'([^'\r\n]+)' wird nicht als interner oder externer Befehl|"([^"\r\n]+)" ist entweder falsch geschrieben oder\s+konnte nicht gefunden werden/i;
+
+/**
+ * Did a command line fail because a program does not exist? POSIX shells exit with 127. cmd.exe exits with 9009 –
+ * but not inside compound lines ("chcp 65001>nul & …", npm scripts, && chains), where it returns 1; there its own
+ * error message is the reliable signal. `program` is the missing name when the message names it.
+ */
+export function commandNotFound(exitCode: number | null, output: string, platform: NodeJS.Platform): { program: string | null } | null {
+  if (exitCode === null || exitCode === 0) return null;
+  if (platform !== 'win32') return exitCode === 127 ? { program: null } : null;
+  const m = WINDOWS_NOT_FOUND.exec(output);
+  if (m) return { program: m[1] ?? m[2] ?? m[3] ?? null };
+  return exitCode === 9009 ? { program: null } : null;
+}

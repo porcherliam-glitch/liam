@@ -557,7 +557,8 @@ export function createGitService(s: Services, options: GitServiceOptions = {}): 
       title: 'Projekt-Import von einem nicht freigegebenen Server',
       action: `NOVA möchte ein Git-Repository von „${host}“ herunterladen: ${redactString(url)}`,
       consequences: 'NOVA verbindet sich mit diesem Server und lädt den Projektinhalt herunter. Programme oder Skripte aus dem Repository werden dabei nicht ausgeführt.',
-      subject: host,
+      // own subject: an "always" rule for importing from a server must not also cover agent commands to that host
+      subject: `clone:${host}`,
       details: { purpose: 'clone', host },
     });
     if (check.state === 'approved') {

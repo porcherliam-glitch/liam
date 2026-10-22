@@ -9,9 +9,11 @@
 // writes outside the project, network access, nested interpreters and the "taint" rule (running a file NOVA wrote in
 // this task). Honest limit: cmd.exe/PowerShell expansion makes complete detection impossible – the block list can
 // never be complete, which is why auto-allow is restricted to metacharacter-free lines.
-import { isAbsolute as posixIsAbsolute } from 'node:path/posix';
+import { posix, win32 } from 'node:path';
 import type { ApprovalKind, ProjectConfig } from '@shared/schemas';
 import type { CommandDecision, CommandPolicy, Services } from '../../contracts';
+
+type CommandPolicyInput = Parameters<CommandPolicy['evaluate']>[0];
 import { hostOf, isHostAllowed } from '../../core/net';
 
 export interface CommandPolicyOptions {
@@ -20,6 +22,8 @@ export interface CommandPolicyOptions {
 
 const CONTROL_CHARS = /[\u0000-\u0008\u000A-\u001F\u007F]/;
 const METACHARS = /[&|<>^%!();$`]/;
+/** Bidi overrides/isolates, zero-width characters, word joiner, BOM, soft hyphen. */
+const INVISIBLE_CHARS = /[\u00AD\u061C\u180E\u200B-\u200F\u202A-\u202E\u2060-\u2064\u2066-\u206F\uFEFF]/;
 
 /** Approval kinds ordered by severity: the most severe classification wins. */
 const KIND_ORDER: ApprovalKind[] = ['admin', 'security_config', 'system_change', 'install', 'publish', 'delete', 'outside_project', 'network', 'command'];
@@ -42,7 +46,6 @@ const NESTED_INTERPRETERS = new Set([
   'cscript', 'wscript', 'certutil', 'bitsadmin', 'iex', 'invoke-expression', 'start-process', 'saps', 'eval', 'exec', 'xargs', 'env',
 ]);
 const SCRIPT_RUNNERS = new Set(['node', 'nodejs', 'python', 'python3', 'py', 'deno', 'bun', 'tsx', 'ts-node', 'bash', 'sh', 'zsh', 'powershell', 'pwsh', 'ruby', 'perl', 'php']);
-const EXECUTABLE_EXT = /\.(bat|cmd|ps1|exe|vbs|js|mjs|cjs|sh|com|psm1)$/i;
 const WRITE_VERBS = new Set([
   'copy', 'xcopy', 'robocopy', 'move', 'mv', 'cp', 'copy-item', 'cpi', 'move-item', 'mi', 'new-item', 'ni', 'set-content', 'sc',
   'add-content', 'ac', 'out-file', 'mkdir', 'md', 'tee', 'tee-object', 'rename-item', 'ren', 'rename', 'install', 'ln', 'mklink',
@@ -116,18 +119,34 @@ export function createCommandPolicy(s: Services, opts: CommandPolicyOptions = {}
 
   function looksAbsolute(token: string, platform: NodeJS.Platform): boolean {
     if (platform === 'win32') return /^[a-z]:[\\/]/i.test(token) || /^[\\/]{2}/.test(token) || /^%(windir|systemroot|programfiles|programdata|appdata|localappdata|userprofile)%/i.test(token);
-    return posixIsAbsolute(token) || token.startsWith('~');
+    return posix.isAbsolute(token) || token.startsWith('~');
+  }
+
+  /**
+   * True when a path argument (absolute, drive-relative "\x" or relative with "..") points outside the project root.
+   * Resolved lexically against the root with the platform's path rules ("C:\p\..\x" and "..\x" both escape).
+   */
+  function escapesProject(token: string, root: string, platform: NodeJS.Platform): boolean {
+    const v = token.replace(/^["']|["']$/g, '');
+    if (!v) return false;
+    if (platform === 'win32') {
+      if (/^[\\/]{2}/.test(v) || /^%[^%]+%/.test(v)) return true; // UNC/device paths, %VAR%\…
+    } else if (v === '~' || v.startsWith('~/')) {
+      return true;
+    }
+    const p = platform === 'win32' ? win32 : posix;
+    const base = p.resolve(root);
+    const rel = p.relative(base, p.resolve(base, v));
+    return rel === '..' || rel.startsWith(`..${p.sep}`) || p.isAbsolute(rel);
   }
 
   function insideProject(token: string, root: string, platform: NodeJS.Platform): boolean {
-    const norm = (p: string) => {
-      let x = p.replace(/[\\/]+/g, '/').replace(/\/$/, '');
-      if (platform === 'win32') x = x.toLowerCase();
-      return x;
-    };
-    const t = norm(token.replace(/^["']|["']$/g, ''));
-    const r = norm(root);
-    return t === r || t.startsWith(r + '/');
+    return !escapesProject(token, root, platform);
+  }
+
+  /** cmd.exe switches like /s, /q, /y:… are options, not paths. */
+  function isWindowsSwitch(token: string, platform: NodeJS.Platform): boolean {
+    return platform === 'win32' && /^\/[a-z?]{1,4}(:.*)?$/i.test(token);
   }
 
   function allowlist(config: ProjectConfig): string[] {
@@ -214,8 +233,8 @@ export function createCommandPolicy(s: Services, opts: CommandPolicyOptions = {}
       }
       const recursive = tokens.some((t) => t === '-recurse' || t === '-r' || t === '--recursive' || /^-[a-z]*r[a-z]*$/.test(t) || /^[/-]s$/.test(t));
       if (['remove-item', 'ri', 'rm', 'del', 'erase', 'rmdir', 'rd', 'rimraf'].includes(first) && recursive) {
-        const targets = tokens.slice(1).filter((t) => !t.startsWith('-'));
-        if (targets.some((t) => looksAbsolute(t, platform) && !insideProject(t, projectRoot, platform))) return 'Rekursives Löschen außerhalb des Projektordners ist gesperrt.';
+        const targets = tokens.slice(1).filter((t) => !t.startsWith('-') && !isWindowsSwitch(t, platform));
+        if (targets.some((t) => escapesProject(t, projectRoot, platform))) return 'Rekursives Löschen außerhalb des Projektordners ist gesperrt.';
       }
     }
     if (/(c:[\\/]windows|%windir%|%systemroot%|\$env:windir|\$env:systemroot)/i.test(lower)) {
@@ -275,8 +294,8 @@ export function createCommandPolicy(s: Services, opts: CommandPolicyOptions = {}
       }
       // outside project (write targets)
       if (WRITE_VERBS.has(first)) {
-        const targets = tokens.slice(1).filter((t) => !t.startsWith('-') && !(platform === 'win32' && /^\/[a-z]{1,4}$/.test(t)));
-        if (targets.some((t) => looksAbsolute(t, platform) && !insideProject(t, input.projectRoot, platform))) add('outside_project', 'Der Befehl schreibt in einen Ordner außerhalb des Projekts.');
+        const targets = tokens.slice(1).filter((t) => !t.startsWith('-') && !isWindowsSwitch(t, platform));
+        if (targets.some((t) => escapesProject(t, input.projectRoot, platform))) add('outside_project', 'Der Befehl schreibt in einen Ordner außerhalb des Projekts.');
       }
       // network
       const npmNet = ['npm', 'pnpm', 'yarn', 'bun'].includes(first) && (['install', 'i', 'ci', 'add', 'update', 'upgrade', 'up', 'dlx', 'create', 'exec', 'x'].includes(sub) || (first === 'yarn' && tokens.length === 1));
@@ -292,7 +311,7 @@ export function createCommandPolicy(s: Services, opts: CommandPolicyOptions = {}
     // redirection to absolute paths outside the project
     for (const m of line.matchAll(/(?:^|[^>])>{1,2}\s*("?)([^\s"&|]+)\1/g)) {
       const target = m[2];
-      if (looksAbsolute(target, platform) && !insideProject(target, input.projectRoot, platform) && !/^(nul|\/dev\/null)$/i.test(target)) {
+      if (!/^(nul|\/dev\/null)$/i.test(target) && escapesProject(target, input.projectRoot, platform)) {
         add('outside_project', 'Die Ausgabe würde in eine Datei außerhalb des Projekts geschrieben.');
       }
     }
@@ -301,7 +320,122 @@ export function createCommandPolicy(s: Services, opts: CommandPolicyOptions = {}
 
   function insideOnly(tokens: string[], root: string, platform: NodeJS.Platform): boolean {
     const targets = tokens.slice(1).filter((t) => !t.startsWith('-') && !/^[0-7]{3,4}$/.test(t) && !/^[ugoa]*[+-=][rwxX]+$/.test(t));
-    return targets.every((t) => !looksAbsolute(t, platform) || insideProject(t, root, platform));
+    return targets.every((t) => insideProject(t, root, platform));
+  }
+
+  /** Extensions a runner or the Windows shell adds implicitly ("node build" → build.js, "tools\\run" → run.cmd). */
+  const IMPLICIT_EXT = /\.(js|mjs|cjs|ts|mts|cts|py|pyw|sh|bash|ps1|psm1|cmd|bat|exe|com|vbs|rb|pl|php)$/i;
+
+  function runsTaintedFile(input: CommandPolicyInput, segs: Segment[]): boolean {
+    const keys = taintedKeys(input.projectId, input.taskId);
+    if (keys.size === 0) return false;
+    // stems: tainted files without extension, plus package folders whose index/__main__ was written
+    const stems = new Set<string>();
+    for (const k of keys) {
+      if (!IMPLICIT_EXT.test(k)) continue;
+      stems.add(k.replace(IMPLICIT_EXT, ''));
+      const dir = /^(.*)\/(?:index\.[cm]?[jt]s|__main__\.py)$/.exec(k);
+      if (dir) stems.add(dir[1]);
+    }
+    const hit = (token: string): boolean => {
+      const key = tokenKey(input.projectRoot, token)?.toLowerCase();
+      return !!key && (keys.has(key) || stems.has(key));
+    };
+    for (const seg of segs) {
+      const t = seg.tokens;
+      const firstIsRunner = SCRIPT_RUNNERS.has(seg.first);
+      for (let i = 0; i < t.length; i++) {
+        const tok = t[i];
+        if (i === 0) {
+          // direct execution of a file in the project ("build.cmd", "./run.sh", "tools\\run"; cmd.exe also searches
+          // the current folder first, so "npm" would run a project-local npm.cmd)
+          if (hit(tok)) return true;
+          continue;
+        }
+        if (!firstIsRunner) continue;
+        // "python -m pkg.mod" → pkg/mod.py or pkg/mod/__main__.py
+        if (t[i - 1] === '-m' && /^python|^py$/.test(seg.first) && hit(tok.replace(/\./g, '/'))) return true;
+        if (hit(tok)) return true;
+      }
+    }
+    return false;
+  }
+
+  /** Splits a metacharacter-free line into arguments, honouring quotes (paths with spaces stay one argument). */
+  function argTokens(line: string): string[] {
+    const out: string[] = [];
+    let cur = '';
+    let quote: string | null = null;
+    let quoted = false;
+    for (const ch of line) {
+      if (quote) {
+        if (ch === quote) quote = null;
+        else cur += ch;
+        continue;
+      }
+      if (ch === '"' || ch === "'") {
+        quote = ch;
+        quoted = true;
+        continue;
+      }
+      if (ch === ' ') {
+        if (cur || quoted) out.push(cur);
+        cur = '';
+        quoted = false;
+        continue;
+      }
+      cur += ch;
+    }
+    if (cur || quoted) out.push(cur);
+    return out;
+  }
+
+  /**
+   * Arguments of an otherwise auto-allowed line that point outside the project or at protected files (.env …), and
+   * options of allow-listed tools that read or write arbitrary files ("git diff --no-index", "--output=…").
+   */
+  function argumentIssue(line: string, root: string, platform: NodeJS.Platform): { kind: ApprovalKind; reason: string; consequences: string } | null {
+    const toks = argTokens(line);
+    if (basenameNoExt((toks[0] ?? '').toLowerCase()) === 'git' && toks.some((t) => /^--(no-index|output|ext-diff)(=|$)/i.test(t))) {
+      return {
+        kind: 'command',
+        reason: '„git“ mit --no-index, --output oder --ext-diff kann Dateien außerhalb der Versionsverwaltung lesen oder schreiben.',
+        consequences: CONSEQUENCES.command,
+      };
+    }
+    for (const tok of toks.slice(1)) {
+      if (isWindowsSwitch(tok, platform)) continue;
+      let value = tok;
+      if (tok.startsWith('-')) {
+        const eq = tok.indexOf('=');
+        if (eq === -1) continue;
+        value = tok.slice(eq + 1);
+      }
+      if (!value || /^[a-z][a-z0-9+.-]*:\/\//i.test(value)) continue; // URLs are handled by the host rules
+      if (escapesProject(value, root, platform)) {
+        return {
+          kind: 'outside_project',
+          reason: `Der Befehl verweist auf „${value}“ außerhalb des Projektordners.`,
+          consequences: 'Der Befehl kann Dateien außerhalb des Projekts lesen oder dorthin schreiben.',
+        };
+      }
+      if (isSensitiveArg(root, value)) {
+        return {
+          kind: 'command',
+          reason: `Der Befehl greift auf die geschützte Datei „${value}“ zu (zum Beispiel Zugangsdaten).`,
+          consequences: 'Der Inhalt der Datei kann in der Ausgabe erscheinen und an das KI-Modell gehen.',
+        };
+      }
+    }
+    return null;
+  }
+
+  function isSensitiveArg(root: string, value: string): boolean {
+    try {
+      return s.pathGuard.isSensitive(s.pathGuard.resolve(root, value).rel);
+    } catch {
+      return false; // not a valid project path (reserved name, invalid characters …)
+    }
   }
 
   return {
@@ -310,6 +444,9 @@ export function createCommandPolicy(s: Services, opts: CommandPolicyOptions = {}
       const raw = input.command ?? '';
       if (!raw.trim()) return { action: 'block', reason: 'Leerer Befehl.' };
       if (CONTROL_CHARS.test(raw)) return { action: 'block', reason: 'Steuerzeichen im Befehl (zum Beispiel Zeilenumbrüche) sind nicht erlaubt.' };
+      // Text-direction overrides and zero-width characters can make an approval card show something else than what
+      // runs (e.g. "bericht<U+202E>fdp.bat" looks like "berichttab.pdf"). No real command needs them.
+      if (INVISIBLE_CHARS.test(raw)) return { action: 'block', reason: 'Der Befehl enthält unsichtbare Unicode-Zeichen (Schreibrichtungs- oder Nullbreitenzeichen), die den angezeigten Text verfälschen können.' };
       const line = collapse(raw.replace(/\t/g, ' '));
       const subject = line;
       const segs = segmentsOf(line);
@@ -319,47 +456,42 @@ export function createCommandPolicy(s: Services, opts: CommandPolicyOptions = {}
 
       const found = classify(line, segs, input, platform);
 
-      // URL hosts that are not allowed → network approval with the host as subject.
+      // URL hosts that are not allowed (checked below, after the other rules).
       const ctx = hostContext();
       const badHost = extractHosts(line).find((h) => !isHostAllowed(`https://${h}/`, ctx));
 
-      // taint rule: running a file NOVA wrote in this task
-      let taint = false;
-      const keys = taintedKeys(input.projectId, input.taskId);
-      if (keys.size > 0) {
-        for (const seg of segs) {
-          const rawTokens = seg.tokens;
-          const firstIsRunner = SCRIPT_RUNNERS.has(seg.first);
-          for (let i = 0; i < rawTokens.length; i++) {
-            const tok = rawTokens[i];
-            const directExec = i === 0 && EXECUTABLE_EXT.test(tok);
-            if (!(firstIsRunner && i > 0) && !directExec) continue;
-            const key = tokenKey(input.projectRoot, tok);
-            if (key && keys.has(key.toLowerCase())) taint = true;
-          }
-        }
-      }
+      // taint rule: running a file NOVA wrote in this task (also without extension: "node build" → build.js)
+      const taint = runsTaintedFile(input, segs);
 
+      // classes that outrank network and the generic 'command' class
       for (const kind of KIND_ORDER) {
-        if (kind === 'network' && badHost && !found.has('network')) {
-          // a disallowed host outranks only the generic 'command' class
-          return { action: 'approve', kind: 'network', reason: `Verbindung zu „${badHost}“ ist nicht freigegeben.`, consequences: CONSEQUENCES.network, subject: badHost };
-        }
+        if (kind === 'network' || kind === 'command') continue;
         const reason = found.get(kind);
-        if (!reason) continue;
-        if (kind === 'command') break; // handled below together with taint/unknown
-        return { action: 'approve', kind, reason, consequences: CONSEQUENCES[kind], subject };
+        if (reason) return { action: 'approve', kind, reason, consequences: CONSEQUENCES[kind], subject };
       }
-
-      if (taint) return { action: 'approve', kind: 'command', reason: 'Der Befehl führt eine Datei aus, die NOVA in dieser Aufgabe geschrieben hat.', consequences: CONSEQUENCES.taint, subject };
-      if (found.has('command')) return { action: 'approve', kind: 'command', reason: found.get('command')!, consequences: CONSEQUENCES.command, subject };
+      if (found.has('network')) return { action: 'approve', kind: 'network', reason: found.get('network')!, consequences: CONSEQUENCES.network, subject };
 
       const metaFree = !METACHARS.test(line) && balancedQuotes(line);
-      if (metaFree && matchesAllowlist(line, allowlist(input.config), platform)) return { action: 'allow', reason: 'Befehl steht auf der Liste erlaubter Befehle.' };
-
+      const allowlisted = metaFree && matchesAllowlist(line, allowlist(input.config), platform);
       const approveUnknown = s.core.settings.section('permissions').approveUnknownCommands;
-      if (!metaFree) return { action: 'approve', kind: 'command', reason: 'Der Befehl enthält Verkettungen, Umleitungen oder Variablen und wird deshalb nie automatisch erlaubt.', consequences: CONSEQUENCES.command, subject };
-      if (approveUnknown) return { action: 'approve', kind: 'command', reason: 'Dieser Befehl steht nicht auf der Liste erlaubter Befehle.', consequences: CONSEQUENCES.command, subject };
+
+      // Anything that keeps the line from being auto-allowed, in priority order.
+      let other: { kind: ApprovalKind; reason: string; consequences: string } | null = null;
+      if (taint) other = { kind: 'command', reason: 'Der Befehl führt eine Datei aus, die NOVA in dieser Aufgabe geschrieben hat.', consequences: CONSEQUENCES.taint };
+      else if (found.has('command')) other = { kind: 'command', reason: found.get('command')!, consequences: CONSEQUENCES.command };
+      else if (!metaFree) other = { kind: 'command', reason: 'Der Befehl enthält Verkettungen, Umleitungen oder Variablen und wird deshalb nie automatisch erlaubt.', consequences: CONSEQUENCES.command };
+      else other = argumentIssue(line, input.projectRoot, platform);
+      if (!other && !allowlisted && approveUnknown) other = { kind: 'command', reason: 'Dieser Befehl steht nicht auf der Liste erlaubter Befehle.', consequences: CONSEQUENCES.command };
+
+      if (badHost) {
+        // Host-scoped approval (an "always" rule then covers connections to this host) ONLY when the line itself would
+        // run without asking. Otherwise the approval names the whole line, so a rule for a host can never wave through
+        // a different, unknown, chained or self-written command later.
+        if (!other) return { action: 'approve', kind: 'network', reason: `Verbindung zu „${badHost}“ ist nicht freigegeben.`, consequences: CONSEQUENCES.network, subject: badHost };
+        return { action: 'approve', kind: 'network', reason: `Verbindung zu „${badHost}“ ist nicht freigegeben. Außerdem: ${other.reason}`, consequences: `${CONSEQUENCES.network} ${other.consequences}`, subject };
+      }
+      if (other) return { action: 'approve', ...other, subject };
+      if (allowlisted) return { action: 'allow', reason: 'Befehl steht auf der Liste erlaubter Befehle.' };
       return { action: 'allow', reason: 'Unbekannte einfache Befehle sind laut Einstellungen erlaubt.' };
     },
   };

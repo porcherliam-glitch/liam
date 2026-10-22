@@ -32,9 +32,10 @@ const PATTERNS: Array<{ re: RegExp; replace: string }> = [
   { re: /eyJ[\w-]{10,}\.eyJ[\w-]{10,}\.[\w-]{10,}/g, replace: REDACTED }, // JWT
   { re: /-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/g, replace: REDACTED },
   { re: /(:\/\/[^/\s:@]+:)[^@\s/]+(?=@)/g, replace: `$1${REDACTED}` }, // URL userinfo password
-  // KEY=value / "key": "value" / Authorization: Bearer x – also DB_PASSWORD=, STRIPE_SECRET=, MY_API_KEY=, AUTH_TOKEN=
+  // KEY=value / "key": "value" / Authorization: Bearer x – also DB_PASSWORD=, DB_PASS=, STRIPE_SECRET=, MY_API_KEY=,
+  // AUTH_TOKEN=, PRIVATE_KEY= ("pass" only as a whole name part, so "bypass=" stays readable)
   {
-    re: /((?:[A-Za-z0-9]{1,40}[_-]){0,6}(?:api[_-]?key|apikey|access[_-]?key|secret(?:[_-]?key)?|token|password|passwd|pwd|credentials?|auth(?:orization)?)(?:[_-][A-Za-z0-9]{1,40}){0,6}["']?\s*[:=]\s*["']?)(?:(?:Bearer|Basic)\s+)?[^\s"',;]{6,}/gi,
+    re: /((?:[A-Za-z0-9]{1,40}[_-]){0,6}(?:api[_-]?key|apikey|access[_-]?key|private[_-]?key|signing[_-]?key|secret(?:[_-]?key)?|token|password|passwd|(?<![A-Za-z0-9])pass(?:phrase|wd)?|pwd|credentials?|auth(?:orization)?)(?:[_-][A-Za-z0-9]{1,40}){0,6}["']?\s*[:=]\s*["']?)(?:(?:Bearer|Basic)\s+)?[^\s"',;]{6,}/gi,
     replace: `$1${REDACTED}`,
   },
 ];

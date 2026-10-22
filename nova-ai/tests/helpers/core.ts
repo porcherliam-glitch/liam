@@ -23,7 +23,8 @@ export function createTestCore(): TestCore {
       } catch {
         /* already closed */
       }
-      rmSync(dir, { recursive: true, force: true });
+      // Windows: a just-exited child process (or the virus scanner) can hold the folder for a moment → EBUSY/EPERM
+      rmSync(dir, { recursive: true, force: true, maxRetries: 20, retryDelay: 100 });
     },
   };
 }

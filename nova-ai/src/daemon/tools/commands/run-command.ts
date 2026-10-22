@@ -18,6 +18,7 @@ import { z } from 'zod';
 import type { ApprovalKind, ChangeRecord } from '@shared/schemas';
 import type { AgentTool, CommandDecision, CommandResult, FileStateMap, Services } from '../../contracts';
 import { errorMessage } from '../../core/errors';
+import { commandNotFound } from '../../core/exec';
 import { redactString } from '../../core/redact';
 import { stripAnsi } from '../../processes/output-tail';
 import { abortedResult, approvalGate, formatDuration, oneLine, tailChars, toolError } from './common';
@@ -74,13 +75,9 @@ function describeChanges(changes: ChangeRecord[]): string[] {
 // cmd.exe's "unknown command" message (English, current and older German Windows). Exit code 9009 only reaches us when
 // the unknown program is the last command of the line; inside npm scripts, `call`, `&&` chains or batch files the
 // exit code is usually 1, so the message itself is recognised too.
-const WINDOWS_NOT_FOUND =
-  /is not recognized as an internal or external command|wird nicht als interner oder externer Befehl|ist entweder falsch geschrieben oder\s+konnte nicht gefunden werden/i;
-
 /** German hint when the command (or a program it called) does not exist; null otherwise. */
 export function notFoundHint(exitCode: number | null, output: string, platform: NodeJS.Platform): string | null {
-  const missing = platform === 'win32' ? exitCode === 9009 || (exitCode !== 0 && WINDOWS_NOT_FOUND.test(output)) : exitCode === 127;
-  if (!missing) return null;
+  if (!commandNotFound(exitCode, output, platform)) return null;
   return 'Hinweis: Das Programm wurde nicht gefunden. Ist es installiert und über den PATH erreichbar? Gegebenenfalls einen anderen Befehl verwenden oder den Blocker melden.';
 }
 

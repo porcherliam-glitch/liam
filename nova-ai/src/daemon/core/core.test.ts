@@ -41,6 +41,10 @@ describe('core', () => {
     registerSecret('my-super-secret-value');
     expect(redactString('key=my-super-secret-value end')).not.toContain('my-super-secret-value');
     expect(redactString('Authorization: Bearer abcdefghijklmnop')).toContain('[GEHEIM]');
+    for (const line of ['DB_PASS=hunter2hunter2', 'SMTP_PASS: "mail-geheim-1"', 'PRIVATE_KEY=abcdef123456', 'signing_key=zzzzzzzzzz', 'MY_PASSPHRASE=lange-phrase']) {
+      expect(redactString(line)).toContain('[GEHEIM]');
+    }
+    expect(redactString('bypass=normaler-wert')).toBe('bypass=normaler-wert');
     expect(redactString('sk-ant-api03-abcdefghijklmnopqrstuvwxyz')).toBe('[GEHEIM]');
     expect(redact({ apiKey: 'whatever123', nested: { text: 'ghp_abcdefghijklmnopqrstuvwxyz0123' } })).toEqual({ apiKey: '[GEHEIM]', nested: { text: '[GEHEIM]' } });
     expect(redactString('DB_PASSWORD=hunter2hunter')).toBe('DB_PASSWORD=[GEHEIM]');

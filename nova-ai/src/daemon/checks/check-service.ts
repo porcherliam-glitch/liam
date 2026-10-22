@@ -24,6 +24,7 @@ import { isAbsolute, join } from 'node:path';
 import type { CheckKind, CheckRun, CheckStatus, ProcessKind, Project } from '@shared/schemas';
 import type { CheckService, Services } from '../contracts';
 import { NovaError, conflict, errorMessage, isAbortError, notFound } from '../core/errors';
+import { commandNotFound } from '../core/exec';
 import { newId } from '../core/ids';
 import { isLocalEndpoint } from '../core/net';
 import { redactString } from '../core/redact';
@@ -555,6 +556,7 @@ export function createCheckService(s: Services, opts: CheckServiceOptions = {}):
       }
 
       const code = result.exitCode;
+      const missing = commandNotFound(code, result.output, platform);
       let status: CheckStatus;
       let message: string | null = null;
       if (result.cancelled || signal.aborted) {
@@ -563,9 +565,10 @@ export function createCheckService(s: Services, opts: CheckServiceOptions = {}):
       } else if (result.timedOut) {
         status = 'failed';
         message = `Die Prüfung hat das Zeitlimit von ${Math.round(timeoutMs / 60_000)} Minuten überschritten und wurde beendet.`;
-      } else if ((platform === 'win32' && code === 9009) || (platform !== 'win32' && code === 127)) {
+      } else if (missing) {
+        // a missing program means the check could not run at all – never "tests failed"
         status = 'error';
-        message = `Der Befehl „${firstToken(command)}“ wurde nicht gefunden. Ist das benötigte Werkzeug installiert? (Einstellungen → Werkzeuge)`;
+        message = `Der Befehl „${missing.program ?? firstToken(command)}“ wurde nicht gefunden. Ist das benötigte Werkzeug installiert? (Einstellungen → Werkzeuge)`;
       } else if (unity && run.kind === 'test' && !unityResults) {
         status = parsed.failures.length > 0 ? 'failed' : 'error';
         message =

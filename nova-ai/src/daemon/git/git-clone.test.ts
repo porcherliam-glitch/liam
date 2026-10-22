@@ -102,9 +102,9 @@ describe('clone – validation and host policy (no network)', () => {
       code: 'APPROVAL_REQUIRED',
       details: { approvalId: expect.any(String), host: 'code.example.invalid' },
     });
-    expect(f.approvals.requests[0]).toMatchObject({ kind: 'network', subject: 'code.example.invalid', projectId: null });
+    expect(f.approvals.requests[0]).toMatchObject({ kind: 'network', subject: 'clone:code.example.invalid', projectId: null });
     await expect(f.git.clone('git@other.example.invalid:team/app.git', join(f.dir, 't2'))).rejects.toMatchObject({ code: 'APPROVAL_REQUIRED' });
-    expect(f.approvals.requests[1].subject).toBe('other.example.invalid');
+    expect(f.approvals.requests[1].subject).toBe('clone:other.example.invalid');
     expect(existsSync(join(f.dir, 't1'))).toBe(false);
   });
 
@@ -120,7 +120,7 @@ describe('clone – validation and host policy (no network)', () => {
     f.approvals.answer = 'rule';
     const target = join(f.dir, 't');
     await expect(f.git.clone('https://[::ffff:7f00:1]:1/x.git', target)).rejects.toMatchObject({ code: 'GIT_ERROR' });
-    expect(f.approvals.requests[0].subject).toBe('::ffff:7f00:1');
+    expect(f.approvals.requests[0].subject).toBe('clone:::ffff:7f00:1');
     expect(existsSync(target)).toBe(false);
   });
 

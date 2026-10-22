@@ -144,6 +144,16 @@ describe('CheckService basics', () => {
     expect(r2.status).toBe('error');
     expect(r2.message).toMatch(/„dotnet“ wurde nicht gefunden/);
     t.cleanup();
+    // Real cmd.exe returns 1 (not 9009) inside the "chcp 65001>nul & …" wrapper and inside npm scripts: its own
+    // message decides – and names the missing program, which may differ from the configured command.
+    const winScript = setup({ platform: 'win32', script: [{ match: /./, result: { exitCode: 1, output: "> app@1.0.0 test\r\n> vitest run\r\n\r\n'vitest' is not recognized as an internal or external command,\r\noperable program or batch file." } }] });
+    const p4 = winScript.add(root(), { config: { commands: { test: 'npm test' } } });
+    expect(await winScript.checks.run({ projectId: p4.id, kind: 'test' })).toMatchObject({ status: 'error', message: expect.stringMatching(/„vitest“ wurde nicht gefunden/) });
+    t.cleanup();
+    const winDe = setup({ platform: 'win32', script: [{ match: /./, result: { exitCode: 1, output: 'Der Befehl "pytest" ist entweder falsch geschrieben oder\r\nkonnte nicht gefunden werden.' } }] });
+    const p5 = winDe.add(root(), { config: { commands: { test: 'pytest -q' } } });
+    expect(await winDe.checks.run({ projectId: p5.id, kind: 'test' })).toMatchObject({ status: 'error', message: expect.stringMatching(/„pytest“ wurde nicht gefunden/) });
+    t.cleanup();
     // 127 is an ordinary exit code under cmd.exe (e.g. a program's own error), not "command not found".
     const win127 = setup({ platform: 'win32', script: [{ match: /./, result: { exitCode: 127, output: 'Fehler' } }] });
     const p3 = win127.add(root(), { config: { commands: { build: 'node build.mjs' } } });
