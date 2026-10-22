@@ -1,11 +1,12 @@
 // RPC handlers owned by the integrator: daemon lifecycle, logs, diagnostics and settings.
-import { writeFileSync, statSync } from 'node:fs';
+import { statSync } from 'node:fs';
+import { atomicWriteFile } from './core/fs-atomic';
 import { join } from 'node:path';
 import { cpus, totalmem, freemem, release, type as osType, arch } from 'node:os';
 import type { DaemonStatus } from '@shared/schemas';
 import type { RpcRouter, Services } from './contracts';
 import { redact } from './core/redact';
-import { errorMessage } from './core/errors';
+import { errorMessage, notFound } from './core/errors';
 
 export interface CoreRpcHooks {
   status(): DaemonStatus;
@@ -76,12 +77,33 @@ export function registerCoreRpc(router: RpcRouter, s: Services, hooks: CoreRpcHo
   router.register('daemon.logs', (params) => s.core.logs.tail(params.limit, params.level, params.scope));
 
   router.register('daemon.diagnostics', async () => {
-    const bundle = await buildDiagnostics(s, hooks);
-    const path = join(s.core.paths.diagnostics, `diagnose-${timestamp(s.core.clock.now())}.json`);
-    writeFileSync(path, JSON.stringify(bundle, null, 2), 'utf8');
-    return { path, sizeBytes: statSync(path).size };
+    const { result } = s.core.operations.run({ kind: 'diagnostics', title: 'Diagnose-Paket erstellen', cancellable: false }, async () => {
+      const bundle = await buildDiagnostics(s, hooks);
+      const path = join(s.core.paths.diagnostics, `diagnose-${timestamp(s.core.clock.now())}.json`);
+      atomicWriteFile(path, JSON.stringify(bundle, null, 2));
+      return { path, sizeBytes: statSync(path).size };
+    });
+    return result;
+  });
+
+  router.register('notifications.list', (params) => s.notifications.list({ unreadOnly: params.unreadOnly, limit: params.limit }));
+  router.register('notifications.markRead', (params) => {
+    s.notifications.markRead(params.ids);
+    return { ok: true as const };
+  });
+
+  router.register('operations.list', (params) => s.core.operations.list(params.activeOnly));
+  router.register('operations.get', (params) => {
+    const op = s.core.operations.get(params.id);
+    if (!op) throw notFound('Vorgang', params.id);
+    return op;
+  });
+  router.register('operations.cancel', (params) => {
+    const op = s.core.operations.cancel(params.id);
+    if (!op) throw notFound('Vorgang', params.id);
+    return op;
   });
 
   router.register('settings.get', () => s.core.settings.get());
-  router.register('settings.update', (patch) => s.core.settings.update(patch as Record<string, Record<string, unknown>>));
+  router.register('settings.update', (patch) => s.core.settings.update(patch));
 }

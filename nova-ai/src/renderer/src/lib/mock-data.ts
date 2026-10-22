@@ -17,6 +17,10 @@ import type {
   IntegrationStatus,
   LogEntry,
   MemoryEntry,
+  Notification,
+  Operation,
+  ProjectCommands,
+  TaskNote,
   ModelInfo,
   OllamaPull,
   OllamaRunningModel,
@@ -37,6 +41,7 @@ import type {
 } from '@shared/schemas';
 import type { NovaErrorInfo } from '@shared/errors';
 import { defaultSettings, type Settings } from '@shared/settings';
+import { RPC_METHODS } from '@shared/rpc';
 
 export const MIN = 60_000;
 export const HOUR = 60 * MIN;
@@ -47,8 +52,9 @@ export const MB = 1024 ** 2;
 export const PIXEL = 'prj_pixel';
 export const AETHER = 'prj_aether';
 export const REZEPT = 'prj_rezept';
-export const OLLAMA = 'ollama';
-export const OPENROUTER = 'prov_openrouter';
+/** Built-in local provider row (its baseUrl is the Ollama endpoint). */
+export const OLLAMA = 'ollama-local';
+export const OPENROUTER = 'openrouter';
 
 export interface MockDb {
   now: number;
@@ -78,6 +84,13 @@ export interface MockDb {
   originals: Record<string, Record<string, string>>;
   binaryFiles: Set<string>;
   changes: ChangeRecord[];
+  /** Journal snapshots: hash -> content (files.snapshot). */
+  snapshots: Record<string, string>;
+  /** projectId -> empty folders created via files.mkdir */
+  emptyDirs: Record<string, string[]>;
+  notes: TaskNote[];
+  notifications: Notification[];
+  operations: Operation[];
   checkpoints: Checkpoint[];
   checks: CheckRun[];
   processes: ProcessInfo[];
@@ -103,7 +116,12 @@ export interface MockDb {
 const unverified: Verification = { status: 'not_run', checks: [] };
 const noChecks: Verification = { status: 'unavailable', checks: [] };
 
-function config(partial: Partial<ProjectConfig> & Pick<ProjectConfig, 'commands' | 'preview'>): ProjectConfig {
+/** All command slots null, overridden by `partial`. */
+export function commands(partial: Partial<ProjectCommands> = {}): ProjectCommands {
+  return { install: null, dev: null, build: null, test: null, lint: null, typecheck: null, e2e: null, security: null, package: null, run: null, ...partial };
+}
+
+function config(partial: Partial<Omit<ProjectConfig, 'commands'>> & { commands: Partial<ProjectCommands>; preview: ProjectConfig['preview'] }): ProjectConfig {
   return {
     allowedCommands: [],
     testAfterChange: true,
@@ -111,14 +129,17 @@ function config(partial: Partial<ProjectConfig> & Pick<ProjectConfig, 'commands'
     autoCommit: true,
     monthlyBudgetUsd: null,
     conventions: '',
+    artifactGlobs: [],
+    engineVersion: null,
     ...partial,
+    commands: commands(partial.commands),
   };
 }
 
-/** FNV-1a based pseudo hash (stand-in for sha256 in the demo). */
+/** FNV-1a based pseudo hash, 64 hex chars (stand-in for sha256 in the demo). */
 export function mockHash(text: string): string {
   let out = '';
-  for (let seed = 0; seed < 4; seed++) {
+  for (let seed = 0; seed < 8; seed++) {
     let h = 0x811c9dc5 ^ (seed * 0x9e3779b1);
     for (let i = 0; i < text.length; i++) {
       h ^= text.charCodeAt(i);
@@ -479,13 +500,14 @@ export function createMockDb(now: number = Date.now()): MockDb {
       status: 'active',
       templateId: 'web-game-phaser',
       config: config({
-        commands: { install: 'npm install', dev: 'npm run dev', build: 'npm run build', test: 'npm test', lint: 'npm run lint', run: null },
+        commands: { install: 'npm install', dev: 'npm run dev', build: 'npm run build', test: 'npm test', lint: 'npm run lint', typecheck: 'npx tsc --noEmit', e2e: 'npx playwright test', security: 'npm audit --omit=dev --audit-level=high' },
+        artifactGlobs: ['dist/**'],
         preview: { kind: 'browser-dev-server', entry: null, url: 'http://127.0.0.1:5174/' },
         allowedCommands: ['npx playwright test'],
         monthlyBudgetUsd: 5,
         conventions: 'TypeScript strikt, kein any. Spiellogik in src/game, Szenen in src/scenes. Texte im Spiel auf Deutsch.',
       }),
-      workEnabled: true,
+      workState: 'running',
       gitAvailable: true,
       createdAt: ago(6 * DAY),
       updatedAt: ago(4 * MIN),
@@ -497,7 +519,7 @@ export function createMockDb(now: number = Date.now()): MockDb {
       path: 'C:\\Users\\Demo\\Desktop\\Aetherfall',
       kind: 'unity',
       technologies: ['Unity 6.6', 'C#', 'URP', 'Input System', 'Cinemachine'],
-      status: 'paused',
+      status: 'active',
       templateId: null,
       config: config({
         commands: {
@@ -511,8 +533,10 @@ export function createMockDb(now: number = Date.now()): MockDb {
         preview: { kind: 'engine-external', entry: null, url: null },
         reviewChanges: true,
         conventions: '[SerializeField] private statt öffentlicher Felder. Keine Find*-Aufrufe zur Laufzeit. Nur das neue Input System.',
+        engineVersion: '6000.6.5f1',
+        artifactGlobs: ['Builds/Windows/**'],
       }),
-      workEnabled: false,
+      workState: 'stopped',
       gitAvailable: true,
       createdAt: ago(21 * DAY),
       updatedAt: ago(26 * HOUR),
@@ -527,12 +551,12 @@ export function createMockDb(now: number = Date.now()): MockDb {
       status: 'active',
       templateId: 'node-api',
       config: config({
-        commands: { install: 'npm install', dev: 'npm run dev', build: 'npm run build', test: 'npm test', lint: null, run: 'npm start' },
+        commands: { install: 'npm install', dev: 'npm run dev', build: 'npm run build', test: 'npm test', run: 'npm start', typecheck: 'npx tsc --noEmit' },
         preview: { kind: 'browser-dev-server', entry: null, url: 'http://127.0.0.1:3000/' },
         autoCommit: false,
         conventions: 'Antworten der API immer als JSON. Fehlertexte auf Deutsch.',
       }),
-      workEnabled: true,
+      workState: 'running',
       gitAvailable: false,
       createdAt: ago(3 * DAY),
       updatedAt: ago(2 * MIN),
@@ -547,10 +571,13 @@ export function createMockDb(now: number = Date.now()): MockDb {
     attempts: 0,
     maxAttempts: 3,
     blocker: null,
+    blockerCode: null,
     result: null,
     acceptance: null,
     verification: unverified,
     files: [],
+    plannedFiles: [],
+    startRequested: false,
     model: null,
     source: 'planner',
     createdAt: ago(2 * DAY),
@@ -563,8 +590,8 @@ export function createMockDb(now: number = Date.now()): MockDb {
   const passedTestsBuild: Verification = {
     status: 'passed',
     checks: [
-      { name: 'Tests', status: 'passed', details: '22 von 22 Tests bestanden', checkRunId: 'crun_px_t1' },
-      { name: 'Build', status: 'passed', details: null, checkRunId: 'crun_px_b1' },
+      { name: 'Tests', status: 'passed', details: '22 von 22 Tests bestanden', checkRunId: 'crun_px_t1', findings: [] },
+      { name: 'Build', status: 'passed', details: null, checkRunId: 'crun_px_b1', findings: [] },
     ],
   };
 
@@ -574,7 +601,7 @@ export function createMockDb(now: number = Date.now()): MockDb {
       id: 'task_px1', projectId: PIXEL, title: 'Spielidee in Aufgaben zerlegen', kind: 'plan', role: 'planner', status: 'done',
       description: 'Aus der Projektbeschreibung einen Arbeitsplan mit Aufgaben, Reihenfolge und Abnahmekriterien erstellen.',
       result: '9 Aufgaben angelegt: Grundgerüst, Spielerbewegung, Level 1–3, Gegner, Highscore, Tests und Build.',
-      verification: noChecks, source: 'system', model: 'ollama/qwen2.5-coder:14b', attempts: 1,
+      verification: noChecks, source: 'system', model: 'ollama-local/qwen2.5-coder:14b', attempts: 1,
       createdAt: ago(6 * DAY), updatedAt: ago(6 * DAY - 4 * MIN), startedAt: ago(6 * DAY), finishedAt: ago(6 * DAY - 4 * MIN),
     }),
     task({
@@ -583,21 +610,22 @@ export function createMockDb(now: number = Date.now()): MockDb {
       acceptance: 'npm run dev startet das Spiel, npm test und npm run build laufen fehlerfrei.',
       result: 'Vite-Projekt mit Menü- und Spielszene angelegt. Tests und Build laufen.',
       verification: passedTestsBuild, files: ['package.json', 'index.html', 'vite.config.ts', 'src/main.ts', 'src/scenes/MenuScene.ts'],
-      model: 'ollama/qwen2.5-coder:14b', attempts: 1, priority: 2,
+      model: 'ollama-local/qwen2.5-coder:14b', attempts: 1, priority: 2,
       createdAt: ago(6 * DAY), updatedAt: ago(5 * DAY), startedAt: ago(5 * DAY + 40 * MIN), finishedAt: ago(5 * DAY),
     }),
     task({
       id: 'task_px3', projectId: PIXEL, parentId: 'task_px1', title: 'Spielerbewegung mit Tastatur und Sprung', kind: 'code', role: 'coder', status: 'running',
       description: 'Der Spieler läuft mit den Pfeiltasten und springt mit der Leertaste. Kurze Gnadenzeit nach dem Verlassen einer Kante.',
       acceptance: 'Laufen links/rechts, Sprung nur vom Boden, kein Durchfallen an Kanten. Tests für alle drei Fälle.',
-      dependsOn: ['task_px2'], files: ['src/game/player.ts', 'src/scenes/GameScene.ts'], model: 'ollama/qwen2.5-coder:14b',
+      dependsOn: ['task_px2'], files: ['src/game/player.ts', 'src/scenes/GameScene.ts'], plannedFiles: ['src/game/player.ts', 'src/scenes/GameScene.ts', 'tests/player.test.ts'], model: 'ollama-local/qwen2.5-coder:14b',
       attempts: 1, priority: 2, createdAt: ago(6 * DAY), updatedAt: ago(1 * MIN), startedAt: ago(6 * MIN),
     }),
     task({
       id: 'task_px4', projectId: PIXEL, parentId: 'task_px1', title: 'End-to-End-Test für das Hauptmenü', kind: 'test', role: 'tester', status: 'waiting_approval',
       description: 'Mit Playwright prüfen, dass das Hauptmenü erscheint und die Leertaste das Spiel startet.',
       blocker: 'Wartet auf Freigabe: Playwright-Browser installieren (npx playwright install chromium).',
-      model: 'ollama/llama3.1:8b', attempts: 1, createdAt: ago(6 * DAY), updatedAt: ago(2 * MIN), startedAt: ago(4 * MIN),
+      blockerCode: 'APPROVAL_REQUIRED',
+      model: 'ollama-local/llama3.1:8b', attempts: 1, createdAt: ago(6 * DAY), updatedAt: ago(2 * MIN), startedAt: ago(4 * MIN),
     }),
     task({
       id: 'task_px5', projectId: PIXEL, parentId: 'task_px1', title: 'Level 2: Höhle mit beweglichen Plattformen', kind: 'code', role: 'coder', status: 'queued',
@@ -613,18 +641,27 @@ export function createMockDb(now: number = Date.now()): MockDb {
       id: 'task_px7', projectId: PIXEL, title: 'Kollision an Plattformkanten korrigieren', kind: 'fix', role: 'tester', status: 'failed',
       description: 'Der Spieler fällt an der rechten Kante der mittleren Plattform durch den Boden.',
       blocker: 'Nach 3 Versuchen schlagen weiterhin 2 Tests fehl (tests/player.test.ts).',
+      blockerCode: 'REPEATED_FAILURE',
       verification: {
         status: 'failed',
-        checks: [{ name: 'Tests', status: 'failed', details: '2 von 24 Tests fehlgeschlagen', checkRunId: 'crun_px_t2' }],
+        checks: [{ name: 'Tests', status: 'failed', details: '2 von 24 Tests fehlgeschlagen', checkRunId: 'crun_px_t2', findings: [] }],
       },
-      files: ['src/game/physics.ts'], model: 'ollama/qwen2.5-coder:14b', attempts: 3, priority: 2, source: 'system',
+      files: ['src/game/physics.ts'], model: 'ollama-local/qwen2.5-coder:14b', attempts: 3, priority: 2, source: 'system',
       createdAt: ago(2 * HOUR), updatedAt: ago(25 * MIN), startedAt: ago(70 * MIN), finishedAt: ago(25 * MIN),
     }),
     task({
       id: 'task_px8', projectId: PIXEL, title: 'Code-Prüfung: Grundgerüst', kind: 'review', role: 'reviewer', status: 'done',
       result: 'Keine Probleme gefunden. Hinweis: Asset-Pfade später zentral ablegen.',
-      verification: { status: 'passed', checks: [{ name: 'Review', status: 'passed', details: null, checkRunId: null }] },
-      model: 'ollama/qwen2.5-coder:14b', attempts: 1, source: 'system',
+      verification: { status: 'passed', checks: [
+          {
+            name: 'Review',
+            status: 'passed',
+            details: '1 kleiner Hinweis',
+            checkRunId: null,
+            findings: [{ severity: 'minor', file: 'src/main.ts', line: 9, message: 'Asset-Pfade später zentral ablegen (z. B. in src/assets.ts).' }],
+          },
+        ] },
+      model: 'ollama-local/qwen2.5-coder:14b', attempts: 1, source: 'system',
       createdAt: ago(5 * DAY), updatedAt: ago(5 * DAY - 6 * MIN), startedAt: ago(5 * DAY), finishedAt: ago(5 * DAY - 6 * MIN),
     }),
     task({
@@ -636,7 +673,7 @@ export function createMockDb(now: number = Date.now()): MockDb {
     task({
       id: 'task_rz1', projectId: REZEPT, title: 'API-Plan erstellen', kind: 'plan', role: 'planner', status: 'done',
       result: 'Plan mit 6 Aufgaben erstellt (Rezepte, Suche, Einkaufszettel, Tests, Aufräumen, Doku).',
-      verification: noChecks, source: 'system', model: 'ollama/qwen2.5-coder:14b', attempts: 1,
+      verification: noChecks, source: 'system', model: 'ollama-local/qwen2.5-coder:14b', attempts: 1,
       createdAt: ago(3 * DAY), updatedAt: ago(3 * DAY - 3 * MIN), startedAt: ago(3 * DAY), finishedAt: ago(3 * DAY - 3 * MIN),
     }),
     task({
@@ -645,36 +682,38 @@ export function createMockDb(now: number = Date.now()): MockDb {
       verification: {
         status: 'passed',
         checks: [
-          { name: 'Tests', status: 'passed', details: '41 von 41 Tests bestanden', checkRunId: 'crun_rz_t1' },
-          { name: 'Build', status: 'passed', details: null, checkRunId: 'crun_rz_b1' },
+          { name: 'Tests', status: 'passed', details: '41 von 41 Tests bestanden', checkRunId: 'crun_rz_t1', findings: [] },
+          { name: 'Build', status: 'passed', details: null, checkRunId: 'crun_rz_b1', findings: [] },
         ],
       },
-      files: ['src/server.ts', 'src/routes/recipes.ts'], model: 'ollama/qwen2.5-coder:14b', attempts: 1,
+      files: ['src/server.ts', 'src/routes/recipes.ts'], model: 'ollama-local/qwen2.5-coder:14b', attempts: 1,
       createdAt: ago(3 * DAY), updatedAt: ago(80 * MIN), startedAt: ago(2 * HOUR), finishedAt: ago(80 * MIN),
     }),
     task({
       id: 'task_rz3', projectId: REZEPT, parentId: 'task_rz1', title: 'Tests für die Suche schreiben und ausführen', kind: 'test', role: 'tester', status: 'running',
       description: 'Suche nach Titel, leere Suche und Sonderzeichen testen.',
-      dependsOn: ['task_rz2'], files: ['tests/search.test.ts'], model: 'ollama/llama3.1:8b', attempts: 1,
+      dependsOn: ['task_rz2'], files: ['tests/search.test.ts'], model: 'ollama-local/llama3.1:8b', attempts: 1,
       createdAt: ago(3 * DAY), updatedAt: ago(30_000), startedAt: ago(3 * MIN),
     }),
     task({
       id: 'task_rz4', projectId: REZEPT, parentId: 'task_rz1', title: 'Datenbank-Migration für den Einkaufszettel', kind: 'code', role: 'coder', status: 'blocked',
       description: 'Tabelle shopping_items anlegen und mit Rezepten verknüpfen.',
-      blocker: 'Gleicher Fehler zweimal hintereinander: Die Tabelle „shopping_items“ existiert in der Testdatenbank bereits in einer alten Form. Es wird eine Entscheidung gebraucht, ob die Testdatenbank zurückgesetzt werden darf.',
-      files: ['src/db/migrations/004_shopping.ts'], model: 'ollama/qwen2.5-coder:14b', attempts: 2, priority: 2,
+      blocker: 'Der Agent hat eine Frage: Darf die Testdatenbank zurückgesetzt werden? Die Tabelle „shopping_items“ existiert dort bereits in einer alten Form.',
+      blockerCode: 'NEEDS_INPUT',
+      files: ['src/db/migrations/004_shopping.ts'], model: 'ollama-local/qwen2.5-coder:14b', attempts: 2, priority: 2,
       createdAt: ago(3 * DAY), updatedAt: ago(35 * MIN), startedAt: ago(55 * MIN),
     }),
     task({
       id: 'task_rz5', projectId: REZEPT, parentId: 'task_rz1', title: 'Altes Verzeichnis legacy/ entfernen', kind: 'code', role: 'coder', status: 'waiting_approval',
       description: 'Die alte JavaScript-Version wird nicht mehr gebraucht. Importe prüfen und den Ordner entfernen.',
-      blocker: 'Wartet auf Freigabe: Ordner legacy/ löschen (12 Dateien).', model: 'ollama/qwen2.5-coder:14b', attempts: 1, priority: 0,
+      blocker: 'Wartet auf Freigabe: Ordner legacy/ löschen (12 Dateien).',
+      blockerCode: 'APPROVAL_REQUIRED', model: 'ollama-local/qwen2.5-coder:14b', attempts: 1, priority: 0,
       createdAt: ago(3 * DAY), updatedAt: ago(9 * MIN), startedAt: ago(12 * MIN),
     }),
     task({
       id: 'task_rz6', projectId: REZEPT, title: 'Einkaufszettel als PDF exportieren', kind: 'code', role: 'coder', status: 'paused', source: 'user',
       description: 'Endpunkt GET /api/shopping-list.pdf, der den Einkaufszettel als druckbares PDF liefert.',
-      model: 'ollama/qwen2.5-coder:14b', attempts: 1, createdAt: ago(1 * DAY), updatedAt: ago(40 * MIN), startedAt: ago(50 * MIN),
+      model: 'ollama-local/qwen2.5-coder:14b', attempts: 1, createdAt: ago(1 * DAY), updatedAt: ago(40 * MIN), startedAt: ago(50 * MIN),
     }),
     task({
       id: 'task_rz7', projectId: REZEPT, parentId: 'task_rz1', title: 'README mit Startanleitung schreiben', kind: 'custom', role: 'coder', status: 'queued', priority: 0,
@@ -685,14 +724,15 @@ export function createMockDb(now: number = Date.now()): MockDb {
       id: 'task_ae1', projectId: AETHER, title: 'Portal zwischen Dorf und Gruft verbinden', kind: 'code', role: 'coder', status: 'interrupted', priority: 2, source: 'user',
       description: 'Portal im Dorf Eichental lädt die Gruft über die Welt-ID; Lebenspunkte werden mitgenommen.',
       blocker: 'Der Hintergrunddienst wurde während der Arbeit beendet. Die Aufgabe kann sicher fortgesetzt werden.',
-      files: ['Assets/_Project/Scripts/World/Portal.cs'], model: 'ollama/qwen2.5-coder:14b', attempts: 1,
+      blockerCode: 'INTERRUPTED',
+      files: ['Assets/_Project/Scripts/World/Portal.cs'], model: 'ollama-local/qwen2.5-coder:14b', attempts: 1,
       createdAt: ago(2 * DAY), updatedAt: ago(26 * HOUR), startedAt: ago(27 * HOUR),
     }),
     task({
       id: 'task_ae2', projectId: AETHER, title: 'EditMode-Tests für das Speichersystem', kind: 'test', role: 'tester', status: 'done',
       result: '12 neue Tests für Speichern, Laden und Migration. Alle bestanden.',
-      verification: { status: 'passed', checks: [{ name: 'Tests', status: 'passed', details: '2159 bestanden, 2 übersprungen', checkRunId: 'crun_ae_t1' }] },
-      files: ['Assets/_Project/Scripts/SaveSystem/SaveManager.cs'], model: 'ollama/qwen2.5-coder:14b', attempts: 1,
+      verification: { status: 'passed', checks: [{ name: 'Tests', status: 'passed', details: '2159 bestanden, 2 übersprungen', checkRunId: 'crun_ae_t1', findings: [] }] },
+      files: ['Assets/_Project/Scripts/SaveSystem/SaveManager.cs'], model: 'ollama-local/qwen2.5-coder:14b', attempts: 1,
       createdAt: ago(3 * DAY), updatedAt: ago(28 * HOUR), startedAt: ago(29 * HOUR), finishedAt: ago(28 * HOUR),
     }),
     task({
@@ -718,6 +758,8 @@ export function createMockDb(now: number = Date.now()): MockDb {
     files: [],
     pendingApprovalId: null,
     error: null,
+    errorCode: null,
+    activeMs: Math.max(0, (r.endedAt ?? r.updatedAt ?? r.startedAt) - r.startedAt),
     updatedAt: r.startedAt,
     endedAt: null,
     ...r,
@@ -748,12 +790,13 @@ export function createMockDb(now: number = Date.now()): MockDb {
     run({
       id: 'run_rz4', taskId: 'task_rz4', projectId: REZEPT, role: 'coder', status: 'blocked', startedAt: ago(55 * MIN), updatedAt: ago(35 * MIN), endedAt: ago(35 * MIN),
       stepCount: 21, inputTokens: 26_400, outputTokens: 4_900, lastAction: 'Migration zweimal mit gleichem Fehler abgebrochen',
-      blocker: 'Testdatenbank enthält eine alte Tabelle „shopping_items“.', files: ['src/db/migrations/004_shopping.ts'],
+      blocker: 'Testdatenbank enthält eine alte Tabelle „shopping_items“.', errorCode: 'NEEDS_INPUT', files: ['src/db/migrations/004_shopping.ts'],
     }),
     run({
       id: 'run_px7', taskId: 'task_px7', projectId: PIXEL, role: 'tester', status: 'failed', startedAt: ago(70 * MIN), updatedAt: ago(25 * MIN), endedAt: ago(25 * MIN),
       stepCount: 32, inputTokens: 41_800, outputTokens: 7_300, lastAction: 'Tests ausgeführt: 2 fehlgeschlagen', files: ['src/game/physics.ts'],
       error: 'Gleicher Testfehler nach 3 Versuchen.',
+      errorCode: 'REPEATED_FAILURE',
     }),
     run({
       id: 'run_px2', taskId: 'task_px2', projectId: PIXEL, role: 'coder', status: 'done', startedAt: ago(5 * DAY + 40 * MIN), updatedAt: ago(5 * DAY), endedAt: ago(5 * DAY),
@@ -1160,6 +1203,7 @@ export function createMockDb(now: number = Date.now()): MockDb {
         'Die Aufgabe genauer beschreiben (z. B. „Spieler bleibt an Kanten stehen und rutscht nicht durch“) und dann „Wiederholen“ wählen – oder die Aufgabe einem stärkeren Modell zuweisen.',
       details:
         'FAIL tests/player.test.ts > Spieler > bleibt an der rechten Plattformkante stehen\nAssertionError: expected 412 to be less than or equal to 400\n ❯ tests/player.test.ts:48:31\n\nFAIL tests/player.test.ts > Spieler > Sprung von der Kante\n ❯ tests/player.test.ts:63:5',
+      related: { checkRunId: 'crun_px_t2', runId: 'run_px7', approvalId: null, file: 'tests/player.test.ts', line: 48 },
       createdAt: ago(25 * MIN),
       resolvedAt: null,
     },
@@ -1178,6 +1222,7 @@ export function createMockDb(now: number = Date.now()): MockDb {
       userAction: 'Entscheiden, ob die Testdatenbank „data/test.sqlite“ zurückgesetzt werden darf. Echte Daten sind davon nicht betroffen.',
       details:
         'SqliteError: NOT NULL constraint failed: shopping_items.recipe_id\n    at Migration.up (src/db/migrations/004_shopping.ts:17:9)\n    at runMigrations (src/db/migrate.ts:22:5)',
+      related: { checkRunId: null, runId: 'run_rz4', approvalId: null, file: 'src/db/migrations/004_shopping.ts', line: 17 },
       createdAt: ago(35 * MIN),
       resolvedAt: null,
     },
@@ -1194,6 +1239,7 @@ export function createMockDb(now: number = Date.now()): MockDb {
       autoFixable: true,
       userAction: null,
       details: 'VRAM 14,6 GB von 16,0 GB belegt (Quelle: nvidia-smi)',
+      related: null,
       createdAt: ago(14 * MIN),
       resolvedAt: null,
     },
@@ -1210,6 +1256,7 @@ export function createMockDb(now: number = Date.now()): MockDb {
       autoFixable: true,
       userAction: 'Die Arbeit am Projekt ist ausgeschaltet. Zum Fortsetzen die Arbeit für Aetherfall wieder einschalten.',
       details: 'Recovery: run_ae1 status=interrupted, last step 11, no partial writes detected',
+      related: { checkRunId: null, runId: 'run_ae1', approvalId: null, file: null, line: null },
       createdAt: ago(26 * HOUR),
       resolvedAt: null,
     },
@@ -1226,6 +1273,7 @@ export function createMockDb(now: number = Date.now()): MockDb {
       autoFixable: true,
       userAction: null,
       details: 'connect ECONNREFUSED 127.0.0.1:11434',
+      related: null,
       createdAt: ago(2 * HOUR),
       resolvedAt: ago(2 * HOUR - MIN),
     },
@@ -1297,12 +1345,19 @@ export function clampToPlatform(_body: Phaser.Physics.Arcade.Body): void {}
 
   let changeId = 1;
   const changes: ChangeRecord[] = [];
+  const snapshots: Record<string, string> = {};
   const change = (projectId: string, taskId: string | null, runId: string | null, path: string, op: ChangeRecord['op'], ts: number, actor: ChangeRecord['actor'] = 'nova') => {
+    const before = originals[projectId]?.[path];
+    let beforeHash: string | null = null;
+    if (op !== 'create') {
+      beforeHash = mockHash(before ?? `${path}:before`);
+      if (before !== undefined) snapshots[beforeHash] = before;
+    }
     changes.push({
       id: changeId++, projectId, taskId, runId, path, op,
-      beforeHash: op === 'create' ? null : mockHash(`${path}:before`),
+      beforeHash,
       afterHash: op === 'delete' ? null : mockHash(`${path}:${ts}`),
-      actor, ts, reverted: false,
+      actor, source: actor === 'user' ? 'user' : 'tool', revertible: true, ts, reverted: false,
     });
   };
   for (const p of ['package.json', 'index.html', 'vite.config.ts', 'src/main.ts', 'src/scenes/MenuScene.ts']) change(PIXEL, 'task_px2', 'run_px2', p, 'create', ago(5 * DAY + 20 * MIN));
@@ -1319,21 +1374,21 @@ export function clampToPlatform(_body: Phaser.Physics.Arcade.Body): void {}
   change(AETHER, 'task_ae1', 'run_ae1', 'Assets/_Project/Scripts/World/Portal.cs', 'modify', ago(26 * HOUR + 10 * MIN));
 
   const checkpoints: Checkpoint[] = [
-    { id: 'chk_px1', projectId: PIXEL, taskId: 'task_px2', kind: 'pre_task', label: 'Vor „Grundgerüst mit Vite und Phaser anlegen“', gitHead: 'a1f3c09', gitCommit: null, changeCursor: 0, createdAt: ago(5 * DAY + 40 * MIN), restoredAt: null },
-    { id: 'chk_px2', projectId: PIXEL, taskId: 'task_px2', kind: 'post_task', label: 'Nach „Grundgerüst mit Vite und Phaser anlegen“', gitHead: 'a1f3c09', gitCommit: '7c2e4b1', changeCursor: 5, createdAt: ago(5 * DAY), restoredAt: null },
-    { id: 'chk_px3', projectId: PIXEL, taskId: null, kind: 'manual', label: 'Vor dem Umbau der Physik', gitHead: '7c2e4b1', gitCommit: null, changeCursor: 5, createdAt: ago(75 * MIN), restoredAt: null },
-    { id: 'chk_px4', projectId: PIXEL, taskId: 'task_px7', kind: 'pre_task', label: 'Vor „Kollision an Plattformkanten korrigieren“', gitHead: '7c2e4b1', gitCommit: null, changeCursor: 5, createdAt: ago(70 * MIN), restoredAt: null },
-    { id: 'chk_px5', projectId: PIXEL, taskId: 'task_px3', kind: 'pre_task', label: 'Vor „Spielerbewegung mit Tastatur und Sprung“', gitHead: '7c2e4b1', gitCommit: null, changeCursor: 8, createdAt: ago(6 * MIN), restoredAt: null },
-    { id: 'chk_rz1', projectId: REZEPT, taskId: 'task_rz2', kind: 'pre_task', label: 'Vor „Endpunkte für Rezepte“', gitHead: null, gitCommit: null, changeCursor: 11, createdAt: ago(2 * HOUR), restoredAt: null },
-    { id: 'chk_ae1', projectId: AETHER, taskId: 'task_ae1', kind: 'pre_task', label: 'Vor „Portal zwischen Dorf und Gruft verbinden“', gitHead: '46bcbd5', gitCommit: null, changeCursor: 15, createdAt: ago(27 * HOUR), restoredAt: null },
+    { id: 'chk_px1', projectId: PIXEL, taskId: 'task_px2', kind: 'pre_task', label: 'Vor „Grundgerüst mit Vite und Phaser anlegen“', gitHead: 'a1f3c09', gitCommit: null, changeCursor: 0, verification: null, createdAt: ago(5 * DAY + 40 * MIN), restoredAt: null },
+    { id: 'chk_px2', projectId: PIXEL, taskId: 'task_px2', kind: 'post_task', label: 'Nach „Grundgerüst mit Vite und Phaser anlegen“', gitHead: 'a1f3c09', gitCommit: '7c2e4b1', changeCursor: 5, verification: 'passed', createdAt: ago(5 * DAY), restoredAt: null },
+    { id: 'chk_px3', projectId: PIXEL, taskId: null, kind: 'manual', label: 'Vor dem Umbau der Physik', gitHead: '7c2e4b1', gitCommit: null, changeCursor: 5, verification: 'passed', createdAt: ago(75 * MIN), restoredAt: null },
+    { id: 'chk_px4', projectId: PIXEL, taskId: 'task_px7', kind: 'pre_task', label: 'Vor „Kollision an Plattformkanten korrigieren“', gitHead: '7c2e4b1', gitCommit: null, changeCursor: 5, verification: null, createdAt: ago(70 * MIN), restoredAt: null },
+    { id: 'chk_px5', projectId: PIXEL, taskId: 'task_px3', kind: 'pre_task', label: 'Vor „Spielerbewegung mit Tastatur und Sprung“', gitHead: '7c2e4b1', gitCommit: null, changeCursor: 8, verification: null, createdAt: ago(6 * MIN), restoredAt: null },
+    { id: 'chk_rz1', projectId: REZEPT, taskId: 'task_rz2', kind: 'pre_task', label: 'Vor „Endpunkte für Rezepte“', gitHead: null, gitCommit: null, changeCursor: 11, verification: null, createdAt: ago(2 * HOUR), restoredAt: null },
+    { id: 'chk_ae1', projectId: AETHER, taskId: 'task_ae1', kind: 'pre_task', label: 'Vor „Portal zwischen Dorf und Gruft verbinden“', gitHead: '46bcbd5', gitCommit: null, changeCursor: 15, verification: null, createdAt: ago(27 * HOUR), restoredAt: null },
   ];
 
   const check = (c: Partial<CheckRun> & Pick<CheckRun, 'id' | 'projectId' | 'kind' | 'command' | 'status' | 'startedAt'>): CheckRun => ({
-    taskId: null, passed: null, failed: null, skipped: null, durationMs: null, outputTail: '', failures: [], failureSignature: null, finishedAt: null, ...c,
+    taskId: null, passed: null, failed: null, skipped: null, durationMs: null, outputTail: '', failures: [], failureSignature: null, message: null, processId: null, artifacts: [], finishedAt: null, ...c,
   });
   const checks: CheckRun[] = [
     check({ id: 'crun_px_t1', projectId: PIXEL, taskId: 'task_px2', kind: 'test', command: 'npm test', status: 'passed', passed: 22, failed: 0, skipped: 0, durationMs: 8_400, startedAt: ago(5 * DAY + 3 * MIN), finishedAt: ago(5 * DAY + 3 * MIN - 8_400), outputTail: ' ✓ tests/player.test.ts (3)\n ✓ tests/menu.test.ts (19)\n\n Test Files  2 passed (2)\n      Tests  22 passed (22)\n   Duration  8.40s' }),
-    check({ id: 'crun_px_b1', projectId: PIXEL, taskId: 'task_px2', kind: 'build', command: 'npm run build', status: 'passed', durationMs: 6_100, startedAt: ago(5 * DAY + 2 * MIN), finishedAt: ago(5 * DAY + 2 * MIN - 6_100), outputTail: 'vite v5.4.10 building for production...\n✓ 34 modules transformed.\ndist/index.html                  0.42 kB\ndist/assets/index-4f1c2a.js   1,148.20 kB\n✓ built in 5.92s' }),
+    check({ id: 'crun_px_b1', projectId: PIXEL, taskId: 'task_px2', kind: 'build', command: 'npm run build', status: 'passed', durationMs: 6_100, startedAt: ago(5 * DAY + 2 * MIN), finishedAt: ago(5 * DAY + 2 * MIN - 6_100), artifacts: [{ path: 'dist/index.html', sizeBytes: 420 }, { path: 'dist/assets/index-4f1c2a.js', sizeBytes: 1_148_200 }], outputTail: 'vite v5.4.10 building for production...\n✓ 34 modules transformed.\ndist/index.html                  0.42 kB\ndist/assets/index-4f1c2a.js   1,148.20 kB\n✓ built in 5.92s' }),
     check({ id: 'crun_px_l1', projectId: PIXEL, taskId: 'task_px2', kind: 'lint', command: 'npm run lint', status: 'passed', durationMs: 2_300, startedAt: ago(5 * DAY + MIN), finishedAt: ago(5 * DAY + MIN - 2_300), outputTail: '✔ Keine Probleme gefunden' }),
     check({
       id: 'crun_px_t2', projectId: PIXEL, taskId: 'task_px7', kind: 'test', command: 'npm test', status: 'failed', passed: 22, failed: 2, skipped: 0, durationMs: 9_100,
@@ -1379,7 +1434,7 @@ export function clampToPlatform(_body: Phaser.Physics.Arcade.Body): void {}
   };
 
   const integ = (i: Partial<IntegrationStatus> & Pick<IntegrationStatus, 'id' | 'name' | 'category' | 'available' | 'message'>): IntegrationStatus => ({
-    version: null, path: null, manualPath: null, installHint: null, checkedAt: ago(10 * MIN), ...i,
+    version: null, path: null, manualPath: null, installations: i.version && i.path ? [{ version: i.version, path: i.path }] : [], canOpen: false, installHint: null, checkedAt: ago(10 * MIN), ...i,
   });
   const integrations: IntegrationStatus[] = [
     integ({ id: 'git', name: 'Git', category: 'vcs', available: true, version: '2.47.1', path: 'C:\\Program Files\\Git\\cmd\\git.exe', message: 'Git ist installiert.' }),
@@ -1391,9 +1446,14 @@ export function clampToPlatform(_body: Phaser.Physics.Arcade.Body): void {}
       installHint: { command: 'winget install --id Microsoft.DotNet.SDK.8 -e', url: 'https://dotnet.microsoft.com/download', requiresAdmin: false },
     }),
     integ({ id: 'powershell', name: 'PowerShell', category: 'shell', available: true, version: '7.4.6', path: 'C:\\Program Files\\PowerShell\\7\\pwsh.exe', message: 'PowerShell 7 ist installiert.' }),
-    integ({ id: 'windows_terminal', name: 'Windows Terminal', category: 'shell', available: true, version: '1.21.3231', path: 'C:\\Users\\Demo\\AppData\\Local\\Microsoft\\WindowsApps\\wt.exe', message: 'Windows Terminal ist installiert.' }),
+    integ({ id: 'windows_terminal', name: 'Windows Terminal', category: 'shell', available: true, version: '1.21.3231', path: 'C:\\Users\\Demo\\AppData\\Local\\Microsoft\\WindowsApps\\wt.exe', message: 'Windows Terminal ist installiert.', canOpen: true }),
     integ({ id: 'ollama', name: 'Ollama', category: 'ai', available: true, version: '0.12.6', path: 'C:\\Users\\Demo\\AppData\\Local\\Programs\\Ollama\\ollama.exe', message: 'Ollama läuft.' }),
-    integ({ id: 'unity', name: 'Unity', category: 'engine', available: true, version: '6000.6.5f1', path: 'C:\\Program Files\\Unity\\Hub\\Editor\\6000.6.5f1\\Editor\\Unity.exe', message: 'Unity 6.6 wurde über den Unity Hub gefunden.' }),
+    integ({ id: 'unity', name: 'Unity', category: 'engine', available: true, version: '6000.6.5f1', path: 'C:\\Program Files\\Unity\\Hub\\Editor\\6000.6.5f1\\Editor\\Unity.exe', message: 'Unity 6.6 wurde über den Unity Hub gefunden.', canOpen: true,
+      installations: [
+        { version: '6000.6.5f1', path: 'C:\\Program Files\\Unity\\Hub\\Editor\\6000.6.5f1\\Editor\\Unity.exe' },
+        { version: '6000.6.3f1', path: 'C:\\Program Files\\Unity\\Hub\\Editor\\6000.6.3f1\\Editor\\Unity.exe' },
+        { version: '6000.0.84f1', path: 'C:\\Program Files\\Unity\\Hub\\Editor\\6000.0.84f1\\Editor\\Unity.exe' },
+      ] }),
     integ({
       id: 'unreal', name: 'Unreal Engine', category: 'engine', available: false, message: 'Die Unreal Engine wurde nicht gefunden. Sie wird nur für Unreal-Projekte gebraucht.',
       installHint: { command: null, url: 'https://www.unrealengine.com/download', requiresAdmin: true },
@@ -1402,7 +1462,7 @@ export function clampToPlatform(_body: Phaser.Physics.Arcade.Body): void {}
       id: 'godot', name: 'Godot', category: 'engine', available: false, message: 'Godot wurde nicht gefunden.',
       installHint: { command: 'winget install --id GodotEngine.GodotEngine -e', url: 'https://godotengine.org/download/windows/', requiresAdmin: false },
     }),
-    integ({ id: 'vscode', name: 'Visual Studio Code', category: 'editor', available: true, version: '1.95.3', path: 'C:\\Users\\Demo\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe', message: 'VS Code ist installiert.' }),
+    integ({ id: 'vscode', name: 'Visual Studio Code', category: 'editor', available: true, version: '1.95.3', path: 'C:\\Users\\Demo\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe', message: 'VS Code ist installiert.', canOpen: true }),
     integ({
       id: 'playwright', name: 'Playwright', category: 'testing', available: false, version: '1.48.2', message: 'Playwright ist vorhanden, aber es ist noch kein Browser für Oberflächentests installiert.',
       installHint: { command: 'npx playwright install chromium', url: 'https://playwright.dev/docs/browsers', requiresAdmin: false },
@@ -1492,6 +1552,25 @@ export function clampToPlatform(_body: Phaser.Physics.Arcade.Body): void {}
     originals,
     binaryFiles,
     changes,
+    snapshots,
+    emptyDirs: {},
+    notes: buildNotes(now),
+    notifications: buildNotifications(now),
+    operations: [
+      {
+        id: 'op_demo_snapshot',
+        kind: 'project_snapshot',
+        projectId: PIXEL,
+        title: 'Projektkopie von Pixel-Abenteuer',
+        status: 'running',
+        progress: 35,
+        message: 'Dateien werden kopiert (412 von 1.180)',
+        cancellable: true,
+        error: null,
+        startedAt: ago(40_000),
+        endedAt: null,
+      },
+    ],
     checkpoints,
     checks,
     processes,
@@ -1520,6 +1599,9 @@ export function clampToPlatform(_body: Phaser.Physics.Arcade.Body): void {}
       lastError: null,
       recovered: { tasks: 1, orphanProcesses: 0 },
       platform: 'win32',
+      previousShutdown: { at: ago(3 * HOUR + 14 * MIN), clean: false, reason: 'Windows wurde neu gestartet, während NOVA arbeitete.' },
+      secretStore: { scheme: 'dpapi', secure: true },
+      methods: [...RPC_METHODS],
     },
     autostart: false,
     nextStepId: stepId,
@@ -1547,7 +1629,7 @@ function buildLogs(now: number): LogEntry[] {
     [45 * MIN, 'info', 'processes', 'Entwicklungsserver gestartet: npm run dev (Pixel-Abenteuer)', { pid: 21344 }],
     [40 * MIN, 'error', 'agent.coder', 'Befehl fehlgeschlagen: npm run db:migrate (Exit-Code 1)', { runId: 'run_rz4', exitCode: 1 }],
     [35 * MIN, 'error', 'agent.coder', 'Gleicher Fehler zweimal hintereinander – Aufgabe blockiert', { taskId: 'task_rz4' }],
-    [25 * MIN, 'warn', 'checks', 'Tests fehlgeschlagen: Pixel-Abenteuer (2 von 24)', { checkRunId: 'crun_px_t2' }],
+    [25 * MIN, 'warn', 'checks', 'Tests fehlgeschlagen: Pixel-Abenteuer (2 von 24)', { checkRunId: 'crun_px_t2', findings: [] }],
     [25 * MIN, 'error', 'scheduler', 'Aufgabe fehlgeschlagen nach 3 Versuchen: Kollision an Plattformkanten korrigieren', { taskId: 'task_px7' }],
     [20 * MIN, 'info', 'files', 'Externe Änderung erkannt: src/game/physics.ts (Pixel-Abenteuer)'],
     [14 * MIN, 'warn', 'resources', 'Grafikspeicher zu 91 % belegt – Parallelität auf 2 gesenkt'],
@@ -1563,4 +1645,47 @@ function buildLogs(now: number): LogEntry[] {
     [20_000, 'debug', 'agent.coder', 'write_file src/game/player.ts (38 Zeilen)', { runId: 'run_px3' }],
   ];
   return lines.map(([agoMs, level, scope, msg, data]) => ({ ts: now - agoMs, level, scope, msg, ...(data !== undefined ? { data } : {}) })).sort((a, b) => a.ts - b.ts);
+}
+
+function buildNotes(now: number): TaskNote[] {
+  return [
+    {
+      id: 'note_1',
+      taskId: 'task_px3',
+      projectId: PIXEL,
+      author: 'user',
+      kind: 'note',
+      text: 'Bitte die Sprunghöhe etwas niedriger als im ersten Entwurf – der Spieler soll knapp über die Kisten kommen.',
+      options: [],
+      assumption: null,
+      createdAt: now - 5 * MIN,
+      consumedRunId: 'run_px3',
+    },
+    {
+      id: 'note_2',
+      taskId: 'task_rz4',
+      projectId: REZEPT,
+      author: 'agent',
+      kind: 'question',
+      text: 'Die Testdatenbank data/test.sqlite enthält eine alte Tabelle „shopping_items“. Darf ich die Testdatenbank löschen und neu anlegen? Echte Daten sind davon nicht betroffen.',
+      options: ['Ja, Testdatenbank zurücksetzen', 'Nein, Migration anpassen'],
+      assumption: 'Ohne Antwort benenne ich die alte Tabelle um und lege eine neue an.',
+      createdAt: now - 35 * MIN,
+      consumedRunId: null,
+    },
+  ];
+}
+
+function buildNotifications(now: number): Notification[] {
+  const n = (id: string, ago: number, level: Notification['level'], category: Notification['category'], title: string, body: string, projectId: string | null, taskId: string | null, read: boolean): Notification => ({
+    id, level, category, title, body, projectId, taskId, ts: now - ago, readAt: read ? now - ago + MIN : null,
+  });
+  return [
+    n('ntf_1', 2 * MIN, 'warning', 'approval', 'Freigabe nötig', 'Playwright-Browser installieren (Pixel-Abenteuer)', PIXEL, 'task_px4', false),
+    n('ntf_2', 9 * MIN, 'warning', 'approval', 'Freigabe nötig', 'Ordner legacy/ löschen (Rezept-API)', REZEPT, 'task_rz5', false),
+    n('ntf_3', 25 * MIN, 'error', 'error', 'Aufgabe fehlgeschlagen', 'Kollision an Plattformkanten korrigieren – gleicher Testfehler nach 3 Versuchen.', PIXEL, 'task_px7', false),
+    n('ntf_4', 35 * MIN, 'warning', 'blocker', 'Frage des Agenten', 'Datenbank-Migration: Darf die Testdatenbank zurückgesetzt werden?', REZEPT, 'task_rz4', false),
+    n('ntf_5', 80 * MIN, 'success', 'task_done', 'Aufgabe erledigt', 'Endpunkte für Rezepte (anlegen, lesen, suchen) – Tests und Build bestanden.', REZEPT, 'task_rz2', true),
+    n('ntf_6', 3 * HOUR + 11 * MIN, 'info', 'info', 'NOVA wurde neu gestartet', 'Eine unterbrochene Aufgabe wurde geprüft und kann sicher fortgesetzt werden.', AETHER, 'task_ae1', true),
+  ];
 }

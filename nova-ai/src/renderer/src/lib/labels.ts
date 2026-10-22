@@ -55,6 +55,7 @@ import {
   MessageSquare,
   Minus,
   Monitor,
+  ShieldEllipsis,
   OctagonAlert,
   Package,
   Pause,
@@ -102,8 +103,11 @@ import type {
   DaemonStatus,
   ExportSection,
   GpuInfo,
-  IntegrationId,
   IntegrationStatus,
+  Operation,
+  ReviewFinding,
+  TaskNote,
+  ChangeRecord,
   LogLevel,
   MemoryEntry,
   MemoryKind,
@@ -255,7 +259,6 @@ export const PROJECT_KIND: Record<ProjectKind, EnumMeta> = {
 
 export const PROJECT_STATUS: Record<ProjectStatus, EnumMeta> = {
   active: { label: 'Aktiv', tone: 'success', icon: CirclePlay },
-  paused: { label: 'Pausiert', tone: 'warning', icon: CirclePause },
   archived: { label: 'Archiviert', tone: 'neutral', icon: Archive },
 };
 
@@ -323,6 +326,7 @@ export const CHECK_STATUS: Record<CheckStatus, EnumMeta> = {
   not_run: { label: 'Nicht ausgeführt', tone: 'neutral', icon: CircleDashed },
   running: { label: 'Läuft', tone: 'blue', icon: LoaderCircle, spin: true },
   skipped: { label: 'Übersprungen', tone: 'neutral', icon: CircleSlash },
+  cancelled: { label: 'Abgebrochen', tone: 'neutral', icon: CircleSlash },
 };
 
 export const CHECK_KIND: Record<CheckKind, EnumMeta> = {
@@ -330,7 +334,10 @@ export const CHECK_KIND: Record<CheckKind, EnumMeta> = {
   build: { label: 'Build', tone: 'blue', icon: Hammer },
   lint: { label: 'Code-Stil', tone: 'violet', icon: ListChecks },
   typecheck: { label: 'Typprüfung', tone: 'violet', icon: BadgeCheck },
-  runtime: { label: 'Laufzeitprüfung', tone: 'info', icon: Activity },
+  e2e: { label: 'Oberflächentests', tone: 'info', icon: Monitor },
+  security: { label: 'Sicherheitsprüfung', tone: 'warning', icon: ShieldEllipsis },
+  runtime: { label: 'Startprüfung', tone: 'info', icon: Activity, description: 'Startet das Programm kurz und prüft, ob es läuft.' },
+  package: { label: 'Paket bauen', tone: 'blue', icon: Package, description: 'Erstellt installierbare Dateien (z. B. Installer).' },
 };
 
 export const VERIFICATION_STATUS: Record<Verification['status'], EnumMeta> = {
@@ -469,7 +476,7 @@ export const INTEGRATION_CATEGORY: Record<IntegrationStatus['category'], EnumMet
 };
 
 /** Display names of the known integrations (the daemon also sends `name`). */
-export const INTEGRATION_NAME: Record<IntegrationId, string> = {
+export const INTEGRATION_NAME: Record<string, string> = {
   git: 'Git',
   node: 'Node.js',
   npm: 'npm',
@@ -541,3 +548,83 @@ export const NOTIFICATION_CATEGORY: Record<Notification['category'], EnumMeta> =
   update: { label: 'Update', tone: 'violet', icon: Download },
   info: { label: 'Info', tone: 'info', icon: Info },
 };
+
+// ---------------------------------------------------------------------------
+// Operations, task notes, review findings, change sources
+// ---------------------------------------------------------------------------
+
+export const OPERATION_KIND: Record<Operation['kind'], EnumMeta> = {
+  check: { label: 'Prüfung', tone: 'info', icon: FlaskConical },
+  project_create: { label: 'Projekt anlegen', tone: 'violet', icon: Folder },
+  clone: { label: 'Projekt importieren', tone: 'violet', icon: GitBranch },
+  backup: { label: 'Datensicherung', tone: 'blue', icon: Database },
+  backup_restore: { label: 'Sicherung wiederherstellen', tone: 'warning', icon: RotateCcw },
+  project_snapshot: { label: 'Projektkopie', tone: 'blue', icon: Folder },
+  export: { label: 'Export', tone: 'neutral', icon: Upload },
+  import: { label: 'Import', tone: 'neutral', icon: Download },
+  memory_export: { label: 'Wissen exportieren', tone: 'neutral', icon: Upload },
+  memory_import: { label: 'Wissen importieren', tone: 'neutral', icon: Download },
+  restore: { label: 'Wiederherstellung', tone: 'warning', icon: RotateCcw },
+  install: { label: 'Installation', tone: 'warning', icon: Download },
+  diagnostics: { label: 'Diagnose-Paket', tone: 'neutral', icon: Bug },
+};
+
+export const OPERATION_STATUS: Record<Operation['status'], EnumMeta> = {
+  running: { label: 'Läuft', tone: 'blue', icon: LoaderCircle, spin: true },
+  done: { label: 'Fertig', tone: 'success', icon: CircleCheck },
+  failed: { label: 'Fehlgeschlagen', tone: 'danger', icon: CircleX },
+  cancelled: { label: 'Abgebrochen', tone: 'neutral', icon: CircleSlash },
+};
+
+export const TASK_NOTE_KIND: Record<TaskNote['kind'], EnumMeta> = {
+  note: { label: 'Hinweis', tone: 'blue', icon: MessageSquare },
+  question: { label: 'Frage des Agenten', tone: 'warning', icon: CircleHelp },
+  answer: { label: 'Antwort', tone: 'success', icon: CircleCheck },
+};
+
+export const REVIEW_FINDING_SEVERITY: Record<ReviewFinding['severity'], EnumMeta> = {
+  critical: { label: 'Kritisch', tone: 'danger', icon: Siren },
+  major: { label: 'Wichtig', tone: 'warning', icon: TriangleAlert },
+  minor: { label: 'Klein', tone: 'info', icon: Info },
+  info: { label: 'Hinweis', tone: 'neutral', icon: Lightbulb },
+};
+
+export const CHANGE_SOURCE: Record<ChangeRecord['source'], EnumMeta> = {
+  tool: { label: 'Agent (Dateiwerkzeug)', tone: 'violet', icon: Sparkles },
+  command: { label: 'Agent (Befehl)', tone: 'violet', icon: Terminal },
+  user: { label: 'Von Hand', tone: 'neutral', icon: UserRound },
+  restore: { label: 'Wiederherstellung', tone: 'warning', icon: RotateCcw },
+};
+
+/** Where the user can fix a blocked task (Task.blockerCode). */
+export interface BlockerAction {
+  label: string;
+  /** Route (see lib/paths.ts). null = handled inside the task (e.g. answer a question). */
+  path: string | null;
+}
+
+/**
+ * Suggested action for a task blocker code (UI-SPEC §7), e.g. NO_MODEL -> "Modell einrichten" (/models).
+ * Returns null when there is no specific action.
+ */
+export function blockerAction(code: string | null | undefined): BlockerAction | null {
+  switch (code) {
+    case 'NO_MODEL':
+    case 'MODEL_UNAVAILABLE':
+    case 'VRAM_INSUFFICIENT':
+    case 'OLLAMA_UNREACHABLE':
+      return { label: 'Modelle prüfen', path: '/models' };
+    case 'BUDGET_EXCEEDED':
+    case 'PAID_NOT_APPROVED':
+    case 'PRICE_UNKNOWN':
+      return { label: 'Kosten und Budget', path: '/costs' };
+    case 'APPROVAL_REQUIRED':
+      return { label: 'Zur Freigabe', path: '/approvals' };
+    case 'TOOL_MISSING':
+      return { label: 'Werkzeuge prüfen', path: '/integrations' };
+    case 'NEEDS_INPUT':
+      return { label: 'Frage beantworten', path: null };
+    default:
+      return null;
+  }
+}

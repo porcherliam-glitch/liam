@@ -40,7 +40,7 @@ import type {
   WorkStatus,
 } from '@shared/schemas';
 import { SettingsSchema } from '@shared/settings';
-import { createMockDb, DAY, GB, HOUR, languageOf, MB, MIN, mockHash, type MockDb, OLLAMA } from './mock-data';
+import { commands as mockCommands, createMockDb, DAY, GB, HOUR, languageOf, MB, MIN, mockHash, type MockDb, OLLAMA } from './mock-data';
 
 // ---------------------------------------------------------------------------
 // Public test API
@@ -200,7 +200,8 @@ function log(level: LogEntry['level'], scope: string, msg: string, data?: unknow
   const entry: LogEntry = { ts: now(), level, scope, msg, ...(data !== undefined ? { data } : {}) };
   db.logs.push(entry);
   if (db.logs.length > 5000) db.logs.splice(0, db.logs.length - 5000);
-  emit('log', { level, scope, msg, ts: entry.ts });
+  // Like the real daemon: only warn/error entries are pushed as events.
+  if (level === 'warn' || level === 'error') emit('log', { level, scope, msg, ts: entry.ts });
 }
 
 const notFound = (what: string) => new MockRpcError('NOT_FOUND', `${what} wurde nicht gefunden.`);
@@ -226,7 +227,10 @@ function runOfTask(taskId: string): AgentRun | undefined {
   return db.runs.filter((r) => r.taskId === taskId).sort((a, b) => b.startedAt - a.startedAt)[0];
 }
 
-const ACTIVE_RUN = new Set<AgentRun['status']>(['running', 'paused', 'waiting_approval']);
+/** Contract: an active run is a run with status 'running'. */
+const ACTIVE_RUN = new Set<AgentRun['status']>(['running']);
+/** Runs that may continue (used for pause/stop handling). */
+const LIVE_RUN = new Set<AgentRun['status']>(['running', 'paused', 'waiting_approval']);
 
 function latestCheck(projectId: string, kind: CheckKind): CheckRun | null {
   return db.checks.filter((c) => c.projectId === projectId && c.kind === kind).sort((a, b) => b.startedAt - a.startedAt)[0] ?? null;
@@ -237,28 +241,47 @@ function summary(p: Project): ProjectSummary {
   const relevant = tasks.filter((t) => t.status !== 'cancelled');
   const done = relevant.filter((t) => t.status === 'done').length;
   const activity = [...tasks.map((t) => t.updatedAt), ...db.runs.filter((r) => r.projectId === p.id).map((r) => r.updatedAt)];
+  const count = (status: Task['status']) => tasks.filter((t) => t.status === status).length;
+  const taskCounts: Record<string, number> = {};
+  for (const st of TASK_STATUSES) taskCounts[st] = count(st);
+  const lastSuccessfulBuild =
+    db.checks.filter((c) => c.projectId === p.id && (c.kind === 'build' || c.kind === 'package') && c.status === 'passed').sort((a, b) => b.startedAt - a.startedAt)[0] ?? null;
   return {
     ...p,
     progress: relevant.length ? Math.round((done / relevant.length) * 100) : 0,
-    openTasks: tasks.filter((t) => t.status !== 'done' && t.status !== 'cancelled').length,
-    runningTasks: tasks.filter((t) => t.status === 'running').length,
-    failedTasks: tasks.filter((t) => t.status === 'failed').length,
-    blockedTasks: tasks.filter((t) => t.status === 'blocked').length,
+    openTasks: tasks.filter((t) => OPEN_TASK.has(t.status)).length,
+    runningTasks: count('running'),
+    failedTasks: count('failed'),
+    blockedTasks: count('blocked'),
+    pausedTasks: count('paused'),
+    waitingApprovalTasks: count('waiting_approval'),
+    taskCounts,
+    pendingApprovals: db.approvals.filter((a) => a.projectId === p.id && a.status === 'pending').length,
     openErrors: db.errors.filter((e) => e.projectId === p.id && !e.resolvedAt).length,
     lastBuild: latestCheck(p.id, 'build'),
+    lastSuccessfulBuild,
     lastTest: latestCheck(p.id, 'test'),
     lastActivityAt: activity.length ? Math.max(...activity) : null,
+    pathMissing: false,
   };
+}
+
+const TASK_STATUSES: Task['status'][] = ['queued', 'running', 'paused', 'waiting_approval', 'blocked', 'done', 'failed', 'cancelled', 'interrupted'];
+const OPEN_TASK = new Set<Task['status']>(['queued', 'running', 'paused', 'waiting_approval', 'blocked', 'interrupted']);
+
+/** Effective work state of a project (global state wins when it is not running). */
+function effectiveWork(p: Project): Project['workState'] {
+  if (db.workState !== 'running') return db.workState;
+  return p.workState;
 }
 
 function workStatus(): WorkStatus {
   const activeRuns = db.runs.filter((r) => r.status === 'running').length;
-  const enabled = (p: Project) => p.workEnabled && p.status === 'active';
-  const queued = db.tasks.filter((t) => t.status === 'queued' && enabled(project(t.projectId))).length;
+  const queued = db.tasks.filter((t) => t.status === 'queued' && effectiveWork(project(t.projectId)) === 'running').length;
   const waiting = db.tasks.some((t) => t.status === 'waiting_approval');
   let idleReason: string | null = null;
   if (db.workState === 'paused') idleReason = 'Die Arbeit ist pausiert.';
-  else if (db.workState === 'stopped') idleReason = 'Die Arbeit ist gestoppt. Es werden keine Aufgaben gestartet.';
+  else if (db.workState === 'stopped') idleReason = 'Die Arbeit ist gestoppt. Es werden keine Aufgaben automatisch gestartet.';
   else if (activeRuns === 0) idleReason = queued > 0 ? 'Aufgaben warten auf freie Plätze.' : waiting ? 'Alle offenen Aufgaben warten auf eine Freigabe.' : 'Es gibt gerade keine offenen Aufgaben.';
   return {
     state: db.workState,
@@ -270,15 +293,21 @@ function workStatus(): WorkStatus {
     projects: db.projects
       .filter((p) => p.status !== 'archived')
       .map((p) => {
+        const tasks = db.tasks.filter((t) => t.projectId === p.id);
         const runs = db.runs.filter((r) => r.projectId === p.id && r.status === 'running').length;
-        const q = db.tasks.filter((t) => t.projectId === p.id && t.status === 'queued').length;
-        const w = db.tasks.some((t) => t.projectId === p.id && t.status === 'waiting_approval');
+        const q = tasks.filter((t) => t.status === 'queued').length;
+        const w = tasks.filter((t) => t.status === 'waiting_approval').length;
+        const b = tasks.filter((t) => t.status === 'blocked').length;
+        const pa = tasks.filter((t) => t.status === 'paused').length;
         let reason: string | null = null;
-        if (!p.workEnabled) reason = 'Die Arbeit für dieses Projekt ist ausgeschaltet.';
-        else if (p.status === 'paused') reason = 'Das Projekt ist pausiert.';
-        else if (runs === 0 && w) reason = 'Wartet auf eine Freigabe.';
+        if (p.workState === 'stopped') reason = 'Die autonome Arbeit für dieses Projekt ist aus.';
+        else if (p.workState === 'paused') reason = 'Die Arbeit an diesem Projekt ist pausiert.';
+        else if (runs === 0 && w > 0) reason = 'Wartet auf eine Freigabe.';
+        else if (runs === 0 && b > 0 && q === 0) reason = 'Alle offenen Aufgaben sind blockiert.';
         else if (runs === 0 && q === 0) reason = 'Keine offenen Aufgaben.';
-        return { projectId: p.id, workEnabled: p.workEnabled, activeRuns: runs, queuedTasks: q, idleReason: reason };
+        const nextStep = db.memory.filter((m) => m.projectId === p.id && m.kind === 'next_step').sort((a, c) => c.updatedAt - a.updatedAt)[0];
+        const suggestion = runs === 0 && q === 0 ? (nextStep?.title ?? 'Neues Ziel planen') : null;
+        return { projectId: p.id, state: p.workState, activeRuns: runs, queuedTasks: q, waitingApproval: w, blocked: b, paused: pa, idleReason: reason, suggestion };
       }),
   };
 }
@@ -326,15 +355,26 @@ function budgetStatus(): BudgetStatus {
     containsEstimates: paid.some((u) => u.costEstimated && u.ts >= month),
     paidPaused: db.paidPaused,
     pausedReason: db.pausedReason,
-    perProject: db.projects.map((p) => ({
-      projectId: p.id,
-      limitUsd: p.config.monthlyBudgetUsd,
-      spentMonthUsd: sum(paid.filter((u) => u.projectId === p.id && u.ts >= month)),
-    })),
+    perProject: db.projects.map((p) => {
+      const rows = paid.filter((u) => u.projectId === p.id && u.ts >= month);
+      const spent = sum(rows);
+      const limit = p.config.monthlyBudgetUsd;
+      return {
+        projectId: p.id,
+        limitUsd: limit,
+        spentMonthUsd: spent,
+        remainingUsd: limit == null ? null : Math.max(0, Math.round((limit - spent) * 100) / 100),
+        paidPaused: limit != null && spent >= limit,
+        containsEstimates: rows.some((u) => u.costEstimated),
+      };
+    }),
+    reservedUsd: 0,
     tokensToday: { input: today.reduce((s, u) => s + u.inputTokens, 0), output: today.reduce((s, u) => s + u.outputTokens, 0) },
     tokensMonth: { input: monthRows.reduce((s, u) => s + u.inputTokens, 0), output: monthRows.reduce((s, u) => s + u.outputTokens, 0) },
     localRuntimeMsToday: today.filter((u) => !u.paid).reduce((s, u) => s + u.durationMs, 0) + 2 * HOUR,
     cloudRuntimeMsToday: today.filter((u) => u.paid).reduce((s, u) => s + u.durationMs, 0),
+    localRuntimeMsMonth: monthRows.filter((u) => !u.paid).reduce((s, u) => s + u.durationMs, 0) + 31 * HOUR,
+    cloudRuntimeMsMonth: monthRows.filter((u) => u.paid).reduce((s, u) => s + u.durationMs, 0),
   };
 }
 
@@ -374,8 +414,8 @@ function defaultConfig(kind: ProjectKind): ProjectConfig {
   const node = kind === 'web' || kind === 'backend';
   return {
     commands: node
-      ? { install: 'npm install', dev: 'npm run dev', build: 'npm run build', test: 'npm test', lint: null, run: kind === 'backend' ? 'npm start' : null }
-      : { install: null, dev: null, build: null, test: null, lint: null, run: null },
+      ? mockCommands({ install: 'npm install', dev: 'npm run dev', build: 'npm run build', test: 'npm test', run: kind === 'backend' ? 'npm start' : null, typecheck: 'npx tsc --noEmit' })
+      : mockCommands(),
     preview:
       kind === 'web' || kind === 'backend'
         ? { kind: 'browser-dev-server', entry: null, url: null }
@@ -390,6 +430,8 @@ function defaultConfig(kind: ProjectKind): ProjectConfig {
     autoCommit: true,
     monthlyBudgetUsd: null,
     conventions: '',
+    artifactGlobs: [],
+    engineVersion: null,
   };
 }
 
@@ -593,11 +635,8 @@ function restorePlan(checkpointId?: string, taskId?: string): { result: RestoreR
 
 function checkCommand(p: Project, kind: CheckKind): string | null {
   const c = p.config.commands;
-  if (kind === 'test') return c.test;
-  if (kind === 'build') return c.build;
-  if (kind === 'lint') return c.lint;
-  if (kind === 'typecheck') return c.build ? 'npx tsc --noEmit' : null;
-  return c.run;
+  if (kind === 'runtime') return c.run ?? c.dev;
+  return c[kind];
 }
 
 const CHECK_TEXT: Record<CheckKind, string> = {
@@ -605,7 +644,10 @@ const CHECK_TEXT: Record<CheckKind, string> = {
   build: 'Build-Befehl',
   lint: 'Lint-Befehl',
   typecheck: 'Befehl für die Typprüfung',
-  runtime: 'Startbefehl',
+  e2e: 'Befehl für Oberflächentests',
+  security: 'Befehl für die Sicherheitsprüfung',
+  runtime: 'Start- oder Entwicklungsbefehl',
+  package: 'Befehl zum Paketbau',
 };
 
 // --- ollama ------------------------------------------------------------------
@@ -769,6 +811,53 @@ function stopLive(): void {
   intervals = [];
 }
 
+function newTask(t: Partial<Task> & Pick<Task, 'projectId' | 'title' | 'kind' | 'role'>): Task {
+  const ts = now();
+  const created: Task = {
+    id: nid('task'),
+    parentId: null,
+    description: '',
+    status: 'queued',
+    priority: 1,
+    dependsOn: [],
+    attempts: 0,
+    maxAttempts: db.settings.agents.maxAttempts,
+    blocker: null,
+    blockerCode: null,
+    result: null,
+    acceptance: null,
+    verification: { status: 'not_run', checks: [] },
+    files: [],
+    plannedFiles: [],
+    startRequested: false,
+    model: null,
+    source: 'user',
+    createdAt: ts,
+    updatedAt: ts,
+    startedAt: null,
+    finishedAt: null,
+    ...t,
+  };
+  db.tasks.push(created);
+  return created;
+}
+
+/** Sets the global (no projectId) or per-project work state and emits the matching events. */
+function setWork(state: WorkStatus['state'], projectId?: string): WorkStatus {
+  if (projectId) {
+    const p = project(projectId);
+    p.workState = state;
+    p.updatedAt = now();
+    emit('project.updated', p);
+  } else {
+    db.workState = state;
+  }
+  emitWork();
+  const verb = state === 'running' ? 'gestartet' : state === 'paused' ? 'pausiert' : 'gestoppt';
+  log('info', 'scheduler', projectId ? `Arbeit für ${project(projectId).name} ${verb}` : `Autonome Arbeit ${verb}`);
+  return workStatus();
+}
+
 // ---------------------------------------------------------------------------
 // Handlers (one per RPC method – TypeScript enforces completeness)
 // ---------------------------------------------------------------------------
@@ -795,7 +884,7 @@ const handlers: HandlerMap = {
     return rows.slice(-limit);
   },
   'dashboard.summary': () => {
-    const passedBuilds = db.checks.filter((c) => c.kind === 'build' && c.status === 'passed').sort((a, b) => (b.finishedAt ?? b.startedAt) - (a.finishedAt ?? a.startedAt));
+    const passedBuilds = db.checks.filter((c) => (c.kind === 'build' || c.kind === 'package') && c.status === 'passed').sort((a, b) => (b.finishedAt ?? b.startedAt) - (a.finishedAt ?? a.startedAt));
     const failedTests = db.projects
       .map((p) => latestCheck(p.id, 'test'))
       .filter((c): c is CheckRun => !!c && c.status === 'failed');
@@ -804,11 +893,13 @@ const handlers: HandlerMap = {
       work: workStatus(),
       projects: db.projects.filter((p) => p.status !== 'archived').map(summary),
       activeRuns: db.runs.filter((r) => ACTIVE_RUN.has(r.status)).sort((a, b) => b.updatedAt - a.updatedAt),
-      openTasks: db.tasks.filter((t) => t.status !== 'done' && t.status !== 'cancelled').length,
-      recentBuilds: passedBuilds.slice(0, 5),
+      openTasks: db.tasks.filter((t) => OPEN_TASK.has(t.status)).length,
+      recentBuilds: passedBuilds.slice(0, 10),
       failedTests,
       errors: db.errors.filter((e) => !e.resolvedAt).sort((a, b) => b.createdAt - a.createdAt),
       pendingApprovals: db.approvals.filter((a) => a.status === 'pending').length,
+      unreadNotifications: db.notifications.filter((n) => n.readAt == null).length,
+      activeOperations: db.operations.filter((o) => o.status === 'running'),
       budget: budgetStatus(),
       resources: db.resources,
       models: {
@@ -826,8 +917,6 @@ const handlers: HandlerMap = {
     if (db.projects.some((p) => p.name.toLowerCase() === input.name.toLowerCase())) throw conflict(`Ein Projekt mit dem Namen „${input.name}“ gibt es schon.`);
     const template = input.templateId ? db.templates.find((t) => t.id === input.templateId) : undefined;
     if (input.templateId && !template) throw notFound('Die Vorlage');
-    if (input.mode === 'import' && !input.repoUrl) throw new MockRpcError('VALIDATION', 'Bitte die Adresse des Git-Repositorys angeben.');
-    if (input.mode === 'open' && !input.path) throw new MockRpcError('VALIDATION', 'Bitte einen Ordner auswählen.');
     const kind = input.kind ?? template?.kind ?? guessKind(`${input.name} ${input.description} ${Object.values(input.answers).join(' ')}`);
     const id = nid('prj');
     const t = now();
@@ -841,8 +930,9 @@ const handlers: HandlerMap = {
       status: 'active',
       templateId: input.templateId,
       config: defaultConfig(kind),
-      workEnabled: true,
-      gitAvailable: input.initGit || input.mode === 'import',
+      // Opened/imported folders start with autonomous work switched off (SPEC: trust first).
+      workState: input.mode === 'open' || input.mode === 'import' ? 'stopped' : 'running',
+      gitAvailable: input.mode === 'import' || (input.mode !== 'open' && input.initGit),
       createdAt: t,
       updatedAt: t,
     };
@@ -855,8 +945,8 @@ const handlers: HandlerMap = {
     if (input.planNow && (input.description || Object.keys(input.answers).length)) {
       const plan: Task = {
         id: nid('task'), projectId: id, parentId: null, title: `Projekt planen: ${input.name}`, description: input.description, kind: 'plan', role: 'planner',
-        status: 'queued', priority: 2, dependsOn: [], attempts: 0, maxAttempts: 3, blocker: null, result: null, acceptance: null,
-        verification: { status: 'unavailable', checks: [] }, files: [], model: null, source: 'system', createdAt: t, updatedAt: t, startedAt: null, finishedAt: null,
+        status: 'queued', priority: 2, dependsOn: [], attempts: 0, maxAttempts: db.settings.agents.maxAttempts, blocker: null, blockerCode: null, result: null, acceptance: null,
+        verification: { status: 'unavailable', checks: [] }, files: [], plannedFiles: [], startRequested: false, model: null, source: 'system', createdAt: t, updatedAt: t, startedAt: null, finishedAt: null,
       };
       db.tasks.push(plan);
       planTaskId = plan.id;
@@ -864,7 +954,8 @@ const handlers: HandlerMap = {
     }
     const warnings: string[] = [];
     if (template?.missingTools.length) warnings.push(`Für diese Vorlage fehlt noch: ${template.missingTools.join(', ')}. Unter „Werkzeuge“ kann es installiert werden.`);
-    if (!input.initGit && input.mode !== 'import') warnings.push('Ohne Git kann NOVA Änderungen nur über eigene Wiederherstellungspunkte rückgängig machen.');
+    if (!p.gitAvailable) warnings.push('Ohne Git kann NOVA Änderungen nur über eigene Wiederherstellungspunkte rückgängig machen.');
+    if (p.workState === 'stopped') warnings.push('Die autonome Arbeit ist für dieses Projekt noch aus. Sie kann in der Projektübersicht eingeschaltet werden.');
     emit('project.updated', p);
     emitWork();
     log('info', 'projects', `Projekt angelegt: ${p.name}`);
@@ -873,7 +964,15 @@ const handlers: HandlerMap = {
   'projects.update': ({ id, config, ...patch }) => {
     const p = project(id);
     Object.assign(p, Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined)));
-    if (config) p.config = { ...p.config, ...Object.fromEntries(Object.entries(config).filter(([, v]) => v !== undefined)) };
+    if (config) {
+      const { commands: cmdPatch, preview: previewPatch, ...rest } = config;
+      p.config = {
+        ...p.config,
+        ...(Object.fromEntries(Object.entries(rest).filter(([, v]) => v !== undefined)) as Partial<ProjectConfig>),
+        commands: { ...p.config.commands, ...(Object.fromEntries(Object.entries(cmdPatch ?? {}).filter(([, v]) => v !== undefined)) as Partial<ProjectConfig['commands']>) },
+        preview: { ...p.config.preview, ...(Object.fromEntries(Object.entries(previewPatch ?? {}).filter(([, v]) => v !== undefined)) as Partial<ProjectConfig['preview']>) },
+      };
+    }
     p.updatedAt = now();
     emit('project.updated', p);
     return p;
@@ -884,6 +983,7 @@ const handlers: HandlerMap = {
   },
   'projects.remove': ({ id }) => {
     const p = project(id);
+    if (db.tasks.some((t) => t.projectId === id && t.status === 'running')) throw conflict('Im Projekt laufen noch Aufgaben. Bitte zuerst die Arbeit stoppen.');
     db.projects = db.projects.filter((x) => x.id !== id);
     db.tasks = db.tasks.filter((t) => t.projectId !== id);
     db.runs = db.runs.filter((r) => r.projectId !== id);
@@ -894,15 +994,10 @@ const handlers: HandlerMap = {
     log('info', 'projects', `Projekt aus NOVA entfernt (Dateien bleiben erhalten): ${p.name}`);
     return { ok: true as const };
   },
-  'projects.setWork': ({ id, enabled }) => {
-    const p = project(id);
-    p.workEnabled = enabled;
-    if (enabled && p.status === 'paused') p.status = 'active';
-    p.updatedAt = now();
-    emit('project.updated', p);
-    emitWork();
-    log('info', 'scheduler', `Arbeit für ${p.name} ${enabled ? 'eingeschaltet' : 'ausgeschaltet'}`);
-    return p;
+  'projects.setWork': async ({ id, enabled }) => {
+    project(id);
+    await (enabled ? handlers['work.start']({ projectId: id }) : handlers['work.stop']({ projectId: id }));
+    return project(id);
   },
   'templates.list': () => db.templates,
 
@@ -916,14 +1011,11 @@ const handlers: HandlerMap = {
   'tasks.create': (input) => {
     project(input.projectId);
     for (const dep of input.dependsOn) task(dep);
-    const t = now();
-    const created: Task = {
-      id: nid('task'), projectId: input.projectId, parentId: input.parentId, title: input.title, description: input.description, kind: input.kind,
-      role: input.role ?? roleForKind(input.kind), status: 'queued', priority: input.priority, dependsOn: input.dependsOn, attempts: 0,
-      maxAttempts: input.maxAttempts, blocker: null, result: null, acceptance: input.acceptance, verification: { status: 'not_run', checks: [] },
-      files: [], model: null, source: 'user', createdAt: t, updatedAt: t, startedAt: null, finishedAt: null,
-    };
-    db.tasks.push(created);
+    const created = newTask({
+      projectId: input.projectId, parentId: input.parentId, title: input.title, description: input.description, kind: input.kind,
+      role: input.role ?? roleForKind(input.kind), priority: input.priority, dependsOn: input.dependsOn,
+      maxAttempts: input.maxAttempts ?? db.settings.agents.maxAttempts, acceptance: input.acceptance, plannedFiles: input.plannedFiles, source: 'user',
+    });
     emit('task.updated', created);
     emitWork();
     log('info', 'tasks', `Aufgabe angelegt: ${created.title}`);
@@ -931,10 +1023,14 @@ const handlers: HandlerMap = {
   },
   'tasks.update': ({ id, ...patch }) => {
     const t = task(id);
-    if (t.status === 'running' || t.status === 'waiting_approval') throw conflict('Die Aufgabe wird gerade bearbeitet. Bitte zuerst pausieren.');
+    if (t.status === 'running') throw conflict('Die Aufgabe läuft gerade. Bitte zuerst pausieren.');
     for (const dep of patch.dependsOn ?? []) {
       if (dep === id) throw new MockRpcError('VALIDATION', 'Eine Aufgabe kann nicht von sich selbst abhängen.');
       task(dep);
+    }
+    for (const a of db.approvals.filter((x) => x.taskId === id && x.status === 'pending')) {
+      Object.assign(a, { status: 'expired', decidedAt: now() });
+      emit('approval.updated', a);
     }
     return touchTask(t, Object.fromEntries(Object.entries(patch).filter(([, v]) => v !== undefined)) as Partial<Task>);
   },
@@ -944,7 +1040,7 @@ const handlers: HandlerMap = {
     if (t.status === 'running' || t.status === 'waiting_approval') throw conflict('Die Aufgabe läuft bereits.');
     if (t.status === 'paused') throw conflict('Die Aufgabe ist pausiert. Bitte „Fortsetzen“ verwenden.');
     if (t.status === 'done') throw conflict('Die Aufgabe ist schon erledigt. Für einen neuen Durchlauf bitte „Wiederholen“ verwenden.');
-    touchTask(t, { status: 'queued', blocker: null, finishedAt: null });
+    touchTask(t, { status: 'queued', blocker: null, blockerCode: null, finishedAt: null, startRequested: true });
     emitWork();
     log('info', 'scheduler', `Aufgabe eingeplant: ${t.title}`);
     return t;
@@ -953,7 +1049,7 @@ const handlers: HandlerMap = {
     const t = task(id);
     if (!['running', 'queued', 'waiting_approval', 'blocked'].includes(t.status)) throw conflict('Nur laufende oder wartende Aufgaben können pausiert werden.');
     const r = runOfTask(id);
-    if (r && ACTIVE_RUN.has(r.status)) {
+    if (r && LIVE_RUN.has(r.status)) {
       touchRun(r, { status: 'paused', lastAction: 'Vom Benutzer pausiert' });
       addStep(r, 'status', 'Vom Benutzer pausiert');
     }
@@ -966,12 +1062,12 @@ const handlers: HandlerMap = {
     const t = task(id);
     if (t.status !== 'paused') throw conflict('Nur pausierte Aufgaben können fortgesetzt werden.');
     const r = runOfTask(id);
-    const resumeRun = r && r.status === 'paused' && db.workState === 'running' && project(t.projectId).workEnabled;
-    if (resumeRun) {
+    const resumeRun = !!r && r.status === 'paused' && effectiveWork(project(t.projectId)) === 'running';
+    if (r && resumeRun) {
       touchRun(r, { status: 'running', lastAction: 'Arbeitet weiter' });
       addStep(r, 'status', 'Fortgesetzt');
     }
-    touchTask(t, { status: resumeRun ? 'running' : 'queued' });
+    touchTask(t, { status: resumeRun ? 'running' : 'queued', startRequested: true });
     pausedByWork.delete(id);
     emitWork();
     log('info', 'scheduler', `Aufgabe fortgesetzt: ${t.title}`);
@@ -981,12 +1077,12 @@ const handlers: HandlerMap = {
     const t = task(id);
     if (['done', 'cancelled', 'failed'].includes(t.status)) throw conflict('Die Aufgabe ist bereits beendet.');
     const r = runOfTask(id);
-    if (r && (ACTIVE_RUN.has(r.status) || r.status === 'blocked')) touchRun(r, { status: 'cancelled', endedAt: now(), lastAction: 'Vom Benutzer gestoppt', pendingApprovalId: null });
+    if (r && (LIVE_RUN.has(r.status) || r.status === 'blocked')) touchRun(r, { status: 'cancelled', endedAt: now(), lastAction: 'Vom Benutzer gestoppt', pendingApprovalId: null });
     for (const a of db.approvals.filter((x) => x.taskId === id && x.status === 'pending')) {
       Object.assign(a, { status: 'expired', decidedAt: now() });
       emit('approval.updated', a);
     }
-    touchTask(t, { status: 'cancelled', finishedAt: now(), blocker: null });
+    touchTask(t, { status: 'cancelled', finishedAt: now(), blocker: null, blockerCode: null });
     emitWork();
     log('info', 'scheduler', `Aufgabe gestoppt: ${t.title} (Dateien bleiben unverändert)`);
     return t;
@@ -994,7 +1090,7 @@ const handlers: HandlerMap = {
   'tasks.retry': ({ id }) => {
     const t = task(id);
     if (!['failed', 'blocked', 'cancelled', 'interrupted', 'done'].includes(t.status)) throw conflict('Diese Aufgabe kann gerade nicht wiederholt werden.');
-    touchTask(t, { status: 'queued', blocker: null, result: null, finishedAt: null, attempts: 0, verification: { status: 'not_run', checks: [] } });
+    touchTask(t, { status: 'queued', blocker: null, blockerCode: null, result: null, finishedAt: null, attempts: 0, startRequested: true, verification: { status: 'not_run', checks: [] } });
     emitWork();
     log('info', 'scheduler', `Aufgabe wird wiederholt: ${t.title}`);
     return t;
@@ -1002,36 +1098,75 @@ const handlers: HandlerMap = {
   'tasks.delete': ({ id }) => {
     const t = task(id);
     if (t.status === 'running' || t.status === 'waiting_approval') throw conflict('Laufende Aufgaben können nicht gelöscht werden. Bitte zuerst stoppen.');
+    const dependents = db.tasks.filter((x) => x.dependsOn.includes(id) && OPEN_TASK.has(x.status));
+    if (dependents.length) throw new MockRpcError('CONFLICT', `Andere Aufgaben hängen davon ab: ${dependents.map((d) => `„${d.title}“`).join(', ')}.`, { taskIds: dependents.map((d) => d.id) });
     db.tasks = db.tasks.filter((x) => x.id !== id);
-    for (const other of db.tasks) other.dependsOn = other.dependsOn.filter((d) => d !== id);
     emit('task.removed', { id, projectId: t.projectId });
     emitWork();
     log('info', 'tasks', `Aufgabe gelöscht: ${t.title}`);
     return { ok: true as const };
   },
+  'tasks.notes': ({ taskId }) => {
+    task(taskId);
+    return db.notes.filter((n) => n.taskId === taskId).sort((a, b) => a.createdAt - b.createdAt);
+  },
+  'tasks.addNote': ({ taskId, text }) => {
+    const t = task(taskId);
+    const openQuestion = db.notes.some((n) => n.taskId === taskId && n.kind === 'question' && !db.notes.some((a) => a.taskId === taskId && a.kind === 'answer' && a.createdAt > n.createdAt));
+    const note: TaskNote = {
+      id: nid('note'), taskId, projectId: t.projectId, author: 'user', kind: openQuestion ? 'answer' : 'note', text, options: [], assumption: null, createdAt: now(),
+      consumedRunId: null,
+    };
+    db.notes.push(note);
+    emit('task.note', note);
+    if (t.status === 'blocked' && t.blockerCode === 'NEEDS_INPUT') {
+      touchTask(t, { status: 'queued', blocker: null, blockerCode: null });
+      emitWork();
+    }
+    log('info', 'tasks', `${note.kind === 'answer' ? 'Antwort' : 'Hinweis'} an den Agenten: ${t.title}`);
+    return note;
+  },
+  'tasks.createFix': ({ projectId, checkRunId, errorId, note }) => {
+    project(projectId);
+    let title = 'Fehler beheben';
+    let description = '';
+    if (checkRunId) {
+      const c = db.checks.find((x) => x.id === checkRunId);
+      if (!c) throw notFound('Die Prüfung');
+      title = `${c.kind === 'test' ? 'Fehlgeschlagene Tests' : c.kind === 'build' ? 'Build-Fehler' : 'Prüfungsfehler'} beheben`;
+      description = c.failures.length ? c.failures.map((f) => `- ${f.file ?? ''}${f.line != null ? `:${f.line}` : ''} ${f.message}`).join('\n') : c.outputTail;
+    } else if (errorId) {
+      const e = db.errors.find((x) => x.id === errorId);
+      if (!e) throw notFound('Der Fehler');
+      title = `Reparieren: ${e.title}`;
+      description = `${e.whatHappened}${e.details ? `\n\nTechnische Details:\n${e.details}` : ''}`;
+    } else {
+      throw new MockRpcError('VALIDATION', 'Bitte eine Prüfung oder einen Fehler angeben.');
+    }
+    if (note) description = `${description}\n\nHinweis: ${note}`;
+    const fix = newTask({ projectId, title, description, kind: 'fix', role: 'tester', priority: 2, source: 'user' });
+    emit('task.updated', fix);
+    emitWork();
+    log('info', 'tasks', `Reparatur-Aufgabe angelegt: ${title}`);
+    return fix;
+  },
   'tasks.plan': ({ projectId, goal }) => {
     const p = project(projectId);
-    const t = now();
     const title = goal.length > 70 ? `${goal.slice(0, 69).trimEnd()}…` : goal;
-    const plan: Task = {
-      id: nid('task'), projectId, parentId: null, title: `Ziel planen: ${title}`, description: goal, kind: 'plan', role: 'planner', status: 'queued',
-      priority: 2, dependsOn: [], attempts: 0, maxAttempts: 3, blocker: null, result: null, acceptance: null,
-      verification: { status: 'unavailable', checks: [] }, files: [], model: null, source: 'user', createdAt: t, updatedAt: t, startedAt: null, finishedAt: null,
-    };
-    db.tasks.push(plan);
+    const plan = newTask({ projectId, title: `Ziel planen: ${title}`, description: goal, kind: 'plan', role: 'planner', priority: 2, source: 'user', verification: { status: 'unavailable', checks: [] } });
     emit('task.updated', plan);
     emitWork();
     log('info', 'planner', `Neues Ziel für ${p.name}: ${title}`);
     liveLater(2500, () => {
       if (!db.tasks.includes(plan) || plan.status !== 'queued') return;
-      touchTask(plan, { status: 'running', startedAt: now(), model: 'ollama/qwen2.5-coder:14b' });
+      touchTask(plan, { status: 'running', startedAt: now(), model: `${OLLAMA}/qwen2.5-coder:14b` });
       liveLater(4000, () => {
         if (plan.status !== 'running') return;
         const subtitles = [`Anforderungen klären: ${title}`, `Umsetzen: ${title}`, `Tests schreiben: ${title}`];
         let prev: string | null = null;
         for (const st of subtitles) {
-          const sub: Task = { ...plan, id: nid('task'), parentId: plan.id, title: st, kind: st.startsWith('Tests') ? 'test' : 'code', role: st.startsWith('Tests') ? 'tester' : 'coder', status: 'queued', priority: 1, dependsOn: prev ? [prev] : [], source: 'planner', verification: { status: 'not_run', checks: [] }, createdAt: now(), updatedAt: now(), startedAt: null, finishedAt: null, model: null };
-          db.tasks.push(sub);
+          const test = st.startsWith('Tests');
+          const sub = newTask({ projectId, parentId: plan.id, title: st, kind: test ? 'test' : 'code', role: test ? 'tester' : 'coder', dependsOn: prev ? [prev] : [], source: 'planner' });
           emit('task.updated', sub);
           prev = sub.id;
         }
@@ -1042,19 +1177,7 @@ const handlers: HandlerMap = {
     return plan;
   },
   'work.status': () => workStatus(),
-  'work.start': ({ projectId }) => {
-    if (projectId) {
-      const p = project(projectId);
-      p.workEnabled = true;
-      if (p.status === 'paused') p.status = 'active';
-      emit('project.updated', p);
-    } else {
-      db.workState = 'running';
-    }
-    emitWork();
-    log('info', 'scheduler', projectId ? 'Arbeit für ein Projekt gestartet' : 'Autonome Arbeit gestartet');
-    return workStatus();
-  },
+  'work.start': ({ projectId }) => setWork('running', projectId),
   'work.pause': ({ projectId }) => {
     const affected = db.runs.filter((r) => r.status === 'running' && (!projectId || r.projectId === projectId));
     for (const r of affected) {
@@ -1065,37 +1188,20 @@ const handlers: HandlerMap = {
         pausedByWork.add(t.id);
       }
     }
-    if (projectId) {
-      const p = project(projectId);
-      p.workEnabled = false;
-      emit('project.updated', p);
-    } else {
-      db.workState = 'paused';
-    }
-    emitWork();
-    log('info', 'scheduler', projectId ? 'Arbeit für ein Projekt pausiert' : 'Autonome Arbeit pausiert');
-    return workStatus();
+    return setWork('paused', projectId);
   },
   'work.resume': ({ projectId }) => {
-    if (projectId) {
-      const p = project(projectId);
-      p.workEnabled = true;
-      if (p.status === 'paused') p.status = 'active';
-      emit('project.updated', p);
-    } else {
-      db.workState = 'running';
-    }
+    const result = setWork('running', projectId);
     for (const id of [...pausedByWork]) {
       const t = db.tasks.find((x) => x.id === id);
-      if (!t || (projectId && t.projectId !== projectId)) continue;
+      if (!t || (projectId && t.projectId !== projectId) || effectiveWork(project(t.projectId)) !== 'running') continue;
       const r = runOfTask(id);
       if (t.status === 'paused') touchTask(t, { status: 'running' });
       if (r && r.status === 'paused') touchRun(r, { status: 'running', lastAction: 'Arbeitet weiter' });
       pausedByWork.delete(id);
     }
     emitWork();
-    log('info', 'scheduler', projectId ? 'Arbeit für ein Projekt fortgesetzt' : 'Autonome Arbeit fortgesetzt');
-    return workStatus();
+    return projectId ? result : workStatus();
   },
   'work.stop': ({ projectId }) => {
     for (const r of db.runs.filter((x) => x.status === 'running' && (!projectId || x.projectId === projectId))) {
@@ -1103,17 +1209,11 @@ const handlers: HandlerMap = {
       const t = db.tasks.find((x) => x.id === r.taskId);
       if (t && t.status === 'running') touchTask(t, { status: 'queued' });
     }
-    if (projectId) {
-      const p = project(projectId);
-      p.workEnabled = false;
-      emit('project.updated', p);
-    } else {
-      db.workState = 'stopped';
+    for (const id of [...pausedByWork]) {
+      const t = db.tasks.find((x) => x.id === id);
+      if (!projectId || t?.projectId === projectId) pausedByWork.delete(id);
     }
-    pausedByWork.clear();
-    emitWork();
-    log('info', 'scheduler', projectId ? 'Arbeit für ein Projekt gestoppt' : 'Autonome Arbeit gestoppt');
-    return workStatus();
+    return setWork('stopped', projectId);
   },
   'agents.roles': () => db.roles,
   'agents.runs': ({ projectId, taskId, activeOnly, limit }) =>

@@ -1,14 +1,19 @@
-// Daemon composition root: builds the Services container, recovers state, starts the RPC server and
-// handles graceful shutdown. Used by src/daemon/index.ts (process entry) and by integration tests (in-process).
+// Daemon composition root: single-instance lock, pending DB restore, Services container, recovery, RPC server,
+// maintenance timer and graceful shutdown with hard deadlines.
+// Used by src/daemon/index.ts (process entry) and by integration tests (in-process).
+import { copyFileSync, existsSync, readFileSync, unlinkSync } from 'node:fs';
 import { join } from 'node:path';
 import type { DaemonStatus } from '@shared/schemas';
 import type { Services } from './contracts';
 import { createCore } from './core/context';
 import { createNotificationService } from './core/notifications';
-import { defaultEndpoint } from './core/paths';
-import { errorMessage } from './core/errors';
+import { canonicalDataDir, dataPaths, defaultEndpoint, type DataPaths } from './core/paths';
+import { NovaError, errorMessage } from './core/errors';
+import { acquireInstanceLock, type InstanceLock } from './core/instance-lock';
+import { refreshWindowsPath } from './core/child-env';
+import { clearCrashReport } from './core/crash';
 import { registerCoreRpc } from './rpc-core';
-import { createRpcRouter, startRpcServer, ensureToken, writeLock, removeLock } from './server';
+import { createRpcRouter, startRpcServer, generateToken, writeToken, writeLock, readLock, removeLock, probeDaemon } from './server';
 import { createProviderRegistry, createModelClient, createBudgetService, createOllamaService, registerProvidersRpc } from './providers';
 import {
   createPathGuard,
@@ -17,6 +22,7 @@ import {
   createCommandPolicy,
   createProcessManager,
   createTerminalService,
+  createFileWatcher,
   createFileService,
   createToolRegistry,
   registerToolsRpc,
@@ -38,201 +44,352 @@ import {
 
 export interface StartDaemonOptions {
   dataDir: string;
-  /** IPC endpoint; defaults to the per-user pipe/socket. */
+  /** IPC endpoint; defaults to the per-user pipe/socket of the canonical data dir. */
   endpoint?: string;
   echoLogs?: boolean;
   /** Skip the scheduler loop (tests drive work.tick()). */
   manualLoop?: boolean;
-  /** Override Ollama URL (tests with the fake Ollama server). */
+  /** Override the Ollama URL (tests with the fake Ollama server) – written to provider row "ollama-local". */
   ollamaBaseUrl?: string;
-  /** Called when shutdown finished (process entry exits here). */
-  onExit?: (code: number) => void;
+  /** Secret store scheme override (tests use 'memory'). */
+  secretScheme?: 'memory' | 'aes-local';
+  /** Called when shutdown finished (process entry exits here). `restart` = the daemon should be started again. */
+  onExit?: (code: number, restart: boolean) => void;
 }
 
 export interface DaemonApp {
   services: Services;
   endpoint: string;
   token: string;
+  dataDir: string;
   status(): DaemonStatus;
-  stop(reason: string): Promise<void>;
+  stop(reason: string, opts?: { restart?: boolean; fast?: boolean }): Promise<void>;
+}
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function stampNow(): string {
+  return new Date().toISOString().replace(/[:.]/g, '-');
+}
+
+/** Applies a database restore requested by BackupService.restore (before the DB is opened). */
+function applyRestorePending(paths: DataPaths): string | null {
+  if (!existsSync(paths.restorePending)) return null;
+  try {
+    const { backupPath } = JSON.parse(readFileSync(paths.restorePending, 'utf8')) as { backupPath?: string };
+    if (!backupPath || !existsSync(backupPath)) throw new Error('Sicherungsdatei nicht gefunden');
+    if (existsSync(paths.db)) copyFileSync(paths.db, join(paths.backups, `nova-${stampNow()}-vor-wiederherstellung.db`));
+    for (const suffix of ['-wal', '-shm']) if (existsSync(paths.db + suffix)) unlinkSync(paths.db + suffix);
+    copyFileSync(backupPath, paths.db);
+    return backupPath;
+  } finally {
+    try {
+      unlinkSync(paths.restorePending);
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+function withTimeout<T>(p: Promise<T> | T, ms: number): Promise<T | undefined> {
+  return Promise.race([Promise.resolve(p), new Promise<undefined>((r) => setTimeout(() => r(undefined), ms).unref())]);
 }
 
 export async function startDaemon(opts: StartDaemonOptions): Promise<DaemonApp> {
   const startedAt = Date.now();
-  const { core, migration } = createCore({
-    dataDir: opts.dataDir,
-    echoLogs: opts.echoLogs,
-    beforeMigrate: (db, from) => {
-      const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-      db.backupTo(join(core_paths_backups(opts.dataDir), `nova-vor-migration-v${from}-${stamp}.db`));
-    },
-  });
-  const log = core.log;
-  log.info('NOVA-Hintergrunddienst startet', { version: core.version, pid: process.pid, dataDir: opts.dataDir, migration });
+  const dataDir = canonicalDataDir(opts.dataDir);
+  const paths = dataPaths(dataDir);
+  const endpoint = opts.endpoint ?? defaultEndpoint(dataDir);
 
-  const s = { core } as Services;
-  s.notifications = createNotificationService(core.bus, core.settings);
-  s.secrets = createSecretStore(s);
-  s.approvals = createApprovalService(s);
-  s.budget = createBudgetService(s);
-  s.providers = createProviderRegistry(s);
-  s.models = createModelClient(s);
-  s.ollama = createOllamaService(s);
-  s.pathGuard = createPathGuard(s);
-  s.journal = createChangeJournal(s);
-  s.locks = createFileLockService(s);
-  s.policy = createCommandPolicy(s);
-  s.processes = createProcessManager(s);
-  s.terminals = createTerminalService(s);
-  s.files = createFileService(s);
-  s.tools = createToolRegistry(s);
-  s.memory = createMemoryService(s);
-  s.git = createGitService(s);
-  s.checkpoints = createCheckpointService(s);
-  s.backups = createBackupService(s);
-  s.templates = createTemplateRegistry(s);
-  s.detector = createProjectDetector(s);
-  s.projects = createProjectService(s);
-  s.checks = createCheckService(s);
-  s.preview = createPreviewService(s);
-  s.resources = createResourceMonitor(s);
-  s.governor = createConcurrencyGovernor(s);
-  s.integrations = createIntegrationService(s);
-  s.updates = createUpdateService(s);
-  s.runs = createRunStore(s);
-  s.agents = createAgentRunner(s);
-  s.tasks = createTaskService(s);
-  s.work = createWorkCycle(s);
-
-  // Version change → data backup before anything else touches the data ("Vor Updates muss NOVA interne Daten sichern").
-  const prevVersion = core.db.get<{ value: string }>("SELECT value FROM meta WHERE key = 'app_version'")?.value ?? null;
-  if (prevVersion && prevVersion !== core.version) {
-    try {
-      s.backups.createDatabaseBackup(`Versionswechsel ${prevVersion} → ${core.version}`);
-    } catch (e) {
-      log.error('Sicherung beim Versionswechsel fehlgeschlagen', { error: errorMessage(e) });
+  // 1. Single instance BEFORE touching anything (DB, token, processes).
+  const instanceLock: InstanceLock | null = await acquireInstanceLock(dataDir, paths.instanceLock);
+  if (!instanceLock) {
+    const probe = await probeDaemon(endpoint, paths.token, 3000).catch(() => ({ status: 'none' as const, health: null }));
+    if (probe.status === 'foreign') {
+      throw new NovaError('DAEMON_UNAVAILABLE', 'Der Kommunikationskanal wird von einem fremden Programm belegt. Bitte den PC neu starten.', { severity: 'critical' });
     }
-  }
-  core.db.run("INSERT INTO meta(key, value) VALUES ('app_version', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value", [core.version]);
-
-  if (opts.ollamaBaseUrl) {
-    const m = core.settings.section('models');
-    if (m.ollamaBaseUrl !== opts.ollamaBaseUrl) core.settings.update({ models: { ollamaBaseUrl: opts.ollamaBaseUrl } });
+    throw new NovaError('CONFLICT', 'NOVA läuft bereits für diesen Datenordner.', { severity: 'warning', details: probe.health });
   }
 
-  let lastError: string | null = null;
-  let state: DaemonStatus['state'] = 'starting';
-  const recovered = { tasks: 0, orphanProcesses: 0 };
-
-  s.providers.ensureDefaults();
   try {
-    recovered.orphanProcesses = await s.processes.recoverOrphans();
-  } catch (e) {
-    log.warn('Verwaiste Prozesse konnten nicht geprüft werden', { error: errorMessage(e) });
-  }
-  try {
-    recovered.tasks = (await s.work.recover()).tasks;
-  } catch (e) {
-    lastError = errorMessage(e);
-    log.error('Wiederherstellung der Aufgaben fehlgeschlagen', { error: lastError });
-  }
-  try {
-    s.backups.maybeDailyBackup();
-    s.backups.applyRetention();
-  } catch (e) {
-    log.warn('Tägliche Sicherung fehlgeschlagen', { error: errorMessage(e) });
-  }
-  s.resources.start();
+    // 2. Previous run left its lock file behind → it did not shut down cleanly.
+    const leftover = readLock(paths);
+    const restoredFrom = applyRestorePending(paths);
 
-  const status = (): DaemonStatus => {
-    const work = s.work.status();
-    return {
-      state: state === 'running' && work.state !== 'running' ? 'paused' : state,
-      version: core.version,
-      pid: process.pid,
-      instanceId: core.instanceId,
-      startedAt,
-      dataDir: opts.dataDir,
-      dbSchemaVersion: migration.to,
-      work: work.state,
-      activeRuns: work.activeRuns,
-      lastError,
-      recovered,
-      platform: process.platform,
+    // 3. Database + core (backup before migrating an existing DB).
+    const { core, migration } = createCore({
+      dataDir,
+      echoLogs: opts.echoLogs,
+      beforeMigrate: (db, from) => db.backupTo(join(paths.backups, `nova-vor-migration-v${from}-${stampNow()}.db`)),
+    });
+    const log = core.log;
+    log.info('NOVA-Hintergrunddienst startet', { version: core.version, pid: process.pid, dataDir, migration, restoredFrom });
+
+    const lastShutdownRaw = core.db.get<{ value: string }>("SELECT value FROM meta WHERE key = 'last_shutdown'")?.value ?? null;
+    let previousShutdown: DaemonStatus['previousShutdown'] = null;
+    if (leftover) previousShutdown = { at: leftover.startedAt, clean: false, reason: 'Unerwartet beendet (Absturz, Stromausfall oder Windows-Neustart)' };
+    else if (lastShutdownRaw) {
+      try {
+        previousShutdown = JSON.parse(lastShutdownRaw) as NonNullable<DaemonStatus['previousShutdown']>;
+      } catch {
+        previousShutdown = null;
+      }
+    }
+
+    // 4. Services container.
+    const s = { core } as Services;
+    let lastError: string | null = null;
+    let state: DaemonStatus['state'] = 'starting';
+    const recovered = { tasks: 0, orphanProcesses: 0 };
+    const router = createRpcRouter(log.child('rpc'));
+    const status = (): DaemonStatus => {
+      let work: ReturnType<Services['work']['status']> | null = null;
+      try {
+        work = s.work.status();
+      } catch {
+        work = null;
+      }
+      const hasCritical = core.errors.hasOpenCritical();
+      const base: DaemonStatus['state'] =
+        state === 'running' && (lastError || hasCritical) ? 'error' : state === 'running' && work && work.state !== 'running' ? 'paused' : state;
+      return {
+        state: base,
+        version: core.version,
+        pid: process.pid,
+        instanceId: core.instanceId,
+        startedAt,
+        dataDir,
+        dbSchemaVersion: migration.to,
+        work: work?.state ?? 'stopped',
+        activeRuns: work?.activeRuns ?? 0,
+        lastError,
+        recovered,
+        platform: process.platform,
+        previousShutdown,
+        secretStore: { scheme: s.secrets?.scheme ?? 'memory', secure: s.secrets?.secure ?? false },
+        methods: router.registered(),
+      };
     };
-  };
+    s.daemon = { status };
+    s.notifications = createNotificationService(core.bus, core.settings, core.db);
+    s.secrets = createSecretStore(s, opts.secretScheme ? { scheme: opts.secretScheme } : undefined);
+    s.approvals = createApprovalService(s);
+    s.budget = createBudgetService(s);
+    s.providers = createProviderRegistry(s);
+    s.models = createModelClient(s);
+    s.ollama = createOllamaService(s);
+    s.pathGuard = createPathGuard(s);
+    s.journal = createChangeJournal(s);
+    s.locks = createFileLockService(s);
+    s.policy = createCommandPolicy(s);
+    s.processes = createProcessManager(s);
+    s.terminals = createTerminalService(s);
+    s.watcher = createFileWatcher(s);
+    s.files = createFileService(s);
+    s.tools = createToolRegistry(s);
+    s.memory = createMemoryService(s);
+    s.git = createGitService(s);
+    s.checkpoints = createCheckpointService(s);
+    s.backups = createBackupService(s);
+    s.templates = createTemplateRegistry(s);
+    s.detector = createProjectDetector(s);
+    s.projects = createProjectService(s);
+    s.checks = createCheckService(s);
+    s.preview = createPreviewService(s);
+    s.resources = createResourceMonitor(s);
+    s.governor = createConcurrencyGovernor(s);
+    s.integrations = createIntegrationService(s);
+    s.updates = createUpdateService(s);
+    s.runs = createRunStore(s);
+    s.agents = createAgentRunner(s);
+    s.tasks = createTaskService(s);
+    s.work = createWorkCycle(s);
 
-  const router = createRpcRouter(log.child('rpc'));
-  let stopping: Promise<void> | null = null;
-  const app: DaemonApp = {
-    services: s,
-    endpoint: opts.endpoint ?? defaultEndpoint(opts.dataDir),
-    token: '',
-    status,
-    stop: (reason) => {
-      if (!stopping) stopping = shutdown(reason);
-      return stopping;
-    },
-  };
+    // 5. Version change → data backup before anything else changes data ("Vor Updates muss NOVA interne Daten sichern").
+    const prevVersion = core.db.get<{ value: string }>("SELECT value FROM meta WHERE key = 'app_version'")?.value ?? null;
+    if (prevVersion && prevVersion !== core.version) {
+      try {
+        s.backups.createDatabaseBackup(`Versionswechsel ${prevVersion} → ${core.version}`);
+      } catch (e) {
+        log.error('Sicherung beim Versionswechsel fehlgeschlagen', { error: errorMessage(e) });
+      }
+    }
+    core.db.run("INSERT INTO meta(key, value) VALUES ('app_version', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value", [core.version]);
 
-  registerCoreRpc(router, s, {
-    status,
-    requestShutdown: (reason) => {
-      setTimeout(() => void app.stop(reason), 50);
-    },
-  });
-  registerProvidersRpc(router, s);
-  registerToolsRpc(router, s);
-  registerAgentsRpc(router, s);
-  registerTasksRpc(router, s);
-  registerGitRpc(router, s);
-  registerMemoryRpc(router, s);
-  registerProjectsRpc(router, s);
-  registerEnvRpc(router, s);
-
-  app.token = ensureToken(core.paths);
-  const server = await startRpcServer({
-    endpoint: app.endpoint,
-    token: app.token,
-    tokenPath: core.paths.token,
-    router,
-    bus: core.bus,
-    log: log.child('server'),
-    version: core.version,
-    instanceId: core.instanceId,
-  });
-  writeLock(core.paths, { pid: process.pid, instanceId: core.instanceId, endpoint: app.endpoint, startedAt, version: core.version });
-
-  state = 'running';
-  if (!opts.manualLoop) s.work.startLoop();
-  core.bus.emit('daemon.status', status());
-  log.info('NOVA-Hintergrunddienst bereit', { endpoint: app.endpoint, recovered });
-
-  async function shutdown(reason: string): Promise<void> {
-    log.info('NOVA-Hintergrunddienst fährt herunter', { reason });
-    state = 'stopping';
-    core.bus.emit('daemon.status', status());
+    // 6. Recovery.
     const step = async (name: string, fn: () => unknown) => {
       try {
         await fn();
       } catch (e) {
-        log.warn(`Beim Herunterfahren fehlgeschlagen: ${name}`, { error: errorMessage(e) });
+        log.error(`Startschritt fehlgeschlagen: ${name}`, { error: errorMessage(e) });
+        lastError = `${name}: ${errorMessage(e)}`;
       }
     };
-    await step('work', () => s.work.shutdown(10_000));
-    await step('preview', () => s.preview.stopAll());
-    await step('terminals', () => s.terminals.closeAll());
-    await step('processes', () => s.processes.shutdown());
-    await step('resources', () => s.resources.stop());
-    await step('server', () => server.close());
-    await step('lock', () => removeLock(core.paths, core.instanceId));
-    await step('db', () => core.db.close());
-    opts.onExit?.(0);
+    void refreshWindowsPath();
+    await step('Schlüsselspeicher', async () => {
+      await s.secrets.loadAll();
+      if (!s.secrets.secure) {
+        core.errors.report({
+          code: 'SECRET_STORE',
+          severity: 'warning',
+          title: 'Schlüsselspeicher eingeschränkt sicher',
+          whatHappened: 'Auf diesem System steht kein Betriebssystem-Schlüsselspeicher zur Verfügung. API-Schlüssel werden mit einem lokalen Schlüssel verschlüsselt.',
+          userAction: 'Für mehr Sicherheit den Systemschlüsselspeicher einrichten oder keine Cloud-Schlüssel hinterlegen.',
+          dedupeKey: 'secret-store-insecure',
+        });
+      }
+    });
+    s.providers.ensureDefaults();
+    if (opts.ollamaBaseUrl) s.providers.upsert({ id: 'ollama-local', type: 'ollama', name: 'Ollama (lokal)', baseUrl: opts.ollamaBaseUrl });
+    await step('Änderungsjournal', () => s.journal.recoverPending());
+    await step('Verwaiste Prozesse', async () => {
+      recovered.orphanProcesses = await s.processes.recoverOrphans();
+    });
+    await step('Aufgaben', async () => {
+      recovered.tasks = (await s.work.recover()).tasks;
+    });
+    s.resources.start();
+    s.updates.start();
+    for (const p of s.projects.list()) {
+      try {
+        s.watcher.watch(p.id, p.path);
+        s.resources.trackPath(p.path);
+      } catch {
+        /* missing folder etc. */
+      }
+    }
+
+    // 7. Maintenance (start + every 24 h).
+    const maintenance = async () => {
+      const settings = core.settings.get();
+      const retentionDays = settings.diagnostics.historyRetentionDays;
+      await step('Tägliche Sicherung', () => s.backups.maybeDailyBackup());
+      await step('Aufbewahrung', () => s.backups.applyRetention());
+      if (retentionDays > 0) {
+        const cutoff = core.clock.now() - retentionDays * DAY_MS;
+        await step('Verlauf bereinigen', () => {
+          s.runs.prune(cutoff);
+          s.processes.prune(cutoff);
+          s.checks.prune(cutoff);
+          s.approvals.prune(cutoff);
+          core.errors.prune(cutoff);
+          s.notifications.prune(cutoff);
+        });
+      }
+      await step('Datenbank optimieren', () => {
+        core.db.exec('PRAGMA optimize;');
+        const pages = Number(core.db.get<{ page_count: number }>('PRAGMA page_count')?.page_count ?? 0);
+        const free = Number(core.db.get<{ freelist_count: number }>('PRAGMA freelist_count')?.freelist_count ?? 0);
+        if (pages > 0 && free / pages > 0.2) core.db.exec('VACUUM;');
+      });
+    };
+    await maintenance();
+    const maintenanceTimer = setInterval(() => void maintenance(), DAY_MS);
+    maintenanceTimer.unref();
+
+    // 8. RPC.
+    let stopping: Promise<void> | null = null;
+    let restartAfterStop = false;
+    const app: DaemonApp = {
+      services: s,
+      endpoint,
+      token: '',
+      dataDir,
+      status,
+      stop: (reason, o) => {
+        if (o?.restart) restartAfterStop = true;
+        if (!stopping) stopping = shutdown(reason, o?.fast ?? false);
+        return stopping;
+      },
+    };
+    registerCoreRpc(router, s, {
+      status,
+      requestShutdown: (reason) => {
+        setTimeout(() => void app.stop(reason, { fast: reason === 'os-shutdown' }), 50);
+      },
+    });
+    registerProvidersRpc(router, s);
+    registerToolsRpc(router, s);
+    registerAgentsRpc(router, s);
+    registerTasksRpc(router, s);
+    registerGitRpc(router, s);
+    registerMemoryRpc(router, s);
+    registerProjectsRpc(router, s);
+    registerEnvRpc(router, s);
+    const backupsWithRestart = s.backups as Services['backups'] & { setRestartHandler?: (fn: () => void) => void };
+    backupsWithRestart.setRestartHandler?.(() => setTimeout(() => void app.stop('Datenbank-Wiederherstellung', { restart: true }), 200));
+
+    app.token = generateToken();
+    const server = await startRpcServer({ endpoint, token: app.token, router, bus: core.bus, log: log.child('server'), version: core.version, instanceId: core.instanceId });
+    writeToken(paths, app.token);
+    writeLock(paths, { pid: process.pid, instanceId: core.instanceId, endpoint, startedAt, version: core.version });
+    clearCrashReport(paths.crash);
+
+    state = 'running';
+    core.bus.on('work.status', () => core.bus.emit('daemon.status', status()));
+    if (!opts.manualLoop) s.work.startLoop();
+    core.bus.emit('daemon.status', status());
+    log.info('NOVA-Hintergrunddienst bereit', { endpoint, recovered });
+
+    async function shutdown(reason: string, fast: boolean): Promise<void> {
+      log.info('NOVA-Hintergrunddienst fährt herunter', { reason });
+      state = 'stopping';
+      core.bus.emit('daemon.status', status());
+      const deadline = setTimeout(() => {
+        log.error('Herunterfahren dauert zu lange – erzwungenes Ende');
+        finish();
+      }, fast ? 4000 : 25_000);
+      deadline.unref();
+      const timed = async (name: string, ms: number, fn: () => unknown) => {
+        try {
+          const r = await withTimeout(Promise.resolve().then(fn), ms);
+          if (r === undefined) log.warn(`Herunterfahren: Zeitlimit für ${name}`);
+        } catch (e) {
+          log.warn(`Beim Herunterfahren fehlgeschlagen: ${name}`, { error: errorMessage(e) });
+        }
+      };
+      clearInterval(maintenanceTimer);
+      core.operations.cancelAll();
+      await timed('Arbeitszyklus', fast ? 1500 : 12_000, () => s.work.shutdown(fast ? 1000 : 10_000));
+      await timed('Vorschau', 5000, () => s.preview.stopAll());
+      await timed('Terminals', 5000, () => s.terminals.closeAll());
+      await timed('Dateiüberwachung', 2000, () => s.watcher.unwatchAll());
+      await timed('Prozesse', fast ? 2000 : 5000, () => s.processes.shutdown());
+      await timed('Ressourcen', 2000, () => s.resources.stop());
+      await timed('Updates', 1000, () => s.updates.stop());
+      await timed('Server', 5000, () => server.close());
+      clearTimeout(deadline);
+      finish();
+    }
+
+    let finished = false;
+    function finish(): void {
+      if (finished) return;
+      finished = true;
+      try {
+        core.db.run(
+          "INSERT INTO meta(key, value) VALUES ('last_shutdown', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+          [JSON.stringify({ at: Date.now(), clean: true, reason: 'Sauber beendet' })],
+        );
+      } catch {
+        /* db may already be closed */
+      }
+      try {
+        core.db.close();
+      } catch {
+        /* ignore */
+      }
+      try {
+        removeLock(paths, core.instanceId);
+      } catch {
+        /* ignore */
+      }
+      void instanceLock!.release().finally(() => opts.onExit?.(0, restartAfterStop));
+    }
+
+    return app;
+  } catch (e) {
+    await instanceLock.release();
+    throw e;
   }
-
-  return app;
-}
-
-function core_paths_backups(dataDir: string): string {
-  return join(dataDir, 'backups');
 }
