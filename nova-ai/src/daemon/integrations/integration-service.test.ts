@@ -1,7 +1,10 @@
 // Tests for the IntegrationService: status cache (10 min, persisted), manual paths, resolvePath with versions, module
 // registration, the winget install flow behind an 'install' approval (real ApprovalService, fake ProcessManager,
 // simulated Windows) and "open in external program".
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterAll, afterEach, describe, expect, it, vi } from 'vitest';
 import { BUILTIN_INTEGRATIONS, IntegrationStatusSchema, type IntegrationStatus, type Notification, type Project } from '@shared/schemas';
 import { createTestCore, type TestCore } from '../../../tests/helpers/core';
 import { makeServices } from '../../../tests/helpers/services';
@@ -462,9 +465,27 @@ describe('IntegrationService – open', () => {
 });
 
 describe('IntegrationService – default detached spawner', () => {
+  // The started program runs in the project folder: on Windows that folder stays locked until the (detached) process
+  // has exited, which can take a while on a busy machine. It therefore gets its own folder, removed best-effort later.
+  const programDirs: string[] = [];
+  afterAll(async () => {
+    for (const dir of programDirs.splice(0)) {
+      for (let i = 0; i < 100; i++) {
+        try {
+          rmSync(dir, { recursive: true, force: true });
+          break;
+        } catch {
+          await new Promise((r) => setTimeout(r, 100));
+        }
+      }
+    }
+  });
+
   function spawnerSetup(platform: NodeJS.Platform, file: string, args: string[]) {
     t = createTestCore();
-    const proj = project(t.dir);
+    const dir = mkdtempSync(join(tmpdir(), 'nova-program-'));
+    programDirs.push(dir);
+    const proj = project(dir);
     const tool: IntegrationModule = {
       id: 'tool',
       name: 'Werkzeug',
@@ -479,7 +500,7 @@ describe('IntegrationService – default detached spawner', () => {
     });
     s.approvals = createApprovalService(s);
     const fs = memFs(platform);
-    fs.addDir(t.dir);
+    fs.addDir(dir);
     return createIntegrationService(s, { platform, modules: [tool], fs, run: scriptedRun({}).run, findExecutable: async () => null });
   }
 
