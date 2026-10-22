@@ -36,3 +36,5 @@ export type { SegmentedControlProps, SegmentedOption } from './SegmentedControl'
 export { Toaster } from './Toaster';
 export { Stat } from './Stat';
 export type { StatProps } from './Stat';
+export { Popover } from './Popover';
+export type { PopoverProps } from './Popover';

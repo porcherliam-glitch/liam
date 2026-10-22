@@ -25,7 +25,7 @@ export function Badge({ tone = 'neutral', icon: Icon, spin, size = 'sm', variant
     <span
       title={title}
       className={cn(
-        'inline-flex max-w-full items-center gap-1 rounded-md font-medium whitespace-nowrap',
+        'inline-flex max-w-full shrink-0 items-center gap-1 rounded-md font-medium whitespace-nowrap',
         size === 'sm' ? 'px-1.5 py-px text-[11px] leading-4' : 'px-2 py-0.5 text-xs leading-4',
         variant === 'soft' && t.soft,
         variant === 'outline' && cn('border bg-transparent', t.border, t.text),

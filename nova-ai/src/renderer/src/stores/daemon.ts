@@ -2,9 +2,12 @@
 // pending approvals count. `initDaemonStore()` is called once by <App/>; components read via hooks.
 import { create } from 'zustand';
 import type { DaemonConnectionState } from '@shared/bridge';
+import type { RpcMethod } from '@shared/rpc';
 import type { DaemonStatus, WorkStatus } from '@shared/schemas';
 import { api, getBridge } from '../lib/api';
 import { notifyResync, subscribeNovaEvent, subscribeResync } from './events';
+import { toast } from './toasts';
+import { useUiStore } from './ui';
 
 export interface DaemonStore {
   /** Bridge connection state (null until the first answer). */
@@ -13,17 +16,21 @@ export interface DaemonStore {
   status: DaemonStatus | null;
   /** Last `work.status` (RPC or event). */
   work: WorkStatus | null;
-  /** Number of pending approvals (sidebar badge, bell). */
+  /** Number of pending approvals (sidebar badge, approvals icon). */
   pendingApprovals: number;
+  /** Number of unread notifications (bell). */
+  unreadNotifications: number;
   /** App version from the bridge. */
   appVersion: string | null;
   setConnection: (connection: DaemonConnectionState) => void;
   setStatus: (status: DaemonStatus) => void;
   setWork: (work: WorkStatus) => void;
   setPendingApprovals: (count: number) => void;
+  setUnreadNotifications: (count: number) => void;
   /** Re-reads daemon status, work status and the approvals count. */
   refresh: () => Promise<void>;
   refreshApprovals: () => Promise<void>;
+  refreshNotifications: () => Promise<void>;
 }
 
 const NO_BRIDGE_STATE: DaemonConnectionState = {
@@ -41,13 +48,15 @@ export const useDaemonStore = create<DaemonStore>((set, get) => ({
   status: null,
   work: null,
   pendingApprovals: 0,
+  unreadNotifications: 0,
   appVersion: null,
   setConnection: (connection) => set({ connection }),
   setStatus: (status) => set({ status }),
   setWork: (work) => set({ work }),
   setPendingApprovals: (pendingApprovals) => set({ pendingApprovals }),
+  setUnreadNotifications: (unreadNotifications) => set({ unreadNotifications }),
   refresh: async () => {
-    const results = await Promise.allSettled([api('daemon.status'), api('work.status'), get().refreshApprovals()]);
+    const results = await Promise.allSettled([api('daemon.status'), api('work.status'), get().refreshApprovals(), get().refreshNotifications()]);
     const [status, work] = results;
     if (status.status === 'fulfilled') set({ status: status.value });
     if (work.status === 'fulfilled') set({ work: work.value });
@@ -60,7 +69,30 @@ export const useDaemonStore = create<DaemonStore>((set, get) => ({
       /* keep the last known count */
     }
   },
+  refreshNotifications: async () => {
+    if (!isMethodSupported('notifications.list')) return;
+    try {
+      const unread = await api('notifications.list', { unreadOnly: true, limit: 1000 });
+      set({ unreadNotifications: unread.length });
+    } catch {
+      /* keep the last known count */
+    }
+  },
 }));
+
+/**
+ * False when the connected daemon does not offer `method` (DaemonStatus.methods). Unknown = true.
+ * Use it to hide features of newer versions.
+ */
+export function isMethodSupported(method: RpcMethod): boolean {
+  const methods = useDaemonStore.getState().status?.methods;
+  return !methods || methods.length === 0 || methods.includes(method);
+}
+
+/** Hook variant of isMethodSupported. */
+export function useSupports(method: RpcMethod): boolean {
+  return useDaemonStore((s) => !s.status?.methods || s.status.methods.length === 0 || s.status.methods.includes(method));
+}
 
 /** True when the bridge is connected to the daemon. */
 export function selectOnline(s: Pick<DaemonStore, 'connection'>): boolean {
@@ -113,7 +145,10 @@ function start(): () => void {
     const prev = useDaemonStore.getState().connection;
     useDaemonStore.getState().setConnection(next);
     if (next.state === 'connected' && prev?.state !== 'connected') {
-      void useDaemonStore.getState().refresh();
+      void useDaemonStore
+        .getState()
+        .refresh()
+        .then(() => announceUnread());
       // Events may have been missed while disconnected.
       if (prev) notifyResync();
     }
@@ -141,6 +176,11 @@ function start(): () => void {
       approvalsTimer = setTimeout(() => void useDaemonStore.getState().refreshApprovals(), 150);
     }),
   );
+  offs.push(
+    subscribeNovaEvent('notification', (n) => {
+      if (n.readAt == null) useDaemonStore.setState((s) => ({ unreadNotifications: s.unreadNotifications + 1 }));
+    }),
+  );
   offs.push(subscribeResync(() => void useDaemonStore.getState().refresh()));
 
   return () => {
@@ -150,10 +190,22 @@ function start(): () => void {
   };
 }
 
+/** After (re)connecting: tell the user about notifications that arrived while the window was closed. */
+function announceUnread(): void {
+  const unread = useDaemonStore.getState().unreadNotifications;
+  if (unread <= 0) return;
+  toast.show({
+    tone: 'info',
+    title: unread === 1 ? '1 neue Meldung' : `${unread} neue Meldungen`,
+    message: 'Seit dem letzten Öffnen von NOVA ist etwas passiert.',
+    action: { label: 'Anzeigen', onClick: () => useUiStore.getState().setNotificationsOpen(true) },
+  });
+}
+
 /** Resets the store (tests). */
 export function resetDaemonStore(): void {
   teardown?.();
   teardown = null;
   initCount = 0;
-  useDaemonStore.setState({ connection: null, status: null, work: null, pendingApprovals: 0, appVersion: null });
+  useDaemonStore.setState({ connection: null, status: null, work: null, pendingApprovals: 0, unreadNotifications: 0, appVersion: null });
 }

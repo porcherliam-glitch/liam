@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Link } from 'react-router';
 import { Ban, Check, CheckCheck, TriangleAlert } from 'lucide-react';
-import type { Approval, ApprovalKind } from '@shared/schemas';
+import { APPROVAL_KINDS_ONCE_ONLY, type Approval, type ApprovalKind } from '@shared/schemas';
 import { cn } from '../../lib/cn';
 import { APPROVAL_KIND, APPROVAL_SCOPE, metaOf, toneClasses } from '../../lib/labels';
 import { paths } from '../../lib/paths';
+import { HONEST_LIMITS_TEXT } from '../../lib/texts';
 import { useMutation } from '../../hooks/useRpc';
 import { Button } from '../ui/Button';
 import { CodeBlock } from '../ui/CodeBlock';
@@ -14,14 +15,17 @@ import { Badge } from '../ui/Badge';
 import { ApprovalStatusBadge } from './StatusBadges';
 import { RelativeTime } from './RelativeTime';
 
-/** Kinds where "Immer erlauben" asks for an extra confirmation. */
-const RISKY_ALWAYS = new Set<ApprovalKind>(['admin', 'delete', 'system_change', 'security_config', 'sensitive_data', 'publish', 'paid_model']);
+/** Kinds where "Immer erlauben" asks for an extra confirmation (once-only kinds never offer it). */
+const RISKY_ALWAYS = new Set<ApprovalKind>(['sensitive_data', 'outside_project', 'install', 'network']);
+const ONCE_ONLY = new Set<ApprovalKind>(APPROVAL_KINDS_ONCE_ONLY);
 
 export interface ApprovalCardProps {
   approval: Approval;
   projectName?: string;
   /** Called with the updated approval after a decision. */
   onDecided?: (approval: Approval) => void;
+  /** Show the honest-limits sentence below the buttons (default true for pending approvals). */
+  showLimits?: boolean;
   className?: string;
 }
 
@@ -37,10 +41,11 @@ function splitAction(action: string): { intro: string | null; code: string } {
  * "Einmal erlauben" / "Immer erlauben" / "Ablehnen" (approvals.decide). Decided approvals show their result.
  * @example <ApprovalCard approval={a} projectName={names.get(a.projectId ?? '')} />
  */
-export function ApprovalCard({ approval, projectName, onDecided, className }: ApprovalCardProps) {
+export function ApprovalCard({ approval, projectName, onDecided, showLimits = true, className }: ApprovalCardProps) {
   const kind = metaOf(APPROVAL_KIND, approval.kind);
   const KindIcon = kind.icon;
   const pending = approval.status === 'pending';
+  const alwaysAllowed = !ONCE_ONLY.has(approval.kind);
   const [pendingAction, setPendingAction] = useState<'once' | 'always' | 'deny' | null>(null);
   const [confirmAlways, setConfirmAlways] = useState(false);
   const decide = useMutation('approvals.decide', {
@@ -107,21 +112,25 @@ export function ApprovalCard({ approval, projectName, onDecided, className }: Ap
             <Button variant="primary" icon={Check} loading={pendingAction === 'once'} disabled={decide.loading} onClick={() => void run('once')}>
               Einmal erlauben
             </Button>
-            <Tooltip content="Gleiche Aktion künftig ohne Rückfrage erlauben (unter „Freigaben → Regeln“ widerrufbar).">
-              <Button
-                icon={CheckCheck}
-                loading={pendingAction === 'always' && !confirmAlways}
-                disabled={decide.loading}
-                onClick={() => (RISKY_ALWAYS.has(approval.kind) ? setConfirmAlways(true) : void run('always'))}
-              >
-                Immer erlauben
-              </Button>
-            </Tooltip>
+            {alwaysAllowed ? (
+              <Tooltip content="Gleiche Aktion künftig ohne Rückfrage erlauben (unter „Freigaben → Regeln“ widerrufbar).">
+                <Button
+                  icon={CheckCheck}
+                  loading={pendingAction === 'always' && !confirmAlways}
+                  disabled={decide.loading}
+                  onClick={() => (RISKY_ALWAYS.has(approval.kind) ? setConfirmAlways(true) : void run('always'))}
+                >
+                  Immer erlauben
+                </Button>
+              </Tooltip>
+            ) : null}
             <Button variant="danger" icon={Ban} loading={pendingAction === 'deny'} disabled={decide.loading} onClick={() => void run('deny')} className="sm:ml-auto">
               Ablehnen
             </Button>
           </div>
         )}
+        {pending && !alwaysAllowed && <p className="text-xs text-muted">Diese Art von Aktion muss jedes Mal einzeln erlaubt werden – „Immer erlauben“ gibt es dafür nicht.</p>}
+        {pending && showLimits && <p className="border-t border-border pt-2.5 text-[11px] leading-relaxed text-subtle">{HONEST_LIMITS_TEXT}</p>}
       </div>
 
       <ConfirmDialog

@@ -2,7 +2,7 @@ import type { ComponentProps, ReactNode } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '../../lib/cn';
 
-export interface CardProps extends Omit<ComponentProps<'section'>, 'title'> {
+export interface CardProps extends Omit<ComponentProps<'section'>, 'title' | 'ref'> {
   title?: ReactNode;
   description?: ReactNode;
   icon?: LucideIcon;

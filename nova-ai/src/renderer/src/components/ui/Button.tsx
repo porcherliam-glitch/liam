@@ -78,7 +78,7 @@ export function IconButton({ icon: Icon, label, variant = 'ghost', size = 'md', 
       title={label}
       disabled={disabled || loading}
       aria-busy={loading || undefined}
-      className={cn(BASE, BUTTON_VARIANTS[variant], ICON_BUTTON_SIZES[size], 'relative px-0', className)}
+      className={cn(BASE, BUTTON_VARIANTS[variant], ICON_BUTTON_SIZES[size], 'px-0', badge !== undefined && 'relative', className)}
       {...rest}
     >
       {loading ? <Spinner size="sm" label={null} /> : <Icon aria-hidden className={ICON_SIZES[size]} />}

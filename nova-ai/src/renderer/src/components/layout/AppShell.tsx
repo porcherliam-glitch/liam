@@ -5,6 +5,7 @@ import { useDaemonStore } from '../../stores/daemon';
 import { Toaster } from '../ui/Toaster';
 import { LoadingState } from '../ui/EmptyState';
 import { DaemonBanner } from '../common/DaemonBanner';
+import { ShutdownNotice } from '../common/ShutdownNotice';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
@@ -36,6 +37,7 @@ export function AppShell() {
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar />
         <DaemonBanner />
+        <ShutdownNotice />
         <main id="main" tabIndex={-1} aria-busy={blocked || undefined} className={cn('relative min-h-0 flex-1 overflow-auto focus:outline-none', greyed && 'opacity-60 saturate-50')}>
           <fieldset disabled={blocked} className="contents">
             <ErrorBoundary key={location.pathname}>

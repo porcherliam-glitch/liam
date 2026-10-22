@@ -15,6 +15,9 @@ interface UiStore {
   /** Running on the in-memory mock bridge (plain browser) – shows the "Demo-Daten" marker. */
   demo: boolean;
   setDemo: (demo: boolean) => void;
+  /** Notifications menu in the top bar is open. */
+  notificationsOpen: boolean;
+  setNotificationsOpen: (open: boolean) => void;
   setPage: (title: string | null, back?: PageBackLink | null) => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
   toggleSidebar: () => void;
@@ -44,6 +47,8 @@ export const useUiStore = create<UiStore>((set, get) => ({
   sidebarCollapsed: readCollapsed(),
   demo: false,
   setDemo: (demo) => set({ demo }),
+  notificationsOpen: false,
+  setNotificationsOpen: (notificationsOpen) => set({ notificationsOpen }),
   setPage: (pageTitle, pageBack = null) => set({ pageTitle, pageBack }),
   setSidebarCollapsed: (sidebarCollapsed) => {
     writeCollapsed(sidebarCollapsed);

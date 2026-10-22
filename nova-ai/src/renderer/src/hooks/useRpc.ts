@@ -179,7 +179,7 @@ export function useRpc<M extends RpcMethod>(method: M, params?: RpcParams<M> | n
   return {
     data,
     error,
-    loading: enabled && (!current || state.data === undefined) && error === null,
+    loading: enabled && data === undefined && error === null,
     refreshing: state.fetching > 0,
     refetch,
     setData,

@@ -25,17 +25,18 @@ import type { AgentRun, CheckRun, ProjectSummary, ResourceSnapshot, Task, WorkSt
 import type { RpcResult } from '@shared/rpc';
 import { Page } from '../components/layout/Page';
 import { Badge, Button, Card, EmptyState, ErrorState, LoadingState, Meter, ProgressBar, Stat, StatusBadge, StatusDot } from '../components/ui';
-import { ErrorCard, LiveDuration, ModelBadge, RelativeTime, RoleBadge, RunStatusBadge } from '../components/common';
+import { ErrorCard, ModelBadge, RelativeTime, RoleBadge, RunDuration, RunStatusBadge } from '../components/common';
 import { useMutation, useRpc } from '../hooks/useRpc';
 import { useNovaEvent } from '../hooks/useEvents';
 import { cn } from '../lib/cn';
-import { formatBytes, formatDuration, formatNumber, formatTokens, formatUsd, plural } from '../lib/format';
-import { metaOf, PROJECT_KIND, PROVIDER_HEALTH } from '../lib/labels';
+import { formatBytes, formatDuration, formatNumber, formatTime, formatTokens, formatUsd, plural } from '../lib/format';
+import { AGENT_STEP_KIND, metaOf, PROJECT_KIND, PROVIDER_HEALTH, toneClasses } from '../lib/labels';
 import { paths } from '../lib/paths';
 
 type Summary = RpcResult<'dashboard.summary'>;
 
-const ACTIVE = new Set<AgentRun['status']>(['running', 'paused', 'waiting_approval']);
+/** Contract: an active run has status 'running'. */
+const ACTIVE = new Set<AgentRun['status']>(['running']);
 
 const SUMMARY_EVENTS = [
   'task.updated',
@@ -140,6 +141,7 @@ function DashboardContent({ data }: { data: Summary }) {
   const running = data.activeRuns.filter((r) => r.status === 'running').length;
   const blockers = data.errors.filter((e) => e.severity === 'blocker' || e.severity === 'critical').length;
   const b = data.budget;
+  const waitingApproval = data.projects.reduce((n, p) => n + p.waitingApprovalTasks, 0);
 
   return (
     <div className="@container space-y-4">
@@ -163,22 +165,22 @@ function DashboardContent({ data }: { data: Summary }) {
           icon={ShieldQuestion}
           tone={data.pendingApprovals > 0 ? 'warning' : 'neutral'}
           to={paths.approvals}
-          sub={data.pendingApprovals > 0 ? 'NOVA wartet auf eine Entscheidung' : 'Nichts zu entscheiden'}
+          sub={data.pendingApprovals > 0 ? 'Entscheidung nötig' : 'Nichts zu entscheiden'}
         />
         <Stat label="Aktuelle Fehler" value={data.errors.length} icon={CircleAlert} tone={blockers > 0 ? 'danger' : data.errors.length ? 'warning' : 'success'} sub={blockers ? plural(blockers, 'Blocker', 'Blocker') : 'keine Blocker'} />
         <Stat
           label="Cloud-Kosten heute"
-          value={formatUsd(b.spentTodayUsd)}
-          estimated={b.containsEstimates && b.spentTodayUsd > 0}
+          value={b ? formatUsd(b.spentTodayUsd) : '–'}
+          estimated={!!b && b.containsEstimates && b.spentTodayUsd > 0}
           icon={Coins}
           tone="info"
           to={paths.costs}
-          sub={`Monat: ${formatUsd(b.spentMonthUsd, b.containsEstimates && b.spentMonthUsd > 0)}`}
+          sub={b ? `Monat: ${formatUsd(b.spentMonthUsd, b.containsEstimates && b.spentMonthUsd > 0)}` : 'gerade nicht verfügbar'}
         />
       </div>
 
       <div className="grid gap-4 @3xl:grid-cols-3">
-        <AgentActivityCard runs={data.activeRuns} work={data.work} projectNames={projectNames} className="@3xl:col-span-2" />
+        <AgentActivityCard runs={data.activeRuns} work={data.work} waitingApproval={waitingApproval} projectNames={projectNames} className="@3xl:col-span-2" />
         <ResourcesCard initial={data.resources} />
       </div>
 
@@ -209,7 +211,19 @@ function CardLink({ to, children }: { to: string; children: ReactNode }) {
 
 // --- agent activity -------------------------------------------------------------
 
-function AgentActivityCard({ runs, work, projectNames, className }: { runs: AgentRun[]; work: WorkStatus; projectNames: Map<string, string>; className?: string }) {
+function AgentActivityCard({
+  runs,
+  work,
+  waitingApproval,
+  projectNames,
+  className,
+}: {
+  runs: AgentRun[];
+  work: WorkStatus;
+  waitingApproval: number;
+  projectNames: Map<string, string>;
+  className?: string;
+}) {
   const tasks = useRpc('tasks.list', { status: ['running', 'paused', 'waiting_approval', 'blocked'], limit: 500 }, { refetchOn: ['task.updated', 'task.removed'] });
   const taskById = useMemo(() => new Map((tasks.data ?? []).map((t: Task) => [t.id, t])), [tasks.data]);
   const sorted = useMemo(() => {
@@ -227,7 +241,20 @@ function AgentActivityCard({ runs, work, projectNames, className }: { runs: Agen
       padding="none"
     >
       {sorted.length === 0 ? (
-        <EmptyState compact icon={Bot} title="Gerade arbeitet kein Agent" description={work.idleReason ?? 'Sobald Aufgaben anstehen, starten die Agenten automatisch.'} />
+        <EmptyState
+          compact
+          icon={Bot}
+          title="Gerade arbeitet kein Agent"
+          description={work.idleReason ?? 'Sobald Aufgaben anstehen, starten die Agenten automatisch.'}
+          actions={
+            waitingApproval > 0 ? (
+              <Link to={paths.approvals} className="inline-flex items-center gap-1 text-xs font-medium text-warning-fg">
+                <ShieldQuestion aria-hidden className="h-3.5 w-3.5" />
+                {waitingApproval === 1 ? '1 Aufgabe wartet auf eine Freigabe' : `${waitingApproval} Aufgaben warten auf eine Freigabe`}
+              </Link>
+            ) : undefined
+          }
+        />
       ) : (
         <ul className="divide-y divide-border/70" aria-label="Aktive Agenten">
           {sorted.map((run) => {
@@ -248,17 +275,12 @@ function AgentActivityCard({ runs, work, projectNames, className }: { runs: Agen
                   <ModelBadge model={run.providerId && run.modelId ? { providerId: run.providerId, modelId: run.modelId } : null} />
                   <span className="inline-flex items-center gap-1" title="Laufzeit">
                     <Gauge aria-hidden className="h-3.5 w-3.5" />
-                    <LiveDuration from={run.startedAt} to={run.status === 'running' ? null : run.updatedAt} />
+                    <RunDuration run={run} />
                   </span>
                   <span>{plural(run.stepCount, 'Schritt', 'Schritte')}</span>
                   <span title={`${formatNumber(run.inputTokens, 0)} Tokens gelesen, ${formatNumber(run.outputTokens, 0)} geschrieben`}>{formatTokens(run.inputTokens + run.outputTokens)} Tokens</span>
                 </div>
-                {run.lastAction && (
-                  <p className="mt-1.5 flex items-start gap-1.5 text-[13px] text-text/90">
-                    <ArrowRight aria-hidden className="mt-0.5 h-3.5 w-3.5 shrink-0 text-violet-fg" />
-                    <span className="min-w-0">{run.lastAction}</span>
-                  </p>
-                )}
+                <RunStepsTail run={run} />
                 {run.status === 'waiting_approval' && (
                   <Link to={paths.approvals} className="mt-1.5 inline-flex items-center gap-1 text-xs font-medium text-warning-fg">
                     <ShieldQuestion aria-hidden className="h-3.5 w-3.5" /> Zur Freigabe
@@ -270,7 +292,49 @@ function AgentActivityCard({ runs, work, projectNames, className }: { runs: Agen
           })}
         </ul>
       )}
+      {sorted.length > 0 && waitingApproval > 0 && (
+        <div className="border-t border-border px-4 py-2.5">
+          <Link to={paths.approvals} className="inline-flex items-center gap-1.5 text-xs font-medium text-warning-fg">
+            <ShieldQuestion aria-hidden className="h-3.5 w-3.5" />
+            {waitingApproval === 1 ? 'Außerdem wartet 1 Aufgabe auf eine Freigabe' : `Außerdem warten ${waitingApproval} Aufgaben auf eine Freigabe`}
+          </Link>
+        </div>
+      )}
     </Card>
+  );
+}
+
+/** Last steps of a running agent (live via run.step), falling back to lastAction. */
+function RunStepsTail({ run }: { run: AgentRun }) {
+  const steps = useRpc('agents.steps', { runId: run.id, limit: 2000 });
+  const { setData } = steps;
+  useNovaEvent('run.step', (step) => {
+    if (step.runId !== run.id) return;
+    setData((prev) => (prev ? [...prev.filter((s) => s.id !== step.id), step].slice(-50) : [step]));
+  });
+  const tail = (steps.data ?? []).slice(-3);
+  if (tail.length === 0) {
+    return run.lastAction ? (
+      <p className="mt-1.5 flex items-start gap-1.5 text-[13px] text-text/90">
+        <ArrowRight aria-hidden className="mt-0.5 h-3.5 w-3.5 shrink-0 text-violet-fg" />
+        <span className="min-w-0">{run.lastAction}</span>
+      </p>
+    ) : null;
+  }
+  return (
+    <ol className="mt-2 space-y-1 border-l border-border pl-3" aria-label="Letzte Schritte">
+      {tail.map((s, i) => {
+        const meta = metaOf(AGENT_STEP_KIND, s.kind);
+        const latest = i === tail.length - 1;
+        return (
+          <li key={s.id} className={cn('flex items-start gap-2 text-xs', latest ? 'text-text' : 'text-muted')}>
+            <span className="w-11 shrink-0 font-mono text-[11px] text-subtle tabular-nums">{formatTime(s.ts)}</span>
+            <meta.icon aria-hidden className={cn('mt-0.5 h-3.5 w-3.5 shrink-0', latest ? toneClasses[meta.tone].text : 'text-subtle')} />
+            <span className="min-w-0 break-words">{s.summary}</span>
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 
@@ -384,7 +448,7 @@ function ErrorsSection({ errors, projectNames }: { errors: Summary['errors']; pr
           </Button>
         )}
       </div>
-      <div className="grid gap-3 @4xl:grid-cols-2">
+      <div className="grid items-start gap-3 @4xl:grid-cols-2">
         {visible.map((e) => (
           <ErrorCard key={e.id} error={e} compact projectName={e.projectId ? projectNames.get(e.projectId) : undefined} />
         ))}
@@ -432,12 +496,14 @@ function ProjectRow({ project, reason }: { project: ProjectSummary; reason?: str
 
 function ProjectsCard({ projects, work, className }: { projects: ProjectSummary[]; work: WorkStatus; className?: string }) {
   const workById = new Map(work.projects.map((p) => [p.projectId, p]));
-  const isRunning = (p: ProjectSummary) => p.status === 'active' && p.workEnabled && work.state === 'running' && (p.runningTasks > 0 || (workById.get(p.id)?.activeRuns ?? 0) > 0);
+  const isRunning = (p: ProjectSummary) => p.status === 'active' && p.workState === 'running' && work.state === 'running' && (p.runningTasks > 0 || (workById.get(p.id)?.activeRuns ?? 0) > 0);
   const running = projects.filter(isRunning);
   const waiting = projects.filter((p) => !isRunning(p) && p.status !== 'archived');
   const reasonFor = (p: ProjectSummary) => {
     if (work.state !== 'running') return work.idleReason;
-    return workById.get(p.id)?.idleReason ?? (p.status === 'paused' ? 'Pausiert' : null);
+    const w = workById.get(p.id);
+    if (w?.idleReason) return w.suggestion ? `${w.idleReason} Vorschlag: ${w.suggestion}` : w.idleReason;
+    return p.workState === 'paused' ? 'Pausiert' : p.workState === 'stopped' ? 'Autonome Arbeit aus' : null;
   };
 
   return (
@@ -478,8 +544,8 @@ function ModelsCard({ data }: { data: Summary }) {
   const providers = useRpc('providers.list', undefined, { refetchOn: ['provider.updated'] });
   const byId = useMemo(() => new Map((providers.data ?? []).map((p) => [p.id, p])), [providers.data]);
   const local = data.models.local;
-  const ollamaTone = local.status.running ? 'success' : local.status.installed ? 'warning' : 'danger';
-  const ollamaText = local.status.running ? 'Läuft' : local.status.installed ? 'Installiert, aber nicht gestartet' : 'Nicht installiert';
+  const ollamaTone = !local ? 'neutral' : local.status.running ? 'success' : local.status.installed ? 'warning' : 'danger';
+  const ollamaText = !local ? 'Unbekannt' : local.status.running ? 'Läuft' : local.status.installed ? 'Installiert, aber nicht gestartet' : 'Nicht installiert';
   const recheck = useMutation('providers.test', { successToast: (h) => `Geprüft: ${metaOf(PROVIDER_HEALTH, h.status).label}` });
 
   return (
@@ -488,15 +554,17 @@ function ModelsCard({ data }: { data: Summary }) {
         <div className="rounded-lg bg-surface-2 px-3 py-2.5">
           <div className="flex items-center justify-between gap-2">
             <span className="flex items-center gap-2 text-[13px] font-medium">
-              <StatusDot tone={ollamaTone} pulse={local.status.running} />
+              <StatusDot tone={ollamaTone} pulse={!!local?.status.running} />
               Ollama (lokal)
             </span>
             <Badge tone={ollamaTone}>{ollamaText}</Badge>
           </div>
           <p className="mt-1 text-xs text-muted">
-            {local.status.running
-              ? `Version ${local.status.version ?? 'unbekannt'} · ${plural(local.modelCount, 'Modell', 'Modelle')} installiert`
-              : local.status.message}
+            {!local
+              ? 'Der Status von Ollama konnte gerade nicht gelesen werden.'
+              : local.status.running
+                ? `Version ${local.status.version ?? 'unbekannt'} · ${plural(local.modelCount, 'Modell', 'Modelle')} installiert`
+                : local.status.message}
           </p>
         </div>
         <div>
@@ -556,6 +624,13 @@ function limitText(limit: number | null): string {
 }
 
 function CostsCard({ budget: b }: { budget: Summary['budget'] }) {
+  if (!b) {
+    return (
+      <Card title="Kosten und Verbrauch" icon={Coins} actions={<CardLink to={paths.costs}>Details</CardLink>}>
+        <EmptyState compact icon={Coins} title="Kosten gerade nicht verfügbar" description="Die Kostenübersicht konnte nicht geladen werden. Sie erscheint wieder, sobald der Dienst sie liefert." />
+      </Card>
+    );
+  }
   const monthPct = b.monthlyLimitUsd && b.monthlyLimitUsd > 0 ? (b.spentMonthUsd / b.monthlyLimitUsd) * 100 : null;
   return (
     <Card title="Kosten und Verbrauch" icon={Coins} actions={<CardLink to={paths.costs}>Details</CardLink>}>

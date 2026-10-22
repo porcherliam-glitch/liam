@@ -48,3 +48,24 @@ export function LiveDuration({ from, to, format = 'clock', className }: LiveDura
     </span>
   );
 }
+
+export interface RunDurationProps {
+  /** Agent run (activeMs excludes paused/waiting time). */
+  run: { status: string; activeMs: number; updatedAt: number };
+  format?: 'clock' | 'text';
+  className?: string;
+}
+
+/**
+ * Active runtime of an agent run (without pauses/waiting), ticking while the run is running.
+ * @example <RunDuration run={run} />
+ */
+export function RunDuration({ run, format = 'clock', className }: RunDurationProps) {
+  const now = useNow(1000);
+  const ms = run.status === 'running' ? run.activeMs + Math.max(0, Math.max(now, Date.now() - 1000) - run.updatedAt) : run.activeMs;
+  return (
+    <span className={cn('tabular-nums whitespace-nowrap', className)} title={`Aktive Laufzeit: ${formatDuration(ms)}`}>
+      {format === 'clock' ? formatClock(ms) : formatDuration(ms)}
+    </span>
+  );
+}

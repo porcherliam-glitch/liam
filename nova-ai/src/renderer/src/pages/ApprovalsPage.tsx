@@ -308,7 +308,9 @@ function RulesSection({
         }
         confirmLabel="Regel entfernen"
         loading={del.loading}
-        onConfirm={() => toDelete && del.run({ id: toDelete.id })}
+        onConfirm={() => {
+          if (toDelete) void del.run({ id: toDelete.id });
+        }}
         onCancel={() => setToDelete(null)}
       />
     </section>

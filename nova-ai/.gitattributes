@@ -1,0 +1,10 @@
+# NOVA AI is a normal Node/Electron project: no Git LFS here (overrides the Unity LFS rules of the repo root).
+* -filter
+*.png binary
+*.ico binary
+*.icns binary
+*.jpg binary
+*.gif binary
+*.ttf binary
+*.woff binary
+*.woff2 binary

@@ -62,7 +62,7 @@ export function Dialog({ open, onClose, title, description, icon: Icon, tone = '
       return;
     }
     if (e.key !== 'Tab' || !panelRef.current) return;
-    const items = [...panelRef.current.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((el) => el.offsetParent !== null || el === document.activeElement);
+    const items = [...panelRef.current.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((el) => !el.closest('[aria-hidden="true"]'));
     if (items.length === 0) {
       e.preventDefault();
       return;

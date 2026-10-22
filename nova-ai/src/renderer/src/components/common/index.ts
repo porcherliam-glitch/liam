@@ -20,8 +20,9 @@ export {
 export type { ModelBadgeProps } from './StatusBadges';
 export { PrioritySelect } from './PrioritySelect';
 export type { PrioritySelectProps } from './PrioritySelect';
-export { RelativeTime, LiveDuration } from './RelativeTime';
-export type { RelativeTimeProps, LiveDurationProps } from './RelativeTime';
+export { RelativeTime, LiveDuration, RunDuration } from './RelativeTime';
+export type { RelativeTimeProps, LiveDurationProps, RunDurationProps } from './RelativeTime';
+export { ShutdownNotice } from './ShutdownNotice';
 export { DaemonBanner } from './DaemonBanner';
 export { WorkControls } from './WorkControls';
 export type { WorkControlsProps } from './WorkControls';

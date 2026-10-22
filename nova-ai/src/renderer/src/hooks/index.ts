@@ -4,5 +4,5 @@ export { useNovaEvent } from './useEvents';
 export { useNow } from './useNow';
 export { useDebouncedValue } from './useDebouncedValue';
 export { useStoredState } from './useStoredState';
-export { useDaemonOnline } from '../stores/daemon';
+export { useDaemonOnline, useSupports } from '../stores/daemon';
 export { useProjects, useProjectNames } from './useProjects';

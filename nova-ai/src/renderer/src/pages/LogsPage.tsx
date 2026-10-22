@@ -1,6 +1,6 @@
 // Protokolle (UI-SPEC §4 Foundation): daemon logs with level/scope filter, live append and diagnostics bundle.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
-import { ArrowDown, ChevronRight, Copy, FolderOpen, PackageCheck, RefreshCw, ScrollText, Search, Stethoscope, X } from 'lucide-react';
+import { ArrowDown, ChevronRight, Copy, FolderSearch, PackageCheck, RefreshCw, ScrollText, Search, Stethoscope, X } from 'lucide-react';
 import { create } from 'zustand';
 import type { LogEntry, LogLevel } from '@shared/schemas';
 import { Page } from '../components/layout/Page';
@@ -16,7 +16,9 @@ import { toast } from '../stores/toasts';
 
 type LevelFilter = 'all' | LogLevel;
 const LEVEL_ORDER: Record<LogLevel, number> = { debug: 0, info: 1, warn: 2, error: 3 };
-const FETCH_LIMIT = 2000;
+const FETCH_LIMIT = 1500;
+/** Info/debug entries are not pushed as events (only warn/error), so the list is refreshed periodically while live. */
+const POLL_MS = 5000;
 const MAX_ENTRIES = 5000;
 
 interface Row extends LogEntry {
@@ -41,7 +43,11 @@ export default function LogsPage() {
   const [knownScopes, setKnownScopes] = useState<Set<string>>(new Set());
   const seq = useRef(0);
 
-  const logs = useRpc('daemon.logs', { limit: FETCH_LIMIT, level: level === 'all' ? undefined : level, scope: scope || undefined });
+  const logs = useRpc(
+    'daemon.logs',
+    { limit: FETCH_LIMIT, level: level === 'all' ? undefined : level, scope: scope || undefined },
+    { intervalMs: live ? POLL_MS : undefined, keepPreviousData: true },
+  );
 
   // A fresh load replaces the live-appended entries.
   useEffect(() => {
@@ -139,14 +145,14 @@ export default function LogsPage() {
               {counts.error > 0 && <span className="text-danger-fg"> · {counts.error} Fehler</span>}
               {counts.warn > 0 && <span className="text-warning-fg"> · {counts.warn} Warnungen</span>}
             </span>
-            <span>{live ? 'Neue Einträge erscheinen automatisch' : 'Live-Anzeige pausiert'}</span>
+            <span>{live ? 'Live: Warnungen und Fehler sofort, alles andere alle 5 Sekunden' : 'Live-Anzeige pausiert'}</span>
           </div>
           {logs.loading ? (
             <LoadingState compact label="Protokolle werden geladen …" />
           ) : logs.error && !logs.data ? (
             <ErrorState compact error={logs.error} onRetry={() => void logs.refetch()} />
           ) : (
-            <LogList rows={visible} filtered={!!q || level !== 'all' || !!scope} />
+            <LogList rows={visible} filtered={!!q || (level !== 'all' && level !== 'info') || !!scope} />
           )}
         </Card>
       </div>
@@ -225,6 +231,7 @@ function LogList({ rows, filtered }: { rows: Row[]; filtered: boolean }) {
                   </span>
                   <div className="min-w-0">
                     <div className="flex items-start gap-1">
+                      {!hasData && <span aria-hidden className="w-3.5 shrink-0" />}
                       {hasData && (
                         <button
                           type="button"
@@ -302,9 +309,9 @@ function DiagnosticsResult() {
   useEffect(() => () => setResult(null), [setResult]);
   if (!result) return null;
 
-  const openFolder = async () => {
-    const ok = await getBridge()?.app.openPath(dirname(result.path));
-    if (!ok) toast.error('Ordner konnte nicht geöffnet werden', dirname(result.path));
+  const showInExplorer = async () => {
+    const ok = await getBridge()?.app.showInFolder(result.path);
+    if (!ok) toast.error('Explorer konnte nicht geöffnet werden', dirname(result.path));
   };
   const copyPath = async () => {
     if (await copyToClipboard(result.path)) toast.success('Pfad kopiert');
@@ -324,8 +331,8 @@ function DiagnosticsResult() {
           <p className="mt-0.5 text-[11px] text-subtle">Enthält Protokolle und Systemangaben, Geheimnisse sind geschwärzt. Das Paket wird nirgendwohin gesendet.</p>
         </div>
         <div className="flex items-center gap-1.5">
-          <Button size="sm" icon={FolderOpen} onClick={() => void openFolder()}>
-            Ordner öffnen
+          <Button size="sm" icon={FolderSearch} onClick={() => void showInExplorer()}>
+            Im Explorer zeigen
           </Button>
           <Button size="sm" variant="ghost" icon={Copy} onClick={() => void copyPath()}>
             Pfad kopieren

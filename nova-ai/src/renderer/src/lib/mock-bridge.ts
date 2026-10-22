@@ -36,10 +36,14 @@ import type {
   ResourceSnapshot,
   RestoreResult,
   Task,
+  TaskNote,
+  Operation,
+  ProviderConfig,
   TaskKind,
   WorkStatus,
 } from '@shared/schemas';
 import { SettingsSchema } from '@shared/settings';
+import { APPROVAL_KINDS_ONCE_ONLY } from '@shared/schemas';
 import { commands as mockCommands, createMockDb, DAY, GB, HOUR, languageOf, MB, MIN, mockHash, type MockDb, OLLAMA } from './mock-data';
 
 // ---------------------------------------------------------------------------
@@ -385,7 +389,10 @@ function touchTask(t: Task, patch: Partial<Task>): Task {
 }
 
 function touchRun(r: AgentRun, patch: Partial<AgentRun>): AgentRun {
-  Object.assign(r, patch, { updatedAt: now() });
+  const t = now();
+  // activeMs counts only time spent in status 'running'.
+  if (r.status === 'running') r.activeMs += Math.max(0, t - r.updatedAt);
+  Object.assign(r, patch, { updatedAt: t });
   emit('run.updated', r);
   return r;
 }
@@ -472,7 +479,8 @@ function buildTree(projectId: string, root: string, depth: number): FileNode {
   const files = projectFiles(projectId);
   const novaChanged = new Set(db.changes.filter((c) => c.projectId === projectId && c.actor === 'nova' && !c.reverted).map((c) => c.path));
   const git = gitStatusOf(projectId);
-  const paths = Object.keys(files);
+  const emptyDirs = db.emptyDirs[projectId] ?? [];
+  const paths = [...Object.keys(files), ...emptyDirs.map((d) => `${d}/\u0000`)];
   const prefix = root ? `${root.replace(/\/+$/, '')}/` : '';
   if (root && !paths.some((p) => p.startsWith(prefix))) {
     if (files[root] !== undefined) throw new MockRpcError('VALIDATION', 'Der Pfad ist eine Datei, kein Ordner.');
@@ -485,6 +493,7 @@ function buildTree(projectId: string, root: string, depth: number): FileNode {
       if (!p.startsWith(pre)) continue;
       const rest = p.slice(pre.length);
       const slash = rest.indexOf('/');
+      if (rest === '\u0000') continue; // marker of an empty folder
       if (slash === -1) childNames.set(rest, 'file');
       else childNames.set(rest.slice(0, slash), 'dir');
     }
@@ -540,6 +549,14 @@ function fileContent(projectId: string, path: string) {
 function lastChangeTs(projectId: string, path: string): number | null {
   const c = db.changes.filter((x) => x.projectId === projectId && x.path === path).sort((a, b) => b.ts - a.ts)[0];
   return c?.ts ?? null;
+}
+
+function recordUserChange(projectId: string, path: string, op: 'create' | 'modify' | 'delete', before: string | null, after: string | null): void {
+  const beforeHash = before == null ? null : mockHash(before);
+  if (beforeHash && before != null) db.snapshots[beforeHash] = before;
+  const afterHash = after == null ? null : mockHash(after);
+  if (afterHash && after != null) db.snapshots[afterHash] = after;
+  db.changes.push({ id: db.nextChangeId++, projectId, taskId: null, runId: null, path, op, beforeHash, afterHash, actor: 'user', source: 'user', revertible: true, ts: now(), reverted: false });
 }
 
 function changedFiles(projectId: string): ChangedFile[] {
@@ -789,6 +806,25 @@ function liveAgentTick(): void {
   }
 }
 
+function liveOperationTick(): void {
+  for (const o of db.operations.filter((x) => x.status === 'running')) {
+    const progress = Math.min(100, (o.progress ?? 0) + 4 + Math.round(Math.random() * 4));
+    if (progress >= 100) {
+      Object.assign(o, { status: 'done', progress: 100, endedAt: now(), message: 'Fertig' });
+      emit('operation.updated', o);
+      if (o.kind === 'project_snapshot' && o.projectId) {
+        const p = db.projects.find((x) => x.id === o.projectId);
+        db.backups.push({ id: nid('bak'), kind: 'project_snapshot', path: `${db.daemon.dataDir}\\backups\\${p?.name ?? 'Projekt'}-${new Date().toISOString().slice(0, 10)}`, sizeBytes: 1.7 * MB, reason: 'manuell', projectId: o.projectId, createdAt: now() });
+      }
+      log('info', 'operations', `Vorgang abgeschlossen: ${o.title}`);
+      continue;
+    }
+    const total = 1180;
+    Object.assign(o, { progress, message: `Dateien werden kopiert (${Math.round((progress / 100) * total)} von ${total.toLocaleString('de-DE')})` });
+    emit('operation.updated', o);
+  }
+}
+
 function startLive(): void {
   stopLive();
   if (!options.live) return;
@@ -803,6 +839,12 @@ function startLive(): void {
       if (eventListeners.size === 0 || connection.state !== 'connected' || db.workState !== 'running') return;
       liveAgentTick();
     }, 4500),
+  );
+  intervals.push(
+    setInterval(() => {
+      if (eventListeners.size === 0 || connection.state !== 'connected') return;
+      liveOperationTick();
+    }, 1500),
   );
 }
 
@@ -1247,7 +1289,10 @@ const handlers: HandlerMap = {
     const a = db.approvals.find((x) => x.id === id);
     if (!a) throw notFound('Die Freigabe');
     if (a.status !== 'pending') throw conflict('Diese Freigabe wurde bereits entschieden.');
-    Object.assign(a, { status: decision === 'approve' ? 'approved' : 'denied', scope, decidedAt: now() });
+    if (decision === 'approve' && scope === 'always' && APPROVAL_KINDS_ONCE_ONLY.includes(a.kind)) {
+      throw new MockRpcError('VALIDATION', 'Diese Art von Aktion muss jedes Mal einzeln erlaubt werden.');
+    }
+    Object.assign(a, { status: decision === 'approve' ? 'approved' : 'denied', scope: decision === 'approve' ? scope : null, decidedAt: now() });
     emit('approval.updated', a);
     if (decision === 'approve' && scope === 'always') {
       const projectName = a.projectId ? db.projects.find((p) => p.id === a.projectId)?.name : null;
@@ -1292,16 +1337,34 @@ const handlers: HandlerMap = {
   'providers.list': () => db.providers,
   'providers.upsert': (input) => {
     const t = now();
-    let p = input.id ? db.providers.find((x) => x.id === input.id) : undefined;
-    if (input.id && !p) throw notFound('Der Anbieter');
-    if (p) {
-      Object.assign(p, { ...input, id: p.id, updatedAt: t });
+    const existing = input.id ? db.providers.find((x) => x.id === input.id) : undefined;
+    if (input.options && Object.keys(input.options).some((k) => /key|token|secret|password/i.test(k))) {
+      throw new MockRpcError('VALIDATION', 'Optionen dürfen keine Schlüssel enthalten. Den API-Schlüssel bitte separat speichern.');
+    }
+    let p: ProviderConfig;
+    if (existing) {
+      if (input.type !== existing.type) throw new MockRpcError('VALIDATION', 'Die Art eines Anbieters kann nicht geändert werden.');
+      const patch = Object.fromEntries(Object.entries(input).filter(([, v]) => v !== undefined));
+      Object.assign(existing, patch, { id: existing.id, updatedAt: t });
+      p = existing;
     } else {
-      p = { ...input, id: nid('prov'), hasApiKey: false, createdAt: t, updatedAt: t };
+      const local = /^https?:\/\/(127\.0\.0\.1|localhost|\[::1\])(:|\/|$)/i.test(input.baseUrl);
+      const slug = (input.id ?? input.name).toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'anbieter';
+      let id = slug;
+      for (let i = 2; db.providers.some((x) => x.id === id); i++) id = `${slug}-${i}`;
+      p = {
+        id, type: input.type, name: input.name, baseUrl: input.baseUrl, enabled: input.enabled ?? true,
+        paid: input.paid ?? (input.type !== 'ollama' && !local), approved: input.approved ?? input.type === 'ollama',
+        hasApiKey: false, options: input.options ?? {}, createdAt: t, updatedAt: t,
+      };
       db.providers.push(p);
       db.providerHealth.push({ providerId: p.id, status: p.type === 'ollama' ? 'ok' : 'not_configured', message: p.type === 'ollama' ? 'Erreichbar.' : 'Es ist noch kein API-Schlüssel gespeichert.', version: null, checkedAt: t, latencyMs: null });
     }
-    if (p.type === 'ollama') p.paid = false;
+    if (p.type === 'ollama') {
+      p.paid = false;
+      p.approved = true;
+      if (p.id === OLLAMA) db.ollama = { ...db.ollama, baseUrl: p.baseUrl };
+    }
     emit('provider.updated', p);
     log('info', 'providers', `Anbieter gespeichert: ${p.name}`);
     return p;
@@ -1312,6 +1375,7 @@ const handlers: HandlerMap = {
     db.providers = db.providers.filter((p) => p.id !== id);
     db.providerHealth = db.providerHealth.filter((h) => h.providerId !== id);
     db.models = db.models.filter((m) => m.providerId !== id);
+    emit('provider.removed', { id });
     return { ok: true as const };
   },
   'providers.setApiKey': ({ providerId }) => {
@@ -1368,7 +1432,18 @@ const handlers: HandlerMap = {
     m.pricing = pricing;
     return m;
   },
-  'ollama.status': () => ({ ...db.ollama, checkedAt: now() }),
+  'ollama.status': ({ baseUrl }) => {
+    if (!baseUrl || baseUrl.replace(/\/$/, '') === db.ollama.baseUrl.replace(/\/$/, '')) return { ...db.ollama, checkedAt: now() };
+    const local = /^https?:\/\/(127\.0\.0\.1|localhost|\[::1\])(:|\/|$)/i.test(baseUrl);
+    return {
+      ...db.ollama,
+      baseUrl,
+      running: local && baseUrl.includes(':11434'),
+      version: local && baseUrl.includes(':11434') ? db.ollama.version : null,
+      message: local && baseUrl.includes(':11434') ? `Ollama läuft (Version ${db.ollama.version}).` : `Unter ${baseUrl} antwortet kein Ollama. Bitte Adresse und Port prüfen.`,
+      checkedAt: now(),
+    };
+  },
   'ollama.models': () => localModels(),
   'ollama.show': ({ model }) => {
     const m = localModels().find((x) => x.id === model || x.id === `${model}:latest`);
@@ -1450,7 +1525,8 @@ const handlers: HandlerMap = {
     log('info', 'budget', 'Budget-Grenzen gespeichert');
     return b;
   },
-  'budget.resumePaid': () => {
+  'budget.resumePaid': ({ projectId }) => {
+    if (projectId) project(projectId);
     db.paidPaused = false;
     db.pausedReason = null;
     const b = budgetStatus();
@@ -1540,13 +1616,13 @@ const handlers: HandlerMap = {
   'memory.clear': ({ projectId }) => {
     const removed = db.memory.filter((m) => m.projectId === projectId);
     db.memory = db.memory.filter((m) => m.projectId !== projectId);
-    for (const m of removed) emit('memory.updated', { id: m.id, deleted: true, projectId: m.projectId });
+    emit('memory.updated', { projectId, cleared: true, count: removed.length });
     return { deleted: removed.length };
   },
-  'memory.export': ({ projectId }) => {
+  'memory.export': ({ projectId, path }) => {
     const name = projectId ? project(projectId).name : projectId === null ? 'wissensdatenbank' : 'alles';
     const rows = db.memory.filter((m) => projectId === undefined || m.projectId === projectId);
-    return { path: `C:\\Users\\Demo\\Documents\\NOVA Export\\gedaechtnis-${name.toLowerCase()}.json`, count: rows.length };
+    return { path: path ?? `C:\\Users\\Demo\\Documents\\NOVA Export\\gedaechtnis-${name.toLowerCase()}.json`, count: rows.length };
   },
   'memory.import': ({ path }) => {
     const t = now();
@@ -1570,8 +1646,9 @@ const handlers: HandlerMap = {
     if (exists && expectedHash !== null && expectedHash !== fileContent(projectId, path).hash) {
       throw new MockRpcError('CONFLICT', 'Die Datei wurde inzwischen geändert (z. B. von NOVA). Bitte neu laden oder die Unterschiede ansehen.', { currentHash: fileContent(projectId, path).hash });
     }
+    const previous = exists ? files[path] : null;
     files[path] = content;
-    db.changes.push({ id: db.nextChangeId++, projectId, taskId: null, runId: null, path, op: exists ? 'modify' : 'create', beforeHash: exists ? mockHash(path) : null, afterHash: mockHash(content), actor: 'user', ts: now(), reverted: false });
+    recordUserChange(projectId, path, exists ? 'modify' : 'create', previous, content);
     emit('files.changed', { projectId, paths: [path], actor: 'user' });
     return fileContent(projectId, path);
   },
@@ -1635,9 +1712,10 @@ const handlers: HandlerMap = {
     project(projectId);
     const cp = {
       id: nid('chk'), projectId, taskId: null, kind: 'manual' as const, label, gitHead: db.commits[projectId]?.[0]?.shortHash ?? null, gitCommit: null,
-      changeCursor: Math.max(0, ...db.changes.map((c) => c.id)), createdAt: now(), restoredAt: null,
+      changeCursor: Math.max(0, ...db.changes.map((c) => c.id)), verification: null, createdAt: now(), restoredAt: null,
     };
     db.checkpoints.push(cp);
+    emit('checkpoint.updated', cp);
     log('info', 'checkpoints', `Wiederherstellungspunkt angelegt: ${label}`);
     return cp;
   },
@@ -1646,9 +1724,10 @@ const handlers: HandlerMap = {
     const { result, projectId, changeIds } = restorePlan(checkpointId, taskId);
     const pre = {
       id: nid('chk'), projectId, taskId: null, kind: 'pre_restore' as const, label: 'Vor der Wiederherstellung', gitHead: db.commits[projectId]?.[0]?.shortHash ?? null,
-      gitCommit: null, changeCursor: Math.max(0, ...db.changes.map((c) => c.id)), createdAt: now(), restoredAt: null,
+      gitCommit: null, changeCursor: Math.max(0, ...db.changes.map((c) => c.id)), verification: null, createdAt: now(), restoredAt: null,
     };
     db.checkpoints.push(pre);
+    emit('checkpoint.updated', pre);
     const files = projectFiles(projectId);
     for (const c of db.changes) if (changeIds.includes(c.id)) c.reverted = true;
     for (const path of result.restored) {
@@ -1793,9 +1872,9 @@ const handlers: HandlerMap = {
     db.terminals = db.terminals.filter((t) => t.id !== sessionId);
     return { ok: true as const };
   },
-  'checks.list': ({ projectId, kind, limit }) =>
+  'checks.list': ({ projectId, kind, taskId, limit }) =>
     db.checks
-      .filter((c) => c.projectId === projectId && (!kind || c.kind === kind))
+      .filter((c) => c.projectId === projectId && (!kind || c.kind === kind) && (!taskId || c.taskId === taskId))
       .sort((a, b) => b.startedAt - a.startedAt)
       .slice(0, limit),
   'checks.get': ({ id }) => {
@@ -1810,7 +1889,7 @@ const handlers: HandlerMap = {
     if (db.checks.some((c) => c.projectId === projectId && c.kind === kind && c.status === 'running')) throw conflict('Diese Prüfung läuft bereits.');
     const c: CheckRun = {
       id: nid('crun'), projectId, taskId: null, kind, command, status: 'running', passed: null, failed: null, skipped: null, durationMs: null,
-      outputTail: `> ${command}\n`, failures: [], failureSignature: null, startedAt: now(), finishedAt: null,
+      outputTail: `> ${command}\n`, failures: [], failureSignature: null, message: null, processId: nid('proc'), artifacts: [], startedAt: now(), finishedAt: null,
     };
     db.checks.push(c);
     emit('check.updated', c);
@@ -1922,6 +2001,135 @@ const handlers: HandlerMap = {
       message: feed ? 'NOVA ist auf dem neuesten Stand.' : 'Es ist keine Update-Quelle eingerichtet.',
     };
   },
+
+  // --- added after the contract review -------------------------------------------------
+  'budget.breakdown': ({ from, to, groupBy }) => {
+    const rows = new Map<string, { key: string; calls: number; inputTokens: number; outputTokens: number; durationMs: number; costUsd: number; costEstimated: boolean }>();
+    for (const u of db.usage) {
+      if ((from !== undefined && u.ts < from) || (to !== undefined && u.ts > to)) continue;
+      const d = new Date(u.ts);
+      const key =
+        groupBy === 'provider' ? u.providerId
+        : groupBy === 'model' ? `${u.providerId}/${u.modelId}`
+        : groupBy === 'project' ? (u.projectId ?? 'ohne Projekt')
+        : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      const r = rows.get(key) ?? { key, calls: 0, inputTokens: 0, outputTokens: 0, durationMs: 0, costUsd: 0, costEstimated: false };
+      r.calls++;
+      r.inputTokens += u.inputTokens;
+      r.outputTokens += u.outputTokens;
+      r.durationMs += u.durationMs;
+      r.costUsd = Math.round((r.costUsd + u.costUsd) * 10000) / 10000;
+      r.costEstimated ||= u.costEstimated;
+      rows.set(key, r);
+    }
+    return [...rows.values()].sort((a, b) => b.costUsd - a.costUsd || b.calls - a.calls);
+  },
+  'integrations.open': ({ id, projectId, path, line }) => {
+    const integ = db.integrations.find((i) => i.id === id);
+    if (!integ) throw notFound('Das Werkzeug');
+    const p = project(projectId);
+    if (!integ.available || !integ.canOpen) throw conflict(`${integ.name} kann das Projekt nicht öffnen.`);
+    log('info', 'integrations', `${integ.name} geöffnet: ${p.name}${path ? ` (${path}${line ? `:${line}` : ''})` : ''}`);
+    return { ok: true as const };
+  },
+  'files.delete': ({ projectId, path }) => {
+    const files = projectFiles(projectId);
+    const inDir = Object.keys(files).filter((f) => f.startsWith(`${path}/`));
+    if (files[path] === undefined && !inDir.length && !(db.emptyDirs[projectId] ?? []).includes(path)) throw notFound('Die Datei');
+    for (const f of [path, ...inDir]) {
+      if (files[f] === undefined) continue;
+      recordUserChange(projectId, f, 'delete', files[f], null);
+      delete files[f];
+    }
+    db.emptyDirs[projectId] = (db.emptyDirs[projectId] ?? []).filter((d) => d !== path && !d.startsWith(`${path}/`));
+    emit('files.changed', { projectId, paths: [path, ...inDir], actor: 'user' });
+    return { ok: true as const };
+  },
+  'files.rename': ({ projectId, from, to }) => {
+    const files = projectFiles(projectId);
+    if (files[to] !== undefined || Object.keys(files).some((f) => f.startsWith(`${to}/`))) throw conflict(`„${to}“ gibt es schon.`);
+    const moved = Object.keys(files).filter((f) => f === from || f.startsWith(`${from}/`));
+    if (!moved.length) throw notFound('Die Datei');
+    for (const f of moved) {
+      const target = to + f.slice(from.length);
+      files[target] = files[f];
+      recordUserChange(projectId, f, 'delete', files[f], null);
+      recordUserChange(projectId, target, 'create', null, files[target]);
+      delete files[f];
+    }
+    emit('files.changed', { projectId, paths: [from, to], actor: 'user' });
+    return { ok: true as const };
+  },
+  'files.mkdir': ({ projectId, path }) => {
+    const files = projectFiles(projectId);
+    const clean = path.replace(/\/+$/, '');
+    if (!clean) throw new MockRpcError('VALIDATION', 'Bitte einen Ordnernamen angeben.');
+    if (files[clean] !== undefined) throw conflict(`„${clean}“ ist bereits eine Datei.`);
+    db.emptyDirs[projectId] = [...new Set([...(db.emptyDirs[projectId] ?? []), clean])];
+    emit('files.changed', { projectId, paths: [clean], actor: 'user' });
+    return { ok: true as const };
+  },
+  'files.snapshot': ({ projectId, hash }) => {
+    project(projectId);
+    const content = db.snapshots[hash];
+    if (content === undefined) throw notFound('Die ältere Version');
+    return { content, binary: false };
+  },
+  'checks.cancel': ({ id }) => {
+    const c = db.checks.find((x) => x.id === id);
+    if (!c) throw notFound('Die Prüfung');
+    if (c.status === 'running') {
+      Object.assign(c, { status: 'cancelled', finishedAt: now(), durationMs: now() - c.startedAt, message: 'Vom Benutzer abgebrochen.' });
+      emit('check.updated', c);
+      log('info', 'checks', `Prüfung abgebrochen: ${c.command}`);
+    }
+    return c;
+  },
+  'backup.restore': ({ id, targetDir }) => {
+    const b = db.backups.find((x) => x.id === id);
+    if (!b) throw notFound('Die Sicherung');
+    if (b.kind === 'database') {
+      log('warn', 'backup', `Datenbank-Sicherung wird beim Neustart eingespielt: ${b.path}`);
+      return { message: 'Die Sicherung wird eingespielt. NOVA startet dafür den Hintergrunddienst neu.', restartRequired: true, path: null };
+    }
+    const projectName = b.projectId ? (db.projects.find((p) => p.id === b.projectId)?.name ?? 'Projekt') : 'Projekt';
+    const d = new Date();
+    const target = targetDir ?? `${db.settings.general.projectsDir}\\${projectName} (Wiederherstellung ${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()})`;
+    log('info', 'backup', `Projektkopie wiederhergestellt nach ${target}`);
+    return { message: 'Die Projektkopie wurde in einen neuen Ordner kopiert. Das Original bleibt unverändert.', restartRequired: false, path: target };
+  },
+  'backup.delete': ({ id }) => {
+    if (!db.backups.some((b) => b.id === id)) throw notFound('Die Sicherung');
+    db.backups = db.backups.filter((b) => b.id !== id);
+    return { ok: true as const };
+  },
+  'notifications.list': ({ unreadOnly, limit }) =>
+    db.notifications
+      .filter((n) => !unreadOnly || n.readAt == null)
+      .sort((a, b) => b.ts - a.ts)
+      .slice(0, limit),
+  'notifications.markRead': ({ ids }) => {
+    const t = now();
+    for (const n of db.notifications) if (n.readAt == null && (!ids || ids.includes(n.id))) n.readAt = t;
+    return { ok: true as const };
+  },
+  'operations.list': ({ activeOnly }) => db.operations.filter((o) => !activeOnly || o.status === 'running').sort((a, b) => b.startedAt - a.startedAt),
+  'operations.get': ({ id }) => {
+    const o = db.operations.find((x) => x.id === id);
+    if (!o) throw notFound('Der Vorgang');
+    return o;
+  },
+  'operations.cancel': ({ id }) => {
+    const o = db.operations.find((x) => x.id === id);
+    if (!o) throw notFound('Der Vorgang');
+    if (o.status === 'running') {
+      if (!o.cancellable) throw conflict('Dieser Vorgang kann nicht abgebrochen werden.');
+      Object.assign(o, { status: 'cancelled', endedAt: now(), message: 'Vom Benutzer abgebrochen.' });
+      emit('operation.updated', o);
+      log('info', 'operations', `Vorgang abgebrochen: ${o.title}`);
+    }
+    return o;
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -1997,6 +2205,7 @@ export const mockBridge: NovaBridge = {
       return true;
     },
     openPath: async (path) => /^[a-zA-Z]:\\|^\//.test(path),
+    showInFolder: async (path) => /^[a-zA-Z]:\\|^\//.test(path),
     selectDirectory: async () => `${db.settings.general.projectsDir}\\Neues Projekt`,
     selectFile: async (opts) => (opts?.filters?.some((f) => f.extensions.includes('json')) ? 'C:\\Users\\Demo\\Downloads\\wissen-export.json' : 'C:\\Program Files\\Godot\\Godot_v4.3-stable_win64.exe'),
     saveFile: async (opts) => opts?.defaultPath ?? 'C:\\Users\\Demo\\Documents\\NOVA Export\\nova-export.json',
@@ -2038,6 +2247,8 @@ export function installMockBridge(opts: MockBridgeOptions = {}): NovaBridge {
     /* read-only window.nova */
   }
   startLive();
+  // Debug handle for the browser console (plain-browser demo only): __NOVA_MOCK__.setMockConnection({ state: 'error', message: '…' })
+  (globalThis as { __NOVA_MOCK__?: unknown }).__NOVA_MOCK__ = { setMockConnection, emitMockEvent, resetMockData, getMockDb, mockHandlers };
   return mockBridge;
 }
 

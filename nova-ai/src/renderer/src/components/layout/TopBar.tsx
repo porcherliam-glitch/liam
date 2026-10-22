@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router';
-import { ArrowLeft, Bell } from 'lucide-react';
+import { ArrowLeft, ShieldQuestion } from 'lucide-react';
 import { cn } from '../../lib/cn';
 import { daemonPillMeta, toneClasses } from '../../lib/labels';
 import { paths } from '../../lib/paths';
@@ -8,6 +8,8 @@ import { useUiStore } from '../../stores/ui';
 import { StatusDot } from '../ui/StatusDot';
 import { WorkControls } from '../common/WorkControls';
 import { navLabelFor } from './nav';
+import { NotificationsMenu } from './NotificationsMenu';
+import { OperationsMenu } from './OperationsMenu';
 
 /** Background service status pill (Läuft / Pausiert / Startet / Getrennt / Fehler); links to the logs. */
 export function DaemonStatusPill() {
@@ -30,13 +32,16 @@ export function DaemonStatusPill() {
       className={cn('inline-flex h-8 items-center gap-2 rounded-full border bg-surface-2 px-3 text-xs font-medium no-underline transition-colors duration-150 hover:bg-surface-3 hover:no-underline', toneClasses[meta.tone].border, toneClasses[meta.tone].text)}
     >
       <StatusDot tone={meta.tone} pulse={meta.tone === 'success' || meta.spin} />
-      <span className="hidden sm:inline">Dienst:</span> {meta.label}
+      <span>
+        <span className="hidden xl:inline">Dienst: </span>
+        {meta.label}
+      </span>
     </Link>
   );
 }
 
-/** Bell with the number of pending approvals; links to /approvals. */
-export function ApprovalsBell() {
+/** Shield icon with the number of pending approvals; links to /approvals. */
+export function ApprovalsButton() {
   const pending = useDaemonStore((s) => s.pendingApprovals);
   const label = pending > 0 ? `Freigaben: ${pending} offen` : 'Freigaben: keine offen';
   return (
@@ -49,7 +54,7 @@ export function ApprovalsBell() {
         pending > 0 ? 'text-warning-fg hover:bg-warning/10' : 'text-muted hover:bg-surface-2 hover:text-text',
       )}
     >
-      <Bell aria-hidden className="h-4 w-4" />
+      <ShieldQuestion aria-hidden className="h-4 w-4" />
       {pending > 0 && (
         <span aria-hidden className="absolute -top-0.5 -right-0.5 min-w-4 rounded-full bg-warning px-1 text-center text-[10px] leading-4 font-bold text-black tabular-nums">
           {pending > 99 ? '99+' : pending}
@@ -59,13 +64,13 @@ export function ApprovalsBell() {
   );
 }
 
-/** Top bar: back link + page title (set by <Page/>), work controls, daemon pill, approvals bell. */
+/** Top bar: back link + page title (set by <Page/>), work controls, operations, daemon pill, approvals, notifications. */
 export function TopBar() {
   const { pathname } = useLocation();
   const title = useUiStore((s) => s.pageTitle) ?? navLabelFor(pathname) ?? 'NOVA AI';
   const back = useUiStore((s) => s.pageBack);
   return (
-    <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border bg-surface/60 px-5 backdrop-blur">
+    <header className="relative z-30 flex h-14 shrink-0 items-center gap-3 border-b border-border bg-surface/60 px-5 backdrop-blur">
       <div className="flex min-w-0 flex-1 items-center gap-2">
         {back && (
           <Link
@@ -83,8 +88,10 @@ export function TopBar() {
       <div className="flex shrink-0 items-center gap-2">
         <WorkControls compact />
         <span aria-hidden className="mx-1 h-5 w-px bg-border" />
+        <OperationsMenu />
         <DaemonStatusPill />
-        <ApprovalsBell />
+        <ApprovalsButton />
+        <NotificationsMenu />
       </div>
     </header>
   );

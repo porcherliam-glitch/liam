@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react';
-import { Link } from 'react-router';
-import { Bot, ChevronDown, CircleCheck, ClipboardList, History, ListChecks, ShieldAlert, ShieldCheck, UserRound, type LucideIcon } from 'lucide-react';
+import { Link, useNavigate } from 'react-router';
+import { Bot, ChevronDown, CircleCheck, ClipboardList, Code, FlaskConical, History, ListChecks, ShieldAlert, ShieldCheck, ShieldQuestion, UserRound, Workflow, Wrench, type LucideIcon } from 'lucide-react';
 import type { ErrorSeverity, NovaErrorInfo } from '@shared/errors';
 import { cn } from '../../lib/cn';
 import { ERROR_SEVERITY, metaOf } from '../../lib/labels';
@@ -10,6 +10,7 @@ import { Button } from '../ui/Button';
 import { CodeBlock } from '../ui/CodeBlock';
 import { SeverityBadge } from './StatusBadges';
 import { RelativeTime } from './RelativeTime';
+import { toast } from '../../stores/toasts';
 
 export interface ErrorCardProps {
   error: NovaErrorInfo;
@@ -63,6 +64,22 @@ export function ErrorCard({ error, compact = false, projectName, taskTitle, onRe
 
   const taskName = taskTitle ?? task.data?.title;
   const taskLink = error.taskId && error.projectId ? paths.project(error.projectId, { tab: 'tasks', task: error.taskId }) : null;
+  const navigate = useNavigate();
+  const createFix = useMutation('tasks.createFix', {
+    onSuccess: (task) =>
+      toast.show({
+        tone: 'success',
+        title: 'Reparatur-Aufgabe angelegt',
+        message: task.title,
+        action: { label: 'Aufgabe öffnen', onClick: () => navigate(paths.project(task.projectId, { tab: 'tasks', task: task.id })) },
+      }),
+  });
+  const related = error.related;
+  const jumps: Array<{ to: string; label: string; icon: LucideIcon }> = [];
+  if (error.projectId && related?.file) jumps.push({ to: paths.studio(error.projectId, { file: related.file, line: related.line }), label: `${related.file}${related.line != null ? `:${related.line}` : ''} im Studio öffnen`, icon: Code });
+  if (error.projectId && related?.checkRunId) jumps.push({ to: paths.project(error.projectId, { tab: 'checks' }), label: 'Prüfung ansehen', icon: FlaskConical });
+  if (related?.approvalId) jumps.push({ to: paths.approvals, label: 'Zur Freigabe', icon: ShieldQuestion });
+  if (error.projectId && related?.runId) jumps.push({ to: paths.project(error.projectId, { tab: 'agents' }), label: 'Agentenverlauf', icon: Workflow });
 
   return (
     <article
@@ -167,6 +184,17 @@ export function ErrorCard({ error, compact = false, projectName, taskTitle, onRe
             </div>
           )}
 
+          {jumps.length > 0 && (
+            <nav aria-label="Zur Fehlerstelle springen" className="flex flex-wrap gap-x-4 gap-y-1">
+              {jumps.map((j) => (
+                <Link key={j.to + j.label} to={j.to} className="inline-flex items-center gap-1 text-xs font-medium">
+                  <j.icon aria-hidden className="h-3.5 w-3.5" />
+                  {j.label}
+                </Link>
+              ))}
+            </nav>
+          )}
+
           <div className="flex flex-wrap items-center justify-between gap-2 pt-0.5">
             {compact ? (
               <button type="button" onClick={() => setExpanded(false)} className="rounded text-xs font-medium text-blue-fg hover:underline" aria-expanded>
@@ -176,9 +204,16 @@ export function ErrorCard({ error, compact = false, projectName, taskTitle, onRe
               <span />
             )}
             {!resolved && (
-              <Button size="sm" icon={CircleCheck} loading={resolve.loading} onClick={() => resolve.run({ id: error.id })}>
-                Als erledigt markieren
-              </Button>
+              <div className="flex flex-wrap items-center gap-2">
+                {error.projectId && !error.autoFixable && (
+                  <Button size="sm" variant="subtle" icon={Wrench} loading={createFix.loading} onClick={() => createFix.run({ projectId: error.projectId!, errorId: error.id })}>
+                    Reparatur-Aufgabe anlegen
+                  </Button>
+                )}
+                <Button size="sm" icon={CircleCheck} loading={resolve.loading} onClick={() => resolve.run({ id: error.id })}>
+                  Als erledigt markieren
+                </Button>
+              </div>
             )}
           </div>
         </div>

@@ -1324,7 +1324,7 @@ export class Player {
   }
 
   update(_deltaMs: number): void {
-    // TODO: Bewegung
+    // Hier fehlt noch die Bewegung.
   }
 }
 `,

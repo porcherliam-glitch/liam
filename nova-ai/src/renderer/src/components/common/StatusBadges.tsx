@@ -72,7 +72,7 @@ export function VerificationBadge({ verification, status, ...rest }: { verificat
 export interface ModelBadgeProps extends Common {
   /** "providerId/modelId" or a ModelRef; null = no model. */
   model: string | { providerId: string; modelId: string } | null | undefined;
-  /** Force local/cloud display (default: providerId "ollama" = local). */
+  /** Force local/cloud display (default: provider ids starting with "ollama" are local). */
   local?: boolean;
   /** Mark as paid model. */
   paid?: boolean;
@@ -88,7 +88,7 @@ export function ModelBadge({ model, local, paid, ...rest }: ModelBadgeProps) {
       </Badge>
     );
   }
-  const isLocal = local ?? ref.providerId === 'ollama';
+  const isLocal = local ?? ref.providerId.startsWith('ollama');
   const full = ref.providerId ? `${ref.providerId}/${ref.modelId}` : ref.modelId;
   return (
     <Badge tone={isLocal ? 'success' : paid ? 'warning' : 'blue'} icon={isLocal ? Cpu : paid ? Sparkles : Cloud} title={`${isLocal ? 'Lokales Modell' : paid ? 'Kostenpflichtiges Cloud-Modell' : 'Cloud-Modell'}: ${full}`} {...rest}>
