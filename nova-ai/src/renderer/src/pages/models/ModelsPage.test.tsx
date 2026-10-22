@@ -33,7 +33,7 @@ describe('ModelsPage – Ollama and local models', () => {
     expect((await within(table).findAllByText('Geladen')).length).toBe(2);
     // Fit check runs once per model.
     await waitFor(() => expect(getMockCalls('ollama.fit').map((c) => c.params.model).sort()).toEqual(['llama3.1:8b', 'nomic-embed-text:latest', 'qwen2.5-coder:14b']));
-    expect((await within(table).findAllByText(/^Passt/)).length).toBe(3);
+    expect((await within(table).findAllByText(/^Passt ·/)).length).toBe(3);
   });
 
   it('shows German fix instructions when Ollama is not installed', async () => {
@@ -55,7 +55,7 @@ describe('ModelsPage – Ollama and local models', () => {
     await userEvent.click(screen.getByRole('button', { name: /Verbindung prüfen/ }));
     expect(await screen.findByText('Unter dieser Adresse antwortet kein Ollama')).toBeTruthy();
     expect(getMockCalls('ollama.status').at(-1)?.params).toEqual({ baseUrl: 'http://127.0.0.1:11500' });
-    await userEvent.click(screen.getByRole('button', { name: 'Speichern' }));
+    await userEvent.click(within(input.closest('form')!).getByRole('button', { name: 'Speichern' }));
     await waitFor(() =>
       expect(getMockCalls('providers.upsert')[0]?.params).toEqual({ id: 'ollama-local', type: 'ollama', name: 'Ollama (lokal)', baseUrl: 'http://127.0.0.1:11500' }),
     );
