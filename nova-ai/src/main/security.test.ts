@@ -82,7 +82,7 @@ describe('parseDevRendererUrl', () => {
 describe('buildCsp', () => {
   it('production policy matches UI-SPEC §5 exactly', () => {
     expect(buildCsp({ dev: false })).toBe(
-      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; worker-src 'self' blob:; connect-src 'self'; frame-src http://127.0.0.1:* http://localhost:* http://[::1]:*; object-src 'none'; base-uri 'none'",
+      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; worker-src 'self' blob:; connect-src 'self'; frame-src http://127.0.0.1:* http://localhost:*; object-src 'none'; base-uri 'none'",
     );
   });
 

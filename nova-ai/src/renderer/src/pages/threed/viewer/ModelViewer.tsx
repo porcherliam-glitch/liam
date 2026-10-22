@@ -32,7 +32,7 @@ const STEP = Math.PI / 12; // 15° per arrow key (Shift: 45°)
 export function describeModel(name: string, stats: ModelStats, sizeBytes: number): string {
   const dim = (v: number) => formatNumber(v, 2);
   return (
-    `3D-Modell „${name}“: ${formatNumber(stats.triangles, 0)} Dreiecke, ${plural(stats.materials, 'Material', 'Materialien')}, ${plural(stats.textures, 'Textur', 'Texturen')}. ` +
+    `3D-Modell „${name}“: ${plural(stats.triangles, 'Dreieck', 'Dreiecke')}, ${plural(stats.materials, 'Material', 'Materialien')}, ${plural(stats.textures, 'Textur', 'Texturen')}. ` +
     `Maße laut Datei ${dim(stats.size.x)} × ${dim(stats.size.y)} × ${dim(stats.size.z)} m (Breite × Höhe × Tiefe), Dateigröße ${formatBytes(sizeBytes)}.`
   );
 }

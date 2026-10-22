@@ -1,7 +1,7 @@
 # NOVA AI – Aufgabenübersicht
 
 Stand: 22.10.2026. Diese Datei beschreibt ehrlich, was fertig ist, was geprüft wurde und was noch offen ist.
-Ausgelieferter Stand: Commit 54c221f (Code), dazu die Dokumentation in den Commits danach.
+Grundlage: Commit 54c221f (geprüfter Stand der Vorabversion), danach kam die 3D-Werkstatt dazu.
 
 ## Fertig
 
@@ -16,6 +16,7 @@ Ausgelieferter Stand: Commit 54c221f (Code), dazu die Dokumentation in den Commi
 | Oberfläche | Übersicht, Projekte, Agenten, Aufgaben, Freigaben, Studio (Monaco-Editor, Dateibaum, Suche, Vergleich, Terminal, Vorschau), Modelle, Kosten, Wissen, Werkzeuge, Einstellungen, Protokolle |
 | Windows | NSIS-Installer (pro Benutzer, Startmenü, optional Desktop), Taskleiste, Hintergrundbetrieb, Autostart, `--stop-daemon` |
 | Doku | README.md (Deutsch), Doppelklick-Dateien `NOVA-STARTEN.cmd` und `SETUP-ERSTELLEN.cmd` |
+| 3D-Werkstatt | Text zu 3D (Z-Image Turbo → TRELLIS.2/Pixal3D) und Bild zu 3D über eine lokale ComfyUI, eigener Bereich „3D-Modelle“ mit Downloads, Aufträge mit Fortschritt/Abbruch, drehbare Vorschau, Agenten-Werkzeug `generate_3d_model` (Spezifikation `docs/SPEC-3D.md`) |
 
 ## Geprüft
 
@@ -25,6 +26,10 @@ Ausgelieferter Stand: Commit 54c221f (Code), dazu die Dokumentation in den Commi
   Token abgelehnt, sauberes Beenden, Dienst-Aufsicht, `--stop-daemon`), deinstalliert, Benutzerdaten bleiben erhalten.
   Ablauf: `.github/workflows/nova-ai-windows.yml`, die setup.exe liegt dort als Artefakt „NOVA-AI-Setup“.
 - **Unabhängige Code-Prüfung** (6 Prüfer): 50 Befunde, siehe [docs/Pruefbefunde.md](docs/Pruefbefunde.md).
+- **3D-Werkstatt:** alle von NOVA gebauten ComfyUI-Aufträge (TRELLIS.2 und Pixal3D in 3 Qualitätsstufen, Text zu Bild)
+  wurden von einer echten ComfyUI 0.42.0 (CPU) als gültig angenommen ([Nachweis](tests/fixtures/comfyui/VERIFICATION.md));
+  der ganze Ablauf bis zur GLB-Datei ist mit einem nachgebauten ComfyUI getestet. **Nicht geprüft:** eine echte Erzeugung
+  mit den Modellgewichten auf einer NVIDIA-Grafikkarte – das geht nur auf dem PC (`npm run verify:comfyui`).
 
 ## Offen
 
@@ -38,7 +43,8 @@ Ausgelieferter Stand: Commit 54c221f (Code), dazu die Dokumentation in den Commi
      Agentenbefehls selbst bearbeitet, können als NOVA-Änderung gelten.
    - R4-4: Ollama-Antworten, die länger als 300 s dauern, brechen ab (Einstellung „Zeitlimit“ wirkt nicht darüber).
    - R5-2: Ungespeicherte Änderungen im Editor gehen beim Beenden ohne Rückfrage verloren.
-2. **Auf dem Windows-PC:** `npm run verify:ollama` mit echtem Ollama-Modell (in der Cloud nicht möglich).
+2. **Auf dem Windows-PC:** `npm run verify:ollama` mit echtem Ollama-Modell und `npm run verify:comfyui` mit echtem
+   ComfyUI und installierten 3D-Modellen (in der Cloud nicht möglich).
 
 ## Bekannte Einschränkungen (ehrlich)
 

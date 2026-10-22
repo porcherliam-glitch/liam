@@ -51,6 +51,24 @@ Beide Dateien brauchen **Node.js** (Version 22.13 oder neuer). Fehlt es, bieten 
 6. Unter **Agenten** und **Aufgaben** siehst du, woran gerade gearbeitet wird. Du kannst jede Aufgabe pausieren,
    fortsetzen, stoppen oder ihre Priorität ändern.
 
+### 3D-Modelle erzeugen (3D-Werkstatt)
+
+NOVA kann aus einer Beschreibung („Text zu 3D“) oder einem Bild („Bild zu 3D“) ein 3D-Modell (.glb mit Farben und
+Materialien) machen – lokal auf deinem PC, kostenlos.
+
+1. **ComfyUI installieren** (kostenloses Programm, macht die eigentliche Arbeit): links **3D-Werkstatt**, dann
+   **ComfyUI installieren** (NOVA fragt vorher um Freigabe) oder selbst von <https://www.comfy.org/download>.
+   ComfyUI einmal starten.
+2. Links **Modelle**, ganz unten **3D-Modelle**: **TRELLIS.2** herunterladen (etwa 9 GB), für „Text zu 3D“ zusätzlich
+   **Z-Image Turbo** (etwa 12 GB). Beim ersten Download fragt NOVA, ob es huggingface.co verwenden darf.
+3. In der **3D-Werkstatt** eine Beschreibung eingeben oder ein Bild wählen und **3D-Modell erzeugen** klicken. Das Ergebnis
+   lässt sich drehen und liegt im Projektordner (`assets/3d/`) oder in der NOVA-Bibliothek.
+
+Am besten klappt es mit **einem** Objekt, vollständig sichtbar, vor schlichtem Hintergrund. Empfohlen ist eine
+NVIDIA-Grafikkarte mit 16 GB; mit 8 GB geht es langsamer, ohne NVIDIA-Karte sehr langsam oder gar nicht. Alle Modelle
+(TRELLIS.2, Pixal3D, Z-Image Turbo) haben freie Lizenzen (MIT bzw. Apache-2.0) und dürfen in Deutschland genutzt werden.
+Prüfung mit echtem ComfyUI auf dem PC: `npm run verify:comfyui` (siehe `docs/SPEC-3D.md`).
+
 ### Echte Ollama-Prüfung
 
 Für Entwickler: `npm run verify:ollama` prüft mit deinem echten Ollama, ob ein Modell eine kleine Aufgabe in einem
@@ -71,6 +89,7 @@ auf dem PC wichtig.
 | Gedächtnis | Wissen pro Projekt und projektübergreifend, nie mit Geheimnissen |
 | Sicherheit | Freigaben für Admin-Aktionen, systemweite Änderungen, Löschen, Dateien außerhalb des Projekts, Sicherheitseinstellungen, Veröffentlichen, sensible Daten und bezahlte Nutzung |
 | Git und Sicherungen | Prüfpunkte, Wiederherstellen ohne deine eigenen Änderungen zu überschreiben, Datenbanksicherungen, Export/Import ohne Klartext-Schlüssel |
+| 3D-Werkstatt | Text zu 3D und Bild zu 3D mit lokalen KI-Modellen (TRELLIS.2, Pixal3D, Z-Image Turbo) über ComfyUI, 3D-Vorschau, eigener Bereich „3D-Modelle“, Agenten können 3D-Modelle für Spiele erzeugen |
 | Hintergrund | Läuft weiter, wenn das Fenster zu ist (Symbol in der Taskleiste), optional Autostart, Wiederherstellung nach Absturz |
 
 ### Freigaben

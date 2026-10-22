@@ -262,7 +262,7 @@ export function CreateCard({ status, models, settings, projects, onCreated, onSh
               />
             ) : (
               <p className="text-xs text-muted">
-                {projects.length === 0 ? 'Noch kein Projekt vorhanden – ' : ''}Das Modell kommt in die 3D-Bibliothek im NOVA-Datenordner.
+                {projects.length === 0 ? 'Noch kein Projekt vorhanden. ' : ''}Das Modell kommt in die 3D-Bibliothek im NOVA-Datenordner.
               </p>
             )}
           </div>

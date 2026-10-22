@@ -96,7 +96,8 @@ export interface CspOptions {
 
 /** Content-Security-Policy of the renderer (UI-SPEC §5). */
 export function buildCsp(opts: CspOptions): string {
-  const loopbackFrames = ['http://127.0.0.1:*', 'http://localhost:*', 'http://[::1]:*'];
+  // CSP host sources cannot express IPv6 literals (Chromium drops 'http://[::1]:*' as invalid): previews use 127.0.0.1/localhost
+  const loopbackFrames = ['http://127.0.0.1:*', 'http://localhost:*'];
   const d: Record<string, string[]> = {
     'default-src': ["'self'"],
     'script-src': ["'self'"],

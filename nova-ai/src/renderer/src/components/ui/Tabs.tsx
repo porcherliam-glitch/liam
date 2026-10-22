@@ -52,7 +52,7 @@ export function Tabs<T extends string>({ items, value, onChange, label, idBase =
   };
 
   return (
-    <div role="tablist" aria-label={label} onKeyDown={onKeyDown} className={cn('flex items-end gap-1 overflow-x-auto border-b border-border', className)}>
+    <div role="tablist" aria-label={label} onKeyDown={onKeyDown} className={cn('flex items-end gap-1 overflow-x-auto overflow-y-hidden border-b border-border', className)}>
       {items.map((it, i) => {
         const selected = it.id === value;
         const Icon = it.icon;
