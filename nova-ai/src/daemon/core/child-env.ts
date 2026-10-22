@@ -19,20 +19,36 @@ export function isDroppedEnvVar(name: string): boolean {
 /**
  * Re-reads the Machine+User PATH from the registry (via PowerShell) and merges entries that exist only in the
  * current process PATH. Cached for 60 s; call with force=true after installing tools.
+ * A cold PowerShell start can take several seconds on Windows, so concurrent callers share one read and an expired
+ * value is returned at once while it is refreshed in the background. A failed read keeps the previous value (or the
+ * process PATH) for the next 60 s instead of retrying on every command.
  */
 export function refreshWindowsPath(force = false): Promise<string | null> {
   if (process.platform !== 'win32') return Promise.resolve(null);
   if (!force && cachedWindowsPath && Date.now() - cachedWindowsPath.at < 60_000) return Promise.resolve(cachedWindowsPath.value);
+  // force (after an install) must not reuse a read that started before the install
+  const read = force || !pathRead ? startPathRead() : pathRead;
+  if (!force && cachedWindowsPath) return Promise.resolve(cachedWindowsPath.value);
+  return read;
+}
+
+let pathRead: Promise<string | null> | null = null;
+
+function startPathRead(): Promise<string | null> {
   const script =
     "$ProgressPreference='SilentlyContinue';[Console]::OutputEncoding=[Text.UTF8Encoding]::new($false);" +
     "[Environment]::GetEnvironmentVariable('Path','Machine')+';'+[Environment]::GetEnvironmentVariable('Path','User')";
-  return new Promise((resolve) => {
+  const read = new Promise<string | null>((resolve) => {
     execFile(
       'powershell.exe',
       ['-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', script],
       { windowsHide: true, timeout: 10_000, encoding: 'utf8' },
       (err, stdout) => {
-        if (err) return resolve(cachedWindowsPath?.value ?? null);
+        if (err) {
+          const previous = cachedWindowsPath?.value ?? process.env.Path ?? process.env.PATH ?? null;
+          if (previous !== null) cachedWindowsPath = { value: previous, at: Date.now() };
+          return resolve(previous);
+        }
         const seen = new Set<string>();
         const parts: string[] = [];
         for (const p of `${stdout.trim()};${process.env.Path ?? process.env.PATH ?? ''}`.split(';')) {
@@ -48,6 +64,11 @@ export function refreshWindowsPath(force = false): Promise<string | null> {
       },
     );
   });
+  pathRead = read;
+  void read.finally(() => {
+    if (pathRead === read) pathRead = null;
+  });
+  return read;
 }
 
 export function invalidateWindowsPath(): void {

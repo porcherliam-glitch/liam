@@ -131,7 +131,7 @@ async function partService() {
     const integrations = await rpc(conn, 'integrations.list', { refresh: true });
     const found = Object.fromEntries(integrations.map((i) => [i.id, i]));
     console.log(`     Werkzeuge: ${integrations.map((i) => `${i.id}=${i.available ? (i.version ?? 'ja') : 'nein'}`).join(', ')}`);
-    for (const id of ['git', 'node', 'npm', 'powershell']) check(found[id]?.available === true, `Werkzeug erkannt: ${id}`);
+    for (const id of ['git', 'node', 'npm', 'powershell', 'dotnet']) check(found[id]?.available === true, `Werkzeug erkannt: ${id}`);
 
     const snap = await rpc(conn, 'resources.snapshot');
     check(snap.cpu.cores > 0 && snap.memory.totalBytes > 0, `Ressourcen: ${snap.cpu.cores} Kerne, ${Math.round(snap.memory.totalBytes / 2 ** 30)} GB RAM`);
