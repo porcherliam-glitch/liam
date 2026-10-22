@@ -436,6 +436,8 @@ export interface ThreeDService {
   wait(id: string, signal?: AbortSignal): Promise<ThreeDJob>;
   /** Marks running jobs of a previous daemon run as failed (crash recovery). */
   recover(): void;
+  /** Deletes ended project jobs older than the cutoff (library jobs stay: they are the library); returns the count. */
+  prune(olderThanMs: number): number;
   /** Cancels running work on daemon shutdown. */
   shutdown(): Promise<void>;
 }

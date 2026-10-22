@@ -20,6 +20,7 @@
     "test:watch": "vitest",
     "e2e": "node scripts/build.mjs && playwright test",
     "verify:ollama": "node scripts/build.mjs --only daemon && node scripts/verify-ollama.mjs",
+    "verify:comfyui": "node scripts/build.mjs --only daemon && node scripts/verify-comfyui.mjs",
     "dist:win": "node scripts/build.mjs && electron-builder --win nsis --x64",
     "dist:dir": "node scripts/build.mjs && electron-builder --dir"
   },

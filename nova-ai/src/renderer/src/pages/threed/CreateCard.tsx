@@ -129,7 +129,7 @@ export function CreateCard({ status, models, settings, projects, onCreated, onSh
         }}
       >
         <div>
-          <Tabs label="Art der Erzeugung" idBase="threed-mode" items={modeTabs} value={mode} onChange={(m) => setMode(m)} />
+          <Tabs label="Art der Erzeugung" idBase="threed-mode" items={modeTabs} value={mode} onChange={(m) => setMode(m)} className="overflow-y-hidden" />
           <TabPanel idBase="threed-mode" id={mode} className="pt-3">
             {mode === 'text' ? (
               <div className="space-y-2">

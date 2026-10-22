@@ -65,7 +65,7 @@ describe('exportData', () => {
     seed(h);
     const progress: (number | null)[] = [];
     const r = await h.backups.exportData(['projects', 'tasks', 'settings', 'memory', 'providers'], undefined, { onProgress: (p) => progress.push(p) });
-    expect(r.counts).toEqual({ projects: 1, tasks: 4, settings: 13, memory: 2, providers: 2 });
+    expect(r.counts).toEqual({ projects: 1, tasks: 4, settings: 14, memory: 2, providers: 2 });
     expect(r.path.startsWith(h.t.core.paths.exports)).toBe(true);
     const text = readFileSync(r.path, 'utf8');
     const data = JSON.parse(text);
@@ -110,7 +110,7 @@ describe('importData', () => {
     const events: AnyNovaEvent[] = [];
     dst.t.core.bus.onAny((e) => events.push(e));
     const r = await dst.backups.importData(exported.path);
-    expect(r.counts).toEqual({ projects: 1, tasks: 4, memory: 2, providers: 1, settings: 10, skipped: 1 });
+    expect(r.counts).toEqual({ projects: 1, tasks: 4, memory: 2, providers: 1, settings: 11, skipped: 1 });
     const project = dst.s.projects.get('prj_a')!;
     expect(project).toMatchObject({ path: root, workState: 'stopped', gitAvailable: false });
     expect(project.config.allowedCommands).toEqual([]);

@@ -2,6 +2,7 @@
 import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
+import { RPC_METHODS } from '@shared/rpc';
 import { renderWithRouter, setupRendererTest } from '../../lib/test-utils';
 import { getMockCalls, getMockDb, mockHandlers, MockRpcError } from '../../lib/mock-bridge';
 import { useDaemonStore } from '../../stores/daemon';
@@ -207,5 +208,49 @@ describe('SettingsPage – immediate controls', () => {
     await userEvent.click(screen.getByRole('button', { name: /Diagnose-Paket erstellen/ }));
     expect(await screen.findByText(/nova-diagnose-.*\.json/)).toBeTruthy();
     expect(screen.getByRole('button', { name: /Im Explorer zeigen/ })).toBeTruthy();
+  });
+});
+
+describe('SettingsPage – 3D-Werkstatt', () => {
+  it('shows the ComfyUI state and the 3D fields', async () => {
+    await renderSection('threed');
+    expect(within(nav()).getByRole('link', { name: '3D-Werkstatt' }).getAttribute('aria-current')).toBe('page');
+    expect(await screen.findByText('Version 0.42.0')).toBeTruthy();
+    expect(screen.getByRole('link', { name: /Zur 3D-Werkstatt/ }).getAttribute('href')).toBe('/threed');
+    expect((screen.getByLabelText('Generator (Voreinstellung)') as HTMLSelectElement).value).toBe('trellis2');
+    expect((screen.getByLabelText('Ordner im Projekt') as HTMLInputElement).value).toBe('assets/3d');
+    expect(screen.getByRole('switch', { name: 'Agenten dürfen 3D-Modelle erzeugen' }).getAttribute('aria-checked')).toBe('true');
+    expect(screen.getByRole('link', { name: /Modelle › 3D-Modelle/ }).getAttribute('href')).toBe('/models?section=3d');
+  });
+
+  it('checks the ComfyUI address with threed.configure and saves the rest as a patch', async () => {
+    await renderSection('threed');
+    await userEvent.type(screen.getByLabelText('Adresse von ComfyUI'), 'http://127.0.0.1:8188');
+    await userEvent.click(screen.getByRole('switch', { name: 'Sprachmodelle vorher entladen' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Speichern' }));
+    await waitFor(() => expect(getMockCalls('threed.configure')[0]?.params).toEqual({ engineUrl: 'http://127.0.0.1:8188' }));
+    await waitFor(() => expect(getMockCalls('settings.update')[0]?.params).toEqual({ threeD: { unloadLanguageModels: false } }));
+    await waitFor(() => expect(lastToast()?.title).toBe('3D-Werkstatt: gespeichert'));
+    expect(getMockDb().settings.threeD).toMatchObject({ engineUrl: 'http://127.0.0.1:8188', unloadLanguageModels: false });
+    expect(await screen.findByText('http://127.0.0.1:8188', { selector: 'span' })).toBeTruthy();
+  });
+
+  it('shows the daemon check of the address at the field', async () => {
+    mockHandlers.set('threed.configure', () => {
+      throw new MockRpcError('VALIDATION', 'Unter dieser Adresse antwortet kein ComfyUI.');
+    });
+    await renderSection('threed');
+    await userEvent.type(screen.getByLabelText('Adresse von ComfyUI'), 'http://127.0.0.1:9999');
+    await userEvent.click(screen.getByRole('button', { name: 'Speichern' }));
+    expect(await screen.findByText('Unter dieser Adresse antwortet kein ComfyUI.')).toBeTruthy();
+    expect(screen.getByLabelText('Adresse von ComfyUI').getAttribute('aria-invalid')).toBe('true');
+    expect(getMockCalls('settings.update')).toHaveLength(0);
+  });
+
+  it('hides the section when the daemon has no 3D workshop', async () => {
+    getMockDb().daemon.methods = RPC_METHODS.filter((m) => !m.startsWith('threed.'));
+    renderWithRouter(<SettingsPage />, { route: '/settings?section=threed' });
+    await waitFor(() => expect(within(nav()).queryByRole('link', { name: '3D-Werkstatt' })).toBeNull());
+    expect(within(nav()).getByRole('link', { name: 'Allgemein' }).getAttribute('aria-current')).toBe('page');
   });
 });

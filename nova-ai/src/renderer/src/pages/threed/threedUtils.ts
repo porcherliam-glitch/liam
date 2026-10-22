@@ -91,7 +91,7 @@ export interface CreateBlocker {
 export function createBlocker(status: ThreeDEngineStatus | undefined, models: ThreeDModel[] | undefined, mode: ThreeDJob['mode'], generator: ThreeDGenerator): CreateBlocker | null {
   if (status) {
     const state = engineState(status);
-    if (state === 'missing') return { reason: 'ComfyUI ist nicht installiert. Oben steht, wie du es einrichtest.', target: 'engine' };
+    if (state === 'missing') return { reason: 'ComfyUI ist nicht installiert. Oben steht, wie es eingerichtet wird.', target: 'engine' };
     if (state === 'stopped') return { reason: 'ComfyUI läuft nicht. Bitte ComfyUI starten.', target: 'engine' };
     if (state === 'outdated') return { reason: 'Diese ComfyUI-Version kann noch keine 3D-Modelle erzeugen. Bitte ComfyUI aktualisieren.', target: 'engine' };
   }

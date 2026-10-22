@@ -1716,7 +1716,7 @@ const handlers: HandlerMap = {
     const running = runningId ? db.operations.find((o) => o.id === runningId) : undefined;
     if (running) return running;
     const op: Operation = {
-      id: nid('op'), kind: 'threed_download', projectId: null, title: `${m.name} herunterladen`, status: 'running', progress: 0,
+      id: nid('op'), kind: 'threed_download', projectId: null, title: `3D-Modell „${m.name}“ herunterladen`, status: 'running', progress: 0,
       message: `0 B von ${formatBytes(m.missingBytes)}`, cancellable: true, error: null, startedAt: now(), endedAt: null,
     };
     db.operations.push(op);

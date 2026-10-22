@@ -154,8 +154,8 @@ function EngineHelp({ status: s, state, onChooseFolder, choosingFolder }: Engine
         }
       >
         <p>
-          NOVA hat den Ordner „models“ von ComfyUI nicht gefunden. Dorthin werden die 3D-Modelle heruntergeladen. Bei ComfyUI Desktop liegt er in dem Ordner, den du beim Einrichten gewählt
-          hast (oft Dokumente\ComfyUI\models).
+          NOVA hat den Ordner „models“ von ComfyUI nicht gefunden. Dorthin werden die 3D-Modelle heruntergeladen. Bei ComfyUI Desktop liegt er in dem Ordner, der beim Einrichten gewählt
+          wurde (oft Dokumente\ComfyUI\models).
         </p>
         {daemonMessage}
       </Notice>

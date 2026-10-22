@@ -204,6 +204,20 @@ export function comfyFilesFor(ids: ThreeDModelId[]): Record<string, string[]> {
   return out;
 }
 
+/** Environment whose user folders (HOME, USERPROFILE, APPDATA, LOCALAPPDATA, ProgramFiles, XDG) all live in `home`. */
+export function homeEnv(home: string): Record<string, string> {
+  return {
+    HOME: home,
+    USERPROFILE: home,
+    APPDATA: join(home, 'AppData', 'Roaming'),
+    LOCALAPPDATA: join(home, 'AppData', 'Local'),
+    ProgramFiles: join(home, 'Programme'),
+    XDG_CONFIG_HOME: join(home, '.config'),
+    XDG_DATA_HOME: join(home, '.local', 'share'),
+    XDG_STATE_HOME: join(home, '.local', 'state'),
+  };
+}
+
 export interface ThreeDHarness extends Harness {
   svc: ThreeDServiceImpl;
   comfy: ReturnType<typeof fakeComfy>;
@@ -239,13 +253,21 @@ export function createThreeDHarness(
     },
   } as unknown as typeof s.notifications;
   h.t.core.settings.update({ threeD: { modelsDir: models.dir, engineUrl: 'http://127.0.0.1:8188' } });
+  // threed_jobs.project_id references projects(id).
+  h.t.core.db.run("INSERT INTO projects(id, name, path, path_key, kind, config, created_at, updated_at) VALUES (?, 'Testprojekt', ?, ?, 'web', '{}', 0, 0)", [
+    h.project.id,
+    h.root,
+    h.root,
+  ]);
   const events = { jobs: [] as ThreeDHarness['events']['jobs'], status: 0, modelsChanged: 0 };
   h.t.core.bus.on('threed.job', (j) => events.jobs.push({ id: j.id, status: j.status, phase: j.phase, progress: j.progress }));
   h.t.core.bus.on('threed.status', () => events.status++);
   h.t.core.bus.on('threed.models.changed', () => events.modelsChanged++);
+  // Real platform (paths of the temp folders must be valid for it); every user folder points into an empty temp home so
+  // the layout detection never sees a ComfyUI installed on the test machine.
   const svc = createThreeDService(s, {
-    platform: 'linux',
-    env: { HOME: home.dir },
+    platform: process.platform,
+    env: homeEnv(home.dir),
     clientFactory: comfy.factory,
     workflow: fakeWorkflow,
     progressIntervalMs: 0,

@@ -10,7 +10,7 @@
 //   * Legacy ComfyUI Desktop: %APPDATA%\ComfyUI\config.json → basePath, models = <basePath>\models, port 8000,
 //     program %LOCALAPPDATA%\Programs\ComfyUI\ComfyUI.exe (older builds: ...\Programs\@comfyorgcomfyui-electron\).
 //   * Portable: <root>\ComfyUI_windows_portable*\ComfyUI\main.py (+ python_embeded, run_nvidia_gpu.bat), port 8188;
-//     searched in the user folder, Desktop, Downloads, Documents and the roots of C:, D:, E:.
+//     searched in the user folder, Desktop, Downloads, Documents and the roots of C: and D:.
 // - Endpoints: settings.threeD.engineUrl when set (local addresses only), else the ports of running Comfy Desktop
 //   instances, then 127.0.0.1:8000 (Desktop default) and 127.0.0.1:8188 (portable/manual default). Never remote.
 // - A folder counts as a ComfyUI models folder when it contains checkpoints, vae or diffusion_models.
@@ -138,7 +138,8 @@ function folders(env: Env, platform: NodeJS.Platform): Folders {
       legacyConfig: [p.join(appData, 'ComfyUI', 'config.json')],
       legacyExes: [p.join(localAppData, 'Programs', 'ComfyUI', 'ComfyUI.exe'), p.join(localAppData, 'Programs', '@comfyorgcomfyui-electron', 'ComfyUI.exe')],
       sharedModels: [p.join(localAppData, 'Comfy-Desktop', 'ComfyUI-Shared', 'models'), p.join(home, 'ComfyUI-Shared', 'models')],
-      portableRoots: [home, p.join(home, 'Desktop'), p.join(home, 'Downloads'), p.join(home, 'Documents'), 'C:\\', 'D:\\', 'E:\\'],
+      // Only C: and D: (local disks in practice): listing a disconnected network drive could block the daemon.
+      portableRoots: [home, p.join(home, 'Desktop'), p.join(home, 'Downloads'), p.join(home, 'Documents'), 'C:\\', 'D:\\'],
       manualDirs: [p.join(home, 'ComfyUI'), p.join(home, 'Documents', 'ComfyUI'), p.join(home, 'Desktop', 'ComfyUI')],
     };
   }

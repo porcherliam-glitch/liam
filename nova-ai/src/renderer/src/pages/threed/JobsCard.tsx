@@ -70,9 +70,7 @@ export function JobsCard({ jobs, projectNames, selectedId, onSelect, onUpdated, 
       icon={ListChecks}
       padding="none"
     >
-      <div className="pb-1" aria-live="polite">
-        {body}
-      </div>
+      <div className="pb-1">{body}</div>
       <ConfirmDialog
         open={toDelete !== null}
         tone="danger"

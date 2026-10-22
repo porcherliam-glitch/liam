@@ -7,6 +7,7 @@ import { ArrowRight, Box, CircleCheck, CircleDashed, Download, FolderOpen, Rotat
 import type { Operation, ThreeDModel, ThreeDModelId } from '@shared/schemas';
 import { Badge, Button, Card, ConfirmDialog, EmptyState, ErrorState, IconButton, LoadingState, StatusBadge } from '../../components/ui';
 import { useMutation, useNovaEvent } from '../../hooks';
+import { useDaemonStore } from '../../stores/daemon';
 import { api, isRpcError } from '../../lib/api';
 import { formatBytes, plural } from '../../lib/format';
 import { THREED_MODEL_PURPOSE } from '../../lib/labels';
@@ -66,7 +67,13 @@ function useThreeDDownloads(onFinished: () => void) {
   return { start, dismiss, forModel, unassigned };
 }
 
-export function ThreeDModelsCard({ id }: { id?: string }) {
+export interface ThreeDModelsCardProps {
+  id?: string;
+  /** Scroll the card into view once its data is loaded (link "3D-Modelle verwalten"). */
+  scrollIntoView?: boolean;
+}
+
+export function ThreeDModelsCard({ id, scrollIntoView = false }: ThreeDModelsCardProps) {
   const supported = useThreeDSupported();
   const header = {
     id,
@@ -100,14 +107,31 @@ export function ThreeDModelsCard({ id }: { id?: string }) {
         </Link>
       }
     >
-      <ThreeDModelsBody />
+      <ThreeDModelsBody cardId={id} scrollIntoView={scrollIntoView} />
     </Card>
   );
 }
 
-function ThreeDModelsBody() {
+function ThreeDModelsBody({ cardId, scrollIntoView }: { cardId?: string; scrollIntoView: boolean }) {
   const engine = useEngineStatus();
   const models = useThreeDModels();
+  const loaded = models.data !== undefined;
+  const scrolled = useRef(false);
+
+  // Cards above load at the same time and change the layout – scroll after this card has its data, then once more.
+  useEffect(() => {
+    if (!scrollIntoView || !loaded || !cardId || scrolled.current) return;
+    const scroll = () => {
+      scrolled.current = true;
+      document.getElementById(cardId)?.scrollIntoView?.({ block: 'start', behavior: 'smooth' });
+    };
+    const first = requestAnimationFrame(scroll);
+    const second = setTimeout(scroll, 600);
+    return () => {
+      cancelAnimationFrame(first);
+      clearTimeout(second);
+    };
+  }, [scrollIntoView, loaded, cardId]);
   const downloads = useThreeDDownloads(() => void models.refetch());
   const folder = useChooseModelsDir(engine.setData);
   const [toDelete, setToDelete] = useState<ThreeDModel | null>(null);
@@ -144,7 +168,7 @@ function ThreeDModelsBody() {
 
   return (
     <div className="space-y-3">
-      <EngineSummary engine={engine} />
+      <EngineSummary engine={engine} showLink={false} />
       {folderMissing && (
         <Notice
           tone="warning"
@@ -231,6 +255,7 @@ interface ModelRowProps {
 
 function ModelRow({ model: m, operation, error, downloadDisabledReason, starting, onDownload, onDelete, onDismiss }: ModelRowProps) {
   const downloading = operation?.status === 'running';
+  const pendingApprovals = useDaemonStore((s) => s.pendingApprovals);
   const anyPresent = m.files.some((f) => f.present);
   const partial = !m.installed && anyPresent;
   const finished = operation && operation.status !== 'running' ? operation : null;
@@ -301,6 +326,15 @@ function ModelRow({ model: m, operation, error, downloadDisabledReason, starting
         </div>
       </div>
       {downloading && operation && <OperationProgress className="mt-2" operation={operation} />}
+      {downloading && pendingApprovals > 0 && (
+        <p className="mt-1 text-xs text-muted">
+          Wartet der Download auf die Freigabe für Hugging Face, steht sie unter{' '}
+          <Link to={paths.approvals} className="font-medium">
+            Freigaben ({pendingApprovals} offen)
+          </Link>
+          .
+        </p>
+      )}
       {finished && finished.status !== 'done' && (
         <div className="mt-2 flex items-start justify-between gap-2 rounded-lg border border-border bg-surface-2/60 px-3 py-2 text-xs">
           <p className={finished.status === 'failed' ? 'text-danger-fg' : 'text-muted'}>

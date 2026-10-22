@@ -498,13 +498,17 @@ export function createThreeDService(s: Services, opts: ThreeDServiceOptions = {}
     }
   };
 
-  /** Queues a prompt and follows it; progress goes to onEvent. Records promptId/started for cancel. */
+  /**
+   * Queues a prompt and follows it; progress goes to onEvent. Records promptId/started so a cancel can stop the prompt
+   * inside ComfyUI. queuePrompt itself is not aborted (it is short): a prompt that reached ComfyUI is always cancelled
+   * there, never left running as an orphan.
+   */
   const runPrompt = async (a: ActiveJob, client: ComfyClientLike, built: BuiltPrompt, onEvent: (ev: ComfyWatchEvent) => void): Promise<ComfyHistoryEntry> => {
     const signal = a.controller.signal;
     if (signal.aborted) throw abortError('abgebrochen');
     let queued;
     try {
-      queued = await client.queuePrompt(built.prompt, { signal });
+      queued = await client.queuePrompt(built.prompt);
     } catch (e) {
       const d = isNovaError(e) ? (e.details as ComfyErrorDetails | undefined) : undefined;
       if (isNovaError(e) && d?.missingModels?.length) {
@@ -515,6 +519,7 @@ export function createThreeDService(s: Services, opts: ThreeDServiceOptions = {}
     a.promptId = queued.promptId;
     a.started = false;
     try {
+      if (signal.aborted) throw abortError('abgebrochen');
       return await client.watch(
         queued.promptId,
         (ev) => {
@@ -523,6 +528,9 @@ export function createThreeDService(s: Services, opts: ThreeDServiceOptions = {}
         },
         signal,
       );
+    } catch (e) {
+      if (signal.aborted) await cancelInComfy(a);
+      throw e;
     } finally {
       a.promptId = null;
     }
@@ -559,7 +567,8 @@ export function createThreeDService(s: Services, opts: ThreeDServiceOptions = {}
       let count = 0;
       for (const id of done) if (groups.get(id) === phase) count++;
       if (current && groups.get(current) === phase) count += Math.min(1, Math.max(0, fraction));
-      const pct = range[0] + ((range[1] - range[0]) * Math.min(1, count / Math.max(1, total)));
+      // 100 % only when the job is really done (the file still has to be fetched and saved).
+      const pct = Math.min(99, range[0] + (range[1] - range[0]) * Math.min(1, count / Math.max(1, total)));
       const label = PHASES[phase];
       const now = Date.now();
       if (label !== lastPhase || now - lastEmit >= progressInterval) {
@@ -589,7 +598,8 @@ export function createThreeDService(s: Services, opts: ThreeDServiceOptions = {}
     };
   };
 
-  const setPhase = (id: string, phase: keyof typeof PHASES, progress: number) => updateJob(id, { phase: PHASES[phase], progress });
+  /** Phase change; the overall progress never goes backwards. */
+  const setPhase = (id: string, phase: keyof typeof PHASES, progress: number) => updateJob(id, { phase: PHASES[phase], progress: Math.max(store.get(id)?.progress ?? 0, progress) });
 
   /** Free base name in the project for "<folder>/<name>.glb" (+ ".png"), "-2", "-3" … */
   const freeProjectNames = (projectRoot: string, folder: string, name: string, withPng: boolean): { glb: string; png: string | null } => {
@@ -663,6 +673,8 @@ export function createThreeDService(s: Services, opts: ThreeDServiceOptions = {}
     if (signal.aborted) throw abortError('abgebrochen');
     const client = clientFactory({ baseUrl: engine.baseUrl, clientId: `nova-${job.id}` });
     a.client = client;
+    let saved: Partial<ThreeDJob> = {};
+    let savedBytes = 0;
     try {
       // 1. Text → reference image.
       let imageBytes: Buffer;
@@ -708,18 +720,17 @@ export function createThreeDService(s: Services, opts: ThreeDServiceOptions = {}
       const glb = await client.view(out, { signal });
       if (!isGlb(glb)) throw new NovaError('DEPENDENCY_FAILED', 'ComfyUI hat keine gültige GLB-Datei geliefert.', { severity: 'warning', userAction: 'ComfyUI aktualisieren und den Auftrag erneut starten.' });
       if (signal.aborted) throw abortError('abgebrochen');
-      const saved = await saveOutputs(job, glb, referencePng);
-      updateJob(job.id, { ...saved, status: 'done', phase: null, progress: 100, endedAt: core.clock.now(), error: null });
-      log.info('3D-Modell erzeugt', { jobId: job.id, bytes: glb.length, project: job.projectId });
+      saved = await saveOutputs(job, glb, referencePng);
+      savedBytes = glb.length;
     } finally {
-      // Release graphics memory in ComfyUI after every job (also after errors and cancel; after the cancel request).
-      const release = async () => {
-        if (signal.aborted) await cancelInComfy(a);
-        await client.free({ timeoutMs: 10_000 });
-      };
-      await release().catch((e: unknown) => log.debug('ComfyUI /free fehlgeschlagen', { error: errorMessage(e) }));
+      // Release graphics memory in ComfyUI after every job (also after errors and cancel).
+      await client.free({ timeoutMs: 10_000 }).catch((e: unknown) => log.debug('ComfyUI /free fehlgeschlagen', { error: errorMessage(e) }));
       a.client = null;
     }
+    // Reported as done only after ComfyUI released the graphics memory.
+    if (!job.taskId) notify(job, true);
+    updateJob(job.id, { ...saved, status: 'done', phase: null, progress: 100, endedAt: core.clock.now(), error: null });
+    log.info('3D-Modell erzeugt', { jobId: job.id, bytes: savedBytes, project: job.projectId });
   };
 
   /** The generated file of the output node (any node of that kind as fallback). */
@@ -743,14 +754,11 @@ export function createThreeDService(s: Services, opts: ThreeDServiceOptions = {}
       } else {
         const interrupted = isNovaError(e) && e.code === 'CANCELLED';
         const text = interrupted ? 'Die Erzeugung wurde in ComfyUI abgebrochen (z. B. über die ComfyUI-Oberfläche). Bitte den Auftrag erneut starten.' : jobErrorText(e);
-        updateJob(a.id, { status: 'failed', phase: null, endedAt: core.clock.now(), error: text });
         log.warn('3D-Auftrag fehlgeschlagen', { jobId: a.id, code: isNovaError(e) ? e.code : 'INTERNAL', error: errorMessage(e) });
         if (!current.taskId) notify(current, false);
+        updateJob(a.id, { status: 'failed', phase: null, endedAt: core.clock.now(), error: text });
       }
-      return;
     }
-    const done = store.get(a.id);
-    if (done && !done.taskId) notify(done, true);
   };
 
   const notify = (job: ThreeDJob, ok: boolean) => {
@@ -1009,7 +1017,7 @@ export function createThreeDService(s: Services, opts: ThreeDServiceOptions = {}
         emitJob(stored);
         log.info('3D-Auftrag angelegt', { jobId: id, mode: job.mode, model, quality, project: job.projectId, agent: !!job.taskId });
         pump();
-        return store.get(id) as ThreeDJob;
+        return stored;
       } catch (e) {
         if (existsSync(jobDir(id))) removeDirWithRetry(jobDir(id));
         throw e;

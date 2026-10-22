@@ -112,8 +112,8 @@ export function EngineSummary({ engine, showLink = true }: { engine: EngineStatu
       <StatusBadge size="md" meta={ENGINE_STATE[state]} />
       {s.version && <Badge tone="neutral">Version {s.version}</Badge>}
       <span className="font-mono text-[11px] text-muted">{s.baseUrl}</span>
-      <span className="min-w-0 flex-1 text-[11px] text-muted">{state === 'ready' ? (s.modelsDir ? `Modelle: ${s.modelsDir}` : 'Modellordner noch nicht bekannt') : s.message}</span>
-      <span className="flex items-center gap-1">
+      <span className="min-w-[12rem] flex-1 text-[11px] text-muted wrap-anywhere">{state === 'ready' ? (s.modelsDir ? `Modelle: ${s.modelsDir}` : 'Modellordner noch nicht bekannt') : s.message}</span>
+      <span className="ml-auto flex shrink-0 items-center gap-1">
         <Button size="sm" variant="ghost" icon={RefreshCw} loading={engine.checking} onClick={() => void engine.recheck()}>
           Erneut prüfen
         </Button>

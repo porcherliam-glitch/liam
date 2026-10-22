@@ -152,7 +152,7 @@ describe('registerGitRpc', () => {
   it('data.export / data.import run as export (cancellable) and import (not cancellable) operations', async () => {
     const { call, ops } = setup();
     const exp = (await call('data.export', { sections: ['projects', 'settings'] })) as { path: string; counts: Record<string, number> };
-    expect(exp.counts).toEqual({ projects: 1, settings: 13 });
+    expect(exp.counts).toEqual({ projects: 1, settings: 14 });
     expect(finalOp(ops, 'export')).toMatchObject({ status: 'done', cancellable: true });
     const imp = (await call('data.import', { path: exp.path })) as { counts: Record<string, number>; warnings: string[] };
     expect(imp.counts.projects).toBe(0);

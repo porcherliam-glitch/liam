@@ -14,17 +14,19 @@ import { Notice } from '../settings/shared/ui';
 import { ModelViewer } from './viewer/ModelViewer';
 
 export interface ResultCardProps {
+  id?: string;
   job: ThreeDJob | null;
   projectName: string | null;
   onUpdated: (job: ThreeDJob) => void;
 }
 
-export function ResultCard({ job, projectName, onUpdated }: ResultCardProps) {
+export function ResultCard({ id, job, projectName, onUpdated }: ResultCardProps) {
   const cancel = useMutation('threed.cancel', { successToast: (j) => `„${j.name}“ wurde abgebrochen`, onSuccess: onUpdated });
   const done = job?.status === 'done';
 
   return (
     <Card
+      id={id}
       title={job ? `Ergebnis: ${job.name}` : 'Ergebnis'}
       description={
         job
@@ -54,7 +56,7 @@ export function ResultCard({ job, projectName, onUpdated }: ResultCardProps) {
       }
     >
       {!job ? (
-        <EmptyState icon={Box} title="Noch kein 3D-Modell" description="Starte links einen Auftrag. Sobald er fertig ist, erscheint das Modell hier – zum Drehen, Zoomen und Prüfen." />
+        <EmptyState icon={Box} title="Noch kein 3D-Modell" description="Sobald ein Auftrag fertig ist, erscheint das 3D-Modell hier – zum Drehen, Zoomen und Prüfen." />
       ) : done ? (
         <div className="space-y-3">
           <ModelViewer key={job.id} jobId={job.id} name={job.name} />

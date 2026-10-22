@@ -31,7 +31,7 @@ import { createRunStore, createAgentRunner, registerAgentsRpc } from './agents';
 import { createTaskService, createWorkCycle, registerTasksRpc } from './tasks';
 import { createGitService, createCheckpointService, createBackupService, registerGitRpc, type CheckpointServiceImpl } from './git';
 import { createMemoryService, registerMemoryRpc } from './memory';
-import { createThreeDService, createGenerate3dModelTool, registerThreeDRpc, type ThreeDServiceImpl } from './threed';
+import { createThreeDService, createGenerate3dModelTool, registerThreeDRpc } from './threed';
 import { createProjectService, createTemplateRegistry, createProjectDetector, createCheckService, createPreviewService, registerProjectsRpc } from './projects';
 import {
   createSecretStore,
@@ -295,7 +295,7 @@ export async function startDaemon(opts: StartDaemonOptions): Promise<DaemonApp> 
           s.approvals.prune(cutoff);
           core.errors.prune(cutoff);
           s.notifications.prune(cutoff);
-          (s.threed as ThreeDServiceImpl).prune(cutoff);
+          s.threed.prune(cutoff);
         });
       }
       await step('Datenbank optimieren', () => {

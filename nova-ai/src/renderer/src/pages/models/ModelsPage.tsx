@@ -23,14 +23,8 @@ const THREED_CARD_ID = 'threed-models';
 export default function ModelsPage() {
   const secureStore = useDaemonStore((s) => s.status?.secretStore.secure ?? null);
   const [params] = useSearchParams();
+  // "?section=3d" (link from the 3D-Werkstatt) scrolls to the 3D models card once it has loaded.
   const focusThreeD = params.get('section') === '3d';
-
-  // "?section=3d" (link from the 3D-Werkstatt) scrolls to the 3D models card.
-  useEffect(() => {
-    if (!focusThreeD) return;
-    const id = requestAnimationFrame(() => document.getElementById(THREED_CARD_ID)?.scrollIntoView?.({ block: 'start', behavior: 'smooth' }));
-    return () => cancelAnimationFrame(id);
-  }, [focusThreeD]);
 
   const providers = useRpc('providers.list', undefined, { refetchOn: ['provider.updated', 'provider.removed'] });
   const health = useRpc('providers.health', undefined, { refetchOn: ['provider.updated', 'provider.removed'] });
@@ -93,7 +87,7 @@ export default function ModelsPage() {
         </div>
         <ModelSelectionCard selection={selection} models={models.data ?? []} providers={providers.data ?? []} />
         <ProvidersCard providers={providers} health={health} models={models} secureStore={secureStore} onRefreshModels={refreshModels} refreshingModels={refreshingModels} />
-        <ThreeDModelsCard id={THREED_CARD_ID} />
+        <ThreeDModelsCard id={THREED_CARD_ID} scrollIntoView={focusThreeD} />
       </div>
     </Page>
   );
