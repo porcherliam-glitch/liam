@@ -46,7 +46,9 @@ export interface StartDaemonOptions {
   dataDir: string;
   /** IPC endpoint; defaults to the per-user pipe/socket of the canonical data dir. */
   endpoint?: string;
-  echoLogs?: boolean;
+  /** Print log lines to stderr: always (true), only until the daemon is ready ('startup': the supervisor's start log
+   *  then explains a failed start), or never. */
+  echoLogs?: boolean | 'startup';
   /** Skip the scheduler loop (tests drive work.tick()). */
   manualLoop?: boolean;
   /** Override the Ollama URL (tests with the fake Ollama server) – written to provider row "ollama-local". */
@@ -126,7 +128,7 @@ export async function startDaemon(opts: StartDaemonOptions): Promise<DaemonApp> 
     // 3. Database + core (backup before migrating an existing DB).
     const { core, migration } = createCore({
       dataDir,
-      echoLogs: opts.echoLogs,
+      echoLogs: opts.echoLogs === true || opts.echoLogs === 'startup',
       beforeMigrate: (db, from) => db.backupTo(join(paths.backups, `nova-vor-migration-v${from}-${stampNow()}.db`)),
     });
     const log = core.log;
@@ -345,6 +347,7 @@ export async function startDaemon(opts: StartDaemonOptions): Promise<DaemonApp> 
     if (!opts.manualLoop) s.work.startLoop();
     core.bus.emit('daemon.status', status());
     log.info('NOVA-Hintergrunddienst bereit', { endpoint, recovered });
+    if (opts.echoLogs === 'startup') core.logs.configure({ echo: false });
 
     async function shutdown(reason: string, fast: boolean): Promise<void> {
       log.info('NOVA-Hintergrunddienst fährt herunter', { reason });

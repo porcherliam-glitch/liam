@@ -36,7 +36,7 @@ export class LogStore {
     this.opts.level = level;
   }
 
-  configure(patch: Partial<Pick<LoggerOptions, 'level' | 'maxFileBytes' | 'maxFiles'>>): void {
+  configure(patch: Partial<Pick<LoggerOptions, 'level' | 'maxFileBytes' | 'maxFiles' | 'echo'>>): void {
     Object.assign(this.opts, patch);
   }
 

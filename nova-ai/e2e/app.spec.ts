@@ -10,8 +10,8 @@
 // - NOVA_E2E_APP_DIR (optional) points to another app directory with package.json + out/** (e.g. a staging copy).
 // - Cleanup never leaves a daemon behind: if it survives the test it is killed and the failure is reported.
 import { test, expect, _electron as electron, type ElectronApplication, type Page } from '@playwright/test';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { homedir, tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import type { DaemonConnectionState, NovaBridge } from '../src/shared/bridge';
 
@@ -87,7 +87,8 @@ test.describe('NOVA AI (Electron)', () => {
     }
     dataDir = mkdtempSync(join(tmpdir(), 'nova-e2e-'));
     userDataDir = mkdtempSync(join(tmpdir(), 'nova-e2e-ui-'));
-    projectsDir = mkdtempSync(join(tmpdir(), 'nova-e2e-proj-'));
+    // NOVA refuses project folders inside AppData – and %TEMP% lives there on Windows.
+    projectsDir = mkdtempSync(join(process.platform === 'win32' ? homedir() : tmpdir(), 'nova-e2e-proj-'));
   });
 
   test.afterAll(async () => {
@@ -113,10 +114,13 @@ test.describe('NOVA AI (Electron)', () => {
     if (testInfo.status !== testInfo.expectedStatus && app && page && !page.isClosed()) {
       const shot = await page.screenshot().catch(() => null);
       if (shot) await testInfo.attach('screenshot', { body: shot, contentType: 'image/png' });
-      const log = join(dataDir, 'logs', 'ui-main.log');
-      if (existsSync(log)) await testInfo.attach('ui-main.log', { path: log, contentType: 'text/plain' });
-      const startLog = join(dataDir, 'logs', 'daemon-start.log');
-      if (existsSync(startLog)) await testInfo.attach('daemon-start.log', { path: startLog, contentType: 'text/plain' });
+      // every log of the UI and the daemon (daemon-start.log, daemon.log, ui-main.log …) plus lock and crash report
+      const logDir = join(dataDir, 'logs');
+      const files = existsSync(logDir) ? readdirSync(logDir).map((f) => join(logDir, f)) : [];
+      for (const extra of ['crash.json', 'daemon.lock']) files.push(join(dataDir, extra));
+      for (const file of files) {
+        if (existsSync(file)) await testInfo.attach(file.slice(dataDir.length + 1).replace(/[\\/]/g, '-'), { path: file, contentType: 'text/plain' });
+      }
     }
   });
 

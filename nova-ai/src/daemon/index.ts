@@ -107,10 +107,12 @@ async function main(): Promise<void> {
   }
   try {
     phase = 'instance_lock';
+    // First line in the supervisor's start log: proves the process runs before the lock/database can block.
+    process.stderr.write(`[info] daemon: Prozess läuft ${JSON.stringify({ version: NOVA_VERSION, pid: process.pid, node: process.versions.node, dataDir: dataDirInput })}\n`);
     app = await startDaemon({
       dataDir: dataDirInput,
       endpoint: arg('--endpoint'),
-      echoLogs: foreground,
+      echoLogs: foreground ? true : 'startup',
       onExit: (code, restart) => {
         if (restart) respawnSelf();
         process.exit(exitCode || code);

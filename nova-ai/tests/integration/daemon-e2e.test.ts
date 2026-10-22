@@ -3,7 +3,7 @@
 // fake Ollama server (tests/fakes/fake-ollama.ts) – clearly a test double.
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { mkdtempSync, rmSync, existsSync, readFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { startDaemon, type DaemonApp } from '../../src/daemon/app';
 import { DaemonClient } from '../../src/daemon/client';
@@ -13,6 +13,8 @@ import type { Task } from '../../src/shared/schemas';
 const MODEL = 'qwen2.5-coder:7b';
 
 let base: string;
+/** NOVA refuses project folders inside AppData – and %TEMP% lives there on Windows. */
+let projectsRoot: string;
 let dataDir: string;
 let endpoint: string;
 let fake: FakeOllama;
@@ -65,6 +67,7 @@ async function shutdown(): Promise<void> {
 
 beforeAll(async () => {
   base = mkdtempSync(join(tmpdir(), 'nova-e2e-'));
+  projectsRoot = process.platform === 'win32' ? mkdtempSync(join(homedir(), 'nova-e2e-')) : join(base, 'projekte');
   dataDir = join(base, 'data');
   endpoint = socketPath('d');
   fake = await startFakeOllama({ models: [{ name: MODEL, parameterSize: '7.6B', capabilities: ['completion', 'tools'] }] });
@@ -75,6 +78,7 @@ afterAll(async () => {
   await shutdown();
   await fake?.close();
   rmSync(base, { recursive: true, force: true });
+  rmSync(projectsRoot, { recursive: true, force: true });
 }, 60_000);
 
 describe('NOVA daemon end-to-end', { timeout: 120_000 }, () => {
@@ -103,7 +107,7 @@ describe('NOVA daemon end-to-end', { timeout: 120_000 }, () => {
   });
 
   it('creates a project from the web-app template with git', async () => {
-    projectPath = join(base, 'projekte', 'rechner');
+    projectPath = join(projectsRoot, 'rechner');
     const res = await client.rpc('projects.create', { mode: 'template', templateId: 'web-app', name: 'Rechner', description: '', path: projectPath, planNow: false });
     projectId = res.project.id;
     expect(res.project.origin).toBe('new');
