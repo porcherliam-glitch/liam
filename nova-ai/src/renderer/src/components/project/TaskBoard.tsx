@@ -242,11 +242,14 @@ export function TaskBoard({ projectId, highlightTaskId, gitAvailable, storageKey
         <EmptyState
           icon={ListTodo}
           title="Noch keine Aufgaben"
-          description={projectId ? 'Eine Aufgabe anlegen oder NOVA ein Ziel in Aufgaben zerlegen lassen („Ziel planen“ in der Übersicht).' : 'Sobald Projekte Aufgaben haben, erscheinen sie hier.'}
+          description={projectId ? 'Eine Aufgabe von Hand anlegen oder NOVA ein Ziel in passende Aufgaben zerlegen lassen („Ziel planen“).' : 'Sobald Projekte Aufgaben haben, erscheinen sie hier. Aufgaben entstehen beim Planen eines Ziels oder von Hand.'}
           actions={
-            <Button variant="primary" icon={ListPlus} onClick={() => setDialog({ task: null })}>
-              Aufgabe anlegen
-            </Button>
+            <>
+              {extraActions}
+              <Button variant="primary" icon={ListPlus} onClick={() => setDialog({ task: null })}>
+                Aufgabe anlegen
+              </Button>
+            </>
           }
         />
       ) : filtered.length === 0 ? (

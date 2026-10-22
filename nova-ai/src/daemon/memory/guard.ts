@@ -4,14 +4,19 @@
 // Key decisions:
 // - Layer 1 is core redactString() (registered secret values + well-known key formats + KEY=value patterns).
 // - Layer 2 adds German credential phrases the core patterns do not know ("Das Passwort lautet hunter2",
-//   "Kennwort: geheim123", "API-Schlüssel ist sk…"). Strong words (Passwort, Kennwort, PIN-Code …) followed by ':' or '='
-//   always redact the value; after "ist"/"lautet" – and for weak words (Schlüssel, Token, Geheimnis …) – only values
-//   that look like a credential (letters+digits or symbols, no file names, no URLs) are redacted, so sentences like
-//   "Das Token ist abgelaufen" stay intact.
+//   "Kennwort: geheim123", "API-Schlüssel ist sk…"). Strong words (Passwort, Kennwort, PIN-Code …, also inside
+//   compounds like "Datenbankpasswort") followed by ':' or '=' always redact the value. After "ist"/"lautet", and for
+//   credential words (API-Schlüssel, Lizenzschlüssel, Token, Geheimnis, Zugangsdaten …), only values that look like a
+//   credential are redacted: letters+digits, or real symbols (not just the identifier characters - _ .), or long
+//   random-looking mixed case. The plain word "Schlüssel" (also a dictionary/storage key in technical notes) only
+//   counts as a whole word and needs at least two digits mixed with letters or a real symbol, so "Der Schlüssel ist
+//   savegame-v2" and "Primärschlüssel ist user_id" stay intact. URLs and file names are never treated as credentials.
 // - Layer 3 redacts random-looking tokens (≥ 32 chars of [A-Za-z0-9_-+=] with upper, lower and digits, Shannon entropy
 //   ≥ 3.8 and less than half of the characters inside word-like runs). Measured: camelCase identifiers score ≥ 0.65
 //   word share, random base64 tokens ≈ 0.2 (about 3 % of random 32-char tokens are missed – the core patterns cover
 //   the known key formats). Hex hashes and UUIDs are never touched (no upper+lower mix).
+// - Redaction is idempotent: values that already contain the "[GEHEIM]" marker are never redacted again (contextFor
+//   redacts stored text a second time, so "[GEHEIM]]" artefacts would otherwise appear).
 // - "Mainly a secret": the redaction removed at least half of the non-whitespace characters, or fewer than two
 //   meaningful words remain besides key names ("OPENAI_API_KEY=…", "Mein Passwort lautet …").
 import { REDACTED, redactString } from '../core/redact';
@@ -29,10 +34,12 @@ const STRONG_PHRASE = new RegExp(
   String.raw`((?:passwort|kennwort|passphrase|zugangscode|pin-?code|pin-?nummer|geheimzahl))${SEPARATOR}${QUOTE}(${VALUE_CHARS}{4,})`,
   'giu',
 );
-const WEAK_PHRASE = new RegExp(
-  String.raw`((?:api-?schlüssel|api-?schluessel|zugangsschlüssel|zugangsschluessel|geheimschlüssel|geheimschluessel|schlüssel|schluessel|geheimnis|token|zugangsdaten))${SEPARATOR}${QUOTE}(${VALUE_CHARS}{6,})`,
+const CREDENTIAL_PHRASE = new RegExp(
+  String.raw`((?<![\p{L}\p{N}_])(?:api-?schlüssel|api-?schluessel|zugangsschlüssel|zugangsschluessel|geheimschlüssel|geheimschluessel|lizenzschlüssel|lizenzschluessel|produktschlüssel|produktschluessel|geheimnis|token|zugangsdaten))${SEPARATOR}${QUOTE}(${VALUE_CHARS}{6,})`,
   'giu',
 );
+/** The plain word "Schlüssel" as a whole word (compounds like "Primärschlüssel" are technical keys, not secrets). */
+const KEY_PHRASE = new RegExp(String.raw`((?<![\p{L}\p{N}_-])(?:schlüssel|schluessel))${SEPARATOR}${QUOTE}(${VALUE_CHARS}{6,})`, 'giu');
 const RANDOM_TOKEN = /(?<![A-Za-z0-9_\-+=])[A-Za-z0-9_\-+=]{32,}(?![A-Za-z0-9_\-+=])/g;
 const FILE_LIKE = /[\\/]|\.(?:json|env|txt|ya?ml|toml|ini|cfg|conf|config|js|mjs|cjs|ts|tsx|cs|py|ps1|bat|cmd|sh|md|xml|lock)$/i;
 const TRAILING_PUNCTUATION = /[.!?:)\]}]+$/;
@@ -69,33 +76,45 @@ export function looksRandomToken(token: string): boolean {
   return shannonEntropy(token) >= 3.8 && wordShare(token) < 0.5;
 }
 
-/** True when a value after "ist/lautet" or a weak keyword looks like a credential. */
-export function looksLikeCredential(value: string): boolean {
+/** Symbols that do not occur in identifiers (the identifier characters - _ . are excluded). */
+const REAL_SYMBOL = /[^\p{L}\p{N}\s_.-]/u;
+
+/**
+ * True when a value after "ist/lautet" or a credential word looks like a credential. `strict` (plain "Schlüssel")
+ * needs at least two digits mixed with letters, a real symbol or a random-looking mixed-case value.
+ */
+export function looksLikeCredential(value: string, strict = false): boolean {
   const v = value.replace(TRAILING_PUNCTUATION, '');
   if (v.length < 6 || v.includes(REDACTED)) return false;
   if (/^[a-z][a-z0-9+.-]*:\/\//i.test(v) || FILE_LIKE.test(v)) return false;
-  const hasDigit = /\p{N}/u.test(v);
+  const digits = (v.match(/\p{N}/gu) ?? []).length;
   const hasLetter = /\p{L}/u.test(v);
-  const hasSymbol = /[^\p{L}\p{N}]/u.test(v);
+  const hasSymbol = REAL_SYMBOL.test(v);
   const innerUpper = /\p{Lu}/u.test(v.slice(1)) && /\p{Ll}/u.test(v);
-  return (hasDigit && hasLetter) || (hasSymbol && (hasLetter || hasDigit)) || (v.length >= 12 && innerUpper);
+  const randomMixedCase = v.length >= 12 && innerUpper && wordShare(v) < 0.5;
+  if (strict) return (digits >= 2 && hasLetter) || (hasSymbol && (hasLetter || digits > 0)) || randomMixedCase;
+  return (digits > 0 && hasLetter) || (hasSymbol && (hasLetter || digits > 0)) || randomMixedCase;
 }
 
-function replacePhrase(match: string, keyword: string, separator: string, quote: string, rawValue: string, always: boolean): string {
+type PhraseMode = 'always' | 'credential' | 'strict';
+
+function replacePhrase(match: string, keyword: string, separator: string, quote: string, rawValue: string, mode: PhraseMode): string {
+  // Already redacted (by the core patterns or an earlier pass): never redact the marker again.
+  if (rawValue.includes(REDACTED)) return match;
   const trailing = TRAILING_PUNCTUATION.exec(rawValue)?.[0] ?? '';
   const value = trailing ? rawValue.slice(0, rawValue.length - trailing.length) : rawValue;
-  if (value.includes(REDACTED)) return match;
   const isAssignment = /[:=]/.test(separator) && !/ist|lautet|heißt|heisst/i.test(separator);
-  const redact = always && isAssignment ? value.length >= 4 : looksLikeCredential(value);
+  const redact = mode === 'always' && isAssignment ? value.length >= 4 : looksLikeCredential(value, mode === 'strict');
   return redact ? `${keyword}${separator}${quote}${REDACTED}${trailing}` : match;
 }
 
-/** Redacts credentials in free text (core patterns + German phrases + random-looking tokens). */
+/** Redacts credentials in free text (core patterns + German phrases + random-looking tokens). Idempotent. */
 export function redactMemoryText(input: string): string {
   if (!input) return input;
   let out = redactString(input);
-  out = out.replace(STRONG_PHRASE, (m, k: string, sep: string, q: string, v: string) => replacePhrase(m, k, sep, q, v, true));
-  out = out.replace(WEAK_PHRASE, (m, k: string, sep: string, q: string, v: string) => replacePhrase(m, k, sep, q, v, false));
+  out = out.replace(STRONG_PHRASE, (m, k: string, sep: string, q: string, v: string) => replacePhrase(m, k, sep, q, v, 'always'));
+  out = out.replace(CREDENTIAL_PHRASE, (m, k: string, sep: string, q: string, v: string) => replacePhrase(m, k, sep, q, v, 'credential'));
+  out = out.replace(KEY_PHRASE, (m, k: string, sep: string, q: string, v: string) => replacePhrase(m, k, sep, q, v, 'strict'));
   out = out.replace(RANDOM_TOKEN, (token) => (looksRandomToken(token) ? REDACTED : token));
   return out;
 }
