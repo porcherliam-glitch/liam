@@ -22,6 +22,8 @@ import type {
   Checkpoint,
   TaskNote,
   Operation,
+  ThreeDEngineStatus,
+  ThreeDJob,
 } from './schemas';
 import type { NovaErrorInfo } from './errors';
 import type { Settings } from './settings';
@@ -40,6 +42,9 @@ export interface NovaEventMap {
   'resources.snapshot': ResourceSnapshot;
   'ollama.pull': OllamaPull;
   'ollama.models.changed': { providerId: string };
+  'threed.job': ThreeDJob;
+  'threed.status': ThreeDEngineStatus;
+  'threed.models.changed': Record<string, never>;
   'provider.updated': ProviderConfig;
   'provider.removed': { id: string };
   'budget.updated': BudgetStatus;
@@ -89,6 +94,9 @@ export const NOVA_EVENT_TYPES: NovaEventType[] = [
   'resources.snapshot',
   'ollama.pull',
   'ollama.models.changed',
+  'threed.job',
+  'threed.status',
+  'threed.models.changed',
   'provider.updated',
   'provider.removed',
   'budget.updated',

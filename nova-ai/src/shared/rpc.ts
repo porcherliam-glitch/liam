@@ -40,6 +40,11 @@ import {
   OllamaStatusSchema,
   OllamaPullSchema,
   OllamaRunningModelSchema,
+  ThreeDEngineStatusSchema,
+  ThreeDModelSchema,
+  ThreeDModelId,
+  ThreeDJobSchema,
+  ThreeDGenerateInputSchema,
   UsageRecordSchema,
   BudgetStatusSchema,
   ResourceSnapshotSchema,
@@ -243,6 +248,21 @@ export const RpcContract = {
   'ollama.running': m(Empty, z.array(OllamaRunningModelSchema)),
   /** VRAM fit check for a model against the current GPU data. */
   'ollama.fit': m(z.object({ model: z.string() }), z.object({ fits: z.boolean().nullable(), requiredBytes: z.number().nullable(), availableBytes: z.number().nullable(), estimated: z.boolean(), message: z.string(), alternatives: z.array(z.string()) })),
+  // 3D workshop (local ComfyUI). Downloads run as operations (kind 'threed_download'), jobs report via 'threed.job' events.
+  'threed.status': m(z.object({ refresh: z.boolean().default(false) }).default({ refresh: false }), ThreeDEngineStatusSchema),
+  /** Saves engineUrl/modelsDir (settings threeD) after checking them; returns the new status. */
+  'threed.configure': m(z.object({ engineUrl: z.string().max(500).optional(), modelsDir: z.string().max(1000).optional() }), ThreeDEngineStatusSchema),
+  'threed.models': m(Empty, z.array(ThreeDModelSchema)),
+  'threed.downloadModel': m(z.object({ id: ThreeDModelId }), OperationSchema),
+  /** Deletes the model's files that no other installed 3D model needs. */
+  'threed.deleteModel': m(z.object({ id: ThreeDModelId }), Ok),
+  'threed.generate': m(ThreeDGenerateInputSchema, ThreeDJobSchema),
+  'threed.jobs': m(z.object({ projectId: z.string().optional(), limit: z.number().int().min(1).max(500).default(100) }).default({ limit: 100 }), z.array(ThreeDJobSchema)),
+  'threed.job': m(ById, ThreeDJobSchema),
+  'threed.cancel': m(ById, ThreeDJobSchema),
+  'threed.deleteJob': m(z.object({ id: z.string(), deleteFiles: z.boolean().default(false) }), Ok),
+  /** File of a job for the 3D viewer: the .glb ("model") or the reference/source image ("image"); base64, ≤ 150 MB. */
+  'threed.readFile': m(z.object({ id: z.string(), kind: z.enum(['model', 'image']) }), z.object({ dataBase64: z.string(), mimeType: z.string(), sizeBytes: z.number() })),
   'budget.status': m(Empty, BudgetStatusSchema),
   'budget.usage': m(z.object({ from: z.number().optional(), to: z.number().optional(), projectId: z.string().optional(), limit: z.number().int().max(5000).default(500) }).default({ limit: 500 }), z.array(UsageRecordSchema)),
   'budget.setLimits': m(z.object({ dailyLimitUsd: z.number().nonnegative().nullable().optional(), monthlyLimitUsd: z.number().nonnegative().nullable().optional() }), BudgetStatusSchema),

@@ -7,6 +7,7 @@
 // =====================================================================================
 import type { z } from 'zod';
 import { z as zod } from 'zod';
+import type { Operation, ThreeDEngineStatus, ThreeDGenerateInput, ThreeDJob, ThreeDModel, ThreeDModelId } from '@shared/schemas';
 import type {
   AgentRole,
   AgentRoleInfo,
@@ -408,6 +409,35 @@ export interface OllamaService {
   delete(model: string): Promise<void>;
   running(): Promise<OllamaRunningModel[]>;
   fit(model: string, numCtx?: number): Promise<OllamaFit>;
+}
+
+// -------------------------------------------------------------------------------------
+// 3D workshop (module: threed → src/daemon/threed): local text/image → 3D through ComfyUI
+// -------------------------------------------------------------------------------------
+
+export interface ThreeDService {
+  /** Engine status (cached unless refresh; refresh probes ComfyUI: /system_stats, /object_info for the 3D nodes). */
+  status(refresh?: boolean): Promise<ThreeDEngineStatus>;
+  /** Validates and saves settings threeD.engineUrl / modelsDir (local addresses only), then refreshes the status. */
+  configure(input: { engineUrl?: string; modelsDir?: string }): Promise<ThreeDEngineStatus>;
+  /** Catalog with presence of every file in the models folder. */
+  models(): Promise<ThreeDModel[]>;
+  /** Downloads the missing files of a model (operation 'threed_download' with progress and cancel; disk space checked). */
+  downloadModel(id: ThreeDModelId): Operation;
+  deleteModel(id: ThreeDModelId): Promise<void>;
+  /** Queues a job (one GPU job at a time). origin is set when an agent tool creates it. */
+  generate(input: ThreeDGenerateInput, origin?: { taskId: string | null; runId: string | null }): Promise<ThreeDJob>;
+  jobs(filter?: { projectId?: string; limit?: number }): ThreeDJob[];
+  get(id: string): ThreeDJob | null;
+  cancel(id: string): ThreeDJob;
+  deleteJob(id: string, deleteFiles: boolean): void;
+  readFile(id: string, kind: 'model' | 'image'): { dataBase64: string; mimeType: string; sizeBytes: number };
+  /** Resolves when the job has ended (done/failed/cancelled); rejects with an AbortError when signal aborts. */
+  wait(id: string, signal?: AbortSignal): Promise<ThreeDJob>;
+  /** Marks running jobs of a previous daemon run as failed (crash recovery). */
+  recover(): void;
+  /** Cancels running work on daemon shutdown. */
+  shutdown(): Promise<void>;
 }
 
 // -------------------------------------------------------------------------------------
@@ -1096,6 +1126,7 @@ export interface Services {
   models: ModelClient;
   budget: BudgetService;
   ollama: OllamaService;
+  threed: ThreeDService;
   pathGuard: PathGuard;
   journal: ChangeJournal;
   locks: FileLockService;

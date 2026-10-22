@@ -577,6 +577,117 @@ export const OllamaRunningModelSchema = z.object({
 export type OllamaRunningModel = z.infer<typeof OllamaRunningModelSchema>;
 
 // ---------------------------------------------------------------------------
+// 3D workshop (local text/image → 3D through ComfyUI)
+// ---------------------------------------------------------------------------
+
+export const ThreeDEngineStatusSchema = z.object({
+  /** ComfyUI found on this PC (Desktop app or portable/manual installation). */
+  installed: z.boolean(),
+  /** API reachable at baseUrl. */
+  running: z.boolean(),
+  baseUrl: z.string(),
+  /** ComfyUI version from /system_stats. */
+  version: z.string().nullable(),
+  /** The running ComfyUI offers the native TRELLIS.2/Pixal3D nodes (checked via /object_info). */
+  supports3d: z.boolean(),
+  /** ComfyUI models folder NOVA downloads into (null = unknown → the user has to choose it). */
+  modelsDir: z.string().nullable(),
+  gpu: z.object({ name: z.string(), vramTotalBytes: z.number().nullable(), vramFreeBytes: z.number().nullable() }).nullable(),
+  /** German explanation incl. how to fix. */
+  message: z.string(),
+  checkedAt: z.number(),
+});
+export type ThreeDEngineStatus = z.infer<typeof ThreeDEngineStatusSchema>;
+
+/** 3D models NOVA knows: two image → 3D generators and the text → image helper for "Text zu 3D". */
+export const ThreeDModelId = z.enum(['trellis2', 'pixal3d', 'z_image_turbo']);
+export type ThreeDModelId = z.infer<typeof ThreeDModelId>;
+export const ThreeDGenerator = z.enum(['trellis2', 'pixal3d']);
+export type ThreeDGenerator = z.infer<typeof ThreeDGenerator>;
+export const ThreeDQuality = z.enum(['draft', 'standard', 'high']);
+export type ThreeDQuality = z.infer<typeof ThreeDQuality>;
+
+export const ThreeDModelFileSchema = z.object({
+  /** File name inside the ComfyUI models sub folder, e.g. "trellis_2_int8_convrot.safetensors". */
+  name: z.string(),
+  /** ComfyUI models sub folder, e.g. "diffusion_models", "vae", "clip_vision". */
+  folder: z.string(),
+  /** https download URL (Hugging Face). */
+  url: z.string(),
+  sizeBytes: z.number(),
+  sha256: z.string().nullable(),
+  present: z.boolean(),
+});
+export type ThreeDModelFile = z.infer<typeof ThreeDModelFileSchema>;
+
+export const ThreeDModelSchema = z.object({
+  id: ThreeDModelId,
+  name: z.string(),
+  purpose: z.enum(['image_to_3d', 'text_to_image']),
+  /** German description for the UI. */
+  description: z.string(),
+  license: z.string(),
+  /** Origin of the weights (for the license register), e.g. "microsoft/TRELLIS.2-4B". */
+  source: z.string(),
+  vramRecommendedBytes: z.number(),
+  files: z.array(ThreeDModelFileSchema),
+  /** All files present in the models folder. */
+  installed: z.boolean(),
+  totalBytes: z.number(),
+  missingBytes: z.number(),
+});
+export type ThreeDModel = z.infer<typeof ThreeDModelSchema>;
+
+export const ThreeDJobSchema = z.object({
+  id: z.string(),
+  /** Generated files are saved into this project (settings threeD.outputFolder); null = NOVA's 3D library in the data folder. */
+  projectId: z.string().nullable(),
+  /** Set when an agent created the job (tool generate_3d_model). */
+  taskId: z.string().nullable(),
+  mode: z.enum(['text', 'image']),
+  prompt: z.string().nullable(),
+  /** Image mode: the source image; text mode: the generated reference image (absolute path). */
+  imagePath: z.string().nullable(),
+  model: ThreeDGenerator,
+  quality: ThreeDQuality,
+  seed: z.number().int(),
+  /** Base name of the output files (without extension). */
+  name: z.string(),
+  status: z.enum(['queued', 'running', 'done', 'failed', 'cancelled']),
+  /** German phase text, e.g. "Bild wird erzeugt", "Form wird berechnet", "Textur wird gebacken". */
+  phase: z.string().nullable(),
+  progress: z.number().min(0).max(100).nullable(),
+  /** Absolute path of the generated .glb. */
+  outputPath: z.string().nullable(),
+  /** Project-relative path of the .glb (forward slashes) when saved in a project. */
+  outputRel: z.string().nullable(),
+  error: z.string().nullable(),
+  createdAt: z.number(),
+  startedAt: z.number().nullable(),
+  endedAt: z.number().nullable(),
+});
+export type ThreeDJob = z.infer<typeof ThreeDJobSchema>;
+
+export const ThreeDGenerateInputSchema = z
+  .object({
+    mode: z.enum(['text', 'image']),
+    prompt: z.string().trim().min(1).max(2000).optional(),
+    /** Image mode: absolute path, or project-relative when projectId is set. */
+    imagePath: z.string().min(1).max(1000).optional(),
+    /** Image mode: an image pasted/dropped in the UI (PNG/JPEG/WebP, base64 without data: prefix, ≤ 20 MB). */
+    imageBase64: z.string().min(1).max(28_000_000).optional(),
+    model: ThreeDGenerator.optional(),
+    quality: ThreeDQuality.optional(),
+    seed: z.number().int().min(0).max(2_147_483_647).optional(),
+    name: z.string().trim().min(1).max(80).optional(),
+    projectId: z.string().nullable().default(null),
+  })
+  .refine((v) => (v.mode === 'text' ? !!v.prompt : !!(v.imagePath || v.imageBase64)), {
+    message: 'Text zu 3D braucht eine Beschreibung, Bild zu 3D ein Bild.',
+  });
+export type ThreeDGenerateInput = z.input<typeof ThreeDGenerateInputSchema>;
+
+// ---------------------------------------------------------------------------
 // Budget and usage
 // ---------------------------------------------------------------------------
 
@@ -1071,6 +1182,7 @@ export const OperationKind = z.enum([
   'restore',
   'install',
   'diagnostics',
+  'threed_download',
 ]);
 export type OperationKind = z.infer<typeof OperationKind>;
 

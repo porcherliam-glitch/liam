@@ -372,6 +372,37 @@ export const MIGRATIONS: Migration[] = [
       `);
     },
   },
+  {
+    version: 2,
+    name: '3D workshop jobs',
+    up(db) {
+      db.exec(`
+        CREATE TABLE threed_jobs (
+          id TEXT PRIMARY KEY,
+          project_id TEXT REFERENCES projects(id) ON DELETE SET NULL,
+          task_id TEXT,
+          mode TEXT NOT NULL,
+          prompt TEXT,
+          image_path TEXT,
+          model TEXT NOT NULL,
+          quality TEXT NOT NULL,
+          seed INTEGER NOT NULL,
+          name TEXT NOT NULL,
+          status TEXT NOT NULL,
+          phase TEXT,
+          progress REAL,
+          output_path TEXT,
+          output_rel TEXT,
+          error TEXT,
+          created_at INTEGER NOT NULL,
+          started_at INTEGER,
+          ended_at INTEGER
+        );
+        CREATE INDEX idx_threed_jobs_project ON threed_jobs(project_id, created_at);
+        CREATE INDEX idx_threed_jobs_status ON threed_jobs(status);
+      `);
+    },
+  },
 ];
 
 export const LATEST_SCHEMA_VERSION = MIGRATIONS[MIGRATIONS.length - 1].version;

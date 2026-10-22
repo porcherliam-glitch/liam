@@ -165,6 +165,22 @@ export const MemorySettingsSchema = z.object({
   maxContextEntries: z.number().int().min(0).max(50).default(12),
 });
 
+/** 3D workshop: local text/image → 3D via ComfyUI (TRELLIS.2 / Pixal3D, Z-Image Turbo for text → reference image). */
+export const ThreeDSettingsSchema = z.object({
+  /** ComfyUI API address; empty = auto-detect (127.0.0.1:8000 ComfyUI Desktop, 127.0.0.1:8188 portable/manual). Local addresses only. */
+  engineUrl: z.string().default(''),
+  /** ComfyUI "models" folder NOVA downloads model files into; empty = auto-detect. */
+  modelsDir: z.string().default(''),
+  defaultModel: z.enum(['trellis2', 'pixal3d']).default('trellis2'),
+  defaultQuality: z.enum(['draft', 'standard', 'high']).default('standard'),
+  /** Project-relative folder for generated models (forward slashes). */
+  outputFolder: z.string().default('assets/3d'),
+  /** Unload loaded Ollama models before a 3D job so both do not compete for graphics memory. */
+  unloadLanguageModels: z.boolean().default(true),
+  /** Agents may create 3D models with the tool generate_3d_model. */
+  agentsMayGenerate: z.boolean().default(true),
+});
+
 export const RoleOverridesSchema = z.object({
   planner: ModelRefSchema.nullable().default(null),
   coder: ModelRefSchema.nullable().default(null),
@@ -201,6 +217,7 @@ export const SettingsSchema = z.object({
   updates: UpdateSettingsSchema.default(UpdateSettingsSchema.parse({})),
   diagnostics: DiagnosticsSettingsSchema.default(DiagnosticsSettingsSchema.parse({})),
   memory: MemorySettingsSchema.default(MemorySettingsSchema.parse({})),
+  threeD: ThreeDSettingsSchema.default(ThreeDSettingsSchema.parse({})),
 });
 export type Settings = z.infer<typeof SettingsSchema>;
 export type SettingsSection = keyof Settings;
@@ -244,6 +261,7 @@ export const SettingsPatchSchema = z.object({
   updates: patchOf(UpdateSettingsSchema).optional(),
   diagnostics: patchOf(DiagnosticsSettingsSchema).optional(),
   memory: patchOf(MemorySettingsSchema).optional(),
+  threeD: patchOf(ThreeDSettingsSchema).optional(),
 });
 
 /** Deep partial patch type for settings.update / SettingsService.update. */
