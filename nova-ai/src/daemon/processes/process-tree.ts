@@ -61,6 +61,8 @@ export interface ProcessTreeOptions {
   procRoot?: string;
   /** Never killed (default process.pid). */
   selfPid?: number;
+  /** Windows: environment used to locate taskkill.exe via %SystemRoot% (default process.env). */
+  env?: Record<string, string | undefined>;
 }
 
 export const defaultTreeRunner: ProcessTreeRunner = {
@@ -172,13 +174,22 @@ export function planWindowsKill(procs: WinProc[], target: TreeTarget, mode: 'own
   return { found: order.length > 0, pids: order, rootName: root?.name ?? null };
 }
 
+/** taskkill.exe path: %SystemRoot%\System32\taskkill.exe (case-insensitive variable name), else "taskkill.exe". */
+export function windowsTaskkillPath(env: Record<string, string | undefined>): string {
+  let root: string | undefined;
+  for (const name of ['systemroot', 'windir']) {
+    root = Object.entries(env).find(([k, v]) => k.toLowerCase() === name && v)?.[1];
+    if (root) break;
+  }
+  return root ? winPath.join(root, 'System32', 'taskkill.exe') : 'taskkill.exe';
+}
+
 function createWindowsTree(opts: ProcessTreeOptions): ProcessTree {
   const runner = opts.runner ?? defaultTreeRunner;
   const log = opts.log;
   const selfPid = opts.selfPid ?? process.pid;
-  const systemRoot = process.env.SystemRoot ?? process.env.SYSTEMROOT ?? process.env.windir;
   // Absolute path when known: a broken PATH must not prevent killing processes.
-  const taskkillExe = systemRoot ? winPath.join(systemRoot, 'System32', 'taskkill.exe') : 'taskkill.exe';
+  const taskkillExe = windowsTaskkillPath(opts.env ?? process.env);
 
   async function snapshot(): Promise<WinProc[] | null> {
     try {

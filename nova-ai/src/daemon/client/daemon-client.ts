@@ -12,7 +12,9 @@
 // - rpc(): default timeout 120 s, 30 min for long methods (projects.create, backup.*, data.*, memory.export/import,
 //   checkpoints.restore, integrations.install). On HTTP 401 the token file is re-read and the call is retried once.
 //   A request that failed with ECONNRESET on a reused keep-alive socket (server closed the idle socket at the same
-//   moment) is retried once – the documented node:http pattern; the daemon never processed such a request.
+//   moment) is retried once – the documented node:http pattern; the daemon never processed such a request. On a
+//   Windows named pipe the same race surfaces as EPIPE (the write fails because the server end is already closed), so
+//   EPIPE on a reused socket is retried once as well.
 // - subscribe(): SSE with automatic reconnect (exponential backoff 0.5 s → 10 s, reset after a successful connect),
 //   re-reads the token file before every (re)connect and verifies the proof first. A silent stream (no data and no
 //   ping for 45 s; the daemon pings every 15 s) counts as lost. Events are hints: after 'reconnecting' → 'connected'
@@ -132,6 +134,17 @@ function isRetryableMismatch(e: unknown): boolean {
 
 function errnoCode(e: unknown): string | undefined {
   return e && typeof e === 'object' && 'code' in e && typeof (e as { code: unknown }).code === 'string' ? (e as { code: string }).code : undefined;
+}
+
+/**
+ * True when a request failed on a REUSED keep-alive socket in a way that shows the daemon never processed it: the
+ * daemon closed the idle socket at the same moment (ECONNRESET / "socket hang up"), or the write already failed
+ * because the server end was closed (EPIPE – how a Windows named pipe reports that race). Exported for tests.
+ */
+export function isStaleKeepAliveFailure(original: unknown, reusedSocket: boolean): boolean {
+  if (!reusedSocket) return false;
+  const code = errnoCode(original);
+  return code === 'ECONNRESET' || code === 'EPIPE' || (original instanceof Error && original.message === 'socket hang up');
 }
 
 function toDaemonError(e: unknown): DaemonRpcError {
@@ -420,7 +433,7 @@ export class DaemonClient {
           token = this.requireToken();
           continue;
         }
-        if (e instanceof PostFailure && e.reusedSocket && !resetRetried && (errnoCode(e.original) === 'ECONNRESET' || e.message === 'socket hang up')) {
+        if (e instanceof PostFailure && !resetRetried && isStaleKeepAliveFailure(e.original, e.reusedSocket)) {
           resetRetried = true;
           continue;
         }

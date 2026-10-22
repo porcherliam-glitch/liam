@@ -11,10 +11,18 @@
 //   keeps sending for more than 5 s or 64 MB. JSON only (415 otherwise).
 // - Timeouts: headersTimeout 10 s, requestTimeout 60 s (time to RECEIVE a request – long-running RPC handlers and
 //   the open-ended SSE stream are not affected), keepAliveTimeout 5 s.
-// - EADDRINUSE: probe the endpoint with a nonce proof (token from tokenPath): a NOVA daemon that proves the token →
-//   NovaError CONFLICT; something else → DAEMON_UNAVAILABLE ("fremdes Programm"). If nothing answers: a stale unix
-//   socket FILE is removed and listen is retried once; on Windows (pipes cannot be stale) listen is retried once after
-//   a short pause. Without tokenPath a NOVA-shaped but unverifiable answer counts as CONFLICT.
+// - Endpoint check before binding: on Windows only named pipes (`\\.\pipe\…` or `\\?\pipe\…`, at most 256
+//   characters – node:net would answer anything else with a bare EACCES); elsewhere unix socket paths within the
+//   sockaddr_un limit.
+// - EADDRINUSE (bindEndpoint): probe the endpoint with a nonce proof (token from tokenPath): a NOVA daemon that proves
+//   the token → NovaError CONFLICT; something else → DAEMON_UNAVAILABLE ("fremdes Programm"). If nothing answers: a
+//   stale unix socket FILE is removed and listen is retried once; on Windows a pipe is NEVER unlinked (it cannot be
+//   stale: Windows removes it with the last handle; libuv reports a pipe that still exists – e.g. a daemon that is just
+//   exiting – as EADDRINUSE), listen is retried once after a short pause. Without tokenPath a NOVA-shaped but
+//   unverifiable answer counts as CONFLICT. The side effects are injectable so both branches are tested on any host.
+// - Access: unix socket chmod 0600. Windows pipes keep node's default security descriptor (full control for the
+//   creating user, SYSTEM and administrators; other users may only read, so they cannot send a request) – the server
+//   never passes readableAll/writableAll. The token is required either way.
 // - close(): stop accepting, end every SSE response, close idle sockets, give in-flight RPC calls up to 1 s, then
 //   closeAllConnections() and resolve (bounded: never waits longer than ~3.5 s).
 // - Every request handler and SSE writer is wrapped in try/catch (500 / stream closed), the daemon never crashes
@@ -33,7 +41,7 @@ import { unlinkWithRetry } from '../core/fs-atomic';
 import { redactString } from '../core/redact';
 import { CLIENT_MESSAGES } from '../client/errors';
 import { NONCE_HEADER, NONCE_RE, computeProof, tokensEqual } from '../client/proof';
-import { probeEndpoint } from './probe';
+import { probeEndpoint, type DetailedProbe } from './probe';
 import { SseConnection } from './sse';
 
 export interface RpcServerLimits {
@@ -91,7 +99,10 @@ export interface StartRpcServerOptions {
   log: Logger;
   version: string;
   instanceId: string;
-  /** Defaults to process.platform (inject 'win32' in tests to exercise the pipe branch). */
+  /**
+   * Defaults to process.platform. Selects the endpoint check, chmod and the EADDRINUSE branch; the endpoint must still
+   * be listenable on the host (tests drive the other platform's branch through bindEndpoint with fakes).
+   */
   platform?: NodeJS.Platform;
   limits?: Partial<RpcServerLimits>;
 }
@@ -113,6 +124,8 @@ export const SERVER_MESSAGES = {
   foreign: CLIENT_MESSAGES.foreign,
   cannotListen: 'Der Kommunikationskanal des Hintergrunddienstes konnte nicht geöffnet werden.',
   pathTooLong: 'Der Pfad des Kommunikationskanals ist zu lang. Bitte einen kürzeren Datenordner verwenden.',
+  notAPipe: 'Unter Windows muss der Kommunikationskanal eine Named Pipe sein (\\\\.\\pipe\\…).',
+  pipeNameTooLong: 'Der Name des Kommunikationskanals ist zu lang (höchstens 256 Zeichen).',
   notASocket: 'Am Ort des Kommunikationskanals liegt eine andere Datei. Bitte diese Datei entfernen oder einen anderen Datenordner verwenden.',
   unauthorized: 'Zugriff verweigert: Das Zugangstoken fehlt oder ist ungültig.',
   browser: 'Zugriffe aus einem Browser auf den Hintergrunddienst sind nicht erlaubt.',
@@ -132,6 +145,12 @@ export const SERVER_MESSAGES = {
 
 /** Unix socket paths are limited by sockaddr_un (104 bytes on macOS incl. NUL, 108 on Linux). */
 const MAX_UNIX_SOCKET_PATH_BYTES = 103;
+/** Windows: the whole pipe name (`\\.\pipe\…`) may have at most 256 characters (UTF-16 code units). */
+const MAX_PIPE_NAME_CHARS = 256;
+/** Local pipe namespace as accepted by node:net on Windows (`\\.\pipe\` or `\\?\pipe\`, case-insensitive). */
+const PIPE_PREFIX_RE = /^\\\\[.?]\\pipe\\[^\\]/i;
+/** Pause before the single listen retry on Windows (the pipe of an exiting daemon disappears on its own). */
+const PIPE_RETRY_DELAY_MS = 300;
 const ROUTES: Record<string, 'GET' | 'POST'> = { '/rpc': 'POST', '/events': 'GET', '/health': 'GET' };
 const EVENT_TYPES = new Set<string>(NOVA_EVENT_TYPES);
 
@@ -184,6 +203,104 @@ function listenOnce(server: Server, endpoint: string): Promise<void> {
 
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
+/**
+ * Throws NovaError DAEMON_UNAVAILABLE when `endpoint` cannot be a local IPC endpoint on `platform`: Windows needs a
+ * named pipe of at most 256 characters, unix sockets must fit into sockaddr_un. Pure (no I/O).
+ */
+export function checkEndpoint(endpoint: string, platform: NodeJS.Platform): void {
+  if (platform === 'win32') {
+    if (!PIPE_PREFIX_RE.test(endpoint)) {
+      throw new NovaError(ErrorCodes.DAEMON_UNAVAILABLE, SERVER_MESSAGES.notAPipe, { severity: 'critical', details: { endpoint } });
+    }
+    if (endpoint.length > MAX_PIPE_NAME_CHARS) {
+      throw new NovaError(ErrorCodes.DAEMON_UNAVAILABLE, SERVER_MESSAGES.pipeNameTooLong, { severity: 'critical', details: { endpoint, length: endpoint.length } });
+    }
+    return;
+  }
+  if (Buffer.byteLength(endpoint, 'utf8') > MAX_UNIX_SOCKET_PATH_BYTES) {
+    throw new NovaError(ErrorCodes.DAEMON_UNAVAILABLE, SERVER_MESSAGES.pathTooLong, { severity: 'critical', details: { endpoint } });
+  }
+}
+
+export interface BindRequest {
+  endpoint: string;
+  /** Token file of a daemon that may already hold the endpoint (null = only check that an answer looks like NOVA). */
+  tokenPath: string | null;
+  platform: NodeJS.Platform;
+  probeTimeoutMs: number;
+  log: Logger;
+}
+
+/** Side effects of binding; startRpcServer passes the real ones, tests inject fakes to run either platform branch. */
+export interface BindDeps {
+  listen(endpoint: string): Promise<void>;
+  probe(endpoint: string, tokenPath: string | null, timeoutMs: number): Promise<DetailedProbe>;
+  lstat(path: string): { isSocket(): boolean };
+  unlink(path: string): void;
+  sleep(ms: number): Promise<void>;
+}
+
+/**
+ * Binds the endpoint with the EADDRINUSE handling described in the file header.
+ * Throws NovaError CONFLICT (a NOVA daemon already serves it) or DAEMON_UNAVAILABLE.
+ */
+export async function bindEndpoint(req: BindRequest, deps: BindDeps): Promise<void> {
+  const { endpoint, log } = req;
+  const isPipe = req.platform === 'win32';
+  try {
+    await deps.listen(endpoint);
+    return;
+  } catch (first) {
+    const code = (first as NodeJS.ErrnoException).code;
+    if (code !== 'EADDRINUSE') {
+      throw new NovaError(ErrorCodes.DAEMON_UNAVAILABLE, SERVER_MESSAGES.cannotListen, { severity: 'critical', details: { endpoint, code: code ?? null, error: errorMessage(first) }, cause: first });
+    }
+  }
+  const probe = await deps.probe(endpoint, req.tokenPath, req.probeTimeoutMs);
+  if (probe.status === 'ours' || (probe.unverifiedNova && !req.tokenPath)) {
+    log.info('Ein NOVA-Hintergrunddienst läuft bereits an diesem Kommunikationskanal', { endpoint, health: probe.health });
+    throw new NovaError(ErrorCodes.CONFLICT, SERVER_MESSAGES.alreadyRunning, {
+      severity: 'warning',
+      details: { endpoint, pid: probe.health?.pid ?? null, instanceId: probe.health?.instanceId ?? null, version: probe.health?.version ?? null },
+    });
+  }
+  if (probe.status === 'foreign') {
+    log.error('Kommunikationskanal ist von einem fremden Programm belegt', { endpoint, detail: probe.detail });
+    throw new NovaError(ErrorCodes.DAEMON_UNAVAILABLE, SERVER_MESSAGES.foreign, { severity: 'critical', details: { endpoint, detail: probe.detail } });
+  }
+  // Nothing answers: a leftover of a crashed daemon (unix socket file) or a pipe that is just going away (Windows).
+  if (!isPipe) {
+    let isSocketFile = true;
+    try {
+      isSocketFile = deps.lstat(endpoint).isSocket();
+    } catch (e) {
+      if ((e as NodeJS.ErrnoException).code !== 'ENOENT') isSocketFile = false;
+    }
+    if (!isSocketFile) {
+      throw new NovaError(ErrorCodes.DAEMON_UNAVAILABLE, SERVER_MESSAGES.notASocket, { severity: 'critical', details: { endpoint } });
+    }
+    try {
+      deps.unlink(endpoint);
+      log.warn('Verwaisten Kommunikationskanal eines früheren Starts entfernt', { endpoint });
+    } catch (e) {
+      throw new NovaError(ErrorCodes.DAEMON_UNAVAILABLE, SERVER_MESSAGES.cannotListen, { severity: 'critical', details: { endpoint, error: errorMessage(e) }, cause: e });
+    }
+  } else {
+    log.info('Kommunikationskanal ist noch belegt, antwortet aber nicht – neuer Versuch', { endpoint, detail: probe.detail });
+    await deps.sleep(PIPE_RETRY_DELAY_MS);
+  }
+  try {
+    await deps.listen(endpoint);
+  } catch (second) {
+    const code2 = (second as NodeJS.ErrnoException).code;
+    throw new NovaError(ErrorCodes.DAEMON_UNAVAILABLE, code2 === 'EADDRINUSE' ? SERVER_MESSAGES.foreign : SERVER_MESSAGES.cannotListen, {
+      severity: 'critical',
+      details: { endpoint, code: code2 ?? null, error: errorMessage(second) },
+      cause: second,
+    });
+  }
+}
+
 export async function startRpcServer(opts: StartRpcServerOptions): Promise<RpcServerHandle> {
   const limits: RpcServerLimits = { ...DEFAULT_SERVER_LIMITS, ...(opts.limits ?? {}) };
   const platform = opts.platform ?? process.platform;
@@ -196,9 +313,7 @@ export async function startRpcServer(opts: StartRpcServerOptions): Promise<RpcSe
   if (typeof endpoint !== 'string' || endpoint.length === 0) {
     throw new NovaError(ErrorCodes.VALIDATION, 'Für den Hintergrunddienst fehlt der Kommunikationskanal.', { severity: 'critical' });
   }
-  if (!isPipe && Buffer.byteLength(endpoint, 'utf8') > MAX_UNIX_SOCKET_PATH_BYTES) {
-    throw new NovaError(ErrorCodes.DAEMON_UNAVAILABLE, SERVER_MESSAGES.pathTooLong, { severity: 'critical', details: { endpoint } });
-  }
+  checkEndpoint(endpoint, platform);
 
   let closing = false;
   let activeRequests = 0;
@@ -437,65 +552,15 @@ export async function startRpcServer(opts: StartRpcServerOptions): Promise<RpcSe
     for (const conn of sseClients) conn.push(event);
   });
 
-  function fail(e: unknown): never {
-    unsubscribeBus();
-    throw e;
-  }
-
   // --- bind ---------------------------------------------------------------------------------------------------------
   try {
-    await listenOnce(server, endpoint);
-  } catch (first) {
-    const code = (first as NodeJS.ErrnoException).code;
-    if (code !== 'EADDRINUSE') {
-      fail(new NovaError(ErrorCodes.DAEMON_UNAVAILABLE, SERVER_MESSAGES.cannotListen, { severity: 'critical', details: { endpoint, code: code ?? null, error: errorMessage(first) }, cause: first }));
-    }
-    const probe = await probeEndpoint(endpoint, opts.tokenPath ?? null, limits.probeTimeoutMs);
-    if (probe.status === 'ours' || (probe.unverifiedNova && !opts.tokenPath)) {
-      log.info('Ein NOVA-Hintergrunddienst läuft bereits an diesem Kommunikationskanal', { endpoint, health: probe.health });
-      fail(
-        new NovaError(ErrorCodes.CONFLICT, SERVER_MESSAGES.alreadyRunning, {
-          severity: 'warning',
-          details: { endpoint, pid: probe.health?.pid ?? null, instanceId: probe.health?.instanceId ?? null, version: probe.health?.version ?? null },
-        }),
-      );
-    }
-    if (probe.status === 'foreign') {
-      log.error('Kommunikationskanal ist von einem fremden Programm belegt', { endpoint, detail: probe.detail });
-      fail(new NovaError(ErrorCodes.DAEMON_UNAVAILABLE, SERVER_MESSAGES.foreign, { severity: 'critical', details: { endpoint, detail: probe.detail } }));
-    }
-    // Nothing answers: a leftover of a crashed daemon.
-    if (!isPipe) {
-      let isSocketFile = true;
-      try {
-        isSocketFile = lstatSync(endpoint).isSocket();
-      } catch (e) {
-        if ((e as NodeJS.ErrnoException).code !== 'ENOENT') isSocketFile = false;
-      }
-      if (!isSocketFile) {
-        fail(new NovaError(ErrorCodes.DAEMON_UNAVAILABLE, SERVER_MESSAGES.notASocket, { severity: 'critical', details: { endpoint } }));
-      }
-      try {
-        unlinkWithRetry(endpoint);
-        log.warn('Verwaisten Kommunikationskanal eines früheren Starts entfernt', { endpoint });
-      } catch (e) {
-        fail(new NovaError(ErrorCodes.DAEMON_UNAVAILABLE, SERVER_MESSAGES.cannotListen, { severity: 'critical', details: { endpoint, error: errorMessage(e) }, cause: e }));
-      }
-    } else {
-      await sleep(300);
-    }
-    try {
-      await listenOnce(server, endpoint);
-    } catch (second) {
-      const code2 = (second as NodeJS.ErrnoException).code;
-      fail(
-        new NovaError(ErrorCodes.DAEMON_UNAVAILABLE, code2 === 'EADDRINUSE' ? SERVER_MESSAGES.foreign : SERVER_MESSAGES.cannotListen, {
-          severity: 'critical',
-          details: { endpoint, code: code2 ?? null, error: errorMessage(second) },
-          cause: second,
-        }),
-      );
-    }
+    await bindEndpoint(
+      { endpoint, tokenPath: opts.tokenPath ?? null, platform, probeTimeoutMs: limits.probeTimeoutMs, log },
+      { listen: (ep) => listenOnce(server, ep), probe: probeEndpoint, lstat: lstatSync, unlink: unlinkWithRetry, sleep },
+    );
+  } catch (e) {
+    unsubscribeBus();
+    throw e;
   }
 
   if (!isPipe) {

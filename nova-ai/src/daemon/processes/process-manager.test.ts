@@ -248,6 +248,56 @@ process.exit(0);`,
 });
 
 // ---------------------------------------------------------------------------------------------------------------------
+// Real processes on Windows: cmd.exe wrapper, exit codes, CIM walk + taskkill
+// ---------------------------------------------------------------------------------------------------------------------
+
+describe.runIf(process.platform === 'win32')('ProcessManager (real processes, cmd.exe)', () => {
+  it('captures output and reports exit codes of programs, cmd built-ins and unknown commands', async () => {
+    h = createProcHarness();
+    const ok = await h.s.processes.run({ command: `${NODE} -e "console.log('hallo'); console.error('warnung')"`, cwd: h.root, kind: 'command' });
+    expect(ok.exitCode).toBe(0);
+    expect(ok.stdout.replace(/\r\n/g, '\n')).toBe('hallo\n');
+    expect(ok.stderr.replace(/\r\n/g, '\n')).toBe('warnung\n');
+    expect(h.s.processes.get(ok.processId)).toMatchObject({ status: 'exited', exitCode: 0, command: `${NODE} -e "console.log('hallo'); console.error('warnung')"` });
+    const failed = await h.s.processes.run({ command: `${NODE} -e "process.exit(3)"`, cwd: h.root, kind: 'test' });
+    expect(failed.exitCode).toBe(3);
+    const builtin = await h.s.processes.run({ command: 'echo kaputt 1>&2 & exit 4', cwd: h.root, kind: 'command' });
+    expect(builtin.exitCode).toBe(4);
+    expect(builtin.stderr).toContain('kaputt');
+    const unknown = await h.s.processes.run({ command: 'nova-gibt-es-nicht-4711 --version', cwd: h.root, kind: 'command' });
+    expect(unknown.exitCode).toBe(9009);
+  });
+
+  it('passes stdin and quoted arguments through cmd.exe unchanged', async () => {
+    h = createProcHarness();
+    const piped = await h.s.processes.run({ command: `${NODE} -e "process.stdin.pipe(process.stdout)"`, cwd: h.root, kind: 'command', stdin: 'eingabe' });
+    expect(piped.stdout).toBe('eingabe');
+    h.write('args.js', 'console.log(JSON.stringify(process.argv.slice(2)));');
+    const args = await h.s.processes.run({ command: `${NODE} args.js "mit Leerzeichen" & echo danach`, cwd: h.root, kind: 'command' });
+    expect(args.exitCode).toBe(0);
+    expect(args.stdout).toContain('["mit Leerzeichen"]');
+    expect(args.stdout).toContain('danach');
+  });
+
+  it('kills the whole tree including grandchildren on abort (CIM walk + taskkill)', async () => {
+    h = createProcHarness();
+    const pidFile = join(h.root, 'gc.pid');
+    h.write('tree.js', GRANDCHILD(pidFile));
+    const ac = new AbortController();
+    const p = h.s.processes.run({ command: `${NODE} tree.js`, cwd: h.root, kind: 'command', signal: ac.signal });
+    expect(await waitFor(() => existsSync(pidFile) && readFileSync(pidFile, 'utf8').length > 0, 10_000)).toBe(true);
+    const gc = Number(readFileSync(pidFile, 'utf8'));
+    expect(pidAlive(gc)).toBe(true);
+    ac.abort();
+    const res = await p;
+    expect(res.cancelled).toBe(true);
+    expect(h.s.processes.get(res.processId)?.status).toBe('killed');
+    expect(await waitFor(() => !pidAlive(gc), 5000)).toBe(true);
+    expect(pidAlive(h.s.processes.get(res.processId)!.pid!)).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------------------------------------------------
 // Windows branch with injected spawn + fake tree runner
 // ---------------------------------------------------------------------------------------------------------------------
 
@@ -289,12 +339,18 @@ function windowsHarness(cimPid = 4242) {
       return { code: 0, stdout: '', stderr: '', timedOut: false };
     },
   };
+  const refreshes = { count: 0 };
   h = createProcHarness({ processes: false });
   const s = h.s;
   s.processes = createProcessManager(s, {
     platform: 'win32',
     treeRunner: runner,
     governorPollMs: 20,
+    // Never the host's real PATH refresh (PowerShell on a Windows host): the injected platform must be deterministic.
+    refreshPath: async () => {
+      refreshes.count++;
+      return null;
+    },
     spawn: (file, args, options) => {
       const child = new FakeChild(cimPid);
       spawned.push({ file, args, options, child });
@@ -302,14 +358,15 @@ function windowsHarness(cimPid = 4242) {
       return child as unknown as ChildProcess;
     },
   });
-  return { h, spawned, taskkills, scripts };
+  return { h, spawned, taskkills, scripts, refreshes };
 }
 
 describe('ProcessManager Windows branch (injected spawn)', () => {
   it('runs cmd.exe /d /s /c "chcp 65001>nul & <line>" verbatim and hidden', async () => {
     const w = windowsHarness();
     const p = w.h.s.processes.run({ command: 'npm test', cwd: w.h.root, kind: 'test' });
-    await waitFor(() => w.spawned.length === 1);
+    expect(await waitFor(() => w.spawned.length === 1)).toBe(true);
+    expect(w.refreshes.count).toBe(1); // the injected PATH refresh, never the host's
     const sp = w.spawned[0];
     expect(sp.file.toLowerCase()).toMatch(/cmd\.exe$/);
     expect(sp.args).toEqual(['/d', '/s', '/c', '"chcp 65001>nul & npm test"']);
@@ -326,7 +383,7 @@ describe('ProcessManager Windows branch (injected spawn)', () => {
   it('runs terminal lines through PowerShell -EncodedCommand', async () => {
     const w = windowsHarness();
     const p = w.h.s.processes.run({ command: 'Get-ChildItem | Select-Object -First 3', cwd: w.h.root, kind: 'terminal', shell: 'powershell' });
-    await waitFor(() => w.spawned.length === 1);
+    expect(await waitFor(() => w.spawned.length === 1)).toBe(true);
     const sp = w.spawned[0];
     expect(sp.file.toLowerCase()).toMatch(/powershell\.exe$/);
     expect(sp.args.slice(0, 6)).toEqual(['-NoLogo', '-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-EncodedCommand']);
@@ -354,6 +411,7 @@ describe('ProcessManager Windows branch (injected spawn)', () => {
     const s = h.s;
     s.processes = createProcessManager(s, {
       platform: 'win32',
+      refreshPath: null,
       spawn: () => {
         const child = new FakeChild(0);
         child.pid = undefined;

@@ -104,9 +104,23 @@ export function LocalModelsCard({ status, models, running, selection, onSuggest 
       },
     },
     { key: 'size', header: 'Größe', align: 'right', sortValue: (m) => m.sizeBytes, cell: (m) => <span className="tabular-nums">{formatBytes(m.sizeBytes)}</span> },
-    { key: 'params', header: 'Parameter', sortValue: (m) => m.parameterSize, cell: (m) => m.parameterSize ?? '–' },
-    { key: 'quant', header: 'Quantisierung', cell: (m) => <span className="font-mono text-xs">{m.quantization ?? '–'}</span> },
-    { key: 'family', header: 'Familie', sortValue: (m) => m.family, cell: (m) => m.family ?? '–' },
+    {
+      key: 'details',
+      header: <span title="Parameter · Quantisierung · Familie">Details</span>,
+      sortValue: (m) => parseFloat(m.parameterSize ?? '') * (/m$/i.test(m.parameterSize ?? '') ? 0.001 : 1) || null,
+      cell: (m) => (
+        <div className="whitespace-nowrap">
+          <div>{m.parameterSize ? `${m.parameterSize} Parameter` : '–'}</div>
+          <div className="text-[11px] text-muted">
+            <span className="font-mono" title="Quantisierung (Kompression der Gewichte)">
+              {m.quantization ?? '–'}
+            </span>
+            {' · '}
+            <span title="Modellfamilie">{m.family ?? '–'}</span>
+          </div>
+        </div>
+      ),
+    },
     { key: 'ctx', header: 'Kontext', align: 'right', sortValue: (m) => m.contextLength, cell: (m) => <span className="whitespace-nowrap tabular-nums">{formatContext(m.contextLength)}</span> },
     { key: 'caps', header: 'Fähigkeiten', cell: (m) => <CapabilityBadges model={m} /> },
     { key: 'fit', header: 'Grafikspeicher', cell: (m) => <FitCell entry={fits[m.id]} onCheck={() => check(m.id)} onSuggest={onSuggest} installed={list} /> },
@@ -272,6 +286,9 @@ export function RunningModelsCard({ running, ollamaRunning }: RunningModelsCardP
           {list.map((r) => {
             const gpuShare = r.sizeBytes > 0 ? (r.vramBytes / r.sizeBytes) * 100 : null;
             const expires = r.expiresAt ? Date.parse(r.expiresAt) : NaN;
+            const remaining = expires - now;
+            // Ollama reports a far-future expiry for models pinned with keep_alive = -1.
+            const expiry = !Number.isFinite(remaining) || remaining <= 0 ? '' : remaining > 86_400_000 ? ' · bleibt geladen' : ` · wird ${formatRelativeTime(expires, now)} entladen`;
             return (
               <li key={r.model} className="rounded-lg border border-border bg-surface-2/50 px-3 py-2">
                 <div className="flex items-center justify-between gap-2">
@@ -287,7 +304,7 @@ export function RunningModelsCard({ running, ollamaRunning }: RunningModelsCardP
                 <p className="mt-1 text-[11px] text-muted">
                   Grafikspeicher {formatBytes(r.vramBytes)} von {formatBytes(r.sizeBytes)}
                   {r.contextLength ? ` · Kontext ${formatContext(r.contextLength)}` : ''}
-                  {Number.isFinite(expires) ? ` · wird ${formatRelativeTime(expires, now)} entladen` : ''}
+                  {expiry}
                 </p>
               </li>
             );

@@ -3,7 +3,9 @@
 // - Pure function over an injectable environment (platform, path API, realpath, env, known folders, data dir, other
 //   projects) so the Windows rules are unit-tested on Linux with path.win32 and a fake realpath.
 // - Canonicalization: realpath of the deepest EXISTING ancestor + the not-yet-existing rest (new folders), compared
-//   case-folded on Windows. Device/UNC-device forms (\\?\, \\.\) and NUL bytes are rejected up front.
+//   case-folded on Windows (realpath also expands 8.3 short names such as %TEMP% = C:\Users\RUNNER~1\…, so short and
+//   long spellings of one folder get the same key). Device/UNC-device forms (\\?\, \\.\), paths that are not fully
+//   qualified on Windows ("C:foo", "\foo", "\\server") and NUL bytes are rejected up front.
 // - %USERPROFILE% and its known folders are rejected only when EQUAL (projects inside Documents are fine; the default
 //   projectsDir is %USERPROFILE%\NOVA Projekte). System/app-data folders are rejected when equal OR inside.
 // - The data dir and other registered projects are rejected when equal, inside, or an ancestor.
@@ -108,7 +110,11 @@ export function validateRawPath(input: string, platform: NodeJS.Platform): void 
   const api = pathApiFor(platform);
   if (platform === 'win32') {
     if (/^[\\/]{2}[?.][\\/]/.test(input) || /^\\\?\?\\/.test(input)) reject('Geräte- und Sonderpfade (\\\\?\\, \\\\.\\) sind nicht erlaubt.');
-    if (/^[A-Za-z]:(?![\\/])/.test(input)) reject('Bitte einen vollständigen Pfad angeben (z. B. C:\\Projekte\\Spiel).');
+    // Not fully qualified: "C:foo" (drive-relative), "\foo" (root of the daemon's CURRENT drive) and "\\server" without
+    // a share – path.win32 calls the latter two absolute, but where they point depends on the daemon's working dir.
+    if (/^[A-Za-z]:(?![\\/])/.test(input) || /^[\\/](?![\\/])/.test(input) || /^[\\/]{2}[^\\/]+[\\/]*$/.test(input)) {
+      reject('Bitte einen vollständigen Pfad angeben (z. B. C:\\Projekte\\Spiel).');
+    }
     const withoutDrive = input.replace(/^[A-Za-z]:/, '');
     if (/[<>"|?*]/.test(withoutDrive) || withoutDrive.includes(':')) reject('Der Pfad enthält Zeichen, die Windows nicht erlaubt (< > : " | ? *).');
     for (const seg of withoutDrive.split(/[\\/]+/).filter(Boolean)) {

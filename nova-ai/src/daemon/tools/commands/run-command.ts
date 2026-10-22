@@ -71,11 +71,17 @@ function describeChanges(changes: ChangeRecord[]): string[] {
   return lines;
 }
 
-function notFoundHint(exitCode: number | null, platform: NodeJS.Platform): string | null {
-  if ((platform === 'win32' && exitCode === 9009) || (platform !== 'win32' && exitCode === 127)) {
-    return 'Hinweis: Das Programm wurde nicht gefunden. Ist es installiert und über den PATH erreichbar? Gegebenenfalls einen anderen Befehl verwenden oder den Blocker melden.';
-  }
-  return null;
+// cmd.exe's "unknown command" message (English, current and older German Windows). Exit code 9009 only reaches us when
+// the unknown program is the last command of the line; inside npm scripts, `call`, `&&` chains or batch files the
+// exit code is usually 1, so the message itself is recognised too.
+const WINDOWS_NOT_FOUND =
+  /is not recognized as an internal or external command|wird nicht als interner oder externer Befehl|ist entweder falsch geschrieben oder\s+konnte nicht gefunden werden/i;
+
+/** German hint when the command (or a program it called) does not exist; null otherwise. */
+export function notFoundHint(exitCode: number | null, output: string, platform: NodeJS.Platform): string | null {
+  const missing = platform === 'win32' ? exitCode === 9009 || (exitCode !== 0 && WINDOWS_NOT_FOUND.test(output)) : exitCode === 127;
+  if (!missing) return null;
+  return 'Hinweis: Das Programm wurde nicht gefunden. Ist es installiert und über den PATH erreichbar? Gegebenenfalls einen anderen Befehl verwenden oder den Blocker melden.';
 }
 
 export function createRunCommandTool(s: Services): AgentTool<RunCommandParams> {
@@ -170,9 +176,9 @@ export function createRunCommandTool(s: Services): AgentTool<RunCommandParams> {
       const header = [`$ ${command}`, `Exit-Code: ${result.exitCode ?? (result.signal ? `– (Signal ${result.signal})` : 'unbekannt')} · Dauer: ${formatDuration(result.durationMs)}`];
       if (result.timedOut) header.push(`Zeitlimit von ${timeoutSec} s überschritten – der Befehl und seine Unterprozesse wurden beendet.`);
       else if (result.cancelled) header.push('Abgebrochen – der Befehl und seine Unterprozesse wurden beendet.');
-      const hint = result.timedOut || result.cancelled ? null : notFoundHint(result.exitCode, s.core.platform);
-      if (hint) header.push(hint);
       const output = stripAnsi(result.output).replace(/\r\n/g, '\n').trimEnd();
+      const hint = result.timedOut || result.cancelled ? null : notFoundHint(result.exitCode, output, s.core.platform);
+      if (hint) header.push(hint);
       const body = output ? `Ausgabe:\n${tailChars(output, MAX_COMMAND_OUTPUT_CHARS)}` : 'Ausgabe: (keine)';
       const content = [...header, ...describeChanges(changes), ...notes, body].join('\n');
       const data = { exitCode: result.exitCode, timedOut: result.timedOut, cancelled: result.cancelled, durationMs: result.durationMs, processId: result.processId, filesChanged };

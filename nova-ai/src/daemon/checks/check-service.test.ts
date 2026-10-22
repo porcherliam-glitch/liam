@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { closeSync, constants as fsConstants, existsSync, mkdirSync, openSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { CheckRun, Project, ProjectConfigPatch } from '@shared/schemas';
 import { createTestCore, tempDir, type TestCore } from '../../../tests/helpers/core';
@@ -130,16 +130,24 @@ describe('CheckService basics', () => {
   });
 
   it('unknown command → error (exit 127 POSIX, 9009 cmd.exe)', async () => {
-    const posix = setup({ script: [{ match: /./, result: { exitCode: 127, output: 'sh: 1: pytest: not found' } }] });
+    // The shell decides the code: /bin/sh answers 127, cmd.exe 9009 – the platform is injected so both run on every host.
+    const posix = setup({ platform: 'linux', script: [{ match: /./, result: { exitCode: 127, output: 'sh: 1: pytest: not found' } }] });
     const p = posix.add(root(), { config: { commands: { test: 'pytest -q' } } });
     const r = await posix.checks.run({ projectId: p.id, kind: 'test' });
     expect(r.status).toBe('error');
     expect(r.message).toMatch(/„pytest“ wurde nicht gefunden/);
     expect(r.failureSignature).toMatch(/^[0-9a-f]{16}$/);
     t.cleanup();
-    const win = setup({ platform: 'win32', script: [{ match: /./, result: { exitCode: 9009, output: '' } }] });
+    const win = setup({ platform: 'win32', script: [{ match: /./, result: { exitCode: 9009, output: "'dotnet' is not recognized as an internal or external command," } }] });
     const p2 = win.add(root(), { config: { commands: { build: 'dotnet build' } } });
-    expect((await win.checks.run({ projectId: p2.id, kind: 'build' })).status).toBe('error');
+    const r2 = await win.checks.run({ projectId: p2.id, kind: 'build' });
+    expect(r2.status).toBe('error');
+    expect(r2.message).toMatch(/„dotnet“ wurde nicht gefunden/);
+    t.cleanup();
+    // 127 is an ordinary exit code under cmd.exe (e.g. a program's own error), not "command not found".
+    const win127 = setup({ platform: 'win32', script: [{ match: /./, result: { exitCode: 127, output: 'Fehler' } }] });
+    const p3 = win127.add(root(), { config: { commands: { build: 'node build.mjs' } } });
+    expect(await win127.checks.run({ projectId: p3.id, kind: 'build' })).toMatchObject({ status: 'failed', message: 'Fehlgeschlagen (Exit-Code 127).' });
   });
 
   it('timeout → failed with explanation', async () => {
@@ -315,14 +323,49 @@ describe('Unity and dotnet specifics', () => {
     expect(integrations.resolveCalls).toContainEqual({ id: 'unity', version: '2022.3.10f1' });
   });
 
-  it('Unity: project open in the editor → error', async () => {
+  it('Unity: project open in the editor → error (POSIX: Temp/UnityLockfile exists)', async () => {
     const dir = root();
     mkdirSync(join(dir, 'Temp'));
     writeFileSync(join(dir, 'Temp', 'UnityLockfile'), '');
-    const { checks, add } = setup({ extra: { integrations: fakeIntegrations({}, '/opt/unity/Editor/Unity') as unknown as IntegrationService } });
+    const { checks, add, processes } = setup({ platform: 'linux', extra: { integrations: fakeIntegrations({}, '/opt/unity/Editor/Unity') as unknown as IntegrationService } });
     const p = add(dir, { kind: 'unity', config: { commands: { test: UNITY_CMD } } });
     const r = await checks.run({ projectId: p.id, kind: 'test' });
     expect(r).toMatchObject({ status: 'error', message: 'Projekt ist in Unity geöffnet – bitte Unity schließen.' });
+    expect((processes as ReturnType<typeof scriptedProcesses>).runs).toHaveLength(0);
+  });
+
+  it('Unity on Windows: a stale, unlocked UnityLockfile (after a crash) does not block the tests', async () => {
+    const dir = root();
+    mkdirSync(join(dir, 'Temp'));
+    writeFileSync(join(dir, 'Temp', 'UnityLockfile'), '');
+    const { checks, add, processes } = setup({
+      platform: 'win32',
+      extra: { integrations: fakeIntegrations({}, 'C:\\Program Files\\Unity\\Hub\\Editor\\2021.1.0f1\\Editor\\Unity.exe') as unknown as IntegrationService },
+      script: [{ match: /Unity/, result: { exitCode: 0, output: 'Unity log …' } }],
+    });
+    const p = add(dir, { kind: 'unity', config: { commands: { test: UNITY_CMD } } });
+    const r = await checks.run({ projectId: p.id, kind: 'test' });
+    expect((processes as ReturnType<typeof scriptedProcesses>).runs).toHaveLength(1);
+    expect(r.message).not.toMatch(/in Unity geöffnet/);
+  });
+
+  // Unity holds Temp/UnityLockfile open without sharing while the editor runs; only real Windows has that lock semantics.
+  it.runIf(process.platform === 'win32')('Unity on Windows: an exclusively locked UnityLockfile → project open → error', async () => {
+    const dir = root();
+    mkdirSync(join(dir, 'Temp'));
+    const lock = join(dir, 'Temp', 'UnityLockfile');
+    writeFileSync(lock, '');
+    // libuv's UV_FS_O_EXLOCK (0x10000000, not exported in fs.constants) opens the file with share mode 0 like Unity does.
+    const fd = openSync(lock, fsConstants.O_RDWR | 0x10000000);
+    try {
+      const { checks, add, processes } = setup({ platform: 'win32', extra: { integrations: fakeIntegrations({}, 'C:\\Unity\\Editor\\Unity.exe') as unknown as IntegrationService } });
+      const p = add(dir, { kind: 'unity', config: { commands: { test: UNITY_CMD } } });
+      const r = await checks.run({ projectId: p.id, kind: 'test' });
+      expect(r).toMatchObject({ status: 'error', message: 'Projekt ist in Unity geöffnet – bitte Unity schließen.' });
+      expect((processes as ReturnType<typeof scriptedProcesses>).runs).toHaveLength(0);
+    } finally {
+      closeSync(fd);
+    }
   });
 
   it('Unity: runs the matching editor and parses the NUnit XML', async () => {

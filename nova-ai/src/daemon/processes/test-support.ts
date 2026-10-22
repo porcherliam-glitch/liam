@@ -11,8 +11,11 @@ import { makeServices } from '../../../tests/helpers/services';
 import { nullLogger } from '../core/logger';
 import { createProcessManager, type ProcessManagerOptions } from './process-manager';
 
-/** Absolute node binary, quoted for /bin/sh and cmd.exe command lines. */
-export const NODE = JSON.stringify(process.execPath);
+/**
+ * Absolute node binary, quoted for the platform shell: plain double quotes for cmd.exe (Windows paths cannot contain
+ * quotes, and JSON escaping would double every backslash), JSON quoting for /bin/sh.
+ */
+export const NODE = process.platform === 'win32' ? `"${process.execPath}"` : JSON.stringify(process.execPath);
 
 export function makeProject(id: string, path: string, patch: Partial<Project> = {}): Project {
   return {

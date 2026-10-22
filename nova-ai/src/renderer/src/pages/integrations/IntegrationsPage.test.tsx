@@ -68,6 +68,20 @@ describe('IntegrationsPage', () => {
     await waitFor(() => expect(lastToast()?.title).toBe('Werkzeuge neu geprüft'));
   });
 
+  it('opens a project in a tool that supports it (engines only offer matching projects)', async () => {
+    await renderPage();
+    const unity = card('Unity');
+    const select = (await within(unity).findByLabelText('Projekt in Unity öffnen')) as HTMLSelectElement;
+    await waitFor(() => expect(within(select).getAllByRole('option')).toHaveLength(2));
+    expect(within(select).getByRole('option', { name: 'Aetherfall' })).toBeTruthy();
+    expect(within(select).queryByRole('option', { name: 'Pixel-Abenteuer' })).toBeNull();
+    await userEvent.selectOptions(select, 'prj_aether');
+    await userEvent.click(within(unity).getByRole('button', { name: /Öffnen/ }));
+    await waitFor(() => expect(getMockCalls('integrations.open')[0]?.params).toEqual({ id: 'unity', projectId: 'prj_aether' }));
+    await waitFor(() => expect(lastToast()?.title).toBe('Aetherfall wird in Unity geöffnet'));
+    expect(within(card('Visual Studio Code')).getByRole('option', { name: 'Pixel-Abenteuer' })).toBeTruthy();
+  });
+
   it('shows an error toast when the path is rejected', async () => {
     mockHandlers.set('integrations.setPath', () => {
       throw new MockRpcError('VALIDATION', 'Die Datei ist kein Godot-Programm.');

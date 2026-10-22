@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { mkdirSync, realpathSync, symlinkSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, parse } from 'node:path';
 import { tempDir } from '../../../tests/helpers/core';
 import { canonicalize, checkProjectRoot, fallbackKnownFolders, parseKnownFoldersJson, pathKey, ROOT_REJECT_PREFIX, type RootSafetyEnv } from './root-safety';
 
@@ -53,6 +53,7 @@ describe('root safety on Windows (fake file system)', () => {
     expect(r.key).toBe('c:\\users\\ada\\nova projekte\\mein spiel');
     expect(r.warnings).toEqual([]);
     expect(checkProjectRoot('c:\\users\\ada\\documents\\Projekt', winEnv()).canonical).toBe('C:\\Users\\Ada\\Documents\\Projekt');
+    expect(checkProjectRoot('\\\\nas\\daten\\Spiel', winEnv()).canonical).toBe('\\\\nas\\daten\\Spiel'); // full UNC path
   });
 
   it.each([
@@ -84,6 +85,10 @@ describe('root safety on Windows (fake file system)', () => {
 
   it.each([
     ['C:relative\\path', /vollständigen Pfad/],
+    ['\\Projekte\\Spiel', /vollständigen Pfad/], // root of the daemon's current drive
+    ['/Projekte/Spiel', /vollständigen Pfad/],
+    ['\\\\server', /vollständigen Pfad/], // UNC host without a share
+    ['\\\\server\\', /vollständigen Pfad/],
     ['projekte\\x', /vollständigen Ordnerpfad/],
     ['\\\\?\\C:\\x', /Geräte- und Sonderpfade/],
     ['\\\\.\\pipe\\x', /Geräte- und Sonderpfade/],
@@ -126,54 +131,73 @@ describe('root safety on Windows (fake file system)', () => {
   });
 });
 
-describe('root safety on the real file system (POSIX)', () => {
-  function posixEnv(home: string, data: string, others: RootSafetyEnv['otherProjects'] = []): RootSafetyEnv {
+describe('root safety on the real file system of the host', () => {
+  const realpath = (p: string): string | null => {
+    try {
+      return realpathSync.native(p);
+    } catch {
+      return null;
+    }
+  };
+
+  function hostEnv(home: string, data: string, others: RootSafetyEnv['otherProjects'] = [], env: RootSafetyEnv['env'] = {}): RootSafetyEnv {
     return {
       platform: process.platform,
-      realpath: (p) => {
-        try {
-          return realpathSync.native(p);
-        } catch {
-          return null;
-        }
-      },
-      env: {},
+      realpath,
+      env,
       homeDir: home,
-      knownFolders: fallbackKnownFolders(process.platform, home, {}),
+      knownFolders: fallbackKnownFolders(process.platform, home, env),
       dataDir: data,
       otherProjects: others,
     };
   }
 
-  it('canonicalizes through symlinks and detects overlaps via links', () => {
+  it('canonicalizes through symlinks/junctions and detects overlaps via links', () => {
     const t = tempDir();
     cleanups.push(t.cleanup);
     const real = join(t.dir, 'real');
     mkdirSync(join(real, 'proj'), { recursive: true });
-    symlinkSync(real, join(t.dir, 'link'));
-    const canonical = canonicalize(join(t.dir, 'link', 'proj', 'neu'), process.platform, (p) => {
-      try {
-        return realpathSync.native(p);
-      } catch {
-        return null;
-      }
-    });
+    symlinkSync(real, join(t.dir, 'link'), 'junction'); // a junction on Windows (no privilege needed), a symlink elsewhere
+    const canonical = canonicalize(join(t.dir, 'link', 'proj', 'neu'), process.platform, realpath);
     expect(canonical).toBe(join(realpathSync.native(real), 'proj', 'neu'));
-    const env = posixEnv(join(t.dir, 'home'), join(t.dir, 'data'), [{ id: 'p', name: 'Echt', path: join(real, 'proj') }]);
+    const env = hostEnv(join(t.dir, 'home'), join(t.dir, 'data'), [{ id: 'p', name: 'Echt', path: join(real, 'proj') }]);
     expect(() => checkProjectRoot(join(t.dir, 'link', 'proj', 'unter'), env)).toThrow(/im Ordner des Projekts „Echt“/);
   });
 
-  it('rejects the home folder, its Desktop, the data dir and system folders; accepts a subfolder', () => {
+  it('rejects the home folder, its Desktop, the data dir, system folders and the root; accepts a subfolder', () => {
     const t = tempDir();
     cleanups.push(t.cleanup);
     const home = join(t.dir, 'home');
     mkdirSync(join(home, 'Desktop'), { recursive: true });
-    const env = posixEnv(home, join(t.dir, 'data'));
+    const windir = process.env.SystemRoot ?? 'C:\\Windows';
+    // Only %SystemRoot% on Windows: %TEMP% (and so this test's folders) lies inside %LOCALAPPDATA%, which is refused.
+    const env = hostEnv(home, join(t.dir, 'data'), [], process.platform === 'win32' ? { SystemRoot: windir } : {});
     expect(() => checkProjectRoot(home, env)).toThrow(/Benutzerordner/);
     expect(() => checkProjectRoot(join(home, 'Desktop'), env)).toThrow(/Benutzerordner/);
     expect(() => checkProjectRoot(join(t.dir, 'data', 'x'), env)).toThrow(/Datenordner/);
-    expect(() => checkProjectRoot('/usr/local/x', env)).toThrow(/Systemordner/);
-    expect(() => checkProjectRoot('/', env)).toThrow(/Wurzelverzeichnis/);
+    if (process.platform === 'win32') {
+      expect(() => checkProjectRoot(join(windir, 'NOVA-Test', 'x'), env)).toThrow(/Windows-Systemordner/);
+      expect(() => checkProjectRoot(parse(t.dir).root, env)).toThrow(/ganzes Laufwerk/);
+      expect(() => checkProjectRoot('\\NOVA-Test', env)).toThrow(/vollständigen Pfad/);
+    } else {
+      expect(() => checkProjectRoot('/usr/local/x', env)).toThrow(/Systemordner/);
+      expect(() => checkProjectRoot('/', env)).toThrow(/Wurzelverzeichnis/);
+    }
     expect(checkProjectRoot(join(home, 'Desktop', 'Spiel'), env).canonical).toBe(join(realpathSync.native(home), 'Desktop', 'Spiel'));
+  });
+
+  // %TEMP% is an 8.3 short path on many Windows PCs (C:\Users\RUNNER~1\AppData\Local\Temp) while %LOCALAPPDATA% uses
+  // the long name: both spellings must meet in the canonical key, in either direction and in any letter case.
+  it.runIf(process.platform === 'win32')('Windows: short (8.3) and long spellings of a refused folder get the same canonical key', () => {
+    const t = tempDir();
+    cleanups.push(t.cleanup);
+    const long = realpathSync.native(t.dir);
+    const home = join(long, 'home');
+    expect(() => checkProjectRoot(join(t.dir, 'proj'), hostEnv(home, join(long, 'data'), [], { LOCALAPPDATA: long }))).toThrow(/AppData-Ordner \(Local\)/);
+    expect(() => checkProjectRoot(join(long, 'proj'), hostEnv(home, join(long, 'data'), [], { LOCALAPPDATA: t.dir }))).toThrow(/AppData-Ordner \(Local\)/);
+    expect(() => checkProjectRoot(join(t.dir, 'PROJ').toUpperCase(), hostEnv(home, join(long, 'data'), [], { LOCALAPPDATA: long.toLowerCase() }))).toThrow(/AppData-Ordner \(Local\)/);
+    const r = checkProjectRoot(join(t.dir.toUpperCase(), 'Neu'), hostEnv(home, join(long, 'data')));
+    expect(r.canonical).toBe(join(long, 'Neu'));
+    expect(r.key).toBe(join(long, 'Neu').toLowerCase());
   });
 });

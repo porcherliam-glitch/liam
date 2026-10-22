@@ -1,8 +1,9 @@
-// Tests of PathGuard: POSIX behaviour on the real file system (escapes, symlinks, protection, sensitive files) and the
-// Windows rules via platform + fake file system injection (case folding, UNC/device paths, ADS, reserved names …).
+// Tests of PathGuard: the host platform's rules on the real file system (escapes, symlinks/junctions, protection,
+// sensitive files; on Windows also 8.3 short names and NTFS case-insensitivity) and the Windows rules via platform +
+// fake file system injection on every host (case folding, UNC/device paths, ADS, reserved names …).
 import { describe, it, expect, afterEach } from 'vitest';
 import { mkdirSync, symlinkSync, writeFileSync, realpathSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, sep } from 'node:path';
 import { createTestCore, tempDir, type TestCore } from '../../../../tests/helpers/core';
 import { makeServices } from '../../../../tests/helpers/services';
 import { createPathGuard, validatePathInput, type PathGuardFs } from './path-guard';
@@ -14,13 +15,40 @@ afterEach(() => {
   while (cleanups.length) cleanups.pop()!();
 });
 
-function posixGuard() {
+/** Real file system with the HOST platform's rules (the guard must not mix POSIX rules with Windows paths). */
+function hostGuard() {
   t = createTestCore();
   const proj = tempDir();
   const outside = tempDir('nova-outside-');
   cleanups.push(proj.cleanup, outside.cleanup);
   const s = makeServices(t.core);
-  return { guard: createPathGuard(s, { platform: 'linux' }), root: realpathSync.native(proj.dir), outside: realpathSync.native(outside.dir) };
+  return {
+    guard: createPathGuard(s, { platform: process.platform }),
+    /** The project root as handed out by the OS (on Windows often an 8.3 short path below %TEMP%). */
+    rawRoot: proj.dir,
+    root: realpathSync.native(proj.dir),
+    outside: realpathSync.native(outside.dir),
+  };
+}
+
+const isWin = process.platform === 'win32';
+/** ResolvedPath.key: lower-case on Windows. */
+const keyOf = (rel: string) => (isWin ? rel.toLowerCase() : rel);
+
+/** Directory link: a junction on Windows (needs no privilege), a symlink elsewhere ('junction' is ignored there). */
+function linkDir(target: string, path: string): void {
+  symlinkSync(target, path, 'junction');
+}
+
+/** File symlink; false on Windows without the symlink privilege (no Developer Mode / admin), where it cannot exist. */
+function linkFile(target: string, path: string): boolean {
+  try {
+    symlinkSync(target, path, 'file');
+    return true;
+  } catch (e) {
+    if (isWin && (e as NodeJS.ErrnoException).code === 'EPERM') return false;
+    throw e;
+  }
 }
 
 /** Case-insensitive fake Windows file system: `existing` maps lower-case paths to on-disk case. */
@@ -46,12 +74,12 @@ function winGuard(existing: string[] = ['C:\\Projekte\\Spiel', 'C:\\Projekte\\Sp
   return createPathGuard(s, { platform: 'win32', fs: fakeWinFs(existing, links), dataDir: 'C:\\Users\\Ana\\AppData\\Local\\NOVA AI' });
 }
 
-describe('PathGuard (POSIX, real file system)', () => {
+describe('PathGuard (real file system, host platform rules)', () => {
   it('resolves relative paths inside the project with rel and key', () => {
-    const { guard, root } = posixGuard();
+    const { guard, root } = hostGuard();
     mkdirSync(join(root, 'src'));
     writeFileSync(join(root, 'src', 'App.ts'), '');
-    expect(guard.resolve(root, 'src/App.ts')).toEqual({ abs: join(root, 'src', 'App.ts'), rel: 'src/App.ts', key: 'src/App.ts' });
+    expect(guard.resolve(root, 'src/App.ts')).toEqual({ abs: join(root, 'src', 'App.ts'), rel: 'src/App.ts', key: keyOf('src/App.ts') });
     expect(guard.resolve(root, './src//new/../x.ts')).toEqual({ abs: join(root, 'src', 'x.ts'), rel: 'src/x.ts', key: 'src/x.ts' });
     expect(guard.resolve(root, '.')).toEqual({ abs: root, rel: '', key: '' });
     expect(guard.resolve(root, '  src/App.ts\t'.replace('\t', ' ')).rel).toBe('src/App.ts');
@@ -59,32 +87,34 @@ describe('PathGuard (POSIX, real file system)', () => {
   });
 
   it('rejects escapes, absolute paths outside, NUL/control characters', () => {
-    const { guard, root, outside } = posixGuard();
+    const { guard, root, outside } = hostGuard();
     expect(() => guard.resolve(root, '../x')).toThrow(expect.objectContaining({ code: 'PATH_OUTSIDE_PROJECT' }));
     expect(() => guard.resolve(root, 'a/../../x')).toThrow(expect.objectContaining({ code: 'PATH_OUTSIDE_PROJECT' }));
     expect(() => guard.resolve(root, join(outside, 'x'))).toThrow(expect.objectContaining({ code: 'PATH_OUTSIDE_PROJECT' }));
     expect(() => guard.resolve(root, '/etc/passwd')).toThrow(expect.objectContaining({ code: 'PATH_OUTSIDE_PROJECT' }));
+    expect(() => guard.resolve(root, `${root}2${sep}x`)).toThrow(expect.objectContaining({ code: 'PATH_OUTSIDE_PROJECT' })); // sibling with the root as prefix
     expect(() => guard.resolve(root, 'a\u0000b')).toThrow(expect.objectContaining({ code: 'VALIDATION' }));
     expect(() => guard.resolve(root, 'a\nb')).toThrow(expect.objectContaining({ code: 'VALIDATION' }));
     expect(() => guard.resolve(join(root, 'missing-root'), 'x')).toThrow(expect.objectContaining({ code: 'NOT_FOUND' }));
   });
 
-  it('follows symlinks of the deepest existing ancestor: links out of the project are rejected, links inside are fine', () => {
-    const { guard, root, outside } = posixGuard();
-    symlinkSync(outside, join(root, 'evil'));
+  it('follows links of the deepest existing ancestor: links out of the project are rejected, links inside are fine', () => {
+    const { guard, root, outside } = hostGuard();
+    linkDir(outside, join(root, 'evil'));
     expect(() => guard.resolve(root, 'evil/new-file.txt')).toThrow(expect.objectContaining({ code: 'PATH_OUTSIDE_PROJECT' }));
     writeFileSync(join(outside, 'secret.txt'), 's');
-    symlinkSync(join(outside, 'secret.txt'), join(root, 'link.txt'));
-    expect(() => guard.resolve(root, 'link.txt')).toThrow(expect.objectContaining({ code: 'PATH_OUTSIDE_PROJECT' }));
+    if (linkFile(join(outside, 'secret.txt'), join(root, 'link.txt'))) {
+      expect(() => guard.resolve(root, 'link.txt')).toThrow(expect.objectContaining({ code: 'PATH_OUTSIDE_PROJECT' }));
+    }
     mkdirSync(join(root, 'real'));
-    symlinkSync(join(root, 'real'), join(root, 'alias'));
+    linkDir(join(root, 'real'), join(root, 'alias'));
     expect(guard.resolve(root, 'alias/file.ts')).toMatchObject({ rel: 'real/file.ts' });
     expect(guard.isInside(root, join(root, 'alias', 'x'))).toBe(true);
     expect(guard.isInside(root, join(root, 'evil', 'x'))).toBe(false);
   });
 
   it('protects .git (any depth), top-level .nova and the data dir', () => {
-    const { guard, root } = posixGuard();
+    const { guard, root } = hostGuard();
     expect(guard.isProtected(root, '.git')).toBe(true);
     expect(guard.isProtected(root, '.git/config')).toBe(true);
     expect(guard.isProtected(root, 'vendor/lib/.git/HEAD')).toBe(true);
@@ -95,14 +125,33 @@ describe('PathGuard (POSIX, real file system)', () => {
     expect(guard.isProtected(root, 'src/app.ts')).toBe(false);
     // a project that contains the data dir
     const s2 = makeServices(t.core);
-    const guard2 = createPathGuard(s2, { platform: 'linux', dataDir: join(root, 'data') });
+    const guard2 = createPathGuard(s2, { platform: process.platform, dataDir: join(root, 'data') });
     mkdirSync(join(root, 'data'));
     expect(guard2.isProtected(root, 'data/nova.db')).toBe(true);
     expect(guard2.isProtected(root, 'database.ts')).toBe(false);
   });
 
+  // Windows only: the real NTFS case-insensitivity, 8.3 short names (%TEMP% is C:\Users\RUNNER~1\… on many PCs while
+  // realpath returns the long name) and the Windows input rules against a real project folder.
+  it.runIf(isWin)('Windows: short/long and differently cased spellings of the root and of inputs resolve to the canonical path', () => {
+    const { guard, root, rawRoot } = hostGuard();
+    mkdirSync(join(root, 'src'));
+    writeFileSync(join(root, 'src', 'App.ts'), '');
+    const expected = { abs: join(root, 'src', 'App.ts'), rel: 'src/App.ts', key: 'src/app.ts' };
+    expect(guard.resolve(rawRoot, 'src/App.ts')).toEqual(expected);
+    expect(guard.resolve(rawRoot.toUpperCase(), 'SRC\\app.TS')).toEqual(expected);
+    expect(guard.resolve(root, join(rawRoot, 'src', 'App.ts'))).toEqual(expected);
+    expect(guard.resolve(rawRoot, join(root.toLowerCase(), 'src', 'neu.ts'))).toEqual({ abs: join(root, 'src', 'neu.ts'), rel: 'src/neu.ts', key: 'src/neu.ts' });
+    expect(guard.isInside(rawRoot.toLowerCase(), join(root, 'src'))).toBe(true);
+    expect(guard.isProtected(rawRoot, '.GIT/config')).toBe(true);
+    expect(() => guard.resolve(root, '\\Windows\\win.ini')).toThrow(expect.objectContaining({ code: 'PATH_OUTSIDE_PROJECT' }));
+    expect(() => guard.resolve(root, 'src\\App.ts::$DATA')).toThrow(expect.objectContaining({ code: 'VALIDATION' }));
+    expect(() => guard.resolve(root, 'src\\nul.txt')).toThrow(expect.objectContaining({ code: 'VALIDATION' }));
+    expect(() => guard.resolve(root, `\\\\?\\${join(root, 'src', 'App.ts')}`)).toThrow(expect.objectContaining({ code: 'VALIDATION' }));
+  });
+
   it('classifies sensitive files', () => {
-    const { guard } = posixGuard();
+    const { guard } = hostGuard();
     const yes = ['.env', 'config/.env.local', '.env.production', 'certs/server.pem', 'tls.key', 'cert.pfx', 'a.p12', '.ssh/id_rsa', 'id_rsa.pub', 'id_ed25519', '.npmrc', '.pypirc', '.git-credentials', 'credentials.json', 'credentials-prod.json', 'secrets.yaml', 'SECRETS.json', 'Keys\\api.KEY'];
     const no = ['.env.example', '.env.sample', '.env.template', 'src/env.ts', 'keyboard.ts', 'credentials.ts', 'my-secrets.md', 'README.md', 'monkey.json'];
     for (const p of yes) expect([p, guard.isSensitive(p)]).toEqual([p, true]);

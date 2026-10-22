@@ -5,7 +5,7 @@ import type { Approval, ApprovalKind, ChangeRecord } from '@shared/schemas';
 import type { ApprovalCheck, ApprovalRequest, CommandDecision, CommandResult, FileStateMap, RunCommandInput, Services } from '../../contracts';
 import { NovaError } from '../../core/errors';
 import { createProcHarness, type ProcHarness } from '../../processes/test-support';
-import { createRunCommandTool, MAX_COMMAND_OUTPUT_CHARS } from './run-command';
+import { createRunCommandTool, MAX_COMMAND_OUTPUT_CHARS, notFoundHint } from './run-command';
 
 let h: ProcHarness | null = null;
 afterEach(async () => {
@@ -215,11 +215,33 @@ describe('run_command', () => {
   });
 
   it('runs a real failing command and reports its exit code', async () => {
+    // A real child process through the platform shell: cmd.exe on Windows (`;` is no separator there), /bin/sh elsewhere.
+    const command = process.platform === 'win32' ? 'echo kaputt 1>&2 & exit 4' : 'echo kaputt >&2; exit 4';
     const st = setup();
-    const res = await createRunCommandTool(st.h.s).execute({ command: 'echo kaputt >&2; exit 4' }, st.h.ctx());
+    const res = await createRunCommandTool(st.h.s).execute({ command }, st.h.ctx());
     expect(res).toMatchObject({ status: 'error', code: 'COMMAND_FAILED' });
     expect(res.content).toContain('Exit-Code: 4');
     expect(res.content).toContain('kaputt');
+  });
+
+  it('reports the exit code of a real failing program started by the shell', async () => {
+    const node = process.platform === 'win32' ? `"${process.execPath}"` : JSON.stringify(process.execPath);
+    const st = setup();
+    const res = await createRunCommandTool(st.h.s).execute({ command: `${node} -e "process.stderr.write('kaputt'); process.exit(3)"` }, st.h.ctx());
+    expect(res).toMatchObject({ status: 'error', code: 'COMMAND_FAILED' });
+    expect(res.content).toContain('Exit-Code: 3');
+    expect(res.content).toContain('kaputt');
+    const ok = await createRunCommandTool(st.h.s).execute({ command: `${node} -e "console.log('alles gut')"` }, st.h.ctx());
+    expect(ok.status).toBe('ok');
+    expect(ok.content).toContain('Exit-Code: 0');
+  });
+
+  it('hints at a real missing program on this platform (exit code 127 /bin/sh, 9009 cmd.exe)', async () => {
+    const st = setup();
+    const res = await createRunCommandTool(st.h.s).execute({ command: 'nova-gibt-es-nicht-4711 --version' }, st.h.ctx());
+    expect(res).toMatchObject({ status: 'error', code: 'COMMAND_FAILED' });
+    expect(res.content).toContain(process.platform === 'win32' ? 'Exit-Code: 9009' : 'Exit-Code: 127');
+    expect(res.content).toContain('Das Programm wurde nicht gefunden');
   });
 
   it('returns at most 8000 characters of output without ANSI codes', async () => {
@@ -243,8 +265,35 @@ describe('run_command', () => {
 
   it('hints at missing programs (exit code 127 on POSIX)', async () => {
     const st = setup({ fakeRun: async () => result({ exitCode: 127, output: 'sh: 1: foo: not found' }) });
+    (st.h.t.core as { platform: NodeJS.Platform }).platform = 'linux';
     const res = await createRunCommandTool(st.h.s).execute({ command: 'foo' }, st.h.ctx());
     expect(res.content).toContain('Das Programm wurde nicht gefunden');
+  });
+
+  it('hints at missing programs on Windows (cmd.exe exit code 9009 or its message inside scripts)', async () => {
+    const st = setup({
+      fakeRun: async () => result({ exitCode: 9009, output: "'foo' is not recognized as an internal or external command,\r\noperable program or batch file.\r\n" }),
+    });
+    (st.h.t.core as { platform: NodeJS.Platform }).platform = 'win32';
+    const res = await createRunCommandTool(st.h.s).execute({ command: 'foo' }, st.h.ctx());
+    expect(res).toMatchObject({ status: 'error', code: 'COMMAND_FAILED' });
+    expect(res.content).toContain('Exit-Code: 9009');
+    expect(res.content).toContain('Das Programm wurde nicht gefunden');
+  });
+
+  it('decides the missing-program hint per platform', () => {
+    const de = 'Der Befehl "foo" ist entweder falsch geschrieben oder\r\nkonnte nicht gefunden werden.';
+    const deOld = "'foo' wird nicht als interner oder externer Befehl, betriebsfähiges Programm oder Batch-Datei erkannt.";
+    expect(notFoundHint(9009, '', 'win32')).toContain('Das Programm wurde nicht gefunden');
+    expect(notFoundHint(1, `> npm run lint\n${de}`, 'win32')).toContain('Das Programm wurde nicht gefunden');
+    expect(notFoundHint(1, deOld, 'win32')).toContain('Das Programm wurde nicht gefunden');
+    expect(notFoundHint(0, de, 'win32')).toBeNull();
+    expect(notFoundHint(127, 'bash: foo: command not found', 'win32')).toBeNull();
+    expect(notFoundHint(1, 'Test fehlgeschlagen', 'win32')).toBeNull();
+    expect(notFoundHint(127, 'sh: 1: foo: not found', 'linux')).toContain('Das Programm wurde nicht gefunden');
+    expect(notFoundHint(127, '', 'darwin')).toContain('Das Programm wurde nicht gefunden');
+    expect(notFoundHint(9009, '', 'linux')).toBeNull();
+    expect(notFoundHint(1, 'Test fehlgeschlagen', 'linux')).toBeNull();
   });
 
   it('does nothing when the run is already aborted', async () => {

@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import type { ExecToolResult } from '../core/exec';
 import { nullLogger } from '../core/logger';
 import { tempDir } from '../../../tests/helpers/core';
-import { CIM_PROCESS_SCRIPT, createProcessTree, parseCimProcesses, parseIsoMs, parseProcStat, planWindowsKill, type ProcessTreeRunner, type WinProc } from './process-tree';
+import { CIM_PROCESS_SCRIPT, createProcessTree, parseCimProcesses, parseIsoMs, parseProcStat, planWindowsKill, windowsTaskkillPath, type ProcessTreeRunner, type WinProc } from './process-tree';
 import { pidAlive, waitFor } from './test-support';
 
 const T0 = Date.parse('2026-10-22T10:00:00.000Z');
@@ -114,19 +114,28 @@ describe('Windows tree killer (fake runner)', () => {
 
   it('kills an own tree leaves-first with taskkill /F after ONE CIM query', async () => {
     const f = fakeRunner([proc(200, 1, T0 + 10, 'cmd.exe'), proc(300, 200, T0 + 20), proc(400, 300, T0 + 30)], { 400: 128 });
-    const tree = createProcessTree({ platform: 'win32', log: nullLogger, runner: f.runner, selfPid: 1 });
+    // Injected environment: the taskkill path must not depend on the host (%SystemRoot% exists only on Windows).
+    const tree = createProcessTree({ platform: 'win32', log: nullLogger, runner: f.runner, selfPid: 1, env: { SystemRoot: 'C:\\Windows' } });
     await tree.killOwn([{ pid: 200, startedAt: T0, alive: true }]);
     expect(f.scripts).toHaveLength(1);
+    const taskkill = 'C:\\Windows\\System32\\taskkill.exe';
     expect(f.calls.map((c) => [c.file, ...c.args])).toEqual([
-      ['taskkill.exe', '/pid', '400', '/F'],
-      ['taskkill.exe', '/pid', '300', '/F'],
-      ['taskkill.exe', '/pid', '200', '/F'],
+      [taskkill, '/pid', '400', '/F'],
+      [taskkill, '/pid', '300', '/F'],
+      [taskkill, '/pid', '200', '/F'],
     ]);
+  });
+
+  it('locates taskkill.exe through %SystemRoot% (any casing, windir fallback) and falls back to PATH lookup', () => {
+    expect(windowsTaskkillPath({ SystemRoot: 'C:\\Windows' })).toBe('C:\\Windows\\System32\\taskkill.exe');
+    expect(windowsTaskkillPath({ SYSTEMROOT: 'D:\\WINDOWS\\' })).toBe('D:\\WINDOWS\\System32\\taskkill.exe');
+    expect(windowsTaskkillPath({ windir: 'C:\\Win' })).toBe('C:\\Win\\System32\\taskkill.exe');
+    expect(windowsTaskkillPath({})).toBe('taskkill.exe');
   });
 
   it('falls back to taskkill /T for running own roots when the CIM query fails, but never for recorded trees', async () => {
     const f = fakeRunner(null);
-    const tree = createProcessTree({ platform: 'win32', log: nullLogger, runner: f.runner, selfPid: 1 });
+    const tree = createProcessTree({ platform: 'win32', log: nullLogger, runner: f.runner, selfPid: 1, env: {} });
     await tree.killOwn([{ pid: 200, startedAt: T0, alive: true }, { pid: 201, startedAt: T0, alive: false }]);
     expect(f.calls.map((c) => c.args)).toEqual([['/pid', '200', '/T', '/F']]);
     expect(await tree.killRecorded([{ pid: 300, startedAt: T0 }])).toEqual([false]);
@@ -135,7 +144,7 @@ describe('Windows tree killer (fake runner)', () => {
 
   it('kills recorded trees only when the identity matches', async () => {
     const f = fakeRunner([proc(200, 1, T0 + 100, 'cmd.exe'), proc(210, 200, T0 + 200), proc(300, 1, T0 - 3_600_000, 'fremd.exe')]);
-    const tree = createProcessTree({ platform: 'win32', log: nullLogger, runner: f.runner, selfPid: 1 });
+    const tree = createProcessTree({ platform: 'win32', log: nullLogger, runner: f.runner, selfPid: 1, env: {} });
     const res = await tree.killRecorded([
       { pid: 200, startedAt: T0 },
       { pid: 300, startedAt: T0 },

@@ -1,6 +1,8 @@
 // Test-only helpers of the server module (imported by *.test.ts only; never by the barrel).
-// Short unix socket paths in os.tmpdir() (sockaddr_un limit), temp token files, raw HTTP and SSE clients.
+// Unique endpoints (named pipe on Windows, short unix socket path in os.tmpdir() elsewhere – see
+// tests/helpers/endpoint.ts), temp token files, raw HTTP and SSE clients.
 import { request } from 'node:http';
+import type { Server as NetServer } from 'node:net';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -12,6 +14,7 @@ import type { RpcRouter } from '../contracts';
 import { createRpcRouter } from './router';
 import { startRpcServer, type RpcServerHandle, type RpcServerLimits } from './http-server';
 import { generateToken, writeToken } from './token';
+import { testEndpoint } from '../../../tests/helpers/endpoint';
 
 export interface LogEntryCapture {
   level: 'debug' | 'info' | 'warn' | 'error';
@@ -31,8 +34,26 @@ export function captureLogger(): { log: Logger; entries: LogEntryCapture[] } {
   return { log: make(), entries };
 }
 
-export function shortSocketPath(): string {
-  return join(tmpdir(), `nv-${randomBytes(5).toString('hex')}.sock`);
+/** A fresh endpoint nobody listens on: `\\.\pipe\nova-test-…` on Windows, `<tmpdir>/nv-<random>.sock` elsewhere. */
+export function uniqueEndpoint(): string {
+  return testEndpoint(tmpdir());
+}
+
+/** Lets a plain net/http server listen on `endpoint`; rejects (instead of hanging) when listen fails. */
+export function listenOn(server: NetServer, endpoint: string): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    const onError = (err: Error) => {
+      server.removeListener('listening', onListening);
+      reject(err);
+    };
+    const onListening = () => {
+      server.removeListener('error', onError);
+      resolve();
+    };
+    server.once('error', onError);
+    server.once('listening', onListening);
+    server.listen(endpoint);
+  });
 }
 
 export async function waitUntil(pred: () => boolean, timeoutMs = 3000, stepMs = 10): Promise<void> {
@@ -68,7 +89,7 @@ export async function startTestServer(
 ): Promise<TestServer> {
   const dir = opts.dir ?? mkdtempSync(join(tmpdir(), 'nv-srv-'));
   const tokenPath = join(dir, 'daemon.token');
-  const endpoint = opts.endpoint ?? shortSocketPath();
+  const endpoint = opts.endpoint ?? uniqueEndpoint();
   const { log, entries } = captureLogger();
   const router = createRpcRouter(log, { validateResults: true });
   router.register('daemon.logs', (p) => [{ ts: 1, level: 'info', scope: 'test', msg: `limit=${p.limit}` }]);

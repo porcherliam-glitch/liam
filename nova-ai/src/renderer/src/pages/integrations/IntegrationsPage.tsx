@@ -4,12 +4,12 @@
 import { useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { CircleCheck, CircleX, Download, ExternalLink, FolderSearch, Hand, MonitorUp, RefreshCw, RotateCcw, ShieldAlert, Wrench } from 'lucide-react';
-import type { IntegrationStatus } from '@shared/schemas';
+import type { IntegrationStatus, ProjectKind, ProjectSummary } from '@shared/schemas';
 import type { RpcResult } from '@shared/rpc';
 import { Page } from '../../components/layout/Page';
-import { Badge, Button, Card, CodeBlock, EmptyState, ErrorState, IconButton, LoadingState, SectionHeader } from '../../components/ui';
+import { Badge, Button, Card, CodeBlock, EmptyState, ErrorState, IconButton, LoadingState, SectionHeader, Select } from '../../components/ui';
 import { RelativeTime } from '../../components/common';
-import { useMutation, useNovaEvent, useRpc } from '../../hooks';
+import { useMutation, useNovaEvent, useProjects, useRpc } from '../../hooks';
 import { api } from '../../lib/api';
 import { cn } from '../../lib/cn';
 import { INTEGRATION_CATEGORY, INTEGRATION_NAME, metaOf } from '../../lib/labels';
@@ -20,8 +20,12 @@ import { Notice } from '../settings/shared/ui';
 
 const CATEGORY_ORDER = Object.keys(INTEGRATION_CATEGORY) as Array<IntegrationStatus['category']>;
 
+/** Engines open only projects of their own kind; editors and terminals open every project. */
+const ENGINE_KIND: Record<string, ProjectKind> = { unity: 'unity', godot: 'godot', unreal: 'unreal' };
+
 export default function IntegrationsPage() {
   const integrations = useRpc('integrations.list', { refresh: false });
+  const projects = useProjects();
   const [scanning, setScanning] = useState(false);
   const [installResults, setInstallResults] = useState<Record<string, RpcResult<'integrations.install'>>>({});
 
@@ -88,6 +92,7 @@ export default function IntegrationsPage() {
                       key={i.id}
                       integration={i}
                       installResult={installResults[i.id]}
+                      projects={projects.data ?? []}
                       onChanged={replace}
                       onInstallRequested={(r) => setInstallResults((prev) => ({ ...prev, [i.id]: r }))}
                     />
@@ -104,12 +109,13 @@ export default function IntegrationsPage() {
 
 interface IntegrationCardProps {
   integration: IntegrationStatus;
+  projects: ProjectSummary[];
   installResult: RpcResult<'integrations.install'> | undefined;
   onChanged: (i: IntegrationStatus) => void;
   onInstallRequested: (r: RpcResult<'integrations.install'>) => void;
 }
 
-function IntegrationCard({ integration: i, installResult, onChanged, onInstallRequested }: IntegrationCardProps) {
+function IntegrationCard({ integration: i, projects, installResult, onChanged, onInstallRequested }: IntegrationCardProps) {
   const name = i.name || INTEGRATION_NAME[i.id] || i.id;
   const setPath = useMutation('integrations.setPath', {
     errorToast: 'Der Pfad konnte nicht übernommen werden',
@@ -157,7 +163,7 @@ function IntegrationCard({ integration: i, installResult, onChanged, onInstallRe
                 </Badge>
               )}
               {i.canOpen && i.available && (
-                <Badge tone="info" icon={MonitorUp} title="Kann Projekte direkt öffnen (in den Projekten verfügbar)">
+                <Badge tone="info" icon={MonitorUp} title="Kann Projekte direkt öffnen">
                   Kann Projekte öffnen
                 </Badge>
               )}
@@ -212,6 +218,8 @@ function IntegrationCard({ integration: i, installResult, onChanged, onInstallRe
           </div>
         )}
 
+        {i.canOpen && i.available && <OpenProject integrationId={i.id} name={name} projects={projects} />}
+
         {installResult && (
           <Notice
             tone={installResult.approvalId ? 'info' : 'warning'}
@@ -244,5 +252,35 @@ function IntegrationCard({ integration: i, installResult, onChanged, onInstallRe
         )}
       </footer>
     </Card>
+  );
+}
+
+/** "Projekt in <Werkzeug> öffnen" (integrations.open) for editors, terminals and engines. */
+function OpenProject({ integrationId, name, projects }: { integrationId: string; name: string; projects: ProjectSummary[] }) {
+  const kind = ENGINE_KIND[integrationId];
+  const candidates = projects.filter((p) => !kind || p.kind === kind);
+  const [projectId, setProjectId] = useState('');
+  const open = useMutation('integrations.open', {
+    errorToast: `${name} konnte nicht geöffnet werden`,
+    successToast: (_r, p) => `${projects.find((x) => x.id === p?.projectId)?.name ?? 'Projekt'} wird in ${name} geöffnet`,
+  });
+  if (candidates.length === 0) {
+    return <p className="text-xs text-muted">{kind ? `Kann ${name}-Projekte öffnen – es gibt aber noch keins.` : `Kann Projekte öffnen – es gibt aber noch keins.`}</p>;
+  }
+  return (
+    <div className="flex flex-wrap items-end gap-2">
+      <Select
+        size="sm"
+        label={`Projekt in ${name} öffnen`}
+        value={projectId}
+        onChange={(e) => setProjectId(e.target.value)}
+        placeholder="Projekt wählen …"
+        options={candidates.map((p) => ({ value: p.id, label: p.name }))}
+        containerClassName="min-w-48 flex-1"
+      />
+      <Button size="sm" icon={MonitorUp} loading={open.loading} disabled={!projectId} onClick={() => void open.run({ id: integrationId, projectId })}>
+        Öffnen
+      </Button>
+    </div>
   );
 }

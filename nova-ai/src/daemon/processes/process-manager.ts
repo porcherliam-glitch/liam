@@ -56,6 +56,11 @@ export interface ProcessManagerOptions {
   exitedOutputCache?: number;
   /** POSIX terminal shell override for tests (null = no bash). */
   bashPath?: string | null;
+  /**
+   * Re-reads the Windows PATH before a launch. Default: core/child-env refreshWindowsPath when `platform` is win32,
+   * nothing otherwise. Injectable so an injected platform never runs real host commands (tests of the Windows branch).
+   */
+  refreshPath?: (() => Promise<unknown>) | null;
 }
 
 /** Kinds that count against settings.resources.maxProcesses (dev servers and previews do not). */
@@ -152,6 +157,7 @@ export function createProcessManager(s: Services, opts: ProcessManagerOptions = 
   const closeGraceMs = Math.max(10, opts.closeGraceMs ?? 1000);
   const killWaitMs = (opts.killGraceMs ?? 3000) + 5000;
   const exitedCacheSize = Math.max(1, opts.exitedOutputCache ?? 50);
+  const refreshPath = opts.refreshPath !== undefined ? opts.refreshPath : platform === 'win32' ? () => refreshWindowsPath() : null;
 
   const live = new Map<string, Entry>();
   const exitedOutput = new Map<string, string>();
@@ -241,9 +247,9 @@ export function createProcessManager(s: Services, opts: ProcessManagerOptions = 
   // ------------------------------------------------------------------------------------------------- launch
 
   async function launchWhenAllowed(input: RunCommandInput, prepared: Prepared, waitLimitMs: number, urlPattern: string | null): Promise<Entry> {
-    if (platform === 'win32') {
+    if (refreshPath) {
       // Fresh Machine+User PATH (cached 60 s) so tools installed while NOVA runs are found.
-      await refreshWindowsPath().catch(() => null);
+      await refreshPath().catch(() => null);
     }
     const counted = COUNTED_PROCESS_KINDS.has(input.kind);
     const deadline = Date.now() + waitLimitMs;

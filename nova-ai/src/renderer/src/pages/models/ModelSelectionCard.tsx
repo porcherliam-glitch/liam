@@ -210,7 +210,12 @@ export function ModelSelectionCard({ selection, models, providers }: ModelSelect
                     <li key={refKey(f)} className="rounded-lg border border-border bg-surface-2/50 px-2.5 py-1.5">
                       <div className="flex items-center gap-2">
                         <span className="w-5 shrink-0 text-xs font-semibold text-muted tabular-nums">{i + 1}.</span>
-                        <ModelBadge model={f} local={models.find((m) => m.providerId === f.providerId && m.id === f.modelId)?.local} className="min-w-0" />
+                        <ModelBadge
+                          model={f}
+                          local={models.find((m) => m.providerId === f.providerId && m.id === f.modelId)?.local}
+                          paid={models.find((m) => m.providerId === f.providerId && m.id === f.modelId)?.paid}
+                          className="min-w-0"
+                        />
                         <span className="min-w-0 flex-1 truncate text-[11px] text-muted">{providerById.get(f.providerId)?.name ?? f.providerId}</span>
                         <IconButton icon={ArrowUp} size="sm" label={`${f.modelId} nach oben`} disabled={i === 0} onClick={() => moveFallback(i, -1)} />
                         <IconButton icon={ArrowDown} size="sm" label={`${f.modelId} nach unten`} disabled={i === value.fallbacks.length - 1} onClick={() => moveFallback(i, 1)} />
