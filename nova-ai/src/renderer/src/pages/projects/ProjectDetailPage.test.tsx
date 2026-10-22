@@ -100,6 +100,30 @@ describe('Übersicht', () => {
     await waitFor(() => expect(getMockCalls('projects.update')[0]?.params).toEqual({ id: 'prj_pixel', config: { commands: { test: 'npm run test:ci' }, autoCommit: false } }));
   });
 
+  it("chooses the project's own AI model and goes back to the standard model", async () => {
+    renderProject('/projects/prj_pixel');
+    const section = await card('Befehle und Arbeitsweise');
+    const select = within(section).getByRole('combobox', { name: 'KI-Modell für dieses Projekt' }) as HTMLSelectElement;
+    expect(select.value).toBe('');
+    expect(within(select).getByRole('option', { name: /^Standardmodell verwenden/ })).toBeTruthy();
+    const option = await waitFor(() => {
+      const o = [...select.options].find((x) => x.value && !x.disabled);
+      expect(o).toBeTruthy();
+      return o!;
+    });
+    await userEvent.selectOptions(select, option.value);
+    await userEvent.click(within(section).getByRole('button', { name: 'Speichern' }));
+    await waitFor(() => expect(getMockCalls('projects.update')[0]?.params).toMatchObject({ id: 'prj_pixel', config: { model: { providerId: expect.any(String), modelId: expect.any(String) } } }));
+    const chosen = (getMockCalls('projects.update')[0]?.params as { config: { model: { modelId: string } } }).config.model;
+    expect(option.textContent).toContain(chosen.modelId);
+    await waitFor(() => expect(select.value).toBe(option.value));
+    await waitFor(() => expect(within(section).queryByText('Ungespeicherte Änderungen')).toBeNull());
+    await userEvent.selectOptions(select, '');
+    await within(section).findByText('Ungespeicherte Änderungen');
+    await userEvent.click(within(section).getByRole('button', { name: 'Speichern' }));
+    await waitFor(() => expect(getMockCalls('projects.update')[1]?.params).toEqual({ id: 'prj_pixel', config: { model: null } }));
+  });
+
   it('rejects an invalid budget', async () => {
     renderProject('/projects/prj_pixel');
     const section = await card('Befehle und Arbeitsweise');

@@ -111,6 +111,29 @@ describe('model client – candidate selection', () => {
     expect((await models.resolve('coder', { exclude: [L('b:1b'), L('a:1b')] })).ref).toEqual(L('c:1b'));
   });
 
+  it("puts the project's own model first (all roles) and still falls back along the global chain", async () => {
+    const { s, models, select, ollama } = await setup({ ollamaModels: ['a:1b', 'b:1b', 'p:1b'] });
+    ollama.setDefaultChat(() => ({ content: 'ok' }));
+    select({ coder: L('b:1b'), defaultModel: L('a:1b') });
+    const projects = new Map<string, ModelRef | null>([['M', L('p:1b')], ['N', null], ['X', L('weg:1b')]]);
+    s.projects = { get: (id: string) => (projects.has(id) ? ({ id, config: { model: projects.get(id), monthlyBudgetUsd: null } } as never) : null) } as never;
+    expect((await models.resolve('coder', { projectId: 'M' })).ref).toEqual(L('p:1b'));
+    expect((await models.resolve('planner', { projectId: 'M' })).ref).toEqual(L('p:1b'));
+    expect((await models.chat(chatInput({ projectId: 'M' }))).resolved.ref).toEqual(L('p:1b'));
+    // no own model → the global selection
+    expect((await models.resolve('coder', { projectId: 'N' })).ref).toEqual(L('b:1b'));
+    expect((await models.resolve('coder')).ref).toEqual(L('b:1b'));
+    // the project's model is gone → role override/default instead of failing
+    expect((await models.resolve('planner', { projectId: 'X' })).ref).toEqual(L('a:1b'));
+  });
+
+  it('a project model alone counts as configured (no global default needed)', async () => {
+    const { s, models } = await setup({ ollamaModels: ['p:1b'] });
+    s.projects = { get: (id: string) => (id === 'M' ? ({ id, config: { model: L('p:1b'), monthlyBudgetUsd: null } } as never) : null) } as never;
+    expect((await models.resolve('coder', { projectId: 'M' })).ref).toEqual(L('p:1b'));
+    expect((await caught(models.resolve('coder', { projectId: 'other' }))).code).toBe('NO_MODEL');
+  });
+
   it('never falls back to an unlisted installed model; NO_MODEL lists the reasons', async () => {
     const { models, select } = await setup({ ollamaModels: ['installed:7b'] });
     select({ defaultModel: L('missing:7b'), fallbacks: [{ providerId: 'gone', modelId: 'x' }] });

@@ -2,9 +2,10 @@
 // cloud-data approvals, VRAM fit, paid gating, budget reservations, rate limits and usage recording
 // (contracts.ts ModelClient, SPEC §4.2 ModelClient, §6.2).
 // Key decisions:
-// - Candidates are exactly [preferred, roleOverrides[role], defaultModel, ...fallbacks] (deduped). `preferred` is
-//   only honoured when it is still part of that chain ("if still allowed"), so a model the user removed from the
-//   selection is never used again. Unlisted installed models are never used.
+// - Candidates are exactly [preferred, project model, roleOverrides[role], defaultModel, ...fallbacks] (deduped). The
+//   project model is the project's own choice (config.model, all roles). `preferred` is only honoured when it is
+//   still part of that chain ("if still allowed"), so a model the user removed from the selection is never used
+//   again. Unlisted installed models are never used.
 // - Check order per candidate: provider exists/enabled → paid approved → paid paused → availability (live model list,
 //   cached 30 s, errors 5 s) → pricing → budget (reserve + release dry run) → cloud data approval → (ollama-local
 //   only) VRAM fit (ollama.fit, cached 60 s) and governor.allowedFor. The approval is checked last so the user is
@@ -146,9 +147,19 @@ export function createModelClient(s: Services, options: ModelClientOptions = {})
     rejection: { ref, label: labelOf(ref, cfg), code, reason, ...extra },
   });
 
-  const candidateList = (role: AgentRole, preferred: ModelRef | null | undefined, exclude: Set<string>): { configured: boolean; candidates: ModelRef[] } => {
+  /** The project's own model choice (config.model), if any. */
+  const projectModel = (projectId: string | null): ModelRef | null => {
+    if (!projectId) return null;
+    try {
+      return s.projects.get(projectId)?.config.model ?? null;
+    } catch {
+      return null; // projects service not ready (tests) or project removed meanwhile
+    }
+  };
+
+  const candidateList = (role: AgentRole, preferred: ModelRef | null | undefined, exclude: Set<string>, projectId: string | null): { configured: boolean; candidates: ModelRef[] } => {
     const m = core.settings.section('models');
-    const chain = [m.roleOverrides[role], m.defaultModel, ...m.fallbacks].filter((r): r is ModelRef => !!r && !!r.providerId && !!r.modelId);
+    const chain = [projectModel(projectId), m.roleOverrides[role], m.defaultModel, ...m.fallbacks].filter((r): r is ModelRef => !!r && !!r.providerId && !!r.modelId);
     const listed = new Set(chain.map(refKey));
     const ordered: ModelRef[] = [];
     if (preferred && listed.has(refKey(preferred))) ordered.push(preferred);
@@ -603,7 +614,7 @@ export function createModelClient(s: Services, options: ModelClientOptions = {})
     async resolve(role: AgentRole, opts: ResolveOptions = {}): Promise<ResolvedModel> {
       const projectId = opts.projectId ?? null;
       const exclude = new Set((opts.exclude ?? []).map(refKey));
-      const { configured, candidates } = candidateList(role, opts.preferred, exclude);
+      const { configured, candidates } = candidateList(role, opts.preferred, exclude, projectId);
       if (!configured) throw noModelConfigured();
       const fallbackToLocal = core.settings.section('budgets').fallbackToLocal;
       const rejections: Rejection[] = [];
@@ -627,7 +638,7 @@ export function createModelClient(s: Services, options: ModelClientOptions = {})
         if (input.signal?.aborted) {
           throw providerError('CANCELLED', 'Die Modellanfrage wurde abgebrochen.', { requestSent: false, billable: false, retryable: false }, input.signal.reason);
         }
-        const { configured, candidates } = candidateList(input.role, input.preferred, new Set(failed.keys()));
+        const { configured, candidates } = candidateList(input.role, input.preferred, new Set(failed.keys()), projectId);
         if (!configured) throw noModelConfigured();
         const fallbackToLocal = core.settings.section('budgets').fallbackToLocal;
         const rejections: Rejection[] = [...failed.values()];

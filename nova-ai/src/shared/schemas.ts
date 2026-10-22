@@ -61,6 +61,11 @@ export const ProjectConfigSchema = z.object({
   artifactGlobs: z.array(z.string()),
   /** Engine version the project requires (Unity m_EditorVersion, Godot/Unreal version) – null if not applicable. */
   engineVersion: z.string().nullable(),
+  /**
+   * AI model the agents use for this project (all roles); absent/null = the global selection ("Modelle"). Comes before
+   * the role overrides and the default model in the candidate chain; the approved fallbacks still apply.
+   */
+  model: z.object({ providerId: z.string().min(1), modelId: z.string().min(1) }).nullable().optional(),
 });
 export type ProjectConfig = z.infer<typeof ProjectConfigSchema>;
 

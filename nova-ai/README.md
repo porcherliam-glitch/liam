@@ -48,7 +48,10 @@ Beide Dateien brauchen **Node.js** (Version 22.13 oder neuer). Fehlt es, bieten 
 4. Das Modell als **Standardmodell** festlegen.
 5. Links **Projekte** wählen, **Neues Projekt** klicken und beschreiben, was entstehen soll. NOVA legt einen Plan mit
    Aufgaben an.
-6. Unter **Agenten** und **Aufgaben** siehst du, woran gerade gearbeitet wird. Du kannst jede Aufgabe pausieren,
+6. Unter **Agenten** und **Aufgaben** siehst du, woran gerade gearbeitet wird.
+7. **Eigenes Modell pro Projekt:** Im Projekt den Reiter mit den Einstellungen öffnen, bei **„KI-Modell für dieses
+   Projekt“** ein Modell wählen und **Speichern**. Es gilt für alle Agenten in diesem Projekt; „Standardmodell verwenden“
+   nimmt wieder das Modell aus **Modelle**. Du kannst jede Aufgabe pausieren,
    fortsetzen, stoppen oder ihre Priorität ändern.
 
 ### 3D-Modelle erzeugen (3D-Werkstatt)

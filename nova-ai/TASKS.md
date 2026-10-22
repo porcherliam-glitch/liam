@@ -9,7 +9,7 @@ Grundlage: Commit 54c221f (geprüfter Stand der Vorabversion), danach kam die 3D
 |---|---|
 | Hintergrunddienst | SQLite mit Migrationen, Protokolle mit Schwärzung, Fehlermodell, Benachrichtigungen, lange Vorgänge mit Fortschritt/Abbruch, Einzelinstanz, absturzsicheres Schreiben, authentifizierte Verbindung über Named Pipe (Windows) |
 | Agenten und Arbeitszyklus | Planer, Programmierer, Tester, Prüfer; Pause/Fortsetzen/Stopp, Prioritäten, Abhängigkeiten, Wiederaufnahme nach Neustart |
-| Modelle | Ollama (Status, Modelle, Herunterladen mit Fortschritt, Löschen, Grafikspeicher-Prüfung), OpenAI-kompatibel, Anthropic, Budgets mit Freigabe vor bezahlter Nutzung, freigegebene Ersatzmodelle |
+| Modelle | Ollama (Status, Modelle, Herunterladen mit Fortschritt, Löschen, Grafikspeicher-Prüfung), OpenAI-kompatibel, Anthropic, Budgets mit Freigabe vor bezahlter Nutzung, freigegebene Ersatzmodelle, eigenes KI-Modell pro Projekt |
 | Projekte | 6 Vorlagen (Browserspiel, Webanwendung, Unity, Windows-Desktop .NET, Backend-API, leer), Öffnen/Importieren, Prüfläufe, Live-Vorschau |
 | Sicherheit | Befehlsfilter (fail-closed), Freigaben für Admin-, System-, Lösch-, Außerhalb-Projekt-, Sicherheits-, Veröffentlichungs- und Cloud-Daten-Aktionen, Pfadschutz, DPAPI für Schlüssel |
 | Git und Sicherungen | Prüfpunkte, Wiederherstellen, Datenbanksicherungen mit Aufbewahrung, Export/Import ohne Schlüssel |
@@ -20,7 +20,7 @@ Grundlage: Commit 54c221f (geprüfter Stand der Vorabversion), danach kam die 3D
 
 ## Geprüft
 
-- **Linux:** 1772 Tests grün, Typprüfung ohne Fehler, Ende-zu-Ende-Test des Hintergrunddienstes mit nachgebautem Ollama.
+- **Linux:** 1962 Tests grün, Typprüfung ohne Fehler, Ende-zu-Ende-Test des Hintergrunddienstes mit nachgebautem Ollama.
 - **Echtes Windows (GitHub Actions, windows-latest):** Typprüfung, 1731 Tests, Playwright-Ende-zu-Ende-Test der echten
   App, NSIS-Installer gebaut, still installiert, gestartet (Named Pipe, DPAPI, Werkzeugerkennung inkl. .NET, falsches
   Token abgelehnt, sauberes Beenden, Dienst-Aufsicht, `--stop-daemon`), deinstalliert, Benutzerdaten bleiben erhalten.

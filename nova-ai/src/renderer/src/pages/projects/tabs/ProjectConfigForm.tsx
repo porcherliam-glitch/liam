@@ -1,11 +1,12 @@
-// Editable ProjectConfig (commands, automatic tests/review/commit, budget, allowed commands, conventions, preview,
-// build artifacts). Saves only changed fields as a deep patch (projects.update { config }).
+// Editable ProjectConfig (the project's own AI model, commands, automatic tests/review/commit, budget, allowed commands,
+// conventions, preview, build artifacts). Saves only changed fields as a deep patch (projects.update { config }).
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronRight, Settings2, Undo2 } from 'lucide-react';
-import type { PreviewKind, ProjectConfig, ProjectConfigPatch, ProjectSummary } from '@shared/schemas';
+import type { ModelRef, PreviewKind, ProjectConfig, ProjectConfigPatch, ProjectSummary } from '@shared/schemas';
 import { Button, Card, Input, Select, Switch, Textarea } from '../../../components/ui';
 import { ChipsInput } from '../../../components/project';
-import { useMutation } from '../../../hooks/useRpc';
+import { useMutation, useRpc } from '../../../hooks/useRpc';
+import { ModelSelect } from '../../models/ModelSelect';
 import { validationIssues } from '../../../lib/api';
 import { cn } from '../../../lib/cn';
 import { PREVIEW_KIND } from '../../../lib/labels';
@@ -29,6 +30,7 @@ export const COMMAND_FIELDS: Array<{ key: CommandKey; label: string; placeholder
 const PREVIEW_KINDS: PreviewKind[] = ['browser-dev-server', 'browser-static', 'desktop-run', 'engine-external', 'none'];
 
 interface FormState {
+  model: ModelRef | null;
   commands: Record<CommandKey, string>;
   testAfterChange: boolean;
   reviewChanges: boolean;
@@ -45,6 +47,7 @@ interface FormState {
 
 function fromConfig(c: ProjectConfig): FormState {
   return {
+    model: c.model ?? null,
     commands: Object.fromEntries(COMMAND_FIELDS.map((f) => [f.key, c.commands[f.key] ?? ''])) as Record<CommandKey, string>,
     testAfterChange: c.testAfterChange,
     reviewChanges: c.reviewChanges,
@@ -73,6 +76,7 @@ export function buildConfigPatch(c: ProjectConfig, f: FormState): { patch: Proje
     if (next !== (c.commands[key] ?? null)) commands[key] = next;
   }
   if (Object.keys(commands).length) patch.commands = commands;
+  if (!same(f.model, c.model ?? null)) patch.model = f.model;
   if (f.testAfterChange !== c.testAfterChange) patch.testAfterChange = f.testAfterChange;
   if (f.reviewChanges !== c.reviewChanges) patch.reviewChanges = f.reviewChanges;
   if (f.autoCommit !== c.autoCommit) patch.autoCommit = f.autoCommit;
@@ -103,6 +107,10 @@ export function ProjectConfigForm({ project }: { project: ProjectSummary }) {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [advanced, setAdvanced] = useState(false);
   const update = useMutation('projects.update', { errorToast: false, successToast: 'Einstellungen gespeichert' });
+  const models = useRpc('models.list', { refresh: false }, { refetchOn: ['provider.updated', 'provider.removed', 'ollama.models.changed'] });
+  const providers = useRpc('providers.list', undefined, { refetchOn: ['provider.updated', 'provider.removed'] });
+  const selection = useRpc('models.getSelection', undefined, { refetchOn: ['settings.updated'] });
+  const globalDefault = selection.data?.defaultModel ?? null;
 
   const baseline = useMemo(() => fromConfig(project.config), [project.config]);
   const dirty = !same(form, baseline);
@@ -146,6 +154,20 @@ export function ProjectConfigForm({ project }: { project: ProjectSummary }) {
         }}
       >
         <fieldset className="grid gap-x-4 gap-y-3 md:grid-cols-2">
+          <legend className="sr-only">KI-Modell</legend>
+          <ModelSelect
+            label="KI-Modell für dieses Projekt"
+            value={form.model}
+            onChange={(v) => set('model', v)}
+            models={models.data ?? []}
+            providers={providers.data ?? []}
+            emptyLabel={globalDefault ? `Standardmodell verwenden (${globalDefault.modelId})` : 'Standardmodell verwenden (noch keins gewählt)'}
+            error={errors.model}
+            hint="Gilt für alle Agenten in diesem Projekt. Ist es nicht verfügbar, nimmt NOVA die freigegebenen Ersatzmodelle aus „Modelle“. Bezahlte Cloud-Modelle brauchen weiterhin deine Freigabe und ein Budget."
+          />
+        </fieldset>
+
+        <fieldset className="grid gap-x-4 gap-y-3 border-t border-border pt-4 md:grid-cols-2">
           <legend className="sr-only">Befehle</legend>
           {COMMAND_FIELDS.map((f) => (
             <Input

@@ -1,5 +1,5 @@
 import { Link } from 'react-router';
-import { ArrowRight, Ban, CircleAlert, CircleX, FolderX, ListTodo, LoaderCircle, ShieldQuestion, type LucideIcon } from 'lucide-react';
+import { ArrowRight, Ban, Bot, CircleAlert, CircleX, FolderX, ListTodo, LoaderCircle, ShieldQuestion, type LucideIcon } from 'lucide-react';
 import type { ProjectSummary } from '@shared/schemas';
 import { Badge, ProgressBar, StatusBadge } from '../../components/ui';
 import { RelativeTime } from '../../components/common';
@@ -63,6 +63,13 @@ export function ProjectCard({ project }: { project: ProjectSummary }) {
             ))}
             {project.technologies.length > 4 && <span className="text-subtle">+{project.technologies.length - 4}</span>}
           </p>
+          {project.config.model && (
+            <p className="mt-1 flex min-w-0 items-center gap-1 text-xs text-muted" title="Eigenes KI-Modell dieses Projekts (Projekt-Einstellungen)">
+              <Bot aria-hidden className="h-3.5 w-3.5 shrink-0 text-violet-fg" />
+              <span className="sr-only">KI-Modell:</span>
+              <span className="truncate font-mono">{project.config.model.modelId}</span>
+            </p>
+          )}
         </div>
       </div>
 
