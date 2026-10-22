@@ -120,8 +120,11 @@ describe('ollama provider', () => {
     ollama.queueChat({ content: 'late', delayMs: 2000 });
     const p = ollamaFactory.create(cfg(ollama.url), deps);
     const c = new AbortController();
-    setTimeout(() => c.abort(), 50);
-    const e = (await p.chat({ model: 'm:1b', messages: [{ role: 'user', content: 'x' }], signal: c.signal }).catch((x: unknown) => x)) as NovaError;
+    // abort once the request has really reached the server (a fixed delay is too short on a slow CI machine)
+    const watcher = setInterval(() => {
+      if (ollama!.chatRequests().length > 0) c.abort();
+    }, 5);
+    const e = (await p.chat({ model: 'm:1b', messages: [{ role: 'user', content: 'x' }], signal: c.signal }).catch((x: unknown) => x).finally(() => clearInterval(watcher))) as NovaError;
     expect(e.code).toBe('CANCELLED');
     expect(providerErrorDetails(e)).toMatchObject({ requestSent: true, billable: true });
     const pre = new AbortController();

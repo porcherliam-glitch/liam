@@ -260,10 +260,13 @@ describe('model client – chat and fallback', () => {
   it('a user abort is not retried or recovered', async () => {
     const { models, select, ollama } = await setup({ ollamaModels: ['a:1b', 'b:1b'] });
     select({ defaultModel: L('a:1b'), fallbacks: [L('b:1b')] });
-    ollama.queueChat({ content: 'late', delayMs: 1000 });
+    ollama.queueChat({ content: 'late', delayMs: 5000 });
     const c = new AbortController();
-    setTimeout(() => c.abort(), 50);
-    const e = await caught(models.chat(chatInput({ signal: c.signal })));
+    // abort once the request has really reached the server (a fixed delay is too short on a slow CI machine)
+    const watcher = setInterval(() => {
+      if (ollama.chatRequests().length > 0) c.abort();
+    }, 5);
+    const e = await caught(models.chat(chatInput({ signal: c.signal }))).finally(() => clearInterval(watcher));
     expect(e.code).toBe('CANCELLED');
     expect(ollama.chatRequests()).toHaveLength(1);
   });
@@ -418,10 +421,14 @@ describe('model client – paid models and budget', () => {
     expect(s.budget.usage()[0]).toMatchObject({ inputTokens: 20, outputTokens: 10, costEstimated: true, paid: true });
     expect(s.budget.usage()[0].costUsd).toBeCloseTo(0.03);
 
-    cloud.queueChat({ content: 'late', delayMs: 1000 });
+    cloud.queueChat({ content: 'late', delayMs: 5000 });
     const c = new AbortController();
-    setTimeout(() => c.abort(), 50);
-    const e = await caught(models.chat(chatInput({ messages: [{ role: 'user', content: 'y'.repeat(70) }], signal: c.signal })));
+    const sent = cloud.chatRequests().length;
+    // abort once the request has really reached the server (a fixed delay is too short on a slow CI machine)
+    const watcher = setInterval(() => {
+      if (cloud.chatRequests().length > sent) c.abort();
+    }, 5);
+    const e = await caught(models.chat(chatInput({ messages: [{ role: 'user', content: 'y'.repeat(70) }], signal: c.signal }))).finally(() => clearInterval(watcher));
     expect(e.code).toBe('CANCELLED');
     const aborted = s.budget.usage()[0];
     expect(aborted).toMatchObject({ costEstimated: true, outputTokens: 256, inputTokens: 20 });
