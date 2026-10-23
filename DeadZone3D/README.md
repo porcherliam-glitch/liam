@@ -80,8 +80,10 @@ Batchmode (Windows, im Ordner `DeadZone3D`):
 
 ## Stand der Prüfung
 
-- In der Cloud geprüft: 21 automatische Tests grün (Kartengenerator bitgenau wie die HTML-Version für alle 4 Gebiete,
+- In der Cloud geprüft: 21 Grundtests grün (Kartengenerator bitgenau wie die HTML-Version für alle 4 Gebiete,
   90 Sekunden Spielsimulation auf jedem Gebiet ohne Fehler, Kampf, Extraktion, Tod, „vermisst“ beim Neuladen,
   Speichern mit Sicherung, Händler, Werkstatt, Ausbau, Generator, Laborkarte, Granaten, alle 45 Töne).
+- Dazu 9 Tests für die Funde aus zwei Prüfrunden (Rucksackwechsel ohne Verlust, Beute in den sicheren Behälter,
+  MG-Munition, mitgebrachte Gegenstände zählen nicht als Beute) – zusammen 30 Tests grün.
 - Der Unity-Teil kompiliert fehlerfrei gegen die Unity-Referenzbibliotheken, wurde aber **noch nicht in Unity selbst
   gestartet** (in der Cloud gibt es kein Unity). Beim ersten Öffnen auf dem PC können kleine Anpassungen nötig sein.
