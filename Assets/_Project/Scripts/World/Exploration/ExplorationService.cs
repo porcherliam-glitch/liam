@@ -152,6 +152,26 @@ namespace Aetherfall.World.Exploration
         }
 
         /// <inheritdoc />
+        public MapMarkerChange ToggleMarker(float x, float z, int symbol, float pickRadius)
+        {
+            ExplorationState state = ActiveState;
+            if (state == null)
+            {
+                return MapMarkerChange.None;
+            }
+
+            MapMarkerChange change = state.ToggleMarker(x, z, symbol, pickRadius);
+            if (change == MapMarkerChange.Added || change == MapMarkerChange.Removed)
+            {
+                Log.Info(LogCategory.World, "Own marker " + (change == MapMarkerChange.Added ? "set" : "removed") + " at (" + x.ToString("0") + ", " +
+                                            z.ToString("0") + "), " + state.Markers.Count + " on '" + state.Map.MapId + "'.");
+                Bump();
+            }
+
+            return change;
+        }
+
+        /// <inheritdoc />
         public void RevealAll()
         {
             if (ActiveState != null && ActiveState.Fog.RevealAll() > 0)

@@ -63,6 +63,15 @@ namespace Aetherfall.EditorTools.World
         /// <summary>Aether wolf pelt (GDD 02 quest "Woelfe vom Nordhang").</summary>
         public const string AetherPeltId = "item.material.wolfspelz_aether";
 
+        /// <summary>Blutwurz, a common meadow herb (S30; GDD 02 11.5 quest 5).</summary>
+        public const string BloodrootHerbId = "item.herb.blutwurz";
+
+        /// <summary>Rissmoos, only at the rim of the rift (S30).</summary>
+        public const string RiftMossHerbId = "item.herb.rissmoos";
+
+        /// <summary>Nachtschattenblüte, blooms only at night (S30).</summary>
+        public const string NightshadeHerbId = "item.herb.nachtschattenbluete";
+
         private const string Weapons = "/Weapons";
         private const string ArmorFolder = "/Armor";
         private const string JewelryFolder = "/Jewelry";
@@ -234,6 +243,13 @@ namespace Aetherfall.EditorTools.World
             Simple(Materials, "Wolfsfleisch", WolfMeatId, "Wolfsfleisch", ItemCategory.Material, EquipKind.None, 99, 0.5f, 2f, ItemRarity.Common);
             Simple(Materials, "Wolfspelz_Aether", AetherPeltId, "Aether-Wolfspelz", ItemCategory.Material, EquipKind.None, 99, 1f, 15f,
                 ItemRarity.Uncommon);
+            // S30 herbs (GDD 04 0.3/117: materials stack 99, 0.05 kg; values Vorschlag 2 / 6 / 8 gold).
+            Herb("Kraut_Blutwurz", BloodrootHerbId, "Blutwurz", 2f, ItemRarity.Common,
+                "Eine rote Wurzel mit kräftigem Saft. Kräuterkundige brauen daraus Heiltränke.");
+            Herb("Kraut_Rissmoos", RiftMossHerbId, "Rissmoos", 6f, ItemRarity.Uncommon,
+                "Bläulich schimmerndes Moos vom Rand des Risses. Es fühlt sich kühl an und summt leise.");
+            Herb("Kraut_Nachtschattenbluete", NightshadeHerbId, "Nachtschattenblüte", 8f, ItemRarity.Uncommon,
+                "Eine tiefviolette Blüte, die sich nur nachts öffnet. Giftig, in kleinen Mengen heilsam.");
             Simple(Misc, "Ballaststein", Aetherfall.DevTools.InventoryDebugOverlay.BallastItemId, "Ballaststein (Test, 25 kg)", ItemCategory.Misc,
                 EquipKind.None, 10, 25f, 0f, ItemRarity.Common);
         }
@@ -303,6 +319,15 @@ namespace Aetherfall.EditorTools.World
             TestGroundSerialized.Set(so, "restoreMana", mana, _report);
             so.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(item);
+        }
+
+        private void Herb(string file, string id, string name, float value, ItemRarity rarity, string description)
+        {
+            Item(TestGroundPaths.ItemFolder + Materials + "/" + file + ".asset", so =>
+            {
+                Common(so, id, name, ItemCategory.Material, EquipKind.None, 99, 0.05f, value, rarity);
+                TestGroundSerialized.Set(so, "description", description, _report);
+            });
         }
 
         private void Simple(string folder, string file, string id, string name, ItemCategory category, EquipKind kind, int stackSize, float weight,

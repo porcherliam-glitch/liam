@@ -58,6 +58,12 @@ namespace Aetherfall.UI.Framework
         }
 
         /// <inheritdoc />
+        public virtual bool TryNavigate(NavDirection direction)
+        {
+            return false;
+        }
+
+        /// <inheritdoc />
         public virtual bool TryAdjust(int index, int delta)
         {
             return false;
@@ -65,6 +71,16 @@ namespace Aetherfall.UI.Framework
 
         /// <inheritdoc />
         public abstract void Submit(int index);
+
+        /// <summary>
+        /// A click confirmed an item (default: like <see cref="Submit"/>). Screens whose confirm button has a second meaning
+        /// (the map cursor) tell the click on an item apart here.
+        /// </summary>
+        /// <param name="index">Item index.</param>
+        public virtual void PointerSubmit(int index)
+        {
+            Submit(index);
+        }
 
         /// <inheritdoc />
         public virtual void Tab(int delta)

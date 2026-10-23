@@ -83,18 +83,28 @@ Ziel: ein Teil des Eichentals (~1,1 km²), alle 8 Beispiel-Quests, etwa 3,5–4 
   - Erledigt: Fels, Ranken, Leitern, Rastpunkte, Ausdauer, Klettersprung, Zittern und Absturz, Wachturm Grauwacht mit Kletterpfad (vorläufig am Westrand); offen: Kletter-Kamera, Animation, Aussichtspunkt-Funktion Fels, Ranken, Leitern, Ausdauer, Klettersprung. Krähennest der Grauwacht als Kletterpassage.
 - [x] **Untersuchen, Aether-Sicht, Spuren (S37):** – 2026-10-15, Commit 06b9c6c
   - Erledigt: R halten lässt Hinweise und Spuren in 5 m leuchten (Weide, Runen, Spurknoten, Gruft-Tafeln), HUD-Rand und Zähler, Aether-Sicht (40 m, türkis, nur Gehen) per Welt-Flag; offen: Aether-Sicht erlernen (HQ 4), verborgene Wege in der Welt Detektiv-Modus nach GDD 02, für Quest 2 und 3
-- [ ] **Weltkarte und Erkundung (S34, S63, S60):**
+- [x] **Weltkarte und Erkundung (S34, S63, S60):** – 2026-10-16, Commits e29c1e4, 537ce45, 3202bee und 7bfed6a
+  - Teil 4 erledigt (2026-10-16, Commit 7bfed6a): eigene Markierungen (Zeiger mit X/F, 6 Symbole, Mausklick, höchstens 50, gespeichert, 5 nächste im Kompass)
+  - Später (Stufe B): 3 Zoomstufen, Filter, Notizen und Farbwahl je Markierung, Kamerafahrt am Aussichtspunkt, Option „Schnellreise nur zwischen Wegpunkten“, Erkundungsmodus
+  - Teil 3 erledigt (2026-10-16, Commit 3202bee): Kompass mit Questmarkern (Fokus mit Entfernung, Kategorie-Farben, verfolgte Quests, Suchgebiet, Orte, „?“, Gruft-Eingang), Questziele auf der Karte
   - Teil 2 erledigt (2026-10-16, Commit 537ce45): Schnellreise über die Karte (Reiseziele mit Reisezeit, Zeitsprung der Spieluhr, Sperren, Autospeichern)
   - Teil 1 erledigt (2026-10-15, Commit e29c1e4): Karte (M) mit gemaltem Kartenbild, Nebel, entdeckten Orten und „?“, Aussichtspunkte Krähennest und Rabenfels-Spitze, Speichern im Abschnitt world
   - Karte mit Nebel, Aussichtspunkte, eigene Marker
   - Kompass mit Questmarkern
   - Schnellreise zwischen Wegpunkten (S50), die Spieluhr springt um die Reisedauer
-- [ ] **Tag/Nacht (S35):** Licht folgt der Uhr, Lichtwert für die Schleich-KI
+- [x] **Tag/Nacht (S35):** Licht folgt der Uhr, Lichtwert für die Schleich-KI – 2026-10-16, Commit f7687c5
+  - Erledigt: Sonne und Mond nach der Uhr, 11 Tageszeit-Schlüssel aus der Layout-Datei, Feuer und Fenster, Gruft-Ausgänge, Lichtwert für die Schleich-KI (Tag 1,0 / Dämmerung 0,7 / Nacht 0,4 / am Feuer 0,9), Ereignis `DayPhaseChanged`, Rundgang `tagnacht`
+  - Später (Stufe B): Wetter, Fackel und Laternen, Sterne, Nachbearbeitung, Konsole `set_time`; jetzt möglich: Glutfang schläft tagsüber, Nacht-Skelette, Nacht-Erfahrung ×1,25
 - [ ] **Musik und Ambience (S57):**
   - CC0-Musik für Erkundung, Spannung, Kampf und Boss mit Überblendung
   - Umgebungsgeräusche, Schritte, Kampfgeräusche, Audio-Mixer
-- [ ] **Zwischensequenzen (S58):** Prolog-Sequenz von „Asche über Eichental“ mit „Überspringen halten“, Dialogkamera (Schuss/Gegenschuss)
-- [ ] **Sammeln (S30, Teil):** Kräuter-Sammelpunkte mit Respawn, für „Das Kraut der Kräuterfrau“
+- [x] **Zwischensequenzen (S58):** Prolog-Sequenz von „Asche über Eichental“ mit „Überspringen halten“, Dialogkamera (Schuss/Gegenschuss) – 2026-10-16, Commits ed06004 und 8bda0e7
+  - Teil 1 erledigt (2026-10-16): Prolog-Zwischensequenz cs.prolog.erwachen mit Kinobalken, Untertiteln und „Überspringen halten“, Rundgang `zwischensequenz`
+  - Teil 2 erledigt: Dialogkamera mit Eröffnung, Schuss, Gegenschuss und Nah, 180°-Regel, Schnittregeln aus GDD 02 12.6
+  - Später (Stufe B): Zwischensequenzen bei s40/s50, Musik in Zwischensequenzen, Pause in Zwischensequenzen, Begleiter-Einwürfe und Gruppen-Einstellungen der Dialogkamera
+- [x] **Sammeln (S30, Teil):** Kräuter-Sammelpunkte mit Respawn, für „Das Kraut der Kräuterfrau“ – 2026-10-16, Commit 46bcbd5
+  - Erledigt: 12 Sammelpunkte (6 Blutwurz, 2 Nachtschattenblüten auf der neuen Kräuterwiese, 4 Rissmoos am Riss-Rand), 1–3 Stück je Pflanze, Nachwachsen nach 1 oder 3 Spieltagen nur ab 50 m Abstand, Nachtschatten nur 22–4 Uhr, Speichern und Laden, Rundgang `sammeln`
+  - Später (Stufe B): Beruf Kräuterkunde (Stufen, Erfahrung, Samen, Sichel), Glitzern ab 10 m, Erz und Holz; die Quest selbst mit Alwine kommt mit 1b
 - [ ] **Optionen und Barrierefreiheit (S11, S12)** nach GDD 05, 4.2:
   - Untertitel, Farbenblind-Modi, Halten statt Drücken, Wackeln aus, UI-Größe, Schwierigkeit
   - Grafik-Presets, Auflösung, FPS-Limit, V-Sync

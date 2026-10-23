@@ -25,6 +25,8 @@ namespace Aetherfall.AI
         [Tooltip("Regions-ID (leer, bis es das Welt-System gibt).")]
         [SerializeField] private string regionId = "";
 
+        private readonly WorldMarkerHandle _typeMarker = new WorldMarkerHandle();
+        private readonly WorldMarkerHandle _uniqueMarker = new WorldMarkerHandle();
         private IEventBus _eventBus;
         private bool _subscribed;
 
@@ -42,6 +44,12 @@ namespace Aetherfall.AI
             try
             {
                 _eventBus = await Services.WaitForAsync<IEventBus>(destroyCancellationToken);
+                _typeMarker.Connect(Services.Locator);
+                _uniqueMarker.Connect(Services.Locator);
+
+                // After the boot every Awake has run: the combatant has its unique id and its health now.
+                Subscribe();
+                ShowMarkers();
             }
             catch (OperationCanceledException)
             {
@@ -55,27 +63,67 @@ namespace Aetherfall.AI
 
         private void OnEnable()
         {
-            Health health = combatant != null ? combatant.Health : null;
-            if (health != null && !_subscribed)
-            {
-                health.Died += OnDied;
-                _subscribed = true;
-            }
+            Subscribe();
+            ShowMarkers();
         }
 
         private void OnDisable()
         {
+            HideMarkers();
             Health health = combatant != null ? combatant.Health : null;
             if (health != null && _subscribed)
             {
                 health.Died -= OnDied;
+                health.Revived -= OnRevived;
                 _subscribed = false;
             }
         }
 
+        private void Subscribe()
+        {
+            Health health = combatant != null ? combatant.Health : null;
+            if (health != null && !_subscribed && isActiveAndEnabled)
+            {
+                health.Died += OnDied;
+                health.Revived += OnRevived;
+                _subscribed = true;
+            }
+        }
+
+        private void ShowMarkers()
+        {
+            // Compass and map find the living enemy: under its type, and under its unique id, which "Töte bestimmten" matches
+            // for named enemies such as boss.eichental.glutfang or boss.eichental.rissbrut_prolog (EnemyKilled.UniqueId).
+            Health health = combatant != null ? combatant.Health : null;
+            if (!isActiveAndEnabled || (health != null && health.IsDead))
+            {
+                return;
+            }
+
+            string type = TypeId;
+            string unique = combatant != null ? combatant.CombatantId : string.Empty;
+            _typeMarker.Show(type, transform);
+            _uniqueMarker.Show(unique != type ? unique : string.Empty, transform);
+        }
+
+        private void HideMarkers()
+        {
+            _typeMarker.Hide();
+            _uniqueMarker.Hide();
+        }
+
+        private void OnRevived()
+        {
+            // A respawn enables the enemy while it is still dead and revives it afterwards (EnemyController.ResetToAnchor).
+            ShowMarkers();
+        }
+
+        private string TypeId => definition != null ? definition.EnemyTypeId : combatant != null ? combatant.TypeId : string.Empty;
+
         private void OnDied(DamageInfo killingDamage)
         {
-            string type = definition != null ? definition.EnemyTypeId : combatant.TypeId;
+            HideMarkers();
+            string type = TypeId;
             string variant = definition != null ? definition.VariantId : string.Empty;
             string loot = definition != null ? definition.LootTableId : string.Empty;
             int level = definition != null ? definition.Level : combatant.Level;

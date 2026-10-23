@@ -33,6 +33,7 @@ namespace Aetherfall.World
         private readonly AreaPresence<Collider> _presence = new AreaPresence<Collider>();
         private Collider _zone;
         private Func<Collider, bool> _stillInside;
+        private readonly WorldMarkerHandle _marker = new WorldMarkerHandle();
         private IEventBus _eventBus;
 
         /// <summary>Location id of the zone.</summary>
@@ -63,6 +64,7 @@ namespace Aetherfall.World
             try
             {
                 _eventBus = await Services.WaitForAsync<IEventBus>(destroyCancellationToken);
+                _marker.Connect(Services.Locator);
             }
             catch (OperationCanceledException)
             {
@@ -74,8 +76,15 @@ namespace Aetherfall.World
             }
         }
 
+        private void OnEnable()
+        {
+            // "Gehe zu" targets that are not on the region map (crypt rooms, a door) are found through the marker registry.
+            _marker.Show(AreaId, transform);
+        }
+
         private void OnDisable()
         {
+            _marker.Hide();
             _presence.Reset();
         }
 

@@ -30,6 +30,11 @@ namespace Aetherfall.World
             return path + "[" + index.ToString(CultureInfo.InvariantCulture) + "]";
         }
 
+        public void Error(string path, string message)
+        {
+            _report.Error(path, message);
+        }
+
         public void Known(JsonNode node, string path, params string[] keys)
         {
             if (node == null || node.Kind != JsonNodeKind.Object)
@@ -302,6 +307,19 @@ namespace Aetherfall.World
                 }
 
                 values[i] = node.Items[i].NumberValue;
+            }
+
+            return values;
+        }
+
+        public int[] Integers(JsonNode parent, string key, string path, int count)
+        {
+            double[] raw = Numbers(parent, key, path, count);
+            string full = Join(path, key);
+            var values = new int[count];
+            for (int i = 0; i < count; i++)
+            {
+                values[i] = ToInteger(raw[i], Index(full, i));
             }
 
             return values;

@@ -67,6 +67,12 @@ namespace Aetherfall.EditorTools.World
         /// <summary>Transform of the PlayerSpawnPoint.</summary>
         public Transform SpawnPoint { get; set; }
 
+        /// <summary>Lights where daylight falls in (S35: they follow the valley's sun).</summary>
+        public List<Light> DaylightLights { get; } = new List<Light>();
+
+        /// <summary>Exit openings with the daylight material (S35: night material at night).</summary>
+        public List<Renderer> DaylightRenderers { get; } = new List<Renderer>();
+
         /// <summary>Interactable layer or 0.</summary>
         public int InteractLayerOrDefault => InteractableLayer >= 0 ? InteractableLayer : 0;
 

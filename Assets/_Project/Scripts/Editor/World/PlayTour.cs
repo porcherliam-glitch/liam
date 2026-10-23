@@ -90,7 +90,9 @@ namespace Aetherfall.EditorTools.World
             string mode = ReadArgument("-tourMode");
             _outputFolder = Path.Combine(projectRoot, "Logs", "Tour", Path.GetFileNameWithoutExtension(scenePath) +
                                                                       (mode == "quests" ? "_Quests" : mode == "magier" ? "_Magier" :
-                                                                          mode == "waffen" ? "_Waffen" : mode == "klettern" ? "_Klettern" : mode == "karte" ? "_Karte" : string.Empty));
+                                                                          mode == "waffen" ? "_Waffen" : mode == "klettern" ? "_Klettern" : mode == "karte" ? "_Karte" :
+                                                                          mode == "tagnacht" ? "_TagNacht" : mode == "zwischensequenz" ? "_Zwischensequenz" : mode == "sammeln" ? "_Sammeln" :
+                                                                          string.Empty));
             Directory.CreateDirectory(_outputFolder);
             foreach (string old in Directory.GetFiles(_outputFolder))
             {
@@ -123,10 +125,25 @@ namespace Aetherfall.EditorTools.World
                 Steps.Enqueue(() => WaitForState(GameState.MainMenu, ServiceTimeoutSeconds));
                 Steps.Enqueue(() => Wait(2.0));
                 Steps.Enqueue(() => Capture("01_hauptmenue", null));
+                if (ReadArgument("-tourMode") == "zwischensequenz")
+                {
+                    Steps.Enqueue(StartCutsceneWatch);
+                }
+
                 Steps.Enqueue(StartNewGame);
             }
 
-            Steps.Enqueue(() => WaitForState(GameState.Playing, PlayingTimeoutSeconds));
+            // A new game opens with the prologue cutscene (S58): the cutscene tour watches it, every other tour skips it.
+            Steps.Enqueue(() => WaitForPlayingOrCutscene(PlayingTimeoutSeconds));
+            if (ReadArgument("-tourMode") == "zwischensequenz")
+            {
+                // Prologue cutscene, skipping, the dialogue camera (PlayTour.Cutscene.cs).
+                BuildCutscenePlan();
+                return;
+            }
+
+            Steps.Enqueue(SkipRunningCutscene);
+            Steps.Enqueue(() => WaitForState(GameState.Playing, 15.0));
             Steps.Enqueue(() => Wait(4.0));
             if (ReadArgument("-tourMode") == "quests")
             {
@@ -153,6 +170,20 @@ namespace Aetherfall.EditorTools.World
             {
                 // World map, discovering places, the crow's nest viewpoint and saving the fog (PlayTour.Map.cs).
                 BuildMapPlan();
+                return;
+            }
+
+            if (ReadArgument("-tourMode") == "tagnacht")
+            {
+                // Day and night: the light at five times of day, the stealth light factor, saving at night, the crypt (PlayTour.DayNight.cs).
+                BuildDayNightPlan();
+                return;
+            }
+
+            if (ReadArgument("-tourMode") == "sammeln")
+            {
+                // Herb gathering points: gather, day and night, save and load, regrowth (PlayTour.Gathering.cs).
+                BuildGatheringPlan();
                 return;
             }
 

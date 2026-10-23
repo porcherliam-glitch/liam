@@ -45,6 +45,7 @@ namespace Aetherfall.World.Dungeons
         private ISceneLoader _scenes;
         private IWorldTravelService _travel;
         private IWorldAutosave _autosave;
+        private readonly WorldMarkerHandle _marker = new WorldMarkerHandle();
         private bool _travelling;
 
         /// <summary>Stable id.</summary>
@@ -100,6 +101,18 @@ namespace Aetherfall.World.Dungeons
             return true;
         }
 
+        private void OnEnable()
+        {
+            // GDD 02 7.3 "Mehrstufige Wege": quest stages inside a dungeon name the entrance as a marker target, so the compass
+            // outside points at the entrance first.
+            _marker.Show(ObjectId, transform);
+        }
+
+        private void OnDisable()
+        {
+            _marker.Hide();
+        }
+
         private async void Start()
         {
             // async void is the documented exception for Unity event adapters (architecture 15.2, rule 10).
@@ -112,6 +125,7 @@ namespace Aetherfall.World.Dungeons
                     locator.TryGet(out _scenes);
                     locator.TryGet(out _travel);
                     locator.TryGet(out _autosave);
+                    _marker.Connect(locator);
                 }
 
                 if (_scenes == null)

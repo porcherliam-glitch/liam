@@ -1,0 +1,181 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e9c72a8dad39fa94ca2ce2598f79aac8, type: 3}
+  m_Name: DN_Eichental
+  m_EditorClassIdentifier: Aetherfall.World::Aetherfall.World.DayNightProfile
+  sunPath:
+    sunriseHour: 5.5
+    sunsetHour: 20.5
+    noonElevation: 52
+    nightDepth: 40
+    riseAzimuth: 90
+    setAzimuth: 270
+    moonColor: {r: 0.6156863, g: 0.7058824, b: 0.9098039, a: 1}
+    moonIntensity: 0.22
+    newMoonFactor: 0.25
+    moonShadowStrength: 0.55
+    moonMinElevation: 12
+  keys:
+  - hour: 0
+    sunColor: {r: 1, g: 0.5411765, b: 0.36078432, a: 1}
+    sunIntensity: 0
+    ambientSky: {r: 0.17254902, g: 0.24313726, b: 0.4, a: 1}
+    ambientEquator: {r: 0.14901961, g: 0.1882353, b: 0.28627452, a: 1}
+    ambientGround: {r: 0.078431375, g: 0.08627451, b: 0.11764706, a: 1}
+    fogColor: {r: 0.10980392, g: 0.14117648, b: 0.21176471, a: 1}
+    fogDensity: 0.003
+    skyTint: {r: 0.13333334, g: 0.19215687, b: 0.30980393, a: 1}
+    skyExposure: 0.22
+    atmosphere: 0.7
+    sunSize: 0.025
+    reflection: 0.2
+    localLights: 1
+  - hour: 4.5
+    sunColor: {r: 1, g: 0.5411765, b: 0.36078432, a: 1}
+    sunIntensity: 0
+    ambientSky: {r: 0.20392157, g: 0.27450982, b: 0.43137255, a: 1}
+    ambientEquator: {r: 0.18039216, g: 0.20784314, b: 0.3137255, a: 1}
+    ambientGround: {r: 0.08627451, g: 0.09411765, b: 0.12156863, a: 1}
+    fogColor: {r: 0.14901961, g: 0.18039216, b: 0.26666668, a: 1}
+    fogDensity: 0.0032
+    skyTint: {r: 0.16470589, g: 0.22745098, b: 0.36078432, a: 1}
+    skyExposure: 0.3
+    atmosphere: 0.8
+    sunSize: 0.025
+    reflection: 0.25
+    localLights: 1
+  - hour: 5.5
+    sunColor: {r: 1, g: 0.6039216, b: 0.4, a: 1}
+    sunIntensity: 0.6
+    ambientSky: {r: 0.41960785, g: 0.4862745, b: 0.6431373, a: 1}
+    ambientEquator: {r: 0.72156864, g: 0.5568628, b: 0.47058824, a: 1}
+    ambientGround: {r: 0.22745098, g: 0.1882353, b: 0.1882353, a: 1}
+    fogColor: {r: 0.7254902, g: 0.627451, b: 0.5647059, a: 1}
+    fogDensity: 0.004
+    skyTint: {r: 0.49803922, g: 0.57254905, b: 0.74509805, a: 1}
+    skyExposure: 0.75
+    atmosphere: 1.4
+    sunSize: 0.05
+    reflection: 0.5
+    localLights: 0.9
+  - hour: 6.5
+    sunColor: {r: 1, g: 0.76862746, b: 0.5411765, a: 1}
+    sunIntensity: 0.9
+    ambientSky: {r: 0.5568628, g: 0.64705884, b: 0.78431374, a: 1}
+    ambientEquator: {r: 0.8156863, g: 0.69803923, b: 0.5764706, a: 1}
+    ambientGround: {r: 0.3019608, g: 0.25490198, b: 0.20392157, a: 1}
+    fogColor: {r: 0.8392157, g: 0.75686276, b: 0.6509804, a: 1}
+    fogDensity: 0.0034
+    skyTint: {r: 0.4509804, g: 0.5921569, b: 0.7764706, a: 1}
+    skyExposure: 1
+    atmosphere: 1.2
+    sunSize: 0.045
+    reflection: 0.8
+    localLights: 0.7
+  - hour: 8
+    sunColor: {r: 1, g: 0.8901961, b: 0.7372549, a: 1}
+    sunIntensity: 1.2
+    ambientSky: {r: 0.6313726, g: 0.7294118, b: 0.84313726, a: 1}
+    ambientEquator: {r: 0.7921569, g: 0.7294118, b: 0.6, a: 1}
+    ambientGround: {r: 0.36078432, g: 0.29411766, b: 0.21568628, a: 1}
+    fogColor: {r: 0.8117647, g: 0.75686276, b: 0.65882355, a: 1}
+    fogDensity: 0.0026
+    skyTint: {r: 0.43529412, g: 0.58431375, b: 0.76862746, a: 1}
+    skyExposure: 1.2
+    atmosphere: 1
+    sunSize: 0.04
+    reflection: 1
+    localLights: 0.6
+  - hour: 13
+    sunColor: {r: 1, g: 0.9490196, b: 0.87058824, a: 1}
+    sunIntensity: 1.45
+    ambientSky: {r: 0.6627451, g: 0.7647059, b: 0.88235295, a: 1}
+    ambientEquator: {r: 0.7764706, g: 0.73333335, b: 0.63529414, a: 1}
+    ambientGround: {r: 0.37254903, g: 0.31764707, b: 0.25490198, a: 1}
+    fogColor: {r: 0.7921569, g: 0.7921569, b: 0.74509805, a: 1}
+    fogDensity: 0.0022
+    skyTint: {r: 0.41568628, g: 0.5764706, b: 0.78431374, a: 1}
+    skyExposure: 1.25
+    atmosphere: 1
+    sunSize: 0.04
+    reflection: 1
+    localLights: 0.6
+  - hour: 16.5
+    sunColor: {r: 1, g: 0.89411765, b: 0.7294118, a: 1}
+    sunIntensity: 1.35
+    ambientSky: {r: 0.6392157, g: 0.7294118, b: 0.8392157, a: 1}
+    ambientEquator: {r: 0.7882353, g: 0.7176471, b: 0.5764706, a: 1}
+    ambientGround: {r: 0.36078432, g: 0.2901961, b: 0.21176471, a: 1}
+    fogColor: {r: 0.8039216, g: 0.7490196, b: 0.6431373, a: 1}
+    fogDensity: 0.0024
+    skyTint: {r: 0.42745098, g: 0.5803922, b: 0.77254903, a: 1}
+    skyExposure: 1.2
+    atmosphere: 1.05
+    sunSize: 0.04
+    reflection: 1
+    localLights: 0.6
+  - hour: 18.166666
+    sunColor: {r: 1, g: 0.83137256, b: 0.6039216, a: 1}
+    sunIntensity: 1.3
+    ambientSky: {r: 0.62352943, g: 0.7176471, b: 0.827451, a: 1}
+    ambientEquator: {r: 0.78039217, g: 0.7019608, b: 0.5568628, a: 1}
+    ambientGround: {r: 0.3529412, g: 0.28627452, b: 0.20784314, a: 1}
+    fogColor: {r: 0.8039216, g: 0.7254902, b: 0.60784316, a: 1}
+    fogDensity: 0.0026
+    skyTint: {r: 0.43529412, g: 0.58431375, b: 0.76862746, a: 1}
+    skyExposure: 1.2
+    atmosphere: 1.1
+    sunSize: 0.04
+    reflection: 0.9
+    localLights: 0.7
+  - hour: 19.5
+    sunColor: {r: 1, g: 0.6039216, b: 0.36078432, a: 1}
+    sunIntensity: 0.9
+    ambientSky: {r: 0.4862745, g: 0.53333336, b: 0.68235296, a: 1}
+    ambientEquator: {r: 0.7764706, g: 0.5411765, b: 0.42352942, a: 1}
+    ambientGround: {r: 0.27058825, g: 0.21176471, b: 0.17254902, a: 1}
+    fogColor: {r: 0.74509805, g: 0.5568628, b: 0.47058824, a: 1}
+    fogDensity: 0.003
+    skyTint: {r: 0.48235294, g: 0.49411765, b: 0.6862745, a: 1}
+    skyExposure: 0.85
+    atmosphere: 1.5
+    sunSize: 0.05
+    reflection: 0.6
+    localLights: 0.85
+  - hour: 20.5
+    sunColor: {r: 1, g: 0.47843137, b: 0.28235295, a: 1}
+    sunIntensity: 0.6
+    ambientSky: {r: 0.29803923, g: 0.34509805, b: 0.50980395, a: 1}
+    ambientEquator: {r: 0.42352942, g: 0.32941177, b: 0.40784314, a: 1}
+    ambientGround: {r: 0.14117648, g: 0.11764706, b: 0.13333334, a: 1}
+    fogColor: {r: 0.3529412, g: 0.3137255, b: 0.40784314, a: 1}
+    fogDensity: 0.0032
+    skyTint: {r: 0.2901961, g: 0.30588236, b: 0.47058824, a: 1}
+    skyExposure: 0.45
+    atmosphere: 1.2
+    sunSize: 0.04
+    reflection: 0.35
+    localLights: 1
+  - hour: 21.5
+    sunColor: {r: 1, g: 0.5411765, b: 0.36078432, a: 1}
+    sunIntensity: 0
+    ambientSky: {r: 0.17254902, g: 0.24313726, b: 0.4, a: 1}
+    ambientEquator: {r: 0.14901961, g: 0.1882353, b: 0.28627452, a: 1}
+    ambientGround: {r: 0.078431375, g: 0.08627451, b: 0.11764706, a: 1}
+    fogColor: {r: 0.10980392, g: 0.14117648, b: 0.21176471, a: 1}
+    fogDensity: 0.003
+    skyTint: {r: 0.13333334, g: 0.19215687, b: 0.30980393, a: 1}
+    skyExposure: 0.22
+    atmosphere: 0.7
+    sunSize: 0.025
+    reflection: 0.2
+    localLights: 1

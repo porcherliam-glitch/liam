@@ -88,10 +88,12 @@ namespace Aetherfall.EditorTools.World
             items.AssignWolfLoot(combat.Wolf, combat.AetherWolf);
             TestGroundAssets.EnsureItemInstallersInBootConfig(items.Catalog, items.StartingEquipment, report);
             TestGroundAssets.EnsureDialogueInstallersInBootConfig(report);
+            TestGroundAssets.EnsureCinematicsInstallerInBootConfig(report);
             TestGroundNpcBuilder.CreateAssets(items.Catalog, report);
             MiniSliceAssets.CreateAll(items.Catalog, report);
             TestGroundAssets.EnsureNarrativeInstallersInBootConfig(report, applyTestGroundStartLevel);
             TestGroundAssets.EnsureMerchantInstallerInBootConfig(report);
+            TestGroundAssets.EnsureGatheringInstallerInBootConfig(report);
             if (applyTestGroundStartLevel)
             {
                 MiniSliceProfile.ApplyTestGround(items.StartingEquipment, report);

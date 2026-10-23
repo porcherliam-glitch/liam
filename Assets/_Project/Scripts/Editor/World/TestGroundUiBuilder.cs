@@ -86,7 +86,8 @@ namespace Aetherfall.EditorTools.World
             new KeyValuePair<string, string>("journalLineLayout", "JournalLine.uxml"),
             new KeyValuePair<string, string>("attributeRowLayout", "AttributeRow.uxml"),
             new KeyValuePair<string, string>("valueRowLayout", "ValueRow.uxml"),
-            new KeyValuePair<string, string>("dialogueLayout", "Dialogue.uxml")
+            new KeyValuePair<string, string>("dialogueLayout", "Dialogue.uxml"),
+            new KeyValuePair<string, string>("cutsceneLayout", "Cutscene.uxml")
         };
 
         /// <summary>Runs the UI setup alone (asks first).</summary>
@@ -156,7 +157,8 @@ namespace Aetherfall.EditorTools.World
 
             if (!TestGroundAssets.EnsureInstallerInBootConfig<UIInstaller>(UIInstallerPath, report, typeof(EventBusInstaller), typeof(GameStateInstaller),
                     typeof(InputInstaller), typeof(SaveInstaller), typeof(GameTimeInstaller), typeof(SceneLoaderInstaller), typeof(InventoryInstaller),
-                    typeof(CombatInstaller), typeof(AIInstaller), typeof(ProgressionInstaller), typeof(QuestInstaller)))
+                    typeof(CombatInstaller), typeof(AIInstaller), typeof(ProgressionInstaller), typeof(QuestInstaller),
+                    typeof(Aetherfall.Cinematics.CinematicsInstaller)))
             {
                 return;
             }
@@ -262,6 +264,8 @@ namespace Aetherfall.EditorTools.World
                 FillReference(root, Layouts[i].Key, layout, report);
             }
 
+            // S58: the dialogue cameras live in the boot scene, so they work in every world scene.
+            DialogueCameraBuilder.Ensure(scene, report);
             EditorSceneManager.MarkSceneDirty(scene);
             if (!EditorSceneManager.SaveScene(scene))
             {

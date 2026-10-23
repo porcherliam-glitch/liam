@@ -49,6 +49,15 @@ namespace Aetherfall.World.Exploration
             z = OriginZ + v * Extent;
         }
 
+        /// <summary>True if a world point lies on the picture or at most <paramref name="margin"/> metres beside it.</summary>
+        /// <param name="x">World x.</param>
+        /// <param name="z">World z.</param>
+        /// <param name="margin">Tolerance around the picture in metres.</param>
+        public bool Contains(float x, float z, float margin = 0f)
+        {
+            return x >= OriginX - margin && x <= OriginX + Extent + margin && z >= OriginZ - margin && z <= OriginZ + Extent + margin;
+        }
+
         /// <summary>World position to panel fractions (left 0–1 from the west edge, top 0–1 from the north edge).</summary>
         /// <param name="x">World x.</param>
         /// <param name="z">World z.</param>

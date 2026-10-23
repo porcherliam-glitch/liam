@@ -28,6 +28,8 @@ namespace Aetherfall.UI.Screens
     /// the journal.</para>
     /// <para><b>Overlay menus</b> (trade, dice game): connected with <see cref="AttachMenu"/>, opened with <see cref="OpenMenu"/>
     /// over <c>Playing</c> the same way as the journal, closed with <see cref="CloseMenu"/>.</para>
+    /// <para><b>Cutscene screen</b> (S58): connected with <see cref="AttachCutscene"/>; open exactly while the state is
+    /// <c>Cutscene</c> (cinema bars, subtitles, skip hint).</para>
     /// </remarks>
     public sealed class UiStateDirector
     {
@@ -52,6 +54,7 @@ namespace Aetherfall.UI.Screens
         private readonly List<UIScreen> _menus = new List<UIScreen>();
         private UIScreen _requestedMenu;
         private object _requestedArgs;
+        private UIScreen _cutscene;
 
         /// <summary>Creates the director.</summary>
         /// <param name="ui">UI manager.</param>
@@ -95,6 +98,11 @@ namespace Aetherfall.UI.Screens
         {
             _ui.SetLayerVisible(UILayer.Hud, UiFlowRules.ShowsHud(state));
             _ui.Notifications.SetSuppressed(UiFlowRules.SuppressesNotifications(state));
+            if (state != GameState.Cutscene)
+            {
+                CloseIfOpen(_cutscene);
+            }
+
             switch (state)
             {
                 case GameState.MainMenu:
@@ -157,6 +165,18 @@ namespace Aetherfall.UI.Screens
                     }
 
                     break;
+                case GameState.Cutscene:
+                    Close(_mainMenu);
+                    Close(_pauseMenu);
+                    Close(_deathScreen);
+                    CloseIfOpen(_journal);
+                    CloseMenus();
+                    if (_cutscene != null && !_cutscene.IsOpen)
+                    {
+                        _ui.Open(_cutscene);
+                    }
+
+                    break;
                 default:
                     Close(_mainMenu);
                     Close(_pauseMenu);
@@ -164,6 +184,18 @@ namespace Aetherfall.UI.Screens
                     CloseIfOpen(_journal);
                     CloseMenus();
                     break;
+            }
+        }
+
+        /// <summary>Connects the cutscene screen (<see cref="CutsceneScreen"/>); null disconnects it.</summary>
+        /// <param name="cutscene">Cutscene screen.</param>
+        public void AttachCutscene(UIScreen cutscene)
+        {
+            CloseIfOpen(_cutscene);
+            _cutscene = cutscene;
+            if (_cutscene != null && _gameState.Current == GameState.Cutscene)
+            {
+                _ui.Open(_cutscene);
             }
         }
 

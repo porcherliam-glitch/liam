@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using Aetherfall.AI.Bosses;
+using Aetherfall.Cinematics;
 using Aetherfall.Core;
 using Aetherfall.Dialogue;
 using Aetherfall.Economy;
@@ -84,6 +85,9 @@ namespace Aetherfall.UI.Screens
         [Tooltip("Dialogue.uxml (Dialog-Bildschirm: Untertitel und Antworten)")]
         [SerializeField] private VisualTreeAsset dialogueLayout = null;
 
+        [Tooltip("Cutscene.uxml (Zwischensequenz: Kinobalken, Untertitel, „Überspringen (halten)“)")]
+        [SerializeField] private VisualTreeAsset cutsceneLayout = null;
+
         [Header("Layouts Questlog und Charakter (UXML)")]
         [Tooltip("Journal.uxml (Questlog und Charakter-Seite, Taste J oder Pausemenü)")]
         [SerializeField] private VisualTreeAsset journalLayout = null;
@@ -153,6 +157,8 @@ namespace Aetherfall.UI.Screens
         private LoadingScreenProxy _loadingProxy;
         private UiStateDirector _director;
         private HudView _hud;
+        private QuestMarkerModel _questMarkers;
+        private CompassMarkersView _compassMarkers;
         private ToastView _toasts;
         private MainMenuScreen _mainMenu;
         private PauseMenuScreen _pauseMenu;
@@ -160,6 +166,7 @@ namespace Aetherfall.UI.Screens
         private IPlayerHudSource _deathScreenPlayer;
         private DialogueScreen _dialogueScreen;
         private DialogueScreenDirector _dialogueDirector;
+        private CutsceneScreen _cutsceneScreen;
         private readonly DialogueScreenPreferences _dialoguePreferences = new DialogueScreenPreferences();
         private int _screenWidth;
         private int _screenHeight;
@@ -266,14 +273,17 @@ namespace Aetherfall.UI.Screens
             _ui.RegisterScreen(_pauseMenu);
             _ui.RegisterScreen(_deathScreen);
             BuildDialogueScreen(screensRoot);
+            BuildCutsceneScreen(screensRoot);
+            Services.Locator.TryGet(out IExplorationService exploration);
+            Services.Locator.TryGet(out IPlayerLocator players);
+            Services.Locator.TryGet(out IWorldMarkerRegistry worldMarkers);
+            _questMarkers = new QuestMarkerModel(_quests, exploration, worldMarkers);
             if (HasJournalLayouts())
             {
-                Services.Locator.TryGet(out IExplorationService exploration);
-                Services.Locator.TryGet(out IPlayerLocator players);
                 Services.Locator.TryGet(out Aetherfall.Player.IFastTravelService fastTravel);
                 _journal = new JournalScreen(CloneScreen(journalLayout, screensRoot), questRowLayout, objectiveRowLayout, journalLineLayout,
                     attributeRowLayout, valueRowLayout, _glyphs, _quests, _progression, OnJournalCloseRequested, _skills, exploration, players,
-                    fastTravel);
+                    fastTravel, _questMarkers);
                 _ui.RegisterScreen(_journal);
             }
             else
@@ -302,6 +312,7 @@ namespace Aetherfall.UI.Screens
             XpBarView xpBar = _progression != null && hudRoot.Q<VisualElement>("hud-xp") != null ? new XpBarView(hudRoot.Q<VisualElement>("hud-xp"), _progression) : null;
             _hud.AttachProgressViews(tracker, xpBar);
             _bossBar = new BossBarView(hudRoot);
+            _compassMarkers = new CompassMarkersView(hudRoot, _questMarkers, exploration, players);
             _investigate = new InvestigateOverlayView(hudRoot);
             Services.Locator.TryGet(out IGameClock gameClock);
             _clock = new HudClockView(hudRoot.Q<Label>("hud-clock"), gameClock);
@@ -319,6 +330,7 @@ namespace Aetherfall.UI.Screens
             _director = new UiStateDirector(_ui, _gameState, _input.Gameplay, _input.WasPausePressedThisFrame, _flow, _mainMenu, _pauseMenu,
                 _deathScreen, deathScreenDelay);
             _director.AttachJournal(_journal);
+            _director.AttachCutscene(_cutsceneScreen);
             _director.AttachMenu(_trade);
             _director.AttachMenu(_dice);
             _ui.AttachLayerHost(this);
@@ -437,6 +449,8 @@ namespace Aetherfall.UI.Screens
             }
 
             _hud.Tick(dt);
+            // A hidden compass (immersive HUD, no player) costs nothing: NaN clears the markers.
+            _compassMarkers.Tick(_hud.CompassVisible ? _hud.CompassHeading : float.NaN);
             _clock?.Tick();
             _bossBar.Tick(dt);
             if (_notifier != null)
@@ -541,6 +555,7 @@ namespace Aetherfall.UI.Screens
         {
             _director.OnGameLoaded();
             _hud.ResetState();
+            _questMarkers.Reset();
             if (_notifier != null)
             {
                 _notifier.Reset();
@@ -715,6 +730,12 @@ namespace Aetherfall.UI.Screens
             _ui.ShowToast(notification);
         }
 
+        /// <summary>Markers on the HUD compass (null before the UI is ready), for check runs.</summary>
+        public CompassMarkersView CompassMarkers => _compassMarkers;
+
+        /// <summary>Quest targets of compass and map (null before the UI is ready), for check runs.</summary>
+        public QuestMarkerModel QuestMarkers => _questMarkers;
+
         /// <summary>Opens the journal on a page like its keys do (J, K; tools and check runs use it too).</summary>
         /// <param name="page">Page.</param>
         /// <returns>False if the journal cannot open now (no layouts, wrong game state).</returns>
@@ -795,6 +816,11 @@ namespace Aetherfall.UI.Screens
             if (_dialogueScreen != null)
             {
                 _dialogueScreen.RefreshGlyphs();
+            }
+
+            if (_cutsceneScreen != null)
+            {
+                _cutsceneScreen.RefreshGlyphs();
             }
 
             if (_journal != null)
@@ -941,6 +967,21 @@ namespace Aetherfall.UI.Screens
                 _dialoguePreferences);
             _ui.RegisterScreen(_dialogueScreen);
             _dialogueDirector = new DialogueScreenDirector(_ui, _dialogueScreen, source);
+        }
+
+        private void BuildCutsceneScreen(VisualElement screensRoot)
+        {
+            // Without CinematicsInstaller in the BootConfig, or without the layout, there is no cutscene screen (cutscenes then
+            // play without bars, subtitles and skipping).
+            if (cutsceneLayout == null || !Services.Locator.TryGet(out ICutsceneService cutscenes))
+            {
+                Log.Warning(LogCategory.UI, "UIRoot: no cutscene screen (field 'Cutscene Layout' empty or CinematicsInstaller missing).");
+                return;
+            }
+
+            _cutsceneScreen = new CutsceneScreen(CloneScreen(cutsceneLayout, screensRoot), _glyphs, cutscenes, _input.UI,
+                () => _ui is UIManager manager ? manager.Hold.Duration : HoldToConfirm.DefaultDuration);
+            _ui.RegisterScreen(_cutsceneScreen);
         }
 
         private static VisualElement CloneScreen(VisualTreeAsset layout, VisualElement parent)

@@ -125,3 +125,5 @@ Ergebnis: `eichental_uebersicht.png`, `eichental_dorf.png`, `eichental_karte.png
 Rechenzeit auf 4 CPU-Kernen ohne Grafikkarte (gemessen am 2026-10-14): drei Einzelbilder mit Cycles und 96 Samples zusammen 11–12 Minuten; Rundflug knapp 8 Minuten (180 Bilder, je etwa 2,6 s) plus etwa 4 Minuten für das Zusammensetzen. Für den Rundflug ist Cycles im Modus `--fast` vereinfacht: Umgebungslicht als Eigenleuchten statt indirektem Licht, 2 Samples, 12 Bilder pro Sekunde, die Zwischenbilder für 30 fps rechnet ffmpeg (`minterpolate`). EEVEE läuft in dieser Umgebung nicht.
 
 **Grenzen:** wie oben (Nachbau, kein Unity-Rendering). Rauch ist in der Vorschau eine Volumen-Wolke (im Video weggelassen), in Unity ein Partikelsystem. Gezeigt werden nur Gegner, die von Anfang an da sind; die Quest-Gruppen sind in Unity ausgeschaltet. Glut-Lichter, Riss-Licht und Lagerfeuer sind in Blender und Unity unterschiedlich hell.
+
+**Tag und Nacht:** Die Vorschau rendert den statischen `lighting`-Block der Layout-Datei. Er entspricht im Spiel der Uhrzeit 18:10. Den `dayCycle`-Block (Licht über den Tag) zeigt die Vorschau noch nicht; das Spiel liest ihn über das Profil `DN_Eichental.asset`.

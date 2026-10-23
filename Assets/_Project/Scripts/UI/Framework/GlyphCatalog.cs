@@ -73,6 +73,7 @@ namespace Aetherfall.UI.Framework
                 case UiGlyph.QuickSlot2: return "6";
                 case UiGlyph.QuickSlot3: return "7";
                 case UiGlyph.QuickSlot4: return "8";
+                case UiGlyph.Skip: return "Leertaste";
                 default: return "?";
             }
         }
@@ -97,6 +98,7 @@ namespace Aetherfall.UI.Framework
                 case UiGlyph.Ability2: return "RB+Y";
                 case UiGlyph.Ability3: return "RB+B";
                 case UiGlyph.Ability4: return "RB+A";
+                case UiGlyph.Skip: return "A";
                 default: return DPad(glyph);
             }
         }
@@ -121,6 +123,7 @@ namespace Aetherfall.UI.Framework
                 case UiGlyph.Ability2: return "R1+▲";
                 case UiGlyph.Ability3: return "R1+○";
                 case UiGlyph.Ability4: return "R1+×";
+                case UiGlyph.Skip: return "×";
                 default: return DPad(glyph);
             }
         }
@@ -145,6 +148,7 @@ namespace Aetherfall.UI.Framework
                 case UiGlyph.Ability2: return "R+X";
                 case UiGlyph.Ability3: return "R+A";
                 case UiGlyph.Ability4: return "R+B";
+                case UiGlyph.Skip: return "B";
                 default: return DPad(glyph);
             }
         }
@@ -169,6 +173,7 @@ namespace Aetherfall.UI.Framework
                 case UiGlyph.Ability2: return "R+Nord";
                 case UiGlyph.Ability3: return "R+Ost";
                 case UiGlyph.Ability4: return "R+Süd";
+                case UiGlyph.Skip: return "Süd";
                 default: return DPad(glyph);
             }
         }

@@ -30,6 +30,21 @@ namespace Aetherfall.Tests.EditMode.UI
         }
 
         [Test]
+        public void AScreenThatUsesDirections_KeepsTheFocus_AndStillGetsConfirm()
+        {
+            _screen.UsesDirections = true;
+            UiInputFrame frame = Frame(y: -1f);
+            frame.SubmitPressed = true;
+
+            UiNavResult result = _controller.Process(_screen, frame, 0.016f);
+
+            Assert.That(_screen.Navigations, Is.EqualTo(new[] { NavDirection.Down }));
+            Assert.That(_screen.Focus.Current, Is.EqualTo(0), "the map cursor moved, not the focus");
+            Assert.That(result, Is.EqualTo(UiNavResult.Submitted));
+            Assert.That(_screen.Submitted, Is.EqualTo(new[] { 0 }));
+        }
+
+        [Test]
         public void Submit_ConfirmsTheFocusedItem()
         {
             _screen.Focus.SetCurrent(2);

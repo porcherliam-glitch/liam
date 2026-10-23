@@ -36,6 +36,9 @@ namespace Aetherfall.World
         /// <summary>Sun, ambient light and fog.</summary>
         public LayoutLighting Lighting { get; internal set; }
 
+        /// <summary>Day cycle (S35: light over the day), or null without the optional <c>dayCycle</c> block.</summary>
+        public LayoutDayCycle DayCycle { get; internal set; }
+
         /// <summary>Brooks and rivers.</summary>
         public IReadOnlyList<LayoutRiver> Rivers { get; internal set; } = Array.Empty<LayoutRiver>();
 
@@ -77,6 +80,9 @@ namespace Aetherfall.World
 
         /// <summary>Chests.</summary>
         public IReadOnlyList<LayoutChest> Chests { get; internal set; } = Array.Empty<LayoutChest>();
+
+        /// <summary>Harvest nodes (herbs; S30).</summary>
+        public IReadOnlyList<LayoutHarvestNode> HarvestNodes { get; internal set; } = Array.Empty<LayoutHarvestNode>();
 
         /// <summary>Placeholder markers of NPCs.</summary>
         public IReadOnlyList<LayoutNpcMarker> NpcMarkers { get; internal set; } = Array.Empty<LayoutNpcMarker>();

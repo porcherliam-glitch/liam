@@ -131,7 +131,8 @@ namespace Aetherfall.EditorTools.Core
                    "                 Z / C legt eine gelernte Fähigkeit auf einen anderen Platz der Leiste\r\n" +
                    "  F5 / F9        schnell speichern / laden\r\n" +
                    "  Esc            Pause und Menü\r\n" +
-                   "  Im Gespräch: 1–9 oder Maus wählen, E oder Leertaste weiter.\r\n\r\n" +
+                   "  Im Gespräch: 1–9 oder Maus wählen, E oder Leertaste weiter.\r\n" +
+                   "  Zwischensequenz überspringen: Leertaste (Gamepad: A) 1 Sekunde gedrückt halten.\r\n\r\n" +
                    "Händler: Tobold (Schmied) und Ulf (Wirt) in Lindenhain – im Gespräch nach den Waren fragen.\r\n" +
                    "Waffen: Tobold verkauft Streitkolben (3 wuchtige Schläge, Schild erlaubt), Jagdbögen und Pfeile.\r\n" +
                    "Krieger-Techniken (Skill-Baum): Wirbelklinge, Schildschlag (nur mit Schild), Spott, Kriegsschrei, Fußfeger –" +

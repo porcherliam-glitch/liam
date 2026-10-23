@@ -13,6 +13,7 @@
         "Aetherfall.GameTime",
         "Aetherfall.WorldState",
         "Aetherfall.Quests",
+        "Aetherfall.Cinematics",
         "Aetherfall.EditorTools.Narrative",
         "Aetherfall.World",
         "Aetherfall.Tests.Shared"

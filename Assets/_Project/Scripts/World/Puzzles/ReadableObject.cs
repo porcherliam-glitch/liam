@@ -95,6 +95,9 @@ namespace Aetherfall.World.Puzzles
         }
 
         /// <inheritdoc />
+        protected override string MarkerId => ClueId.Length > 0 ? ClueId : ObjectId;
+
+        /// <inheritdoc />
         protected override void OnStoreReady()
         {
         }

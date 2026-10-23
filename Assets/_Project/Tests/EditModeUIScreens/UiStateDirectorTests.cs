@@ -269,6 +269,78 @@ namespace Aetherfall.Tests.EditMode.UIScreens
         }
 
         [Test]
+        public void Cutscene_OpensTheCutsceneScreen_AndThePopClosesIt()
+        {
+            var cutscene = new FakeMenuScreen(CutsceneScreen.Id);
+            _ui.RegisterScreen(cutscene);
+            _director.AttachCutscene(cutscene);
+            StartPlaying();
+
+            Assert.That(_state.Push(GameState.Cutscene, "test"), Is.True);
+
+            Assert.That(cutscene.IsOpen, Is.True);
+            Assert.That(_ui.Top, Is.SameAs(cutscene));
+            Assert.That(_ui.IsLayerVisible(UILayer.Hud), Is.False);
+            Assert.That(_main.IsOpen || _pause.IsOpen || _death.IsOpen, Is.False);
+
+            Assert.That(_state.Pop(GameState.Cutscene), Is.True);
+
+            Assert.That(cutscene.IsOpen, Is.False);
+            Assert.That(_ui.IsLayerVisible(UILayer.Hud), Is.True);
+        }
+
+        [Test]
+        public void Cutscene_PauseButtonStaysIgnored()
+        {
+            var cutscene = new FakeMenuScreen(CutsceneScreen.Id);
+            _ui.RegisterScreen(cutscene);
+            _director.AttachCutscene(cutscene);
+            StartPlaying();
+            _state.Push(GameState.Cutscene, "test");
+
+            PressPause();
+
+            Assert.That(_state.Current, Is.EqualTo(GameState.Cutscene));
+            Assert.That(_pause.IsOpen, Is.False);
+            Assert.That(cutscene.IsOpen, Is.True);
+        }
+
+        [Test]
+        public void Cutscene_AttachedWhileOneRuns_OpensAtOnce()
+        {
+            StartPlaying();
+            _state.Push(GameState.Cutscene, "test");
+            var cutscene = new FakeMenuScreen(CutsceneScreen.Id);
+            _ui.RegisterScreen(cutscene);
+
+            _director.AttachCutscene(cutscene);
+
+            Assert.That(cutscene.IsOpen, Is.True);
+        }
+
+        [Test]
+        public void PlayerDied_DuringACutscene_TheDeathScreenReplacesTheCutsceneScreenAfterThePop()
+        {
+            var cutscene = new FakeMenuScreen(CutsceneScreen.Id);
+            _ui.RegisterScreen(cutscene);
+            _director.AttachCutscene(cutscene);
+            StartPlaying();
+            _state.Push(GameState.Cutscene, "test");
+
+            _director.OnPlayerDied();
+            _director.Update(DeathDelay + 0.1f);
+            Assert.That(cutscene.IsOpen, Is.True);
+            Assert.That(_death.IsOpen, Is.False);
+
+            _state.Pop(GameState.Cutscene);
+            _director.Update(0.016f);
+
+            Assert.That(cutscene.IsOpen, Is.False);
+            Assert.That(_death.IsOpen, Is.True);
+            Assert.That(_ui.Top, Is.SameAs(_death));
+        }
+
+        [Test]
         public void PlayerDied_DuringADialogue_StacksTheDeathScreenOverTheDialogue()
         {
             StartPlaying();

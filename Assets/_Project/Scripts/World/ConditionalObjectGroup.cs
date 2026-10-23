@@ -12,8 +12,10 @@ namespace Aetherfall.World
     /// world state changes and after loading.
     /// </summary>
     /// <remarks>
-    /// GameObject: an empty group whose direct children are switched on and off (the group itself stays active). Without a
-    /// condition, or before the boot finished, the children stay as built. Created by "Aetherfall > Eichental erstellen".
+    /// <para>GameObject: an empty group whose direct children are switched on and off (the group itself stays active). Without a
+    /// condition, or before the boot finished, the children stay as built. Created by "Aetherfall > Eichental erstellen".</para>
+    /// <para>Children that should disappear while a conversation runs leave when it ends (<see cref="ConditionalVisibilityRules"/>):
+    /// talking to Hedda at s20 completes "Mit Hedda sprechen" at once, but she must not vanish in the middle of her lines.</para>
     /// </remarks>
     [DisallowMultipleComponent]
     public sealed class ConditionalObjectGroup : MonoBehaviour
@@ -26,8 +28,11 @@ namespace Aetherfall.World
 
         private IConditionWatcher _watcher;
         private IServiceLocator _services;
+        private IGameStateService _gameState;
+        private IEventBus _bus;
         private Action<bool> _onChanged;
         private int _watchId;
+        private bool _hidePending;
 
         /// <summary>Phase id (documentation, e.g. <c>prolog</c>).</summary>
         public string PhaseId => phaseId ?? string.Empty;
@@ -40,7 +45,7 @@ namespace Aetherfall.World
 
         private void Awake()
         {
-            _onChanged = SetChildrenVisible;
+            _onChanged = OnConditionChanged;
         }
 
         private async void Start()
@@ -55,6 +60,12 @@ namespace Aetherfall.World
             {
                 _watcher = await Services.WaitForAsync<IConditionWatcher>(destroyCancellationToken);
                 _services = Services.Locator;
+                _services.TryGet(out _gameState);
+                if (_services.TryGet(out _bus))
+                {
+                    _bus.Subscribe<GameStateChanged>(OnGameStateChanged);
+                }
+
                 Watch();
             }
             catch (OperationCanceledException)
@@ -81,6 +92,15 @@ namespace Aetherfall.World
             }
         }
 
+        private void OnDestroy()
+        {
+            if (_bus != null)
+            {
+                _bus.Unsubscribe<GameStateChanged>(OnGameStateChanged);
+                _bus = null;
+            }
+        }
+
         private void Watch()
         {
             if (_watchId > 0 || _watcher == null || visibleWhile == null || !isActiveAndEnabled)
@@ -90,7 +110,32 @@ namespace Aetherfall.World
 
             var ctx = ConditionContext.ForPlayer(_services, "world:" + name);
             _watchId = _watcher.Watch(visibleWhile, ctx, _onChanged);
+            _hidePending = false;
             SetChildrenVisible(_watcher.IsMet(_watchId));
+        }
+
+        private void OnConditionChanged(bool visible)
+        {
+            GameState state = _gameState != null ? _gameState.Current : GameState.Playing;
+            _hidePending = ConditionalVisibilityRules.DeferHide(visible, ChildrenVisible, state);
+            if (!_hidePending)
+            {
+                SetChildrenVisible(visible);
+            }
+        }
+
+        private void OnGameStateChanged(GameStateChanged evt)
+        {
+            if (!_hidePending || ConditionalVisibilityRules.InConversation(evt.Current))
+            {
+                return;
+            }
+
+            _hidePending = false;
+            if (_watchId > 0 && _watcher != null && !_watcher.IsMet(_watchId))
+            {
+                SetChildrenVisible(false);
+            }
         }
 
         private void SetChildrenVisible(bool visible)
@@ -103,6 +148,29 @@ namespace Aetherfall.World
                     child.SetActive(visible);
                 }
             }
+        }
+    }
+
+    /// <summary>When a conditional group may hide its children (pure logic).</summary>
+    public static class ConditionalVisibilityRules
+    {
+        /// <summary>
+        /// True if hiding has to wait: the children are shown now and a conversation runs (the person who is talking must not
+        /// vanish in the middle of a line). Showing never waits.
+        /// </summary>
+        /// <param name="visible">New result of the condition.</param>
+        /// <param name="shownNow">True if the children are shown now.</param>
+        /// <param name="state">Current game state.</param>
+        public static bool DeferHide(bool visible, bool shownNow, GameState state)
+        {
+            return !visible && shownNow && InConversation(state);
+        }
+
+        /// <summary>True while a conversation runs, also with the pause menu over it.</summary>
+        /// <param name="state">Current game state.</param>
+        public static bool InConversation(GameState state)
+        {
+            return state == GameState.Dialogue || state == GameState.Paused;
         }
     }
 }

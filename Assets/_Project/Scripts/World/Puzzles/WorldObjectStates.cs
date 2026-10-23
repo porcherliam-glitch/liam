@@ -3,7 +3,8 @@ namespace Aetherfall.World.Puzzles
     /// <summary>
     /// The common state numbers of <see cref="IWorldObjectStateStore"/>. Objects store 0 (nothing happened, the default and
     /// never saved) or 1 (solved, open, on, freed, taken, beaten); mirrors store their <see cref="GridDirection"/> + 1 so that
-    /// 0 still means "start position". Saved as numbers: never renumber.
+    /// 0 still means "start position"; harvest nodes store their harvest time in game minutes + 1 (HarvestRules). Saved as numbers:
+    /// never renumber.
     /// </summary>
     public static class WorldObjectStates
     {

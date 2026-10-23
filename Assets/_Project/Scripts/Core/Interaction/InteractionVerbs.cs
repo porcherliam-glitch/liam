@@ -23,5 +23,8 @@ namespace Aetherfall.Core
 
         /// <summary>Hit a target with an arrow or bolt (straw targets, GDD 02 11.2 "Triff die Strohziele").</summary>
         public const string Hit = "hit";
+
+        /// <summary>Gather from a harvest node: herbs now, later ore and wood (S30, GDD 04 6.10).</summary>
+        public const string Gather = "gather";
     }
 }

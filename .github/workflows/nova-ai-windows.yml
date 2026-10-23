@@ -1,0 +1,127 @@
+# NOVA AI on real Windows: type check, unit/integration tests, Electron end-to-end test, NSIS installer build,
+# silent install + smoke test of the installed app (named pipe, DPAPI, tool detection, --stop-daemon), uninstall.
+# The installer is uploaded as the artifact "NOVA-AI-Setup" (download from the run page on GitHub).
+# Only runs for changes in nova-ai/ (the Unity project of this repo is not touched).
+name: NOVA AI (Windows)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [claude/new-session-2ye8ds]
+    paths:
+      - 'nova-ai/**'
+      - '.github/workflows/nova-ai-windows.yml'
+
+concurrency:
+  group: nova-ai-windows-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 75
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: nova-ai
+    env:
+      CI: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            nova-ai
+            .github
+          lfs: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: nova-ai/package-lock.json
+
+      - name: Pakete installieren
+        run: npm ci
+
+      - name: Typprüfung
+        id: typecheck
+        continue-on-error: true
+        run: npm run typecheck
+
+      - name: Tests (Vitest)
+        id: tests
+        continue-on-error: true
+        # 2 workers: on the 4-core runner more parallel test files starve vitest's own worker RPC
+        # ("Timeout calling onTaskUpdate") although every test passes
+        run: npx vitest run --maxWorkers=2 --reporter=default --reporter=junit --outputFile.junit=test-results/vitest-junit.xml
+
+      - name: Bauen
+        run: node scripts/build.mjs
+
+      - name: Ende-zu-Ende-Test (Playwright, echte Electron-App)
+        id: e2e
+        continue-on-error: true
+        run: npx playwright test
+
+      - name: Installer bauen (NSIS)
+        run: npx electron-builder --win nsis --x64 --publish never
+
+      - name: Installieren, starten, prüfen, deinstallieren
+        id: smoke
+        continue-on-error: true
+        run: |
+          $setup = Get-ChildItem release -Filter 'NOVA-AI-Setup-*.exe' | Select-Object -First 1
+          $dir = Join-Path $env:RUNNER_TEMP 'nova-install'
+          $work = Join-Path $env:RUNNER_TEMP 'nova-smoke'
+          Write-Host "Installiere $($setup.FullName) nach $dir"
+          $p = Start-Process -FilePath $setup.FullName -ArgumentList '/S', "/D=$dir" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "Installer-Exit-Code $($p.ExitCode)" }
+          if (-not (Test-Path (Join-Path $dir 'NOVA AI.exe'))) { throw 'NOVA AI.exe fehlt nach der Installation' }
+          $startMenu = Join-Path $env:APPDATA 'Microsoft\Windows\Start Menu\Programs\NOVA AI.lnk'
+          if (-not (Test-Path $startMenu)) { throw 'Startmenü-Verknüpfung fehlt' }
+          node scripts/smoke-installed.mjs $dir $work
+          if ($LASTEXITCODE -ne 0) { throw "Smoke-Test fehlgeschlagen ($LASTEXITCODE)" }
+          # user data must survive the uninstall (deleteAppDataOnUninstall: false)
+          $userData = Join-Path $env:LOCALAPPDATA 'NOVA AI'
+          New-Item -ItemType Directory -Force $userData | Out-Null
+          Set-Content (Join-Path $userData 'smoke-marker.txt') 'bleibt erhalten'
+          $uninstaller = Join-Path $dir 'Uninstall NOVA AI.exe'
+          $u = Start-Process -FilePath $uninstaller -ArgumentList '/S' -Wait -PassThru
+          if ($u.ExitCode -ne 0) { throw "Deinstallations-Exit-Code $($u.ExitCode)" }
+          # the uninstaller copies itself to %TEMP% and returns early: wait until the program files are gone
+          $deadline = (Get-Date).AddSeconds(60)
+          while ((Test-Path (Join-Path $dir 'NOVA AI.exe')) -and (Get-Date) -lt $deadline) { Start-Sleep -Seconds 1 }
+          if (Test-Path (Join-Path $dir 'NOVA AI.exe')) { throw 'NOVA AI.exe nach der Deinstallation noch vorhanden' }
+          if (Test-Path $startMenu) { throw 'Startmenü-Verknüpfung nach der Deinstallation noch vorhanden' }
+          if (-not (Test-Path (Join-Path $userData 'smoke-marker.txt'))) { throw 'Benutzerdaten wurden bei der Deinstallation gelöscht' }
+          Write-Host 'Installation, Start, Prüfung und Deinstallation erfolgreich.'
+
+      - name: Installer hochladen
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NOVA-AI-Setup
+          path: nova-ai/release/NOVA-AI-Setup-*.exe
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Testberichte hochladen
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: NOVA-AI-Testberichte
+          path: |
+            nova-ai/test-results/
+            nova-ai/playwright-report/
+            ${{ runner.temp }}/nova-smoke/*.log
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Ergebnis
+        if: always()
+        run: |
+          Write-Host "Typprüfung: ${{ steps.typecheck.outcome }}, Tests: ${{ steps.tests.outcome }}, Ende-zu-Ende: ${{ steps.e2e.outcome }}, Installation: ${{ steps.smoke.outcome }}"
+          if ('${{ steps.typecheck.outcome }}' -ne 'success' -or '${{ steps.tests.outcome }}' -ne 'success' -or '${{ steps.e2e.outcome }}' -ne 'success' -or '${{ steps.smoke.outcome }}' -ne 'success') { exit 1 }

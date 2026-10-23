@@ -41,6 +41,7 @@ namespace Aetherfall.World
             CheckHeader(layout, report);
             CheckTerrain(layout, report, ids);
             CheckPalette(layout, report);
+            CheckDayCycle(layout.DayCycle, report);
             CheckLines(layout, report, ids);
             CheckBuildings(layout, report, ids);
             CheckAreas(layout, report, ids);
@@ -176,6 +177,64 @@ namespace Aetherfall.World
             if (layout.Lighting.FogDensity < 0.0 || layout.Lighting.FogDensity > 0.05)
             {
                 report.Error("lighting.fogDensity", "Nebeldichte muss zwischen 0 und 0,05 liegen.");
+            }
+        }
+
+        private static void CheckDayCycle(LayoutDayCycle cycle, LayoutReport report)
+        {
+            // S35: the light over the day; the block is optional.
+            if (cycle == null)
+            {
+                return;
+            }
+
+            if (cycle.Sunrise < 0.0 || cycle.Sunset < 0.0 || cycle.Sunrise >= cycle.Sunset)
+            {
+                report.Error("dayCycle.sun", "Sonnenaufgang muss vor dem Sonnenuntergang liegen.");
+            }
+
+            Range(report, "dayCycle.sun.noonElevation", cycle.NoonElevation, 0.0, 90.0, true, "Sonnenhöhe am Mittag");
+            Range(report, "dayCycle.sun.nightDepth", cycle.NightDepth, 0.0, 90.0, true, "Sonnentiefe um Mitternacht");
+            Range(report, "dayCycle.sun.riseAzimuth", cycle.RiseAzimuth, 0.0, 360.0, false, "Richtung des Sonnenaufgangs", true);
+            Range(report, "dayCycle.sun.setAzimuth", cycle.SetAzimuth, 0.0, 360.0, false, "Richtung des Sonnenuntergangs", true);
+            Range(report, "dayCycle.moon.intensity", cycle.MoonIntensity, 0.0, 8.0, false, "Mondlicht");
+            Range(report, "dayCycle.moon.newMoonFactor", cycle.NewMoonFactor, 0.0, 1.0, false, "Mondlicht bei Neumond");
+            Range(report, "dayCycle.moon.shadowStrength", cycle.MoonShadowStrength, 0.0, 1.0, false, "Schatten des Mondes");
+            Range(report, "dayCycle.moon.minElevation", cycle.MoonMinElevation, 0.0, 90.0, true, "Mindesthöhe des Mondes", true);
+            if (cycle.Keys.Count < 2)
+            {
+                report.Error("dayCycle.keys", "Es braucht mindestens 2 Tageszeit-Schlüssel.");
+            }
+
+            for (int i = 0; i < cycle.Keys.Count; i++)
+            {
+                LayoutDayKey key = cycle.Keys[i];
+                string at = "dayCycle.keys[" + i + "]";
+                if (i > 0 && key.Hour >= 0.0 && cycle.Keys[i - 1].Hour >= 0.0 && key.Hour <= cycle.Keys[i - 1].Hour)
+                {
+                    report.Error(at + ".time", "Tageszeit-Schlüssel müssen nach der Uhrzeit aufsteigend sortiert sein.");
+                }
+
+                Range(report, at + ".sunIntensity", key.SunIntensity, 0.0, 8.0, false, "Sonnenstärke");
+                Range(report, at + ".fogDensity", key.FogDensity, 0.0, 0.05, false, "Nebeldichte");
+                Range(report, at + ".skyExposure", key.SkyExposure, 0.0, 8.0, false, "Himmelshelligkeit");
+                Range(report, at + ".atmosphere", key.Atmosphere, 0.0, 5.0, false, "Atmosphäre");
+                Range(report, at + ".sunSize", key.SunSize, 0.0, 1.0, false, "Größe der Sonnenscheibe");
+                Range(report, at + ".reflection", key.Reflection, 0.0, 1.0, false, "Spiegelung");
+                Range(report, at + ".localLights", key.LocalLights, 0.0, 4.0, false, "Faktor für Feuer und Lampen");
+            }
+        }
+
+        private static void Range(LayoutReport report, string path, double value, double min, double max, bool minExclusive, string what,
+            bool maxExclusive = false)
+        {
+            bool low = minExclusive ? value <= min : value < min;
+            bool high = maxExclusive ? value >= max : value > max;
+            if (low || high || double.IsNaN(value))
+            {
+                string from = min.ToString(System.Globalization.CultureInfo.GetCultureInfo("de-DE"));
+                string to = max.ToString(System.Globalization.CultureInfo.GetCultureInfo("de-DE"));
+                report.Error(path, what + " muss zwischen " + from + " und " + to + " liegen.");
             }
         }
 
@@ -546,6 +605,8 @@ namespace Aetherfall.World
                 }
             }
 
+            CheckHarvestNodes(layout, report, ids, bounds, locations);
+
             var npcKeys = new HashSet<string>(StringComparer.Ordinal);
             for (int i = 0; i < layout.NpcMarkers.Count; i++)
             {
@@ -724,6 +785,73 @@ namespace Aetherfall.World
             }
 
             return best;
+        }
+
+        /// <summary>
+        /// Harvest nodes (S30): ids, items, place, respawn 0–30 game days, yield 1–99, hours 0–24, at least 2 m apart, one kind =
+        /// one item with one respawn time and time of day, Rissmoos only on the rim of the rift, nothing in the crater.
+        /// </summary>
+        private static void CheckHarvestNodes(RegionLayout layout, LayoutReport report, Dictionary<string, string> ids, LayoutBounds bounds,
+            HashSet<string> locations)
+        {
+            var firstOfKind = new Dictionary<HarvestNodeKind, LayoutHarvestNode>();
+            for (int i = 0; i < layout.HarvestNodes.Count; i++)
+            {
+                LayoutHarvestNode h = layout.HarvestNodes[i];
+                Unique(ids, h.Id, "harvestNodes", report);
+                RequireId(h.Id, "obj.", h.Id, report);
+                RequireId(h.ItemId, "item.", h.Id + ".itemId", report);
+                RequireInside(bounds, h.Position, h.Id, report);
+                RequireLocation(locations, h.LocationId, h.Id, report);
+                CheckDry(layout, h.Position.X, h.Position.Z, h.Id, "Sammelpunkt steht im Bach.", report);
+                CheckOutsideBuildings(layout, h.Position.X, h.Position.Z, h.Id, "Sammelpunkt steht in einem Gebäude.", report);
+                if (!(h.RespawnDays > 0.0) || h.RespawnDays > 30.0)
+                {
+                    report.Error(h.Id, "Nachwachsen: 0 < Tage ≤ 30.");
+                }
+
+                if (h.MinYield < 1 || h.MaxYield < h.MinYield || h.MaxYield > 99)
+                {
+                    report.Error(h.Id, "Ertrag: 1 ≤ kleinster ≤ größter ≤ 99.");
+                }
+
+                if (h.ActiveFrom < 0.0 || h.ActiveFrom >= 24.0 || h.ActiveTo < 0.0 || h.ActiveTo >= 24.0)
+                {
+                    report.Error(h.Id, "Tageszeit: Stunden von 0 bis unter 24.");
+                }
+
+                for (int j = 0; j < i; j++)
+                {
+                    if (h.Position.DistanceTo(layout.HarvestNodes[j].Position) < 2.0)
+                    {
+                        report.Error(h.Id, "Sammelpunkte zu dicht (< 2 m): " + layout.HarvestNodes[j].Id + ".");
+                    }
+                }
+
+                if (firstOfKind.TryGetValue(h.Kind, out LayoutHarvestNode first))
+                {
+                    if (!string.Equals(first.ItemId, h.ItemId, StringComparison.Ordinal) || Math.Abs(first.RespawnDays - h.RespawnDays) > 1e-9 ||
+                        Math.Abs(first.ActiveFrom - h.ActiveFrom) > 1e-9 || Math.Abs(first.ActiveTo - h.ActiveTo) > 1e-9)
+                    {
+                        report.Error(h.Id, "Alle Sammelpunkte einer Art brauchen dasselbe Item, Nachwachsen und Tageszeit (wie " + first.Id + ").");
+                    }
+                }
+                else
+                {
+                    firstOfKind[h.Kind] = h;
+                }
+
+                LayoutRift rift = layout.Rift;
+                double fromRift = rift != null ? h.Position.DistanceTo(rift.Center) : double.MaxValue;
+                if (rift != null && fromRift < rift.Radius)
+                {
+                    report.Error(h.Id, "Sammelpunkt liegt im Riss-Krater.");
+                }
+                else if (h.Kind == HarvestNodeKind.RiftMoss && (rift == null || fromRift < rift.Radius + 2.0 || fromRift > rift.Radius + rift.RimWidth + 2.0))
+                {
+                    report.Error(h.Id, "Rissmoos wächst nur am Rand des Risses.");
+                }
+            }
         }
 
         private static void CheckDry(RegionLayout layout, double x, double z, string id, string message, LayoutReport report)

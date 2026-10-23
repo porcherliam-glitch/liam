@@ -122,6 +122,9 @@ namespace Aetherfall.World.Puzzles
         }
 
         /// <inheritdoc />
+        protected override string MarkerId => ObjectId;
+
+        /// <inheritdoc />
         protected override void OnStoreReady()
         {
             Refresh(false);

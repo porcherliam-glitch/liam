@@ -1,7 +1,11 @@
+using System;
+using System.Collections.Generic;
 using Aetherfall.AI;
 using Aetherfall.CameraSystem;
+using Aetherfall.Cinematics;
 using Aetherfall.Combat;
 using Aetherfall.DevTools;
+using Aetherfall.EditorTools.Narrative;
 using Aetherfall.Player;
 using Aetherfall.Stats;
 using Aetherfall.World;
@@ -55,7 +59,7 @@ namespace Aetherfall.EditorTools.World
             var meshes = new EichentalMeshLibrary(report);
             Font labelFont = TestGroundSceneBuilder.LoadLabelFont(report);
 
-            SetUpLighting(scene, layout.Lighting, report);
+            Light sun = SetUpLighting(scene, layout.Lighting, report);
             Camera mainCamera = TestGroundSceneBuilder.SetUpMainCamera(scene, report);
 
             // Landscape.
@@ -96,6 +100,19 @@ namespace Aetherfall.EditorTools.World
             new EichentalPropBuilder(materials, meshes, heights, env, layers.Interactable, layers.Hurtbox, labelFont, report)
                 .BuildAll(layout, Group(village.transform, "Requisiten"));
             nature.BuildRift(null);
+
+            // S35: the light follows the game clock (profile baked from the layout's dayCycle; the generated look is its 18:10).
+            DayNightProfile dayProfile = DayNightBuilder.EnsureProfile(layout, EichentalPaths.DayNightProfilePath, report);
+            if (dayProfile != null)
+            {
+                DayNightBuilder.AddOutdoorRig(sun, RenderSettings.skybox, dayProfile, new[] { village.transform, landscape.transform },
+                    materials.Fixed("window", new Color(0.08f, 0.07f, 0.07f), 0.5f),
+                    materials.FixedGlow("window_lit", new Color(0.08f, 0.07f, 0.07f), new Color(1f, 0.706f, 0.4f), 1.8f), report);
+            }
+            else
+            {
+                report.Warning("Kein dayCycle im Layout – das Licht bleibt statisch.");
+            }
 
             // Player and cameras (like the test ground, but on the layout's start point and with terrain as an obstacle).
             var gameplay = new EichentalGameplayBuilder(layout, heights, materials, testMaterials, labelFont, report);
@@ -145,7 +162,11 @@ namespace Aetherfall.EditorTools.World
                 MarenPostYaw, true, player, materials, layers.Enemy, layers.Hurtbox, layers.Interactable, solidMask, labelFont, report);
             gameplay.BuildQuestObjects(Group(game.transform, "Quest-Objekte"), env, layers.Interactable, layers.TriggerVolume, layers.Player, layers.Hurtbox);
             gameplay.BuildTrails(Group(game.transform, "Spuren"), layers.TriggerVolume, layers.Player);
+            // S30: herb gathering points (Kräuterwiese, rift rim), grow back after game days.
+            gameplay.BuildHarvestNodes(Group(game.transform, "Sammelpunkte"), items.Catalog, env, layers.Interactable);
             EichentalDungeonLinks.Build(layout, heights, spawnPoint.transform, layers.Interactable, Group(game.transform, "Durchgänge"), report);
+            // S58: the prologue cutscene (Timeline baked from EichentalCutscenes; the fire group "Brand (Prolog)" is not touched).
+            BuildCutscenes(layout, heights, Group(game.transform, "Zwischensequenzen"), mainCamera, exploreOrbital, solidMask, report);
             TestGroundUiBuilder.AddPlayerHudLink(player, mainCamera, report);
 
             report.Info("Meshes: " + meshes.Count + " in " + EichentalPaths.MeshLibraryPath + ".");
@@ -161,6 +182,39 @@ namespace Aetherfall.EditorTools.World
             return player;
         }
 
+        private static void BuildCutscenes(RegionLayout layout, LayoutHeightField heights, Transform group, Camera mainCamera,
+            CinemachineOrbitalFollow exploreOrbital, int solidMask, TestGroundReport report)
+        {
+            CutsceneScript prologue;
+            try
+            {
+                var rest = new ExploreRestPose(TestGroundSceneBuilder.CameraDistance, TestGroundSceneBuilder.PivotHeight, exploreOrbital.VerticalAxis.Center,
+                    TestGroundSceneBuilder.FieldOfView, TestGroundSceneBuilder.ShoulderScreenOffset);
+                prologue = EichentalCutscenes.Prologue(layout, heights, rest);
+            }
+            catch (ArgumentException exception)
+            {
+                report.Warning("Prolog-Zwischensequenz nicht gebaut: " + exception.Message);
+                return;
+            }
+
+            // The light column over Lina: a cold spot light from above, switched on by the Timeline during "Lina im Licht".
+            CinePoint top = EichentalCutscenes.LightColumnPosition(layout, heights);
+            var lightObject = new GameObject(EichentalCutscenes.LightColumnKey);
+            lightObject.transform.SetPositionAndRotation(new Vector3((float)top.X, (float)top.Y, (float)top.Z), Quaternion.Euler(90f, 0f, 0f));
+            Light light = lightObject.AddComponent<Light>();
+            light.type = LightType.Spot;
+            light.color = new Color(0.9f, 1f, 0.99f);
+            light.intensity = 40f;
+            light.range = (float)EichentalCutscenes.LightColumnHeight + 6f;
+            light.spotAngle = 32f;
+            light.innerSpotAngle = 12f;
+            light.shadows = LightShadows.None;
+            var props = new Dictionary<string, GameObject> { { EichentalCutscenes.LightColumnKey, lightObject } };
+            CutsceneTimelineBuilder.Build(prologue, group, mainCamera.GetComponent<CinemachineBrain>(), EichentalPaths.PrologueTimelinePath, heights,
+                solidMask, props, report);
+        }
+
         private static Transform Group(Transform parent, string name)
         {
             var group = new GameObject(name);
@@ -168,7 +222,7 @@ namespace Aetherfall.EditorTools.World
             return group.transform;
         }
 
-        private static void SetUpLighting(Scene scene, LayoutLighting lighting, TestGroundReport report)
+        private static Light SetUpLighting(Scene scene, LayoutLighting lighting, TestGroundReport report)
         {
             Light sun = null;
             GameObject[] roots = scene.GetRootGameObjects();
@@ -206,8 +260,9 @@ namespace Aetherfall.EditorTools.World
                 RenderSettings.skybox = sky;
             }
 
-            report.Info("Licht: Abendsonne aus " + lighting.SunAzimuth + "° in " + lighting.SunElevation + "° Höhe, Umgebungslicht in drei Farben, " +
-                        "leichter Dunst (Dichte " + lighting.FogDensity + "), Himmel aus dem Layout.");
+            report.Info("Licht: Layout-Stand 18:10 (goldene Stunde) aus " + lighting.SunAzimuth + "° in " + lighting.SunElevation + "° Höhe, " +
+                        "Umgebungslicht in drei Farben, leichter Dunst (Dichte " + lighting.FogDensity + "); zur Laufzeit folgt es der Uhr.");
+            return sun;
         }
 
         private static Material EnsureSkybox(LayoutLighting lighting, TestGroundReport report)

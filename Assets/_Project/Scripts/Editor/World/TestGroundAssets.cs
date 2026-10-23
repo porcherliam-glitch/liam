@@ -141,18 +141,21 @@ namespace Aetherfall.EditorTools.World
         /// <summary>
         /// Loads or creates the SaveInstaller and GameTimeInstaller assets and puts them into the BootConfig in the order of
         /// architecture 4.1: SaveInstaller (step 9) behind the GameState and Input installers, GameTimeInstaller (step 10)
-        /// directly behind the SaveInstaller. Idempotent: entries at a valid position stay where they are, entries in front
+        /// directly behind the SaveInstaller, DayNightInstaller (S35) directly behind the GameTimeInstaller. Idempotent: entries at a valid position stay where they are, entries in front
         /// of a required installer are moved behind it.
         /// </summary>
         /// <param name="report">Protocol.</param>
-        /// <returns>True if both installers are in the BootConfig afterwards.</returns>
+        /// <returns>True if all three installers are in the BootConfig afterwards.</returns>
         public static bool EnsureSaveInstallersInBootConfig(TestGroundReport report)
         {
             bool save = EnsureInstallerInBootConfig<SaveInstaller>(TestGroundPaths.SaveInstallerPath, report,
                 typeof(GameStateInstaller), typeof(InputInstaller));
             bool time = save && EnsureInstallerInBootConfig<GameTimeInstaller>(TestGroundPaths.GameTimeInstallerPath, report,
                 typeof(SaveInstaller));
-            return save && time;
+            // S35: day and night reads the game time through IGameTimeSource, so it comes right behind the clock.
+            bool dayNight = time && EnsureInstallerInBootConfig<DayNightInstaller>(TestGroundPaths.DayNightInstallerPath, report,
+                typeof(GameTimeInstaller));
+            return save && time && dayNight;
         }
 
         /// <summary>
@@ -247,6 +250,14 @@ namespace Aetherfall.EditorTools.World
                 typeof(ProgressionInstaller), typeof(GameTimeInstaller), typeof(SaveInstaller));
         }
 
+        /// <summary>Gathering installer into the BootConfig (S30): after the InventoryInstaller (herb nodes give items).</summary>
+        /// <param name="report">Protocol.</param>
+        /// <returns>True if the BootConfig contains it afterwards.</returns>
+        public static bool EnsureGatheringInstallerInBootConfig(TestGroundReport report)
+        {
+            return EnsureInstallerInBootConfig<Aetherfall.Crafting.GatheringInstaller>(TestGroundPaths.GatheringInstallerPath, report, typeof(InventoryInstaller));
+        }
+
         /// <summary>Dialogue and NPC installers into the BootConfig: DialogueInstaller after InventoryInstaller, NpcInstaller after it.</summary>
         /// <param name="report">Protocol.</param>
         /// <returns>True if the BootConfig contains both installers afterwards.</returns>
@@ -256,6 +267,18 @@ namespace Aetherfall.EditorTools.World
                 typeof(InventoryInstaller), typeof(SaveInstaller), typeof(GameStateInstaller));
             return dialogue && EnsureInstallerInBootConfig<Aetherfall.NPC.NpcInstaller>(TestGroundPaths.NpcInstallerPath, report,
                 typeof(Aetherfall.Dialogue.DialogueInstaller));
+        }
+
+        /// <summary>
+        /// Cutscene installer into the BootConfig (S58): behind the EventBus, GameState, Dialogue and NPC installers (the UI installer
+        /// follows it, see TestGroundUiBuilder.EnsureInstallers).
+        /// </summary>
+        /// <param name="report">Protocol.</param>
+        /// <returns>True if the BootConfig contains it afterwards.</returns>
+        public static bool EnsureCinematicsInstallerInBootConfig(TestGroundReport report)
+        {
+            return EnsureInstallerInBootConfig<Aetherfall.Cinematics.CinematicsInstaller>(TestGroundPaths.CinematicsInstallerPath, report,
+                typeof(EventBusInstaller), typeof(GameStateInstaller), typeof(Aetherfall.Dialogue.DialogueInstaller), typeof(Aetherfall.NPC.NpcInstaller));
         }
 
         /// <summary>

@@ -116,7 +116,7 @@ Aus §6.1 übernommen, ergänzt um technische Regeln, die aus der [Recherche](./
 | `com.unity.ai.navigation` | NavMesh (§4.2) | 2.0.x | 2 | Verhalten bei Terrain-Bäumen ab 2.0.16 beachten |
 | `com.unity.probuilder` | Level-Blocking (§4.2) | 6.1.x | 2 | |
 | `com.unity.animation.rigging` | IK Blick/Hände (§4.2) | 1.4.x | 2 | wenig Weiterentwicklung, nur für IK nutzen |
-| `com.unity.timeline` | Zwischensequenzen (§4.2) | 1.8.x | 3 | |
+| `com.unity.timeline` | Zwischensequenzen (§4.2) | 1.8.x (im Projekt 6.6.0) | 3 | seit S58 (Prolog-Timeline, vom Generator gebacken) |
 | `com.unity.terrain-tools` | Offene Welt (§4.2) | 5.3.x | 4 | Editor-Werkzeug |
 | `com.unity.memoryprofiler` | Speicheranalyse | laut Package Manager (nicht verifiziert) | 2 | nur Editor |
 | `com.unity.testtools.codecoverage` | Testabdeckung | laut Package Manager (nicht verifiziert) | 3 | optional |
@@ -525,7 +525,7 @@ Alle Runtime-Assemblies: Auto Referenced = aus, Root Namespace = Assembly-Name. 
 | 15 | `Aetherfall.Factions` | `Aetherfall.Factions` | `Scripts/Factions` | 2, 3, 4, 5, 6 | nein |
 | 16 | `Aetherfall.Combat` | `Aetherfall.Combat` | `Scripts/Combat` | 1, 2, 3, 4, 5, 11, 12 | nein |
 | 17 | `Aetherfall.Dialogue` | `Aetherfall.Dialogue` | `Scripts/Dialogue` | 1, 2, 3, 4, 5, 6, 11, 13, 14 | nein |
-| 18 | `Aetherfall.Crafting` | `Aetherfall.Crafting` | `Scripts/Crafting` | 1, 2, 3, 4, 5, 6, 9, 12, 13 | nein |
+| 18 | `Aetherfall.Crafting` | `Aetherfall.Crafting` | `Scripts/Crafting` | 1, 2, 3, 4, 5, 6, 9, 11, 12, 13 (Stand Stufe A: 1, 2, 3, 4, 11, 12, 13; 11, weil `IInventoryService` Werte zeigt) | nein |
 | 19 | `Aetherfall.Economy` | `Aetherfall.Economy` | `Scripts/Economy` | 1, 2, 3, 4, 5, 6, 9, 11, 12, 13, 15 | nein |
 | 20 | `Aetherfall.World` | `Aetherfall.World` | `Scripts/World` | 1, 2, 3, 4, 5, 6, 9, 10, 16; Unity.AI.Navigation, Unity.Addressables, Unity.ResourceManager | nein |
 | 21 | `Aetherfall.AI` | `Aetherfall.AI` | `Scripts/AI` | 1, 2, 3, 4, 5, 11, 16, 20; Unity.AI.Navigation | nein |
@@ -536,7 +536,8 @@ Alle Runtime-Assemblies: Auto Referenced = aus, Root Namespace = Assembly-Name. 
 | 26 | `Aetherfall.Quests` | `Aetherfall.Quests` | `Scripts/Quests` | 1, 2, 3, 4, 5, 6, 9, 10, 13, 14, 15, 20, 22 | nein |
 | 27 | `Aetherfall.CameraSystem` | `Aetherfall.CameraSystem` | `Scripts/Camera` | 2, 3, 6, 7, 8, 16, 24; Unity.Cinemachine | nein |
 | 28 | `Aetherfall.Audio` | `Aetherfall.Audio` | `Scripts/Audio` | 2, 3, 4, 5, 6, 7, 9, 16, 20 | nein |
-| 29 | `Aetherfall.Cinematics` | `Aetherfall.Cinematics` | `Scripts/Cinematics` | 2, 3, 4, 5, 22, 24, 27, 28; Unity.Timeline, Unity.Cinemachine | nein |
+| 29 | `Aetherfall.Cinematics` | `Aetherfall.Cinematics` | `Scripts/Cinematics` | 2, 3, 4, 5, 17 (reine Logik: Dienst, Drehbuch, Prüfregeln, Aktion `PlayCutscene`) | nein |
+| 29b | `Aetherfall.Cinematics.Playback` | `Aetherfall.Cinematics.Playback` | `Scripts/Cinematics/Playback` | 2, 3, 17, 29; Unity.Cinemachine (`PlayableDirector` kommt aus der Engine) | nein |
 | 30 | `Aetherfall.UI.Framework` | `Aetherfall.UI.Framework` | `Scripts/UI/Framework` | 1, 2, 3, 4, 7, 8; Unity.Localization, Unity.InputSystem, Unity.TextMeshPro | nein |
 | 31 | `Aetherfall.UI.Screens` | `Aetherfall.UI.Screens` | `Scripts/UI/Screens` | 2–30 nach Bedarf (Anzeige aller Systeme) | nein |
 | 32 | `Aetherfall.DevTools` | `Aetherfall.DevTools` | `Scripts/DevTools` | 2–31 nach Bedarf | nein |
@@ -935,7 +936,7 @@ stateDiagram-v2
 | Paused | UI | 0 | steht | steht | ja |
 | Dialogue (Voll-Modus) | Dialog | 1 | steht (GDD 02, 12.1) | läuft | nein |
 | Dialogue (Kurz-Modus) | Dialog | 1 | läuft | läuft | nein |
-| Cutscene | UI (nur „Überspringen halten“) | 1 | je Timeline einstellbar | läuft | nein |
+| Cutscene | UI (nur „Überspringen halten“; Esc, B und Start tun nichts, keine Pause in Stufe A) | 1 | je Timeline einstellbar | läuft | nein |
 | Building | Bauen | 1 | läuft | läuft | ja |
 
 Audio bei `timeScale = 0`: `AudioListener.pause = true`, UI-Quellen mit `ignoreListenerPause = true`. Musik läuft mit −6 dB weiter ([GDD 05, 2.5](../GDD/05_UI_Audio_Grafik_Barrierefreiheit.md)).
@@ -1726,7 +1727,7 @@ Regeln: höchstens 1 Autosave pro 60 s; gesperrt (9.8) → bis zu 120 s aufschie
 
 | Fall | Speicherort | Verhalten |
 |---|---|---|
-| Szenenobjekt mit Zustand (Truhe geöffnet, Tür offen, Hebel, Sammelpunkt geerntet, Rätsel gelöst) | `WorldObjectStateStore` (World, Sektion `worldobjects`), Schlüssel = `UniqueId` | Objekt implementiert `IPersistentObject { object CaptureState(); void RestoreState(object state); }` – Interface liegt in `Aetherfall.SaveSystem`, damit auch Crafting (`HarvestNode`) oder Housing es nutzen können. Gespeichert wird nur, was vom Prefab-Standard abweicht. |
+| Szenenobjekt mit Zustand (Truhe geöffnet, Tür offen, Hebel, Sammelpunkt geerntet, Rätsel gelöst) | `WorldObjectStateStore` (World, Sektion `worldobjects`), Schlüssel = `UniqueId` | Stand Stufe A: Die Objekte speichern direkt eine Zahl je ID im Store (Sammelpunkte: Erntezeit + 1, siehe 11.13). Ziel: Objekt implementiert `IPersistentObject { object CaptureState(); void RestoreState(object state); }` – Interface liegt in `Aetherfall.SaveSystem`, damit auch Crafting (`HarvestNode`) oder Housing es nutzen können. Gespeichert wird nur, was vom Prefab-Standard abweicht. |
 | Zerstörtes Szenenobjekt | wie oben, Zustand `destroyed` | Beim Laden der Zelle wird es **vor** der Aktivierung deaktiviert (kein Aufflackern) |
 | Zelle wird entladen | – | Vor dem Entladen `CaptureState()` aller `IPersistentObject` der Zelle in den Store |
 | Zelle wird geladen | – | Nach dem Laden, vor der gestaffelten Aktivierung `RestoreState()` |
@@ -1909,12 +1910,12 @@ Kompression lokal: LZ4. Kein Remote-Katalog. Jede Ladeoperation hat einen Besitz
 | `CM_LockOn` | `CinemachineThirdPersonFollow` + `CinemachineRotationComposer` auf `CinemachineTargetGroup` (Spieler + Ziel) | Lock-On (R3) |
 | `CM_Aim` | `CinemachineThirdPersonFollow` (Schulter) + `CinemachineThirdPersonAim` | Bogen, Zauber (LT) |
 | `CM_Mount` | wie Explore, größerer Radius | Reiten |
-| `CM_Dialog_A/B/Wide` | 3 positionierte Kameras, `DialogueCameraDirector` wählt je Zeile (Schuss-Gegenschuss). Dialogkameras und `DialogueCameraDirector` liegen in `Aetherfall.Cinematics` (29), das NPC (22) und CameraSystem (27) bereits referenziert | Dialog |
+| `CM_Dialog_A/B/Wide` | 3 positionierte Kameras in Boot.unity (`DialogueCameraRig`, Assembly 29b), `DialogueCameraDirector` (reine Logik, Assembly 29) wählt je Zeile (Schuss-Gegenschuss). Sprecher-Positionen kommen über `IPlayerLocator` und `IWorldMarkerRegistry` (Core), daher braucht keine der beiden Assemblies NPC (22) oder CameraSystem (27) | Dialog |
 | `CM_Build` | Orbital, steiler Winkel | Bau-Modus |
-| Timeline | `CinemachineTrack` | Zwischensequenzen |
+| Timeline | `CinemachineTrack` mit statischen Kameras je Einstellung (überlappende Clips = Kamerafahrt), vom Generator gebacken (`CutsceneTimelineBuilder` aus `EichentalCutscenes`) | Zwischensequenzen |
 
 - `CinemachineBrain` an der Main Camera in der `Gameplay`-Szene (Hauptmenü hat eigene Kamera).
-- Umschalten per **Priorität** im `CameraModeService` (hört `GameStateChanged`, Lock-On-/Ziel-/Reit-Events der Spieler-Komponenten). Blends: Standard 0,25 s Ease, Lock-On 0,3 s, Dialog harter Schnitt.
+- Umschalten per **Priorität** im `CameraModeService` (hört `GameStateChanged`, Lock-On-/Ziel-/Reit-Events der Spieler-Komponenten). Blends: Standard 0,25 s Ease, Lock-On 0,3 s; Dialog 0,4 s Ease hinein und hinaus, zwischen den Dialogkameras harte Schnitte (`CinematicBlendOverride` über `CinemachineCore.GetBlendOverride`, S58).
 - **Kamera-Shake:** `CinemachineImpulseSource` an Treffern/Explosionen, `CinemachineImpulseListener` an allen Kameras, globaler Faktor aus Options (0 = aus, §8.1, §29).
 - Empfindlichkeit/Invertierung aus Options auf die Input-Axis-Controller.
 - Lock-On-Zielwahl liegt in `Combat` (`TargetingSystem`), nicht in der Kamera.
@@ -2155,7 +2156,7 @@ namespace Aetherfall.AI {
 | Daten (§13.3) | `RecipeDefinition`: Zutaten {Item-ID, Menge, Mindestqualität}, Ergebnis, Station, Beruf + Stufe, Zeit; `ProfessionDefinition` (Stufen 1–100, XP-Kurve) |
 | Laufzeit | `CraftingService` (reine Logik: prüfen, herstellen, Qualitätswurf, Zerlegen); `CraftingStation` (UniqueId, Stationstyp) |
 | Filter (§13.3) | „herstellbar“, „fehlende Zutaten“, „alle“ als reine Funktionen |
-| Sammelpunkte (§13.3) | `HarvestNode` (IPersistentObject): `harvestedAtGameMinutes`, Respawn nach n Spielstunden |
+| Sammelpunkte (§13.3) | `HarvestNode` liegt in World (20), weil er Szene, Uhr und Spielerposition braucht; den Ertrag gibt er über den Core-Port `IGatheringService` an `GatheringService` (Crafting, reine Regel `GatheringRules`: 1–3 + ⌊Berufsstufe ÷ 25⌋, Stufe A ohne Beruf). Zustand im `WorldObjectStateStore` als ⌊`harvestedAtGameMinutes`⌋ + 1 (0 = reif, keine eigene Sektion); Respawn nach `respawnDays` Spieltagen, nur bei mindestens 50 m Abstand zum Spieler oder beim Laden; Blühzeit `activeHours` (z. B. Nachtschatten 22–4). Interaktion meldet `Interacted` mit dem Verb `gather` (`InteractionVerbs.Gather`), Daten in der Layout-Liste `harvestNodes`. Abweichung von 9.7: zentraler Zahlen-Speicher statt `IPersistentObject` (wie Truhen und Rätsel, siehe Anleitung 12). Umgesetzt in Stufe A (S30). |
 
 ### 11.14 Haus und Bau-Modus (`Aetherfall.Housing`)
 
@@ -2216,7 +2217,7 @@ Siehe 4.8. Ergänzend: **Schrittgeräusche** (§26) über `SurfaceType`: Terrain
 | Gegner-Lebensbalken, Questgeber-Symbole, Interaktions-Hinweise | UI Toolkit **Overlay-Projektion** (Ebene WorldMarkers): gepoolte Elemente, Position per `WorldToScreenPoint`, max. 32 gleichzeitig sichtbar. Vorteil: konstante Bildschirmgröße, USS-Themes für Farbenblind-Modi. |
 | Schadenszahlen | TMP, gepoolt, Billboard in der Welt (Recherche-Empfehlung) |
 | NPC-Namen/3D-Weltlabels | TMP (World Space), gepoolt, Layer UI |
-| UI in Zwischensequenzen | uGUI/TMP (Timeline-Anbindung) |
+| UI in Zwischensequenzen | UI Toolkit (`CutsceneScreen`, Screens-Ebene): Kinobalken, Abblende, Texttafel, Untertitel, „Überspringen (halten)“; Inhalte als Daten am Abspieler (`CutsceneCue`), ausgewertet nach der Zeit des `PlayableDirector` |
 | 3D-Charaktervorschau | Kamera → RenderTexture (Layer `PreviewUI`) → Hintergrund eines UI-Toolkit-Elements |
 
 **Spike vor Phase 2 (2–3 Tage):** Inventarraster 8 × 6 mit Gamepad, Tableiste LB/RB, Rebinding-Dialog, Tooltip mit Vergleichswerten, 3D-Vorschau, Sprachwechsel zur Laufzeit. **Abbruchkriterium:** Fokuslogik braucht > 1 Tag Workarounds pro Bildschirm → uGUI für Menüs.

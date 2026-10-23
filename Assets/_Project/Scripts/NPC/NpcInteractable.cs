@@ -43,6 +43,7 @@ namespace Aetherfall.NPC
         private IDialogueMemory _memory;
         private INpcService _npcs;
         private IEventBus _bus;
+        private readonly WorldMarkerHandle _marker = new WorldMarkerHandle();
         private bool _subscribed;
 
         /// <summary>NPC id (empty without data).</summary>
@@ -116,6 +117,7 @@ namespace Aetherfall.NPC
                     locator.TryGet(out _memory);
                     locator.TryGet(out _npcs);
                     locator.TryGet(out _bus);
+                    _marker.Connect(locator);
                 }
 
                 Subscribe();
@@ -132,11 +134,14 @@ namespace Aetherfall.NPC
 
         private void OnEnable()
         {
+            // Compass and map find the NPC of "Rede mit" and "Bringe" through the marker registry.
+            _marker.Show(NpcId, transform);
             Subscribe();
         }
 
         private void OnDisable()
         {
+            _marker.Hide();
             if (!_subscribed)
             {
                 return;

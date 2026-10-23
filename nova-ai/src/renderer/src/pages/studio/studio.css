@@ -1,0 +1,36 @@
+/* Studio-specific styles that cannot be expressed with utility classes (Monaco decorations, xterm). */
+
+/* Line briefly highlighted after jumping to an error position. */
+.nova-reveal-line {
+  background-color: rgb(139 92 246 / 0.22);
+  transition: background-color 600ms ease-out;
+}
+.nova-reveal-glyph {
+  background-color: #8b5cf6;
+  width: 3px !important;
+  margin-left: 3px;
+  border-radius: 2px;
+}
+
+/* xterm: match the panel background and keep the scrollbar calm. */
+.nova-terminal .xterm,
+.nova-terminal .xterm-viewport {
+  background-color: #0b0d14 !important;
+}
+.nova-terminal .xterm {
+  height: 100%;
+  padding: 6px 0 6px 10px;
+}
+.nova-terminal .xterm-viewport {
+  scrollbar-width: thin;
+  scrollbar-color: #353d52 transparent;
+}
+.nova-terminal .xterm:focus-within {
+  outline: none;
+}
+
+/* Monaco: keep the focus ring of the app instead of the editor's own outline. */
+.nova-editor .monaco-editor .inputarea.ime-input,
+.nova-editor .monaco-editor:focus-within {
+  outline: none;
+}

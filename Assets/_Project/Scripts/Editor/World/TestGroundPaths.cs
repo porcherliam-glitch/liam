@@ -29,6 +29,15 @@ namespace Aetherfall.EditorTools.World
         /// <summary>Installer asset of the playtime clock (added directly after the save installer, architecture 4.1 step 10).</summary>
         public const string GameTimeInstallerPath = SetupPaths.BootSettingsFolder + "/GameTimeInstaller.asset";
 
+        /// <summary>Day-and-night installer (S35), directly after the GameTime installer.</summary>
+        public const string DayNightInstallerPath = SetupPaths.BootSettingsFolder + "/DayNightInstaller.asset";
+
+        /// <summary>Cutscene installer (S58), after the EventBus, GameState, Dialogue and NPC installers, before the UI installer.</summary>
+        public const string CinematicsInstallerPath = SetupPaths.BootSettingsFolder + "/CinematicsInstaller.asset";
+
+        /// <summary>Folder of the generated cutscene Timelines (S58).</summary>
+        public const string CutsceneTimelineFolder = SetupPaths.ProjectFolder + "/Art/Animations/Cinematics";
+
         /// <summary>Folder of the attack assets (architecture 3.1: Data/…).</summary>
         public const string AttackFolder = SetupPaths.ProjectFolder + "/Data/Combat/Attacks";
 
@@ -139,6 +148,9 @@ namespace Aetherfall.EditorTools.World
 
         /// <summary>Merchant installer (Lindenhain merchants, GDD 04 8.2).</summary>
         public const string MerchantInstallerPath = SetupPaths.BootSettingsFolder + "/MerchantInstaller.asset";
+
+        /// <summary>Gathering installer (S30), after the InventoryInstaller.</summary>
+        public const string GatheringInstallerPath = SetupPaths.BootSettingsFolder + "/GatheringInstaller.asset";
 
         /// <summary>Installer asset of the NPC system.</summary>
         public const string NpcInstallerPath = SetupPaths.BootSettingsFolder + "/NpcInstaller.asset";

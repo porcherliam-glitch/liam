@@ -14,3 +14,4 @@
 @import url("../Styles/Journal.uss");
 @import url("../Styles/Dialogue.uss");
 @import url("../Styles/Dice.uss");
+@import url("../Styles/Cutscene.uss");

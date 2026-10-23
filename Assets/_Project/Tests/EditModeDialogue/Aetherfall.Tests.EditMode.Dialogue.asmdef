@@ -15,6 +15,7 @@
         "Aetherfall.Stats",
         "Aetherfall.Dialogue",
         "Aetherfall.NPC",
+        "Aetherfall.Cinematics",
         "Aetherfall.Tests.Shared"
     ],
     "includePlatforms": [

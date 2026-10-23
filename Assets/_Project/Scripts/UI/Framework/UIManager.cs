@@ -307,7 +307,7 @@ namespace Aetherfall.UI.Framework
             }
 
             PointerFocus(screen, index);
-            screen.Submit(index);
+            screen.PointerSubmit(index);
         }
 
         /// <inheritdoc />

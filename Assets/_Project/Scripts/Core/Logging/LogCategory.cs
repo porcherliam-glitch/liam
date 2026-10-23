@@ -68,6 +68,9 @@ namespace Aetherfall.Core
         Player = 19,
 
         /// <summary>Cameras (Cinemachine rigs, look input, camera modes).</summary>
-        Camera = 20
+        Camera = 20,
+
+        /// <summary>Cutscenes and the dialogue camera (S58).</summary>
+        Cinematics = 21
     }
 }

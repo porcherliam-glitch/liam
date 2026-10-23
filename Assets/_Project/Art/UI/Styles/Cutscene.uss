@@ -1,0 +1,103 @@
+/*
+ * Cutscene screen (S58): cinema bars (their height is set by CutsceneScreen from LetterboxMath), the full-screen veil (black
+ * or white, its opacity set by code), the caption card in the middle, the subtitle at the bottom (dialogue style, GDD 05 4.2:
+ * 34 px, 60 % background) and the hint "Überspringen (halten)" with its hold bar, bottom right inside the safe area.
+ * Imported by the theme (AetherfallTheme.tss) after Tokens.uss and Base.uss, whose tokens, hint and glyph parts it uses.
+ */
+
+.af-cutscene {
+    justify-content: flex-end;
+    align-items: center;
+}
+
+.af-cutscene__veil {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    opacity: 0;
+    background-color: #000000;
+}
+
+.af-cutscene__veil.is-white {
+    background-color: #F6F2E6;
+}
+
+.af-cutscene__bar {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 0;
+    background-color: #000000;
+}
+
+.af-cutscene__bar--top {
+    top: 0;
+}
+
+.af-cutscene__bar--bottom {
+    bottom: 0;
+}
+
+/* Caption card ("Eichental, am Tag des Erntefests."): centred, a little larger than the subtitle. */
+.af-cutscene__caption {
+    position: absolute;
+    left: 10%;
+    right: 10%;
+    top: 44%;
+    font-size: 40px;
+    color: var(--text-title);
+    letter-spacing: 1px;
+    white-space: normal;
+    -unity-text-align: middle-center;
+}
+
+/* Subtitle above the lower bar (bars cover at most 13 % of the height). */
+.af-cutscene__subtitle {
+    position: absolute;
+    left: 50%;
+    bottom: 15%;
+    translate: -50% 0;
+    max-width: 1120px;
+    padding: 10px 24px 12px 24px;
+    background-color: rgba(16, 20, 24, 0.6);
+    align-items: center;
+}
+
+.af-cutscene__speaker {
+    font-size: 26px;
+    -unity-font-style: bold;
+    color: var(--text-title);
+    margin: 0 0 4px 0;
+    -unity-text-align: middle-center;
+}
+
+.af-cutscene__text {
+    font-size: 34px;
+    color: var(--text-primary);
+    white-space: normal;
+    -unity-text-align: middle-center;
+}
+
+/* Skip hint, bottom right inside the lower bar and the safe area; fully visible while held. */
+.af-cutscene__hint {
+    position: absolute;
+    right: 64px;
+    bottom: 32px;
+    opacity: 0.6;
+}
+
+.af-cutscene__hint.is-holding {
+    opacity: 1;
+}
+
+.af-cutscene__hint-row {
+    margin: 0;
+}
+
+.af-cutscene__hold {
+    height: 5px;
+    margin: 8px 0 0 0;
+    background-color: rgba(237, 230, 214, 0.18);
+}

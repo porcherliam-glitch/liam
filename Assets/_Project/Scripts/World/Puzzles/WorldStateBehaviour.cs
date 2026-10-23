@@ -12,6 +12,7 @@ namespace Aetherfall.World.Puzzles
     /// </summary>
     public abstract class WorldStateBehaviour : MonoBehaviour
     {
+        private readonly WorldMarkerHandle _marker = new WorldMarkerHandle();
         private bool _subscribed;
 
         /// <summary>The store (null until <see cref="IsReady"/>).</summary>
@@ -22,6 +23,12 @@ namespace Aetherfall.World.Puzzles
 
         /// <summary>True after the services were resolved.</summary>
         protected bool IsReady => Store != null;
+
+        /// <summary>
+        /// Id under which the object stands in the <see cref="IWorldMarkerRegistry"/> while enabled (compass and map point at
+        /// quest objects and clues), empty = not registered. Read in <c>OnEnable</c>.
+        /// </summary>
+        protected virtual string MarkerId => string.Empty;
 
         /// <summary>Called once when the store is ready (apply the saved state without animation).</summary>
         protected abstract void OnStoreReady();
@@ -56,6 +63,7 @@ namespace Aetherfall.World.Puzzles
                 await Services.WaitForAsync<IGameStateService>(destroyCancellationToken);
                 EventBus = WorldStateAccess.ResolveEventBus();
                 Store = WorldStateAccess.ResolveStore(GetType().Name + " '" + name + "'");
+                _marker.Connect(Services.Locator);
                 OnStoreReady();
                 Subscribe();
             }
@@ -72,12 +80,14 @@ namespace Aetherfall.World.Puzzles
         /// <summary>Unity OnEnable.</summary>
         protected virtual void OnEnable()
         {
+            _marker.Show(MarkerId, transform);
             Subscribe();
         }
 
         /// <summary>Unity OnDisable.</summary>
         protected virtual void OnDisable()
         {
+            _marker.Hide();
             if (!_subscribed)
             {
                 return;

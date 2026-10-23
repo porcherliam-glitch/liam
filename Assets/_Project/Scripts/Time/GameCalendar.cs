@@ -40,17 +40,8 @@ namespace Aetherfall.GameTime
         /// <param name="hour">Hour 0 … 23.</param>
         public static DayPhase PhaseOf(int hour)
         {
-            if (hour >= 5 && hour < 8)
-            {
-                return DayPhase.Morning;
-            }
-
-            if (hour >= 8 && hour < 18)
-            {
-                return DayPhase.Day;
-            }
-
-            return hour >= 18 && hour < 21 ? DayPhase.Evening : DayPhase.Night;
+            // One table for the calendar and for day and night (light, stealth).
+            return DayPhaseRules.Of(hour);
         }
 
         /// <summary>German name of a weekday (0 = Erdtag).</summary>

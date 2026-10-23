@@ -11,7 +11,7 @@ namespace Aetherfall.Combat
     /// TickRunner (combat state memory, protections). Publishes <see cref="DamageDealt"/> for every hit that dealt damage and
     /// <see cref="CombatStateChanged"/> when the player enters or leaves combat (<see cref="CombatStateTracker"/>).
     /// </summary>
-    public sealed class CombatService : ICombatService, ITickable, IDisposable
+    public sealed class CombatService : ICombatService, ITickable, ISessionService, IDisposable
     {
         private readonly IEventBus _eventBus;
         private readonly CombatStateTracker _tracker = new CombatStateTracker();
@@ -157,6 +157,21 @@ namespace Aetherfall.Combat
         public void ResetCombatState()
         {
             _tracker.Reset();
+        }
+
+        /// <inheritdoc />
+        public void BeginSession()
+        {
+        }
+
+        /// <inheritdoc />
+        public void EndSession()
+        {
+            // Back in the main menu: the fight of the old session is over. Without this, the damage memory (5 s) could still say
+            // "in combat" when the next game starts and hold back what waits for the end of a fight (the prologue cutscene).
+            _tracker.Reset();
+            _protected.Clear();
+            _protectedRemaining.Clear();
         }
 
         /// <inheritdoc />

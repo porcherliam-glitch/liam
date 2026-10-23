@@ -1,3 +1,4 @@
+using Aetherfall.Cinematics;
 using Aetherfall.Conditions;
 using Aetherfall.Core;
 using Aetherfall.Data;
@@ -18,7 +19,8 @@ namespace Aetherfall.EditorTools.Narrative
     /// trails, NPC markers) and the crypt (zones, puzzles, boss, seal stone; guide 12, 11.4). Built fresh on every call.
     /// </summary>
     /// <remarks>
-    /// <para>Deviations until the systems exist (documented in docs/Status.md): no cutscenes or music, no faction reputation, no
+    /// <para>Deviations until the systems exist (documented in docs/Status.md): the prologue opens with the cutscene
+    /// cs.prolog.erwachen, but the cutscenes of s40/s50 and the music are still missing; no faction reputation, no
     /// cheese item; Hollmann's bow and 30 arrows come with s10 and the straw targets are shot (verb "hit"). Rift
     /// spawns are Aether wolves (layout stand-ins), so the kill objective of s30 counts them. The splitter in the den offers
     /// "zerschlagen" (stand-in for the Aether push, outcome 2) and "herausbrechen" (outcome 3).</para>
@@ -192,7 +194,8 @@ namespace Aetherfall.EditorTools.Narrative
                 .StartTrigger(QuestStartTriggerKind.Automatic)
                 .Stage(new StageBuilder("s10")
                     .Text("Eichental brennt. Lina ist fort. Irgendwo ruft jemand um Hilfe.", "Der Dorfplatz liegt westlich, beim Brunnen.")
-                    .OnStart(new SetFlag(FlagVillageDestroyed, 1))
+                    // GDD 02 11.1: s10 opens with the cutscene cs.prolog.erwachen (S58; it waits for the end of the load).
+                    .OnStart(new SetFlag(FlagVillageDestroyed, 1), new PlayCutscene(CutsceneIds.PrologueAwakening))
                     .Objective(new GoToObjective("o1", "loc.eichental.dorfplatz", 15f).WithJournalText("Zum Dorfplatz gehen"))
                     .Next("s20"))
                 .Stage(new StageBuilder("s20")
@@ -250,7 +253,8 @@ namespace Aetherfall.EditorTools.Narrative
                 .LedgerEntry("ledger.c3", "Eine graue Gestalt hat am Riss auf dich gewartet.")
                 .Rewards(new GiveXp(500), new GiveItem("item.potion.heiltrank_schwach", 3))
                 .Production(ContentStatus.Draft, QuestScopeTier.A, 0, "claude", 40,
-                    "Mini-Slice: ohne Zwischensequenzen und Musik; Risslinge im Hinterhalt, die Rissbrut ist ein Champion-Rissling.")
+                    "Mini-Slice: Prolog-Eröffnung als Zwischensequenz (cs.prolog.erwachen), s40/s50 noch ohne, keine Musik; Risslinge im " +
+                    "Hinterhalt, die Rissbrut ist ein Champion-Rissling.")
                 .Build();
         }
 
@@ -322,6 +326,12 @@ namespace Aetherfall.EditorTools.Narrative
                 .Build();
         }
 
+        /// <summary>
+        /// The crypt entrance in Eichental (portal of EichentalDungeonLinks): the stages inside the crypt name it as their stage
+        /// marker, so outside the crypt the compass points at the entrance first (GDD 02 7.3 "Mehrstufige Wege").
+        /// </summary>
+        public const string CryptEntranceId = "obj.eichental.gruft_eingang";
+
         /// <summary>GDD 02, 11.7 "Die vergessene Gruft" (sources: guide 12, 11.4).</summary>
         public static QuestSpec CreateCrypt()
         {
@@ -339,27 +349,33 @@ namespace Aetherfall.EditorTools.Narrative
                     .Objective(new GoToObjective("o1", "loc.eichental.vergessene_gruft", 12f).WithJournalText("Zur Gruft gehen"))
                     .Next("s20"))
                 .Stage(new StageBuilder("s20")
-                    .Text("Das Tor ist versiegelt. Die Inschrift nennt eine Reihenfolge: „Erst die Eiche, die den Schild trug, dann die Krone, die sich beugte, zuletzt der Schild, der nie brach.“")
+                    .Text("Das Tor ist versiegelt. Die Inschrift nennt eine Reihenfolge: „Erst die Eiche, die den Schild trug, dann die Krone, die sich beugte, zuletzt der Schild, der nie brach.“",
+                          "Die Gruft liegt in der Senke unter dem Rabenfels, nördlich des Dorfes.")
+                    .Markers(50f, CryptEntranceId)
                     .Objective(new ConditionObjective("o1", new PuzzleIsSolved("puzzle.eichental.gruft_grabplatten")).WithJournalText("Das Tor öffnen"))
                     .Optional(new InspectCluesObjective("o2", 3, "clue.eichental.gruft_wandrelief_1", "clue.eichental.gruft_wandrelief_2",
                         "clue.eichental.gruft_wandrelief_3").WithJournalText("Untersuche die Wandreliefs"), new SetFlag(FlagReliefsRead, 1))
                     .Next("s30"))
                 .Stage(new StageBuilder("s30")
-                    .Text("In den Hallen der Eichenritter regen sich die Toten. Die Siegelkammer liegt in der Tiefe.")
+                    .Text("In den Hallen der Eichenritter regen sich die Toten. Die Siegelkammer liegt in der Tiefe.", "Die Gruft liegt in der Senke unter dem Rabenfels, nördlich des Dorfes.")
+                    .Markers(50f, CryptEntranceId)
                     .Objective(new GoToObjective("o1", "loc.eichental.gruft_siegelkammer_vorraum", 6f).WithJournalText("Zur Siegelkammer gehen"))
                     .Optional(new InteractObjective("o2", 1, "obj.eichental.gruft_kaefig").WithVerb(InteractionVerbs.Use)
                         .WithJournalText("Befreie den Grabräuber"))
                     .Next("s40"))
                 .Stage(new StageBuilder("s40")
-                    .Text("Ein Strahl aus Aether-Licht fällt durch einen Spalt. Drei Spiegel stehen schief in ihren Halterungen.")
+                    .Text("Ein Strahl aus Aether-Licht fällt durch einen Spalt. Drei Spiegel stehen schief in ihren Halterungen.", "Die Gruft liegt in der Senke unter dem Rabenfels, nördlich des Dorfes.")
+                    .Markers(50f, CryptEntranceId)
                     .Objective(new ConditionObjective("o1", new PuzzleIsSolved("puzzle.eichental.gruft_spiegel")).WithJournalText("Den Strahl zum Siegel lenken"))
                     .Next("s50"))
                 .Stage(new StageBuilder("s50")
-                    .Text("Vor dem Siegelstein erhebt sich der Wachende Ritter.")
+                    .Text("Vor dem Siegelstein erhebt sich der Wachende Ritter.", "Die Gruft liegt in der Senke unter dem Rabenfels, nördlich des Dorfes.")
+                    .Markers(50f, CryptEntranceId)
                     .Objective(new KillSpecificObjective("o1", "boss.eichental.wachender_ritter").WithJournalText("Den Wachenden Ritter besiegen"))
                     .Next("s60"))
                 .Stage(new StageBuilder("s60")
-                    .Text("Der Siegelstein liegt frei. Die Inschrift warnt: „Wer den Riegel nimmt, öffnet die Gräber.“")
+                    .Text("Der Siegelstein liegt frei. Die Inschrift warnt: „Wer den Riegel nimmt, öffnet die Gräber.“", "Die Gruft liegt in der Senke unter dem Rabenfels, nördlich des Dorfes.")
+                    .Markers(50f, CryptEntranceId)
                     .Objective(new InteractObjective("o1", 1, "obj.eichental.gruft_siegelstein").WithVerb(InteractionVerbs.PickUp)
                         .WithJournalText("Nimm den Siegelstein"))
                     .Objective(new GoToObjective("o2", "loc.eichental.gruft_ausgang", 6f).WithJournalText("Lass ihn liegen und geh"))

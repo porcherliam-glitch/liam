@@ -39,7 +39,8 @@ namespace Aetherfall.AI
         /// <param name="bearing">Signed angle from the facing in degrees.</param>
         /// <param name="settings">Senses.</param>
         /// <param name="stance">How noticeable the target is.</param>
-        /// <param name="light">Light factor (day 1.0, dusk 0.7, night 0.4).</param>
+        /// <param name="light">Light factor (day 1.0, dusk 0.7, night 0.4; at night within 5 m of a lit source 0.9; from
+        /// <c>IDayNightService.LightFactorAt</c>).</param>
         /// <param name="cover">Cover factor (share of visible points, high grass while sneaking ×0.4).</param>
         public static float SightRate(float distance, float bearing, in PerceptionSettings settings, PerceptionStance stance, float light = 1f,
             float cover = 1f)

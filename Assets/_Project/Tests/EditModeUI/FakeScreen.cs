@@ -52,6 +52,12 @@ namespace Aetherfall.Tests.EditMode.UI
         /// <summary>Ticks received.</summary>
         public int TickCount { get; private set; }
 
+        /// <summary>True: the screen uses direction steps itself (like the map cursor).</summary>
+        public bool UsesDirections { get; set; }
+
+        /// <summary>Direction steps the screen used.</summary>
+        public List<NavDirection> Navigations { get; } = new List<NavDirection>();
+
         /// <summary>True: left/right on item 0 adjusts a value.</summary>
         public bool AdjustsFirstItem { get; set; }
 
@@ -95,6 +101,18 @@ namespace Aetherfall.Tests.EditMode.UI
         public override bool RequiresHold(int index)
         {
             return _holdItems.Contains(index);
+        }
+
+        /// <inheritdoc />
+        public override bool TryNavigate(NavDirection direction)
+        {
+            if (!UsesDirections)
+            {
+                return false;
+            }
+
+            Navigations.Add(direction);
+            return true;
         }
 
         /// <inheritdoc />

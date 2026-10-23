@@ -616,6 +616,111 @@
     margin-top: -11px;
 }
 
+/* Quest targets (S60): gold diamonds, the focus quest larger; many targets become a search circle. */
+.af-map__quest {
+    position: absolute;
+    width: 13px;
+    height: 13px;
+    margin-left: -6px;
+    margin-top: -6px;
+    rotate: 45deg;
+    border-width: 2px;
+    border-color: rgb(60, 36, 10);
+    background-color: rgb(232, 176, 52);
+}
+
+.af-map__quest--focus {
+    width: 18px;
+    height: 18px;
+    margin-left: -9px;
+    margin-top: -9px;
+}
+
+/* Quest pins in the category colour (GDD 05 1.9). */
+.af-map__quest--tone-main { background-color: var(--quest-main); }
+.af-map__quest--tone-faction { background-color: var(--quest-faction); }
+.af-map__quest--tone-region { background-color: var(--quest-region); }
+.af-map__quest--tone-side { background-color: var(--quest-side); }
+.af-map__quest--tone-companion { background-color: var(--quest-companion); }
+.af-map__quest--tone-bounty { background-color: var(--quest-bounty); }
+.af-map__quest--tone-treasure { background-color: var(--quest-treasure); }
+.af-map__quest--tone-crafting { background-color: var(--quest-crafting); }
+.af-map__quest--tone-repeatable { background-color: var(--quest-repeatable); }
+.af-map__quest--tone-legendary { background-color: var(--quest-legendary); }
+
+/* Own markers (GDD 05 1.8): the symbol in its colour with a dark outline, centred on the point. */
+.af-map__own {
+    position: absolute;
+    width: 26px;
+    height: 26px;
+    margin-left: -13px;
+    margin-top: -13px;
+    font-size: 24px;
+    -unity-font-style: bold;
+    -unity-text-align: middle-center;
+    -unity-text-outline-width: 1.5px;
+    -unity-text-outline-color: rgb(30, 20, 10);
+}
+
+.af-map__own--tone-own0 { color: var(--marker-own-0); }
+.af-map__own--tone-own1 { color: var(--marker-own-1); }
+.af-map__own--tone-own2 { color: var(--marker-own-2); }
+.af-map__own--tone-own3 { color: var(--marker-own-3); }
+.af-map__own--tone-own4 { color: var(--marker-own-4); }
+.af-map__own--tone-own5 { color: var(--marker-own-5); }
+
+/* The cursor for own markers: a ring with a cross and the chosen symbol beside it. */
+.af-map__cursor {
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    margin-left: -15px;
+    margin-top: -15px;
+    border-width: 2px;
+    border-radius: 15px;
+    border-color: rgb(30, 20, 10);
+    background-color: rgba(255, 244, 214, 0.25);
+}
+
+.af-map__cursor-h,
+.af-map__cursor-v {
+    position: absolute;
+    background-color: rgb(30, 20, 10);
+}
+
+.af-map__cursor-h {
+    left: 4px;
+    right: 4px;
+    top: 12px;
+    height: 2px;
+}
+
+.af-map__cursor-v {
+    top: 4px;
+    bottom: 4px;
+    left: 12px;
+    width: 2px;
+}
+
+.af-map__cursor-symbol {
+    position: absolute;
+    left: 30px;
+    top: -14px;
+    font-size: 18px;
+    -unity-font-style: bold;
+    -unity-text-outline-width: 1.5px;
+    -unity-text-outline-color: rgb(30, 20, 10);
+}
+
+.af-map__quest--area {
+    margin: 0;
+    translate: -50% -50%;
+    rotate: 0deg;
+    border-radius: 50%;
+    border-color: rgba(200, 140, 40, 0.9);
+    background-color: rgba(232, 176, 52, 0.22);
+}
+
 .af-map__none {
     position: absolute;
     left: 0;
@@ -655,6 +760,13 @@
 .af-map__swatch {
     position: relative;
     margin: 0 12px 0 6px;
+}
+
+/* The own-marker symbol in the legend: as small as the other swatches. */
+.af-map__own.af-map__swatch {
+    width: 14px;
+    height: 14px;
+    font-size: 15px;
 }
 
 .af-map__legend-player {

@@ -32,6 +32,17 @@ namespace Aetherfall.Tests.EditMode.UI
         }
 
         [Test]
+        public void Skip_IsTheSouthButtonOrSpace()
+        {
+            // GDD 03 1.5: SkipCutscene = A (south button) or Space, held.
+            Assert.That(GlyphCatalog.Get(UiGlyph.Skip, GlyphFamily.KeyboardMouse), Is.EqualTo("Leertaste"));
+            foreach (GlyphFamily family in new[] { GlyphFamily.Xbox, GlyphFamily.PlayStation, GlyphFamily.Nintendo, GlyphFamily.Generic })
+            {
+                Assert.That(GlyphCatalog.Get(UiGlyph.Skip, family), Is.EqualTo(GlyphCatalog.Get(UiGlyph.Confirm, family)), family.ToString());
+            }
+        }
+
+        [Test]
         public void EveryGlyphHasATextInEveryFamily()
         {
             foreach (GlyphFamily family in System.Enum.GetValues(typeof(GlyphFamily)))
@@ -64,6 +75,7 @@ namespace Aetherfall.Tests.EditMode.UI
         [TestCase("hud-quick-4-glyph-quick4", true, UiGlyph.QuickSlot4)]
         [TestCase("hud-prompt-glyph-interact", true, UiGlyph.Interact)]
         [TestCase("pause-tabs-glyph-tabnext", true, UiGlyph.TabNext)]
+        [TestCase("cutscene-hint-glyph-skip", true, UiGlyph.Skip)]
         [TestCase("pause-hint-back", false, UiGlyph.Confirm)]
         [TestCase("x-glyph-unknown", false, UiGlyph.Confirm)]
         [TestCase(null, false, UiGlyph.Confirm)]

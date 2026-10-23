@@ -117,6 +117,7 @@ namespace Aetherfall.AI.Bosses
         private bool _busSubscribed;
         private bool _wasDisabled;
         private bool _healthSubscribed;
+        private readonly WorldMarkerHandle _marker = new WorldMarkerHandle();
         private readonly Collider[] _chargeHits = new Collider[8];
 
         /// <summary>Raised when the wind-up of a special attack starts (key, e.g. horn, kran, brandtopf).</summary>
@@ -460,6 +461,7 @@ namespace Aetherfall.AI.Bosses
                 locator.TryGet(out _combat);
                 locator.TryGet(out _eventBus);
                 locator.TryGet(out _difficulty);
+                _marker.Connect(locator);
                 ApplyDifficulty();
                 if (!locator.TryGet(out _bar))
                 {
@@ -502,6 +504,8 @@ namespace Aetherfall.AI.Bosses
 
         private void OnEnable()
         {
+            // "Töte bestimmten" with a boss id points the compass at the boss.
+            _marker.Show(BossId, transform);
             Health health = _combatant != null ? _combatant.Health : null;
             if (health != null && !_healthSubscribed)
             {
@@ -522,6 +526,7 @@ namespace Aetherfall.AI.Bosses
 
         private void OnDisable()
         {
+            _marker.Hide();
             Health health = _combatant != null ? _combatant.Health : null;
             if (health != null && _healthSubscribed)
             {
