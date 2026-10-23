@@ -66,3 +66,28 @@ namespace DeadZone.Tests
         }
     }
 }
+
+namespace DeadZone.Tests
+{
+    public class AudioTests
+    {
+        [Test]
+        public void AllSoundsAreFiniteAndNormalized()
+        {
+            foreach (var name in SoundBank.Names)
+            {
+                var s = SoundBank.Make(name);
+                Assert.Greater(s.Length, 100, name);
+                float max = 0;
+                foreach (var v in s) { Assert.IsFalse(float.IsNaN(v) || float.IsInfinity(v), name); max = System.Math.Max(max, System.Math.Abs(v)); }
+                Assert.LessOrEqual(max, 1.0f, name);
+                Assert.Greater(max, 0.1f, name);
+            }
+            foreach (var map in DataTables.MAP_ORDER)
+            {
+                var a = SoundBank.Ambient(map);
+                Assert.Greater(a.Length, SoundBank.Rate * 5, map);
+            }
+        }
+    }
+}

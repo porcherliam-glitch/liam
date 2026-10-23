@@ -1,0 +1,19 @@
+{
+    "name": "DeadZone.Editor",
+    "rootNamespace": "DeadZone.EditorTools",
+    "references": [
+        "DeadZone.Core",
+        "DeadZone.Game"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

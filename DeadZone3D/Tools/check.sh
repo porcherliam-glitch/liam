@@ -27,7 +27,7 @@ cat > "$WORK/tests/Tests.csproj" <<XML
 XML
 cat > "$WORK/inputstub/InputStub.csproj" <<XML
 <Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><TargetFramework>netstandard2.1</TargetFramework><AssemblyName>Unity.InputSystem</AssemblyName>$COMMON</PropertyGroup>
-<ItemGroup><Compile Include="$REPO/Tools/Harness/packages/Unity.InputSystem/*.cs" /><Compile Include="$HERE/stubs/*.cs" /></ItemGroup>
+<ItemGroup><Compile Include="$HERE/stubs/*.cs" /></ItemGroup>
 <ItemGroup><PackageReference Include="UnityEngine.Modules" Version="2021.3.33" /></ItemGroup></Project>
 XML
 cat > "$WORK/game/Game.csproj" <<XML
@@ -48,7 +48,7 @@ for p in game editor; do
   if ls "$SRC/${p^}"/*.cs >/dev/null 2>&1 || [ -n "$(find "$SRC/${p^}" -name '*.cs' 2>/dev/null | head -1)" ]; then
     echo "== Compile $p"
     out="$(dotnet build "$WORK/$p/${p^}.csproj" --nologo -v q -clp:NoSummary 2>&1)" || status=1
-    printf '%s\n' "$out" | grep -E "error|warning CS0618|Warn" | sed "s|$ROOT/||" | sort -u | head -60
+    printf "%s\n" "$out" | grep -E "error|warning CS0618|Warn" | sed "s|$ROOT/||" | sort -u | head -60 || true
   fi
 done
 exit $status
