@@ -144,7 +144,7 @@ namespace DeadZone.Game
         }
 
         /// <summary>Drops presses that no simulation step consumed this frame.</summary>
-        public void EndFrame(bool simStepped) { if (simStepped) _pending.Clear(); }
+        public void EndFrame(bool simStepped) { if (simStepped || blocked) _pending.Clear(); }
 
         public bool UiPressed(string action) => _ui.Contains(action);
         public void ClearPending() => _pending.Clear();
@@ -165,6 +165,7 @@ namespace DeadZone.Game
 
         public double AimAngle(double px, double py)
         {
+            if (blocked) return double.NaN;
             if (_stick.sqrMagnitude > 0.12f) return System.Math.Atan2(-_stick.y, _stick.x);
             if (usingGamepad) return double.NaN;
             if (rig == null || !rig.ScreenToGround(mouse, 1.2f, out var hit)) return double.NaN;

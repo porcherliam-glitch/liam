@@ -16,7 +16,7 @@ namespace DeadZone.Game
             Text(new Rect(74, 195, 560, 40), "E X T R A C T I O N", 28, UiColors.Text, TextAnchor.MiddleLeft, true);
             Text(new Rect(74, 240, 520, 60), "Plündern. Überleben. Rauskommen. Wer stirbt, verliert alles am Körper.", 18, UiColors.Muted, TextAnchor.UpperLeft, false, true);
             float y = 340;
-            bool hasSave = game.core.save.HasSave();
+            bool hasSave = HasSaveCached();
             if (Btn(new Rect(70, y, 420, 58), hasSave ? "Weiterspielen" : "Weiterspielen (kein Spielstand)", hasSave, 22)) game.ContinueGame();
             y += 72;
             if (Btn(new Rect(70, y, 420, 58), "Neues Spiel", true, 22))
@@ -156,12 +156,15 @@ namespace DeadZone.Game
             var extra = ok ? res.itemsSold.Select(s => (s.inst, "Verkauft +" + s.credits)).ToList() : res.itemsKept.Select(s => (s.inst, "Gerettet (sicherer Behälter)")).ToList();
             int total = items.Count + extra.Count + res.insuranceReturned.Count;
             var view = new Rect(0, 0, listRect.width - 40, Mathf.Ceil(total / (float)cols) * cell + 40);
-            _resultScroll = GUI.BeginScrollView(new Rect(listRect.x + 10, listRect.y + 44, listRect.width - 20, listRect.height - 54), _resultScroll, view);
+            var vp = new Rect(listRect.x + 10, listRect.y + 44, listRect.width - 20, listRect.height - 54);
+            _viewport = vp;
+            _resultScroll = GUI.BeginScrollView(vp, _resultScroll, view);
             int i = 0;
             foreach (var it in items) { DrawItemIcon(new Rect((i % cols) * cell, (i / cols) * cell, cell - 6, cell - 6), it.inst, false, it.equipped ? "Ausgerüstet" : null); i++; }
             foreach (var (inst, label) in extra) { DrawItemIcon(new Rect((i % cols) * cell, (i / cols) * cell, cell - 6, cell - 6), inst, false, label); i++; }
             foreach (var inst in res.insuranceReturned) { DrawItemIcon(new Rect((i % cols) * cell, (i / cols) * cell, cell - 6, cell - 6), inst, false, "Versichert"); i++; }
             GUI.EndScrollView();
+            _viewport = null;
             if (Btn(new Rect(r.x + r.width / 2 - 170, r.yMax - 80, 340, 56), "Zur Basis", true, 22)) game.LeaveResult();
         }
     }

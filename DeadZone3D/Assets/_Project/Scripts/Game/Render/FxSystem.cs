@@ -71,6 +71,7 @@ namespace DeadZone.Game
                 p = _particles[_nextParticle];
                 _nextParticle = (_nextParticle + 1) % _particles.Count;
                 p.r.sharedMaterial = mat;
+                p.t.GetComponent<MeshFilter>().sharedMesh = sphere ? _sphere : _cube;
             }
             p.t.gameObject.SetActive(true);
             p.t.position = pos;

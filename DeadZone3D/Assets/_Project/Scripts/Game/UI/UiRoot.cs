@@ -29,10 +29,23 @@ namespace DeadZone.Game
         private string _confirm;
         private System.Action _confirmYes;
 
+        private bool _hasSave;
+        private float _hasSaveAt = -10f;
+
+        /// <summary>Cached check for a save file (reading it on every IMGUI event would hitch).</summary>
+        private bool HasSaveCached()
+        {
+            if (Time.unscaledTime - _hasSaveAt > 2f) { _hasSave = game.core.save.HasSave(); _hasSaveAt = Time.unscaledTime; }
+            return _hasSave;
+        }
+
+        private void Awake() { useGUILayout = false; }
+
         public bool BlocksGameplay => inventoryOpen || lootContainer != null || mapOpen || helpOpen || settingsOpen || _confirm != null;
 
         public void ResetOverlays()
         {
+            _hasSaveAt = -10f;
             inventoryOpen = mapOpen = helpOpen = settingsOpen = false;
             lootContainer = null;
             _confirm = null;
@@ -180,7 +193,7 @@ namespace DeadZone.Game
                     else if (lootContainer != null) lootContainer = null;
                     else if (inventoryOpen) inventoryOpen = false;
                     else if (mapOpen) mapOpen = false;
-                    else game.paused = !game.paused;
+                    else { game.paused = !game.paused; game.input.ClearPending(); }
                 }
                 if (!game.paused && _confirm == null)
                 {
@@ -211,6 +224,8 @@ namespace DeadZone.Game
             H = Screen.height / _scale;
             _tooltipText = null;
             if (Event.current.type == EventType.Repaint) _dropTargets.Clear();
+            _mouseVirtual = Event.current.mousePosition;
+            _viewport = null;
             HandleDragRelease();
             _hoverItem = null;
             // modal windows disable everything drawn below them

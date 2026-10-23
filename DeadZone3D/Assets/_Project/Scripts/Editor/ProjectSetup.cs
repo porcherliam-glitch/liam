@@ -26,7 +26,10 @@ namespace DeadZone.EditorTools
         private static void AutoSetup()
         {
             if (Application.isBatchMode || EditorApplication.isPlayingOrWillChangePlaymode) return;
-            bool done = AssetDatabase.LoadAssetAtPath<SceneAsset>(ScenePath) != null && AssetDatabase.LoadAssetAtPath<Material>(MatDir + "/Lit.mat") != null;
+            var lit = AssetDatabase.LoadAssetAtPath<Material>(MatDir + "/Lit.mat");
+            bool urp = GraphicsSettings.currentRenderPipeline != null;
+            bool shaderOk = lit != null && lit.shader != null && lit.shader.name.StartsWith("Universal Render Pipeline") == urp;
+            bool done = AssetDatabase.LoadAssetAtPath<SceneAsset>(ScenePath) != null && shaderOk;
             if (done) return;
             Setup(true);
             EditorUtility.DisplayDialog("Dead Zone", "Das Projekt wurde eingerichtet.\n\nDrücke oben in der Mitte auf ▶ (Play), um zu spielen.\nMenü „Dead Zone“ → „Windows-Spiel bauen“ erzeugt eine startbare Spieldatei.", "OK");
@@ -104,7 +107,10 @@ namespace DeadZone.EditorTools
             if (AssetDatabase.LoadAssetAtPath<SceneAsset>(ScenePath) == null)
             {
                 var active = SceneManager.GetActiveScene();
-                bool replace = openScene && !active.isDirty;
+                bool untitled = string.IsNullOrEmpty(active.path);
+                if (active.isDirty && untitled && !Application.isBatchMode) EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo();
+                // an additive new scene is not allowed next to an unsaved untitled scene, so replace it then
+                bool replace = Application.isBatchMode || untitled || (openScene && !active.isDirty);
                 var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, replace ? NewSceneMode.Single : NewSceneMode.Additive);
                 var go = new GameObject("DeadZone");
                 go.AddComponent<GameRoot>();

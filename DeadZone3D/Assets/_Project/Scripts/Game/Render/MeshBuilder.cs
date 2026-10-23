@@ -97,12 +97,13 @@ namespace DeadZone.Game
             }
         }
 
-        /// <summary>Horizontal cylinder along the given direction (x or z axis).</summary>
+        /// <summary>Horizontal cylinder with end caps along the x axis (alongX) or the z axis.</summary>
         public void CylinderX(Material m, Vector3 center, float radius, float length, bool alongX, int segments = 10)
         {
             var t = Sub(m);
             Vector3 axis = alongX ? Vector3.right : Vector3.forward;
-            Vector3 u = Vector3.up, w = alongX ? Vector3.forward : Vector3.right;
+            // basis (u, axis, w) oriented like (x, y, z) of the upright Cylinder so the same winding faces outwards
+            Vector3 u = Vector3.up, w = alongX ? Vector3.back : Vector3.right;
             Vector3 a = center - axis * length * 0.5f, b = center + axis * length * 0.5f;
             for (int s = 0; s < segments; s++)
             {
@@ -114,8 +115,14 @@ namespace DeadZone.Game
                 _uv.Add(new Vector2(0, 0)); _uv.Add(new Vector2(0, 1)); _uv.Add(new Vector2(1, 1)); _uv.Add(new Vector2(1, 0));
                 t.Add(i); t.Add(i + 1); t.Add(i + 2);
                 t.Add(i); t.Add(i + 2); t.Add(i + 3);
-                t.Add(i); t.Add(i + 2); t.Add(i + 1);
-                t.Add(i); t.Add(i + 3); t.Add(i + 2);
+                int c = _v.Count;
+                _v.Add(b); _v.Add(b + d0 * radius); _v.Add(b + d1 * radius);
+                _n.Add(axis); _n.Add(axis); _n.Add(axis);
+                _v.Add(a); _v.Add(a + d0 * radius); _v.Add(a + d1 * radius);
+                _n.Add(-axis); _n.Add(-axis); _n.Add(-axis);
+                for (int k = 0; k < 6; k++) _uv.Add(Vector2.zero);
+                t.Add(c); t.Add(c + 2); t.Add(c + 1);
+                t.Add(c + 3); t.Add(c + 4); t.Add(c + 5);
             }
         }
 

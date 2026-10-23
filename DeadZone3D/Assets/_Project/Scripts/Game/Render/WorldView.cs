@@ -191,18 +191,19 @@ namespace DeadZone.Game
             else if (t == T.WATER)
             {
                 // low basin rim
-                if (world.Tile(tx, ty - 1) != T.WATER) walls.Box(_sidewalkMat, new Vector3(x0, 0, z1 - 0.12f), new Vector3(x1, 0.25f, z1));
-                if (world.Tile(tx, ty + 1) != T.WATER) walls.Box(_sidewalkMat, new Vector3(x0, 0, z0), new Vector3(x1, 0.25f, z0 + 0.12f));
-                if (world.Tile(tx - 1, ty) != T.WATER) walls.Box(_sidewalkMat, new Vector3(x0, 0, z0), new Vector3(x0 + 0.12f, 0.25f, z1));
-                if (world.Tile(tx + 1, ty) != T.WATER) walls.Box(_sidewalkMat, new Vector3(x1 - 0.12f, 0, z0), new Vector3(x1, 0.25f, z1));
+                if (world.Tile(tx, ty - 1) != T.WATER) walls.Box(_sidewalkMat, new Vector3(x0, -0.06f, z1 - 0.12f), new Vector3(x1, 0.25f, z1));
+                if (world.Tile(tx, ty + 1) != T.WATER) walls.Box(_sidewalkMat, new Vector3(x0, -0.06f, z0), new Vector3(x1, 0.25f, z0 + 0.12f));
+                if (world.Tile(tx - 1, ty) != T.WATER) walls.Box(_sidewalkMat, new Vector3(x0, -0.06f, z0), new Vector3(x0 + 0.12f, 0.25f, z1));
+                if (world.Tile(tx + 1, ty) != T.WATER) walls.Box(_sidewalkMat, new Vector3(x1 - 0.12f, -0.06f, z0), new Vector3(x1, 0.25f, z1));
             }
             if (t == T.WALL)
             {
+                // hide a side face only against another full wall; doors and windows are open, so their jambs need faces
                 int faces = 4;
-                if (!IsWallLike(world.Tile(tx + 1, ty))) faces |= 1;
-                if (!IsWallLike(world.Tile(tx - 1, ty))) faces |= 2;
-                if (!IsWallLike(world.Tile(tx, ty - 1))) faces |= 16;
-                if (!IsWallLike(world.Tile(tx, ty + 1))) faces |= 32;
+                if (world.Tile(tx + 1, ty) != T.WALL) faces |= 1;
+                if (world.Tile(tx - 1, ty) != T.WALL) faces |= 2;
+                if (world.Tile(tx, ty - 1) != T.WALL) faces |= 16;
+                if (world.Tile(tx, ty + 1) != T.WALL) faces |= 32;
                 walls.Box(WallMatAt(tx, ty), new Vector3(x0, 0, z0), new Vector3(x1, H, z1), faces);
             }
             else if (t == T.WINDOW)

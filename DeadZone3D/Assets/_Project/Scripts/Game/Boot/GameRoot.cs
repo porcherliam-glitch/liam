@@ -68,10 +68,13 @@ namespace DeadZone.Game
 
         private void DisableSceneLightsAndCameras()
         {
-            foreach (var l in FindObjectsByType<Light>(FindObjectsSortMode.None)) if (l.transform.root != transform) l.gameObject.SetActive(false);
-            foreach (var c in FindObjectsByType<Camera>(FindObjectsSortMode.None)) if (c.transform.root != transform) c.gameObject.SetActive(false);
-            foreach (var a in FindObjectsByType<AudioListener>(FindObjectsSortMode.None)) if (a.transform.root != transform) a.enabled = false;
+            // scene objects only (Resources.FindObjectsOfTypeAll also returns assets and hidden objects)
+            foreach (var l in Resources.FindObjectsOfTypeAll<Light>()) if (InScene(l) && l.transform.root != transform) l.gameObject.SetActive(false);
+            foreach (var c in Resources.FindObjectsOfTypeAll<Camera>()) if (InScene(c) && c.transform.root != transform) c.gameObject.SetActive(false);
+            foreach (var a in Resources.FindObjectsOfTypeAll<AudioListener>()) if (InScene(a) && a.transform.root != transform) a.enabled = false;
         }
+
+        private static bool InScene(Component c) => c != null && c.gameObject.scene.IsValid() && c.gameObject.scene.isLoaded && (c.gameObject.hideFlags & HideFlags.HideInHierarchy) == 0;
 
         public void ApplySettings()
         {
@@ -157,6 +160,7 @@ namespace DeadZone.Game
             state = "raid";
             paused = false;
             _acc = 0;
+            input.ClearPending();
             ui.ResetOverlays();
             Toast(raid.map.name + " – finde Beute und einen Weg hinaus.", "info", 3500);
         }

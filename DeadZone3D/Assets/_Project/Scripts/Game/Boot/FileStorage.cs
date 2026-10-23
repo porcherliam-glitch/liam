@@ -31,8 +31,8 @@ namespace DeadZone.Game
                 var p = PathOf(key);
                 var tmp = p + ".tmp";
                 File.WriteAllText(tmp, value);
-                if (File.Exists(p)) File.Delete(p);
-                File.Move(tmp, p);
+                if (File.Exists(p)) File.Replace(tmp, p, null);
+                else File.Move(tmp, p);
                 return true;
             }
             catch (Exception e) { Debug.LogWarning("[DZ] Speichern fehlgeschlagen: " + e.Message); return false; }

@@ -23,7 +23,7 @@ namespace DeadZone.EditorTools
             if (Build(BuildTarget.StandaloneOSX, dir, "DeadZone.app")) EditorUtility.RevealInFinder(Path.Combine(dir, "DeadZone.app"));
         }
 
-        /// <summary>Batchmode: -executeMethod DeadZone.EditorTools.BuildTool.RunBatch [-buildFolder &lt;dir&gt;] [-buildTarget mac]</summary>
+        /// <summary>Batchmode: -executeMethod DeadZone.EditorTools.BuildTool.RunBatch [-buildFolder &lt;dir&gt;] [-dzTarget mac]</summary>
         public static void RunBatch()
         {
             var args = Environment.GetCommandLineArgs();
@@ -31,7 +31,7 @@ namespace DeadZone.EditorTools
             for (int i = 0; i < args.Length - 1; i++)
             {
                 if (args[i] == "-buildFolder") dir = args[i + 1];
-                if (args[i] == "-buildTarget") target = args[i + 1];
+                if (args[i] == "-dzTarget") target = args[i + 1];
             }
             bool mac = target == "mac" || target == "osx";
             dir = dir ?? ProjectSetup.DesktopFolder(mac ? "Dead Zone Spiel Mac" : "Dead Zone Spiel");

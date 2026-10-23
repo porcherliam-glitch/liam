@@ -22,6 +22,8 @@ namespace DeadZone.Game
         private DragState _drag;
         private readonly List<(SlotRef target, Rect rect)> _dropTargets = new List<(SlotRef, Rect)>();
         private ItemInst _hoverItem;
+        private Rect? _viewport;      // visible area of the scroll view being drawn (virtual canvas coordinates)
+        private Vector2 _mouseVirtual; // mouse position on the virtual canvas, outside any group/scroll view
         private string _hoverExtra;
 
         // ------------------------------------------------------------------ data access
@@ -103,7 +105,7 @@ namespace DeadZone.Game
                 Fill(new Rect(r.x, r.yMax - 18, r.width, 18), new Color(0, 0, 0, 0.75f));
                 Text(new Rect(r.x, r.yMax - 18, r.width, 18), caption, 11, UiColors.Accent, TextAnchor.MiddleCenter);
             }
-            if (Hover(r) && _drag == null) { _hoverItem = inst; }
+            if (GUI.enabled && Hover(r) && _drag == null && (_viewport == null || _viewport.Value.Contains(_mouseVirtual))) { _hoverItem = inst; }
         }
 
         /// <summary>One inventory slot with selection, drag & drop and right-click quick move.</summary>
@@ -335,6 +337,7 @@ namespace DeadZone.Game
             Text(new Rect(area.x + 12, area.y + 6, area.width - 24, 28), title, 18, UiColors.Accent, TextAnchor.MiddleLeft, true);
             if (subtitle != null) Text(new Rect(area.x + 12, area.y + 6, area.width - 24, 28), subtitle, 14, UiColors.Muted, TextAnchor.MiddleRight);
             if (inv == null) return;
+            cell = FitCell(area.width - 20, area.height - 46, inv.slots, cell);
             int cols = Mathf.Max(1, (int)((area.width - 20) / cell));
             for (int i = 0; i < inv.slots; i++)
             {
@@ -342,6 +345,26 @@ namespace DeadZone.Game
                 if (r.yMax > area.yMax) break;
                 DrawSlot(r, new SlotRef { kind = kind, index = i });
             }
+        }
+
+        /// <summary>Largest cell size (up to the wish) at which all slots fit into the area, so no slot is ever hidden.</summary>
+        private static float FitCell(float width, float height, int slots, float wish)
+        {
+            for (float c = wish; c > 34f; c -= 2f)
+            {
+                int cols = Mathf.Max(1, (int)(width / c));
+                int rows = (slots + cols - 1) / cols;
+                if (rows * c <= height) return c;
+            }
+            return 34f;
+        }
+
+        /// <summary>Height the equipment panel needs for the given width.</summary>
+        private static float EquipmentHeight(float width)
+        {
+            int cols = Mathf.Max(1, (int)((width - 20) / 86f));
+            int rows = (Equipment.Slots.Length + cols - 1) / cols;
+            return 46 + rows * 102;
         }
 
         private void DrawEquipment(Rect area, string kind, Equipment eq)

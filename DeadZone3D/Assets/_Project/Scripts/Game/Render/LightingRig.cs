@@ -76,6 +76,7 @@ namespace DeadZone.Game
             sun.transform.rotation = Quaternion.Euler(sunAngle, -35f + (hour - 12f) * 6f, 0);
             Color amb = Color.Lerp(new Color(0.035f, 0.045f, 0.075f), new Color(0.42f, 0.45f, 0.5f), day);
             RenderSettings.ambientLight = amb;
+            RenderSettings.reflectionIntensity = Mathf.Lerp(0.05f, 1f, day);
             RenderSettings.fogColor = Color.Lerp(new Color(0.015f, 0.02f, 0.03f), _fog, day * 0.9f + 0.1f);
             RenderSettings.fogDensity = _fogBase * (1f + darkness * 1.2f) * fogScale;
             playerFill.intensity = Mathf.Lerp(0.9f, 0.0f, day);

@@ -17,6 +17,7 @@ namespace DeadZone.Game
             if (_mapWorld == w && _mapTex != null && (w.version == _mapVersion || Time.frameCount % 60 != 0)) return;
             if (_mapTex == null || _mapTex.width != w.w || _mapTex.height != w.h)
             {
+                if (_mapTex != null) Destroy(_mapTex);
                 _mapTex = new Texture2D(w.w, w.h, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp };
             }
             _mapWorld = w;
@@ -86,10 +87,8 @@ namespace DeadZone.Game
             }
             var pl = raid.player;
             var pp = MapPoint(r, pl.x, pl.y, w);
-            var old = GUI.matrix;
-            GUIUtility.RotateAroundPivot((float)(pl.angle * Mathf.Rad2Deg), pp);
-            Fill(new Rect(pp.x - 2, pp.y - 2, 12, 4), Color.white);
-            GUI.matrix = old;
+            var tip = pp + new Vector2(Mathf.Cos((float)pl.angle), Mathf.Sin((float)pl.angle)) * (full ? 14f : 9f);
+            Fill(new Rect(tip.x - 2.5f, tip.y - 2.5f, 5, 5), Color.white);
             Fill(new Rect(pp.x - 4, pp.y - 4, 8, 8), UiColors.Info);
             Frame(r, UiColors.Line, 2);
         }
@@ -286,11 +285,12 @@ namespace DeadZone.Game
         private void DrawRaidInventory(Raid raid, Player p, Container c)
         {
             Fill(new Rect(0, 0, W, H), new Color(0, 0, 0, 0.55f));
-            var r = new Rect(W / 2 - 820, 70, 1640, H - 140);
+            float pw = Mathf.Min(1640, W - 40);
+            var r = new Rect(W / 2 - pw / 2, 70, pw, H - 140);
             Panel(r, UiColors.Bg);
             Text(new Rect(r.x + 20, r.y + 10, 800, 36), c != null ? Raid.ContainerName(c.type) : "Inventar", 26, UiColors.Accent, TextAnchor.MiddleLeft, true);
             Text(new Rect(r.x + 20, r.y + 10, r.width - 40, 36), "Tab/Esc schließen · Spiel läuft weiter!", 15, UiColors.Warn, TextAnchor.MiddleRight);
-            float colW = c != null ? 520 : 0;
+            float colW = c != null ? Mathf.Min(520, pw * 0.34f) : 0;
             if (c != null)
             {
                 var cr = new Rect(r.x + 16, r.y + 56, colW, r.height - 200);
@@ -299,9 +299,11 @@ namespace DeadZone.Game
                 if (Btn(new Rect(cr.xMax - 170, cr.y + 4, 160, 32), "Alles nehmen", c.items != null && c.items.Any(i => i != null), 14, UiColors.Good)) { raid.TakeAll(c); _selected = null; }
                 int count = c.items?.Count ?? 0;
                 if (count == 0) Text(new Rect(cr.x + 12, cr.y + 50, cr.width - 24, 30), "Leer.", 16, UiColors.Muted);
+                int ccols = Mathf.Max(2, (int)((cr.width - 24) / 82));
+                float cc = Mathf.Min(82, (cr.width - 24) / ccols);
                 for (int i = 0; i < Mathf.Max(12, count); i++)
                 {
-                    var sr = new Rect(cr.x + 12 + (i % 6) * 82, cr.y + 44 + (i / 6) * 82, 76, 76);
+                    var sr = new Rect(cr.x + 12 + (i % ccols) * cc, cr.y + 44 + (i / ccols) * cc, cc - 6, cc - 6);
                     if (i < count) DrawSlot(sr, new SlotRef { kind = "container", index = i });
                     else { Fill(sr, new Color(0.05f, 0.06f, 0.07f, 1f)); Frame(sr, new Color(0.15f, 0.17f, 0.19f)); if (Event.current.type == EventType.Repaint) _dropTargets.Add((new SlotRef { kind = "container", index = i }, sr)); }
                 }
@@ -309,7 +311,8 @@ namespace DeadZone.Game
             float x0 = r.x + 16 + (c != null ? colW + 12 : 0);
             float rw = r.xMax - 16 - x0;
             DrawGrid(new Rect(x0, r.y + 56, rw * 0.58f, r.height - 200), "Rucksack", "pinv", p.inventory, 74, p.inventory.All().Count + "/" + p.inventory.slots);
-            var er = new Rect(x0 + rw * 0.58f + 10, r.y + 56, rw * 0.42f - 10, 290);
+            var er = new Rect(x0 + rw * 0.58f + 10, r.y + 56, rw * 0.42f - 10, 0);
+            er.height = EquipmentHeight(er.width);
             DrawEquipment(er, "pequip", p.equipment);
             DrawGrid(new Rect(er.x, er.yMax + 10, er.width, 130), "Sicherer Behälter", "psecure", p.secure, 70);
             DrawSelectionActions(new Rect(r.x + 16, r.yMax - 134, r.width - 32, 118));
@@ -344,7 +347,7 @@ namespace DeadZone.Game
             Panel(r, UiColors.Bg);
             Text(new Rect(r.x, r.y + 20, r.width, 50), "PAUSE", 40, UiColors.Accent, TextAnchor.MiddleCenter, true);
             float y = r.y + 100;
-            if (Btn(new Rect(r.x + 60, y, 400, 54), "Weiter", true, 20, UiColors.Good)) game.paused = false;
+            if (Btn(new Rect(r.x + 60, y, 400, 54), "Weiter", true, 20, UiColors.Good)) { game.paused = false; game.input.ClearPending(); }
             y += 66;
             if (Btn(new Rect(r.x + 60, y, 400, 54), "Einstellungen", true, 20)) settingsOpen = true;
             y += 66;

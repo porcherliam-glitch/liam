@@ -22,9 +22,9 @@ namespace DeadZone.Game
         {
             if (_init) return;
             _init = true;
-            _lit = Resources.Load<Material>("DZMaterials/Lit");
-            _emissive = Resources.Load<Material>("DZMaterials/Emissive");
-            _unlit = Resources.Load<Material>("DZMaterials/Unlit");
+            _lit = Template("DZMaterials/Lit");
+            _emissive = Template("DZMaterials/Emissive");
+            _unlit = Template("DZMaterials/Unlit");
             if (_lit == null) _lit = new Material(FindShader(Urp ? "Universal Render Pipeline/Lit" : "Standard"));
             if (_emissive == null)
             {
@@ -32,6 +32,15 @@ namespace DeadZone.Game
                 _emissive.EnableKeyword("_EMISSION");
             }
             if (_unlit == null) _unlit = new Material(FindShader(Urp ? "Universal Render Pipeline/Unlit" : "Unlit/Color"));
+        }
+
+        /// <summary>Loads a template material, ignoring it when it was made for the other render pipeline (would render magenta).</summary>
+        private static Material Template(string path)
+        {
+            var m = Resources.Load<Material>(path);
+            if (m == null || m.shader == null) return null;
+            bool urpShader = m.shader.name.StartsWith("Universal Render Pipeline");
+            return urpShader == Urp ? m : null;
         }
 
         private static Shader FindShader(string name)

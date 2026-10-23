@@ -29,14 +29,19 @@ namespace DeadZone.Game
             Fill(new Rect(0, 0, W, 64), new Color(0.03f, 0.04f, 0.045f, 0.95f));
             Text(new Rect(24, 0, 400, 64), "BASIS · DEAD ZONE", 26, UiColors.Accent, TextAnchor.MiddleLeft, true);
             var prog = Progression.Progress(p.xp);
-            Text(new Rect(380, 6, 380, 26), "Stufe " + prog.level + " · " + Progression.RankTitle(prog.level), 18, UiColors.Text, TextAnchor.MiddleLeft, true);
-            Bar(new Rect(380, 36, 300, 16), prog.cur, prog.next, UiColors.Accent, prog.cur + " / " + prog.next + " EP", 12);
-            Text(new Rect(720, 0, 260, 64), M.FormatCredits(p.credits), 24, UiColors.Accent, TextAnchor.MiddleLeft, true);
-            Bar(new Rect(990, 12, 200, 18), (float)p.hp, pm.HpMax(), UiColors.Hp, "LP " + M.Round(p.hp) + "/" + pm.HpMax(), 12);
-            Bar(new Rect(990, 34, 96, 14), (float)p.hunger, 100, UiColors.Food, null);
-            Bar(new Rect(1094, 34, 96, 14), (float)p.thirst, 100, UiColors.Water, null);
-            if (Btn(new Rect(W - 380, 12, 170, 40), "Einstellungen", true, 16)) settingsOpen = true;
-            if (Btn(new Rect(W - 200, 12, 180, 40), "Hauptmenü", true, 16)) { game.core.save.Save(p); game.EnterMenu(); }
+            // laid out from the right so narrow (4:3) screens do not overlap
+            bool narrow = W < 1700;
+            float bw = narrow ? 130 : 175;
+            float bx = W - 20 - bw * 2 - 10;
+            float hx = bx - 230, cx = hx - 250;
+            Text(new Rect(330, 6, Mathf.Max(120, cx - 340), 26), "Stufe " + prog.level + " · " + Progression.RankTitle(prog.level), 18, UiColors.Text, TextAnchor.MiddleLeft, true);
+            Bar(new Rect(330, 36, Mathf.Clamp(cx - 350, 120, 300), 16), prog.cur, prog.next, UiColors.Accent, prog.cur + " / " + prog.next + " EP", 12);
+            Text(new Rect(cx, 0, 240, 64), M.FormatCredits(p.credits), 24, UiColors.Accent, TextAnchor.MiddleLeft, true);
+            Bar(new Rect(hx, 12, 200, 18), (float)p.hp, pm.HpMax(), UiColors.Hp, "LP " + M.Round(p.hp) + "/" + pm.HpMax(), 12);
+            Bar(new Rect(hx, 34, 96, 14), (float)p.hunger, 100, UiColors.Food, null);
+            Bar(new Rect(hx + 104, 34, 96, 14), (float)p.thirst, 100, UiColors.Water, null);
+            if (Btn(new Rect(bx, 12, bw, 40), "Einstellungen", true, 16)) settingsOpen = true;
+            if (Btn(new Rect(bx + bw + 10, 12, bw, 40), "Hauptmenü", true, 16)) { game.core.save.Save(p); game.EnterMenu(); }
             // navigation
             float ny = 84;
             foreach (var (id, name) in BaseTabs)
@@ -150,11 +155,15 @@ namespace DeadZone.Game
             float leftW = a.width * 0.56f;
             DrawGrid(new Rect(a.x, a.y, leftW, a.height - 130), "Lager", "stash", p.stash, 72, p.stash.All().Count + "/" + p.stash.slots + " Plätze");
             float rx = a.x + leftW + 10, rw = a.width - leftW - 10;
-            DrawEquipment(new Rect(rx, a.y, rw, 250), "equip", p.equipment);
-            DrawGrid(new Rect(rx, a.y + 258, rw, 252), "Rucksack", "loadout", p.loadout, 64, M.FormatWeight(pm.LoadoutWeight()) + " / " + M.FormatWeight(pm.CarryLimit()));
-            DrawGrid(new Rect(rx, a.y + 518, rw, 118), "Sicherer Behälter (bleibt beim Tod)", "secure", p.secure, 64);
-            if (Btn(new Rect(rx, a.y + 644, rw * 0.5f - 5, 44), "Schnell packen", true, 16)) { int n = pm.QuickPack(); Toast(n > 0 ? n + " Stapel eingepackt" : "Nichts Passendes im Lager", "info", 2000); }
-            if (Btn(new Rect(rx + rw * 0.5f + 5, a.y + 644, rw * 0.5f - 5, 44), "Lager sortieren", true, 16)) { p.stash.Sort(); _selected = null; }
+            float eh = EquipmentHeight(rw);
+            DrawEquipment(new Rect(rx, a.y, rw, eh), "equip", p.equipment);
+            float rest = a.height - 130 - eh - 8 - 52;
+            float secH = Mathf.Max(100, rest * 0.3f);
+            DrawGrid(new Rect(rx, a.y + eh + 8, rw, rest - secH - 8), "Rucksack", "loadout", p.loadout, 64, M.FormatWeight(pm.LoadoutWeight()) + " / " + M.FormatWeight(pm.CarryLimit()));
+            DrawGrid(new Rect(rx, a.y + eh + rest - secH + 8, rw, secH - 8), "Sicherer Behälter (bleibt beim Tod)", "secure", p.secure, 64);
+            float by = a.y + eh + rest + 6;
+            if (Btn(new Rect(rx, by, rw * 0.5f - 5, 44), "Schnell packen", true, 16)) { int n = pm.QuickPack(); Toast(n > 0 ? n + " Stapel eingepackt" : "Nichts Passendes im Lager", "info", 2000); }
+            if (Btn(new Rect(rx + rw * 0.5f + 5, by, rw * 0.5f - 5, 44), "Lager sortieren", true, 16)) { p.stash.Sort(); _selected = null; }
             DrawSelectionActions(new Rect(a.x, a.yMax - 120, a.width, 120));
         }
 
@@ -168,7 +177,9 @@ namespace DeadZone.Game
             Text(new Rect(list.x + 14, list.y + 6, list.width - 28, 30), "Neues Angebot nach jedem Einsatz", 13, UiColors.Muted, TextAnchor.MiddleRight);
             float rowH = 58;
             var view = new Rect(0, 0, list.width - 40, p.traderStock.Count * rowH + 10);
-            _scrollA = GUI.BeginScrollView(new Rect(list.x + 8, list.y + 44, list.width - 16, list.height - 52), _scrollA, view);
+            var vpT = new Rect(list.x + 8, list.y + 44, list.width - 16, list.height - 52);
+            _viewport = vpT;
+            _scrollA = GUI.BeginScrollView(vpT, _scrollA, view);
             for (int i = 0; i < p.traderStock.Count; i++)
             {
                 var o = p.traderStock[i];
@@ -185,6 +196,7 @@ namespace DeadZone.Game
                 if (Btn(new Rect(r.xMax - 132, r.y + 8, 124, 36), "×" + n10, o.count > 1 && p.credits >= o.price * 2, 14, UiColors.Good)) { var res = pm.Buy(i, n10); if (!res.ok) Toast(res.reason, "warning", 1500); }
             }
             GUI.EndScrollView();
+            _viewport = null;
             var right = new Rect(a.x + leftW + 5, a.y, a.width - leftW - 5, a.height - 130);
             DrawGrid(right, "Dein Lager – Rechtsklick verkauft sofort", "stash", p.stash, 70, M.FormatCredits(p.credits));
             DrawSelectionActions(new Rect(right.x, a.yMax - 120, right.width, 120));
@@ -200,7 +212,9 @@ namespace DeadZone.Game
             var recipes = pm.RecipesFor(station);
             float rowH = 74;
             var view = new Rect(0, 0, a.width - 60, recipes.Count * rowH + 10);
-            _scrollA = GUI.BeginScrollView(new Rect(a.x + 10, a.y + 80, a.width - 20, a.height - (station == "armory" ? 290 : 90)), _scrollA, view);
+            var vpC = new Rect(a.x + 10, a.y + 80, a.width - 20, a.height - (station == "armory" ? 290 : 90));
+            _viewport = vpC;
+            _scrollA = GUI.BeginScrollView(vpC, _scrollA, view);
             for (int i = 0; i < recipes.Count; i++)
             {
                 var (rc, unlocked, can) = recipes[i];
@@ -218,6 +232,7 @@ namespace DeadZone.Game
                 }
             }
             GUI.EndScrollView();
+            _viewport = null;
             if (station == "armory")
             {
                 var rep = new Rect(a.x + 10, a.yMax - 200, a.width - 20, 190);
