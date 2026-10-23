@@ -3,7 +3,8 @@
     "rootNamespace": "DeadZone.Game",
     "references": [
         "DeadZone.Core",
-        "Unity.InputSystem"
+        "Unity.InputSystem",
+        "Unity.RenderPipelines.Universal.Runtime"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
@@ -17,6 +18,11 @@
             "name": "com.unity.inputsystem",
             "expression": "1.0.0",
             "define": "DZ_INPUT_SYSTEM"
+        },
+        {
+            "name": "com.unity.render-pipelines.universal",
+            "expression": "12.0.0",
+            "define": "DZ_URP"
         }
     ],
     "noEngineReferences": false

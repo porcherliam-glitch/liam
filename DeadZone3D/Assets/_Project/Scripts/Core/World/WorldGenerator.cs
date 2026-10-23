@@ -1183,6 +1183,7 @@ namespace DeadZone.Core
                             for (int k = 0; k < count; k++)
                             {
                                 var inst = Items.Create(id, 1);
+                                if (inst != null) inst.raidFound = true;
                                 if (inst != null) world.floorLoot.Add(new FloorLoot { uid = "fl" + world.floorLoot.Count, inst = inst, x = poi.x + mrng.Float(-14, 14), y = poi.y + mrng.Float(-14, 14) });
                             }
                         }

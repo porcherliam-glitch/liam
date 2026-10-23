@@ -129,7 +129,7 @@ namespace DeadZone.Core
             var p = profile;
             var equipment = Equipment.Deserialize(p.equipment.Serialize());
             var inv = Inventory.Deserialize(p.loadout.Serialize(), equipment.BackpackSlots());
-            foreach (var it in inv.SetSlots(equipment.BackpackSlots())) p.stash.Add(it);
+            StowOverflow(inv.SetSlots(equipment.BackpackSlots()));
             var secure = Inventory.Deserialize(p.secure.Serialize(), SecureSlots());
             secure.SetSlots(SecureSlots());
             return new Loadout { equipment = equipment, inventory = inv, secure = secure, hp = p.hp, hpMax = HpMax(), hunger = p.hunger, thirst = p.thirst, carryLimit = CarryLimit() };
@@ -161,22 +161,67 @@ namespace DeadZone.Core
             return W;
         }
 
-        private void FixLoadoutSlots()
+        /// <summary>Adapts the backpack slots to the equipped backpack; returns items that fit neither there nor in the stash.</summary>
+        public List<ItemInst> FixLoadoutSlots()
         {
             var p = profile;
-            foreach (var it in p.loadout.SetSlots(p.equipment.BackpackSlots())) p.stash.Add(it);
+            var left = new List<ItemInst>();
+            foreach (var it in p.loadout.SetSlots(p.equipment.BackpackSlots())) { var r = p.stash.Add(it); if (r.remaining != null) left.Add(r.remaining); }
+            return left;
         }
 
-        public bool MoveStashToLoadout(string uid, int count = int.MaxValue)
+        /// <summary>Puts overflow into the stash; whatever does not fit is sold (same rule as after a raid). Returns the credits.</summary>
+        /// <summary>
+        /// Runs an equipment change in the base and keeps it only when every item that no longer fits
+        /// into the (new) backpack can move into the stash. Otherwise the profile is restored and false is returned.
+        /// </summary>
+        public bool TryBackpackChange(Action change)
         {
             var p = profile;
             if (p == null) return false;
+            var stash = p.stash.Serialize(); var loadout = p.loadout.Serialize(); var secure = p.secure.Serialize(); var eq = p.equipment.Serialize();
+            int stashSlots = p.stash.slots, loadoutSlots = p.loadout.slots, secureSlots = p.secure.slots;
+            change();
+            if (FixLoadoutSlots().Count == 0) return true;
+            p.stash = Inventory.Deserialize(stash, stashSlots);
+            p.loadout = Inventory.Deserialize(loadout, loadoutSlots);
+            p.secure = Inventory.Deserialize(secure, secureSlots);
+            p.equipment = Equipment.Deserialize(eq);
+            return false;
+        }
+        public int StowOverflow(IEnumerable<ItemInst> items)
+        {
+            var p = profile;
+            int sold = 0;
+            foreach (var it in items)
+            {
+                var r = p.stash.Add(it);
+                if (r.remaining == null) continue;
+                int cr = Math.Max(1, M.Round(Items.Value(r.remaining) * DataTables.ECONOMY.overflowSellMul));
+                sold += cr;
+            }
+            if (sold > 0) { p.credits += sold; p.AddStat("creditsEarned", sold); _game.fb.Toast("Lager voll – überzählige Gegenstände verkauft: +" + M.FormatCredits(sold), "warning", 4000); }
+            return sold;
+        }
+
+        public bool MoveStashToLoadout(string uid, int count = int.MaxValue) => MoveStashToLoadoutCount(uid, count) > 0;
+
+        /// <summary>Moves up to count units; returns how many really moved. Nothing moved leaves the stash untouched.</summary>
+        public int MoveStashToLoadoutCount(string uid, int count = int.MaxValue)
+        {
+            var p = profile;
+            if (p == null) return 0;
+            int idx = p.stash.IndexOf(uid);
             var inst = p.stash.Remove(uid, count);
-            if (inst == null) return false;
+            if (inst == null) return 0;
             int n = inst.count;
             var r = p.loadout.Add(inst);
-            if (r.remaining != null) p.stash.Add(r.remaining);
-            return r.remaining == null || r.remaining.count < n + 1;
+            if (r.remaining != null)
+            {
+                if (idx >= 0 && p.stash.items[idx] == null) p.stash.items[idx] = r.remaining;
+                else p.stash.Add(r.remaining);
+            }
+            return n - (r.remaining?.count ?? 0);
         }
 
         public bool MoveLoadoutToStash(string uid, int count = int.MaxValue)
@@ -222,21 +267,33 @@ namespace DeadZone.Core
                     if (s2.remaining != null) { p.equipment.Equip(r.replaced, s); inv.items[idx] = inst; return new Result(false, "Kein Platz für den alten Gegenstand"); }
                 }
             }
-            if (s == "backpack") FixLoadoutSlots();
             return new Result(true);
         }
+        private Result EquipChecked(bool fromStash, string uid, string slot)
+        {
+            if (profile == null) return new Result(false);
+            Result res = null;
+            bool fits = TryBackpackChange(() => res = EquipFrom(fromStash ? profile.stash : profile.loadout, uid, slot));
+            return fits ? res : new Result(false, "Lager voll – der Rucksack-Inhalt passt nicht ins Lager");
+        }
 
-        public Result EquipFromStash(string uid, string slot = null) => profile != null ? EquipFrom(profile.stash, uid, slot) : new Result(false);
-        public Result EquipFromLoadout(string uid, string slot = null) => profile != null ? EquipFrom(profile.loadout, uid, slot) : new Result(false);
+        public Result EquipFromStash(string uid, string slot = null) => EquipChecked(true, uid, slot);
+        public Result EquipFromLoadout(string uid, string slot = null) => EquipChecked(false, uid, slot);
 
         public bool UnequipToStash(string slot)
         {
             var p = profile;
             var inst = p?.equipment[slot];
             if (inst == null || !p.stash.CanAdd(inst)) return false;
+            if (slot == "backpack")
+            {
+                // the backpack plus everything that no longer fits into the 6 pocket slots must fit into the stash
+                int over = Math.Max(0, p.loadout.All().Count - 6);
+                if (p.stash.FreeSlots() < 1 + over) return false;
+            }
             p.equipment.Unequip(slot);
             p.stash.Add(inst);
-            if (slot == "backpack") FixLoadoutSlots();
+            if (slot == "backpack") StowOverflow(FixLoadoutSlots());
             return true;
         }
 
@@ -253,7 +310,8 @@ namespace DeadZone.Core
                     if (need <= 0) break;
                     if (!pred(it)) continue;
                     int n = Math.Min(need, it.count);
-                    if (MoveStashToLoadout(it.uid, n)) { moved++; need -= n; }
+                    int got = MoveStashToLoadoutCount(it.uid, n);
+                    if (got > 0) { moved++; need -= got; }
                 }
             }
             foreach (var g in new[] { p.equipment.primary, p.equipment.secondary }.Where(g => g != null))
@@ -613,7 +671,7 @@ namespace DeadZone.Core
                 if (insurance > 0 && Rng.Chance(insurance)) { newEq[s] = it; insured.Add(it); } else lost.Add(it);
             }
             lost.AddRange(p.loadout.All());
-            foreach (var it in p.secure.All()) p.stash.Add(it);
+            StowOverflow(p.secure.All()); // the secure container always survives, if need be sold
             p.equipment = newEq;
             p.loadout = new Inventory(newEq.BackpackSlots());
             p.secure = new Inventory(SecureSlots());
@@ -760,8 +818,8 @@ namespace DeadZone.Core
         {
             profile = p;
             if (p.stash.slots < StashSlotsFor(p.Up("stash"))) p.stash.SetSlots(StashSlotsFor(p.Up("stash")));
-            foreach (var it in p.loadout.SetSlots(p.equipment.BackpackSlots())) p.stash.Add(it);
-            foreach (var it in p.secure.SetSlots(SecureSlots())) p.stash.Add(it);
+            StowOverflow(p.loadout.SetSlots(p.equipment.BackpackSlots()));
+            StowOverflow(p.secure.SetSlots(SecureSlots()));
             UnlockedMaps();
             _game.events.Emit("profileChanged");
         }

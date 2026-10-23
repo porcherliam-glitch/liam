@@ -31,7 +31,7 @@ namespace DeadZone.EditorTools
             bool shaderOk = lit != null && lit.shader != null && lit.shader.name.StartsWith("Universal Render Pipeline") == urp;
             bool done = AssetDatabase.LoadAssetAtPath<SceneAsset>(ScenePath) != null && shaderOk;
             if (done) return;
-            Setup(true);
+            if (!Setup(true)) return;
             EditorUtility.DisplayDialog("Dead Zone", "Das Projekt wurde eingerichtet.\n\nDrücke oben in der Mitte auf ▶ (Play), um zu spielen.\nMenü „Dead Zone“ → „Windows-Spiel bauen“ erzeugt eine startbare Spieldatei.", "OK");
         }
 
@@ -41,7 +41,7 @@ namespace DeadZone.EditorTools
         [MenuItem("Dead Zone/Spielen", priority = 2)]
         public static void PlayMenu()
         {
-            Setup(true);
+            if (!Setup(true)) return;
             if (SceneManager.GetActiveScene().path != ScenePath && EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
                 EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
             EditorApplication.isPlaying = true;
@@ -50,21 +50,22 @@ namespace DeadZone.EditorTools
         /// <summary>Batchmode: -executeMethod DeadZone.EditorTools.ProjectSetup.RunBatch</summary>
         public static void RunBatch()
         {
-            Setup(false);
-            EditorApplication.Exit(0);
+            EditorApplication.Exit(Setup(false) ? 0 : 1);
         }
 
-        public static void Setup(bool openScene)
+        /// <summary>Returns false when the user cancelled the save prompt for an unsaved scene.</summary>
+        public static bool Setup(bool openScene)
         {
             CreateFolder("Assets/_Project", "Scenes");
             CreateFolder("Assets/_Project", "Resources");
             CreateFolder("Assets/_Project/Resources", "DZMaterials");
             CreateMaterials();
-            CreateScene(openScene);
+            if (!CreateScene(openScene)) return false;
             ConfigurePlayer();
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
             Debug.Log("[DZ] Projekt eingerichtet: Szene " + ScenePath + ", Materialien unter " + MatDir);
+            return true;
         }
 
         private static void CreateFolder(string parent, string name)
@@ -102,13 +103,17 @@ namespace DeadZone.EditorTools
             AssetDatabase.CreateAsset(m, path);
         }
 
-        private static void CreateScene(bool openScene)
+        private static bool CreateScene(bool openScene)
         {
             if (AssetDatabase.LoadAssetAtPath<SceneAsset>(ScenePath) == null)
             {
                 var active = SceneManager.GetActiveScene();
                 bool untitled = string.IsNullOrEmpty(active.path);
-                if (active.isDirty && untitled && !Application.isBatchMode) EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo();
+                if (active.isDirty && untitled && !Application.isBatchMode && !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
+                {
+                    Debug.LogWarning("[DZ] Einrichtung abgebrochen – die ungespeicherte Szene wurde nicht ersetzt.");
+                    return false;
+                }
                 // an additive new scene is not allowed next to an unsaved untitled scene, so replace it then
                 bool replace = Application.isBatchMode || untitled || (openScene && !active.isDirty);
                 var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, replace ? NewSceneMode.Single : NewSceneMode.Additive);
@@ -131,6 +136,7 @@ namespace DeadZone.EditorTools
                 EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
             }
             EditorBuildSettings.scenes = new[] { new EditorBuildSettingsScene(ScenePath, true) };
+            return true;
         }
 
         private static void ConfigurePlayer()

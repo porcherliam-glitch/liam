@@ -2,6 +2,9 @@ using System;
 using System.Collections.Generic;
 using DeadZone.Core;
 using UnityEngine;
+#if DZ_URP
+using UnityEngine.Rendering.Universal;
+#endif
 
 namespace DeadZone.Game
 {
@@ -53,6 +56,10 @@ namespace DeadZone.Game
             var camGo = new GameObject("Main Camera") { tag = "MainCamera" };
             camGo.transform.SetParent(transform, false);
             var cam = camGo.AddComponent<Camera>();
+#if DZ_URP
+            // bloom, vignette and tonemapping come from the volume profile of the URP asset
+            if (UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline != null) cam.GetUniversalAdditionalCameraData().renderPostProcessing = true;
+#endif
             rig = new CameraRig(cam);
             lighting = new LightingRig(transform);
             fx = new FxSystem(transform);
@@ -189,7 +196,11 @@ namespace DeadZone.Game
         public void QuitGame()
         {
             if (state == "base" || state == "result") core.save.Save(core.Profile);
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+#else
             Application.Quit();
+#endif
         }
 
         private void OnApplicationQuit()
@@ -208,7 +219,7 @@ namespace DeadZone.Game
             bool stepped = false;
             if (state == "raid" && Raid != null)
             {
-                if (!paused && !Raid.ended)
+                if (!paused && !ui.helpOpen && !Raid.ended)
                 {
                     _acc += Math.Min(dt, 0.25);
                     int steps = 0;
@@ -269,7 +280,7 @@ namespace DeadZone.Game
             rig.yaw = 0f;
             rig.pitch = 58f;
             raidView.Update(dt, Mathf.Clamp01(alpha), p.interactTarget);
-            var ppos = Coords.ToWorld(p.x, p.y);
+            var ppos = raidView.PlayerRenderPos;
             var look = new Vector3((float)Math.Cos(p.angle), 0, (float)-Math.Sin(p.angle)) * 3f;
             rig.Follow(ppos + look, dt);
             lighting.fogScale = 1f;

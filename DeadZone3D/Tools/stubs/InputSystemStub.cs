@@ -42,6 +42,7 @@ namespace UnityEngine.InputSystem
     public class Keyboard : InputDevice
     {
         public static Keyboard current => throw new NotSupportedException();
+        public ButtonControl anyKey => throw new NotSupportedException();
         public KeyControl this[Key key] => throw new NotSupportedException();
     }
 
@@ -49,6 +50,7 @@ namespace UnityEngine.InputSystem
     {
         public static Mouse current => throw new NotSupportedException();
         public Vector2Control position => throw new NotSupportedException();
+        public DeltaControl delta => throw new NotSupportedException();
         public DeltaControl scroll => throw new NotSupportedException();
         public ButtonControl leftButton => throw new NotSupportedException();
         public ButtonControl rightButton => throw new NotSupportedException();

@@ -84,7 +84,7 @@ namespace DeadZone.Game
             foreach (var m in active) { Text(new Rect(a.x + 30, y, a.width - 60, 28), "• " + m.title + " (" + DataTables.MAPS[m.mapId].name + ")", 18); y += 30; }
             y += 30;
             if (Btn(new Rect(a.x + 30, y, 300, 56), "Einsatz planen", true, 20, UiColors.Good)) _baseTab = "plan";
-            if (Btn(new Rect(a.x + 350, y, 300, 56), "Schnell packen", true, 20)) { int n = pm.QuickPack(); Toast(n > 0 ? n + " Stapel eingepackt" : "Nichts Passendes im Lager", n > 0 ? "success" : "info", 2000); }
+            if (Btn(new Rect(a.x + 350, y, 300, 56), "Schnell packen", true, 20)) QuickPack();
             Text(new Rect(a.x + 30, a.yMax - 120, a.width - 60, 100),
                 "Tipp: Im Einsatz verlierst du beim Tod alles am Körper und im Rucksack – nur der sichere Behälter bleibt. Wertvolles also gut überlegt mitnehmen und rechtzeitig extrahieren. " +
                 "Die Krankenstation heilt dich zwischen den Einsätzen, die Funkstation schaltet weitere Aufträge und Gebiete frei.", 16, UiColors.Muted, TextAnchor.UpperLeft, false, true);
@@ -145,7 +145,7 @@ namespace DeadZone.Game
             Text(new Rect(load.x + 18, y + 4, load.width - 36, 24), "Rucksack: " + p.loadout.All().Count + "/" + p.loadout.slots + " · Gewicht " + M.FormatWeight(pm.LoadoutWeight()) + " / " + M.FormatWeight(pm.CarryLimit()), 15, UiColors.Text);
             y += 34;
             foreach (var w in pm.LoadoutWarnings().Take(3)) { Text(new Rect(load.x + 18, y, load.width - 36, 22), "⚠ " + w, 14, UiColors.Warn); y += 24; }
-            if (Btn(new Rect(load.x + 18, load.yMax - 70, 200, 52), "Schnell packen", true, 17)) { int n = pm.QuickPack(); Toast(n > 0 ? n + " Stapel eingepackt" : "Nichts Passendes im Lager", "info", 2000); }
+            if (Btn(new Rect(load.x + 18, load.yMax - 70, 200, 52), "Schnell packen", true, 17)) QuickPack();
             if (Btn(new Rect(load.x + 228, load.yMax - 70, load.width - 246, 52), "Einsatz starten: " + mapSel.short_name(), unlocked.Contains(_planMap), 20, UiColors.Good)) game.StartRaid(_planMap);
         }
 
@@ -162,9 +162,18 @@ namespace DeadZone.Game
             DrawGrid(new Rect(rx, a.y + eh + 8, rw, rest - secH - 8), "Rucksack", "loadout", p.loadout, 64, M.FormatWeight(pm.LoadoutWeight()) + " / " + M.FormatWeight(pm.CarryLimit()));
             DrawGrid(new Rect(rx, a.y + eh + rest - secH + 8, rw, secH - 8), "Sicherer Behälter (bleibt beim Tod)", "secure", p.secure, 64);
             float by = a.y + eh + rest + 6;
-            if (Btn(new Rect(rx, by, rw * 0.5f - 5, 44), "Schnell packen", true, 16)) { int n = pm.QuickPack(); Toast(n > 0 ? n + " Stapel eingepackt" : "Nichts Passendes im Lager", "info", 2000); }
+            if (Btn(new Rect(rx, by, rw * 0.5f - 5, 44), "Schnell packen", true, 16)) QuickPack();
             if (Btn(new Rect(rx + rw * 0.5f + 5, by, rw * 0.5f - 5, 44), "Lager sortieren", true, 16)) { p.stash.Sort(); _selected = null; }
             DrawSelectionActions(new Rect(a.x, a.yMax - 120, a.width, 120));
+        }
+
+        private void QuickPack()
+        {
+            var p = Prof;
+            int n = game.core.profileMgr.QuickPack();
+            if (n > 0) Toast(n + " Stapel eingepackt", "success", 2000);
+            else if (p.loadout.IsFull()) Toast("Rucksack voll", "warning", 2000);
+            else Toast("Nichts Passendes im Lager", "info", 2000);
         }
 
         private void DrawTrader(Rect a)
@@ -193,7 +202,8 @@ namespace DeadZone.Game
                 Text(new Rect(r.x + 62, r.y + 26, r.width - 330, 22), M.FormatCredits(o.price) + " · Vorrat " + o.count, 14, UiColors.Muted);
                 if (Btn(new Rect(r.xMax - 250, r.y + 8, 110, 36), "Kaufen", o.count > 0 && p.credits >= o.price, 14, UiColors.Good)) { var res = pm.Buy(i, 1); if (!res.ok) Toast(res.reason, "warning", 1500); }
                 int n10 = Mathf.Min(o.count, d.stack > 1 ? Mathf.Max(10, d.stack) : 5);
-                if (Btn(new Rect(r.xMax - 132, r.y + 8, 124, 36), "×" + n10, o.count > 1 && p.credits >= o.price * 2, 14, UiColors.Good)) { var res = pm.Buy(i, n10); if (!res.ok) Toast(res.reason, "warning", 1500); }
+                int nBuy = o.price > 0 ? Mathf.Min(n10, p.credits / o.price) : n10; // what the player can actually afford
+                if (Btn(new Rect(r.xMax - 132, r.y + 8, 124, 36), "×" + Mathf.Max(nBuy, 2), nBuy > 1, 14, UiColors.Good)) { var res = pm.Buy(i, nBuy); if (!res.ok) Toast(res.reason, "warning", 1500); }
             }
             GUI.EndScrollView();
             _viewport = null;

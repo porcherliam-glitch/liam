@@ -41,7 +41,7 @@ namespace DeadZone.EditorTools
 
         public static bool Build(BuildTarget target, string dir, string file)
         {
-            ProjectSetup.Setup(false);
+            if (!ProjectSetup.Setup(false)) { Debug.LogError("[DZ] Build abgebrochen: Projekt-Einrichtung wurde abgebrochen."); return false; }
             Directory.CreateDirectory(dir);
             var opts = new BuildPlayerOptions
             {

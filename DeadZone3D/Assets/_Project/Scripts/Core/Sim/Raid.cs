@@ -344,7 +344,7 @@ namespace DeadZone.Core
             OnOpenLoot?.Invoke(c);
         }
 
-        public (bool ok, ItemInst remaining, int taken) TakeFromContainer(Container c, int idx, int count = int.MaxValue)
+        public (bool ok, ItemInst remaining, int taken) TakeFromContainer(Container c, int idx, int count = int.MaxValue, Inventory into = null)
         {
             if (c?.items == null || idx < 0 || idx >= c.items.Count) return (false, null, 0);
             var inst = c.items[idx];
@@ -353,16 +353,15 @@ namespace DeadZone.Core
             bool takeAll = count >= inst.count;
             if (!takeAll) { part = Items.Clone(inst); part.count = Math.Max(1, count); }
             int before = part.count;
-            part.raidFound = true;
-            var r = player.inventory.Add(part);
+            var r = (into ?? player.inventory).Add(part);
             int taken = before - (r.remaining?.count ?? 0);
             if (taken > 0)
             {
                 var takenPart = Items.Clone(part); takenPart.count = taken;
-                player.stats.lootValue += Items.Value(takenPart);
+                if (takenPart.raidFound) player.stats.lootValue += Items.Value(takenPart);
                 if (takeAll) c.items[idx] = r.remaining;
                 else { inst.count -= taken; if (inst.count <= 0) c.items[idx] = null; }
-                events.Emit(new SimEvent("itemPicked") { id = takenPart.id, data = takenPart, text = "container" });
+                if (takenPart.raidFound) events.Emit(new SimEvent("itemPicked") { id = takenPart.id, data = takenPart, text = "container" });
                 fb.Sfx("pickup", double.NaN, double.NaN, 0.6);
             }
             return (taken > 0 && r.remaining == null, r.remaining, taken);
@@ -398,7 +397,8 @@ namespace DeadZone.Core
                 }
             }
             if (c.items.Count(i => i != null) >= 12) return false;
-            c.items.Add(inst);
+            int free = c.items.IndexOf(null);
+            if (free >= 0) c.items[free] = inst; else c.items.Add(inst);
             return true;
         }
 
@@ -445,7 +445,6 @@ namespace DeadZone.Core
             if (fl == null || !w.floorLoot.Contains(fl)) return (0, 0);
             var inst = fl.inst;
             int before = inst.count;
-            inst.raidFound = true;
             var r = player.inventory.Add(inst);
             int picked = before - (r.remaining?.count ?? 0);
             if (r.remaining == null) w.floorLoot.Remove(fl);
@@ -453,8 +452,11 @@ namespace DeadZone.Core
             if (picked > 0)
             {
                 var part = Items.Clone(inst); part.count = picked;
-                player.stats.lootValue += Items.Value(part);
-                events.Emit(new SimEvent("itemPicked") { id = part.id, data = part, text = "floor" });
+                if (part.raidFound)
+                {
+                    player.stats.lootValue += Items.Value(part);
+                    events.Emit(new SimEvent("itemPicked") { id = part.id, data = part, text = "floor" });
+                }
                 fb.Sfx("pickup", double.NaN, double.NaN, 0.7);
                 fb.Toast("+" + picked + " " + (Items.Def(inst)?.name ?? ""), "success", 1400);
             }
@@ -513,6 +515,14 @@ namespace DeadZone.Core
             result = res;
             events.Emit(new SimEvent("raidEnd") { data = res });
             events.Clear();
+            if (pm?.profile != null)
+            {
+                // once home, nothing is "found in raid" any more (missions already consumed what they needed)
+                var pr = pm.profile;
+                foreach (var inv in new[] { pr.stash, pr.loadout, pr.secure }) foreach (var it in inv.items) if (it != null) it.raidFound = false;
+                foreach (var it in pr.equipment.All()) it.raidFound = false;
+                pr.stash.MergeStacks();
+            }
             if (game != null && pm?.profile != null) game.save.Save(pm.profile);
             OnEnded?.Invoke(res);
         }

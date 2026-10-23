@@ -22,7 +22,7 @@ namespace DeadZone.Game
         public float scroll;
         public bool usingGamepad;
         private Vector2 _move, _stick;
-        private bool _fire;
+        private bool _fire, _fireLatch;
         private int _gamepadSlot;
 
         private static readonly string[] SimActions = { "crouch", "slot1", "slot2", "slot3", "slot4", "slot5", "flashlight", "reload", "quickMed", "grenade", "interact" };
@@ -62,8 +62,10 @@ namespace DeadZone.Game
                 mouse = ms.position.ReadValue();
                 scroll = ms.scroll.ReadValue().y;
                 _fire = ms.leftButton.isPressed;
-                if (ms.leftButton.wasPressedThisFrame) usingGamepad = false;
+                if (ms.leftButton.wasPressedThisFrame || ms.delta.ReadValue().sqrMagnitude > 4f) usingGamepad = false;
             }
+            var kbd = Keyboard.current;
+            if (kbd != null && kbd.anyKey.wasPressedThisFrame) usingGamepad = false;
             float x = (KeyHeld("right") ? 1 : 0) - (KeyHeld("left") ? 1 : 0);
             float y = (KeyHeld("up") ? 1 : 0) - (KeyHeld("down") ? 1 : 0);
             _move = new Vector2(x, y);
@@ -137,6 +139,9 @@ namespace DeadZone.Game
             _ui.Clear();
             _held.Clear();
             PollDevices();
+            // a click that closed a window must not fire: after any UI block, firing waits for a fresh press
+            if (blocked) _fireLatch = true;
+            if (!_fire) _fireLatch = false;
             foreach (var a in SimActions) if (KeyDown(a)) _pending.Add(a);
             foreach (var a in UiActions) if (KeyDown(a)) _ui.Add(a);
             if (KeyHeld("sprint")) _held.Add("sprint");
@@ -161,7 +166,7 @@ namespace DeadZone.Game
 
         public bool Pressed(string action) => !blocked && _pending.Remove(action);
         public bool IsDown(string action) => !blocked && _held.Contains(action);
-        public bool WantsFire() => !blocked && _fire;
+        public bool WantsFire() => !blocked && _fire && !_fireLatch;
 
         public double AimAngle(double px, double py)
         {

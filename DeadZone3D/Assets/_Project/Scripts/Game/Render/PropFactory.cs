@@ -63,6 +63,12 @@ namespace DeadZone.Game
             }
             go.transform.localPosition = new Vector3(cx, 0, cz);
             if (alongZ) go.transform.localRotation = Quaternion.Euler(0, 90, 0);
+            if (p.type == "lamp" && p.extraction == null)
+            {
+                int east = world.Tile(p.tx + 1, p.ty), south = world.Tile(p.tx, p.ty + 1);
+                bool eastRoad = east == T.ROAD || east == T.ROAD_LINE, southRoad = south == T.ROAD || south == T.ROAD_LINE;
+                if (!eastRoad && southRoad) go.transform.localRotation = Quaternion.Euler(0, 90, 0); // arm +x -> -z (sim south, over the road)
+            }
             else if (p.type == "tree" || p.type == "barrel" || p.type == "crate") go.transform.localRotation = Quaternion.Euler(0, ((p.tx * 31 + p.ty * 17) % 360), 0);
             return go;
         }

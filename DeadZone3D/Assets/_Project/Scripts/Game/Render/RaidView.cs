@@ -29,6 +29,9 @@ namespace DeadZone.Game
         private readonly Material _ringActive, _ringLocked, _ringRun, _beamActive, _beamLocked, _beamRun, _poiMat, _interactMat, _fireDisc, _toxicDisc;
 
         public Vector3 PlayerPos => _playerCur;
+        /// <summary>Interpolated player position as drawn this frame (camera and flashlight follow this).</summary>
+        public Vector3 PlayerRenderPos { get; private set; }
+        private const float BeamHeight = 10f;
 
         public RaidView(Raid raid, WorldView world, FxSystem fx, Transform parent)
         {
@@ -58,7 +61,7 @@ namespace DeadZone.Game
                 var ring = Obj("ExtractRing", _disc, _ringActive, center + Vector3.up * 0.02f, new Vector3((float)p.radius * Coords.S * 2, 0.03f, (float)p.radius * Coords.S * 2));
                 var inner = Obj("ExtractInner", _disc, Mats.Lit(new Color(0.06f, 0.08f, 0.07f), 0.2f), center + Vector3.up * 0.025f, new Vector3((float)p.radius * Coords.S * 2 - 0.5f, 0.03f, (float)p.radius * Coords.S * 2 - 0.5f));
                 inner.transform.SetParent(ring.transform, true);
-                var beam = Obj("ExtractBeam", _disc, _beamActive, center, new Vector3(0.35f, 14f, 0.35f));
+                var beam = Obj("ExtractBeam", _disc, _beamActive, center, new Vector3(0.35f, BeamHeight, 0.35f));
                 beam.GetComponent<Renderer>().shadowCastingMode = ShadowCastingMode.Off;
                 _extractions.Add((p, ring.GetComponent<Renderer>(), beam.GetComponent<Renderer>()));
             }
@@ -120,6 +123,7 @@ namespace DeadZone.Game
             if (z.id == "armored") cloth = new Color(0.22f, 0.24f, 0.27f);
             var v = new CharacterView(_root, "Zombie_" + z.id, skin, cloth, pants, true, Eyes(z.id));
             v.scale = (float)(z.type.size > 0 ? z.type.size : 1.0) * (z.id == "brute" ? 1.05f : 1f);
+            v.heightScale = Mathf.Min(v.scale, 1.4f);
             var pos = Coords.ToWorld(z.x, z.y);
             return new ZView { view = v, prev = pos, cur = pos, visible = 0 };
         }
@@ -130,6 +134,7 @@ namespace DeadZone.Game
             var p = _raid.player;
             _playerCur = Coords.ToWorld(p.x, p.y);
             var ppos = Vector3.Lerp(_playerPrev, _playerCur, alpha);
+            PlayerRenderPos = ppos;
             string cls = null;
             if (p.activeSlot <= 2) cls = Items.Def(p.WeaponInst)?.weapon?.@class;
             else if (p.activeSlot == 3) cls = "grenade";
@@ -158,7 +163,7 @@ namespace DeadZone.Game
                 if (zv.visible <= 0.05f) continue;
                 var pos = Vector3.Lerp(zv.prev, zv.cur, alpha);
                 float mv = (float)M.Hypot(z.moveX, z.moveY) > 0.1f && z.state != "idle" && z.state != "attack" ? 1f : 0f;
-                zv.view.Pose(pos, Coords.YawDeg(z.angle), mv, (float)z.legPhase, (float)z.attackAnim, false, z.dead, (float)z.flash, dt);
+                zv.view.Pose(pos, Coords.YawDeg(z.angle), mv, (float)z.legPhase, (float)z.attackAnim, false, z.dead, z.dead ? 0f : (float)z.flash, dt);
             }
             List<Zombie> gone = null;
             foreach (var kv in _zombies) if (!_alive.Contains(kv.Key)) (gone ??= new List<Zombie>()).Add(kv.Key);
@@ -237,7 +242,7 @@ namespace DeadZone.Game
                 if (ring.sharedMaterial != mat) ring.sharedMaterial = mat;
                 var bm = pt.state == "extracting" ? _beamRun : pt.active ? _beamActive : _beamLocked;
                 if (beam.sharedMaterial != bm) beam.sharedMaterial = bm;
-                beam.transform.localScale = new Vector3(0.35f * pulse, 14f, 0.35f * pulse);
+                beam.transform.localScale = new Vector3(0.35f * pulse, BeamHeight, 0.35f * pulse);
             }
             foreach (var (poi, beam) in _pois)
             {

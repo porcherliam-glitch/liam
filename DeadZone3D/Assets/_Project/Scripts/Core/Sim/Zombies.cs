@@ -271,6 +271,7 @@ namespace DeadZone.Core
                 var z = zombies[i];
                 if (!z.dead) continue;
                 z.deathTimer += dt;
+                z.flash = Math.Max(0, z.flash - dt);
                 if (z.deathTimer >= (z.id == "boss" ? 60 : 25))
                 {
                     zombies.RemoveAt(i);

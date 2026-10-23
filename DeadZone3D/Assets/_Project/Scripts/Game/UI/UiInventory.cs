@@ -205,7 +205,31 @@ namespace DeadZone.Game
             // container (raid)
             if (from.kind == "container")
             {
-                if (to.kind == "pinv" || to.kind == "psecure" || to.kind == "pequip") { var r = game.Raid.TakeFromContainer(lootContainer, from.index); if (r.remaining != null) Toast("Inventar voll", "warning", 1500); }
+                if (to.kind == "pinv" || to.kind == "psecure")
+                {
+                    var r = game.Raid.TakeFromContainer(lootContainer, from.index, int.MaxValue, InvOf(to));
+                    if (r.remaining != null) Toast(to.kind == "psecure" ? "Sicherer Behälter voll" : "Inventar voll", "warning", 1500);
+                }
+                else if (to.kind == "pequip")
+                {
+                    var pl = RaidPlayer;
+                    if (!Equipment.Accepts(to.slot, inst)) { Toast("Passt nicht in diesen Platz", "warning", 1500); game.audioSys.Play("ui_error", null); return; }
+                    var r = game.Raid.TakeFromContainer(lootContainer, from.index);
+                    if (r.remaining != null) { Toast("Inventar voll", "warning", 1500); return; }
+                    int idx = pl.inventory.IndexOf(inst.uid);
+                    if (idx >= 0) MoveItem(new SlotRef { kind = "pinv", index = idx }, to);
+                }
+                return;
+            }
+            // a backpack change in the base must not lose items: undo it when the overflow does not fit into the stash
+            if (!raid && !_backpackGuard && ((to.slot == "backpack" && EqOf(to) != null) || (from.slot == "backpack" && EqOf(from) != null)))
+            {
+                _backpackGuard = true;
+                bool fits;
+                try { fits = game.core.profileMgr.TryBackpackChange(() => MoveItem(from, to)); }
+                finally { _backpackGuard = false; }
+                if (!fits) { Toast("Lager voll – der Rucksack-Inhalt passt nicht ins Lager", "warning", 2500); game.audioSys.Play("ui_error", null); }
+                _selected = null; _drag = null;
                 return;
             }
             if (to.kind == "container")
@@ -257,14 +281,16 @@ namespace DeadZone.Game
         }
 
         private void CheckSecure(Inventory inv) { }
+        private bool _backpackGuard;
 
         private void AfterEquipmentChange(bool raid, string slot)
         {
             if (slot != "backpack") return;
             if (!raid)
             {
-                var p = Prof;
-                foreach (var it in p.loadout.SetSlots(p.equipment.BackpackSlots())) p.stash.Add(it);
+                if (_backpackGuard) return; // TryBackpackChange stows the overflow itself
+                var pm = game.core.profileMgr;
+                pm.StowOverflow(pm.FixLoadoutSlots());
             }
             else
             {

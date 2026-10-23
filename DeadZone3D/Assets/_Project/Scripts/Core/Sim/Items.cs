@@ -53,7 +53,8 @@ namespace DeadZone.Core
             if (a == null || b == null || a.id != b.id) return false;
             var def = Def(a);
             if (def == null || Math.Max(1, def.stack) <= 1) return false;
-            return !a.durability.HasValue && !b.durability.HasValue;
+            // found-in-raid and carried units stay separate, otherwise carried items could count for missions
+            return !a.durability.HasValue && !b.durability.HasValue && a.raidFound == b.raidFound;
         }
 
         public static int StackMax(ItemInst inst) { var d = Def(inst); return d != null ? Math.Max(1, d.stack) : 1; }
@@ -276,7 +277,6 @@ namespace DeadZone.Core
                 {
                     int mv = Math.Min(max - it.count, inst.count);
                     it.count += mv; inst.count -= mv;
-                    if (inst.raidFound) it.raidFound = true;
                 }
             }
             for (int i = 0; i < slots && inst.count > 0; i++)
@@ -389,6 +389,25 @@ namespace DeadZone.Core
             part.count = count; it.count -= count;
             items[free] = part;
             return true;
+        }
+
+        /// <summary>Merges stackable items into earlier stacks without reordering the inventory.</summary>
+        public void MergeStacks()
+        {
+            for (int i = 0; i < slots; i++)
+            {
+                var it = items[i];
+                if (it == null) continue;
+                for (int j = 0; j < i && it.count > 0; j++)
+                {
+                    var t = items[j];
+                    if (t == null || !Items.CanStack(t, it)) continue;
+                    int mv = Math.Min(it.count, Items.StackMax(t) - t.count);
+                    if (mv <= 0) continue;
+                    t.count += mv; it.count -= mv;
+                }
+                if (it.count <= 0) items[i] = null;
+            }
         }
 
         public void Sort()

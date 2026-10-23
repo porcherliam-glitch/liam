@@ -30,8 +30,8 @@ namespace DeadZone.Game
             flashlight.type = LightType.Spot;
             flashlight.spotAngle = 58f;
             flashlight.innerSpotAngle = 30f;
-            flashlight.range = 30f;
-            flashlight.intensity = 9f;
+            flashlight.range = 34f;
+            flashlight.intensity = 30f;
             flashlight.color = new Color(1f, 0.96f, 0.86f);
             flashlight.shadows = LightShadows.Soft;
             playerFill = new GameObject("PlayerFill").AddComponent<Light>();
@@ -43,7 +43,7 @@ namespace DeadZone.Game
             muzzle = new GameObject("Muzzle").AddComponent<Light>();
             muzzle.transform.SetParent(_root, false);
             muzzle.type = LightType.Point;
-            muzzle.range = 9f;
+            muzzle.range = 10f;
             muzzle.color = new Color(1f, 0.8f, 0.45f);
             muzzle.enabled = false;
             RenderSettings.ambientMode = AmbientMode.Flat;
@@ -71,15 +71,15 @@ namespace DeadZone.Game
             bool dusk = hour > 15f && hour < 21f;
             Color sunCol = Color.Lerp(new Color(0.55f, 0.62f, 0.85f), dusk ? new Color(1f, 0.72f, 0.5f) : new Color(1f, 0.95f, 0.86f), day);
             sun.color = sunCol;
-            sun.intensity = Mathf.Lerp(0.07f, 1.25f, day * day);
+            sun.intensity = Mathf.Lerp(0.13f, 1.25f, day * day);
             float sunAngle = Mathf.Lerp(18f, 55f, day);
             sun.transform.rotation = Quaternion.Euler(sunAngle, -35f + (hour - 12f) * 6f, 0);
-            Color amb = Color.Lerp(new Color(0.035f, 0.045f, 0.075f), new Color(0.42f, 0.45f, 0.5f), day);
+            Color amb = Color.Lerp(new Color(0.08f, 0.095f, 0.14f), new Color(0.42f, 0.45f, 0.5f), day);
             RenderSettings.ambientLight = amb;
             RenderSettings.reflectionIntensity = Mathf.Lerp(0.05f, 1f, day);
             RenderSettings.fogColor = Color.Lerp(new Color(0.015f, 0.02f, 0.03f), _fog, day * 0.9f + 0.1f);
             RenderSettings.fogDensity = _fogBase * (1f + darkness * 1.2f) * fogScale;
-            playerFill.intensity = Mathf.Lerp(0.9f, 0.0f, day);
+            playerFill.intensity = Mathf.Lerp(2.0f, 0.0f, day);
         }
 
         public void SetCameraBackground(Camera cam) { cam.backgroundColor = RenderSettings.fogColor; }
@@ -88,14 +88,14 @@ namespace DeadZone.Game
         {
             flashlight.enabled = on;
             flashlight.transform.position = pos;
-            flashlight.transform.rotation = Quaternion.Euler(14f, yawDeg, 0);
+            flashlight.transform.rotation = Quaternion.Euler(9f, yawDeg, 0);
             playerFill.transform.position = pos + Vector3.up * 1.5f;
         }
 
         public void MuzzleFlash(Vector3 pos, float strength)
         {
             muzzle.transform.position = pos;
-            muzzle.intensity = 6f * strength;
+            muzzle.intensity = 12f * strength;
             muzzle.enabled = true;
             _muzzleT = 0.05f;
         }

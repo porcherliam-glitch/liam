@@ -15,6 +15,8 @@ namespace DeadZone.Game
         private float _deathT, _flash;
         private bool _flashing;
         public float scale = 1f;
+        /// <summary>Vertical scale (big zombies are capped so they stay below roofs).</summary>
+        public float heightScale = 1f;
         private string _weaponKey;
 
         private static Mesh _box, _sphere, _capsule;
@@ -131,6 +133,8 @@ namespace DeadZone.Game
                 case "grenade": Part(_weapon, "N", SphereMesh(), Mats.Lit(new Color(0.25f, 0.3f, 0.2f), 0.3f), new Vector3(0, 0, 0.05f), Vector3.one * 0.12f); break;
                 case "med": Part(_weapon, "K", BoxMesh(), Mats.Lit(new Color(0.85f, 0.85f, 0.85f), 0.4f), new Vector3(0, 0, 0.05f), new Vector3(0.18f, 0.1f, 0.14f)); break;
             }
+            // the gun sits right next to the flashlight: its shadow would cut a dark wedge into the beam
+            foreach (var r in _weapon.GetComponentsInChildren<MeshRenderer>()) r.shadowCastingMode = ShadowCastingMode.Off;
         }
 
         public void SetVisible(bool v)
@@ -147,7 +151,7 @@ namespace DeadZone.Game
             var t = root.transform;
             t.localPosition = pos;
             t.localRotation = Quaternion.Euler(0, yawDeg, 0);
-            t.localScale = Vector3.one * scale;
+            t.localScale = new Vector3(scale, heightScale, scale);
             float swing = Mathf.Sin(legPhase) * 35f * moving;
             float bob = Mathf.Abs(Mathf.Cos(legPhase)) * 0.05f * moving;
             if (dead)

@@ -161,9 +161,10 @@ namespace DeadZone.Core
             if (ammoId == null) return;
             if (ammoId != inst.ammoId && (inst.mag ?? 0) > 0 && inst.ammoId != null)
             {
-                var back = Items.Create(inst.ammoId, inst.mag.Value);
+                var back = Items.Create(inst.ammoId, 1);
                 if (back != null)
                 {
+                    back.count = inst.mag.Value; // may exceed one stack (LMG belts); Inventory.Add splits it
                     var r = inventory.Add(back);
                     if (r.remaining != null && _raid.player != null) _raid.DropItem(r.remaining, _raid.player.x, _raid.player.y);
                 }
@@ -241,6 +242,14 @@ namespace DeadZone.Core
                 var r = _reloads[i];
                 var rt = Rt(r.inst);
                 if (!rt.reloading) { _reloads.RemoveAt(i); continue; }
+                var holder = _raid.player;
+                if (holder != null && r.inv == holder.inventory && r.inst != holder.WeaponInst)
+                {
+                    // the weapon was put away, dropped or moved: the reload stops and takes no ammo
+                    rt.reloading = false; rt.reloadTimer = 0;
+                    _reloads.RemoveAt(i);
+                    continue;
+                }
                 rt.reloadTimer -= dt;
                 if (rt.reloadTimer <= 0)
                 {

@@ -82,7 +82,9 @@ namespace DeadZone.Game
             SetColor(m, c);
             m.EnableKeyword("_EMISSION");
             m.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
-            if (m.HasProperty("_EmissionColor")) m.SetColor("_EmissionColor", emission * intensity);
+            var e = emission * intensity;
+            if (!Urp) { float mx = e.maxColorComponent; if (mx > 1f) e /= mx; } // no tonemapping: avoid clamping to white
+            if (m.HasProperty("_EmissionColor")) m.SetColor("_EmissionColor", e);
             Cache[key] = m;
             return m;
         }

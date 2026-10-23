@@ -369,7 +369,7 @@ namespace DeadZone.Game
                 _lightDefs.Add(new LightSlot
                 {
                     def = l,
-                    pos = Coords.ToWorld(l.x, l.y, l.indoor ? 2.4f : l.toxic ? 0.8f : lamp ? 4.2f : 2.5f),
+                    pos = Coords.ToWorld(l.x, l.y, l.indoor ? 2.4f : l.toxic ? 1.8f : lamp ? 4.2f : 2.5f),
                     color = Mats.Hex(l.color, Color.white),
                     range = Mathf.Max(5f, (float)l.radius * Coords.S * 1.5f),
                 });
@@ -425,7 +425,8 @@ namespace DeadZone.Game
             foreach (var s in _lightDefs)
             {
                 if (s.light == null) continue;
-                float baseI = s.def.indoor ? 1.6f : s.def.toxic ? 1.4f : s.def.extraction != null ? 2.2f : 2.4f;
+                // URP lights fall off with 1/d², so these are higher than they look
+                float baseI = s.def.indoor ? 5f : s.def.toxic ? 4f : s.def.extraction != null ? 8f : 10f;
                 if (s.def.indoor) baseI *= Mathf.Lerp(0.6f, 1.2f, darkness);
                 if (s.def.flicker && !(generatorOn && s.def.indoor))
                 {

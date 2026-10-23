@@ -73,6 +73,7 @@ namespace DeadZone.Game
         {
             lootContainer = c;
             inventoryOpen = false;
+            mapOpen = false;
             _selected = null;
         }
 
@@ -197,8 +198,9 @@ namespace DeadZone.Game
                 }
                 if (!game.paused && _confirm == null)
                 {
-                    if (inp.UiPressed("inventory")) { if (lootContainer != null) lootContainer = null; else inventoryOpen = !inventoryOpen; _selected = null; }
-                    if (inp.UiPressed("map")) mapOpen = !mapOpen;
+                    // the full map and the inventory/loot windows are exclusive, so clicks on the map never reach hidden slots
+                    if (inp.UiPressed("inventory")) { mapOpen = false; if (lootContainer != null) lootContainer = null; else inventoryOpen = !inventoryOpen; _selected = null; _drag = null; }
+                    if (inp.UiPressed("map")) { mapOpen = !mapOpen; if (mapOpen) { inventoryOpen = false; lootContainer = null; _selected = null; _drag = null; } }
                     if (inp.UiPressed("drop") && (inventoryOpen || lootContainer != null) && _selected != null) RaidDropSelected();
                 }
                 if (lootContainer != null)

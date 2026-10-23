@@ -210,13 +210,24 @@ namespace DeadZone.Game
             var lines = game.core.missions.HudLines(raid);
             if (lines.Count > 0)
             {
-                float h = lines.Count * 24 + 16;
+                // long objectives wrap instead of losing their progress count at the end
+                var txts = new string[lines.Count];
+                var hs = new float[lines.Count];
+                float h = 16;
+                for (int i = 0; i < lines.Count; i++)
+                {
+                    var l = lines[i];
+                    txts[i] = (l.done ? "✔ " : l.optional ? "○ " : "● ") + l.text;
+                    hs[i] = Mathf.Max(24, TextHeight(txts[i], 450, 15) + 4);
+                    h += hs[i];
+                }
                 Fill(new Rect(20, oy, 470, h), new Color(0.02f, 0.03f, 0.035f, 0.6f));
                 float y = oy + 8;
-                foreach (var l in lines)
+                for (int i = 0; i < lines.Count; i++)
                 {
-                    Text(new Rect(34, y, 450, 24), (l.done ? "✔ " : l.optional ? "○ " : "● ") + l.text, 15, l.done ? UiColors.Good : l.optional ? UiColors.Muted : UiColors.Text);
-                    y += 24;
+                    var l = lines[i];
+                    Text(new Rect(34, y, 450, hs[i]), txts[i], 15, l.done ? UiColors.Good : l.optional ? UiColors.Muted : UiColors.Text, TextAnchor.UpperLeft, false, true);
+                    y += hs[i];
                 }
                 oy += h + 8;
             }
@@ -304,6 +315,7 @@ namespace DeadZone.Game
                 for (int i = 0; i < Mathf.Max(12, count); i++)
                 {
                     var sr = new Rect(cr.x + 12 + (i % ccols) * cc, cr.y + 44 + (i / ccols) * cc, cc - 6, cc - 6);
+                    if (sr.yMax > cr.yMax) break;
                     if (i < count) DrawSlot(sr, new SlotRef { kind = "container", index = i });
                     else { Fill(sr, new Color(0.05f, 0.06f, 0.07f, 1f)); Frame(sr, new Color(0.15f, 0.17f, 0.19f)); if (Event.current.type == EventType.Repaint) _dropTargets.Add((new SlotRef { kind = "container", index = i }, sr)); }
                 }
