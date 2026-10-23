@@ -2,6 +2,8 @@
 
 Ein Top-down-Zombie-Extraction-Shooter in **einer einzigen Datei**: `index.html` im Projektordner.
 
+> **Neu:** Es gibt jetzt auch eine **3D-Version in Unity** im Ordner [`DeadZone3D`](../DeadZone3D/README.md) – dasselbe Spiel mit echter 3D-Grafik.
+
 ## Spielen
 
 1. `index.html` doppelklicken (öffnet sich im Browser: Chrome, Edge, Firefox oder Safari).
