@@ -338,7 +338,7 @@ namespace DeadZone.Core
             if (!tx.HasValue) return;
             double dx = tx.Value - z.x, dy = ty.Value - z.y, l = M.Hypot(dx, dy);
             if (l < 2) return;
-            double step = Math.Min(l, spd * fdt);
+            double step = Math.Min(l, spd * _raid.moveScale * fdt);
             var m = Physics.MoveCircle(W, z.x, z.y, z.radius, dx / l * step, dy / l * step);
             z.x = m.x; z.y = m.y;
             z.angle = Math.Atan2(dy, dx);
@@ -602,7 +602,7 @@ namespace DeadZone.Core
         {
             var w = W;
             double tileMul = w.SpeedMul(M.Floor(z.x / TILE), M.Floor(z.y / TILE));
-            double step = spd * tileMul * dt;
+            double step = spd * tileMul * _raid.moveScale * dt;
             double px = z.x + dx * (z.radius + 6), py = z.y + dy * (z.radius + 6);
             int ptx = M.Floor(px / TILE), pty = M.Floor(py / TILE);
             if (w.Tile(ptx, pty) == T.DOOR_CLOSED)
@@ -748,7 +748,7 @@ namespace DeadZone.Core
             {
                 if (ab.t > 0) { ab.t -= dt; z.attackAnim = M.Clamp(1 - ab.t / ab.total, 0, 1) * 0.6; z.angle = Math.Atan2(ab.vy, ab.vx); return; }
                 ab.dash -= dt;
-                double step = 420 * dt;
+                double step = 420 * _raid.moveScale * dt;
                 var m = Physics.MoveCircle(W, z.x, z.y, z.radius, ab.vx * step, ab.vy * step);
                 bool blocked = m.collided && M.Hypot(m.x - z.x, m.y - z.y) < step * 0.3;
                 z.x = m.x; z.y = m.y;

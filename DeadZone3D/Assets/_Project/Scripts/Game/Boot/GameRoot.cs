@@ -286,6 +286,11 @@ namespace DeadZone.Game
                 pl.interactByLook = fp;
                 // first person: looking up throws grenades farther, looking down drops them closer
                 pl.throwPower = fp ? Mathf.Clamp(1f - input.pitch / InputReader.MaxPitch * 0.5f, 0.5f, 1.45f) : 1.0;
+                // first person: calmer walking tempo, zoom with a gun aims (tighter spread, slower, no sprint), sprint only forward
+                string held = RaidView.HeldClass(pl);
+                pl.aiming = fp && input.AimHeld && pl.activeSlot <= 2 && held != null && held != "melee";
+                pl.sprintForwardOnly = fp;
+                Raid.moveScale = core.settings.MoveScale(fp);
                 // mouse wheel: one weapon per notch (trackpads and free-spinning wheels send many small steps)
                 _scrollCooldown -= dt;
                 if (fp && !input.blocked)

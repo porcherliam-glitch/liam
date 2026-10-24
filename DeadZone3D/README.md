@@ -32,7 +32,7 @@ Menü **Dead Zone → Windows-Spiel bauen**. Das Spiel landet auf dem Desktop im
 | W A S D | Bewegen (in Blickrichtung) |
 | Maus | Umsehen und zielen (in der Ansicht von oben: auf das Ziel zeigen) |
 | Linke Maustaste | Schießen (halten = Dauerfeuer) |
-| Rechte Maustaste | Heranzoomen (Scharfschützengewehr stark) |
+| Rechte Maustaste | Heranzoomen und genauer zielen – du gehst dabei langsamer (Scharfschützengewehr stark) |
 | R | Nachladen |
 | E | Interagieren (Kisten, Türen, Beute – hinschauen); am Generator gedrückt halten |
 | Shift | Sprinten |
@@ -58,6 +58,8 @@ ist sie wieder frei. Wechselst du mit Alt+Tab aus dem Fenster, pausiert der Eins
 Spielbild klicken, damit die Maus eingefangen wird.
 Mausempfindlichkeit, Sichtfeld, „Maus umkehren“ und „Kopfwippen“ stellst du unter **Einstellungen** ein. Wird dir
 schwindelig: Kopfwippen ausschalten und das Sichtfeld größer stellen.
+**Lauftempo** „Ruhig“ (Standard) lässt dich und die Zombies in der Ego-Perspektive langsamer laufen, „Original“ ist
+das Tempo der Ansicht von oben. Sprinten geht in der Ego-Perspektive nur vorwärts.
 Mit dem Scharfschützengewehr zeigt die rechte Maustaste ein Zielfernrohr. Orange Pfeile am Bildrand zeigen Zombies, die
 dich von der Seite oder von hinten angreifen.
 Oben in der Mitte zeigt ein Kompass die Himmelsrichtung, Extraktionspunkte (grün, gesperrt orange) und Auftragsziele

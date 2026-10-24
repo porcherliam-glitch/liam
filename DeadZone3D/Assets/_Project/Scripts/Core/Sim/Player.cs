@@ -40,6 +40,10 @@ namespace DeadZone.Core
         public bool interactByLook;
         /// <summary>Grenade throw strength 0.3..1.5 (first person: from the view pitch; 1 = default range).</summary>
         public double throwPower = 1;
+        /// <summary>First person: zoom is held (set by the view layer). Tighter spread, slower walk, no sprint.</summary>
+        public bool aiming;
+        /// <summary>First person: sprint only roughly forward (within about 60° of the view direction).</summary>
+        public bool sprintForwardOnly;
 
         public Player(Raid raid, Loadout loadout)
         {
@@ -79,6 +83,7 @@ namespace DeadZone.Core
         {
             double m = crouching ? 0.6 : sprinting ? 2.0 : moving ? 1.4 : 1.0;
             foreach (var e in effects) if (e.spreadMul > 0) m *= e.spreadMul;
+            if (aiming && !sprinting) m *= 0.65;
             return m;
         }
 
@@ -107,12 +112,14 @@ namespace DeadZone.Core
             bool wantSprint = input != null && input.IsDown("sprint");
             double mag = M.Hypot(ax.x, ax.y);
             moving = mag > 0.05;
-            bool canSprint = wantSprint && moving && stamina > 1 && !Overweight() && !crouching && usingItem == null;
+            bool canSprint = wantSprint && moving && stamina > 1 && !Overweight() && !crouching && usingItem == null && !aiming;
+            if (canSprint && sprintForwardOnly && (ax.x * Math.Cos(angle) + ax.y * Math.Sin(angle)) / mag <= 0.5) canSprint = false;
             sprinting = canSprint;
             double speed = crouching ? 85 : canSprint ? 250 : 150;
             speed *= WeightSpeedMul() * speedMul * equipment.SpeedMul();
             if (usingItem != null) speed *= 0.55;
-            speed *= world.SpeedMul(M.Floor(x / TILE), M.Floor(y / TILE));
+            if (aiming && !sprinting) speed *= 0.75;
+            speed *= world.SpeedMul(M.Floor(x / TILE), M.Floor(y / TILE)) * _raid.moveScale;
             double dx = ax.x * speed * dt, dy = ax.y * speed * dt;
             if (knock.HasValue)
             {

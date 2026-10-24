@@ -289,7 +289,10 @@ namespace DeadZone.Game
             float spread = (fp ? 6f : 10f) + (float)p.SpreadMul() * 6f;
             if (fp)
             {
-                spread *= 1f - 0.6f * game.AimAmount;
+                // the gap is the real cone a shot can leave in (stance, bloom, zoom), projected with the current field of view
+                double cone = WeaponSystem.CurrentSpread(p.WeaponInst, p);
+                float tanHalfFov = Mathf.Tan(game.rig.cam.fieldOfView * 0.5f * Mathf.Deg2Rad);
+                spread = cone > 0 ? Mathf.Clamp(Mathf.Tan(Mathf.Min((float)cone, 1.4f)) / tanHalfFov * (H / 2f), 3f, H * 0.22f) : 6f;
                 // fully zoomed with the sniper rifle: only the centre dot
                 if (game.AimAmount > 0.9f && RaidView.HeldClass(p) == "sniper")
                 {

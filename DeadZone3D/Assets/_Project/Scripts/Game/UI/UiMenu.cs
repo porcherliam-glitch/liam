@@ -92,13 +92,18 @@ namespace DeadZone.Game
             if (Btn(new Rect(x + 200, y + 2, vw - 8, 40), "Ego-Perspektive", true, 15, s.view != "topdown" ? UiColors.Good : UiColors.Muted)) s.view = "fps";
             if (Btn(new Rect(x + 200 + vw, y + 2, vw - 8, 40), "Von oben", true, 15, s.view == "topdown" ? UiColors.Good : UiColors.Muted)) s.view = "topdown";
             y += 60;
+            Text(new Rect(x, y, 200, 44), "Lauftempo", 18);
+            if (Btn(new Rect(x + 200, y + 2, vw - 8, 40), "Ruhig", true, 15, s.tempo != "original" ? UiColors.Good : UiColors.Muted)) s.tempo = "calm";
+            if (Btn(new Rect(x + 200 + vw, y + 2, vw - 8, 40), "Original", true, 15, s.tempo == "original" ? UiColors.Good : UiColors.Muted)) s.tempo = "original";
+            y += 60;
             s.mouseSens = Slider(new Rect(x, y, w, 40), "Mausempfindlichkeit", (float)s.mouseSens); y += 52;
             // stored as the vertical angle (Unity's camera); the label also shows the width on a 16:9 screen
             float fov01 = Slider(new Rect(x, y, w, 40), "Sichtfeld", (float)((s.fov - 55) / 35), v => Mathf.RoundToInt(55 + 35 * v) + "° / " + Mathf.RoundToInt(Camera.VerticalToHorizontalFieldOfView(55 + 35 * v, 16f / 9f)) + "°");
             s.fov = Mathf.Round(55 + 35 * fov01); y += 52;
             s.invertY = Toggle(new Rect(x, y, w, 44), "Maus hoch/runter umkehren", s.invertY); y += 52;
             s.headBob = Toggle(new Rect(x, y, w, 44), "Kopfwippen beim Laufen", s.headBob); y += 60;
-            Text(new Rect(x, y, w, 120), "Ego-Perspektive: Maus = umsehen, rechte Maustaste = zoomen, Mausrad = Waffe wechseln. Mit V wechselst du im Einsatz jederzeit die Ansicht. Esc gibt die Maus frei.", 15, UiColors.Muted, TextAnchor.UpperLeft, false, true);
+            // ends above the "Fertig" button (r.yMax - 70), which sits under this column
+            Text(new Rect(x, y, w, 120), "Ego-Perspektive: Maus = umsehen, rechte Maustaste = zoomen und genauer zielen, Mausrad = Waffe wechseln. Lauftempo „Ruhig“: du und die Infizierten bewegt euch in der Ego-Perspektive langsamer. Mit V wechselst du im Einsatz jederzeit die Ansicht. Esc gibt die Maus frei.", 15, UiColors.Muted, TextAnchor.UpperLeft, false, true);
             game.ApplySettings();
             if (Btn(new Rect(r.xMax - 260, r.yMax - 70, 220, 48), "Fertig", true, 20)) { settingsOpen = false; game.SaveSettings(); }
         }
@@ -113,8 +118,8 @@ namespace DeadZone.Game
             string[,] rows =
             {
                 { "W A S D", "Bewegen (in Blickrichtung)" }, { "Maus", "Umsehen und zielen (Ego-Perspektive) – von oben: auf das Ziel zeigen" },
-                { "Linke Maustaste", "Schießen (gedrückt halten = Dauerfeuer)" }, { "Rechte Maustaste", "Heranzoomen (Ego-Perspektive)" }, { "R", "Nachladen" },
-                { "E", "Benutzen: Kisten, Türen, Beute (hinschauen) – Generator: gedrückt halten" }, { "Shift", "Sprinten" }, { "C / Strg", "Ducken (leiser, ruhiger zielen)" },
+                { "Linke Maustaste", "Schießen (gedrückt halten = Dauerfeuer)" }, { "Rechte Maustaste", "Heranzoomen und genauer zielen (Ego-Perspektive, du gehst dabei langsamer)" }, { "R", "Nachladen" },
+                { "E", "Benutzen: Kisten, Türen, Beute (hinschauen) – Generator: gedrückt halten" }, { "Shift", "Sprinten (Ego-Perspektive: nur vorwärts)" }, { "C / Strg", "Ducken (leiser, ruhiger zielen)" },
                 { "F", "Taschenlampe" }, { "Tab / I", "Inventar" }, { "M", "Karte" }, { "G", "Granate werfen (nach oben schauen = weiter)" }, { "Q", "Schnellheilung" },
                 { "1 – 5", "Primär, Sekundär, Nahkampf, Granate, Medizin" }, { "Mausrad", "Waffe wechseln 1–3 (Ego-Perspektive) / Kamera zoomen (von oben)" },
                 { "X", "Ausgewählten Gegenstand ablegen (im Inventar)" },
