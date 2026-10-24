@@ -284,6 +284,10 @@ namespace DeadZone.Game
             {
                 var pl = Raid.player;
                 pl.interactByLook = fp;
+                // first person: shots fly where the crosshair points, also up and down (head shots), from the current eye height; zombies are solid
+                pl.aimPitch = fp ? input.pitch * Mathf.Deg2Rad : double.NaN;
+                pl.eyeHeightPx = _eye / Coords.S;
+                pl.blockedByZombies = fp;
                 // first person: looking up throws grenades farther, looking down drops them closer
                 pl.throwPower = fp ? Mathf.Clamp(1f - input.pitch / InputReader.MaxPitch * 0.5f, 0.5f, 1.45f) : 1.0;
                 // first person: calmer walking tempo, zoom with a gun aims (tighter spread, slower, no sprint), sprint only forward
@@ -521,7 +525,9 @@ namespace DeadZone.Game
 
         public void Effect(Fx kind, double x, double y, double a = 0, double b = 0, string text = null, string color = null)
         {
-            var pos = Coords.ToWorld(x, y, 1.1f);
+            // aimed first-person shots report the height of their hit (floor, legs, head, ceiling)
+            double hitH = Raid?.weapons?.fxHeight ?? double.NaN;
+            var pos = Coords.ToWorld(x, y, double.IsNaN(hitH) ? 1.1f : (float)hitH);
             var dir = new Vector3((float)Math.Cos(a), 0, (float)-Math.Sin(a));
             switch (kind)
             {
@@ -571,7 +577,7 @@ namespace DeadZone.Game
                 case Fx.Impact:
                     {
                         bool metal = (int)b == T.FENCE || (int)b == T.DOOR_CLOSED;
-                        fx.Burst(Coords.ToWorld(x, y, 1.25f), metal ? 6 : 4, metal ? fx.spark : fx.dust, 3f, metal ? 0.04f : 0.07f, metal ? 0.25f : 0.5f, true);
+                        fx.Burst(Coords.ToWorld(x, y, double.IsNaN(hitH) ? 1.25f : (float)hitH), metal ? 6 : 4, metal ? fx.spark : fx.dust, 3f, metal ? 0.04f : 0.07f, metal ? 0.25f : 0.5f, true);
                         break;
                     }
                 case Fx.HitMarker: ui.HitMarker(); break;

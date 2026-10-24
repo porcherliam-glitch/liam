@@ -44,6 +44,16 @@ namespace DeadZone.Core
         public bool aiming;
         /// <summary>First person: sprint only roughly forward (within about 60° of the view direction).</summary>
         public bool sprintForwardOnly;
+        /// <summary>First person: vertical aim in radians, positive = looking down. Shots then fly along the line of sight
+        /// (over heads, into the floor, head shots). NaN = flat 2D shots as in the top-down view.</summary>
+        public double aimPitch = double.NaN;
+        /// <summary>First person: eye height in sim px (16 px per metre; 1.62 m standing = 26 px), where aimed shots start.</summary>
+        public double eyeHeightPx = 1.62 * PxPerMetre;
+        /// <summary>First person: living zombies are solid, the player cannot walk through them (see <see cref="PushOutOfZombies"/>).</summary>
+        public bool blockedByZombies;
+        /// <summary>Simulation pixels per metre (one 32 px tile is 2 m).</summary>
+        public const double PxPerMetre = TILE / World.MetersPerTile;
+        private readonly List<Zombie> _nearZombies = new List<Zombie>();
 
         public Player(Raid raid, Loadout loadout)
         {
@@ -204,6 +214,33 @@ namespace DeadZone.Core
                 toxic = Math.Max(0, toxic - dt);
                 Drain(2 * dt, "Vergiftung");
             }
+        }
+
+        /// <summary>
+        /// After the zombies moved: steps out of living zombies that still overlap the player, e.g. one standing against a wall
+        /// or pushed in by the crowd. Only the player moves, walls still block. Called by the raid when <see cref="blockedByZombies"/> is set.
+        /// </summary>
+        public void PushOutOfZombies()
+        {
+            if (dead || _raid.hash == null) return;
+            _nearZombies.Clear();
+            // the hash was filled at the start of the step; the margin covers how far zombies moved since
+            _raid.hash.Query(x, y, radius + 64, _nearZombies);
+            double px = 0, py = 0;
+            foreach (var z in _nearZombies)
+            {
+                if (z.dead) continue;
+                double dx = x - z.x, dy = y - z.y, r = radius + z.radius;
+                double d2 = dx * dx + dy * dy;
+                if (d2 >= r * r) continue;
+                double d = Math.Sqrt(d2);
+                // exactly on top of each other: step back against the view direction
+                if (d < 0.01) { px -= Math.Cos(angle) * r; py -= Math.Sin(angle) * r; continue; }
+                px += dx / d * (r - d); py += dy / d * (r - d);
+            }
+            if (px == 0 && py == 0) return;
+            var m = Physics.MoveCircle(_raid.world, x, y, radius, M.Clamp(px, -16, 16), M.Clamp(py, -16, 16));
+            x = m.x; y = m.y;
         }
 
         public void Drain(double amount, string cause)
