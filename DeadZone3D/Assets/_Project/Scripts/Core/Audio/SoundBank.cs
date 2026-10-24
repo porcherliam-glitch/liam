@@ -318,8 +318,8 @@ namespace DeadZone.Core
         /// <summary>
         /// Surface the 3D view shows at a sim position (keep in sync with WorldView.FloorMat and IndoorMat): roads, pavements and
         /// halls are concrete, grass and earth soft ground, gravel and rubble loose stones, toxic puddles splash; indoors homes and
-        /// offices have boards (every third home is tiled), shops, medical rooms and labs tiles. Doorways of concrete buildings
-        /// (garages, warehouses, bunkers) have a steel threshold.
+        /// offices have boards (every third home is tiled), shops, medical rooms and labs tiles. Doorways of a building have the
+        /// floor of its rooms (WorldView draws no threshold, only the lintel).
         /// </summary>
         public static StepSurface SurfaceAt(World world, double x, double y)
         {
@@ -335,11 +335,7 @@ namespace DeadZone.Core
                 case T.TOXIC: case T.WATER: return StepSurface.Water;
                 case T.FLOOR: return IndoorSurface(b);
             }
-            if (b != null)
-            {
-                var floor = IndoorSurface(b);
-                return T.IsDoor(t) && floor == StepSurface.Concrete ? StepSurface.Metal : floor;
-            }
+            if (b != null) return IndoorSurface(b);
             // doors, props and gaps outside buildings: the ground next to them (like WorldView.BaseUnder)
             for (int k = 0; k < 4; k++)
             {
@@ -402,6 +398,23 @@ namespace DeadZone.Core
                 case "research": delay = 0.34; gain = 0.2; break;
                 default: delay = 0.4; gain = 0.2; break;
             }
+        }
+
+        /// <summary>
+        /// Echo voice for a new echo: the first slot from <paramref name="next"/> on (wrapping round) whose last echo has finished,
+        /// that is <c>busyUntil[i] &lt;= now</c>, or -1 when every slot is still waiting out its delay or still ringing. A busy echo
+        /// is never cut (that would cancel it or click); in a burst of automatic fire the new echo is dropped instead.
+        /// </summary>
+        public static int FreeEchoSlot(double[] busyUntil, int next, double now)
+        {
+            if (busyUntil == null || busyUntil.Length == 0) return -1;
+            int n = busyUntil.Length;
+            for (int k = 0; k < n; k++)
+            {
+                int i = ((next + k) % n + n) % n;
+                if (now >= busyUntil[i]) return i;
+            }
+            return -1;
         }
 
         /// <summary>

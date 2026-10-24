@@ -169,10 +169,10 @@ namespace DeadZone.Tests
             Assert.AreEqual(StepSurface.Wood, Acoustics.SurfaceAt(w, C(4), C(14)), "office");
             Assert.AreEqual(StepSurface.Tile, Acoustics.SurfaceAt(w, C(14), C(14)), "shop");
             Assert.AreEqual(StepSurface.Concrete, Acoustics.SurfaceAt(w, C(27), C(7)), "warehouse");
-            // doorways: a steel threshold in concrete halls, the floor of the room elsewhere
+            // doorways have the floor of the rooms (WorldView draws no threshold there): bare concrete in a hall
             w.Put(27, 2, T.DOOR_OPEN);
             w.Put(4, 2, T.DOOR_OPEN);
-            Assert.AreEqual(StepSurface.Metal, Acoustics.SurfaceAt(w, C(27), C(2)), "warehouse door");
+            Assert.AreEqual(StepSurface.Concrete, Acoustics.SurfaceAt(w, C(27), C(2)), "warehouse door");
             Assert.AreEqual(StepSurface.Wood, Acoustics.SurfaceAt(w, C(4), C(2)), "house door");
             // a free-standing gate in a road sounds like the road (the ground beside it, as WorldView draws it)
             w.Put(40, 30, T.ROAD); w.Put(41, 30, T.DOOR_OPEN); w.Put(42, 30, T.ROAD);
@@ -204,6 +204,31 @@ namespace DeadZone.Tests
             Assert.Less(cityDelay, openDelay, "open fields answer later than dense streets");
             Assert.That(cityGain, Is.InRange(0.05, 0.4));
             Assert.That(openGain, Is.InRange(0.05, 0.4));
+        }
+
+        [Test]
+        public void EchoesOfABurstAreDroppedInsteadOfCut()
+        {
+            // 4 echo voices, an automatic rifle at 10 rounds/s on the industrial map: each echo waits about 0.42 s, then rings 0.5 s
+            Acoustics.Echo("industrial", out double delay, out _);
+            var busy = new double[4];
+            int next = 0, played = 0;
+            for (int shot = 0; shot < 30; shot++)
+            {
+                double now = shot * 0.1;
+                int i = Acoustics.FreeEchoSlot(busy, next, now);
+                if (i < 0) continue;
+                Assert.LessOrEqual(busy[i], now, "an echo still waiting or ringing is never taken over");
+                busy[i] = now + delay + 0.5;
+                next = (i + 1) % busy.Length;
+                played++;
+            }
+            Assert.That(played, Is.InRange(8, 20), "some echoes of the burst are heard, the others are dropped");
+            // the first free voice from the next one on wins (wrapping round); none when all are busy
+            Assert.AreEqual(2, Acoustics.FreeEchoSlot(new double[] { 0, 5, 0, 0 }, 1, 1));
+            Assert.AreEqual(0, Acoustics.FreeEchoSlot(new double[] { 0, 5, 5, 5 }, 1, 1));
+            Assert.AreEqual(-1, Acoustics.FreeEchoSlot(new double[] { 5, 5, 5, 5 }, 2, 1));
+            Assert.AreEqual(-1, Acoustics.FreeEchoSlot(new double[0], 0, 1));
         }
 
         [Test]
