@@ -126,6 +126,9 @@ Batchmode (Windows, im Ordner `DeadZone3D`):
   Speichern mit Sicherung, Händler, Werkstatt, Ausbau, Generator, Laborkarte, Granaten, alle 45 Töne).
 - Dazu 9 Tests für die Funde aus zwei Prüfrunden (Rucksackwechsel ohne Verlust, Beute in den sicheren Behälter,
   MG-Munition, mitgebrachte Gegenstände zählen nicht als Beute) und 7 Tests für die Ego-Perspektive (Benutzen durch
-  Hinschauen, keine Beute durch Wände, Wurfweite, Blickrichtungs-Mathematik, neue Einstellungen) – zusammen 37 Tests grün.
+  Hinschauen, keine Beute durch Wände, Wurfweite, Blickrichtungs-Mathematik, neue Einstellungen) und 8 Tests für Lauftempo,
+  Zielen und Streuung – zusammen 45 Tests grün.
+- Für den ersten Lauf in Unity gibt es den **automatischen Test** (siehe oben): Er spielt das Spiel kurz selbst an, macht
+  Bilder und schreibt einen Bericht mit allen Fehlern.
 - Der Unity-Teil kompiliert fehlerfrei gegen die Unity-Referenzbibliotheken, wurde aber **noch nicht in Unity selbst
   gestartet** (in der Cloud gibt es kein Unity). Beim ersten Öffnen auf dem PC können kleine Anpassungen nötig sein.

@@ -441,7 +441,7 @@ namespace DeadZone.Game
             float yawDeg = Coords.YawDeg(p.dead ? p.angle : input.yaw);
             float pitchDeg = p.dead ? Mathf.Lerp(input.pitch, 30f, _deathCam) : input.pitch;
             var eyePos = feet + Vector3.up * eye + bobOff;
-            // zoom on the right mouse button (visual only; the simulation has no aiming mode)
+            // zoom on the right mouse button; Player.aiming (set in Update) also tightens the spread in the simulation
             string cls = RaidView.HeldClass(p);
             bool gun = p.activeSlot <= 2 && cls != null && cls != "melee";
             _aim = Mathf.MoveTowards(_aim, input.AimHeld && gun && !p.sprinting && !p.dead ? 1f : 0f, dt * 7f);
