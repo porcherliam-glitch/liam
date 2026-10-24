@@ -375,7 +375,8 @@ namespace DeadZone.Core
                         double dmg = p.dmg * Falloff(p) * mul;
                         // the top of the body is the head; helmets (armoured zombies) and the boss soften head shots
                         bool head = !double.IsNaN(h) && h >= ZombieAI.HeadShare * ZombieAI.HeightPx(z);
-                        if (head) dmg *= z.id == "armored" || z.id == "boss" ? 1.6 : 2.2;
+                        // level aim at eye height lands in the head band of normal zombies, so the bonus stays moderate
+                        if (head) dmg *= z.id == "armored" || z.id == "boss" ? 1.35 : 1.75;
                         fxHeight = double.IsNaN(h) ? double.NaN : h / Player.PxPerMetre;
                         var r = _raid.zombies.Damage(z, dmg, p.pen, p.dirX, p.dirY, "bullet");
                         Fb.Effect(Fx.Blood, hx, hy, Math.Atan2(p.dirY, p.dirX), 0.8);

@@ -200,7 +200,7 @@ namespace DeadZone.Tests
             Assert.Greater(body.loss, 0, "the body hit lands");
             Assert.AreEqual(0, body.heads);
             Assert.AreEqual(1, head.heads);
-            Assert.AreEqual(body.loss * 2.2, head.loss, 1e-6, "head shots do 2.2 times the damage");
+            Assert.AreEqual(body.loss * 1.75, head.loss, 1e-6, "head shots do 1.75 times the damage");
 
             // helmets: an armoured zombie takes less extra damage from a head shot (the sniper goes through its armour)
             var raid2 = QuietRaid(21u);
@@ -208,7 +208,7 @@ namespace DeadZone.Tests
             var armored = Target(raid2, "armored", M10);
             armored.hp = armored.hpMax = 1000; // survives the shot, so the whole damage shows
             Shoot(raid2, PitchAt(raid2.player, 1.95, M10));
-            Assert.AreEqual(150 * 1.6, armored.hpMax - armored.hp, 1e-6);
+            Assert.AreEqual(150 * 1.35, armored.hpMax - armored.hp, 1e-6);
         }
 
         [Test]

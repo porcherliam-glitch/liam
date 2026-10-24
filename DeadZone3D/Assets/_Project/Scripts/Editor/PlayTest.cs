@@ -72,13 +72,8 @@ namespace DeadZone.EditorTools
         }
 
         /// <summary>Same check as the automatic setup: main scene missing or materials made for the other render pipeline.</summary>
-        private static bool NeedsSetup()
-        {
-            var lit = AssetDatabase.LoadAssetAtPath<Material>("Assets/_Project/Resources/DZMaterials/Lit.mat");
-            bool urp = GraphicsSettings.currentRenderPipeline != null;
-            bool shaderOk = lit != null && lit.shader != null && lit.shader.name.StartsWith("Universal Render Pipeline") == urp;
-            return AssetDatabase.LoadAssetAtPath<SceneAsset>(ProjectSetup.ScenePath) == null || !shaderOk;
-        }
+        /// <summary>Same check as the automatic setup (scene, all template materials, right render pipeline).</summary>
+        private static bool NeedsSetup() => ProjectSetup.NeedsSetup();
 
         private static void Hook()
         {
