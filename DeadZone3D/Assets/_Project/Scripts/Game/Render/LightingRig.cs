@@ -14,6 +14,13 @@ namespace DeadZone.Game
         private float _fogBase = 0.012f;
         /// <summary>Fog multiplier (the menu camera is far away and uses less fog).</summary>
         public float fogScale = 1f;
+        /// <summary>
+        /// Sky colours for the SkyDome, set by Apply. The horizon is exactly the fog colour, so fogged geometry in the
+        /// distance blends into the sky. skyGlow is the warm band of dusk and dawn above the horizon (black otherwise).
+        /// </summary>
+        public Color skyHorizon, skyZenith, skyGlow;
+        /// <summary>0 = night, 1 = full day (the sun disc, the moon and the stars fade with it).</summary>
+        public float daylight;
 
         public LightingRig(Transform parent)
         {
@@ -80,6 +87,16 @@ namespace DeadZone.Game
             RenderSettings.fogColor = Color.Lerp(new Color(0.015f, 0.02f, 0.03f), _fog, day * 0.9f + 0.1f);
             RenderSettings.fogDensity = _fogBase * (1f + darkness * 1.2f) * fogScale;
             playerFill.intensity = Mathf.Lerp(2.0f, 0.0f, day);
+            // sky: by day the zenith is a deeper, bluer shade of the map's fog, at night blue-black
+            daylight = day;
+            skyHorizon = RenderSettings.fogColor;
+            var zenithDay = new Color(_fog.r * 0.6f + 0.02f, _fog.g * 0.6f + 0.05f, _fog.b * 0.6f + 0.13f);
+            skyZenith = Color.Lerp(new Color(0.006f, 0.01f, 0.028f), zenithDay, day);
+            // dusk and dawn glow: strongest halfway between day and night, reddish in the morning, orange in the evening
+            float tw = Mathf.Clamp01(1f - Mathf.Abs(day - 0.45f) / 0.4f);
+            float twilight = tw * tw * (3f - 2f * tw) * 0.5f;
+            var glow = hour < 12f ? new Color(0.5f, 0.27f, 0.22f) : new Color(0.6f, 0.27f, 0.09f);
+            skyGlow = new Color(glow.r * twilight, glow.g * twilight, glow.b * twilight);
         }
 
         public void SetCameraBackground(Camera cam) { cam.backgroundColor = RenderSettings.fogColor; }
