@@ -32,8 +32,10 @@ namespace DeadZone.Game
         private readonly Dictionary<string, AudioClip> _ambient = new Dictionary<string, AudioClip>();
         private readonly List<Voice> _voices = new List<Voice>();
         private readonly AudioSource[] _echo = new AudioSource[4];
+        // unscaled time until which each echo voice is still waiting out its delay or ringing (it is never cut)
+        private readonly double[] _echoBusy = new double[4];
         private readonly Dictionary<string, float> _lastPlayed = new Dictionary<string, float>();
-        private readonly AudioSource _ambience, _ui;
+        private readonly AudioSource _ambience, _ui, _cue;
         private readonly AudioLowPassFilter _ambienceLp;
         private readonly AudioReverbZone _reverb;
         public readonly Transform listener;
@@ -106,6 +108,12 @@ namespace DeadZone.Game
             _ui.bypassReverbZones = true;
             // with many voices at once the ambience and interface sounds must never be the ones that get cut
             _ui.priority = 16;
+            // pitched cues (the head-shot tick) get a source of their own: re-pitching _ui would also bend the one-shots still playing on it
+            _cue = root.gameObject.AddComponent<AudioSource>();
+            _cue.playOnAwake = false;
+            _cue.spatialBlend = 0f;
+            _cue.bypassReverbZones = true;
+            _cue.priority = 16;
             _ambience = new GameObject("Ambience").AddComponent<AudioSource>();
             _ambience.transform.SetParent(root, false);
             _ambience.loop = true;
@@ -148,8 +156,12 @@ namespace DeadZone.Game
             float vol = Mathf.Clamp01(volume) * master * sfx;
             if (pos == null)
             {
-                _ui.pitch = 1f;
-                _ui.PlayOneShot(clip, vol);
+                if (Mathf.Abs(pitch - 1f) > 0.01f)
+                {
+                    _cue.pitch = pitch;
+                    _cue.PlayOneShot(clip, vol);
+                }
+                else _ui.PlayOneShot(clip, vol);
                 return;
             }
             int playing = 0;
@@ -212,14 +224,22 @@ namespace DeadZone.Game
             Acoustics.Echo(_ambientId, out double delay, out double gain);
             float v = vol * (float)gain * (1f - Mathf.Clamp01(dist / 130f));
             if (v < 0.01f) return;
-            var e = _echo[_echoNext];
-            _echoNext = (_echoNext + 1) % _echo.Length;
+            // automatic fire comes round the ring faster than an echo waits and rings: the new echo is dropped then instead of
+            // cancelling or clicking off one under way (the echoes of a burst blend into one tail anyway)
+            float now = Time.unscaledTime;
+            int i = Acoustics.FreeEchoSlot(_echoBusy, _echoNext, now);
+            if (i < 0) return;
+            _echoNext = (i + 1) % _echo.Length;
+            var e = _echo[i];
             e.Stop();
             e.clip = clip;
             e.volume = v;
             e.pitch = pitch * 0.97f;
             e.panStereo = UnityEngine.Random.Range(-0.5f, 0.5f);
-            e.PlayDelayed((float)delay + dist * 0.002f + UnityEngine.Random.Range(-0.03f, 0.05f));
+            float d = (float)delay + dist * 0.002f + UnityEngine.Random.Range(-0.03f, 0.05f);
+            // busy until the delay has run out and the clip has played to its end (a lower pitch plays longer)
+            _echoBusy[i] = now + Mathf.Max(0f, d) + clip.length / Mathf.Max(0.05f, Mathf.Abs(e.pitch));
+            e.PlayDelayed(d);
         }
 
         /// <param name="world">The raid world (room reverb, muffling behind walls, outdoor echo); null in the menu and the base.</param>
@@ -262,7 +282,10 @@ namespace DeadZone.Game
             if (_ambientVol <= 0 && _ambientTarget <= 0 && _ambience.isPlaying) _ambience.Stop();
         }
 
-        /// <summary>Own sounds stay at the listener; long world sounds check the walls again and fade their muffling smoothly.</summary>
+        /// <summary>
+        /// Own sounds stay at the listener; long world sounds check the walls and the distance again (the air dulls far sounds)
+        /// and fade their muffling smoothly.
+        /// </summary>
         private void UpdateVoices(float dt)
         {
             float now = Time.unscaledTime;
@@ -270,22 +293,27 @@ namespace DeadZone.Game
             {
                 if (!v.src.isPlaying) continue;
                 if (v.own) { v.src.transform.position = listener.position; continue; }
+                bool changed = false;
                 if (v.recheck && now >= v.nextCheck)
                 {
                     v.nextCheck = now + RecheckInterval;
                     float dist = Vector3.Distance(v.src.transform.position, listener.position);
-                    if (_world != null && dist < 72f)
+                    if (_world != null)
                     {
-                        v.occTarget = (float)Acoustics.Occlusion(_world, v.sim.x, v.sim.y, _listenerSim.x, _listenerSim.y);
+                        // like Play: beyond the hearing range (70 m) the walls do not matter, the air always does
+                        v.occTarget = dist < 72f ? (float)Acoustics.Occlusion(_world, v.sim.x, v.sim.y, _listenerSim.x, _listenerSim.y) : 0f;
                         v.air = AirAbsorption(dist);
                     }
                     else v.occTarget = 0f;
+                    // the new air absorption must reach the filter also while the walls stay the same
+                    changed = true;
                 }
                 if (v.occ != v.occTarget)
                 {
                     v.occ = Mathf.MoveTowards(v.occ, v.occTarget, dt * 4f);
-                    ApplyMuffle(v);
+                    changed = true;
                 }
+                if (changed) ApplyMuffle(v);
             }
         }
 
