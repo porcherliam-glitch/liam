@@ -108,7 +108,7 @@ namespace DeadZone.Game
             const float span = 90f;
             var r = new Rect(W / 2 - half, 12, half * 2, 38);
             Fill(r, new Color(0.02f, 0.03f, 0.035f, 0.62f));
-            float heading = (float)(game.input.yaw * Mathf.Rad2Deg) + 90f;
+            float heading = (float)ViewMath.HeadingDeg(game.input.yaw);
             float cx = r.x + half;
             float baseA = Mathf.Round(heading / 15f) * 15f;
             for (int k = -7; k <= 7; k++)
@@ -155,8 +155,9 @@ namespace DeadZone.Game
             if (inventoryOpen) DrawRaidInventory(raid, p, null);
             if (lootContainer != null) DrawRaidInventory(raid, p, lootContainer);
             if (mapOpen) DrawFullMap(raid);
-            if (game.paused) DrawPause();
             bool fp = game.FirstPerson;
+            if (fp && !p.dead && game.AimAmount > 0.92f && RaidView.HeldClass(p) == "sniper" && !BlocksGameplay) DrawScope();
+            if (game.paused) DrawPause();
             if (!BlocksGameplay && !game.paused && !p.dead && (fp || !game.input.usingGamepad)) DrawCrosshair(raid, p, fp);
         }
 
@@ -193,14 +194,85 @@ namespace DeadZone.Game
                 if (fp)
                 {
                     // relative to the view: ahead = screen up, to the right (clockwise) = screen right
-                    float rel = Mathf.DeltaAngle((float)(game.input.yaw * Mathf.Rad2Deg), angle * Mathf.Rad2Deg) * Mathf.Deg2Rad;
-                    d = new Vector2(Mathf.Sin(rel), -Mathf.Cos(rel));
+                    var sd = ViewMath.ScreenDirection(ViewMath.Relative(game.input.yaw, angle));
+                    d = new Vector2((float)sd.x, (float)sd.y);
                 }
                 else d = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)); // sim angle 0 = right, y down = screen down
                 var pos = c + d * (fp ? 190 : 160);
                 Fill(new Rect(pos.x - 14, pos.y - 14, 28, 28), new Color(0.9f, 0.15f, 0.1f, Mathf.Clamp01(life) * 0.8f));
             }
+            if (fp && !pl.dead) DrawThreats(raid, pl);
             if (_flashBang > 0) Fill(new Rect(0, 0, W, H), new Color(1, 1, 1, Mathf.Clamp01(_flashBang)));
+        }
+
+        private readonly System.Collections.Generic.List<(double d, Zombie z)> _threats = new System.Collections.Generic.List<(double, Zombie)>();
+
+        /// <summary>
+        /// First person sees only what is ahead: zombies that hunt the player from the side or behind get an orange
+        /// arrow at the screen edge (nearest four, closer = stronger).
+        /// </summary>
+        private void DrawThreats(Raid raid, Player pl)
+        {
+            _threats.Clear();
+            foreach (var z in raid.zombies.zombies)
+            {
+                if (z.dead || (z.state != "chase" && z.state != "attack")) continue;
+                if (z.type.lurk && z.visibleAlpha < 0.5) continue;
+                double d = M.Dist(pl.x, pl.y, z.x, z.y);
+                if (d > 260) continue;
+                if (System.Math.Abs(ViewMath.Relative(game.input.yaw, M.AngleTo(pl.x, pl.y, z.x, z.y))) < 0.85) continue;
+                _threats.Add((d, z));
+            }
+            _threats.Sort((a, b) => a.d.CompareTo(b.d));
+            var c = new Vector2(W / 2, H / 2);
+            for (int i = 0; i < _threats.Count && i < 4; i++)
+            {
+                var (d, z) = _threats[i];
+                var sd = ViewMath.ScreenDirection(ViewMath.Relative(game.input.yaw, M.AngleTo(pl.x, pl.y, z.x, z.y)));
+                var dir = new Vector2((float)sd.x, (float)sd.y);
+                var pos = c + dir * 250f;
+                float a = Mathf.Lerp(0.95f, 0.3f, (float)(d / 260));
+                var col = new Color(1f, 0.55f, 0.1f, a);
+                // a chevron: three squares pointing outwards
+                for (int k = 0; k < 3; k++)
+                {
+                    var side = new Vector2(-dir.y, dir.x) * (k - 1) * 9f;
+                    var q = pos + side - dir * Mathf.Abs(k - 1) * 8f;
+                    Fill(new Rect(q.x - 5, q.y - 5, 10, 10), col);
+                }
+            }
+        }
+
+        private Texture2D _scopeTex;
+
+        /// <summary>Black screen with a round see-through lens (sniper zoom).</summary>
+        private void DrawScope()
+        {
+            if (_scopeTex == null)
+            {
+                const int n = 256;
+                _scopeTex = new Texture2D(n, n, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp };
+                var px = new Color32[n * n];
+                for (int y = 0; y < n; y++)
+                    for (int x = 0; x < n; x++)
+                    {
+                        float r = Mathf.Sqrt((x - n / 2f + 0.5f) * (x - n / 2f + 0.5f) + (y - n / 2f + 0.5f) * (y - n / 2f + 0.5f)) / (n / 2f);
+                        byte a = (byte)(Mathf.Clamp01((r - 0.94f) / 0.05f) * 255);
+                        px[y * n + x] = new Color32(0, 0, 0, a);
+                    }
+                _scopeTex.SetPixels32(px);
+                _scopeTex.Apply();
+            }
+            if (Event.current.type != EventType.Repaint) return;
+            float s = H;
+            var r0 = new Rect(W / 2 - s / 2, 0, s, s);
+            GUI.DrawTexture(r0, _scopeTex);
+            Fill(new Rect(0, 0, r0.x, H), Color.black);
+            Fill(new Rect(r0.xMax, 0, W - r0.xMax, H), Color.black);
+            // thin cross hairs of the scope
+            var line = new Color(0, 0, 0, 0.85f);
+            Fill(new Rect(r0.x, H / 2 - 1, s, 2), line);
+            Fill(new Rect(W / 2 - 1, 0, 2, H), line);
         }
 
         private void DrawCrosshair(Raid raid, Player p, bool fp)
@@ -316,7 +388,9 @@ namespace DeadZone.Game
             if (cur != null)
             {
                 var br = new Rect(W / 2 - 260, H * 0.22f, 520, 34);
-                Bar(br, (float)cur.progress, (float)cur.duration, UiColors.Good, "Extraktion " + Mathf.CeilToInt((float)(cur.duration - cur.progress)) + " s – in der Zone bleiben!", 16);
+                // leaving the zone cancels: warn when the player is close to its edge (the ring is out of view in first person)
+                bool edge = cur.radius - M.Dist(p.x, p.y, cur.x, cur.y) < 16;
+                Bar(br, (float)cur.progress, (float)cur.duration, edge ? UiColors.Bad : UiColors.Good, "Extraktion " + Mathf.CeilToInt((float)(cur.duration - cur.progress)) + " s – " + (edge ? "RAND DER ZONE!" : "in der Zone bleiben!"), 16);
             }
 
             // minimap (top right)

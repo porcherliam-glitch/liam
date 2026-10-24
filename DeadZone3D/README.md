@@ -46,7 +46,7 @@ Menü **Dead Zone → Windows-Spiel bauen**. Das Spiel landet auf dem Desktop im
 | Mausrad | Waffe wechseln (Ansicht von oben: Kamera zoomen) |
 | X | Ausgewählten Gegenstand ablegen |
 | V | Ansicht wechseln: Ego-Perspektive oder von oben |
-| Esc | Pause / Fenster schließen – gibt auch die Maus frei |
+| Esc / P | Pause / Fenster schließen – gibt auch die Maus frei |
 | F1 | Hilfe |
 
 Gamepad: linker Stick bewegen, rechter Stick umsehen, RT schießen, LT zoomen, A benutzen, X nachladen, B ducken,
@@ -54,7 +54,12 @@ LB sprinten, RB Granate, R3 Ansicht wechseln, Steuerkreuz oben Taschenlampe / un
 Start Pause, View Inventar, Y Karte.
 
 In der Ego-Perspektive wird die Maus im Einsatz eingefangen (unsichtbar). Sobald du Inventar, Karte oder Pause öffnest,
-ist sie wieder frei. Mausempfindlichkeit, Sichtfeld und „Maus umkehren“ stellst du unter **Einstellungen** ein.
+ist sie wieder frei. Wechselst du mit Alt+Tab aus dem Fenster, pausiert der Einsatz. Im Unity-Editor erst einmal ins
+Spielbild klicken, damit die Maus eingefangen wird.
+Mausempfindlichkeit, Sichtfeld, „Maus umkehren“ und „Kopfwippen“ stellst du unter **Einstellungen** ein. Wird dir
+schwindelig: Kopfwippen ausschalten und das Sichtfeld größer stellen.
+Mit dem Scharfschützengewehr zeigt die rechte Maustaste ein Zielfernrohr. Orange Pfeile am Bildrand zeigen Zombies, die
+dich von der Seite oder von hinten angreifen.
 Oben in der Mitte zeigt ein Kompass die Himmelsrichtung, Extraktionspunkte (grün, gesperrt orange) und Auftragsziele
 (gelb) mit Entfernung.
 
@@ -96,7 +101,7 @@ Batchmode (Windows, im Ordner `DeadZone3D`):
   90 Sekunden Spielsimulation auf jedem Gebiet ohne Fehler, Kampf, Extraktion, Tod, „vermisst“ beim Neuladen,
   Speichern mit Sicherung, Händler, Werkstatt, Ausbau, Generator, Laborkarte, Granaten, alle 45 Töne).
 - Dazu 9 Tests für die Funde aus zwei Prüfrunden (Rucksackwechsel ohne Verlust, Beute in den sicheren Behälter,
-  MG-Munition, mitgebrachte Gegenstände zählen nicht als Beute) und 5 Tests für die Ego-Perspektive (Benutzen durch
-  Hinschauen, Wurfweite, neue Einstellungen) – zusammen 35 Tests grün.
+  MG-Munition, mitgebrachte Gegenstände zählen nicht als Beute) und 7 Tests für die Ego-Perspektive (Benutzen durch
+  Hinschauen, keine Beute durch Wände, Wurfweite, Blickrichtungs-Mathematik, neue Einstellungen) – zusammen 37 Tests grün.
 - Der Unity-Teil kompiliert fehlerfrei gegen die Unity-Referenzbibliotheken, wurde aber **noch nicht in Unity selbst
   gestartet** (in der Cloud gibt es kein Unity). Beim ersten Öffnen auf dem PC können kleine Anpassungen nötig sein.

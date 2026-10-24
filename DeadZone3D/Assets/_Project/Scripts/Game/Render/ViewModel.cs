@@ -9,6 +9,8 @@ namespace DeadZone.Game
         /// <summary>pistol, smg, rifle, shotgun, sniper, lmg, melee, grenade, med or null.</summary>
         public string cls;
         public float moving, legPhase, aim, melee, throwing, yawDelta, pitchDelta;
+        /// <summary>tan(fov/2) relative to a 70° lens: the hip offsets scale with it so the gun stays in frame.</summary>
+        public float fovScale;
         /// <summary>0..1 while reloading, otherwise negative.</summary>
         public float reload;
         public bool sprinting, crouching, usingItem, dead;
@@ -207,8 +209,13 @@ namespace DeadZone.Game
             _swayX = Mathf.Lerp(_swayX, Mathf.Clamp(-s.yawDelta * 0.004f, -0.05f, 0.05f), k);
             _swayY = Mathf.Lerp(_swayY, Mathf.Clamp(s.pitchDelta * 0.004f, -0.04f, 0.04f), k);
 
+            // fully zoomed with the sniper rifle the scope overlay replaces the model
+            bool scoped = s.cls == "sniper" && s.aim > 0.92f && _shown == "sniper";
+            if (_sway.gameObject.activeSelf == scoped) _sway.gameObject.SetActive(!scoped);
             float aim = s.aim * (1f - _sprint);
-            var pos = Vector3.Lerp(HipPos, AimPos, aim);
+            float fk = s.fovScale > 0f ? s.fovScale : 1f;
+            var hip = new Vector3(HipPos.x * fk, HipPos.y * fk, HipPos.z);
+            var pos = Vector3.Lerp(hip, AimPos, aim);
             var rot = Vector3.zero;
             float still = 1f - aim * 0.85f;
             pos.x += Mathf.Sin(s.legPhase) * 0.014f * s.moving * still + _swayX * still;

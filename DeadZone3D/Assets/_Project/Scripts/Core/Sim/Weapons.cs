@@ -196,7 +196,9 @@ namespace DeadZone.Core
                 double d = M.Dist(shooter.x, shooter.y, z.x, z.y);
                 if (d > range + z.radius) continue;
                 double a = M.AngleTo(shooter.x, shooter.y, z.x, z.y);
-                if (Math.Abs(M.AngleDiff(aimAngle, a)) > arc / 2 && d > z.radius + 6) continue;
+                // big zombies fill more of the swing: widen the arc by their apparent half width
+                double half = arc / 2 + Math.Asin(Math.Min(1, z.radius / Math.Max(d, 1)));
+                if (Math.Abs(M.AngleDiff(aimAngle, a)) > half && d > z.radius + 6) continue;
                 if (!Physics.LineOfSight(_raid.world, shooter.x, shooter.y, z.x, z.y)) continue;
                 var r = _raid.zombies.Damage(z, w.damage * dmgMul, 2, Math.Cos(a), Math.Sin(a), "melee");
                 if (!z.dead && z.id != "brute" && z.id != "boss")
@@ -226,9 +228,12 @@ namespace DeadZone.Core
             var g = def.grenade ?? new GrenadeStats { damage = 120, radius = 140, fuse = 2.2, noise = 1000, kind = "frag" };
             inst.count--;
             double speed = 420 * M.Clamp(power, 0.3, 1.5);
+            double sx = from.x + Math.Cos(aimAngle) * 14, sy = from.y + Math.Sin(aimAngle) * 14;
+            // standing against a wall: release it at the body instead of inside the wall
+            if (Physics.RaycastTiles(_raid.world, from.x, from.y, sx, sy).hit) { sx = from.x; sy = from.y; }
             _raid.grenades.Add(new Grenade
             {
-                x = from.x + Math.Cos(aimAngle) * 14, y = from.y + Math.Sin(aimAngle) * 14, vx = Math.Cos(aimAngle) * speed, vy = Math.Sin(aimAngle) * speed,
+                x = sx, y = sy, vx = Math.Cos(aimAngle) * speed, vy = Math.Sin(aimAngle) * speed,
                 z = 8, vz = 230, fuse = g.kind == "molotov" ? 4 : (g.fuse > 0 ? g.fuse : 2.2), def = def, g = g, kind = g.kind ?? "frag",
             });
             Fb.Sfx("grenade_throw", from.x, from.y);

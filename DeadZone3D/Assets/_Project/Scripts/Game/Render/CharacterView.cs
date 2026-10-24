@@ -155,7 +155,8 @@ namespace DeadZone.Game
         /// <param name="moving">0..1 movement amount.</param>
         /// <param name="legPhase">Walk cycle phase (radians-ish, from the simulation).</param>
         /// <param name="attack">Zombie attack animation 0..1 / player melee swing.</param>
-        public void Pose(Vector3 pos, float yawDeg, float moving, float legPhase, float attack, bool crouch, bool dead, float flash, float dt, bool aiming = true)
+        /// <param name="lunge">Zombie strike: metres the body moves forward (negative = leans back during the wind-up).</param>
+        public void Pose(Vector3 pos, float yawDeg, float moving, float legPhase, float attack, bool crouch, bool dead, float flash, float dt, bool aiming = true, float lunge = 0f)
         {
             var t = root.transform;
             t.localPosition = pos;
@@ -168,7 +169,8 @@ namespace DeadZone.Game
                 _deathT += dt;
                 float k = Mathf.Clamp01(_deathT / 0.45f);
                 _body.localRotation = Quaternion.Euler(-88f * k * k, 0, 0);
-                _body.localPosition = new Vector3(0, 0.12f * k - Mathf.Max(0, _deathT - 18f) * 0.05f, -0.2f * k);
+                // sink into the floor only in the last seconds before the corpse is removed (25 s)
+                _body.localPosition = new Vector3(0, 0.12f * k - Mathf.Max(0, _deathT - 23f) * 0.3f, -0.2f * k);
                 _legL.localRotation = Quaternion.Euler(-10, 0, 0);
                 _legR.localRotation = Quaternion.Euler(10, 0, 0);
                 _armL.localRotation = Quaternion.Euler(-150 * k, 0, -20);
@@ -179,7 +181,7 @@ namespace DeadZone.Game
                 _deathT = 0;
                 float crouchY = crouch ? -0.3f : 0f;
                 _body.localRotation = Quaternion.identity;
-                _body.localPosition = new Vector3(0, bob + crouchY, 0);
+                _body.localPosition = new Vector3(0, bob + crouchY, lunge / Mathf.Max(0.01f, scale));
                 _legL.localRotation = Quaternion.Euler(swing + (crouch ? -50 : 0), 0, 0);
                 _legR.localRotation = Quaternion.Euler(-swing + (crouch ? -50 : 0), 0, 0);
                 if (_zombie)

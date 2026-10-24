@@ -41,11 +41,14 @@ namespace DeadZone.Game
             _ui = root.gameObject.AddComponent<AudioSource>();
             _ui.playOnAwake = false;
             _ui.spatialBlend = 0f;
+            // with many voices at once the ambience and interface sounds must never be the ones that get cut
+            _ui.priority = 16;
             _ambience = new GameObject("Ambience").AddComponent<AudioSource>();
             _ambience.transform.SetParent(root, false);
             _ambience.loop = true;
             _ambience.spatialBlend = 0f;
             _ambience.playOnAwake = false;
+            _ambience.priority = 0;
         }
 
         private AudioClip Clip(string name)

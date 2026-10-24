@@ -152,7 +152,7 @@ namespace DeadZone.Core
             if (active.Count > 0)
             {
                 var best = active.OrderBy(p => M.Dist(pl.x, pl.y, p.x, p.y)).First();
-                return "Extraktion offen: " + best.name + " (" + M.Round(M.Dist(pl.x, pl.y, best.x, best.y) / TILE) + " m)";
+                return "Extraktion offen: " + best.name + " (" + M.Round(M.Dist(pl.x, pl.y, best.x, best.y) / TILE * World.MetersPerTile) + " m)";
             }
             var timed = points.FirstOrDefault(p => p.kind == "timed" && p.lockReason.StartsWith("öffnet"));
             if (timed != null) return timed.name + " " + timed.lockReason;

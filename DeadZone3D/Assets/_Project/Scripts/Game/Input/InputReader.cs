@@ -176,7 +176,8 @@ namespace DeadZone.Game
             PollDevices();
             UpdateLook(dt);
             // a click that closed a window must not fire: after any UI block, firing waits for a fresh press
-            if (blocked) _fireLatch = true;
+            // first person without a captured cursor (focus lost, Editor Esc): the click that brings it back must not fire
+            if (blocked || (firstPerson && !lookActive)) _fireLatch = true;
             if (!_fire) _fireLatch = false;
             foreach (var a in SimActions) if (KeyDown(a)) _pending.Add(a);
             foreach (var a in UiActions) if (KeyDown(a)) _ui.Add(a);
@@ -232,12 +233,8 @@ namespace DeadZone.Game
             if (blocked) return new Vec2();
             var m = _move;
             if (m.sqrMagnitude > 1f) m.Normalize();
-            if (firstPerson)
-            {
-                // forward follows the view; right is forward turned 90° clockwise (sim y points down)
-                double fx = System.Math.Cos(yaw), fy = System.Math.Sin(yaw);
-                return new Vec2(fx * m.y - fy * m.x, fy * m.y + fx * m.x);
-            }
+            // forward follows the view; right is forward turned 90° clockwise (sim y points down)
+            if (firstPerson) return ViewMath.RotateMove(yaw, m.x, m.y);
             // screen up (north) is -y in the simulation
             return new Vec2(m.x, -m.y);
         }

@@ -37,11 +37,11 @@ namespace DeadZone.Game
         private float Slider(Rect r, string label, float value, System.Func<float, string> format = null)
         {
             Text(new Rect(r.x, r.y, 220, r.height), label, 18);
-            var track = new Rect(r.x + 230, r.y + r.height / 2 - 4, r.width - 320, 8);
+            var track = new Rect(r.x + 230, r.y + r.height / 2 - 4, r.width - 370, 8);
             Fill(track, new Color(0, 0, 0, 0.6f));
             Fill(new Rect(track.x, track.y, track.width * value, track.height), UiColors.Accent);
             Fill(new Rect(track.x + track.width * value - 7, track.y - 8, 14, 24), Color.white);
-            Text(new Rect(r.xMax - 70, r.y, 70, r.height), format != null ? format(value) : Mathf.RoundToInt(value * 100) + " %", 18, UiColors.Muted, TextAnchor.MiddleRight);
+            Text(new Rect(r.xMax - 120, r.y, 120, r.height), format != null ? format(value) : Mathf.RoundToInt(value * 100) + " %", 18, UiColors.Muted, TextAnchor.MiddleRight);
             var e = Event.current;
             var hit = new Rect(track.x - 10, r.y, track.width + 20, r.height);
             if (GUI.enabled && (e.type == EventType.MouseDown || e.type == EventType.MouseDrag) && hit.Contains(e.mousePosition))
@@ -74,7 +74,7 @@ namespace DeadZone.Game
             s.master = Slider(new Rect(x, y, w, 40), "Gesamtlautstärke", (float)s.master); y += 52;
             s.sfx = Slider(new Rect(x, y, w, 40), "Effekte", (float)s.sfx); y += 52;
             s.music = Slider(new Rect(x, y, w, 40), "Atmosphäre", (float)s.music); y += 64;
-            s.screenShake = Toggle(new Rect(x, y, w, 44), "Wackeln / Kopfwippen", s.screenShake); y += 52;
+            s.screenShake = Toggle(new Rect(x, y, w, 44), "Bildschirmwackeln", s.screenShake); y += 52;
             s.damageNumbers = Toggle(new Rect(x, y, w, 44), "Schadenszahlen", s.damageNumbers); y += 52;
             s.minimap = Toggle(new Rect(x, y, w, 44), "Minikarte", s.minimap); y += 52;
             s.showFps = Toggle(new Rect(x, y, w, 44), "Bilder pro Sekunde anzeigen", s.showFps); y += 60;
@@ -93,9 +93,11 @@ namespace DeadZone.Game
             if (Btn(new Rect(x + 200 + vw, y + 2, vw - 8, 40), "Von oben", true, 15, s.view == "topdown" ? UiColors.Good : UiColors.Muted)) s.view = "topdown";
             y += 60;
             s.mouseSens = Slider(new Rect(x, y, w, 40), "Mausempfindlichkeit", (float)s.mouseSens); y += 52;
-            float fov01 = Slider(new Rect(x, y, w, 40), "Sichtfeld", (float)((s.fov - 55) / 35), v => Mathf.RoundToInt(55 + 35 * v) + "°");
+            // stored as the vertical angle (Unity's camera); the label also shows the width on a 16:9 screen
+            float fov01 = Slider(new Rect(x, y, w, 40), "Sichtfeld", (float)((s.fov - 55) / 35), v => Mathf.RoundToInt(55 + 35 * v) + "° / " + Mathf.RoundToInt(Camera.VerticalToHorizontalFieldOfView(55 + 35 * v, 16f / 9f)) + "°");
             s.fov = Mathf.Round(55 + 35 * fov01); y += 52;
-            s.invertY = Toggle(new Rect(x, y, w, 44), "Maus hoch/runter umkehren", s.invertY); y += 64;
+            s.invertY = Toggle(new Rect(x, y, w, 44), "Maus hoch/runter umkehren", s.invertY); y += 52;
+            s.headBob = Toggle(new Rect(x, y, w, 44), "Kopfwippen beim Laufen", s.headBob); y += 60;
             Text(new Rect(x, y, w, 120), "Ego-Perspektive: Maus = umsehen, rechte Maustaste = zoomen, Mausrad = Waffe wechseln. Mit V wechselst du im Einsatz jederzeit die Ansicht. Esc gibt die Maus frei.", 15, UiColors.Muted, TextAnchor.UpperLeft, false, true);
             game.ApplySettings();
             if (Btn(new Rect(r.xMax - 260, r.yMax - 70, 220, 48), "Fertig", true, 20)) { settingsOpen = false; game.SaveSettings(); }

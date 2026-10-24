@@ -237,6 +237,9 @@ namespace DeadZone.Core
         public static string ContainerName(string type) => type != null && DataTables.CONTAINER_NAMES.TryGetValue(type, out var n) ? n : "Behälter";
 
         /// <param name="facing">Optional view angle (first person): things the player looks at win, things behind are skipped.</param>
+        /// <summary>First person: half width of the cone in which things can be used (about the visible screen).</summary>
+        public const double LookConeHalf = 1.0;
+
         public Interactable FindInteractable(double x, double y, double maxDist = 56, double facing = double.NaN)
         {
             var w = world;
@@ -254,6 +257,7 @@ namespace DeadZone.Core
             {
                 double d = M.Dist(x, y, fl.x, fl.y);
                 if (d > maxDist) continue;
+                if (!Physics.LineOfSight(w, x, y, fl.x, fl.y)) continue;
                 var def = Items.Def(fl.inst);
                 cands.Add(new Interactable { kind = "loot", reference = fl, x = fl.x, y = fl.y, dist = d, prompt = "E – " + (def?.name ?? "Gegenstand") + (fl.inst.count > 1 ? " ×" + fl.inst.count : "") + " aufheben" });
             }
@@ -286,7 +290,7 @@ namespace DeadZone.Core
             if (!double.IsNaN(facing))
             {
                 // first person: drop what is behind the player (unless it is right at the feet), prefer what is in view
-                cands.RemoveAll(c => c.kind != "extraction" && c.dist > 22 && Math.Abs(M.AngleDiff(facing, M.AngleTo(x, y, c.x, c.y))) > 1.35);
+                cands.RemoveAll(c => c.kind != "extraction" && c.dist > 22 && Math.Abs(M.AngleDiff(facing, M.AngleTo(x, y, c.x, c.y))) > LookConeHalf);
             }
             if (cands.Count == 0) return null;
             double Score(Interactable c) => double.IsNaN(facing) || c.kind == "extraction" ? c.dist : c.dist + Math.Abs(M.AngleDiff(facing, M.AngleTo(x, y, c.x, c.y))) * 26;
@@ -419,8 +423,8 @@ namespace DeadZone.Core
             double x = (tx + 0.5) * TILE, y = (ty + 0.5) * TILE;
             if (!open && !byZombie)
             {
-                if (M.Dist(player.x, player.y, x, y) < player.radius + 14) return false;
-                if (zombies.InRadius(x, y, 14).Count > 0) return false;
+                if (M.Dist(player.x, player.y, x, y) < player.radius + 14) { fb.Toast("Tür blockiert – geh aus der Tür", "info", 1200); return false; }
+                if (zombies.InRadius(x, y, 14).Count > 0) { fb.Toast("Tür blockiert", "info", 1200); return false; }
             }
             world.SetTile(tx, ty, open ? T.DOOR_OPEN : T.DOOR_CLOSED);
             fb.Sfx(byZombie ? "melee_hit" : (open ? "door_open" : "door_close"), x, y);
@@ -509,7 +513,7 @@ namespace DeadZone.Core
                 causeOfDeath = outcome == "extracted" ? null : p.causeOfDeath,
                 durationSec = M.Round(time), kills = st.kills, killsByType = new Dictionary<string, int>(st.killsByType), shotsFired = st.shotsFired, shotsHit = st.shotsHit,
                 accuracy = st.shotsFired > 0 ? M.Clamp((double)st.shotsHit / st.shotsFired, 0, 1) : 0, damageTaken = M.Round(st.damageTaken), containersOpened = st.containersOpened,
-                distance = M.Round(st.distance / TILE), levelBefore = pm?.Level() ?? 1, xpBefore = pm?.Xp() ?? 0,
+                distance = M.Round(st.distance / TILE * World.MetersPerTile), levelBefore = pm?.Level() ?? 1, xpBefore = pm?.Xp() ?? 0,
             };
             if (pm?.profile != null)
             {

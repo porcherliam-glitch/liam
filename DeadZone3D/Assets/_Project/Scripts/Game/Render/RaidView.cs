@@ -32,6 +32,8 @@ namespace DeadZone.Game
         /// <summary>Interpolated player position as drawn this frame (camera and flashlight follow this).</summary>
         public Vector3 PlayerRenderPos { get; private set; }
         private const float BeamHeight = 10f;
+        /// <summary>First person: taller and wider beams, visible over the rooftops.</summary>
+        public float beamScale = 1f;
         /// <summary>Zombies farther than this (sim pixels) are not drawn. First person sees much farther than the top-down camera.</summary>
         public double losRange = 760;
         /// <summary>False in first person: the camera sits inside the player's head.</summary>
@@ -139,7 +141,8 @@ namespace DeadZone.Game
             if (z.id == "armored") cloth = new Color(0.22f, 0.24f, 0.27f);
             var v = new CharacterView(_root, "Zombie_" + z.id, skin, cloth, pants, true, Eyes(z.id));
             v.scale = (float)(z.type.size > 0 ? z.type.size : 1.0) * (z.id == "brute" ? 1.05f : 1f);
-            v.heightScale = Mathf.Min(v.scale, 1.4f);
+            // capped so brutes still fit through doors (2.25 m) and under ceilings
+            v.heightScale = Mathf.Min(v.scale, 1.25f);
             var pos = Coords.ToWorld(z.x, z.y);
             return new ZView { view = v, prev = pos, cur = pos, visible = 0 };
         }
@@ -176,7 +179,14 @@ namespace DeadZone.Game
                 if (zv.visible <= 0.05f) continue;
                 var pos = Vector3.Lerp(zv.prev, zv.cur, alpha);
                 float mv = (float)M.Hypot(z.moveX, z.moveY) > 0.1f && z.state != "idle" && z.state != "attack" ? 1f : 0f;
-                zv.view.Pose(pos, Coords.YawDeg(z.angle), mv, (float)z.legPhase, (float)z.attackAnim, false, z.dead, z.dead ? 0f : (float)z.flash, dt);
+                // the strike reaches 2-3 m in the simulation: lunge the body towards the player so the hit looks like contact
+                float lunge = 0f;
+                if (z.state == "attack" && !z.dead)
+                {
+                    float a = (float)z.attackAnim;
+                    lunge = z.windupTimer > 0 ? -0.15f * a : Mathf.Clamp((float)(d * Coords.S) - 0.8f, 0f, 1.6f) * a;
+                }
+                zv.view.Pose(pos, Coords.YawDeg(z.angle), mv, (float)z.legPhase, (float)z.attackAnim, false, z.dead, z.dead ? 0f : (float)z.flash, dt, true, lunge);
             }
             List<Zombie> gone = null;
             foreach (var kv in _zombies) if (!_alive.Contains(kv.Key)) (gone ??= new List<Zombie>()).Add(kv.Key);
@@ -255,7 +265,7 @@ namespace DeadZone.Game
                 if (ring.sharedMaterial != mat) ring.sharedMaterial = mat;
                 var bm = pt.state == "extracting" ? _beamRun : pt.active ? _beamActive : _beamLocked;
                 if (beam.sharedMaterial != bm) beam.sharedMaterial = bm;
-                beam.transform.localScale = new Vector3(0.35f * pulse, BeamHeight, 0.35f * pulse);
+                beam.transform.localScale = new Vector3(0.35f * pulse * beamScale, BeamHeight * beamScale, 0.35f * pulse * beamScale);
             }
             foreach (var (poi, beam) in _pois)
             {

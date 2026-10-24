@@ -108,6 +108,8 @@ namespace DeadZone.Core
     public sealed class World
     {
         public const int TILE = 32;
+        /// <summary>Size of one tile in metres (the 3D view uses 2 m; distances shown to the player use it too).</summary>
+        public const double MetersPerTile = 2;
         public readonly string mapId;
         public readonly MapDef map;
         public uint seed;

@@ -31,6 +31,8 @@ namespace DeadZone.Core
         /// <summary>Mouse sensitivity 0..1 (mapped to degrees per mouse count by the view layer).</summary>
         public double mouseSens = 0.35;
         public bool invertY;
+        /// <summary>First person: the view bobs while walking (switch off if it makes you dizzy).</summary>
+        public bool headBob = true;
         /// <summary>Vertical field of view in first person, degrees (70° ≈ 102° horizontal at 16:9).</summary>
         public double fov = 70;
 
@@ -38,7 +40,7 @@ namespace DeadZone.Core
         {
             ["master"] = master, ["sfx"] = sfx, ["music"] = music, ["screenShake"] = screenShake, ["showFps"] = showFps,
             ["minimap"] = minimap, ["damageNumbers"] = damageNumbers, ["quality"] = quality,
-            ["view"] = view, ["mouseSens"] = mouseSens, ["invertY"] = invertY, ["fov"] = fov,
+            ["view"] = view, ["mouseSens"] = mouseSens, ["invertY"] = invertY, ["fov"] = fov, ["headBob"] = headBob,
         };
 
         public static Settings FromJson(object raw)
@@ -58,6 +60,7 @@ namespace DeadZone.Core
             s.view = v == "topdown" ? "topdown" : "fps";
             s.mouseSens = M.Clamp(Json.Num(o, "mouseSens", s.mouseSens), 0, 1);
             s.invertY = Json.Bool(o, "invertY", s.invertY);
+            s.headBob = Json.Bool(o, "headBob", s.headBob);
             s.fov = M.Clamp(Json.Num(o, "fov", s.fov), 55, 90);
             return s;
         }

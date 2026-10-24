@@ -110,14 +110,64 @@ namespace DeadZone.Tests
         }
 
         [Test]
+        public void LootBehindAWallCannotBePickedUp()
+        {
+            var raid = QuietRaid(12u);
+            var w = raid.world;
+            for (int ty = 2; ty < w.h - 2; ty++)
+                for (int tx = 2; tx < w.w - 2; tx++)
+                {
+                    if (w.Tile(tx, ty) != T.WALL || !w.IsWalkable(tx - 1, ty) || !w.IsWalkable(tx + 1, ty)) continue;
+                    double y = (ty + 0.5) * World.TILE;
+                    double px = tx * World.TILE - 13, lx = (tx + 1) * World.TILE + 6; // 51 px apart, wall in between
+                    var fl = Drop(raid, "col_watch", lx, y);
+                    var it = raid.FindInteractable(px, y);
+                    Assert.IsTrue(it == null || it.reference != fl, "the watch is on the other side of the wall");
+                    raid.world.floorLoot.Remove(fl);
+                    var near = Drop(raid, "col_watch", px - 15, y); // same side of the wall: usable
+                    Assert.AreSame(near, raid.FindInteractable(px, y)?.reference);
+                    raid.world.floorLoot.Remove(near);
+                    return;
+                }
+            Assert.Inconclusive("no single wall between two open tiles");
+        }
+
+        [Test]
+        public void ViewMathMatchesTheSimulationConventions()
+        {
+            // facing east: W goes east, D goes south (y points down = to the right of east)
+            var w = ViewMath.RotateMove(0, 0, 1); var d = ViewMath.RotateMove(0, 1, 0);
+            Assert.AreEqual(1, w.x, 1e-9); Assert.AreEqual(0, w.y, 1e-9);
+            Assert.AreEqual(0, d.x, 1e-9); Assert.AreEqual(1, d.y, 1e-9);
+            // facing north it is the old top-down mapping (screen up = -y)
+            foreach (var (mx, my) in new[] { (1.0, 0.0), (0.0, 1.0), (-0.6, 0.8) })
+            {
+                var v = ViewMath.RotateMove(-System.Math.PI / 2, mx, my);
+                Assert.AreEqual(mx, v.x, 1e-9); Assert.AreEqual(-my, v.y, 1e-9);
+            }
+            // an attacker behind the player is drawn at the bottom of the screen, one to the right on the right
+            var behind = ViewMath.ScreenDirection(ViewMath.Relative(0, System.Math.PI));
+            Assert.AreEqual(0, behind.x, 1e-9); Assert.AreEqual(1, behind.y, 1e-9);
+            var right = ViewMath.ScreenDirection(ViewMath.Relative(0, System.Math.PI / 2));
+            Assert.AreEqual(1, right.x, 1e-9); Assert.AreEqual(0, right.y, 1e-9);
+            // compass: north 0, east 90, south 180, west 270
+            Assert.AreEqual(0, ViewMath.HeadingDeg(-System.Math.PI / 2), 1e-9);
+            Assert.AreEqual(90, ViewMath.HeadingDeg(0), 1e-9);
+            Assert.AreEqual(180, ViewMath.HeadingDeg(System.Math.PI / 2), 1e-9);
+            Assert.AreEqual(270, ViewMath.HeadingDeg(System.Math.PI), 1e-9);
+            Assert.AreEqual(270, ViewMath.HeadingDeg(-System.Math.PI), 1e-9);
+        }
+
+        [Test]
         public void ViewSettingsRoundTripAndDefaultForOldSaves()
         {
-            var s = new Settings { view = "topdown", mouseSens = 0.8, invertY = true, fov = 85 };
+            var s = new Settings { view = "topdown", mouseSens = 0.8, invertY = true, fov = 85, headBob = false };
             var back = Settings.FromJson(Json.Parse(Json.Write(s.ToJson())));
             Assert.AreEqual("topdown", back.view);
             Assert.AreEqual(0.8, back.mouseSens, 1e-9);
             Assert.IsTrue(back.invertY);
             Assert.AreEqual(85, back.fov, 1e-9);
+            Assert.IsFalse(back.headBob);
 
             // settings saved by the previous version: first person with default values
             var old = Settings.FromJson(new Dictionary<string, object> { ["master"] = 0.5, ["quality"] = "low" });
@@ -125,6 +175,7 @@ namespace DeadZone.Tests
             Assert.AreEqual(0.35, old.mouseSens, 1e-9);
             Assert.IsFalse(old.invertY);
             Assert.AreEqual(70, old.fov, 1e-9);
+            Assert.IsTrue(old.headBob);
 
             var wild = Settings.FromJson(new Dictionary<string, object> { ["view"] = "orbit", ["fov"] = 300.0, ["mouseSens"] = -2.0 });
             Assert.AreEqual("fps", wild.view);

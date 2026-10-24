@@ -59,15 +59,16 @@ namespace DeadZone.Game
             _t += dt;
             _focus = eye;
             _kick = Mathf.MoveTowards(_kick, 0f, dt * (5f + _kick * 9f));
-            float sx = 0f, sy = 0f;
+            // shake rolls the view and nods it a little; turning it sideways would move the crosshair off the aim
+            float sr = 0f, sy = 0f;
             if (_shake > 0.001f)
             {
                 _shake *= Mathf.Exp(-8f * dt);
-                sx = Mathf.Sin(_t * 91.7f) * _shake * 2.2f;
-                sy = Mathf.Cos(_t * 63.1f) * _shake * 1.6f;
+                sr = Mathf.Sin(_t * 47f) * _shake * 1.6f;
+                sy = Mathf.Cos(_t * 31f) * _shake * 0.6f;
             }
             cam.transform.position = eye;
-            cam.transform.rotation = Quaternion.Euler(Mathf.Clamp(pitchDeg - _kick + sy, -89f, 89f), yawDeg + sx, rollDeg);
+            cam.transform.rotation = Quaternion.Euler(Mathf.Clamp(pitchDeg - _kick + sy, -89f, 89f), yawDeg, rollDeg + sr);
             float target = fov * zoom;
             cam.fieldOfView = Mathf.Lerp(cam.fieldOfView, target, 1f - Mathf.Exp(-14f * dt));
         }
