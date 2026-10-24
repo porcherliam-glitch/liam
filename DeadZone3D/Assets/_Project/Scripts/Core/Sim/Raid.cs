@@ -236,7 +236,8 @@ namespace DeadZone.Core
         // ------------------------------------------------------------------ interaction
         public static string ContainerName(string type) => type != null && DataTables.CONTAINER_NAMES.TryGetValue(type, out var n) ? n : "Behälter";
 
-        public Interactable FindInteractable(double x, double y, double maxDist = 56)
+        /// <param name="facing">Optional view angle (first person): things the player looks at win, things behind are skipped.</param>
+        public Interactable FindInteractable(double x, double y, double maxDist = 56, double facing = double.NaN)
         {
             var w = world;
             var cands = new List<Interactable>();
@@ -282,14 +283,22 @@ namespace DeadZone.Core
                     if (d > p.radius || p.active || p.state == "done") continue;
                     cands.Add(new Interactable { kind = "extraction", reference = p, x = p.x, y = p.y, dist = d + 40, prompt = extraction.PromptFor(p) });
                 }
+            if (!double.IsNaN(facing))
+            {
+                // first person: drop what is behind the player (unless it is right at the feet), prefer what is in view
+                cands.RemoveAll(c => c.kind != "extraction" && c.dist > 22 && Math.Abs(M.AngleDiff(facing, M.AngleTo(x, y, c.x, c.y))) > 1.35);
+            }
             if (cands.Count == 0) return null;
+            double Score(Interactable c) => double.IsNaN(facing) || c.kind == "extraction" ? c.dist : c.dist + Math.Abs(M.AngleDiff(facing, M.AngleTo(x, y, c.x, c.y))) * 26;
             // JS: cands.sort((a, b) => |a.dist - b.dist| <= 8 ? prio[a] - prio[b] : a.dist - b.dist)[0]
             var best = cands[0];
+            double bestScore = Score(best);
             for (int i = 1; i < cands.Count; i++)
             {
                 var c = cands[i];
-                double cmp = Math.Abs(c.dist - best.dist) <= 8 ? Prio[c.kind] - Prio[best.kind] : c.dist - best.dist;
-                if (cmp < 0) best = c;
+                double sc = Score(c);
+                double cmp = Math.Abs(sc - bestScore) <= 8 ? Prio[c.kind] - Prio[best.kind] : sc - bestScore;
+                if (cmp < 0) { best = c; bestScore = sc; }
             }
             return best;
         }

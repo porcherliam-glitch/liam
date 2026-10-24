@@ -29,6 +29,8 @@ namespace DeadZone.Game
         private string _confirm;
         private System.Action _confirmYes;
 
+        /// <summary>When the result screen appeared (unscaled time): a first-person death is shown before the summary.</summary>
+        public float resultAt;
         private bool _hasSave;
         private float _hasSaveAt = -10f;
 
@@ -176,8 +178,12 @@ namespace DeadZone.Game
             _damageFlash = Mathf.Max(0, _damageFlash - dt * 1.8f);
             _flashBang = Mathf.Max(0, _flashBang - dt * 0.8f);
             HandleKeys();
-            bool hideCursor = game.state == "raid" && !BlocksGameplay && !game.paused && !game.input.usingGamepad;
-            Cursor.visible = !hideCursor;
+            // first person: GameRoot captures and hides the cursor itself
+            if (!(game.FirstPerson && game.state == "raid"))
+            {
+                bool hideCursor = game.state == "raid" && !BlocksGameplay && !game.paused && !game.input.usingGamepad;
+                Cursor.visible = !hideCursor;
+            }
         }
 
         private void HandleKeys()
@@ -189,7 +195,7 @@ namespace DeadZone.Game
                 if (inp.UiPressed("pause"))
                 {
                     if (_confirm != null) _confirm = null;
-                    else if (settingsOpen) settingsOpen = false;
+                    else if (settingsOpen) { settingsOpen = false; game.SaveSettings(); }
                     else if (helpOpen) helpOpen = false;
                     else if (lootContainer != null) lootContainer = null;
                     else if (inventoryOpen) inventoryOpen = false;
@@ -202,6 +208,7 @@ namespace DeadZone.Game
                     if (inp.UiPressed("inventory")) { mapOpen = false; if (lootContainer != null) lootContainer = null; else inventoryOpen = !inventoryOpen; _selected = null; _drag = null; }
                     if (inp.UiPressed("map")) { mapOpen = !mapOpen; if (mapOpen) { inventoryOpen = false; lootContainer = null; _selected = null; _drag = null; } }
                     if (inp.UiPressed("drop") && (inventoryOpen || lootContainer != null) && _selected != null) RaidDropSelected();
+                    if (inp.UiPressed("view") && !BlocksGameplay) game.ToggleView();
                 }
                 if (lootContainer != null)
                 {
@@ -209,10 +216,12 @@ namespace DeadZone.Game
                     if (M.Dist(p.x, p.y, lootContainer.x, lootContainer.y) > 90) lootContainer = null;
                 }
             }
+            else if (game.state == "result" && _confirm == null && !settingsOpen && !helpOpen && inp.UiPressed("confirm") && Time.unscaledTime - resultAt > 1.5f)
+                game.LeaveResult();
             else if (inp.UiPressed("pause"))
             {
                 if (_confirm != null) _confirm = null;
-                else if (settingsOpen) settingsOpen = false;
+                else if (settingsOpen) { settingsOpen = false; game.SaveSettings(); }
                 else if (helpOpen) helpOpen = false;
                 else if (game.state == "base" && _baseTab != "overview") _baseTab = "overview";
             }
@@ -251,7 +260,8 @@ namespace DeadZone.Game
 
         private void DrawToasts()
         {
-            float y = 70, w = 620;
+            // first person: below the compass (and the boss bar when there is one)
+            float y = game.state == "raid" && game.FirstPerson ? (game.Raid?.zombies.boss != null && !game.Raid.zombies.boss.dead ? 136 : 76) : 70, w = 620;
             foreach (var t in _toasts)
             {
                 float h = Mathf.Max(40, TextHeight(t.text, w - 30, 18) + 18);

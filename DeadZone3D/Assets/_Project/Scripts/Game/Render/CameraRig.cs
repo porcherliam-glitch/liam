@@ -2,15 +2,20 @@ using UnityEngine;
 
 namespace DeadZone.Game
 {
-    /// <summary>Top-down chase camera with look-ahead, zoom and screen shake.</summary>
+    /// <summary>Top-down chase camera with look-ahead, zoom and screen shake, or a first-person eye camera.</summary>
     public sealed class CameraRig
     {
         public readonly Camera cam;
         private Vector3 _focus;
-        private float _shake, _t;
+        private float _shake, _t, _kick;
         public float distance = 24f, pitch = 58f, yaw = 0f;
         public float minDistance = 14f, maxDistance = 36f;
         public bool shakeEnabled = true;
+        /// <summary>First-person field of view (degrees, from the settings) and the current zoom factor (1 = none).</summary>
+        public float fov = 70f, zoom = 1f;
+        public const float TopDownFov = 42f;
+        private bool _firstPerson;
+        public bool FirstPersonMode => _firstPerson;
 
         public CameraRig(Camera cam)
         {
@@ -31,6 +36,41 @@ namespace DeadZone.Game
         }
 
         public void AddShake(float s) { if (shakeEnabled) _shake = Mathf.Min(1.2f, _shake + s * 0.03f); }
+
+        /// <summary>Switches lens settings between the top-down and the first-person camera.</summary>
+        public void SetFirstPerson(bool on)
+        {
+            if (_firstPerson == on) return;
+            _firstPerson = on;
+            // the eye sits 0.75 m from any wall at most; a tiny near plane keeps the view model visible
+            cam.nearClipPlane = on ? 0.03f : 0.3f;
+            // the fog hides everything beyond ~150 m at eye level; a shorter far plane also helps depth precision
+            cam.farClipPlane = on ? 170f : 260f;
+            cam.fieldOfView = on ? fov * zoom : TopDownFov;
+            _kick = 0;
+        }
+
+        /// <summary>Recoil: the view jumps up a little and settles again.</summary>
+        public void Kick(float degrees) { if (_firstPerson) _kick = Mathf.Min(_kick + degrees, 7f); }
+
+        /// <summary>First-person camera at the eye. Shake turns the view a little instead of moving it (no clipping into walls).</summary>
+        public void FirstPerson(Vector3 eye, float yawDeg, float pitchDeg, float rollDeg, float dt)
+        {
+            _t += dt;
+            _focus = eye;
+            _kick = Mathf.MoveTowards(_kick, 0f, dt * (5f + _kick * 9f));
+            float sx = 0f, sy = 0f;
+            if (_shake > 0.001f)
+            {
+                _shake *= Mathf.Exp(-8f * dt);
+                sx = Mathf.Sin(_t * 91.7f) * _shake * 2.2f;
+                sy = Mathf.Cos(_t * 63.1f) * _shake * 1.6f;
+            }
+            cam.transform.position = eye;
+            cam.transform.rotation = Quaternion.Euler(Mathf.Clamp(pitchDeg - _kick + sy, -89f, 89f), yawDeg + sx, rollDeg);
+            float target = fov * zoom;
+            cam.fieldOfView = Mathf.Lerp(cam.fieldOfView, target, 1f - Mathf.Exp(-14f * dt));
+        }
 
         public void Follow(Vector3 target, float dt, float sharpness = 6f)
         {

@@ -1,7 +1,10 @@
 # DEAD ZONE: EXTRACTION – 3D-Version (Unity)
 
-Die 3D-Fassung des Zombie-Extraction-Shooters. Es ist dasselbe Spiel wie die HTML-Version (`deadzone/`), nur in echtem 3D:
-vier Gebiete, acht Zombie-Arten mit KI, Waffen, Granaten, Inventar mit Gewicht, Basis mit Händler, Werkstätten,
+Die 3D-Fassung des Zombie-Extraction-Shooters. Es ist dasselbe Spiel wie die HTML-Version (`deadzone/`), nur in echtem 3D
+und aus der **Ego-Perspektive** (First Person): Du siehst durch die Augen deiner Figur, die Waffe in der Hand.
+Mit **V** wechselst du jederzeit zur Ansicht von oben.
+
+Vier Gebiete, acht Zombie-Arten mit KI, Waffen, Granaten, Inventar mit Gewicht, Basis mit Händler, Werkstätten,
 Krankenstation, Funkstation und Ausbau, Aufträge, Tag und Nacht mit Taschenlampe sowie Speichern.
 
 Alles wird im Spiel erzeugt: Karten, 3D-Modelle, Figuren, Animationen und Töne. Es gibt keine gekauften oder
@@ -26,32 +29,41 @@ Menü **Dead Zone → Windows-Spiel bauen**. Das Spiel landet auf dem Desktop im
 
 | Taste | Aktion |
 |---|---|
-| W A S D | Bewegen |
-| Maus / linke Maustaste | Zielen / Schießen (halten = Dauerfeuer) |
+| W A S D | Bewegen (in Blickrichtung) |
+| Maus | Umsehen und zielen (in der Ansicht von oben: auf das Ziel zeigen) |
+| Linke Maustaste | Schießen (halten = Dauerfeuer) |
+| Rechte Maustaste | Heranzoomen (Scharfschützengewehr stark) |
 | R | Nachladen |
-| E | Interagieren (Kisten, Türen, Beute); am Generator gedrückt halten |
+| E | Interagieren (Kisten, Türen, Beute – hinschauen); am Generator gedrückt halten |
 | Shift | Sprinten |
 | C / Strg | Ducken |
 | F | Taschenlampe |
 | Tab / I | Inventar (das Spiel läuft weiter!) |
 | M | Karte |
-| G | Granate |
+| G | Granate (nach oben schauen = weiter werfen) |
 | Q | Schnellheilung |
 | 1 – 5 | Primär, Sekundär, Nahkampf, Granate, Medizin |
+| Mausrad | Waffe wechseln (Ansicht von oben: Kamera zoomen) |
 | X | Ausgewählten Gegenstand ablegen |
-| Mausrad | Kamera zoomen |
-| Esc | Pause / Fenster schließen |
+| V | Ansicht wechseln: Ego-Perspektive oder von oben |
+| Esc | Pause / Fenster schließen – gibt auch die Maus frei |
 | F1 | Hilfe |
 
-Gamepad: linker Stick bewegen, rechter Stick zielen, RT schießen, A benutzen, X nachladen, B ducken, LB sprinten,
-RB Granate, Steuerkreuz oben Taschenlampe / unten Heilung / links-rechts Waffe, Start Pause, View Inventar, Y Karte.
+Gamepad: linker Stick bewegen, rechter Stick umsehen, RT schießen, LT zoomen, A benutzen, X nachladen, B ducken,
+LB sprinten, RB Granate, R3 Ansicht wechseln, Steuerkreuz oben Taschenlampe / unten Heilung / links-rechts Waffe,
+Start Pause, View Inventar, Y Karte.
+
+In der Ego-Perspektive wird die Maus im Einsatz eingefangen (unsichtbar). Sobald du Inventar, Karte oder Pause öffnest,
+ist sie wieder frei. Mausempfindlichkeit, Sichtfeld und „Maus umkehren“ stellst du unter **Einstellungen** ein.
+Oben in der Mitte zeigt ein Kompass die Himmelsrichtung, Extraktionspunkte (grün, gesperrt orange) und Auftragsziele
+(gelb) mit Entfernung.
 
 Im Inventar: Gegenstände **ziehen und ablegen**, **Rechtsklick** = schnell verschieben (beim Händler: verkaufen),
 **Doppelklick** = ausrüsten oder benutzen.
 
 ## Spielprinzip
 
-- **Einsatz:** Gebiet betreten, Gebäude durchsuchen (das Dach verschwindet, sobald du drin bist), Zombies bekämpfen
+- **Einsatz:** Gebiet betreten, Gebäude durchsuchen (von oben verschwindet das Dach, sobald du drin bist), Zombies bekämpfen
   oder umgehen, Aufträge erfüllen und an einem **Extraktionspunkt** (grüner Lichtstrahl) lebend raus.
 - **Risiko:** Wer stirbt, verliert alles am Körper und im Rucksack. Nur der **sichere Behälter** bleibt.
 - **Schließen während eines Einsatzes** zählt beim nächsten Start als **vermisst** (Ausrüstung verloren).
@@ -84,6 +96,7 @@ Batchmode (Windows, im Ordner `DeadZone3D`):
   90 Sekunden Spielsimulation auf jedem Gebiet ohne Fehler, Kampf, Extraktion, Tod, „vermisst“ beim Neuladen,
   Speichern mit Sicherung, Händler, Werkstatt, Ausbau, Generator, Laborkarte, Granaten, alle 45 Töne).
 - Dazu 9 Tests für die Funde aus zwei Prüfrunden (Rucksackwechsel ohne Verlust, Beute in den sicheren Behälter,
-  MG-Munition, mitgebrachte Gegenstände zählen nicht als Beute) – zusammen 30 Tests grün.
+  MG-Munition, mitgebrachte Gegenstände zählen nicht als Beute) und 5 Tests für die Ego-Perspektive (Benutzen durch
+  Hinschauen, Wurfweite, neue Einstellungen) – zusammen 35 Tests grün.
 - Der Unity-Teil kompiliert fehlerfrei gegen die Unity-Referenzbibliotheken, wurde aber **noch nicht in Unity selbst
   gestartet** (in der Cloud gibt es kein Unity). Beim ersten Öffnen auf dem PC können kleine Anpassungen nötig sein.

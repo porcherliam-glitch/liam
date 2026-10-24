@@ -92,6 +92,21 @@ namespace DeadZone.Game
             playerFill.transform.position = pos + Vector3.up * 1.5f;
         }
 
+        /// <summary>
+        /// First person: the beam follows the view (pitch included). The fill light hangs a little above and behind the
+        /// head: well below ceilings (no bright spot following the player) and not right next to the view model.
+        /// </summary>
+        public void Flashlight(bool on, Vector3 pos, Quaternion rotation, Vector3 head)
+        {
+            flashlight.enabled = on;
+            flashlight.transform.position = pos;
+            flashlight.transform.rotation = rotation;
+            var fwd = rotation * Vector3.forward;
+            fwd.y = 0f;
+            fwd = fwd.sqrMagnitude > 1e-4f ? fwd.normalized : Vector3.forward;
+            playerFill.transform.position = head + Vector3.up * 0.35f - fwd * 0.7f;
+        }
+
         public void MuzzleFlash(Vector3 pos, float strength)
         {
             muzzle.transform.position = pos;

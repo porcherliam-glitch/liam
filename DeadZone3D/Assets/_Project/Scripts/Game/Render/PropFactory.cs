@@ -238,19 +238,39 @@ namespace DeadZone.Game
             go.transform.localPosition = Coords.ToWorld(c.x, c.y);
             // back to the wall: model front faces -z (south); find the wall side
             float yaw = 0;
+            bool wall = true;
             if (IsWall(world, c.tx, c.ty - 1)) yaw = 0;          // wall to the north (+z)
             else if (IsWall(world, c.tx, c.ty + 1)) yaw = 180;   // wall to the south
             else if (IsWall(world, c.tx + 1, c.ty)) yaw = 90;    // wall to the east (+x)
             else if (IsWall(world, c.tx - 1, c.ty)) yaw = 270;   // wall to the west
-            else yaw = (c.tx * 37 + c.ty * 11) % 360;
+            else { yaw = (c.tx * 37 + c.ty * 11) % 360; wall = false; }
             go.transform.localRotation = Quaternion.Euler(0, yaw, 0);
             if (c.type != "body")
             {
-                // push it towards the wall so it stands against it
+                // push it until its back touches the wall face (half a tile from the centre); free-standing ones move a little
                 var back = go.transform.localRotation * Vector3.forward;
-                go.transform.localPosition += back * 0.45f;
+                go.transform.localPosition += back * (wall ? Tl / 2 - BackDepth(c.type) - 0.01f : 0.45f);
             }
             return go;
+        }
+
+        /// <summary>Distance from a container model's origin to its back face (+z).</summary>
+        private static float BackDepth(string type)
+        {
+            switch (type)
+            {
+                case "locker": return 0.3f;
+                case "fridge": return 0.375f;
+                case "desk": return 0.425f;
+                case "medcabinet": return 0.275f;
+                case "safe": return 0.4f;
+                case "military_crate": return 0.435f;
+                case "toolbox": return 0.375f;
+                case "weapon_rack": return 0.33f;
+                case "server_rack": return 0.45f;
+                case "lab_cabinet": return 0.275f;
+                default: return 0.53f;
+            }
         }
 
         private static bool IsWall(World w, int tx, int ty) { int t = w.Tile(tx, ty); return t == T.WALL || t == T.WINDOW; }

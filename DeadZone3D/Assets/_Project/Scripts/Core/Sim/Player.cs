@@ -36,6 +36,10 @@ namespace DeadZone.Core
         public (double vx, double vy, double t)? knock;
         private bool _lastFire, _warnHunger, _warnThirst;
         public double carryLimitBase;
+        /// <summary>First person: interaction prefers what the player looks at (set by the view layer).</summary>
+        public bool interactByLook;
+        /// <summary>Grenade throw strength 0.3..1.5 (first person: from the view pitch; 1 = default range).</summary>
+        public double throwPower = 1;
 
         public Player(Raid raid, Loadout loadout)
         {
@@ -168,7 +172,7 @@ namespace DeadZone.Core
                 if (usingItem.timer <= 0) FinishUse();
             }
 
-            interactTarget = _raid.FindInteractable(x, y);
+            interactTarget = _raid.FindInteractable(x, y, 56, interactByLook ? angle : double.NaN);
             if (input != null && input.Pressed("interact") && interactTarget != null) _raid.Interact(interactTarget);
 
             hunger = Math.Max(0, hunger - (2.0 / 60) * dt);
@@ -237,7 +241,7 @@ namespace DeadZone.Core
                 return false;
             }
             grenadeCooldown = 0.8;
-            bool ok = _raid.weapons.ThrowGrenade(g, this, angle);
+            bool ok = _raid.weapons.ThrowGrenade(g, this, angle, throwPower);
             if (ok && g.count <= 0)
             {
                 equipment["grenade"] = null;

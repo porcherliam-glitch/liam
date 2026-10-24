@@ -29,8 +29,15 @@ namespace DeadZone.Game
         public FxSystem fx;
         public WorldView worldView;
         public RaidView raidView;
+        public ViewModel viewModel;
         public UiRoot ui;
         private double _acc;
+        // first person
+        private float _eye = EyeStand, _deathCam, _aim, _prevYawDeg, _prevPitch;
+        private bool _lastFirstPerson;
+        /// <summary>0..1 how far the right-mouse zoom is in (first person).</summary>
+        public float AimAmount => _aim;
+        private const float EyeStand = 1.62f, EyeCrouch = 1.12f;
         private float _menuAngle, _playAcc;
         private World _menuWorld;
 
@@ -61,6 +68,8 @@ namespace DeadZone.Game
             if (UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline != null) cam.GetUniversalAdditionalCameraData().renderPostProcessing = true;
 #endif
             rig = new CameraRig(cam);
+            viewModel = new ViewModel(cam.transform);
+            viewModel.SetVisible(false);
             lighting = new LightingRig(transform);
             fx = new FxSystem(transform);
             audioSys = new AudioSystem(transform);
@@ -88,11 +97,25 @@ namespace DeadZone.Game
             var s = core.settings;
             audioSys.master = (float)s.master; audioSys.sfx = (float)s.sfx; audioSys.music = (float)s.music;
             rig.shakeEnabled = s.screenShake;
+            rig.fov = (float)s.fov;
+            input.sensitivity = (float)s.mouseSens;
+            input.invertY = s.invertY;
             lighting.SetQuality(s.quality);
             fx.quality = s.quality == "low" ? 0 : s.quality == "medium" ? 1 : 2;
         }
 
         public void SaveSettings() { core.save.SaveSettings(core.settings); ApplySettings(); }
+
+        /// <summary>First-person camera chosen in the settings (V switches it during a raid).</summary>
+        public bool FirstPerson => core.settings.view != "topdown";
+
+        /// <summary>Switches between first person and the top-down view.</summary>
+        public void ToggleView()
+        {
+            core.settings.view = FirstPerson ? "topdown" : "fps";
+            SaveSettings();
+            Toast(FirstPerson ? "Ansicht: Ego-Perspektive" : "Ansicht: von oben", "info", 1500);
+        }
 
         // ------------------------------------------------------------------ states
         private void ClearViews()
@@ -110,13 +133,22 @@ namespace DeadZone.Game
             worldView = new WorldView(_menuWorld, transform);
             lighting.SetMap(_menuWorld.map);
             rig.distance = 46f;
+            worldView.SetFirstPerson(false);
             rig.Snap(Coords.ToWorld(_menuWorld.PixelW / 2, _menuWorld.PixelH / 2));
+        }
+
+        /// <summary>Menu and base use the orbiting overview camera, never the first-person lens.</summary>
+        private void OverviewCamera()
+        {
+            rig.SetFirstPerson(false);
+            viewModel.SetVisible(false);
         }
 
         public void EnterMenu()
         {
             state = "menu";
             paused = false;
+            OverviewCamera();
             BuildMenuBackground();
             audioSys.StartAmbient("city");
             ui.ResetOverlays();
@@ -126,6 +158,7 @@ namespace DeadZone.Game
         {
             state = "base";
             paused = false;
+            OverviewCamera();
             BuildMenuBackground();
             audioSys.StartAmbient("city");
             ui.ResetOverlays();
@@ -163,6 +196,10 @@ namespace DeadZone.Game
             lighting.SetMap(raid.map);
             rig.distance = 24f;
             rig.Snap(Coords.ToWorld(raid.player.x, raid.player.y));
+            input.yaw = raid.player.angle;
+            input.pitch = 0f;
+            _eye = EyeStand; _deathCam = 0f; _aim = 0f;
+            _prevYawDeg = Coords.YawDeg(raid.player.angle); _prevPitch = 0f;
             audioSys.StartAmbient(raid.mapId);
             state = "raid";
             paused = false;
@@ -178,6 +215,7 @@ namespace DeadZone.Game
             state = "result";
             paused = false;
             ui.ResetOverlays();
+            ui.resultAt = Time.unscaledTime;
             audioSys.Play(result.outcome == "extracted" ? "extract_done" : "player_hurt", null, 1f);
         }
 
@@ -214,11 +252,25 @@ namespace DeadZone.Game
         private void Update()
         {
             float dt = Time.unscaledDeltaTime;
-            input.Tick();
             input.blocked = ui.BlocksGameplay || paused || state != "raid";
+            bool fp = FirstPerson;
+            input.firstPerson = fp;
+            if (fp != _lastFirstPerson)
+            {
+                // switched in the settings or with V: look where the player currently faces
+                _lastFirstPerson = fp;
+                if (fp && Raid != null) { input.yaw = Raid.player.angle; input.pitch = 0f; }
+            }
+            UpdateCursor(fp && state == "raid" && Raid != null && !Raid.ended && !input.blocked);
+            input.Tick(dt);
             bool stepped = false;
             if (state == "raid" && Raid != null)
             {
+                var pl = Raid.player;
+                pl.interactByLook = fp;
+                // first person: looking up throws grenades farther, looking down drops them closer
+                pl.throwPower = fp ? Mathf.Clamp(1f - input.pitch / InputReader.MaxPitch * 0.5f, 0.5f, 1.45f) : 1.0;
+                if (fp && !input.blocked && Mathf.Abs(input.scroll) > 0.01f) CycleWeapon(pl, input.scroll > 0 ? -1 : 1);
                 if (!paused && !ui.helpOpen && !Raid.ended)
                 {
                     _acc += Math.Min(dt, 0.25);
@@ -263,7 +315,30 @@ namespace DeadZone.Game
             input.EndFrame(stepped);
             fx.Update(dt);
             lighting.Update(dt);
-            rig.Zoom(state == "raid" && !ui.BlocksGameplay ? input.scroll : 0f);
+            if (!fp) rig.Zoom(state == "raid" && !ui.BlocksGameplay ? input.scroll : 0f);
+        }
+
+        private void OnDisable() { Cursor.lockState = CursorLockMode.None; Cursor.visible = true; }
+
+        /// <summary>Captures the mouse for looking around while a first-person raid runs without any window open.</summary>
+        private void UpdateCursor(bool want)
+        {
+            want &= Application.isFocused;
+            if (want && Cursor.lockState != CursorLockMode.Locked) { Cursor.lockState = CursorLockMode.Locked; Cursor.visible = false; }
+            else if (!want && Cursor.lockState != CursorLockMode.None) { Cursor.lockState = CursorLockMode.None; Cursor.visible = true; }
+            input.lookActive = want && Cursor.lockState == CursorLockMode.Locked;
+        }
+
+        /// <summary>Mouse wheel in first person: next or previous weapon slot (primary, secondary, melee).</summary>
+        private void CycleWeapon(Player p, int dir)
+        {
+            var slots = p.WeaponSlots();
+            int cur = p.activeSlot <= 2 ? p.activeSlot : (dir > 0 ? -1 : 3);
+            for (int k = 1; k <= 3; k++)
+            {
+                int i = ((cur + dir * k) % 3 + 3) % 3;
+                if (slots[i] != null) { if (i != p.activeSlot) input.Push("slot" + (i + 1)); return; }
+            }
         }
 
         private void PlayTime(float dt)
@@ -277,9 +352,17 @@ namespace DeadZone.Game
         {
             var raid = Raid;
             var p = raid.player;
+            bool fp = FirstPerson;
+            raidView.showPlayerBody = !fp;
+            raidView.losRange = fp ? 1500 : 760;
+            raidView.geometryOcclusion = fp;
+            raidView.Update(dt, Mathf.Clamp01(alpha), p.interactTarget);
+            worldView.SetFirstPerson(fp);
+            rig.SetFirstPerson(fp);
+            if (fp) { UpdateFirstPersonVisuals(dt, raid, p); return; }
+            viewModel.SetVisible(false);
             rig.yaw = 0f;
             rig.pitch = 58f;
-            raidView.Update(dt, Mathf.Clamp01(alpha), p.interactTarget);
             var ppos = raidView.PlayerRenderPos;
             var look = new Vector3((float)Math.Cos(p.angle), 0, (float)-Math.Sin(p.angle)) * 3f;
             rig.Follow(ppos + look, dt);
@@ -296,6 +379,67 @@ namespace DeadZone.Game
             rig.cam.backgroundColor = RenderSettings.fogColor;
         }
 
+        private void UpdateFirstPersonVisuals(float dt, Raid raid, Player p)
+        {
+            var feet = raidView.PlayerRenderPos;
+            // eye height: smooth crouch, and the view sinks to the ground on death
+            _eye = Mathf.MoveTowards(_eye, p.crouching ? EyeCrouch : EyeStand, dt * 3.5f);
+            float roll = 0f, eye = _eye;
+            if (p.dead)
+            {
+                _deathCam = Mathf.Min(1f, _deathCam + dt * 1.6f);
+                float k = 1f - (1f - _deathCam) * (1f - _deathCam);
+                eye = Mathf.Lerp(_eye, 0.3f, k);
+                roll = 72f * k;
+            }
+            float moving = p.moving && !p.dead ? (p.sprinting ? 1.3f : 1f) : 0f;
+            bool bob = core.settings.screenShake;
+            var bobOff = bob ? new Vector3(0, Mathf.Abs(Mathf.Cos((float)p.legPhase)) * 0.045f * moving, 0) : Vector3.zero;
+            float yawDeg = Coords.YawDeg(p.dead ? p.angle : input.yaw);
+            float pitchDeg = p.dead ? Mathf.Lerp(input.pitch, 30f, _deathCam) : input.pitch;
+            var eyePos = feet + Vector3.up * eye + bobOff;
+            // zoom on the right mouse button (visual only; the simulation has no aiming mode)
+            string cls = RaidView.HeldClass(p);
+            bool gun = p.activeSlot <= 2 && cls != null && cls != "melee";
+            _aim = Mathf.MoveTowards(_aim, input.AimHeld && gun && !p.sprinting && !p.dead ? 1f : 0f, dt * 7f);
+            float zoomTo = cls == "sniper" ? 0.4f : cls == "rifle" || cls == "lmg" ? 0.7f : 0.82f;
+            rig.zoom = Mathf.Lerp(1f, zoomTo, _aim);
+            input.sensitivityScale = rig.zoom;
+            rig.FirstPerson(eyePos, yawDeg, pitchDeg, roll, dt);
+            var camRot = rig.cam.transform.rotation;
+
+            // view model
+            var rt = p.WeaponInst?.rt;
+            float reload = -1f;
+            if (rt != null && rt.reloading && p.activeSlot <= 2)
+            {
+                double total = Items.Def(p.WeaponInst)?.weapon?.reloadTime ?? 2;
+                if (total <= 0) total = 2;
+                reload = Mathf.Clamp01(1f - (float)(rt.reloadTimer / total));
+            }
+            float yawDelta = Mathf.DeltaAngle(_prevYawDeg, yawDeg), pitchDelta = pitchDeg - _prevPitch;
+            _prevYawDeg = yawDeg; _prevPitch = pitchDeg;
+            viewModel.Update(dt, new ViewModelState
+            {
+                cls = cls, moving = moving, legPhase = (float)p.legPhase, aim = _aim, melee = (float)p.meleeAnim,
+                throwing = Mathf.Clamp01((float)(p.grenadeCooldown - 0.5) / 0.3f), yawDelta = yawDelta, pitchDelta = pitchDelta,
+                reload = reload, sprinting = p.sprinting, crouching = p.crouching, usingItem = p.usingItem != null, dead = p.dead,
+            });
+
+            lighting.fogScale = 1f;
+            lighting.Apply((float)raid.darkness, (float)raid.hour);
+            // shoulder lamp on the left: the gun (right, or centred when zooming) stays outside the cone,
+            // otherwise the beam would light the view model blindingly from right next to it
+            var lampPos = eyePos + camRot * new Vector3(-0.22f, -0.12f, 0.3f);
+            lighting.Flashlight(p.flashlightOn && !p.dead, lampPos, camRot, eyePos);
+            worldView.darkness = (float)raid.darkness;
+            worldView.generatorOn = raid.generatorOn;
+            worldView.focus = feet;
+            worldView.Update(dt);
+            audioSys.Update(dt, eyePos, Quaternion.Euler(0f, yawDeg, 0f));
+            rig.cam.backgroundColor = RenderSettings.fogColor;
+        }
+
         // ------------------------------------------------------------------ IFeedback
         public void Sfx(string name, double x = double.NaN, double y = double.NaN, double volume = 1, double pitch = 1)
         {
@@ -309,6 +453,21 @@ namespace DeadZone.Game
 
         private float _fireThrottle;
 
+        /// <summary>A first-person raid is on screen (the player's own effects come from the view model).</summary>
+        private bool FirstPersonView => FirstPerson && Raid != null && (state == "raid" || state == "result") && !Raid.player.dead;
+
+        private static float RecoilFor(string cls)
+        {
+            switch (cls)
+            {
+                case "shotgun": return 3.2f;
+                case "sniper": return 3.6f;
+                case "rifle": case "lmg": return 1.2f;
+                case "smg": return 0.8f;
+                default: return 1.4f;
+            }
+        }
+
         public void Effect(Fx kind, double x, double y, double a = 0, double b = 0, string text = null, string color = null)
         {
             var pos = Coords.ToWorld(x, y, 1.1f);
@@ -316,10 +475,27 @@ namespace DeadZone.Game
             switch (kind)
             {
                 case Fx.MuzzleFlash:
+                    if (FirstPersonView)
+                    {
+                        // the shot comes out of the view model; the light sits a little ahead so the gun is not blown out
+                        var muzzle = viewModel.MuzzleWorld;
+                        var fwd = rig.cam.transform.forward;
+                        lighting.MuzzleFlash(muzzle + fwd * 0.6f, (float)b);
+                        viewModel.Fire((float)b);
+                        rig.Kick(RecoilFor(RaidView.HeldClass(Raid.player)));
+                        for (int i = 0; i < 3; i++) fx.Emit(muzzle + fwd * 0.05f, fwd * 5f + UnityEngine.Random.insideUnitSphere * 1.2f, fx.spark, 0.025f, 0.06f, false);
+                        break;
+                    }
                     lighting.MuzzleFlash(Coords.ToWorld(x, y, 1.3f), (float)b);
                     for (int i = 0; i < 3; i++) fx.Emit(Coords.ToWorld(x, y, 1.3f), (dir * 6f + UnityEngine.Random.insideUnitSphere * 1.5f), fx.spark, 0.06f, 0.08f, false);
                     break;
                 case Fx.Casing:
+                    if (FirstPersonView)
+                    {
+                        var right = rig.cam.transform.right;
+                        fx.Emit(viewModel.EjectWorld, right * 1.6f + Vector3.up * 1.4f, fx.brass, 0.02f, 0.8f, true);
+                        break;
+                    }
                     fx.Emit(Coords.ToWorld(x, y, 1.2f), Quaternion.Euler(0, 90, 0) * dir * 2f + Vector3.up * 2f, fx.brass, 0.05f, 1.2f, true);
                     break;
                 case Fx.Blood:

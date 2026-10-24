@@ -25,10 +25,20 @@ namespace DeadZone.Game
         private readonly List<Light> _lightPool = new List<Light>();
         private int _lastVersion = -1;
         private float _lightTimer;
+        private GameObject _fixtures;
+        private bool _firstPerson, _modeSet;
         public float darkness;
         public bool generatorOn;
 
-        private sealed class LightSlot { public LightDef def; public Vector3 pos; public Color color; public float range; public Light light; }
+        private sealed class LightSlot
+        {
+            public LightDef def; public Vector3 pos; public Color color; public float range; public Light light;
+            /// <summary>Inside a building (flag or position): a ceiling lamp shining down.</summary>
+            public bool indoor;
+            /// <summary>0..1 fade-in after the slot got a light from the pool (no popping).</summary>
+            public float fade;
+        }
+        private readonly List<LightSlot> _near = new List<LightSlot>();
 
         private sealed class DoorView
         {
@@ -90,7 +100,7 @@ namespace DeadZone.Game
             _indoorMat = Mats.Lit(floor, 0.3f);
             _lineMat = Mats.Lit(Mats.Hex(pal.roadLine, new Color(0.8f, 0.75f, 0.4f)), 0.2f);
             _toxicMat = Mats.Emissive(new Color(0.25f, 0.9f, 0.2f), new Color(0.3f, 1f, 0.15f), 1.6f);
-            _waterMat = Mats.Lit(Mats.Shade(Mats.Hex(pal.water, new Color(0.08f, 0.16f, 0.22f)), 1.3f), 0.92f);
+            _waterMat = Mats.Lit(Mats.Shade(Mats.Hex(pal.water, new Color(0.08f, 0.16f, 0.22f)), 1.2f), 0.75f);
             _voidMat = Mats.Lit(new Color(0.02f, 0.02f, 0.025f), 0f);
             _fenceMat = Mats.Lit(new Color(0.45f, 0.47f, 0.5f), 0.5f, 0.6f);
             _glassMat = Mats.Lit(new Color(0.12f, 0.17f, 0.22f), 0.95f);
@@ -135,7 +145,7 @@ namespace DeadZone.Game
                 case T.FLOOR: return _indoorMat;
                 case T.TOXIC: return _toxicMat;
                 case T.WATER: return _waterMat;
-                case T.VOID: return _voidMat;
+                case T.VOID: return _floorMats[T.GROUND];
                 case T.GROUND: return _floorMats[T.GROUND];
             }
             return FloorMat(BaseUnder(tx, ty), tx, ty);
@@ -152,24 +162,34 @@ namespace DeadZone.Game
                 {
                     var floor = new MeshBuilder();
                     var walls = new MeshBuilder();
+                    var glass = new MeshBuilder();
                     for (int ty = cy * Chunk; ty < Mathf.Min(world.h, (cy + 1) * Chunk); ty++)
                         for (int tx = cx * Chunk; tx < Mathf.Min(world.w, (cx + 1) * Chunk); tx++)
-                            BuildTile(tx, ty, floor, walls);
+                            BuildTile(tx, ty, floor, walls, glass);
                     if (!floor.Empty)
                     {
                         var go = Track(floor.ToObject("Floor_" + cx + "_" + cy, root.transform, false));
                         go.GetComponent<MeshRenderer>().receiveShadows = true;
                     }
                     if (!walls.Empty) Track(walls.ToObject("Walls_" + cx + "_" + cy, root.transform, true));
+                    if (!glass.Empty) _glass.Add(Track(glass.ToObject("Glass_" + cx + "_" + cy, root.transform, true)));
                 }
+            // ground far beyond the map edge, so the first-person horizon fades into fog instead of ending in nothing
+            var skirt = new MeshBuilder();
+            float mw = world.w * Tl, mh = world.h * Tl;
+            skirt.Floor(_floorMats[T.GROUND], -200f, -mh - 200f, mw + 200f, 200f, -0.08f); // below the water surface (-0.05)
+            var sk = Track(skirt.ToObject("GroundSkirt", root.transform, false));
+            sk.GetComponent<MeshRenderer>().receiveShadows = true;
         }
 
-        private void BuildTile(int tx, int ty, MeshBuilder floor, MeshBuilder walls)
+        private readonly List<GameObject> _glass = new List<GameObject>();
+
+        private void BuildTile(int tx, int ty, MeshBuilder floor, MeshBuilder walls, MeshBuilder glass)
         {
             int t = world.Tile(tx, ty);
             float x0 = tx * Tl, x1 = x0 + Tl, z1 = -ty * Tl, z0 = z1 - Tl;
             var fm = FloorMat(t, tx, ty);
-            float fy = t == T.TOXIC ? 0.015f : t == T.WATER ? -0.05f : 0f;
+            float fy = t == T.TOXIC ? 0.004f : t == T.WATER ? -0.05f : 0f;
             floor.Floor(fm, x0, z0, x1, z1, fy);
             int v = world.tileVariant[ty * world.w + tx];
             if (t == T.ROAD_LINE)
@@ -210,24 +230,25 @@ namespace DeadZone.Game
             {
                 var wm = WallMatAt(tx, ty);
                 walls.Box(wm, new Vector3(x0, 0, z0), new Vector3(x1, 0.95f, z1));
-                walls.Box(wm, new Vector3(x0, 2.05f, z0), new Vector3(x1, H, z1));
+                walls.Box(wm, new Vector3(x0, 2.05f, z0), new Vector3(x1, H, z1), 0b111111);
                 bool horiz = IsWallLike(world.Tile(tx - 1, ty)) || IsWallLike(world.Tile(tx + 1, ty));
                 float cxm = (x0 + x1) / 2, czm = (z0 + z1) / 2;
-                if (horiz) walls.Box(_glassMat, new Vector3(x0, 0.95f, czm - 0.03f), new Vector3(x1, 2.05f, czm + 0.03f));
-                else walls.Box(_glassMat, new Vector3(cxm - 0.03f, 0.95f, z0), new Vector3(cxm + 0.03f, 2.05f, z1));
+                // the panes are hidden in first person: bullets and sight pass windows in the simulation (broken glass)
+                if (horiz) glass.Box(_glassMat, new Vector3(x0, 0.95f, czm - 0.03f), new Vector3(x1, 2.05f, czm + 0.03f));
+                else glass.Box(_glassMat, new Vector3(cxm - 0.03f, 0.95f, z0), new Vector3(cxm + 0.03f, 2.05f, z1));
             }
             else if (T.IsDoor(t))
             {
-                walls.Box(WallMatAt(tx, ty), new Vector3(x0, 2.25f, z0), new Vector3(x1, H, z1));
+                walls.Box(WallMatAt(tx, ty), new Vector3(x0, 2.25f, z0), new Vector3(x1, H, z1), 0b111111);
             }
             else if (t == T.FENCE)
             {
                 float cxm = (x0 + x1) / 2, czm = (z0 + z1) / 2;
-                walls.BoxCenter(_fenceMat, new Vector3(cxm, 0.9f, czm), new Vector3(0.12f, 1.8f, 0.12f));
+                walls.BoxCenter(_fenceMat, new Vector3(cxm, 0.95f, czm), new Vector3(0.12f, 1.9f, 0.12f));
                 bool e = world.Tile(tx + 1, ty) == T.FENCE, w = world.Tile(tx - 1, ty) == T.FENCE;
                 bool n = world.Tile(tx, ty - 1) == T.FENCE, s = world.Tile(tx, ty + 1) == T.FENCE;
                 if (!e && !w && !n && !s) { e = true; w = true; }
-                foreach (float h in new[] { 0.35f, 1.0f, 1.65f })
+                foreach (float h in new[] { 0.35f, 1.05f, 1.78f })
                 {
                     if (e) walls.Box(_fenceMat, new Vector3(cxm, h - 0.03f, czm - 0.03f), new Vector3(x1, h + 0.03f, czm + 0.03f));
                     if (w) walls.Box(_fenceMat, new Vector3(x0, h - 0.03f, czm - 0.03f), new Vector3(cxm, h + 0.03f, czm + 0.03f));
@@ -237,8 +258,8 @@ namespace DeadZone.Game
                 for (int k = 1; k < 4; k++)
                 {
                     float f = k / 4f;
-                    if (e || w) walls.Box(_fenceMat, new Vector3(x0 + f * Tl - 0.02f, 0.05f, czm - 0.02f), new Vector3(x0 + f * Tl + 0.02f, 1.7f, czm + 0.02f), 0b110011);
-                    if (n || s) walls.Box(_fenceMat, new Vector3(cxm - 0.02f, 0.05f, z0 + f * Tl - 0.02f), new Vector3(cxm + 0.02f, 1.7f, z0 + f * Tl + 0.02f), 0b110011);
+                    if (e || w) walls.Box(_fenceMat, new Vector3(x0 + f * Tl - 0.02f, 0.05f, czm - 0.02f), new Vector3(x0 + f * Tl + 0.02f, 1.82f, czm + 0.02f), 0b110011);
+                    if (n || s) walls.Box(_fenceMat, new Vector3(cxm - 0.02f, 0.05f, z0 + f * Tl - 0.02f), new Vector3(cxm + 0.02f, 1.82f, z0 + f * Tl + 0.02f), 0b110011);
                 }
             }
         }
@@ -264,14 +285,36 @@ namespace DeadZone.Game
                     float ux = x0 + (x1 - x0) * 0.3f, uz = z0 + (z1 - z0) * 0.6f;
                     mb.BoxCenter(unit, new Vector3(ux, H + 0.6f, uz), new Vector3(1.4f, 0.7f, 1.0f));
                 }
+                // ceiling seen from inside (first person); the roof box has no bottom face
+                float ch = H - 0.002f;
+                mb.Quad(CeilingMat(b), new Vector3(x0 - 0.1f, ch, z1 + 0.1f), new Vector3(x0 - 0.1f, ch, z0 - 0.1f), new Vector3(x1 + 0.1f, ch, z0 - 0.1f), new Vector3(x1 + 0.1f, ch, z1 + 0.1f), Vector3.down);
                 var go = Track(mb.ToObject("Roof_" + b.id, root.transform, true));
                 _roofs.Add((b, go.GetComponent<Renderer>()));
             }
         }
 
+        private Material _ceilingMat;
+        private Material CeilingMat(Building b)
+        {
+            if (_ceilingMat == null) _ceilingMat = Mats.Lit(new Color(0.5f, 0.48f, 0.45f), 0.05f);
+            return _ceilingMat;
+        }
+
+        /// <summary>First person: every roof (and its ceiling) is drawn and indoor lamp fixtures appear under the ceilings.</summary>
+        public void SetFirstPerson(bool on)
+        {
+            if (_modeSet && _firstPerson == on) return;
+            _modeSet = true;
+            _firstPerson = on;
+            if (_fixtures != null) _fixtures.SetActive(on);
+            foreach (var g in _glass) g.SetActive(!on);
+            if (on) foreach (var (_, r) in _roofs) r.shadowCastingMode = ShadowCastingMode.On;
+        }
+
         /// <summary>Hides roofs of the building the player is in (they keep casting shadows, so inside stays dim) and roofs right in front of the camera.</summary>
         public void UpdateRoofs(double px, double py)
         {
+            if (_firstPerson) return;
             var inside = world.BuildingAt(px, py);
             foreach (var (b, r) in _roofs)
             {
@@ -307,7 +350,7 @@ namespace DeadZone.Game
                     mb.BoxCenter(Mats.Lit(new Color(0.75f, 0.7f, 0.5f), 0.6f, 0.8f), new Vector3(Tl - 0.35f, 1.05f, 0), new Vector3(0.1f, 0.06f, 0.18f));
                     var leaf = Track(mb.ToObject("Leaf", hinge, true));
                     var dv = new DoorView { tx = tx, ty = ty, hinge = hinge, leaf = leaf.GetComponent<Renderer>(), locked = t == T.DOOR_LOCKED };
-                    dv.angle = dv.target = t == T.DOOR_OPEN ? 95 : 0;
+                    dv.angle = dv.target = t == T.DOOR_OPEN ? 90 : 0;
                     hinge.GetChild(0).localRotation = Quaternion.Euler(0, -dv.angle, 0);
                     _doors[ty * world.w + tx] = dv;
                 }
@@ -321,7 +364,7 @@ namespace DeadZone.Game
                 foreach (var d in _doors.Values)
                 {
                     int t = world.Tile(d.tx, d.ty);
-                    d.target = t == T.DOOR_OPEN ? 95 : 0;
+                    d.target = t == T.DOOR_OPEN ? 90 : 0;
                     if (d.locked && t != T.DOOR_LOCKED)
                     {
                         d.locked = false;
@@ -365,14 +408,27 @@ namespace DeadZone.Game
         {
             foreach (var l in world.lights)
             {
-                bool lamp = !l.indoor && !l.toxic && l.extraction == null;
+                bool indoor = l.indoor || (!l.toxic && l.extraction == null && world.BuildingAt(l.x, l.y) != null);
+                bool lamp = !indoor && !l.toxic && l.extraction == null;
                 _lightDefs.Add(new LightSlot
                 {
                     def = l,
-                    pos = Coords.ToWorld(l.x, l.y, l.indoor ? 2.4f : l.toxic ? 1.8f : lamp ? 4.2f : 2.5f),
+                    indoor = indoor,
+                    // ceiling lamps hang just under the ceiling and shine down; toxic glow comes from the ground
+                    pos = Coords.ToWorld(l.x, l.y, indoor ? H - 0.12f : l.toxic ? 0.5f : lamp ? 4.2f : 2.5f),
                     color = Mats.Hex(l.color, Color.white),
                     range = Mathf.Max(5f, (float)l.radius * Coords.S * 1.5f),
                 });
+            }
+            // lamp fixtures under the ceilings (only visible in first person; from above they would float in the air)
+            var fix = new MeshBuilder();
+            var fixMat = Mats.Emissive(new Color(1f, 0.92f, 0.75f), new Color(1f, 0.85f, 0.6f), 2.2f);
+            foreach (var s in _lightDefs)
+                if (s.indoor) fix.BoxCenter(fixMat, new Vector3(s.pos.x, H - 0.035f, s.pos.z), new Vector3(0.55f, 0.06f, 0.55f), 0b111011);
+            if (!fix.Empty)
+            {
+                _fixtures = Track(fix.ToObject("LampFixtures", root.transform, false));
+                _fixtures.SetActive(_firstPerson);
             }
             var parent = new GameObject("Lights").transform;
             parent.SetParent(root.transform, false);
@@ -396,39 +452,53 @@ namespace DeadZone.Game
             if (_lightTimer <= 0)
             {
                 _lightTimer = 0.3f;
-                foreach (var s in _lightDefs) s.light = null;
-                var near = new List<LightSlot>();
+                var near = _near;
+                near.Clear();
                 foreach (var s in _lightDefs)
                 {
-                    bool lamp = !s.def.indoor && !s.def.toxic && s.def.extraction == null;
+                    bool lamp = !s.indoor && !s.def.toxic && s.def.extraction == null;
                     if (lamp && darkness < 0.3f) continue;
                     float d = (s.pos - focus).sqrMagnitude;
-                    if (d < 60f * 60f) near.Add(s);
+                    if (d < 75f * 75f) near.Add(s);
                 }
                 near.Sort((a, b) => (a.pos - focus).sqrMagnitude.CompareTo((b.pos - focus).sqrMagnitude));
-                for (int i = 0; i < _lightPool.Count; i++)
+                if (near.Count > _lightPool.Count) near.RemoveRange(_lightPool.Count, near.Count - _lightPool.Count);
+                foreach (var s in _lightDefs) if (s.light != null && !near.Contains(s)) { s.light = null; s.fade = 0f; }
+                // slots that keep their light keep their pool entry, so nothing flickers on a refresh
+                var free = new List<Light>(_lightPool);
+                foreach (var s in near) if (s.light != null) free.Remove(s.light);
+                int fi = 0;
+                foreach (var s in near)
                 {
-                    var light = _lightPool[i];
-                    if (i < near.Count)
+                    if (s.light != null) continue;
+                    var light = free[fi++];
+                    s.light = light;
+                    s.fade = 0f;
+                    light.transform.position = s.pos;
+                    light.color = s.color;
+                    light.range = s.range;
+                    if (s.indoor)
                     {
-                        var s = near[i];
-                        s.light = light;
-                        light.enabled = true;
-                        light.transform.position = s.pos;
-                        light.color = s.color;
-                        light.range = s.range;
+                        light.type = LightType.Spot;
+                        light.spotAngle = 150f;
+                        light.innerSpotAngle = 100f;
+                        light.transform.rotation = Quaternion.Euler(90f, 0f, 0f);
                     }
-                    else light.enabled = false;
+                    else light.type = LightType.Point;
                 }
+                for (; fi < free.Count; fi++) free[fi].enabled = false;
             }
             float time = Time.time;
             foreach (var s in _lightDefs)
             {
                 if (s.light == null) continue;
+                s.light.enabled = true;
+                s.fade = Mathf.Min(1f, s.fade + dt * 2.5f);
                 // URP lights fall off with 1/d², so these are higher than they look
-                float baseI = s.def.indoor ? 5f : s.def.toxic ? 4f : s.def.extraction != null ? 8f : 10f;
-                if (s.def.indoor) baseI *= Mathf.Lerp(0.6f, 1.2f, darkness);
-                if (s.def.flicker && !(generatorOn && s.def.indoor))
+                float baseI = s.indoor ? 6f : s.def.toxic ? 2.5f : s.def.extraction != null ? 8f : 10f;
+                if (s.indoor) baseI *= Mathf.Lerp(0.6f, 1.2f, darkness);
+                baseI *= s.fade;
+                if (s.def.flicker && !(generatorOn && s.indoor))
                 {
                     float n = Mathf.PerlinNoise(s.pos.x * 0.37f, time * 7f);
                     baseI *= n < 0.25f ? 0.15f : 0.75f + n * 0.4f;

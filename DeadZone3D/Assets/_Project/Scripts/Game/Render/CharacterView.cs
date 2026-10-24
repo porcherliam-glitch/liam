@@ -19,9 +19,9 @@ namespace DeadZone.Game
         public float heightScale = 1f;
         private string _weaponKey;
 
-        private static Mesh _box, _sphere, _capsule;
+        private static Mesh _box, _sphere, _capsule, _cylinder;
 
-        private static Mesh BoxMesh()
+        internal static Mesh BoxMesh()
         {
             if (_box != null) return _box;
             var mb = new MeshBuilder();
@@ -29,12 +29,21 @@ namespace DeadZone.Game
             return _box = mb.Build("unitBox");
         }
 
-        private static Mesh SphereMesh()
+        internal static Mesh SphereMesh()
         {
             if (_sphere != null) return _sphere;
             var mb = new MeshBuilder();
             mb.Sphere(null, Vector3.zero, Vector3.one * 0.5f, 10, 7);
             return _sphere = mb.Build("unitSphere");
+        }
+
+        /// <summary>Unit cylinder from y = -0.5 to 0.5 with radius 0.5.</summary>
+        internal static Mesh CylinderMesh()
+        {
+            if (_cylinder != null) return _cylinder;
+            var mb = new MeshBuilder();
+            mb.Cylinder(null, new Vector3(0, -0.5f, 0), 0.5f, 1f, 10, true);
+            return _cylinder = mb.Build("unitCylinder");
         }
 
         private static Mesh CapsuleMesh()

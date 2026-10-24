@@ -122,10 +122,13 @@ namespace DeadZone.Game
 
         public void StopAmbient() { _ambientTarget = 0f; }
 
-        public void Update(float dt, Vector3 listenerPos)
+        public void Update(float dt, Vector3 listenerPos) => Update(dt, listenerPos, Quaternion.identity);
+
+        /// <summary>The listener faces where the player looks in first person (sounds pan with the view); top-down it faces north.</summary>
+        public void Update(float dt, Vector3 listenerPos, Quaternion listenerRot)
         {
             listener.position = listenerPos;
-            listener.rotation = Quaternion.identity;
+            listener.rotation = listenerRot;
             _ambientVol = Mathf.MoveTowards(_ambientVol, _ambientTarget, dt * 0.5f);
             _ambience.volume = _ambientVol * master * music * 0.55f;
             if (_ambientVol <= 0 && _ambientTarget <= 0 && _ambience.isPlaying) _ambience.Stop();

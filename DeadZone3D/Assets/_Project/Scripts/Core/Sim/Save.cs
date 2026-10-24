@@ -26,11 +26,19 @@ namespace DeadZone.Core
         public double master = 0.8, sfx = 1.0, music = 0.6;
         public bool screenShake = true, showFps, minimap = true, damageNumbers = true;
         public string quality = "high";
+        /// <summary>Camera in a raid: "fps" (first person, default) or "topdown".</summary>
+        public string view = "fps";
+        /// <summary>Mouse sensitivity 0..1 (mapped to degrees per mouse count by the view layer).</summary>
+        public double mouseSens = 0.35;
+        public bool invertY;
+        /// <summary>Vertical field of view in first person, degrees (70° ≈ 102° horizontal at 16:9).</summary>
+        public double fov = 70;
 
         public Dictionary<string, object> ToJson() => new Dictionary<string, object>
         {
             ["master"] = master, ["sfx"] = sfx, ["music"] = music, ["screenShake"] = screenShake, ["showFps"] = showFps,
             ["minimap"] = minimap, ["damageNumbers"] = damageNumbers, ["quality"] = quality,
+            ["view"] = view, ["mouseSens"] = mouseSens, ["invertY"] = invertY, ["fov"] = fov,
         };
 
         public static Settings FromJson(object raw)
@@ -46,6 +54,11 @@ namespace DeadZone.Core
             s.damageNumbers = Json.Bool(o, "damageNumbers", s.damageNumbers);
             string q = Json.Str(o, "quality", "high");
             s.quality = q == "low" || q == "medium" || q == "high" ? q : "high";
+            string v = Json.Str(o, "view", s.view);
+            s.view = v == "topdown" ? "topdown" : "fps";
+            s.mouseSens = M.Clamp(Json.Num(o, "mouseSens", s.mouseSens), 0, 1);
+            s.invertY = Json.Bool(o, "invertY", s.invertY);
+            s.fov = M.Clamp(Json.Num(o, "fov", s.fov), 55, 90);
             return s;
         }
     }

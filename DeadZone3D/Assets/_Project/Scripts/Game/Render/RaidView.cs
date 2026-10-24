@@ -32,6 +32,22 @@ namespace DeadZone.Game
         /// <summary>Interpolated player position as drawn this frame (camera and flashlight follow this).</summary>
         public Vector3 PlayerRenderPos { get; private set; }
         private const float BeamHeight = 10f;
+        /// <summary>Zombies farther than this (sim pixels) are not drawn. First person sees much farther than the top-down camera.</summary>
+        public double losRange = 760;
+        /// <summary>False in first person: the camera sits inside the player's head.</summary>
+        public bool showPlayerBody = true;
+        /// <summary>
+        /// First person: walls and roofs hide zombies by themselves, so no line-of-sight test (which would also hide
+        /// zombies behind low cover the eye can look over, like cars and barricades).
+        /// </summary>
+        public bool geometryOcclusion;
+
+        /// <summary>Weapon class the player holds (model selection for the body and the first-person view model).</summary>
+        public static string HeldClass(Player p)
+        {
+            if (p.activeSlot <= 2) return Items.Def(p.WeaponInst)?.weapon?.@class;
+            return p.activeSlot == 3 ? "grenade" : "med";
+        }
 
         public RaidView(Raid raid, WorldView world, FxSystem fx, Transform parent)
         {
@@ -135,11 +151,8 @@ namespace DeadZone.Game
             _playerCur = Coords.ToWorld(p.x, p.y);
             var ppos = Vector3.Lerp(_playerPrev, _playerCur, alpha);
             PlayerRenderPos = ppos;
-            string cls = null;
-            if (p.activeSlot <= 2) cls = Items.Def(p.WeaponInst)?.weapon?.@class;
-            else if (p.activeSlot == 3) cls = "grenade";
-            else cls = "med";
-            player.SetWeapon(cls);
+            player.SetVisible(showPlayerBody);
+            player.SetWeapon(HeldClass(p));
             float moving = p.moving ? (p.sprinting ? 1.25f : 1f) : 0f;
             player.Pose(ppos, Coords.YawDeg(p.angle), moving, (float)p.legPhase, (float)p.meleeAnim, p.crouching, p.dead, 0f, dt);
 
@@ -155,7 +168,7 @@ namespace DeadZone.Game
                 if (zv.losTimer <= 0)
                 {
                     zv.losTimer = 0.12f + Random.Range(0f, 0.06f);
-                    zv.los = d < 60 || (d < 760 && DeadZone.Core.Physics.LineOfSight(_raid.world, p.x, p.y, z.x, z.y));
+                    zv.los = d < 60 || (d < losRange && (geometryOcclusion || DeadZone.Core.Physics.LineOfSight(_raid.world, p.x, p.y, z.x, z.y)));
                 }
                 bool show = zv.los && (z.type.lurk ? z.visibleAlpha > 0.5 || d < 90 : true);
                 zv.visible = Mathf.MoveTowards(zv.visible, show ? 1f : 0f, dt * 5f);

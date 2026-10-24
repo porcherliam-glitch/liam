@@ -74,8 +74,7 @@ namespace DeadZone.Game
             }
             foreach (var poi in w.pois)
             {
-                bool rel = !poi.used && (raid.missionStates.Any(st => st.All.Any(o => !o.done && ((o.def.type == "investigate" && o.def.target == poi.type) || (o.def.type == "generator" && poi.type == "generator")))) || (poi.type == "generator" && !raid.generatorOn && raid.extraction.points.Any(e => e.kind == "power")));
-                if (!rel) continue;
+                if (!PoiRelevant(raid, poi)) continue;
                 var p = MapPoint(r, poi.x, poi.y, w);
                 Fill(new Rect(p.x - 5, p.y - 5, 10, 10), new Color(1f, 0.85f, 0.2f));
                 if (full) Text(new Rect(p.x + 8, p.y - 10, 260, 20), MissionSystem.PoiName(poi.type), 13, new Color(1f, 0.85f, 0.2f));
@@ -87,10 +86,63 @@ namespace DeadZone.Game
             }
             var pl = raid.player;
             var pp = MapPoint(r, pl.x, pl.y, w);
-            var tip = pp + new Vector2(Mathf.Cos((float)pl.angle), Mathf.Sin((float)pl.angle)) * (full ? 14f : 9f);
+            float ang = game.FirstPerson && game.state == "raid" ? (float)game.input.yaw : (float)pl.angle;
+            var tip = pp + new Vector2(Mathf.Cos(ang), Mathf.Sin(ang)) * (full ? 14f : 9f);
             Fill(new Rect(tip.x - 2.5f, tip.y - 2.5f, 5, 5), Color.white);
             Fill(new Rect(pp.x - 4, pp.y - 4, 8, 8), UiColors.Info);
             Frame(r, UiColors.Line, 2);
+        }
+
+        /// <summary>A point of interest that belongs to an open objective (shown on the maps and the compass).</summary>
+        private static bool PoiRelevant(Raid raid, Poi poi) =>
+            !poi.used && (raid.missionStates.Any(st => st.All.Any(o => !o.done && ((o.def.type == "investigate" && o.def.target == poi.type) || (o.def.type == "generator" && poi.type == "generator"))))
+                || (poi.type == "generator" && !raid.generatorOn && raid.extraction.points.Any(e => e.kind == "power")));
+
+        private static readonly string[] CompassNames = { "N", "NO", "O", "SO", "S", "SW", "W", "NW" };
+
+        /// <summary>Compass strip at the top: 180° around the view direction, extraction points and objectives with distance.</summary>
+        private void DrawCompass(Raid raid, Player p)
+        {
+            // fits between the time panel (left) and the minimap (right) down to 4:3
+            float half = Mathf.Clamp(W / 2 - 520f, 140f, 300f);
+            const float span = 90f;
+            var r = new Rect(W / 2 - half, 12, half * 2, 38);
+            Fill(r, new Color(0.02f, 0.03f, 0.035f, 0.62f));
+            float heading = (float)(game.input.yaw * Mathf.Rad2Deg) + 90f;
+            float cx = r.x + half;
+            float baseA = Mathf.Round(heading / 15f) * 15f;
+            for (int k = -7; k <= 7; k++)
+            {
+                float a = baseA + k * 15f;
+                float rel = Mathf.DeltaAngle(heading, a);
+                if (Mathf.Abs(rel) > span) continue;
+                float x = cx + rel / span * half;
+                int deg = ((Mathf.RoundToInt(a) % 360) + 360) % 360;
+                if (deg % 45 == 0)
+                {
+                    bool main = deg % 90 == 0;
+                    Text(new Rect(x - 30, r.y + 2, 60, 22), CompassNames[deg / 45], main ? 17 : 13, main ? UiColors.Text : UiColors.Muted, TextAnchor.MiddleCenter, main);
+                }
+                else Fill(new Rect(x - 1, r.y + 8, 2, 8), new Color(1, 1, 1, 0.35f));
+            }
+            Fill(new Rect(cx - 1, r.yMax - 12, 2, 12), UiColors.Accent);
+            void Marker(double mx, double my, Color col, string label)
+            {
+                float bearing = Coords.YawDeg(M.AngleTo(p.x, p.y, mx, my));
+                float rel = Mathf.DeltaAngle(heading, bearing);
+                bool edge = Mathf.Abs(rel) > span;
+                float x = cx + Mathf.Clamp(rel, -span, span) / span * half;
+                var c = edge ? new Color(col.r, col.g, col.b, 0.45f) : col;
+                Fill(new Rect(x - 5, r.yMax - 14, 10, 10), c);
+                if (!edge) Text(new Rect(x - 40, r.yMax + 2, 80, 18), label, 13, c, TextAnchor.MiddleCenter, true);
+            }
+            foreach (var e in raid.extraction.points)
+            {
+                if (e.state == "done") continue;
+                Marker(e.x, e.y, e.active ? UiColors.Good : UiColors.Warn, M.Round(M.Dist(p.x, p.y, e.x, e.y) * Coords.S) + " m");
+            }
+            foreach (var poi in raid.world.pois)
+                if (PoiRelevant(raid, poi)) Marker(poi.x, poi.y, new Color(1f, 0.85f, 0.2f), M.Round(M.Dist(p.x, p.y, poi.x, poi.y) * Coords.S) + " m");
         }
 
         private void DrawRaid()
@@ -104,7 +156,8 @@ namespace DeadZone.Game
             if (lootContainer != null) DrawRaidInventory(raid, p, lootContainer);
             if (mapOpen) DrawFullMap(raid);
             if (game.paused) DrawPause();
-            if (!BlocksGameplay && !game.paused && !game.input.usingGamepad) DrawCrosshair(raid, p);
+            bool fp = game.FirstPerson;
+            if (!BlocksGameplay && !game.paused && !p.dead && (fp || !game.input.usingGamepad)) DrawCrosshair(raid, p, fp);
         }
 
         private void DrawWorldOverlays(Raid raid)
@@ -132,22 +185,43 @@ namespace DeadZone.Game
                 float a = (0.3f - (float)(pl.hp / pl.hpMax)) * 1.2f * (0.6f + 0.4f * Mathf.Sin(Time.time * 4f));
                 Fill(new Rect(0, 0, W, 40), new Color(0.5f, 0, 0, a)); Fill(new Rect(0, H - 40, W, 40), new Color(0.5f, 0, 0, a));
             }
+            bool fp = game.FirstPerson;
             foreach (var (angle, life) in _hitDirs)
             {
-                // screen direction: sim angle 0 = right, y down = screen down
                 var c = new Vector2(W / 2, H / 2);
-                var d = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
-                var pos = c + d * 160;
+                Vector2 d;
+                if (fp)
+                {
+                    // relative to the view: ahead = screen up, to the right (clockwise) = screen right
+                    float rel = Mathf.DeltaAngle((float)(game.input.yaw * Mathf.Rad2Deg), angle * Mathf.Rad2Deg) * Mathf.Deg2Rad;
+                    d = new Vector2(Mathf.Sin(rel), -Mathf.Cos(rel));
+                }
+                else d = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)); // sim angle 0 = right, y down = screen down
+                var pos = c + d * (fp ? 190 : 160);
                 Fill(new Rect(pos.x - 14, pos.y - 14, 28, 28), new Color(0.9f, 0.15f, 0.1f, Mathf.Clamp01(life) * 0.8f));
             }
             if (_flashBang > 0) Fill(new Rect(0, 0, W, H), new Color(1, 1, 1, Mathf.Clamp01(_flashBang)));
         }
 
-        private void DrawCrosshair(Raid raid, Player p)
+        private void DrawCrosshair(Raid raid, Player p, bool fp)
         {
-            var m = Event.current.mousePosition;
+            // first person: always the screen centre (the cursor is captured)
+            var m = fp ? new Vector2(W / 2, H / 2) : Event.current.mousePosition;
             var c = _hitMarker > 0 ? UiColors.Bad : Color.white;
-            float spread = 10f + (float)p.SpreadMul() * 6f;
+            float spread = (fp ? 6f : 10f) + (float)p.SpreadMul() * 6f;
+            if (fp)
+            {
+                spread *= 1f - 0.6f * game.AimAmount;
+                // fully zoomed with the sniper rifle: only the centre dot
+                if (game.AimAmount > 0.9f && RaidView.HeldClass(p) == "sniper")
+                {
+                    Fill(new Rect(m.x - 2, m.y - 2, 4, 4), new Color(0, 0, 0, 0.6f));
+                    Fill(new Rect(m.x - 1, m.y - 1, 2, 2), c);
+                    return;
+                }
+            }
+            // a dark outline keeps the white cross readable on bright walls
+            if (fp) Fill(new Rect(m.x - 2, m.y - 2, 4, 4), new Color(0, 0, 0, 0.5f));
             Fill(new Rect(m.x - 1, m.y - spread - 8, 2, 8), c);
             Fill(new Rect(m.x - 1, m.y + spread, 2, 8), c);
             Fill(new Rect(m.x - spread - 8, m.y - 1, 8, 2), c);
@@ -264,24 +338,29 @@ namespace DeadZone.Game
                 Text(new Rect(mr.x, mr.yMax + 2, size, 20), "M – Karte", 12, UiColors.Muted, TextAnchor.MiddleRight);
             }
 
+            // first person: compass strip with the directions of open extractions and objectives
+            if (game.FirstPerson) DrawCompass(raid, p);
+
             // interact prompt / hold bar
             var it = p.interactTarget;
             if (it != null && !BlocksGameplay)
             {
-                var pr = new Rect(W / 2 - 320, H - 250, 640, 40);
+                var pr = game.FirstPerson ? new Rect(W / 2 - 320, H / 2 + 70, 640, 40) : new Rect(W / 2 - 320, H - 250, 640, 40);
                 Fill(pr, new Color(0.02f, 0.03f, 0.035f, 0.8f));
-                Text(pr, it.prompt, 19, UiColors.Text, TextAnchor.MiddleCenter, true);
+                string prompt = game.input.usingGamepad && it.prompt.StartsWith("E ") ? "A" + it.prompt.Substring(1) : it.prompt;
+                Text(pr, prompt, 19, UiColors.Text, TextAnchor.MiddleCenter, true);
             }
+            var hb = game.FirstPerson ? new Rect(W / 2 - 220, H / 2 + 118, 440, 26) : new Rect(W / 2 - 220, H - 200, 440, 28);
             if (p.holdProgress > 0 && p.holdLabel != null)
-                Bar(new Rect(W / 2 - 220, H - 200, 440, 28), (float)p.holdProgress, 1f, UiColors.Accent, p.holdLabel, 14);
+                Bar(hb, (float)p.holdProgress, 1f, UiColors.Accent, p.holdLabel, 14);
             if (p.usingItem != null)
-                Bar(new Rect(W / 2 - 220, H - 200, 440, 28), (float)(1 - p.usingItem.timer / p.usingItem.total), 1f, UiColors.Info, p.usingItem.name + " …", 14);
+                Bar(hb, (float)(1 - p.usingItem.timer / p.usingItem.total), 1f, UiColors.Info, p.usingItem.name + " …", 14);
 
             // boss bar
             var boss = raid.zombies.boss;
             if (boss != null && !boss.dead && M.Dist(boss.x, boss.y, p.x, p.y) < 900)
             {
-                var br = new Rect(W / 2 - 360, 28, 720, 30);
+                var br = new Rect(W / 2 - 360, game.FirstPerson ? 96 : 28, 720, 30);
                 Text(new Rect(br.x, br.y - 26, br.width, 24), boss.type.name + (boss.phase > 0 ? " – Phase " + (boss.phase + 1) : ""), 18, UiColors.Bad, TextAnchor.MiddleCenter, true);
                 Bar(br, (float)boss.hp, (float)boss.hpMax, new Color(0.7f, 0.12f, 0.15f), M.Round(boss.hp) + " / " + M.Round(boss.hpMax), 14);
             }
