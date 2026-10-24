@@ -284,8 +284,9 @@ namespace DeadZone.Game
             {
                 var pl = Raid.player;
                 pl.interactByLook = fp;
-                // first person: shots fly where the crosshair points, also up and down (head shots), from the current eye height; zombies are solid
-                pl.aimPitch = fp ? input.pitch * Mathf.Deg2Rad : double.NaN;
+                // first person: shots fly where the crosshair points, also up and down (head shots), from the current eye height; zombies are solid.
+                // The crosshair follows the drawn view, which recoil kicks up and shake nods (as of the last frame)
+                pl.aimPitch = fp ? (input.pitch + rig.ViewPitchOffset) * Mathf.Deg2Rad : double.NaN;
                 pl.eyeHeightPx = _eye / Coords.S;
                 pl.blockedByZombies = fp;
                 // first person: looking up throws grenades farther, looking down drops them closer
@@ -529,6 +530,19 @@ namespace DeadZone.Game
             }
         }
 
+        /// <summary>
+        /// World direction away from a face hit at sim point (x, y) by a shot flying along <paramref name="dir"/>: the wall's normal when the
+        /// point lies on a tile edge (holds at grazing angles too), otherwise back along the shot.
+        /// </summary>
+        private static Vector3 AwayFromFace(double x, double y, Vector3 dir)
+        {
+            double gx = x / World.TILE, gy = y / World.TILE;
+            bool onX = Math.Abs(gx - Math.Round(gx)) < 1e-4, onY = Math.Abs(gy - Math.Round(gy)) < 1e-4;
+            if (onX && !onY && Mathf.Abs(dir.x) > 1e-4f) return new Vector3(dir.x > 0 ? -1f : 1f, 0f, 0f);
+            if (onY && !onX && Mathf.Abs(dir.z) > 1e-4f) return new Vector3(0f, 0f, dir.z > 0 ? -1f : 1f);
+            return -dir;
+        }
+
         public void Effect(Fx kind, double x, double y, double a = 0, double b = 0, string text = null, string color = null)
         {
             // aimed first-person shots report the height of their hit (floor, legs, head, ceiling)
@@ -585,7 +599,12 @@ namespace DeadZone.Game
                 case Fx.Impact:
                     {
                         bool metal = (int)b == T.FENCE || (int)b == T.DOOR_CLOSED;
-                        fx.Burst(Coords.ToWorld(x, y, double.IsNaN(hitH) ? 1.25f : (float)hitH), metal ? 6 : 4, metal ? fx.spark : fx.dust, 3f, metal ? 0.04f : 0.07f, metal ? 0.25f : 0.5f, true);
+                        // start the burst in front of the surface it hit: soft particles fade out where they touch it, and half of
+                        // them would fly into it. Under the ceiling the bits fall down into the room; on the floor they start a bit above it
+                        float h = double.IsNaN(hitH) ? 1.25f : (float)hitH;
+                        bool ceiling = h > Coords.WallHeight - 0.3f;
+                        var at = Coords.ToWorld(x, y, ceiling ? h - 0.2f : Mathf.Max(h, 0.15f)) + AwayFromFace(x, y, dir) * 0.2f;
+                        fx.Burst(at, metal ? 6 : 4, metal ? fx.spark : fx.dust, 3f, metal ? 0.04f : 0.07f, metal ? 0.25f : 0.5f, true, ceiling ? -1f : 1f);
                         break;
                     }
                 case Fx.HitMarker: ui.HitMarker(); break;

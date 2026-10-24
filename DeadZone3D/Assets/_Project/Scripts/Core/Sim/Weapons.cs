@@ -15,12 +15,21 @@ namespace DeadZone.Core
         public readonly List<Projectile> projectiles = new List<Projectile>();
         private readonly List<(ItemInst inst, Inventory inv, string ammoId)> _reloads = new List<(ItemInst, Inventory, string)>();
         private readonly List<Zombie> _cands = new List<Zombie>();
-        private int _shotSeq, _lastHeadShot;
+        private int _shotSeq, _lastHeadShot, _lastHitShot;
 
         /// <summary>Aimed shots: steepest vertical angle (radians, about 83°), keeps the height maths finite.</summary>
         private const double MaxPitch = 1.45;
         /// <summary>Aimed shots: ceiling height under a roof in sim px (the 3D walls are 2.8 m high).</summary>
         private const double CeilingPx = 2.8 * Player.PxPerMetre;
+        /// <summary>Aimed shots: top of a roof's parapet in sim px; a rising shot above it passes over the wall.</summary>
+        private const double RoofTopPx = CeilingPx + 0.55 * Player.PxPerMetre;
+        /// <summary>
+        /// Aimed shots: the opening of a window (sill to top) and of an open door (up to the lintel) in sim px, as WorldView builds them.
+        /// The wall around the opening stops an aimed shot; flat shots pass these tiles as before.
+        /// </summary>
+        private const double WindowSillPx = 0.95 * Player.PxPerMetre, WindowTopPx = 2.05 * Player.PxPerMetre, DoorTopPx = 2.25 * Player.PxPerMetre;
+        private static bool IsOpening(int tile) => tile == T.WINDOW || tile == T.DOOR_OPEN;
+        private static readonly Func<int, bool> BlocksOrOpening = t => T.BlocksBullets(t) || IsOpening(t);
         /// <summary>Aimed shots: a bullet up to this much (px) above a zombie's head still grazes it.</summary>
         private const double HeadGrazePx = 3;
         public const string HeadShotColor = "#ff9a2e";
@@ -89,16 +98,20 @@ namespace DeadZone.Core
             int pen = M.Clamp(M.Round(Math.Max(1, w.penetration) * (a.penMul > 0 ? a.penMul : 1)), 1, 3);
             double speed = w.@class == "sniper" ? 2200 : 1400;
             double mx = shooter.x + Math.Cos(aimAngle) * 20, my = shooter.y + Math.Sin(aimAngle) * 20;
-            var muzzle = Physics.RaycastTiles(_raid.world, shooter.x, shooter.y, mx, my);
             // first person: shots follow the view pitch and scatter up/down as well (inside the same crosshair cone)
             bool aimed = !double.IsNaN(shooter.aimPitch);
+            // a wall right ahead: the shot starts at the body. Aimed shots do the same for a window or doorway right ahead or underfoot,
+            // so the wall around its opening is checked from the eye on
+            bool fromBody = aimed
+                ? Physics.RaycastTiles(_raid.world, shooter.x, shooter.y, mx, my, BlocksOrOpening).hit || IsOpening(_raid.world.Tile(M.Floor(shooter.x / TILE), M.Floor(shooter.y / TILE)))
+                : Physics.RaycastTiles(_raid.world, shooter.x, shooter.y, mx, my).hit;
             int shot = ++_shotSeq;
             for (int i = 0; i < pellets; i++)
             {
                 double ang = aimAngle + (rng.Next() + rng.Next() - 1) * spread;
                 double pitch = aimed ? M.Clamp(shooter.aimPitch + (rng.Next() + rng.Next() - 1) * spread, -MaxPitch, MaxPitch) : double.NaN;
                 if (projectiles.Count >= 400) projectiles.RemoveAt(0);
-                double px = muzzle.hit ? shooter.x : mx, py = muzzle.hit ? shooter.y : my;
+                double px = fromBody ? shooter.x : mx, py = fromBody ? shooter.y : my;
                 projectiles.Add(new Projectile
                 {
                     x = px, y = py, prevX = px, prevY = py, vx = Math.Cos(ang) * speed, vy = Math.Sin(ang) * speed, dirX = Math.Cos(ang), dirY = Math.Sin(ang),
@@ -337,7 +350,7 @@ namespace DeadZone.Core
                     x1 = p.x + p.dirX * rem; y1 = p.y + p.dirY * rem; segLen = rem;
                     dead = true;
                 }
-                var ray = Physics.RaycastTiles(world, p.x, p.y, x1, y1);
+                var ray = p.Aimed ? AimedRaycast(p, x1, y1) : Physics.RaycastTiles(world, p.x, p.y, x1, y1);
                 double ex = ray.x, ey = ray.y;
                 // aimed first-person shot: it may reach the floor (or a ceiling) before the wall or the end of this step
                 double ts = -1;
@@ -391,12 +404,15 @@ namespace DeadZone.Core
                             {
                                 _lastHeadShot = p.shot;
                                 Fb.Effect(Fx.FloatingText, hx, hy - 10, 0, 1, "Kopftreffer! " + num, HeadShotColor);
-                                Fb.Sfx("melee_hit", double.NaN, double.NaN, 0.5, 1.45);
+                                // at the shooter: the player's own sounds play centred and keep their pitch (a 2D sound would lose it)
+                                var ear = p.shooter ?? _raid.player;
+                                Fb.Sfx("melee_hit", ear?.x ?? double.NaN, ear?.y ?? double.NaN, 0.5, 1.45);
                             }
                             else Fb.Effect(Fx.FloatingText, hx, hy - 10, 0, 0, num, r.killed ? "#ff6b6b" : head ? HeadShotColor : "#ffe08a");
                             if (p.shooter != null)
                             {
-                                if (!p.hitCounted) { p.shooter.stats.shotsHit++; p.hitCounted = true; }
+                                // one hit per trigger pull like shotsFired (shotgun pellets share it), so the hit rate stays at most 100 %
+                                if (p.shot != _lastHitShot) { _lastHitShot = p.shot; p.shooter.stats.shotsHit++; }
                                 if (firstHead) p.shooter.stats.headShots++;
                                 p.shooter.stats.damageDealt += r.dealt;
                             }
@@ -417,6 +433,8 @@ namespace DeadZone.Core
                 }
                 if (ray.hit)
                 {
+                    // a rising shot above the roofs leaves over the wall instead of puffing on the top of the facade
+                    if (p.Aimed && p.HeightAt(ray.x, ray.y) > RoofTopPx) { projectiles.RemoveAt(i); continue; }
                     if (p.Aimed) fxHeight = M.Clamp(p.HeightAt(ray.x, ray.y), 1, CeilingPx - 1) / Player.PxPerMetre;
                     Fb.Effect(Fx.Impact, ray.x, ray.y, Math.Atan2(p.dirY, p.dirX), ray.tile);
                     fxHeight = double.NaN;
@@ -464,6 +482,60 @@ namespace DeadZone.Core
             double b = 2 * (fx * dx + fy * dy);
             double t = (-b + Math.Sqrt(b * b - 4 * a * c)) / (2 * a);
             return t <= 1 ? t : -1;
+        }
+
+        /// <summary>
+        /// Aimed shot from its position to (x1, y1): <see cref="Physics.RaycastTiles"/> (same walk, the start tile never stops it as a wall)
+        /// that also knows the 3D shape of windows and open doors. Their tile stops the shot where it meets the wall under the sill
+        /// or above the opening, also when it drops onto the sill or rises into the lintel inside the tile.
+        /// </summary>
+        private RayHit AimedRaycast(Projectile p, double x1, double y1)
+        {
+            var world = _raid.world;
+            double x0 = p.x, y0 = p.y, dx = x1 - x0, dy = y1 - y0;
+            double len = M.Hypot(dx, dy);
+            int tx = M.Floor(x0 / TILE), ty = M.Floor(y0 / TILE);
+            int ex = M.Floor(x1 / TILE), ey = M.Floor(y1 / TILE);
+            if (len < 1e-6) return new RayHit { x = x1, y = y1, tx = ex, ty = ey, tile = world.Tile(ex, ey) };
+            int stepX = dx > 0 ? 1 : -1, stepY = dy > 0 ? 1 : -1;
+            double tDeltaX = dx != 0 ? Math.Abs(TILE / dx) : double.PositiveInfinity;
+            double tDeltaY = dy != 0 ? Math.Abs(TILE / dy) : double.PositiveInfinity;
+            double tMaxX = dx != 0 ? ((stepX > 0 ? (tx + 1) * TILE - x0 : x0 - tx * TILE) / Math.Abs(dx)) : double.PositiveInfinity;
+            double tMaxY = dy != 0 ? ((stepY > 0 ? (ty + 1) * TILE - y0 : y0 - ty * TILE) / Math.Abs(dy)) : double.PositiveInfinity;
+            // the shot may already be inside a window or doorway (from the last step, or fired from a doorway)
+            int tile = world.Tile(tx, ty);
+            double th = OpeningHit(p, tile, x0, y0, dx, dy, 0, Math.Min(1, Math.Min(tMaxX, tMaxY)));
+            int guard = 0;
+            while (th < 0 && (tx != ex || ty != ey) && guard++ < 512)
+            {
+                double t;
+                if (tMaxX < tMaxY) { t = tMaxX; tMaxX += tDeltaX; tx += stepX; }
+                else { t = tMaxY; tMaxY += tDeltaY; ty += stepY; }
+                if (t > 1) break;
+                tile = world.Tile(tx, ty);
+                th = T.BlocksBullets(tile) ? t : OpeningHit(p, tile, x0, y0, dx, dy, t, Math.Min(1, Math.Min(tMaxX, tMaxY)));
+            }
+            if (th >= 0) return new RayHit { hit = true, x = x0 + dx * th, y = y0 + dy * th, tx = tx, ty = ty, dist = len * th, tile = tile };
+            return new RayHit { x = x1, y = y1, tx = ex, ty = ey, dist = len, tile = world.Tile(ex, ey) };
+        }
+
+        /// <summary>
+        /// Where (segment parameter) an aimed shot that is over a window or open-door tile from <paramref name="tIn"/> to <paramref name="tOut"/>
+        /// meets the wall around the opening; -1 = it passes through the opening, or the tile is neither.
+        /// </summary>
+        private static double OpeningHit(Projectile p, int tile, double x0, double y0, double dx, double dy, double tIn, double tOut)
+        {
+            double lo, hi;
+            if (tile == T.WINDOW) { lo = WindowSillPx; hi = WindowTopPx; }
+            else if (tile == T.DOOR_OPEN) { lo = double.NegativeInfinity; hi = DoorTopPx; }
+            else return -1;
+            double hIn = p.HeightAt(x0 + dx * tIn, y0 + dy * tIn);
+            if (hIn < lo || hIn > hi) return tIn; // the wall under the sill or above the opening
+            double hOut = p.HeightAt(x0 + dx * tOut, y0 + dy * tOut);
+            if (hOut >= lo && hOut <= hi) return -1;
+            // it drops onto the sill or rises into the lintel inside the tile; the height changes steadily along the shot
+            double edge = hOut < lo ? lo : hi;
+            return tIn + (tOut - tIn) * (edge - hIn) / (hOut - hIn);
         }
 
         private void UpdateGrenades(double dt)
