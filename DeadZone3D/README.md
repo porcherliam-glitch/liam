@@ -66,6 +66,9 @@ Der Schuss geht genau dorthin, wohin das Fadenkreuz zeigt – auch nach oben und
 Zombies **versperren dir den Weg**: Du kannst nicht durch sie hindurchlaufen und sie nur langsam wegschieben, große kaum.
 Oben in der Mitte zeigt ein Kompass die Himmelsrichtung, Extraktionspunkte (grün, gesperrt orange) und Auftragsziele
 (gelb) mit Entfernung.
+Hör genau hin: Zombies hinter Wänden klingen leiser und dumpf. Drinnen hallt es, in großen Hallen besonders lange. Draußen
+kommt ein Schuss als leises Echo zurück. Deine Schritte klingen je nach Boden anders: Holz, Fliesen, Beton, Erde, Kies,
+Metall oder Pfütze.
 
 Im Inventar: Gegenstände **ziehen und ablegen**, **Rechtsklick** = schnell verschieben (beim Händler: verkaufen),
 **Doppelklick** = ausrüsten oder benutzen.
@@ -125,7 +128,7 @@ Batchmode (Windows, im Ordner `DeadZone3D`):
 
 - In der Cloud geprüft: 21 Grundtests grün (Kartengenerator bitgenau wie die HTML-Version für alle 4 Gebiete,
   90 Sekunden Spielsimulation auf jedem Gebiet ohne Fehler, Kampf, Extraktion, Tod, „vermisst“ beim Neuladen,
-  Speichern mit Sicherung, Händler, Werkstatt, Ausbau, Generator, Laborkarte, Granaten, alle 45 Töne).
+  Speichern mit Sicherung, Händler, Werkstatt, Ausbau, Generator, Laborkarte, Granaten, alle 57 Töne).
 - Dazu 9 Tests für die Funde aus zwei Prüfrunden (Rucksackwechsel ohne Verlust, Beute in den sicheren Behälter,
   MG-Munition, mitgebrachte Gegenstände zählen nicht als Beute) und 7 Tests für die Ego-Perspektive (Benutzen durch
   Hinschauen, keine Beute durch Wände, Wurfweite, Blickrichtungs-Mathematik, neue Einstellungen) und 8 Tests für Lauftempo,

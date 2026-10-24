@@ -216,7 +216,7 @@ namespace DeadZone.Game
             rig.Snap(Coords.ToWorld(raid.player.x, raid.player.y));
             SeedView(raid.player.angle);
             _eye = EyeStand; _deathCam = 0f;
-            audioSys.StartAmbient(raid.mapId);
+            audioSys.StartAmbient(raid.mapId, raid.world);
             state = "raid";
             paused = false;
             _acc = 0;
@@ -496,7 +496,11 @@ namespace DeadZone.Game
         public void Sfx(string name, double x = double.NaN, double y = double.NaN, double volume = 1, double pitch = 1)
         {
             Vector3? pos = double.IsNaN(x) ? (Vector3?)null : Coords.ToWorld(x, y, 1.2f);
-            audioSys?.Play(name, pos, (float)volume, (float)pitch);
+            // the player's own sounds (shots, steps, reload) play centred and unmuffled; their steps sound like the ground underfoot
+            var pl = Raid?.player;
+            bool own = pos != null && pl != null && M.Dist2(x, y, pl.x, pl.y) < 36;
+            if (own && (name == "footstep" || name == "footstep_run")) name = SoundBank.Footstep(Acoustics.SurfaceAt(Raid.world, x, y), name == "footstep_run");
+            audioSys?.Play(name, pos, (float)volume, (float)pitch, own);
         }
 
         public void Toast(string text, string kind = "info", double ms = 2500) { ui?.Toast(text, kind, (float)ms); }

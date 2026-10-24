@@ -18,7 +18,21 @@ namespace DeadZone.Core
             "player_hurt", "heal", "eat", "pickup", "door_open", "door_close", "ui_click", "ui_error", "extract_start", "extract_tick", "extract_done",
             "alarm", "explosion", "fire", "flashlight", "level_up", "mission_complete", "objective", "loot_open", "buy", "sell", "craft", "toxic",
             "grenade_throw", "warning",
+            "footstep_wood", "footstep_run_wood", "footstep_tile", "footstep_run_tile", "footstep_dirt", "footstep_run_dirt",
+            "footstep_gravel", "footstep_run_gravel", "footstep_metal", "footstep_run_metal", "footstep_water", "footstep_run_water",
         };
+
+        // footstep clip per StepSurface (same order as the enum); concrete and asphalt use the plain footstep
+        private static readonly string[] StepWalk = { "footstep", "footstep_wood", "footstep_tile", "footstep_dirt", "footstep_gravel", "footstep_metal", "footstep_water" };
+        private static readonly string[] StepRun = { "footstep_run", "footstep_run_wood", "footstep_run_tile", "footstep_run_dirt", "footstep_run_gravel", "footstep_run_metal", "footstep_run_water" };
+
+        /// <summary>Name of the walking or running footstep on a surface (no allocation, safe to call every step).</summary>
+        public static string Footstep(StepSurface surface, bool run)
+        {
+            int i = (int)surface;
+            if (i < 0 || i >= StepWalk.Length) i = 0;
+            return run ? StepRun[i] : StepWalk[i];
+        }
 
         private enum Wave { Sine, Square, Saw, Triangle }
 
@@ -107,12 +121,73 @@ namespace DeadZone.Core
             Noise(b, 0.02, tail * 1.6, 0.25, 0.01, tail * 0.5, 900);
         }
 
+        /// <summary>One footstep on a surface; running steps are louder and brighter and add a heel thump.</summary>
+        private static float[] Step(uint seed, StepSurface surface, bool run)
+        {
+            var b = new Buf(surface == StepSurface.Water ? 0.26 : surface == StepSurface.Metal ? 0.24 : 0.16, seed);
+            switch (surface)
+            {
+                case StepSurface.Wood:
+                    // hollow knock: a short click and two quickly damped board resonances
+                    Noise(b, 0, 0.04, 0.7, 0.0008, 0.008, 3200, 300);
+                    Tone(b, 0, 0.12, run ? 190 : 205, 150, Wave.Sine, 0.8, 0.001, run ? 0.04 : 0.032);
+                    Tone(b, 0.002, 0.07, 455, 410, Wave.Triangle, 0.22, 0.001, 0.018);
+                    if (run) Tone(b, 0, 0.06, 95, 70, Wave.Sine, 0.45, 0.001, 0.02);
+                    return Finish(b, run ? 0.46 : 0.36);
+                case StepSurface.Tile:
+                    // hard heel click on tiles laid over concrete
+                    Noise(b, 0, 0.025, 0.8, 0.0005, 0.004, 7000, 1800);
+                    Noise(b, 0.004, 0.11, 0.8, 0.002, 0.022, run ? 1400 : 1000, 90);
+                    if (run) Tone(b, 0, 0.05, 100, 70, Wave.Sine, 0.35, 0.001, 0.018);
+                    return Finish(b, run ? 0.46 : 0.36);
+                case StepSurface.Dirt:
+                    // soft crunch: a muffled thud and a few fine grains
+                    Noise(b, 0, 0.13, 0.7, 0.008, 0.035, run ? 800 : 600, 60);
+                    for (int k = 0; k < (run ? 10 : 6); k++) Noise(b, b.rng.Float(0.005, 0.09), 0.012, b.rng.Float(0.2, 0.4), 0.0005, 0.004, 3800, 900);
+                    if (run) Tone(b, 0, 0.05, 85, 60, Wave.Sine, 0.3, 0.002, 0.02);
+                    return Finish(b, run ? 0.4 : 0.3);
+                case StepSurface.Gravel:
+                    // loose stones: many bright grains over a short thud
+                    Noise(b, 0, 0.12, 0.5, 0.004, 0.03, 900, 80);
+                    for (int k = 0; k < (run ? 22 : 14); k++) Noise(b, b.rng.Float(0, 0.11), 0.01, b.rng.Float(0.3, 0.7), 0.0003, 0.003, 6000, 1500);
+                    return Finish(b, run ? 0.42 : 0.34);
+                case StepSurface.Metal:
+                    // steel plate: a clank with inharmonic ringing partials
+                    Noise(b, 0, 0.03, 0.7, 0.0005, 0.006, 6000, 800);
+                    Tone(b, 0, 0.22, 520, 515, Wave.Sine, 0.5, 0.001, 0.06);
+                    Tone(b, 0, 0.18, 1340, 1330, Wave.Sine, 0.3, 0.001, 0.04);
+                    Tone(b, 0, 0.14, 2270, 2260, Wave.Sine, 0.18, 0.001, 0.025);
+                    Tone(b, 0, 0.08, 160, 120, Wave.Sine, run ? 0.6 : 0.4, 0.001, 0.025);
+                    return Finish(b, run ? 0.5 : 0.4);
+                case StepSurface.Water:
+                    // splash: a noise burst whose low-pass falls, two little droplets and the foot reaching the ground
+                    Noise(b, 0, 0.2, 1, 0.006, run ? 0.07 : 0.055, run ? 4200 : 3200, 250, 700);
+                    Tone(b, b.rng.Float(0.03, 0.08), 0.03, 650, 1300, Wave.Sine, 0.25, 0.002, 0.012);
+                    Tone(b, b.rng.Float(0.08, 0.15), 0.025, 800, 1500, Wave.Sine, 0.18, 0.002, 0.01);
+                    Noise(b, 0, 0.06, 0.4, 0.002, 0.02, 500, 60);
+                    return Finish(b, run ? 0.4 : 0.32);
+            }
+            return Make(run ? "footstep_run" : "footstep"); // concrete and asphalt
+        }
+
         public static float[] Make(string name)
         {
             uint seed = Hash.String(name);
             Buf b;
             switch (name)
             {
+                case "footstep_wood": return Step(seed, StepSurface.Wood, false);
+                case "footstep_run_wood": return Step(seed, StepSurface.Wood, true);
+                case "footstep_tile": return Step(seed, StepSurface.Tile, false);
+                case "footstep_run_tile": return Step(seed, StepSurface.Tile, true);
+                case "footstep_dirt": return Step(seed, StepSurface.Dirt, false);
+                case "footstep_run_dirt": return Step(seed, StepSurface.Dirt, true);
+                case "footstep_gravel": return Step(seed, StepSurface.Gravel, false);
+                case "footstep_run_gravel": return Step(seed, StepSurface.Gravel, true);
+                case "footstep_metal": return Step(seed, StepSurface.Metal, false);
+                case "footstep_run_metal": return Step(seed, StepSurface.Metal, true);
+                case "footstep_water": return Step(seed, StepSurface.Water, false);
+                case "footstep_run_water": return Step(seed, StepSurface.Water, true);
                 case "shot_pistol": b = new Buf(0.45, seed); Gunshot(b, 0.05, 0.6, 0.35, 160); Drive(b, 1.6); return Finish(b, 0.85);
                 case "shot_smg": b = new Buf(0.3, seed); Gunshot(b, 0.035, 0.5, 0.22, 190); Drive(b, 1.8); return Finish(b, 0.8);
                 case "shot_rifle": b = new Buf(0.6, seed); Gunshot(b, 0.07, 0.8, 0.5, 120); Drive(b, 2.2); return Finish(b, 0.9);
@@ -212,5 +287,138 @@ namespace DeadZone.Core
             return outp;
         }
 
+    }
+
+    /// <summary>Ground under the feet; every surface has its own walking and running footstep (see <see cref="SoundBank.Footstep"/>).</summary>
+    public enum StepSurface { Concrete, Wood, Tile, Dirt, Gravel, Metal, Water }
+
+    /// <summary>Reverb of the place the listener stands in (all zero outdoors).</summary>
+    public struct RoomAcoustics
+    {
+        /// <summary>0 outdoors, 1 inside a building.</summary>
+        public double wet;
+        /// <summary>Reverb decay in seconds: about 0.5 s in a furnished home, 2 s in a warehouse, 4 s in the boss hall.</summary>
+        public double decay;
+        /// <summary>0 = room size of a small home, 1 = a large hall.</summary>
+        public double size;
+        /// <summary>0 = soft furnished room (highs die fast), 1 = bare concrete.</summary>
+        public double hardness;
+    }
+
+    /// <summary>
+    /// Pure acoustics helpers for the audio layer: the surface under the feet, the room reverb, the outdoor echo per map
+    /// and how much walls muffle a sound. Reads the world only (never changes it, draws no random numbers).
+    /// </summary>
+    public static class Acoustics
+    {
+        private const int TILE = World.TILE;
+        // cached once: a method group passed as Func would allocate a delegate on every raycast
+        private static readonly Func<int, bool> BlocksSight = T.BlocksSight;
+
+        /// <summary>
+        /// Surface the 3D view shows at a sim position (keep in sync with WorldView.FloorMat and IndoorMat): roads, pavements and
+        /// halls are concrete, grass and earth soft ground, gravel and rubble loose stones, toxic puddles splash; indoors homes and
+        /// offices have boards (every third home is tiled), shops, medical rooms and labs tiles. Doorways of concrete buildings
+        /// (garages, warehouses, bunkers) have a steel threshold.
+        /// </summary>
+        public static StepSurface SurfaceAt(World world, double x, double y)
+        {
+            if (world == null) return StepSurface.Concrete;
+            int tx = M.Floor(x / TILE), ty = M.Floor(y / TILE);
+            int t = world.Tile(tx, ty);
+            var b = BuildingAtTile(world, tx, ty);
+            switch (t)
+            {
+                case T.ROAD: case T.ROAD_LINE: case T.SIDEWALK: return StepSurface.Concrete;
+                case T.GRASS: case T.GROUND: case T.VOID: return StepSurface.Dirt;
+                case T.GRAVEL: case T.RUBBLE: return StepSurface.Gravel;
+                case T.TOXIC: case T.WATER: return StepSurface.Water;
+                case T.FLOOR: return IndoorSurface(b);
+            }
+            if (b != null)
+            {
+                var floor = IndoorSurface(b);
+                return T.IsDoor(t) && floor == StepSurface.Concrete ? StepSurface.Metal : floor;
+            }
+            // doors, props and gaps outside buildings: the ground next to them (like WorldView.BaseUnder)
+            for (int k = 0; k < 4; k++)
+            {
+                int n = world.Tile(tx + (k == 0 ? 1 : k == 1 ? -1 : 0), ty + (k == 2 ? 1 : k == 3 ? -1 : 0));
+                if (n == T.ROAD || n == T.SIDEWALK || n == T.ROAD_LINE) return StepSurface.Concrete;
+                if (n == T.GRASS || n == T.GROUND) return StepSurface.Dirt;
+                if (n == T.GRAVEL || n == T.RUBBLE) return StepSurface.Gravel;
+            }
+            return StepSurface.Dirt;
+        }
+
+        /// <summary>Indoor floor by building type (WorldView.IndoorMat): boards, tiles or bare concrete.</summary>
+        public static StepSurface IndoorSurface(Building b)
+        {
+            switch (b?.type)
+            {
+                case "house": case "apartment": return (b.tx * 7 + b.ty * 13) % 3 == 0 ? StepSurface.Tile : StepSurface.Wood;
+                case "office": case "hq": case "barracks": return StepSurface.Wood;
+                case "shop": case "supermarket": case "pharmacy": case "medical": case "lab": case "server": case "security": return StepSurface.Tile;
+                default: return StepSurface.Concrete;
+            }
+        }
+
+        private static Building BuildingAtTile(World world, int tx, int ty)
+        {
+            int i = world.BuildingIndexAtTile(tx, ty);
+            return i >= 0 && i < world.buildings.Count ? world.buildings[i] : null;
+        }
+
+        /// <summary>Room reverb at a sim position: none outdoors; indoors it grows with the room (and is longest in the boss hall).</summary>
+        public static RoomAcoustics RoomAt(World world, double x, double y)
+        {
+            if (world == null) return default;
+            int tx = M.Floor(x / TILE), ty = M.Floor(y / TILE);
+            var b = BuildingAtTile(world, tx, ty);
+            if (b == null) return default;
+            double area = b.w * b.h;
+            if (b.rooms != null)
+                foreach (var r in b.rooms)
+                    if (tx >= r.tx && ty >= r.ty && tx < r.tx + r.w && ty < r.ty + r.h) { area = r.w * r.h; break; }
+            double size = M.Clamp((Math.Sqrt(Math.Max(1, area)) - 3) / 15, 0, 1);
+            var floor = IndoorSurface(b);
+            double hardness = floor == StepSurface.Wood ? 0.25 : floor == StepSurface.Tile ? 0.7 : 0.9;
+            double decay = 0.45 + size * 1.9 * (0.6 + 0.4 * hardness);
+            if (b.hall) { size = 1; hardness = 1; decay = Math.Max(decay, 4.0); }
+            return new RoomAcoustics { wet = 1, decay = decay, size = size, hardness = hardness };
+        }
+
+        /// <summary>
+        /// Outdoor echo of gunshots per map: delay in seconds (dense streets answer fast, open fields late) and its level
+        /// relative to the shot.
+        /// </summary>
+        public static void Echo(string mapId, out double delay, out double gain)
+        {
+            switch (mapId)
+            {
+                case "city": delay = 0.3; gain = 0.24; break;
+                case "industrial": delay = 0.42; gain = 0.22; break;
+                case "military": delay = 0.55; gain = 0.17; break;
+                case "research": delay = 0.34; gain = 0.2; break;
+                default: delay = 0.4; gain = 0.2; break;
+            }
+        }
+
+        /// <summary>
+        /// How much walls between a sound (sx, sy) and the listener (lx, ly) muffle it: 0 = free line of sight, 1 = fully blocked.
+        /// When the direct line is blocked, two side rays let a sound just around a door frame or corner come through partly.
+        /// </summary>
+        public static double Occlusion(World world, double sx, double sy, double lx, double ly)
+        {
+            if (world == null) return 0;
+            double dx = lx - sx, dy = ly - sy, len = Math.Sqrt(dx * dx + dy * dy);
+            if (len < TILE * 0.5) return 0;
+            if (!Physics.RaycastTiles(world, sx, sy, lx, ly, BlocksSight).hit) return 0;
+            double ox = -dy / len * 20, oy = dx / len * 20;
+            int free = 0;
+            if (!Physics.RaycastTiles(world, sx + ox, sy + oy, lx, ly, BlocksSight).hit) free++;
+            if (!Physics.RaycastTiles(world, sx - ox, sy - oy, lx, ly, BlocksSight).hit) free++;
+            return free == 0 ? 1 : free == 1 ? 0.6 : 0.35;
+        }
     }
 }
