@@ -76,6 +76,28 @@ Im Inventar: Gegenstände **ziehen und ablegen**, **Rechtsklick** = schnell vers
 
 Der Spielstand liegt in `%USERPROFILE%\AppData\LocalLow\DeadZoneStudio\Dead Zone Extraction\`.
 
+## Automatischer Test
+
+Menü **Dead Zone → Automatischer Test (mit Bildern)**. Das Spiel spielt sich etwa 30 Sekunden lang selbst: neues Spiel,
+Einsatz in der Stadt, umsehen, laufen, schießen, nachladen, Inventar, Granate, Ansicht von oben und zurück, Tod,
+zurück zur Basis. Dabei macht es Bilder und schreibt einen Bericht. Dein echter Spielstand bleibt dabei unverändert.
+
+Ohne Editor-Fenster (Windows, im Ordner `DeadZone3D`):
+
+```
+"C:\Program Files\Unity\Hub\Editor\6000.6.5f1\Editor\Unity.exe" -batchmode -projectPath . -executeMethod DeadZone.EditorTools.PlayTest.RunBatch -logFile Logs\playtest.log
+```
+
+Wichtig: **ohne** `-nographics` (sonst gibt es keine Bilder) und **ohne** `-quit` (Unity beendet sich am Ende selbst,
+Rückgabewert 0 = keine Fehler, 1 = Probleme gefunden).
+
+Die Bilder (`01_hauptmenue.png` bis `15_basis_zurueck.png`) und der Bericht `report.txt` landen in
+**`DeadZone3D\Logs\DeadZoneTest\`**. Der Bericht listet jeden Schritt, Fehler und Warnungen, Bildzeiten (Durchschnitt und
+langsamstes Bild), die Zahl der Zombies und auffällige Bilder (schwarz, einfarbig, Magenta = fehlender Shader).
+Damit kann Claude auf dem PC Probleme finden, ohne dass du selbst spielen musst. Die Bilder zeigen nur die 3D-Welt, nicht
+die Menüs. Auch das fertige Spiel kann sich selbst testen: `DeadZone.exe -dzAutoTest` (Bilder im Spielordner unter
+`Logs\DeadZoneTest`, mit Menüs).
+
 ## Aufbau (für Entwickler)
 
 | Ordner | Inhalt |

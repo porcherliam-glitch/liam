@@ -44,6 +44,12 @@ namespace DeadZone.Game
         public const float MaxPitch = 75f;
         private int _skipLook;
 
+        // ---- automatic test (AutoTest)
+        /// <summary>Scripted input: the devices are ignored, moving and firing come from the two fields below.</summary>
+        public bool scripted;
+        public Vector2 scriptedMove;
+        public bool scriptedFire;
+
         private static readonly string[] SimActions = { "crouch", "slot1", "slot2", "slot3", "slot4", "slot5", "flashlight", "reload", "quickMed", "grenade", "interact" };
         private static readonly string[] UiActions = { "inventory", "map", "pause", "help", "drop", "view", "confirm" };
 
@@ -173,12 +179,14 @@ namespace DeadZone.Game
             _ui.Clear();
             _held.Clear();
             _aim = false;
-            PollDevices();
+            if (scripted) { _move = scriptedMove; _fire = scriptedFire; _look = _lookStick = _stick = Vector2.zero; scroll = 0f; }
+            else PollDevices();
             UpdateLook(dt);
             // a click that closed a window must not fire: after any UI block, firing waits for a fresh press
             // first person without a captured cursor (focus lost, Editor Esc): the click that brings it back must not fire
-            if (blocked || (firstPerson && !lookActive)) _fireLatch = true;
+            if (blocked || (firstPerson && !lookActive && !scripted)) _fireLatch = true;
             if (!_fire) _fireLatch = false;
+            if (scripted) return;
             foreach (var a in SimActions) if (KeyDown(a)) _pending.Add(a);
             foreach (var a in UiActions) if (KeyDown(a)) _ui.Add(a);
             if (KeyHeld("sprint")) _held.Add("sprint");
