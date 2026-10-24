@@ -306,6 +306,7 @@ namespace DeadZone.Game
             if (_modeSet && _firstPerson == on) return;
             _modeSet = true;
             _firstPerson = on;
+            foreach (var d in _doors.Values) if (world.Tile(d.tx, d.ty) == T.DOOR_OPEN) d.target = OpenAngle;
             if (_fixtures != null) _fixtures.SetActive(on);
             foreach (var g in _glass) g.SetActive(!on);
             if (on) foreach (var (_, r) in _roofs) r.shadowCastingMode = ShadowCastingMode.On;
@@ -364,7 +365,7 @@ namespace DeadZone.Game
                 foreach (var d in _doors.Values)
                 {
                     int t = world.Tile(d.tx, d.ty);
-                    d.target = t == T.DOOR_OPEN ? 90 : 0;
+                    d.target = t == T.DOOR_OPEN ? OpenAngle : 0;
                     if (d.locked && t != T.DOOR_LOCKED)
                     {
                         d.locked = false;
@@ -375,9 +376,10 @@ namespace DeadZone.Game
             foreach (var d in _doors.Values)
             {
                 if (Mathf.Abs(d.angle - d.target) < 0.1f) continue;
-                d.angle = Mathf.MoveTowards(d.angle, d.target, dt * 420);
+                d.angle = Mathf.MoveTowards(d.angle, d.target, dt * (d.target > 100f || d.angle > 100f ? 700 : 420));
                 d.hinge.GetChild(0).localRotation = Quaternion.Euler(0, -d.angle, 0);
             }
+            HideLampsAtEye();
             UpdateLights(dt);
         }
 
@@ -386,8 +388,29 @@ namespace DeadZone.Game
         {
             var parent = new GameObject("Props").transform;
             parent.SetParent(root.transform, false);
-            foreach (var p in world.props) PropFactory.Build(p, world, parent);
+            foreach (var p in world.props)
+            {
+                var go = PropFactory.Build(p, world, parent);
+                if (p.type == "lamp" && go != null) _lamps.Add((go.transform.position, go.GetComponent<Renderer>()));
+            }
         }
+
+        /// <summary>Street lamps do not block movement: in first person a pole the eye passes through is hidden for that moment.</summary>
+        private readonly List<(Vector3 pos, Renderer r)> _lamps = new List<(Vector3, Renderer)>();
+
+        private void HideLampsAtEye()
+        {
+            foreach (var (pos, r) in _lamps)
+            {
+                if (r == null) continue;
+                float dx = pos.x - focus.x, dz = pos.z - focus.z;
+                bool hide = _firstPerson && dx * dx + dz * dz < 0.45f * 0.45f;
+                if (r.enabled == hide) r.enabled = !hide;
+            }
+        }
+
+        /// <summary>Open doors stand at 90° from above; in first person they fold back into the wall so the eye never passes through a leaf.</summary>
+        private float OpenAngle => _firstPerson ? 180f : 90f;
 
         private void BuildContainers()
         {

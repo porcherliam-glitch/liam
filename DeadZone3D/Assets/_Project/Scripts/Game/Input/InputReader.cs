@@ -208,7 +208,6 @@ namespace DeadZone.Game
                 float t = Mathf.Min(dt, 0.05f);
                 dYaw += s.x * speed * t;
                 dPitch -= s.y * speed * 0.7f * t * sy;
-                usingGamepad = true;
             }
             // Unity yaw grows clockwise seen from above, exactly like the simulation angle (y points down)
             yaw = M.NormAngle(yaw + dYaw * Mathf.Deg2Rad);

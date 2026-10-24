@@ -387,10 +387,11 @@ namespace DeadZone.Game
             var p = raid.player;
             bool fp = FirstPerson;
             raidView.showPlayerBody = !fp;
-            raidView.losRange = fp ? 1500 : 760;
+            // first person: as far as the far plane (the fog hides them there), top-down: the visible area
+            raidView.losRange = fp ? 170f / Coords.S : 760;
             raidView.geometryOcclusion = fp;
             raidView.beamScale = fp ? 3f : 1f;
-            raidView.Update(dt, Mathf.Clamp01(alpha), p.interactTarget);
+            raidView.Update(dt, Mathf.Clamp01(alpha), p.interactTarget, fp && !p.dead ? viewModel.MuzzleWorld : (Vector3?)null);
             worldView.SetFirstPerson(fp);
             rig.SetFirstPerson(fp);
             if (fp) { UpdateFirstPersonVisuals(dt, raid, p); return; }
@@ -522,7 +523,12 @@ namespace DeadZone.Game
                         // the shot comes out of the view model; the light sits a little ahead so the gun is not blown out
                         var muzzle = viewModel.MuzzleWorld;
                         var fwd = rig.cam.transform.forward;
-                        lighting.MuzzleFlash(muzzle + fwd * 0.6f, (float)b);
+                        // point blank at a wall: keep the light in front of the wall face, not inside the block
+                        var pl = Raid.player;
+                        var hit = DeadZone.Core.Physics.RaycastTiles(Raid.world, pl.x, pl.y, pl.x + Math.Cos(pl.angle) * 40, pl.y + Math.Sin(pl.angle) * 40);
+                        float wall = hit.hit ? (float)M.Dist(pl.x, pl.y, hit.x, hit.y) * Coords.S : 99f;
+                        float ahead = Mathf.Clamp(wall - Vector3.Distance(rig.cam.transform.position, muzzle) - 0.15f, 0f, 0.6f);
+                        lighting.MuzzleFlash(muzzle + fwd * ahead, (float)b);
                         viewModel.Fire((float)b);
                         rig.Kick(RecoilFor(RaidView.HeldClass(Raid.player)));
                         _ownShot = true;

@@ -182,7 +182,9 @@ namespace DeadZone.Game
             if (!(game.FirstPerson && game.state == "raid"))
             {
                 bool hideCursor = game.state == "raid" && !BlocksGameplay && !game.paused && !game.input.usingGamepad;
-                Cursor.visible = !hideCursor;
+                // the first-person death camera plays before the summary: no cursor in the middle of it
+                bool deathFade = game.state == "result" && game.FirstPerson && game.lastResult != null && game.lastResult.outcome == "death" && Time.unscaledTime - resultAt < 1.5f;
+                Cursor.visible = !(hideCursor || deathFade);
             }
         }
 
@@ -261,7 +263,8 @@ namespace DeadZone.Game
         private void DrawToasts()
         {
             // first person: below the compass (and the boss bar when there is one)
-            float y = game.state == "raid" && game.FirstPerson ? (game.Raid?.zombies.boss != null && !game.Raid.zombies.boss.dead ? 136 : 76) : 70, w = 620;
+            float y = game.state == "raid" && game.FirstPerson ? (game.Raid?.zombies.boss != null && !game.Raid.zombies.boss.dead ? 136 : 76) : 70;
+            float w = Mathf.Clamp(W - 1000f, 300f, 620f);
             foreach (var t in _toasts)
             {
                 float h = Mathf.Max(40, TextHeight(t.text, w - 30, 18) + 18);

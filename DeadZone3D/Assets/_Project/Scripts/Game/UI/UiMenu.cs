@@ -116,7 +116,8 @@ namespace DeadZone.Game
                 { "Linke Maustaste", "Schießen (gedrückt halten = Dauerfeuer)" }, { "Rechte Maustaste", "Heranzoomen (Ego-Perspektive)" }, { "R", "Nachladen" },
                 { "E", "Benutzen: Kisten, Türen, Beute (hinschauen) – Generator: gedrückt halten" }, { "Shift", "Sprinten" }, { "C / Strg", "Ducken (leiser, ruhiger zielen)" },
                 { "F", "Taschenlampe" }, { "Tab / I", "Inventar" }, { "M", "Karte" }, { "G", "Granate werfen (nach oben schauen = weiter)" }, { "Q", "Schnellheilung" },
-                { "1 – 5 / Mausrad", "Primär, Sekundär, Nahkampf, Granate, Medizin" }, { "X", "Ausgewählten Gegenstand ablegen (im Inventar)" },
+                { "1 – 5", "Primär, Sekundär, Nahkampf, Granate, Medizin" }, { "Mausrad", "Waffe wechseln 1–3 (Ego-Perspektive) / Kamera zoomen (von oben)" },
+                { "X", "Ausgewählten Gegenstand ablegen (im Inventar)" },
                 { "V", "Ansicht wechseln: Ego-Perspektive oder von oben" }, { "Esc", "Pause / Fenster schließen (gibt die Maus frei)" }, { "F1", "Diese Hilfe" },
                 { "Gamepad", "Linker Stick bewegen, rechter Stick umsehen, RT schießen, LT zoomen, A benutzen, X nachladen, B ducken, LB sprinten, RB Granate, R3 Ansicht" },
             };

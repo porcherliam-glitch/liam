@@ -148,7 +148,8 @@ namespace DeadZone.Game
         }
 
         /// <param name="alpha">0..1 between the previous and the current simulation step.</param>
-        public void Update(float dt, float alpha, Interactable interact)
+        /// <param name="playerMuzzle">First person: the view model's muzzle, where the player's own tracers start.</param>
+        public void Update(float dt, float alpha, Interactable interact, Vector3? playerMuzzle = null)
         {
             var p = _raid.player;
             _playerCur = Coords.ToWorld(p.x, p.y);
@@ -235,7 +236,10 @@ namespace DeadZone.Game
             {
                 _alive.Add(pr);
                 double tx = pr.x - pr.dirX * Mathf.Min((float)pr.trail, 40f), ty = pr.y - pr.dirY * Mathf.Min((float)pr.trail, 40f);
-                _fx.Tracer(pr, Coords.ToWorld(tx, ty, 1.25f), Coords.ToWorld(pr.x, pr.y, 1.25f));
+                var from = Coords.ToWorld(tx, ty, 1.25f);
+                // first person: the streak leaves the visible gun and joins the flat bullet path over the first metres
+                if (pr.ownerIsPlayer && playerMuzzle.HasValue) from = Vector3.Lerp(playerMuzzle.Value, from, Mathf.Clamp01((float)pr.traveled / 90f));
+                _fx.Tracer(pr, from, Coords.ToWorld(pr.x, pr.y, 1.25f));
             }
             _fx.PruneTracers(_alive);
 

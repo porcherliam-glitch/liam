@@ -60,6 +60,9 @@ namespace DeadZone.Game
             _handL = Part(_sway, "HandL", CharacterView.SphereMesh(), _skin, Vector3.zero, Vector3.one * 0.1f);
             _flash = Part(_weapon, "Flash", CharacterView.SphereMesh(), _flashMat, Vector3.zero, Vector3.one * 0.12f);
             _flash.gameObject.SetActive(false);
+            // hides the limbs and gives them their real size before the first weapon is built
+            Build(null);
+            _shown = "?";
         }
 
         private static Transform Part(Transform parent, string name, Mesh mesh, Material mat, Vector3 pos, Vector3 size)
@@ -148,7 +151,8 @@ namespace DeadZone.Game
                 case "lmg":
                     Part(_weapon, "Body", box, _gun, new Vector3(0, 0, 0.25f), new Vector3(0.11f, 0.15f, 1.0f));
                     Part(_weapon, "Box", box, _green, new Vector3(0, -0.15f, 0.1f), new Vector3(0.18f, 0.16f, 0.2f));
-                    Part(_weapon, "Handle", box, _gun, new Vector3(0, 0.12f, 0.2f), new Vector3(0.03f, 0.06f, 0.14f));
+                    // kept low: at full zoom the top of the gun must stay under the line of sight
+                    Part(_weapon, "Handle", box, _gun, new Vector3(0, 0.09f, 0.2f), new Vector3(0.03f, 0.04f, 0.14f));
                     _muzzleLocal = new Vector3(0, 0, 0.75f);
                     break;
                 case "melee":
@@ -227,7 +231,7 @@ namespace DeadZone.Game
             // recoil
             pos.z -= 0.07f * _kick;
             pos.y += 0.01f * _kick;
-            rot.x -= 9f * _kick;
+            rot.x -= 9f * _kick * (1f - 0.7f * aim); // aimed fire kicks back more than up, the sights stay usable
             // reload: dip and roll the weapon
             if (s.reload >= 0f)
             {

@@ -152,6 +152,7 @@ namespace DeadZone.Game
             var p = raid.player;
             DrawWorldOverlays(raid);
             DrawHud(raid, p);
+            DrawHitDirs(raid, p);
             if (inventoryOpen) DrawRaidInventory(raid, p, null);
             if (lootContainer != null) DrawRaidInventory(raid, p, lootContainer);
             if (mapOpen) DrawFullMap(raid);
@@ -186,6 +187,12 @@ namespace DeadZone.Game
                 float a = (0.3f - (float)(pl.hp / pl.hpMax)) * 1.2f * (0.6f + 0.4f * Mathf.Sin(Time.time * 4f));
                 Fill(new Rect(0, 0, W, 40), new Color(0.5f, 0, 0, a)); Fill(new Rect(0, H - 40, W, 40), new Color(0.5f, 0, 0, a));
             }
+            if (_flashBang > 0) Fill(new Rect(0, 0, W, H), new Color(1, 1, 1, Mathf.Clamp01(_flashBang)));
+        }
+
+        /// <summary>Hit markers and threat arrows, drawn above the HUD panels so the prompt and bars never hide them.</summary>
+        private void DrawHitDirs(Raid raid, Player pl)
+        {
             bool fp = game.FirstPerson;
             foreach (var (angle, life) in _hitDirs)
             {
@@ -202,7 +209,6 @@ namespace DeadZone.Game
                 Fill(new Rect(pos.x - 14, pos.y - 14, 28, 28), new Color(0.9f, 0.15f, 0.1f, Mathf.Clamp01(life) * 0.8f));
             }
             if (fp && !pl.dead) DrawThreats(raid, pl);
-            if (_flashBang > 0) Fill(new Rect(0, 0, W, H), new Color(1, 1, 1, Mathf.Clamp01(_flashBang)));
         }
 
         private readonly System.Collections.Generic.List<(double d, Zombie z)> _threats = new System.Collections.Generic.List<(double, Zombie)>();
@@ -434,7 +440,9 @@ namespace DeadZone.Game
             var boss = raid.zombies.boss;
             if (boss != null && !boss.dead && M.Dist(boss.x, boss.y, p.x, p.y) < 900)
             {
-                var br = new Rect(W / 2 - 360, game.FirstPerson ? 96 : 28, 720, 30);
+                // narrower on 4:3 so it stays clear of the objectives panel on the left
+                float bw = Mathf.Clamp(W - 1040f, 240f, 720f);
+                var br = new Rect(W / 2 - bw / 2, game.FirstPerson ? 96 : 28, bw, 30);
                 Text(new Rect(br.x, br.y - 26, br.width, 24), boss.type.name + (boss.phase > 0 ? " – Phase " + (boss.phase + 1) : ""), 18, UiColors.Bad, TextAnchor.MiddleCenter, true);
                 Bar(br, (float)boss.hp, (float)boss.hpMax, new Color(0.7f, 0.12f, 0.15f), M.Round(boss.hp) + " / " + M.Round(boss.hpMax), 14);
             }
