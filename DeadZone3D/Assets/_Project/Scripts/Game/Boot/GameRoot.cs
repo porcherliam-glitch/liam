@@ -399,6 +399,8 @@ namespace DeadZone.Game
             raidView.losRange = fp ? 170f / Coords.S : 760;
             raidView.geometryOcclusion = fp;
             raidView.beamScale = fp ? 3f : 1f;
+            raidView.firstPerson = fp;
+            raidView.viewCamera = rig.cam;
             raidView.Update(dt, Mathf.Clamp01(alpha), p.interactTarget, fp && !p.dead ? viewModel.MuzzleWorld : (Vector3?)null);
             worldView.SetFirstPerson(fp);
             rig.SetFirstPerson(fp);

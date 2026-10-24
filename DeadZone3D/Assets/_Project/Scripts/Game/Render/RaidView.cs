@@ -9,7 +9,18 @@ namespace DeadZone.Game
     /// <summary>Shows the dynamic parts of a raid: player, zombies, loot on the floor, grenades, tracers, hazards and markers.</summary>
     public sealed class RaidView
     {
-        private sealed class ZView { public CharacterView view; public Vector3 prev, cur; public float visible, losTimer; public bool los; }
+        private sealed class ZView
+        {
+            public CharacterView view;
+            public Vector3 prev, cur;
+            public float visible, losTimer;
+            public bool los, shadows = true;
+            /// <summary>Health and flash seen last frame: a rise of the flash or a drop of health is a hit.</summary>
+            public double lastHp, lastFlash;
+            /// <summary>Frame offset of the reduced-rate updates; size factor of the detail ranges (big types are seen from farther).</summary>
+            public int slot;
+            public float size;
+        }
 
         private readonly Raid _raid;
         private readonly WorldView _world;
@@ -43,6 +54,16 @@ namespace DeadZone.Game
         /// zombies behind low cover the eye can look over, like cars and barricades).
         /// </summary>
         public bool geometryOcclusion;
+        /// <summary>Camera the zombies are culled against (outside it they skip their full pose); null: no culling.</summary>
+        public Camera viewCamera;
+        /// <summary>First person: a hit tints a zombie red-white instead of the white flash.</summary>
+        public bool firstPerson;
+        private readonly Plane[] _frustum = new Plane[6];
+        private int _frame;
+        private double _lastSimTime;
+        private float _simIdle;
+        // zombie detail by distance from the player (metres, times the size factor of big types)
+        private const float ZombieShadowRange = 28f, ZombieDetailRange = 36f, ZombieFarRange = 45f, ZombieAlwaysPose = 6f;
 
         /// <summary>Weapon class the player holds (model selection for the body and the first-person view model).</summary>
         public static string HeldClass(Player p)
@@ -119,8 +140,6 @@ namespace DeadZone.Game
             foreach (var kv in _zombies) kv.Value.prev = Coords.ToWorld(kv.Key.x, kv.Key.y);
         }
 
-        private static Color ZombieSkin(ZombieDef t) => Mats.Shade(Mats.Hex(t.color, new Color(0.45f, 0.55f, 0.4f)), 1.15f);
-
         private static Color Eyes(string id)
         {
             switch (id)
@@ -135,16 +154,19 @@ namespace DeadZone.Game
 
         private ZView CreateZombie(Zombie z)
         {
-            var skin = ZombieSkin(z.type);
-            var cloth = Mats.Shade(Color.Lerp(skin, new Color(0.25f, 0.22f, 0.2f), 0.7f), 0.9f);
-            var pants = Mats.Shade(Color.Lerp(skin, new Color(0.18f, 0.18f, 0.22f), 0.8f), 0.8f);
-            if (z.id == "armored") cloth = new Color(0.22f, 0.24f, 0.27f);
-            var v = new CharacterView(_root, "Zombie_" + z.id, skin, cloth, pants, true, Eyes(z.id));
-            v.scale = (float)(z.type.size > 0 ? z.type.size : 1.0) * (z.id == "brute" ? 1.05f : 1f);
-            // capped so brutes still fit through doors (2.25 m) and under ceilings
-            v.heightScale = Mathf.Min(v.scale, 1.25f);
+            float size = (float)(z.type.size > 0 ? z.type.size : 1.0) * (z.id == "brute" ? 1.05f : 1f);
+            // the look caps the height at 1.25 so brutes still fit through doors (2.25 m) and under ceilings; the rest is bulk
+            var look = ZombieLook.For(z.id, z.uid, size, Mats.Hex(z.type.color, new Color(0.45f, 0.55f, 0.4f)), Eyes(z.id));
+            var v = new CharacterView(_root, "Zombie_" + z.id, look);
             var pos = Coords.ToWorld(z.x, z.y);
-            return new ZView { view = v, prev = pos, cur = pos, visible = 0 };
+            return new ZView { view = v, prev = pos, cur = pos, visible = 0, lastHp = z.hp, lastFlash = z.flash, slot = (int)(look.seed % 3u), size = Mathf.Max(1f, size) };
+        }
+
+        /// <summary>Box for the frustum test: 2.5 m around a standing zombie (more for big ones), wider and flat for a corpse.</summary>
+        private static Bounds ZombieBounds(Vector3 pos, bool dead, float size)
+        {
+            if (dead) return new Bounds(pos + Vector3.up * 0.5f, new Vector3(4.4f * size, 1.6f, 4.4f * size));
+            return new Bounds(pos + Vector3.up * 1.15f, new Vector3(2.5f * size, 2.5f, 2.5f * size));
         }
 
         /// <param name="alpha">0..1 between the previous and the current simulation step.</param>
@@ -160,8 +182,16 @@ namespace DeadZone.Game
             float moving = p.moving ? (p.sprinting ? 1.25f : 1f) : 0f;
             player.Pose(ppos, Coords.YawDeg(p.angle), moving, (float)p.legPhase, (float)p.meleeAnim, p.crouching, p.dead, 0f, dt);
 
-            // zombies
+            // zombies: placing, the visibility fade and hit tracking run for every zombie; the full pose only for those in
+            // view (or very near), far ones at a third of the frame rate
             _alive.Clear();
+            bool cull = viewCamera != null && viewCamera.isActiveAndEnabled;
+            if (cull) GeometryUtility.CalculateFrustumPlanes(viewCamera, _frustum);
+            _frame++;
+            // their own motion (breathing, twitches) stops while the simulation is paused
+            if (_raid.time != _lastSimTime) { _lastSimTime = _raid.time; _simIdle = 0f; }
+            else _simIdle += dt;
+            float animDt = _simIdle > 0.05f ? 0f : dt;
             foreach (var z in _raid.zombies.zombies)
             {
                 _alive.Add(z);
@@ -177,9 +207,12 @@ namespace DeadZone.Game
                 bool show = zv.los && (z.type.lurk ? z.visibleAlpha > 0.5 || d < 90 : true);
                 zv.visible = Mathf.MoveTowards(zv.visible, show ? 1f : 0f, dt * 5f);
                 zv.view.SetVisible(zv.visible > 0.05f);
+                bool hit = !z.dead && (z.hp < zv.lastHp || z.flash > zv.lastFlash);
+                float hitSize = (float)(zv.lastHp - z.hp) / Mathf.Max(1f, (float)z.hpMax);
+                zv.lastHp = z.hp;
+                zv.lastFlash = z.flash;
                 if (zv.visible <= 0.05f) continue;
                 var pos = Vector3.Lerp(zv.prev, zv.cur, alpha);
-                float mv = (float)M.Hypot(z.moveX, z.moveY) > 0.1f && z.state != "idle" && z.state != "attack" ? 1f : 0f;
                 // the strike reaches 2-3 m in the simulation: lunge the body towards the player so the hit looks like contact
                 float lunge = 0f;
                 if (z.state == "attack" && !z.dead)
@@ -187,7 +220,27 @@ namespace DeadZone.Game
                     float a = (float)z.attackAnim;
                     lunge = z.windupTimer > 0 ? -0.15f * a : Mathf.Clamp((float)(d * Coords.S) - 0.8f, 0f, 1.6f) * a;
                 }
-                zv.view.Pose(pos, Coords.YawDeg(z.angle), mv, (float)z.legPhase, (float)z.attackAnim, false, z.dead, z.dead ? 0f : (float)z.flash, dt, true, lunge);
+                // shadows only near the player, small decorations a bit farther
+                float dist = new Vector2(pos.x - ppos.x, pos.z - ppos.z).magnitude / Mathf.Sqrt(zv.size);
+                zv.shadows = dist < (zv.shadows ? ZombieShadowRange + 1f : ZombieShadowRange - 1f);
+                zv.view.SetLod(zv.shadows, dist < ZombieDetailRange);
+                zv.view.softFlash = firstPerson;
+                if (hit) zv.view.Hit(Mathf.Clamp(0.45f + hitSize * 3f, 0.45f, 1f), pos - ppos);
+                bool inView = !cull || GeometryUtility.TestPlanesAABB(_frustum, ZombieBounds(pos, z.dead, zv.size));
+                bool animate = dist < ZombieAlwaysPose || (inView && (dist < ZombieFarRange || (_frame + zv.slot) % 3 == 0));
+                // speed over the last simulation step relative to the chase speed: about 0.5 wandering, 1 chasing
+                float stepSpeed = new Vector2(zv.cur.x - zv.prev.x, zv.cur.z - zv.prev.z).magnitude / (float)GameRoot.FixedDt;
+                float chaseSpeed = (float)(z.speed * Coords.S * _raid.moveScale);
+                zv.view.PoseZombie(new ZombieFrame
+                {
+                    pos = pos, yawDeg = Coords.YawDeg(z.angle), effort = chaseSpeed > 0.01f ? stepSpeed / chaseSpeed : 0f,
+                    attack = (float)z.attackAnim, attacking = z.state == "attack" || z.state == "ability",
+                    windup = z.windupTimer > 0 || z.state == "ability", lunge = lunge,
+                    staggered = z.stagger > 0 || z.state == "stunned", dead = z.dead,
+                    // the simulation removes corpses after 25 s (the boss after 60 s)
+                    deathTime = (float)z.deathTimer, corpseLife = z.id == "boss" ? 60f : 25f,
+                    flash = z.dead ? 0f : (float)z.flash,
+                }, animDt, animate);
             }
             List<Zombie> gone = null;
             foreach (var kv in _zombies) if (!_alive.Contains(kv.Key)) (gone ??= new List<Zombie>()).Add(kv.Key);

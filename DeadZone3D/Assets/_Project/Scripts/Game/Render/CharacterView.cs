@@ -3,8 +3,11 @@ using UnityEngine.Rendering;
 
 namespace DeadZone.Game
 {
-    /// <summary>Procedurally animated humanoid built from simple meshes (player and zombies).</summary>
-    public sealed class CharacterView
+    /// <summary>
+    /// Procedurally animated humanoid built from simple meshes: the player here, zombies (with knees, elbows, a jaw and a
+    /// look per type) in CharacterView.Zombie.cs.
+    /// </summary>
+    public sealed partial class CharacterView
     {
         public readonly GameObject root;
         private readonly Transform _body, _torso, _head, _armL, _armR, _legL, _legR, _weapon;
