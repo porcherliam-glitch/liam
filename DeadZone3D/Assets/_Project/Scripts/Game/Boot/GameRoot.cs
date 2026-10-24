@@ -26,6 +26,7 @@ namespace DeadZone.Game
         public CameraRig rig;
         public InputReader input;
         public LightingRig lighting;
+        public SkyDome sky;
         public FxSystem fx;
         public WorldView worldView;
         public RaidView raidView;
@@ -79,6 +80,7 @@ namespace DeadZone.Game
             viewModel = new ViewModel(cam.transform);
             viewModel.SetVisible(false);
             lighting = new LightingRig(transform);
+            sky = new SkyDome(transform);
             fx = new FxSystem(transform);
             audioSys = new AudioSystem(transform);
             input = new InputReader { rig = rig };
@@ -338,6 +340,7 @@ namespace DeadZone.Game
             input.EndFrame(stepped);
             fx.Update(dt);
             lighting.Update(dt);
+            sky.Update(rig.cam.transform.position, lighting, dt); // after the lighting and the camera of every state
             if (!fp) rig.Zoom(state == "raid" && !ui.BlocksGameplay ? input.scroll : 0f);
         }
 
