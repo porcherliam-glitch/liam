@@ -81,7 +81,7 @@ namespace DeadZone.Game
             viewModel.SetVisible(false);
             lighting = new LightingRig(transform);
             sky = new SkyDome(transform);
-            fx = new FxSystem(transform);
+            fx = new FxSystem(transform) { cam = cam.transform };
             audioSys = new AudioSystem(transform);
             input = new InputReader { rig = rig };
             core = new GameCore(new FileStorage(), this);
@@ -543,6 +543,8 @@ namespace DeadZone.Game
                         rig.Kick(RecoilFor(RaidView.HeldClass(Raid.player)));
                         _ownShot = true;
                         for (int i = 0; i < 3; i++) fx.Emit(muzzle + fwd * 0.05f, fwd * 5f + UnityEngine.Random.insideUnitSphere * 1.2f, fx.spark, 0.025f, 0.06f, false);
+                        // a faint puff of smoke drifts off the muzzle (soft sprites only)
+                        fx.Emit(muzzle + fwd * 0.06f, fwd * 1.1f + Vector3.up * 0.15f, fx.smoke, 0.03f, 0.55f, false, 0.06f, false, 0.4f);
                         break;
                     }
                     lighting.MuzzleFlash(Coords.ToWorld(x, y, 1.3f), (float)b);

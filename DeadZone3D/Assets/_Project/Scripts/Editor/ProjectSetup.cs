@@ -26,13 +26,28 @@ namespace DeadZone.EditorTools
         private static void AutoSetup()
         {
             if (Application.isBatchMode || EditorApplication.isPlayingOrWillChangePlaymode) return;
-            var lit = AssetDatabase.LoadAssetAtPath<Material>(MatDir + "/Lit.mat");
-            bool urp = GraphicsSettings.currentRenderPipeline != null;
-            bool shaderOk = lit != null && lit.shader != null && lit.shader.name.StartsWith("Universal Render Pipeline") == urp;
-            bool done = AssetDatabase.LoadAssetAtPath<SceneAsset>(ScenePath) != null && shaderOk;
-            if (done) return;
+            if (!NeedsSetup()) return;
             if (!Setup(true)) return;
             EditorUtility.DisplayDialog("Dead Zone", "Das Projekt wurde eingerichtet.\n\nDrücke oben in der Mitte auf ▶ (Play), um zu spielen.\nMenü „Dead Zone“ → „Windows-Spiel bauen“ erzeugt eine startbare Spieldatei.", "OK");
+        }
+
+        /// <summary>
+        /// Main scene missing, or a material template missing or made for the other render pipeline (renders magenta).
+        /// The effect templates count only when their shader exists, so a missing shader cannot repeat the setup forever.
+        /// </summary>
+        public static bool NeedsSetup()
+        {
+            bool urp = GraphicsSettings.currentRenderPipeline != null;
+            if (!TemplateOk("Lit", urp) || AssetDatabase.LoadAssetAtPath<SceneAsset>(ScenePath) == null) return true;
+            if (Mats.ParticleShader(false) != null && !TemplateOk("ParticleAlpha", urp)) return true;
+            if (Mats.ParticleShader(true) != null && !TemplateOk("ParticleAdd", urp)) return true;
+            return !TemplateOk("LitCutout", urp);
+        }
+
+        private static bool TemplateOk(string name, bool urp)
+        {
+            var m = AssetDatabase.LoadAssetAtPath<Material>(MatDir + "/" + name + ".mat");
+            return m != null && m.shader != null && m.shader.name.StartsWith("Universal Render Pipeline") == urp;
         }
 
         [MenuItem("Dead Zone/Projekt einrichten", priority = 1)]
@@ -86,6 +101,24 @@ namespace DeadZone.EditorTools
             if (em.HasProperty("_EmissionColor")) em.SetColor("_EmissionColor", Color.white);
             Save(em, "Emissive");
             if (unlit != null) Save(new Material(unlit) { name = "Unlit" }, "Unlit");
+            // effects: soft particles (alpha-blended and additive) and alpha-clipped decals; Mats configures them like
+            // URP's material inspector would, because materials made from script skip its validation
+            SaveConfigured("ParticleAlpha", Mats.NewParticleTemplate(false), m => Mats.ConfigureParticle(m, false));
+            SaveConfigured("ParticleAdd", Mats.NewParticleTemplate(true), m => Mats.ConfigureParticle(m, true));
+            SaveConfigured("LitCutout", Mats.NewCutoutTemplate(), Mats.ConfigureCutout);
+        }
+
+        /// <summary>Saves a configured template; an existing asset gets the shader and is configured again in place.</summary>
+        private static void SaveConfigured(string name, Material m, System.Action<Material> configure)
+        {
+            if (m == null) { Debug.LogWarning("[DZ] Shader für " + name + " nicht gefunden"); return; }
+            string path = MatDir + "/" + name + ".mat";
+            var existing = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (existing == null) { AssetDatabase.CreateAsset(m, path); return; }
+            existing.shader = m.shader;
+            existing.shaderKeywords = new string[0]; // drop keywords of a shader for the other pipeline
+            configure(existing);
+            EditorUtility.SetDirty(existing);
         }
 
         private static void Save(Material m, string name)
