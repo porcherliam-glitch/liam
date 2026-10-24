@@ -56,6 +56,18 @@ namespace DeadZone.Core
 
         public int AliveCount() { int n = 0; foreach (var z in zombies) if (!z.dead) n++; return n; }
 
+        /// <summary>
+        /// Standing height in sim px for aimed first-person shots: 1.8 m scaled like the 3D model (capped at 1.25 so brutes fit
+        /// through doors). The top <see cref="HeadShare"/> of it counts as the head.
+        /// </summary>
+        public static double HeightPx(Zombie z)
+        {
+            double size = z?.type != null && z.type.size > 0 ? z.type.size : 1;
+            return 1.8 * Math.Min(size, 1.25) * Player.PxPerMetre;
+        }
+
+        public const double HeadShare = 0.84;
+
         public Zombie Nearest(double x, double y, double r)
         {
             Zombie best = null; double bd = r * r;
@@ -535,7 +547,10 @@ namespace DeadZone.Core
                 double dd = M.Dist(z.x, z.y, p.x, p.y);
                 if (dd < min && dd > 0.01)
                 {
-                    var m = Physics.MoveCircle(w, z.x, z.y, z.radius, (z.x - p.x) / dd * (min - dd), (z.y - p.y) / dd * (min - dd));
+                    // first person: the player is solid too (Raid.Update pushes the player back), so the zombie gives way only
+                    // partly and big ones hardly at all; walking into a zombie no longer shoves it along at full speed
+                    double give = p.blockedByZombies ? (z.id == "brute" || z.id == "boss" ? 0.2 : 0.5) : 1;
+                    var m = Physics.MoveCircle(w, z.x, z.y, z.radius, (z.x - p.x) / dd * (min - dd) * give, (z.y - p.y) / dd * (min - dd) * give);
                     z.x = m.x; z.y = m.y;
                 }
             }

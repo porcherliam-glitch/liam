@@ -288,13 +288,17 @@ namespace DeadZone.Game
             foreach (var pr in _raid.weapons.projectiles)
             {
                 _alive.Add(pr);
-                double tx = pr.x - pr.dirX * Mathf.Min((float)pr.trail, 40f), ty = pr.y - pr.dirY * Mathf.Min((float)pr.trail, 40f);
-                var from = Coords.ToWorld(tx, ty, 1.25f);
-                // first person: the streak leaves the visible gun and joins the flat bullet path over the first metres
+                // an aimed first-person shot flies along the line of sight: from eye height down to the floor or up over heads
+                // (a steep one keeps the length of its streak in 3D)
+                double tl = Mathf.Min((float)pr.trail, 40f) * (pr.Aimed ? System.Math.Cos(pr.pitch) : 1.0);
+                double tx = pr.x - pr.dirX * tl, ty = pr.y - pr.dirY * tl;
+                var from = Coords.ToWorld(tx, ty, pr.Aimed ? TracerHeight(pr, tx, ty) : 1.25f);
+                // first person: the streak leaves the visible gun and joins the bullet path over the first metres
                 if (pr.ownerIsPlayer && playerMuzzle.HasValue) from = Vector3.Lerp(playerMuzzle.Value, from, Mathf.Clamp01((float)pr.traveled / 90f));
-                _fx.Tracer(pr, from, Coords.ToWorld(pr.x, pr.y, 1.25f));
+                _fx.Tracer(pr, from, Coords.ToWorld(pr.x, pr.y, pr.Aimed ? TracerHeight(pr, pr.x, pr.y) : 1.25f));
             }
             _fx.PruneTracers(_alive);
+            static float TracerHeight(Projectile p, double x, double y) => Mathf.Max(0.02f, (float)(p.HeightAt(x, y) * Coords.S));
 
             // hazards
             int hi = 0;

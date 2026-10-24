@@ -117,8 +117,8 @@ namespace DeadZone.Game
             Text(new Rect(r.x + 30, r.y + 18, 600, 44), "Steuerung", 30, UiColors.Accent, TextAnchor.MiddleLeft, true);
             string[,] rows =
             {
-                { "W A S D", "Bewegen (in Blickrichtung)" }, { "Maus", "Umsehen und zielen (Ego-Perspektive) – von oben: auf das Ziel zeigen" },
-                { "Linke Maustaste", "Schießen (gedrückt halten = Dauerfeuer)" }, { "Rechte Maustaste", "Heranzoomen und genauer zielen (Ego-Perspektive, du gehst dabei langsamer)" }, { "R", "Nachladen" },
+                { "W A S D", "Bewegen (in Blickrichtung) – Zombies versperren dir den Weg" }, { "Maus", "Umsehen und zielen (Ego-Perspektive) – von oben: auf das Ziel zeigen" },
+                { "Linke Maustaste", "Schießen (halten = Dauerfeuer) – Kopftreffer machen viel mehr Schaden" }, { "Rechte Maustaste", "Heranzoomen und genauer zielen (Ego-Perspektive, du gehst dabei langsamer)" }, { "R", "Nachladen" },
                 { "E", "Benutzen: Kisten, Türen, Beute (hinschauen) – Generator: gedrückt halten" }, { "Shift", "Sprinten (Ego-Perspektive: nur vorwärts)" }, { "C / Strg", "Ducken (leiser, ruhiger zielen)" },
                 { "F", "Taschenlampe" }, { "Tab / I", "Inventar" }, { "M", "Karte" }, { "G", "Granate werfen (nach oben schauen = weiter)" }, { "Q", "Schnellheilung" },
                 { "1 – 5", "Primär, Sekundär, Nahkampf, Granate, Medizin" }, { "Mausrad", "Waffe wechseln 1–3 (Ego-Perspektive) / Kamera zoomen (von oben)" },
@@ -170,6 +170,7 @@ namespace DeadZone.Game
             Row("Dauer", M.FormatTime(res.durationSec));
             Row("Erledigte Infizierte", res.kills.ToString());
             Row("Trefferquote", M.Pct(res.accuracy));
+            Row("Kopftreffer", res.headShots.ToString());
             Row("Behälter durchsucht", res.containersOpened.ToString());
             Row("Strecke", res.distance + " m");
             Row("Schaden erhalten", res.damageTaken.ToString());

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using DeadZone.Core.Data;
 
@@ -45,6 +46,16 @@ namespace DeadZone.Core
         public bool ownerIsPlayer, hitCounted;
         public string cls;
         public Player shooter;
+        /// <summary>Trigger pull the projectile belongs to (shotgun pellets share it).</summary>
+        public int shot;
+        /// <summary>Aimed first-person shot: where it left the eye (sim px), its vertical angle (radians, positive = down) and the eye height (px).
+        /// pitch = NaN is a flat 2D shot that hits whatever it crosses.</summary>
+        public double originX, originY, pitch = double.NaN, eyePx;
+
+        public bool Aimed => !double.IsNaN(pitch);
+
+        /// <summary>Height of an aimed shot above the floor (sim px) when it is over (x, y); NaN for flat shots.</summary>
+        public double HeightAt(double px, double py) => eyePx - Math.Tan(pitch) * M.Dist(originX, originY, px, py);
     }
 
     public sealed class Grenade
@@ -67,6 +78,8 @@ namespace DeadZone.Core
     public sealed class PlayerStats
     {
         public int shotsFired, shotsHit, kills, containersOpened;
+        /// <summary>Trigger pulls that hit a zombie in the head (only aimed first-person shots can).</summary>
+        public int headShots;
         public double damageDealt, damageTaken, lootValue, distance;
         public readonly Dictionary<string, int> killsByType = new Dictionary<string, int>();
     }

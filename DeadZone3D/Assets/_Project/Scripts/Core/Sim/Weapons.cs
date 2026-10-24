@@ -15,6 +15,21 @@ namespace DeadZone.Core
         public readonly List<Projectile> projectiles = new List<Projectile>();
         private readonly List<(ItemInst inst, Inventory inv, string ammoId)> _reloads = new List<(ItemInst, Inventory, string)>();
         private readonly List<Zombie> _cands = new List<Zombie>();
+        private int _shotSeq, _lastHeadShot;
+
+        /// <summary>Aimed shots: steepest vertical angle (radians, about 83°), keeps the height maths finite.</summary>
+        private const double MaxPitch = 1.45;
+        /// <summary>Aimed shots: ceiling height under a roof in sim px (the 3D walls are 2.8 m high).</summary>
+        private const double CeilingPx = 2.8 * Player.PxPerMetre;
+        /// <summary>Aimed shots: a bullet up to this much (px) above a zombie's head still grazes it.</summary>
+        private const double HeadGrazePx = 3;
+        public const string HeadShotColor = "#ff9a2e";
+
+        /// <summary>
+        /// Height in metres of the hit the current Blood/Impact effect belongs to (floor, legs, head, wall, ceiling),
+        /// or NaN for the usual body height. Set only while an aimed first-person shot reports its hit.
+        /// </summary>
+        public double fxHeight = double.NaN;
 
         public WeaponSystem(Raid raid)
         {
@@ -75,15 +90,20 @@ namespace DeadZone.Core
             double speed = w.@class == "sniper" ? 2200 : 1400;
             double mx = shooter.x + Math.Cos(aimAngle) * 20, my = shooter.y + Math.Sin(aimAngle) * 20;
             var muzzle = Physics.RaycastTiles(_raid.world, shooter.x, shooter.y, mx, my);
+            // first person: shots follow the view pitch and scatter up/down as well (inside the same crosshair cone)
+            bool aimed = !double.IsNaN(shooter.aimPitch);
+            int shot = ++_shotSeq;
             for (int i = 0; i < pellets; i++)
             {
                 double ang = aimAngle + (rng.Next() + rng.Next() - 1) * spread;
+                double pitch = aimed ? M.Clamp(shooter.aimPitch + (rng.Next() + rng.Next() - 1) * spread, -MaxPitch, MaxPitch) : double.NaN;
                 if (projectiles.Count >= 400) projectiles.RemoveAt(0);
                 double px = muzzle.hit ? shooter.x : mx, py = muzzle.hit ? shooter.y : my;
                 projectiles.Add(new Projectile
                 {
                     x = px, y = py, prevX = px, prevY = py, vx = Math.Cos(ang) * speed, vy = Math.Sin(ang) * speed, dirX = Math.Cos(ang), dirY = Math.Sin(ang),
                     dmg = dmg, pen = pen, range = w.range > 0 ? w.range : 700, ownerIsPlayer = isPlayer, ttl = 2, cls = w.@class, shooter = shooter,
+                    shot = shot, pitch = pitch, originX = shooter.x, originY = shooter.y, eyePx = shooter.eyeHeightPx,
                 });
             }
             rt.bloom = Math.Min(2.2, rt.bloom + (w.recoil > 0 ? w.recoil : 0.2) * 0.5);
@@ -302,7 +322,7 @@ namespace DeadZone.Core
         private void UpdateProjectiles(double dt)
         {
             var world = _raid.world;
-            var hits = new List<(Zombie z, double t)>();
+            var hits = new List<(Zombie z, double t, double h)>();
             for (int i = projectiles.Count - 1; i >= 0; i--)
             {
                 var p = projectiles[i];
@@ -319,6 +339,10 @@ namespace DeadZone.Core
                 }
                 var ray = Physics.RaycastTiles(world, p.x, p.y, x1, y1);
                 double ex = ray.x, ey = ray.y;
+                // aimed first-person shot: it may reach the floor (or a ceiling) before the wall or the end of this step
+                double ts = -1;
+                int surface = p.Aimed ? Surface(p, ex, ey, out ts) : 0;
+                if (surface != 0) { ex = p.x + (ex - p.x) * ts; ey = p.y + (ey - p.y) * ts; }
                 bool hitAny = false;
                 double minx = Math.Min(p.x, ex), miny = Math.Min(p.y, ey);
                 _cands.Clear();
@@ -328,7 +352,15 @@ namespace DeadZone.Core
                 {
                     if (z.dead) continue;
                     double t = Physics.SegmentCircle(p.x, p.y, ex, ey, z.x, z.y, z.radius);
-                    if (t >= 0) hits.Add((z, t));
+                    if (t < 0) continue;
+                    double h = double.NaN;
+                    if (p.Aimed)
+                    {
+                        // aimed shot: flies over the head (no hit, it keeps going) or strikes at height h
+                        h = Math.Max(0, p.HeightAt(p.x + (ex - p.x) * t, p.y + (ey - p.y) * t));
+                        if (h > ZombieAI.HeightPx(z) + HeadGrazePx) continue;
+                    }
+                    hits.Add((z, t, h));
                 }
                 if (hits.Count > 0)
                 {
@@ -337,19 +369,34 @@ namespace DeadZone.Core
                     int n = Math.Min(hits.Count, p.pen);
                     for (int k = 0; k < n; k++)
                     {
-                        var (z, t) = hits[k];
+                        var (z, t, h) = hits[k];
                         double hx = p.x + (ex - p.x) * t, hy = p.y + (ey - p.y) * t;
                         p.traveled += segLen * t;
                         double dmg = p.dmg * Falloff(p) * mul;
+                        // the top of the body is the head; helmets (armoured zombies) and the boss soften head shots
+                        bool head = !double.IsNaN(h) && h >= ZombieAI.HeadShare * ZombieAI.HeightPx(z);
+                        if (head) dmg *= z.id == "armored" || z.id == "boss" ? 1.6 : 2.2;
+                        fxHeight = double.IsNaN(h) ? double.NaN : h / Player.PxPerMetre;
                         var r = _raid.zombies.Damage(z, dmg, p.pen, p.dirX, p.dirY, "bullet");
                         Fb.Effect(Fx.Blood, hx, hy, Math.Atan2(p.dirY, p.dirX), 0.8);
+                        fxHeight = double.NaN;
                         if (p.ownerIsPlayer)
                         {
                             Fb.Effect(Fx.HitMarker, hx, hy);
-                            Fb.Effect(Fx.FloatingText, hx, hy - 10, 0, 0, M.Round(r.dealt > 0 ? r.dealt : dmg).ToString(), r.killed ? "#ff6b6b" : "#ffe08a");
+                            string num = M.Round(r.dealt > 0 ? r.dealt : dmg).ToString();
+                            // one big "head shot" per trigger pull, not one per shotgun pellet
+                            bool firstHead = head && p.shot != _lastHeadShot;
+                            if (firstHead)
+                            {
+                                _lastHeadShot = p.shot;
+                                Fb.Effect(Fx.FloatingText, hx, hy - 10, 0, 1, "Kopftreffer! " + num, HeadShotColor);
+                                Fb.Sfx("melee_hit", double.NaN, double.NaN, 0.5, 1.45);
+                            }
+                            else Fb.Effect(Fx.FloatingText, hx, hy - 10, 0, 0, num, r.killed ? "#ff6b6b" : head ? HeadShotColor : "#ffe08a");
                             if (p.shooter != null)
                             {
                                 if (!p.hitCounted) { p.shooter.stats.shotsHit++; p.hitCounted = true; }
+                                if (firstHead) p.shooter.stats.headShots++;
                                 p.shooter.stats.damageDealt += r.dealt;
                             }
                         }
@@ -359,9 +406,19 @@ namespace DeadZone.Core
                     hitAny = true;
                 }
                 if (hitAny) { projectiles.RemoveAt(i); continue; }
+                if (surface != 0)
+                {
+                    fxHeight = surface == 1 ? 0.02 : CeilingPx / Player.PxPerMetre - 0.02;
+                    Fb.Effect(Fx.Impact, ex, ey, Math.Atan2(p.dirY, p.dirX), world.Tile(M.Floor(ex / TILE), M.Floor(ey / TILE)));
+                    fxHeight = double.NaN;
+                    projectiles.RemoveAt(i);
+                    continue;
+                }
                 if (ray.hit)
                 {
+                    if (p.Aimed) fxHeight = M.Clamp(p.HeightAt(ray.x, ray.y), 1, CeilingPx - 1) / Player.PxPerMetre;
                     Fb.Effect(Fx.Impact, ray.x, ray.y, Math.Atan2(p.dirY, p.dirX), ray.tile);
+                    fxHeight = double.NaN;
                     projectiles.RemoveAt(i);
                     continue;
                 }
@@ -370,6 +427,42 @@ namespace DeadZone.Core
                 p.trail = Math.Min(p.trail + segLen, 60);
                 if (dead || p.ttl <= 0) projectiles.RemoveAt(i);
             }
+        }
+
+        /// <summary>
+        /// Aimed shot over the segment from its position to (x1, y1): 1 = it reaches the floor, 2 = it reaches the ceiling under a roof,
+        /// 0 = neither. <paramref name="t"/> is where along the segment (0..1).
+        /// </summary>
+        private int Surface(Projectile p, double x1, double y1, out double t)
+        {
+            t = -1;
+            double tan = Math.Tan(p.pitch);
+            if (tan > 1e-9)
+            {
+                t = PastDistance(p, x1, y1, p.eyePx / tan);
+                return t >= 0 ? 1 : 0;
+            }
+            if (tan < -1e-9)
+            {
+                t = PastDistance(p, x1, y1, (CeilingPx - p.eyePx) / -tan);
+                // crossed the ceiling height earlier in the open: it flies on above the roofs
+                if (t < 0 || (t == 0 && p.traveled > 0)) return 0;
+                return _raid.world.BuildingAt(p.x + (x1 - p.x) * t, p.y + (y1 - p.y) * t) != null ? 2 : 0;
+            }
+            return 0;
+        }
+
+        /// <summary>Segment parameter where the shot gets farther than <paramref name="dist"/> from its origin (0 = already at the start, -1 = not on this segment).</summary>
+        private static double PastDistance(Projectile p, double x1, double y1, double dist)
+        {
+            double fx = p.x - p.originX, fy = p.y - p.originY, dx = x1 - p.x, dy = y1 - p.y;
+            double c = fx * fx + fy * fy - dist * dist;
+            if (c >= 0) return 0;
+            double a = dx * dx + dy * dy;
+            if (a < 1e-9) return -1;
+            double b = 2 * (fx * dx + fy * dy);
+            double t = (-b + Math.Sqrt(b * b - 4 * a * c)) / (2 * a);
+            return t <= 1 ? t : -1;
         }
 
         private void UpdateGrenades(double dt)

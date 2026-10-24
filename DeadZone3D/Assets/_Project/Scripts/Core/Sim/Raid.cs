@@ -12,6 +12,8 @@ namespace DeadZone.Core
         public string outcome, mapId, mapName, extractionName, causeOfDeath;
         public uint seed;
         public int durationSec, kills, shotsFired, shotsHit, containersOpened, distance, damageTaken;
+        /// <summary>Trigger pulls that hit a head (first person only).</summary>
+        public int headShots;
         public double accuracy;
         public Dictionary<string, int> killsByType = new Dictionary<string, int>();
         public int xpGained, creditsGained, levelBefore, levelAfter, xpBefore, xpAfter, xpToNext, lootValue, objectivesDone;
@@ -122,6 +124,8 @@ namespace DeadZone.Core
             if (ended) return;
             zombies.Update(dt);
             if (ended) return;
+            // first person: zombies are solid, step back out of any the player still overlaps
+            if (player.blockedByZombies) player.PushOutOfZombies();
             extraction.Update(dt);
             if (ended) return;
             Hazards(dt);
@@ -515,6 +519,7 @@ namespace DeadZone.Core
                 causeOfDeath = outcome == "extracted" ? null : p.causeOfDeath,
                 durationSec = M.Round(time), kills = st.kills, killsByType = new Dictionary<string, int>(st.killsByType), shotsFired = st.shotsFired, shotsHit = st.shotsHit,
                 accuracy = st.shotsFired > 0 ? M.Clamp((double)st.shotsHit / st.shotsFired, 0, 1) : 0, damageTaken = M.Round(st.damageTaken), containersOpened = st.containersOpened,
+                headShots = st.headShots,
                 distance = M.Round(st.distance / TILE * World.MetersPerTile), levelBefore = pm?.Level() ?? 1, xpBefore = pm?.Xp() ?? 0,
             };
             if (pm?.profile != null)

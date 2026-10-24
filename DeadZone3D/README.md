@@ -62,6 +62,8 @@ schwindelig: Kopfwippen ausschalten und das Sichtfeld größer stellen.
 das Tempo der Ansicht von oben. Sprinten geht in der Ego-Perspektive nur vorwärts.
 Mit dem Scharfschützengewehr zeigt die rechte Maustaste ein Zielfernrohr. Orange Pfeile am Bildrand zeigen Zombies, die
 dich von der Seite oder von hinten angreifen.
+Der Schuss geht genau dorthin, wohin das Fadenkreuz zeigt – auch nach oben und unten: **Kopftreffer** machen viel mehr Schaden.
+Zombies **versperren dir den Weg**: Du kannst nicht durch sie hindurchlaufen und sie nur langsam wegschieben, große kaum.
 Oben in der Mitte zeigt ein Kompass die Himmelsrichtung, Extraktionspunkte (grün, gesperrt orange) und Auftragsziele
 (gelb) mit Entfernung.
 
