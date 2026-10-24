@@ -35,12 +35,18 @@ namespace DeadZone.Core
         public bool headBob = true;
         /// <summary>Vertical field of view in first person, degrees (70° ≈ 102° horizontal at 16:9).</summary>
         public double fov = 70;
+        /// <summary>Walking tempo in first person: "calm" (slower, default) or "original" (the top-down speeds).</summary>
+        public string tempo = "calm";
+
+        /// <summary>Raid.moveScale for the current view: the calm tempo slows walking in first person only.</summary>
+        public double MoveScale(bool firstPerson) => firstPerson && tempo != "original" ? 0.65 : 1;
 
         public Dictionary<string, object> ToJson() => new Dictionary<string, object>
         {
             ["master"] = master, ["sfx"] = sfx, ["music"] = music, ["screenShake"] = screenShake, ["showFps"] = showFps,
             ["minimap"] = minimap, ["damageNumbers"] = damageNumbers, ["quality"] = quality,
             ["view"] = view, ["mouseSens"] = mouseSens, ["invertY"] = invertY, ["fov"] = fov, ["headBob"] = headBob,
+            ["tempo"] = tempo,
         };
 
         public static Settings FromJson(object raw)
@@ -62,6 +68,7 @@ namespace DeadZone.Core
             s.invertY = Json.Bool(o, "invertY", s.invertY);
             s.headBob = Json.Bool(o, "headBob", s.headBob);
             s.fov = M.Clamp(Json.Num(o, "fov", s.fov), 55, 90);
+            s.tempo = Json.Str(o, "tempo", s.tempo) == "original" ? "original" : "calm";
             return s;
         }
     }

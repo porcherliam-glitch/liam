@@ -24,6 +24,21 @@ namespace DeadZone.Core
 
         public static WeaponRt Rt(ItemInst inst) => inst.rt ?? (inst.rt = new WeaponRt());
         private IFeedback Fb => _raid.fb;
+        private static AmmoStats Ammo(ItemInst inst) => Items.Def(inst.ammoId)?.ammo ?? new AmmoStats { dmgMul = 1, penMul = 1, noiseMul = 1, label = "Standard" };
+        private static bool IsSlug(AmmoStats a) => a.label == "Flintenlaufgeschoss";
+
+        /// <summary>
+        /// Half angle (radians) a shot fired now may deviate from the aim: base spread, stance, bloom and slug ammo.
+        /// Draws no random numbers (the crosshair uses it every frame); 0 for melee or no weapon.
+        /// </summary>
+        public static double CurrentSpread(ItemInst inst, Player shooter)
+        {
+            var w = inst == null ? null : Items.Def(inst)?.weapon;
+            if (w == null || w.@class == "melee") return 0;
+            double sm = shooter?.SpreadMul() ?? 1;
+            double bloom = inst.rt?.bloom ?? 0;
+            return (w.spread > 0 ? w.spread : 0.03) * sm * (1 + bloom) * (IsSlug(Ammo(inst)) ? 0.35 : 1);
+        }
 
         public FireResult TryFire(ItemInst inst, Player shooter, double aimAngle, bool isPlayer = true, bool semiHeld = false)
         {
@@ -47,14 +62,13 @@ namespace DeadZone.Core
                 if (isPlayer) Fb.Toast("Ladehemmung!", "warning", 1200);
                 return new FireResult { reason = "misfire" };
             }
-            var a = Items.Def(inst.ammoId)?.ammo ?? new AmmoStats { dmgMul = 1, penMul = 1, noiseMul = 1, label = "Standard" };
+            var a = Ammo(inst);
             rt.cooldown = (1 / Math.Max(0.1, w.fireRate)) * (!w.auto && semiHeld ? 1.25 : 1);
             inst.mag = inst.mag.Value - 1;
             if (inst.durability.HasValue) inst.durability = Math.Max(0, inst.durability.Value - 0.15);
-            double sm = shooter.SpreadMul();
-            bool slug = a.label == "Flintenlaufgeschoss";
+            bool slug = IsSlug(a);
             int pellets = slug ? 1 : Math.Max(1, w.pellets);
-            double spread = (w.spread > 0 ? w.spread : 0.03) * sm * (1 + rt.bloom) * (slug ? 0.35 : 1);
+            double spread = CurrentSpread(inst, shooter);
             double durMul = inst.durability.HasValue && inst.durability.Value < 30 ? 0.9 : 1;
             double dmg = w.damage * (a.dmgMul > 0 ? a.dmgMul : 1) * durMul * (slug ? Math.Max(1, w.pellets) * 0.55 : 1);
             int pen = M.Clamp(M.Round(Math.Max(1, w.penetration) * (a.penMul > 0 ? a.penMul : 1)), 1, 3);

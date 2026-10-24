@@ -54,6 +54,8 @@ namespace DeadZone.Core
         public readonly List<NoiseMarker> noiseMarkers = new List<NoiseMarker>();
         public RaidResult result;
         public IPlayerInput input;
+        /// <summary>Scales how fast the player and all zombies walk (first person: calmer tempo). Projectiles, grenades, knockback and timers stay as they are.</summary>
+        public double moveScale = 1;
         private double _navTimer, _hazardTick;
         private bool _warned300, _warned60;
 
