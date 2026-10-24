@@ -27,7 +27,7 @@ namespace DeadZone.Game
 
         private readonly Transform _root, _sway, _weapon, _flash;
         private readonly Transform _handR, _handL, _armR, _armL;
-        private readonly Material _gun, _wood, _metal, _green, _white, _skin, _sleeve, _flashMat;
+        private readonly Material _gun, _wood, _metal, _green, _white, _red, _skin, _sleeve, _flashMat;
         private string _shown = "?", _want;
         private float _raise = 1f, _kick, _flashT, _sprint, _swayX, _swayY;
         private Vector3 _muzzleLocal = new Vector3(0, 0, 0.3f);
@@ -47,6 +47,7 @@ namespace DeadZone.Game
             _metal = Mats.Lit(new Color(0.7f, 0.72f, 0.75f), 0.8f, 0.9f);
             _green = Mats.Lit(new Color(0.25f, 0.3f, 0.2f), 0.3f);
             _white = Mats.Lit(new Color(0.85f, 0.85f, 0.85f), 0.4f);
+            _red = Mats.Lit(new Color(0.8f, 0.1f, 0.1f), 0.3f);
             _skin = Mats.Lit(new Color(0.78f, 0.62f, 0.5f), 0.25f);
             _sleeve = Mats.Lit(new Color(0.3f, 0.34f, 0.24f), 0.1f);
             _flashMat = Mats.Emissive(new Color(1f, 0.85f, 0.5f), new Color(1f, 0.75f, 0.35f), 6f);
@@ -159,7 +160,7 @@ namespace DeadZone.Game
                     break;
                 case "med":
                     Part(_weapon, "Kit", box, _white, new Vector3(0, 0, 0.05f), new Vector3(0.2f, 0.12f, 0.16f));
-                    Part(_weapon, "Cross", box, Mats.Lit(new Color(0.8f, 0.1f, 0.1f), 0.3f), new Vector3(0, 0.061f, 0.05f), new Vector3(0.1f, 0.005f, 0.03f));
+                    Part(_weapon, "Cross", box, _red, new Vector3(0, 0.061f, 0.05f), new Vector3(0.1f, 0.005f, 0.03f));
                     break;
             }
             bool twoHanded = cls == "smg" || cls == "rifle" || cls == "shotgun" || cls == "sniper" || cls == "lmg" || cls == "pistol";

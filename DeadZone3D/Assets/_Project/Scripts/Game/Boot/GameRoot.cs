@@ -513,7 +513,17 @@ namespace DeadZone.Game
                     }
                 case Fx.HitMarker: ui.HitMarker(); break;
                 case Fx.FloatingText:
-                    if (core.settings.damageNumbers || b > 0) ui.FloatingText(Coords.ToWorld(x, y, 2.2f), text, color, b > 0);
+                    if (core.settings.damageNumbers || b > 0)
+                    {
+                        var at = Coords.ToWorld(x, y, 2.2f);
+                        // first person: texts about the player (healing) appear in front of the eye, not inside the head
+                        if (FirstPersonView && M.Dist(x, y, Raid.player.x, Raid.player.y) < 48)
+                        {
+                            var ct = rig.cam.transform;
+                            at = ct.position + ct.forward * 2.5f - ct.up * 0.25f;
+                        }
+                        ui.FloatingText(at, text, color, b > 0);
+                    }
                     break;
                 case Fx.Explosion: fx.Explosion(Coords.ToWorld(x, y, 0.2f), Mathf.Max(1.2f, (float)a * Coords.S), a < 70); break;
                 case Fx.ToxicCloud:
