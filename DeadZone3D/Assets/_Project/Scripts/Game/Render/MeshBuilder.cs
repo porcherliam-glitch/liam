@@ -4,9 +4,21 @@ using UnityEngine.Rendering;
 
 namespace DeadZone.Game
 {
-    /// <summary>Accumulates boxes, quads, cylinders and spheres into one mesh with one submesh per material.</summary>
+    /// <summary>
+    /// Accumulates boxes, quads, cylinders and spheres into one mesh with one submesh per material.
+    /// UVs are planar in mesh space (box mapping by the face normal), so tiling textures keep their size on every face.
+    /// </summary>
     public sealed class MeshBuilder
     {
+        /// <summary>Texture repeats per metre of the planar UVs: one repeat of a procedural texture covers 2 m.</summary>
+        public const float UvScale = 0.5f;
+
+        /// <summary>
+        /// Per-quad 0..1 UVs instead of planar ones, for unit meshes that are scaled per instance and need the whole
+        /// texture on every face (decals, particles).
+        /// </summary>
+        public bool unitUv;
+
         private readonly List<Vector3> _v = new List<Vector3>();
         private readonly List<Vector3> _n = new List<Vector3>();
         private readonly List<Vector2> _uv = new List<Vector2>();
@@ -23,6 +35,24 @@ namespace DeadZone.Game
             return _tris[i];
         }
 
+        /// <summary>Planar UV of a point, projected along the dominant axis of the normal (up/down: x,z; ±x: z,y; ±z: x,y).</summary>
+        public static Vector2 PlanarUv(Vector3 p, Vector3 normal)
+        {
+            float ax = Mathf.Abs(normal.x), ay = Mathf.Abs(normal.y), az = Mathf.Abs(normal.z);
+            if (ay >= ax && ay >= az) return new Vector2(p.x * UvScale, p.z * UvScale);
+            if (ax >= az) return new Vector2(p.z * UvScale, p.y * UvScale);
+            return new Vector2(p.x * UvScale, p.y * UvScale);
+        }
+
+        /// <summary>Texture repeats around a circumference: whole repeats (no seam) unless the shape is too thin to show one.</summary>
+        private static float Around(float circumference)
+        {
+            float r = circumference * UvScale;
+            return r < 0.75f ? r : Mathf.Round(r);
+        }
+
+        private void AddUnitQuadUvs() { _uv.Add(new Vector2(0, 0)); _uv.Add(new Vector2(0, 1)); _uv.Add(new Vector2(1, 1)); _uv.Add(new Vector2(1, 0)); }
+
         /// <summary>Quad a-b-c-d, clockwise when seen from the side the normal points to (Unity front faces).</summary>
         public void Quad(Material m, Vector3 a, Vector3 b, Vector3 c, Vector3 d, Vector3 normal)
         {
@@ -30,7 +60,8 @@ namespace DeadZone.Game
             int i = _v.Count;
             _v.Add(a); _v.Add(b); _v.Add(c); _v.Add(d);
             for (int k = 0; k < 4; k++) _n.Add(normal);
-            _uv.Add(new Vector2(0, 0)); _uv.Add(new Vector2(0, 1)); _uv.Add(new Vector2(1, 1)); _uv.Add(new Vector2(1, 0));
+            if (unitUv) AddUnitQuadUvs();
+            else { _uv.Add(PlanarUv(a, normal)); _uv.Add(PlanarUv(b, normal)); _uv.Add(PlanarUv(c, normal)); _uv.Add(PlanarUv(d, normal)); }
             t.Add(i); t.Add(i + 1); t.Add(i + 2);
             t.Add(i); t.Add(i + 2); t.Add(i + 3);
         }
@@ -58,16 +89,15 @@ namespace DeadZone.Game
         /// <summary>Box rotated around Y by yawDeg around its centre.</summary>
         public void BoxRotated(Material m, Vector3 center, Vector3 size, float yawDeg)
         {
+            // built axis-aligned (so the UVs follow the faces) and then turned around the centre
             var q = Quaternion.Euler(0, yawDeg, 0);
-            Vector3 h = size * 0.5f;
-            Vector3 P(float x, float y, float z) => center + q * new Vector3(x, y, z);
-            Vector3 r = q * Vector3.right, f = q * Vector3.forward;
-            Quad(m, P(h.x, -h.y, -h.z), P(h.x, h.y, -h.z), P(h.x, h.y, h.z), P(h.x, -h.y, h.z), r);
-            Quad(m, P(-h.x, -h.y, h.z), P(-h.x, h.y, h.z), P(-h.x, h.y, -h.z), P(-h.x, -h.y, -h.z), -r);
-            Quad(m, P(-h.x, h.y, -h.z), P(-h.x, h.y, h.z), P(h.x, h.y, h.z), P(h.x, h.y, -h.z), Vector3.up);
-            Quad(m, P(-h.x, -h.y, h.z), P(-h.x, -h.y, -h.z), P(h.x, -h.y, -h.z), P(h.x, -h.y, h.z), Vector3.down);
-            Quad(m, P(h.x, -h.y, h.z), P(h.x, h.y, h.z), P(-h.x, h.y, h.z), P(-h.x, -h.y, h.z), f);
-            Quad(m, P(-h.x, -h.y, -h.z), P(-h.x, h.y, -h.z), P(h.x, h.y, -h.z), P(h.x, -h.y, -h.z), -f);
+            int start = _v.Count;
+            Box(m, center - size * 0.5f, center + size * 0.5f, 0b111111);
+            for (int i = start; i < _v.Count; i++)
+            {
+                _v[i] = center + q * (_v[i] - center);
+                _n[i] = q * _n[i];
+            }
         }
 
         /// <summary>Upright cylinder (prism) from y0 to y1.</summary>
@@ -75,6 +105,8 @@ namespace DeadZone.Game
         {
             var t = Sub(m);
             float y0 = baseCenter.y, y1 = baseCenter.y + height;
+            // u runs around the side and v up it at the same scale as on boxes; the cap is projected from above
+            float around = Around(2f * Mathf.PI * radius), v0 = y0 * UvScale, v1 = y1 * UvScale;
             for (int s = 0; s < segments; s++)
             {
                 float a0 = s * Mathf.PI * 2 / segments, a1 = (s + 1) * Mathf.PI * 2 / segments;
@@ -83,7 +115,12 @@ namespace DeadZone.Game
                 int i = _v.Count;
                 _v.Add(new Vector3(p0.x, y0, p0.z)); _v.Add(new Vector3(p0.x, y1, p0.z)); _v.Add(new Vector3(p1.x, y1, p1.z)); _v.Add(new Vector3(p1.x, y0, p1.z));
                 _n.Add(d0); _n.Add(d0); _n.Add(d1); _n.Add(d1);
-                _uv.Add(new Vector2(0, 0)); _uv.Add(new Vector2(0, 1)); _uv.Add(new Vector2(1, 1)); _uv.Add(new Vector2(1, 0));
+                if (unitUv) AddUnitQuadUvs();
+                else
+                {
+                    float u0 = around * s / segments, u1 = around * (s + 1) / segments;
+                    _uv.Add(new Vector2(u0, v0)); _uv.Add(new Vector2(u0, v1)); _uv.Add(new Vector2(u1, v1)); _uv.Add(new Vector2(u1, v0));
+                }
                 t.Add(i); t.Add(i + 1); t.Add(i + 2);
                 t.Add(i); t.Add(i + 2); t.Add(i + 3);
                 if (caps)
@@ -91,7 +128,7 @@ namespace DeadZone.Game
                     int c = _v.Count;
                     _v.Add(new Vector3(baseCenter.x, y1, baseCenter.z)); _v.Add(new Vector3(p0.x, y1, p0.z)); _v.Add(new Vector3(p1.x, y1, p1.z));
                     _n.Add(Vector3.up); _n.Add(Vector3.up); _n.Add(Vector3.up);
-                    _uv.Add(Vector2.zero); _uv.Add(Vector2.zero); _uv.Add(Vector2.zero);
+                    for (int k = c; k < c + 3; k++) _uv.Add(unitUv ? Vector2.zero : PlanarUv(_v[k], Vector3.up));
                     t.Add(c); t.Add(c + 2); t.Add(c + 1);
                 }
             }
@@ -105,6 +142,8 @@ namespace DeadZone.Game
             // basis (u, axis, w) oriented like (x, y, z) of the upright Cylinder so the same winding faces outwards
             Vector3 u = Vector3.up, w = alongX ? Vector3.back : Vector3.right;
             Vector3 a = center - axis * length * 0.5f, b = center + axis * length * 0.5f;
+            // u runs around the side, v along the axis; the caps are projected along the axis
+            float around = Around(2f * Mathf.PI * radius), va = Vector3.Dot(a, axis) * UvScale, vb = Vector3.Dot(b, axis) * UvScale;
             for (int s = 0; s < segments; s++)
             {
                 float a0 = s * Mathf.PI * 2 / segments, a1 = (s + 1) * Mathf.PI * 2 / segments;
@@ -112,7 +151,12 @@ namespace DeadZone.Game
                 int i = _v.Count;
                 _v.Add(a + d0 * radius); _v.Add(b + d0 * radius); _v.Add(b + d1 * radius); _v.Add(a + d1 * radius);
                 _n.Add(d0); _n.Add(d0); _n.Add(d1); _n.Add(d1);
-                _uv.Add(new Vector2(0, 0)); _uv.Add(new Vector2(0, 1)); _uv.Add(new Vector2(1, 1)); _uv.Add(new Vector2(1, 0));
+                if (unitUv) AddUnitQuadUvs();
+                else
+                {
+                    float u0 = around * s / segments, u1 = around * (s + 1) / segments;
+                    _uv.Add(new Vector2(u0, va)); _uv.Add(new Vector2(u0, vb)); _uv.Add(new Vector2(u1, vb)); _uv.Add(new Vector2(u1, va));
+                }
                 t.Add(i); t.Add(i + 1); t.Add(i + 2);
                 t.Add(i); t.Add(i + 2); t.Add(i + 3);
                 int c = _v.Count;
@@ -120,12 +164,13 @@ namespace DeadZone.Game
                 _n.Add(axis); _n.Add(axis); _n.Add(axis);
                 _v.Add(a); _v.Add(a + d0 * radius); _v.Add(a + d1 * radius);
                 _n.Add(-axis); _n.Add(-axis); _n.Add(-axis);
-                for (int k = 0; k < 6; k++) _uv.Add(Vector2.zero);
+                for (int k = c; k < c + 6; k++) _uv.Add(unitUv ? Vector2.zero : PlanarUv(_v[k], axis));
                 t.Add(c); t.Add(c + 2); t.Add(c + 1);
                 t.Add(c + 3); t.Add(c + 4); t.Add(c + 5);
             }
         }
 
+        /// <summary>Ellipsoid; its UVs wrap the whole surface once (longitude, latitude).</summary>
         public void Sphere(Material m, Vector3 center, Vector3 radii, int lon = 10, int lat = 7)
         {
             var t = Sub(m);

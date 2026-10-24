@@ -3,6 +3,7 @@ using DeadZone.Core;
 using DeadZone.Core.Data;
 using UnityEngine;
 using UnityEngine.Rendering;
+using Tex = DeadZone.Game.ProceduralTextures;
 
 namespace DeadZone.Game
 {
@@ -18,6 +19,7 @@ namespace DeadZone.Game
         private readonly Dictionary<int, Material> _floorMats = new Dictionary<int, Material>();
         private Material _lineMat, _sidewalkMat, _gravelMat, _rubbleMat, _debrisMat, _toxicMat, _waterMat, _voidMat, _indoorMat, _fenceMat, _glassMat, _frameMat;
         private readonly Dictionary<string, Material> _wallMats = new Dictionary<string, Material>();
+        private readonly Dictionary<Tex.Kind, Material> _indoorMats = new Dictionary<Tex.Kind, Material>();
         private readonly List<(Building b, Renderer r)> _roofs = new List<(Building, Renderer)>();
         private readonly Dictionary<int, DoorView> _doors = new Dictionary<int, DoorView>();
         private readonly Dictionary<string, ContainerView> _containers = new Dictionary<string, ContainerView>();
@@ -90,34 +92,67 @@ namespace DeadZone.Game
             Color road = Mats.Shade(Mats.Hex(pal.road, new Color(0.18f, 0.18f, 0.2f)), 1.3f);
             Color grass = Mats.Shade(Mats.Hex(pal.grass, new Color(0.18f, 0.28f, 0.16f)), 1.35f);
             Color floor = Mats.Shade(Mats.Hex(pal.floor, new Color(0.3f, 0.28f, 0.26f)), 1.4f);
-            _floorMats[T.GROUND] = Mats.Lit(ground, 0.05f);
-            _floorMats[T.ROAD] = Mats.Lit(road, 0.25f);
-            _floorMats[T.GRASS] = Mats.Lit(grass, 0.02f);
-            _sidewalkMat = Mats.Lit(Color.Lerp(road, new Color(0.62f, 0.62f, 0.6f), 0.45f), 0.1f);
-            _gravelMat = Mats.Lit(Color.Lerp(ground, new Color(0.45f, 0.42f, 0.37f), 0.55f), 0.03f);
-            _rubbleMat = Mats.Lit(Mats.Shade(Color.Lerp(ground, new Color(0.35f, 0.28f, 0.22f), 0.5f), 0.85f), 0.02f);
-            _debrisMat = Mats.Lit(new Color(0.42f, 0.4f, 0.37f), 0.05f);
-            _indoorMat = Mats.Lit(floor, 0.3f);
-            _lineMat = Mats.Lit(Mats.Hex(pal.roadLine, new Color(0.8f, 0.75f, 0.4f)), 0.2f);
+            _floorMats[T.GROUND] = Mats.Lit(ground, 0.05f, 0f, Tex.Dirt);
+            _floorMats[T.ROAD] = Mats.Lit(road, 0.25f, 0f, Tex.Asphalt);
+            _floorMats[T.GRASS] = Mats.Lit(grass, 0.02f, 0f, Tex.Grass);
+            _sidewalkMat = Mats.Lit(Color.Lerp(road, new Color(0.62f, 0.62f, 0.6f), 0.45f), 0.1f, 0f, Tex.Concrete);
+            _gravelMat = Mats.Lit(Color.Lerp(ground, new Color(0.45f, 0.42f, 0.37f), 0.55f), 0.03f, 0f, Tex.Gravel);
+            _rubbleMat = Mats.Lit(Mats.Shade(Color.Lerp(ground, new Color(0.35f, 0.28f, 0.22f), 0.5f), 0.85f), 0.02f, 0f, Tex.Gravel);
+            _debrisMat = Mats.Lit(new Color(0.42f, 0.4f, 0.37f), 0.05f, 0f, Tex.Concrete);
+            // indoor floors by building type: boards, tiles or bare concrete (see IndoorMat)
+            _indoorMats[Tex.Kind.Wood] = Mats.Lit(Color.Lerp(floor, new Color(0.5f, 0.36f, 0.24f), 0.35f), 0.25f, 0f, Tex.Wood);
+            _indoorMats[Tex.Kind.Tiles] = Mats.Lit(Color.Lerp(floor, new Color(0.62f, 0.62f, 0.6f), 0.3f), 0.4f, 0f, Tex.Tiles);
+            _indoorMats[Tex.Kind.Concrete] = _indoorMat = Mats.Lit(floor, 0.2f, 0f, Tex.Concrete);
+            _lineMat = Mats.Lit(Mats.Hex(pal.roadLine, new Color(0.8f, 0.75f, 0.4f)), 0.2f, 0f, Tex.Asphalt); // worn paint
             _toxicMat = Mats.Emissive(new Color(0.25f, 0.9f, 0.2f), new Color(0.3f, 1f, 0.15f), 1.6f);
             _waterMat = Mats.Lit(Mats.Shade(Mats.Hex(pal.water, new Color(0.08f, 0.16f, 0.22f)), 1.2f), 0.75f);
             _voidMat = Mats.Lit(new Color(0.02f, 0.02f, 0.025f), 0f);
-            _fenceMat = Mats.Lit(new Color(0.45f, 0.47f, 0.5f), 0.5f, 0.6f);
+            _fenceMat = Mats.Lit(new Color(0.45f, 0.47f, 0.5f), 0.5f, 0.6f, Tex.Metal);
             _glassMat = Mats.Lit(new Color(0.12f, 0.17f, 0.22f), 0.95f);
-            _frameMat = Mats.Lit(new Color(0.25f, 0.22f, 0.2f), 0.2f);
+            _frameMat = Mats.Lit(new Color(0.25f, 0.22f, 0.2f), 0.2f, 0f, Tex.Wood);
         }
 
-        private Material WallMat(string hex)
+        private Material WallMat(string hex, Tex.Kind surface = Tex.Kind.Plaster)
         {
             hex = hex ?? world.map?.palette?.wallA ?? "#6b6259";
-            if (!_wallMats.TryGetValue(hex, out var m)) _wallMats[hex] = m = Mats.Lit(Mats.Shade(Mats.Hex(hex, new Color(0.42f, 0.38f, 0.35f)), 1.3f), 0.08f);
+            string key = hex + surface;
+            if (!_wallMats.TryGetValue(key, out var m)) _wallMats[key] = m = Mats.Lit(Mats.Shade(Mats.Hex(hex, new Color(0.42f, 0.38f, 0.35f)), 1.3f), 0.08f, 0f, Tex.Get(surface));
             return m;
         }
 
         private Material WallMatAt(int tx, int ty)
         {
             int bi = world.BuildingIndexAtTile(tx, ty);
-            return WallMat(bi >= 0 ? world.buildings[bi].wallColor : null);
+            var b = bi >= 0 ? world.buildings[bi] : null;
+            return WallMat(b?.wallColor, WallSurface(b));
+        }
+
+        /// <summary>Wall surface by building type; homes and shops are brick in the first palette wall colour and plaster in the second.</summary>
+        private Tex.Kind WallSurface(Building b)
+        {
+            switch (b?.type)
+            {
+                case null: case "bunker": case "armory": case "checkpoint": return Tex.Kind.Concrete; // also free-standing walls
+                case "office": case "hq": case "lab": case "server": case "security": case "medical": case "pharmacy": case "supermarket": return Tex.Kind.Plaster;
+                case "house": case "apartment": case "shop": return b.wallColor == (world.map?.palette?.wallB ?? "#5a5550") ? Tex.Kind.Plaster : Tex.Kind.Brick;
+                default: return Tex.Kind.Brick; // garage, warehouse, factory, workshop, storage, barracks
+            }
+        }
+
+        /// <summary>Indoor floor: boards in homes and offices (some homes tiled), tiles in shops and labs, bare concrete in halls.</summary>
+        private Material IndoorMat(int tx, int ty)
+        {
+            int bi = world.BuildingIndexAtTile(tx, ty);
+            var b = bi >= 0 ? world.buildings[bi] : null;
+            Tex.Kind kind;
+            switch (b?.type)
+            {
+                case "house": case "apartment": kind = (b.tx * 7 + b.ty * 13) % 3 == 0 ? Tex.Kind.Tiles : Tex.Kind.Wood; break;
+                case "office": case "hq": case "barracks": kind = Tex.Kind.Wood; break;
+                case "shop": case "supermarket": case "pharmacy": case "medical": case "lab": case "server": case "security": kind = Tex.Kind.Tiles; break;
+                default: kind = Tex.Kind.Concrete; break;
+            }
+            return _indoorMats.TryGetValue(kind, out var m) ? m : _indoorMat;
         }
 
         private int BaseUnder(int tx, int ty)
@@ -142,7 +177,7 @@ namespace DeadZone.Game
                 case T.SIDEWALK: return _sidewalkMat;
                 case T.GRAVEL: return _gravelMat;
                 case T.RUBBLE: return _rubbleMat;
-                case T.FLOOR: return _indoorMat;
+                case T.FLOOR: return IndoorMat(tx, ty);
                 case T.TOXIC: return _toxicMat;
                 case T.WATER: return _waterMat;
                 case T.VOID: return _floorMats[T.GROUND];
@@ -270,8 +305,8 @@ namespace DeadZone.Game
             foreach (var b in world.buildings)
             {
                 var mb = new MeshBuilder();
-                var roofMat = Mats.Lit(Mats.Shade(Mats.Hex(b.roofColor, new Color(0.3f, 0.25f, 0.22f)), 1.25f), 0.15f);
-                var trim = Mats.Lit(Mats.Shade(Mats.Hex(b.roofColor, new Color(0.3f, 0.25f, 0.22f)), 0.8f), 0.1f);
+                var roofMat = Mats.Lit(Mats.Shade(Mats.Hex(b.roofColor, new Color(0.3f, 0.25f, 0.22f)), 1.25f), 0.15f, 0f, Tex.Asphalt); // tar roof
+                var trim = Mats.Lit(Mats.Shade(Mats.Hex(b.roofColor, new Color(0.3f, 0.25f, 0.22f)), 0.8f), 0.1f, 0f, Tex.Concrete);
                 float x0 = b.tx * Tl, x1 = (b.tx + b.w) * Tl, z1 = -b.ty * Tl, z0 = -(b.ty + b.h) * Tl;
                 mb.Box(roofMat, new Vector3(x0 - 0.1f, H, z0 - 0.1f), new Vector3(x1 + 0.1f, H + 0.25f, z1 + 0.1f));
                 // parapet and a few roof details so buildings read well from above
@@ -281,7 +316,7 @@ namespace DeadZone.Game
                 mb.Box(trim, new Vector3(x1 - 0.15f, H + 0.25f, z0 - 0.1f), new Vector3(x1 + 0.1f, H + 0.55f, z1 + 0.1f));
                 if (b.w * b.h > 40)
                 {
-                    var unit = Mats.Lit(new Color(0.55f, 0.56f, 0.58f), 0.4f, 0.3f);
+                    var unit = Mats.Lit(new Color(0.55f, 0.56f, 0.58f), 0.4f, 0.3f, Tex.Metal);
                     float ux = x0 + (x1 - x0) * 0.3f, uz = z0 + (z1 - z0) * 0.6f;
                     mb.BoxCenter(unit, new Vector3(ux, H + 0.6f, uz), new Vector3(1.4f, 0.7f, 1.0f));
                 }
@@ -296,7 +331,7 @@ namespace DeadZone.Game
         private Material _ceilingMat;
         private Material CeilingMat(Building b)
         {
-            if (_ceilingMat == null) _ceilingMat = Mats.Lit(new Color(0.5f, 0.48f, 0.45f), 0.05f);
+            if (_ceilingMat == null) _ceilingMat = Mats.Lit(new Color(0.5f, 0.48f, 0.45f), 0.05f, 0f, Tex.Plaster);
             return _ceilingMat;
         }
 
@@ -330,10 +365,12 @@ namespace DeadZone.Game
         }
 
         // ------------------------------------------------------------------ doors
+        private static Material DoorWood => Mats.Lit(new Color(0.42f, 0.3f, 0.2f), 0.2f, 0f, Tex.Wood);
+
         private void BuildDoors()
         {
-            var wood = Mats.Lit(new Color(0.42f, 0.3f, 0.2f), 0.2f);
-            var metal = Mats.Lit(new Color(0.55f, 0.15f, 0.12f), 0.4f, 0.5f);
+            var wood = DoorWood;
+            var metal = Mats.Lit(new Color(0.55f, 0.15f, 0.12f), 0.4f, 0.5f, Tex.Metal);
             for (int ty = 0; ty < world.h; ty++)
                 for (int tx = 0; tx < world.w; tx++)
                 {
@@ -369,7 +406,7 @@ namespace DeadZone.Game
                     if (d.locked && t != T.DOOR_LOCKED)
                     {
                         d.locked = false;
-                        d.leaf.sharedMaterials = new[] { Mats.Lit(new Color(0.42f, 0.3f, 0.2f), 0.2f), d.leaf.sharedMaterials[d.leaf.sharedMaterials.Length - 1] };
+                        d.leaf.sharedMaterials = new[] { DoorWood, d.leaf.sharedMaterials[d.leaf.sharedMaterials.Length - 1] };
                     }
                 }
             }

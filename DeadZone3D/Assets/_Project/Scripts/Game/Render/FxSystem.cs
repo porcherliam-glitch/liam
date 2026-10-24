@@ -26,8 +26,9 @@ namespace DeadZone.Game
         {
             _root = new GameObject("Fx").transform;
             _root.SetParent(parent, false);
-            var mb = new MeshBuilder(); mb.BoxCenter(null, Vector3.zero, Vector3.one); _cube = mb.Build("fxCube");
-            mb = new MeshBuilder(); mb.Floor(null, -0.5f, -0.5f, 0.5f, 0.5f, 0); _quad = mb.Build("fxQuad");
+            // particles and decals are unit meshes scaled per instance: they keep 0..1 UVs on every face
+            var mb = new MeshBuilder { unitUv = true }; mb.BoxCenter(null, Vector3.zero, Vector3.one); _cube = mb.Build("fxCube");
+            mb = new MeshBuilder { unitUv = true }; mb.Floor(null, -0.5f, -0.5f, 0.5f, 0.5f, 0); _quad = mb.Build("fxQuad");
             mb = new MeshBuilder(); mb.Sphere(null, Vector3.zero, Vector3.one * 0.5f, 10, 7); _sphere = mb.Build("fxSphere");
             blood = Mats.Lit(new Color(0.45f, 0.03f, 0.03f), 0.5f);
             spark = Mats.Emissive(new Color(1f, 0.85f, 0.4f), new Color(1f, 0.75f, 0.3f), 4f);

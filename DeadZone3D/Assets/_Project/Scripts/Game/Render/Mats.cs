@@ -58,13 +58,24 @@ namespace DeadZone.Game
             if (m.HasProperty("_Color")) m.SetColor("_Color", c);
         }
 
-        public static Material Lit(Color c, float smoothness = 0.15f, float metallic = 0f)
+        private static void SetTexture(Material m, Texture tex)
         {
-            string key = "L" + ColorUtility.ToHtmlStringRGBA(c) + smoothness.ToString("0.00", CultureInfo.InvariantCulture) + metallic.ToString("0.0", CultureInfo.InvariantCulture);
+            if (m.HasProperty("_BaseMap")) m.SetTexture("_BaseMap", tex);
+            if (m.HasProperty("_MainTex")) m.SetTexture("_MainTex", tex);
+        }
+
+        /// <param name="tex">
+        /// Optional detail texture from ProceduralTextures, multiplied with the colour. The colour is brightened by
+        /// 1/ProceduralTextures.Mean, so the surface keeps its average brightness and only gains detail.
+        /// </param>
+        public static Material Lit(Color c, float smoothness = 0.15f, float metallic = 0f, Texture2D tex = null)
+        {
+            string key = "L" + ColorUtility.ToHtmlStringRGBA(c) + smoothness.ToString("0.00", CultureInfo.InvariantCulture) + metallic.ToString("0.0", CultureInfo.InvariantCulture) + (tex != null ? tex.name : "");
             if (Cache.TryGetValue(key, out var m) && m != null) return m;
             Init();
             m = new Material(_lit) { name = key };
-            SetColor(m, c);
+            SetColor(m, tex != null ? Shade(c, 1f / ProceduralTextures.Mean) : c);
+            if (tex != null) SetTexture(m, tex);
             if (m.HasProperty("_Smoothness")) m.SetFloat("_Smoothness", smoothness);
             if (m.HasProperty("_Glossiness")) m.SetFloat("_Glossiness", smoothness);
             if (m.HasProperty("_Metallic")) m.SetFloat("_Metallic", metallic);

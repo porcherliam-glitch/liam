@@ -86,8 +86,8 @@ namespace DeadZone.Game
             root = new GameObject(name);
             root.transform.SetParent(parent, false);
             var skinM = Mats.Lit(skin, 0.25f);
-            var clothM = Mats.Lit(cloth, 0.1f);
-            var pantsM = Mats.Lit(pants, 0.1f);
+            var clothM = Mats.Lit(cloth, 0.1f, 0f, ProceduralTextures.Fabric);
+            var pantsM = Mats.Lit(pants, 0.1f, 0f, ProceduralTextures.Fabric);
             _body = Pivot(root.transform, "Body", Vector3.zero);
             _legL = Pivot(_body, "LegL", new Vector3(-0.14f, 0.92f, 0));
             _legR = Pivot(_body, "LegR", new Vector3(0.14f, 0.92f, 0));
@@ -105,8 +105,8 @@ namespace DeadZone.Game
             if (!zombie)
             {
                 Part(_head, "Helmet", SphereMesh(), Mats.Lit(new Color(0.22f, 0.26f, 0.18f), 0.3f), new Vector3(0, 0.15f, -0.01f), new Vector3(0.3f, 0.22f, 0.31f));
-                Part(_torso, "Pack", BoxMesh(), Mats.Lit(new Color(0.3f, 0.28f, 0.2f), 0.1f), new Vector3(0, 0.38f, -0.2f), new Vector3(0.36f, 0.42f, 0.18f));
-                Part(_torso, "Vest", BoxMesh(), Mats.Lit(new Color(0.2f, 0.23f, 0.17f), 0.15f), new Vector3(0, 0.36f, 0.04f), new Vector3(0.44f, 0.34f, 0.24f));
+                Part(_torso, "Pack", BoxMesh(), Mats.Lit(new Color(0.3f, 0.28f, 0.2f), 0.1f, 0f, ProceduralTextures.Fabric), new Vector3(0, 0.38f, -0.2f), new Vector3(0.36f, 0.42f, 0.18f));
+                Part(_torso, "Vest", BoxMesh(), Mats.Lit(new Color(0.2f, 0.23f, 0.17f), 0.15f, 0f, ProceduralTextures.Fabric), new Vector3(0, 0.36f, 0.04f), new Vector3(0.44f, 0.34f, 0.24f));
             }
             _armL = Pivot(_torso, "ArmL", new Vector3(-0.29f, 0.58f, 0));
             _armR = Pivot(_torso, "ArmR", new Vector3(0.29f, 0.58f, 0));
