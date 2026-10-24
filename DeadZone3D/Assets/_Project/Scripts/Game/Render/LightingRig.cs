@@ -80,7 +80,10 @@ namespace DeadZone.Game
             sun.color = sunCol;
             sun.intensity = Mathf.Lerp(0.13f, 1.25f, day * day);
             float sunAngle = Mathf.Lerp(18f, 55f, day);
-            sun.transform.rotation = Quaternion.Euler(sunAngle, -35f + (hour - 12f) * 6f, 0);
+            // hours before 16:00 count as the next day, so the light (and the moon opposite it) never jumps at midnight;
+            // no raid shows 15:00-17:00, where the cut lies
+            float h = hour < 16f ? hour + 24f : hour;
+            sun.transform.rotation = Quaternion.Euler(sunAngle, -35f + (h - 12f) * 6f, 0);
             Color amb = Color.Lerp(new Color(0.08f, 0.095f, 0.14f), new Color(0.42f, 0.45f, 0.5f), day);
             RenderSettings.ambientLight = amb;
             RenderSettings.reflectionIntensity = Mathf.Lerp(0.05f, 1f, day);

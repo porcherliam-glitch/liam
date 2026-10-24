@@ -217,7 +217,8 @@ namespace DeadZone.Game
         /// <summary>Quad from -1 to 1 in the XY plane, front face towards -z.</summary>
         private static Mesh QuadMesh()
         {
-            var mb = new MeshBuilder();
+            // the disc textures need one full 0..1 square, not the 2 m world-space mapping
+            var mb = new MeshBuilder { unitUv = true };
             mb.Quad(null, new Vector3(-1, -1, 0), new Vector3(-1, 1, 0), new Vector3(1, 1, 0), new Vector3(1, -1, 0), Vector3.back);
             return mb.Build("SkyQuad");
         }

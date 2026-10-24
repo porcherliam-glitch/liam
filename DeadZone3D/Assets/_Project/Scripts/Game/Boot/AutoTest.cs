@@ -87,6 +87,8 @@ namespace DeadZone.Game
             // hooked before the scene wakes up, so errors from GameRoot.Awake are counted too
             Application.logMessageReceivedThreaded -= OnLog;
             Application.logMessageReceivedThreaded += OnLog;
+            // builds are set to pause without focus; the test (and its watchdog) must keep running
+            Application.runInBackground = true;
             var go = new GameObject("DeadZone AutoTest");
             DontDestroyOnLoad(go);
             go.AddComponent<AutoTest>();
@@ -100,12 +102,19 @@ namespace DeadZone.Game
         }
 
         /// <summary>Logs/DeadZoneTest in the project folder (in a build: the game folder).</summary>
-        public static string OutputFolder() => Arg("-dzTestOut") ?? Path.Combine(Path.GetDirectoryName(Application.dataPath) ?? ".", "Logs", "DeadZoneTest");
+        public static string OutputFolder()
+        {
+            string root = Path.GetDirectoryName(Application.dataPath);
+            // macOS: dataPath is <folder>/DeadZone.app/Contents - write next to the app, not into it
+            if (Application.platform == RuntimePlatform.OSXPlayer) root = Path.GetDirectoryName(root);
+            return Arg("-dzTestOut") ?? Path.Combine(root ?? ".", "Logs", "DeadZoneTest");
+        }
 
         private void Awake()
         {
             _t0 = _stepStart = Time.realtimeSinceStartup;
             _dir = OutputFolder();
+            if (SystemInfo.graphicsDeviceType == UnityEngine.Rendering.GraphicsDeviceType.Null) Fail("ohne Grafik gestartet (-nographics) – es entstehen keine Bilder");
             try
             {
                 Directory.CreateDirectory(_dir);
@@ -180,7 +189,7 @@ namespace DeadZone.Game
                 var p = _game.Raid.player;
                 int n = p.stats.shotsFired - _shotsBefore;
                 Note("Schüsse abgegeben: " + n + ", Magazin jetzt: " + (p.WeaponInst?.mag?.ToString() ?? "-"));
-                if (n == 0) Issue("Es wurde kein Schuss abgegeben (Waffe " + (p.WeaponInst?.id ?? "keine") + ")");
+                if (n == 0) Fail("Es wurde kein Schuss abgegeben (Waffe " + (p.WeaponInst?.id ?? "keine") + ")");
             });
             Do("Nachladen", () => { if (InRaid()) _game.input.Push("reload"); });
             Wait(0.4f);
@@ -209,7 +218,7 @@ namespace DeadZone.Game
             {
                 if (!InRaid()) return;
                 _game.input.pitch = 0f;
-                if (_grenadeThrown && _game.Raid.grenades.Count == 0) Issue("Die Granate wurde nicht geworfen");
+                if (_grenadeThrown && _game.Raid.grenades.Count == 0) Fail("Die Granate wurde nicht geworfen");
             });
             WaitFor("Explosion", () => !InRaid() || _game.Raid.grenades.Count == 0, 5f);
             Shot("10_granate_explosion");
@@ -227,7 +236,7 @@ namespace DeadZone.Game
                 _zombiesEnd = _game.Raid.zombies.AliveCount();
                 p.god = false;
                 p.TakeDamage(9999, "Test");
-                if (!p.dead) Issue("Der Spieler ist trotz 9999 Schaden nicht gestorben");
+                if (!p.dead) Fail("Der Spieler ist trotz 9999 Schaden nicht gestorben");
             });
             Wait(0.9f);
             Shot("13_tod");
@@ -236,13 +245,13 @@ namespace DeadZone.Game
             Shot("14_ergebnis");
             Do("zurück zur Basis", () =>
             {
-                if (_game.state != "result") { Issue("Nach dem Tod kam kein Ergebnis-Bildschirm (Zustand „" + _game.state + "“)"); return; }
+                if (_game.state != "result") { Fail("Nach dem Tod kam kein Ergebnis-Bildschirm (Zustand „" + _game.state + "“)"); return; }
                 Note("Ergebnis: " + _game.lastResult?.outcome + ", Ursache: " + _game.lastResult?.causeOfDeath);
                 _game.LeaveResult();
             });
             Wait(1.5f);
             Shot("15_basis_zurueck");
-            Do("Zustand prüfen", () => { if (_game.state != "base") Issue("Am Ende nicht in der Basis (Zustand „" + _game.state + "“)"); });
+            Do("Zustand prüfen", () => { if (_game.state != "base") Fail("Am Ende nicht in der Basis (Zustand „" + _game.state + "“)"); });
         }
 
         private void NewTestGame()
@@ -255,7 +264,7 @@ namespace DeadZone.Game
             _game.NewGame();
             var eq = _game.core.Profile.equipment;
             if (eq.grenade == null && eq.Equip(Items.Create("grenade_frag", 2), "grenade").ok) Note("Testausrüstung: 2 Splittergranaten dazu");
-            if (_game.state != "base") Issue("Nach „Neues Spiel“ nicht in der Basis (Zustand „" + _game.state + "“)");
+            if (_game.state != "base") Fail("Nach „Neues Spiel“ nicht in der Basis (Zustand „" + _game.state + "“)");
         }
 
         private void StartTestRaid()
@@ -299,7 +308,7 @@ namespace DeadZone.Game
         {
             if (condition()) return true;
             if (Elapsed < timeout) return false;
-            Issue("Zeitüberschreitung beim Warten auf: " + what);
+            Fail("Zeitüberschreitung beim Warten auf: " + what);
             return true;
         });
 
@@ -375,7 +384,7 @@ namespace DeadZone.Game
                 Note($"Bild {file}: Helligkeit {bright:0}/255, Kontrast {spread:0}, Magenta {magenta:0.0} %, Türkis {cyan:0.0} % | {Snapshot()}");
                 if (bright < 6f) Issue(file + ": fast schwarz (Helligkeit " + bright.ToString("0") + ")");
                 else if (spread < 3f) Issue(file + ": fast einfarbig – zeigt die Kamera nur den Hintergrund?");
-                if (magenta > 2f) Issue(file + ": " + magenta.ToString("0") + " % Magenta – vermutlich fehlt ein Shader oder Material");
+                if (magenta > 2f) Fail(file + ": " + magenta.ToString("0") + " % Magenta – vermutlich fehlt ein Shader oder Material");
                 if (cyan > 5f) Issue(file + ": " + cyan.ToString("0") + " % Türkis – Unity hat beim Aufnehmen noch Shader übersetzt (Test einfach noch einmal starten)");
             }
             finally

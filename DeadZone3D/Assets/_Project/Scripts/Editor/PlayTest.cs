@@ -67,6 +67,7 @@ namespace DeadZone.EditorTools
             AutoTest.Requested = true;
             Hook();
             Debug.Log(AutoTest.LogTag + " Automatischer Test startet. Bilder und Bericht: " + AutoTest.OutputFolder());
+            EditorApplication.isPaused = false;
             EditorApplication.isPlaying = true;
         }
 
@@ -102,6 +103,8 @@ namespace DeadZone.EditorTools
             if (EditorApplication.isPlaying)
             {
                 if (stopping) return;
+                // "Error Pause" in the console would freeze the test until the time limit
+                if (EditorApplication.isPaused) EditorApplication.isPaused = false;
                 if (AutoTest.Finished) Stop(AutoTest.Problems);
                 else if (Elapsed > TimeoutSeconds)
                 {

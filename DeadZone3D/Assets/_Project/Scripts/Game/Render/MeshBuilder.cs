@@ -175,6 +175,8 @@ namespace DeadZone.Game
         {
             var t = Sub(m);
             int start = _v.Count;
+            // same texel density as boxes and cylinders (whole repeats around, so there is no seam); unitUv keeps 0..1
+            float su = unitUv ? 1f : Around(2f * Mathf.PI * Mathf.Max(radii.x, radii.z)), sv = unitUv ? 1f : Mathf.PI * radii.y * UvScale;
             for (int y = 0; y <= lat; y++)
             {
                 float v = (float)y / lat, phi = v * Mathf.PI;
@@ -184,7 +186,7 @@ namespace DeadZone.Game
                     var n = new Vector3(Mathf.Sin(phi) * Mathf.Cos(th), Mathf.Cos(phi), Mathf.Sin(phi) * Mathf.Sin(th));
                     _v.Add(center + Vector3.Scale(n, radii));
                     _n.Add(n);
-                    _uv.Add(new Vector2(u, v));
+                    _uv.Add(new Vector2(u * su, v * sv));
                 }
             }
             for (int y = 0; y < lat; y++)

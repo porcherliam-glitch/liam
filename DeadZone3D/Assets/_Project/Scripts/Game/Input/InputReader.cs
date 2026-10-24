@@ -254,6 +254,7 @@ namespace DeadZone.Game
         {
             if (blocked) return double.NaN;
             if (firstPerson) return yaw;
+            if (scripted) return double.NaN; // the automatic test never aims with the real mouse
             if (_stick.sqrMagnitude > 0.12f) return System.Math.Atan2(-_stick.y, _stick.x);
             if (usingGamepad) return double.NaN;
             if (rig == null || !rig.ScreenToGround(mouse, 1.2f, out var hit)) return double.NaN;
