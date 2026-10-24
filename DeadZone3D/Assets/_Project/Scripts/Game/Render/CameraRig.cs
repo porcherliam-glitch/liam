@@ -16,6 +16,11 @@ namespace DeadZone.Game
         public const float TopDownFov = 42f;
         private bool _firstPerson;
         public bool FirstPersonMode => _firstPerson;
+        /// <summary>
+        /// First person: degrees the drawn view pitch differs from the look pitch (recoil kick and shake nod; positive = down).
+        /// The crosshair sits in the middle of the drawn view, so aimed shots add it.
+        /// </summary>
+        public float ViewPitchOffset { get; private set; }
 
         public CameraRig(Camera cam)
         {
@@ -48,6 +53,7 @@ namespace DeadZone.Game
             cam.farClipPlane = on ? 170f : 260f;
             cam.fieldOfView = on ? fov * zoom : TopDownFov;
             _kick = 0;
+            ViewPitchOffset = 0;
         }
 
         /// <summary>Recoil: the view jumps up a little and settles again.</summary>
@@ -68,7 +74,8 @@ namespace DeadZone.Game
                 sy = Mathf.Cos(_t * 31f) * _shake * 0.6f;
             }
             cam.transform.position = eye;
-            cam.transform.rotation = Quaternion.Euler(Mathf.Clamp(pitchDeg - _kick + sy, -89f, 89f), yawDeg, rollDeg + sr);
+            ViewPitchOffset = -_kick + sy;
+            cam.transform.rotation = Quaternion.Euler(Mathf.Clamp(pitchDeg + ViewPitchOffset, -89f, 89f), yawDeg, rollDeg + sr);
             float target = fov * zoom;
             cam.fieldOfView = Mathf.Lerp(cam.fieldOfView, target, 1f - Mathf.Exp(-14f * dt));
         }

@@ -7,7 +7,7 @@ using NUnit.Framework;
 
 namespace DeadZone.Tests
 {
-    /// <summary>First-person ballistics (shots follow the view pitch, head shots, floor hits) and solid zombies.</summary>
+    /// <summary>First-person ballistics (shots follow the view pitch, head shots, floor hits, window sills and lintels) and solid zombies.</summary>
     public class BallisticsTests
     {
         private const double DT = 1.0 / 60;
@@ -18,7 +18,8 @@ namespace DeadZone.Tests
         {
             public WeaponSystem weapons;
             public readonly List<(Fx kind, double x, double y, double height, string text)> effects = new List<(Fx, double, double, double, string)>();
-            public void Sfx(string name, double x = double.NaN, double y = double.NaN, double volume = 1, double pitch = 1) { }
+            public readonly List<(string name, double x, double y, double pitch)> sounds = new List<(string, double, double, double)>();
+            public void Sfx(string name, double x = double.NaN, double y = double.NaN, double volume = 1, double pitch = 1) => sounds.Add((name, x, y, pitch));
             public void Toast(string text, string kind = "info", double ms = 2500) { }
             public void Shake(double strength) { }
             public void Effect(Fx kind, double x, double y, double a = 0, double b = 0, string text = null, string color = null)
@@ -67,6 +68,23 @@ namespace DeadZone.Tests
             z.angle = Math.PI;
             z.state = "stunned"; z.stunTimer = 999;
             return z;
+        }
+
+        /// <summary>
+        /// Keeps a zombie in place without skipping its update (a stunned one returns early, before it gives way to the player):
+        /// "lurk" does nothing, lurking ignores footsteps and it never looks around.
+        /// </summary>
+        private static void StandStill(Zombie z)
+        {
+            Assert.IsFalse(z.type.lurk, "a lurker type would ambush the player");
+            z.state = "lurk"; z.lurking = true; z.senseTimer = 1e9;
+        }
+
+        /// <summary>Puts a tile into the lane, the given number of tiles east of the player's tile.</summary>
+        private static void PutAhead(Raid raid, int tiles, byte tile)
+        {
+            var p = raid.player;
+            raid.world.Put(M.Floor(p.x / World.TILE) + tiles, M.Floor(p.y / World.TILE), tile);
         }
 
         /// <summary>One shot due east at the given view pitch (radians, positive = down; NaN = flat), then the raid runs until the bullet is gone.</summary>
@@ -294,14 +312,17 @@ namespace DeadZone.Tests
                         if (!open || !T.BlocksMove(w.Tile(tx, ty - 1)) || !T.BlocksMove(w.Tile(tx, ty + 1))) continue;
                         double y = (ty + 0.5) * World.TILE;
                         var z = raid.zombies.Spawn("walker", tx * World.TILE - 13.5, y);
-                        z.state = "stunned"; z.stunTimer = 999;
+                        // solid: the zombie stays awake, so its give-way code runs (it can only give the half pixel left to the wall).
+                        // By default it is stunned: an awake one would be shoved out from under the player who walks through it
+                        if (blocked) StandStill(z); else { z.state = "stunned"; z.stunTimer = 999; }
                         var p = raid.player;
                         p.x = z.x - 70; p.y = y; p.angle = 0;
                         p.blockedByZombies = blocked;
                         var input = (ScriptedInput)raid.input;
                         input.move = new Vec2(1, 0);
                         for (int s = 0; s < 120; s++) raid.Update(DT);
-                        Assert.AreEqual(tx * World.TILE - 13.5, z.x, 1e-9, "only the player is moved");
+                        // the zombie gives way only into the half pixel left to the wall
+                        Assert.AreEqual(tx * World.TILE - 13.5, z.x, 0.5, "only the player is moved");
                         return M.Dist(p.x, p.y, z.x, z.y) - (p.radius + z.radius);
                     }
                 Assert.Inconclusive("no straight wall on this map");
@@ -309,6 +330,135 @@ namespace DeadZone.Tests
             }
             Assert.Less(Gap(false), -10, "by default the player walks into the zombie");
             Assert.GreaterOrEqual(Gap(true), -0.5, "solid: the player stops at the zombie");
+        }
+
+        [Test]
+        public void SolidZombiesGiveWayOnlyPartly()
+        {
+            // open ground: the player walks into a zombie that stands still; how far is it shoved?
+            double Shoved(string type, bool blocked)
+            {
+                var raid = QuietRaid(21u);
+                ShootingRange(raid);
+                var p = raid.player;
+                var z = raid.zombies.Spawn(type, p.x + 50, p.y);
+                StandStill(z);
+                double x0 = z.x;
+                p.blockedByZombies = blocked;
+                ((ScriptedInput)raid.input).move = new Vec2(1, 0);
+                for (int s = 0; s < 60; s++) raid.Update(DT);
+                Assert.AreEqual("lurk", z.state, "the zombie stays put on its own");
+                if (blocked) Assert.GreaterOrEqual(M.Dist(p.x, p.y, z.x, z.y) - (p.radius + z.radius), -0.5, "solid: no overlap");
+                return z.x - x0;
+            }
+            double free = Shoved("walker", false), walker = Shoved("walker", true), brute = Shoved("brute", true);
+            Assert.Greater(free, 60, "by default the player shoves the zombie along at walking speed");
+            Assert.Greater(brute, 0, "even a brute gives way a little");
+            Assert.Less(walker, free * 0.7, "solid: a walker gives way only partly");
+            Assert.Less(brute, walker * 0.6, "a brute hardly gives way");
+        }
+
+        [Test]
+        public void ShotgunHeadShotCountsOncePerPull()
+        {
+            var raid = QuietRaid(21u);
+            var log = ShootingRange(raid);
+            var p = raid.player;
+            var z = Target(raid, "walker", 3 * Player.PxPerMetre);
+            z.hp = z.hpMax = 10000; // every pellet lands, none is lost to a dead target
+            Shoot(raid, 0, "shotgun_pump");
+            double headFrom = ZombieAI.HeadShare * ZombieAI.HeightPx(z) / Player.PxPerMetre;
+            int headPellets = log.effects.Count(e => e.kind == Fx.Blood && e.height >= headFrom);
+            Assert.Greater(headPellets, 1, "several pellets in the head (otherwise this test proves nothing)");
+            Assert.AreEqual(1, p.stats.headShots, "one head shot per trigger pull");
+            Assert.AreEqual(1, log.effects.Count(e => e.kind == Fx.FloatingText && e.text != null && e.text.StartsWith("Kopftreffer!")));
+            Assert.AreEqual(1, p.stats.shotsFired);
+            Assert.AreEqual(1, p.stats.shotsHit, "one hit per trigger pull, not one per pellet");
+            // the head-shot sound plays at the player (centred, and it keeps its higher pitch)
+            var cue = log.sounds.Single(s => s.name == "melee_hit");
+            Assert.AreEqual(1.45, cue.pitch, 1e-9);
+            Assert.AreEqual(p.x, cue.x, 1e-6);
+            Assert.AreEqual(p.y, cue.y, 1e-6);
+        }
+
+        [Test]
+        public void WindowsAndDoorsStopAimedShotsAtTheirWalls()
+        {
+            // a window (or open door) 5 to 7 m ahead, a walker 10 m ahead behind it
+            (Zombie z, List<(Fx kind, double x, double y, double height, string text)> impacts, double px) Fire(byte tile, int ahead, Func<Player, double> pitch)
+            {
+                var raid = QuietRaid(21u);
+                var log = ShootingRange(raid);
+                PutAhead(raid, ahead, tile);
+                var z = Target(raid, "walker", M10);
+                Shoot(raid, pitch(raid.player));
+                return (z, log.effects.Where(e => e.kind == Fx.Impact).ToList(), raid.player.x);
+            }
+            const double Entry = 5 * Player.PxPerMetre, Exit = 7 * Player.PxPerMetre;
+
+            // through the opening: level aim and flat shots still hit
+            var level = Fire(T.WINDOW, 3, p => 0);
+            Assert.Less(level.z.hp, level.z.hpMax, "level aim passes the window");
+            Assert.AreEqual(0, level.impacts.Count);
+            var flat = Fire(T.WINDOW, 3, p => double.NaN);
+            Assert.Less(flat.z.hp, flat.z.hpMax, "flat shots pass windows as before");
+
+            // below the sill: the shot meets the wall where it enters the tile, nothing reaches the floor or the zombie behind it
+            var low = Fire(T.WINDOW, 3, p => PitchAt(p, 0, 8 * Player.PxPerMetre));
+            Assert.AreEqual(low.z.hpMax, low.z.hp);
+            Assert.AreEqual(1, low.impacts.Count);
+            Assert.AreEqual(low.px + Entry, low.impacts[0].x, 0.5, "on the wall face");
+            Assert.AreEqual(0.61, low.impacts[0].height, 0.06);
+
+            // aimed at the legs: it enters the opening, then drops onto the sill inside the tile
+            var legs = Fire(T.WINDOW, 3, p => PitchAt(p, 0.5, M10));
+            Assert.AreEqual(legs.z.hpMax, legs.z.hp, "the sill covers the legs");
+            Assert.AreEqual(1, legs.impacts.Count);
+            Assert.AreEqual(0.95, legs.impacts[0].height, 0.02, "on top of the sill");
+            Assert.That(legs.impacts[0].x - legs.px, Is.InRange(Entry, Exit));
+
+            // above the window: the wall over it
+            var high = Fire(T.WINDOW, 3, p => PitchAt(p, 2.4, Entry));
+            Assert.AreEqual(1, high.impacts.Count);
+            Assert.AreEqual(high.px + Entry, high.impacts[0].x, 0.5);
+            Assert.AreEqual(2.4, high.impacts[0].height, 0.06);
+
+            // standing right at the window (the muzzle is already over the sill): the shot is checked from the eye on
+            var close = Fire(T.WINDOW, 1, p => PitchAt(p, 0, 1.6 * Player.PxPerMetre));
+            Assert.AreEqual(1, close.impacts.Count);
+            Assert.AreEqual(close.px + World.TILE / 2, close.impacts[0].x, 0.5, "on the wall face, not inside it");
+
+            // an open door has no sill: a low shot reaches the floor behind it ...
+            var door = Fire(T.DOOR_OPEN, 3, p => PitchAt(p, 0, 8 * Player.PxPerMetre));
+            Assert.AreEqual(1, door.impacts.Count);
+            Assert.AreEqual(door.px + 8 * Player.PxPerMetre, door.impacts[0].x, 2, "on the floor behind the door");
+            Assert.Less(door.impacts[0].height, 0.1);
+            // ... but a rising shot meets its lintel inside the tile
+            var lintel = Fire(T.DOOR_OPEN, 3, p => PitchAt(p, 2.15, Entry));
+            Assert.AreEqual(1, lintel.impacts.Count);
+            Assert.AreEqual(2.25, lintel.impacts[0].height, 0.02, "under the lintel");
+            Assert.That(lintel.impacts[0].x - lintel.px, Is.InRange(Entry, Exit));
+        }
+
+        [Test]
+        public void ShotsAboveTheRoofsLeaveOverWalls()
+        {
+            // a wall 5 m ahead in the open
+            List<(Fx kind, double x, double y, double height, string text)> Impacts(double heightAtWall)
+            {
+                var raid = QuietRaid(21u);
+                var log = ShootingRange(raid);
+                PutAhead(raid, 3, T.WALL);
+                Shoot(raid, PitchAt(raid.player, heightAtWall, 5 * Player.PxPerMetre));
+                return log.effects.Where(e => e.kind == Fx.Impact).ToList();
+            }
+            Assert.AreEqual(0, Impacts(5).Count, "far above the wall: no puff on the top of the facade");
+            var parapet = Impacts(3.1);
+            Assert.AreEqual(1, parapet.Count, "the parapet over the wall still stops it");
+            Assert.Less(parapet[0].height, 2.8);
+            var face = Impacts(1.5);
+            Assert.AreEqual(1, face.Count);
+            Assert.AreEqual(1.5, face[0].height, 0.06);
         }
     }
 }

@@ -43,7 +43,7 @@ namespace DeadZone.Core
     {
         public double x, y, vx, vy, dirX, dirY, dmg, range, traveled, ttl, trail, prevX, prevY;
         public int pen;
-        public bool ownerIsPlayer, hitCounted;
+        public bool ownerIsPlayer;
         public string cls;
         public Player shooter;
         /// <summary>Trigger pull the projectile belongs to (shotgun pellets share it).</summary>

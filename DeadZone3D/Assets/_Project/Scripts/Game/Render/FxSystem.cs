@@ -396,9 +396,10 @@ namespace DeadZone.Game
             foreach (var p in _particles)
             {
                 if (!p.active) continue;
-                p.life -= dt;
                 if (p.life <= 0) { p.active = false; p.t.gameObject.SetActive(false); continue; }
+                // age after taking t: the spawn frame is drawn at t = 0, so short sparks show at full strength at any frame rate
                 float t = 1f - p.life / p.max;
+                p.life -= dt;
                 if (p.style == null) UpdateMeshParticle(p, dt, t);
                 else UpdateSprite(p, dt, t, camPos, camRot, ambient);
             }
