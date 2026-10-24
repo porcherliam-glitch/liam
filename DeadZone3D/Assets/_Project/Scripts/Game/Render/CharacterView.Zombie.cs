@@ -215,8 +215,17 @@ namespace DeadZone.Game
             // bent knees lower the hips so the feet stay on the ground
             float crouch = (1f - Mathf.Cos(bend * 0.55f * Mathf.Deg2Rad)) * _thigh + (1f - Mathf.Cos(bend * 0.45f * Mathf.Deg2Rad)) * _shin;
             float bob = Mathf.Abs(c) * k.bob * mv * (1f + 0.8f * run);
+            float hipY = bob - dip - crouch;
+            if (run > 0f)
+            {
+                // sprinting thighs swing so far that the knee bend alone would leave both feet in the air: the hips sit
+                // exactly as high as the lower foot reaches (this includes the crouch)
+                float reachL = _thigh * Mathf.Cos(thL * Mathf.Deg2Rad) + (k.legLen - _thigh) * Mathf.Cos((thL + knL) * Mathf.Deg2Rad);
+                float reachR = _thigh * Mathf.Cos(thR * Mathf.Deg2Rad) + (k.legLen - _thigh) * Mathf.Cos((thR + knR) * Mathf.Deg2Rad);
+                hipY = Mathf.Lerp(hipY, Mathf.Max(reachL, reachR) - k.legLen, run);
+            }
             _body.localRotation = Quaternion.identity;
-            _body.localPosition = new Vector3(0f, bob - dip - crouch, _lunge / Mathf.Max(0.01f, scale));
+            _body.localPosition = new Vector3(0f, hipY, _lunge / Mathf.Max(0.01f, scale));
 
             // torso: hunched, sways over the standing leg, twists against the legs, breathes when standing
             float pitch = k.hunch + 4f * push + 16f * run + Mathf.Sin(tt * 1.7f) * 2f * (0.4f + 0.6f * idle);
@@ -248,7 +257,8 @@ namespace DeadZone.Game
                         break;
                     case ZombieAttack.Swipe: // a claw raised high and out, then slashed across (stalkers with both hands)
                         xR = Blend(xR, -155f, -60f, cock, strike); zR = Blend(zR, 50f, -35f, cock, strike); eR = Blend(eR, 70f, 15f, cock, strike);
-                        if (k.claws) { xL = Blend(xL, -155f, -60f, cock, strike); zL = Blend(zL, -50f, 35f, cock, strike); eL = Blend(eL, 70f, 15f, cock, strike); }
+                        // the second claw strikes lower and stays on its own side, so the arms do not pass through each other
+                        if (k.claws) { xL = Blend(xL, -155f, -35f, cock, strike); zL = Blend(zL, -50f, -5f, cock, strike); eL = Blend(eL, 70f, 15f, cock, strike); }
                         else twist += 22f * cock - 26f * strike;
                         pitch += -4f * cock + 14f * strike; jaw += 12f * cock + 22f * strike;
                         break;
@@ -396,15 +406,18 @@ namespace DeadZone.Game
                 {
                     float m = dir == 2 ? 1f : -1f; // mirror
                     int low = dir == 2 ? 0 : 1, high = 1 - low;
-                    q[low] = Quaternion.Euler(-r.Range(0f, 15f), 0f, -m * r.Range(8f, 14f));
+                    // the leg underneath, the arm on top and the torso barely turn towards the ground: more would push the
+                    // lower foot and the top hand through the floor and fold the top arm into the chest
+                    q[low] = Quaternion.Euler(-r.Range(0f, 15f), 0f, -m * r.Range(0f, 4f));
                     q[high] = Quaternion.Euler(-r.Range(25f, 50f), 0f, -m * r.Range(14f, 22f));
                     q[2 + low] = Quaternion.Euler(r.Range(5f, 20f), 0f, 0f);
                     q[2 + high] = Quaternion.Euler(r.Range(35f, 70f), 0f, 0f);
-                    q[4 + low] = Quaternion.Euler(r.Range(-10f, 10f), 0f, -m * r.Range(180f, 195f));
-                    q[4 + high] = Quaternion.Euler(-r.Range(25f, 45f), 0f, -m * r.Range(35f, 55f));
+                    // at most 184 degrees: PoseDead slerps the shorter way, which would swing a wider arm inwards through the chest
+                    q[4 + low] = Quaternion.Euler(r.Range(-10f, 10f), 0f, -m * r.Range(178f, 184f));
+                    q[4 + high] = Quaternion.Euler(-r.Range(25f, 45f), 0f, -m * r.Range(5f, 18f));
                     q[6 + low] = Quaternion.Euler(-r.Range(0f, 20f), 0f, 0f);
                     q[6 + high] = Quaternion.Euler(-r.Range(10f, 30f), 0f, 0f);
-                    q[8] = Quaternion.Euler(r.Range(0f, 15f), r.Range(-8f, 8f), m * r.Range(0f, 8f));
+                    q[8] = Quaternion.Euler(r.Range(0f, 15f), r.Range(-8f, 8f), -m * r.Range(0f, 6f));
                     q[9] = Quaternion.Euler(r.Range(-10f, 10f), r.Range(-20f, 20f), m * r.Range(20f, 35f));
                     break;
                 }
@@ -550,6 +563,8 @@ namespace DeadZone.Game
                 _chestC = W(0f, T * 0.53f, 0f);
                 _chestS = W(k.chestW, T * 0.48f, k.chestD);
                 Add(torso, "Chest", CapsuleMesh(), top, _chestC, _chestS);
+                // a corpse rests on its chest (and vest plates); the soft belly and the hump sink into the floor instead of
+                // propping the whole body up into the air
                 float front = _chestS.z * 0.5f, back = front;
                 Vector3 bellyC = Vector3.zero, bellyS = Vector3.zero;
                 if (k.belly > 0f)
@@ -557,14 +572,12 @@ namespace DeadZone.Game
                     bellyC = W(0f, T * 0.28f, k.chestD * 0.2f * (1f + k.belly));
                     bellyS = W(k.chestW * 0.92f, T * 0.62f, k.chestD * (1f + k.belly));
                     Add(torso, "Belly", CharacterView.SphereMesh(), top, bellyC, bellyS);
-                    front = Mathf.Max(front, bellyC.z + bellyS.z * 0.5f);
                 }
                 if (k.hump)
                 {
                     var hc = W(0f, T * 0.9f, -0.04f);
                     var hsz = W(k.chestW * 1.25f, T * 0.36f, k.chestD * 1.05f);
                     Add(torso, "Hump", CharacterView.SphereMesh(), top, hc, hsz);
-                    back = Mathf.Max(back, -hc.z + hsz.z * 0.5f);
                 }
                 if (k.vest)
                 {

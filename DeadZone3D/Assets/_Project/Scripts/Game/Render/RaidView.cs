@@ -15,6 +15,8 @@ namespace DeadZone.Game
             public Vector3 prev, cur;
             public float visible, losTimer;
             public bool los, shadows = true;
+            /// <summary>Posed at least once (until then it would show its build pose with straight limbs).</summary>
+            public bool posed;
             /// <summary>Health and flash seen last frame: a rise of the flash or a drop of health is a hit.</summary>
             public double lastHp, lastFlash;
             /// <summary>Frame offset of the reduced-rate updates; size factor of the detail ranges (big types are seen from farther).</summary>
@@ -183,7 +185,8 @@ namespace DeadZone.Game
             player.Pose(ppos, Coords.YawDeg(p.angle), moving, (float)p.legPhase, (float)p.meleeAnim, p.crouching, p.dead, 0f, dt);
 
             // zombies: placing, the visibility fade and hit tracking run for every zombie; the full pose only for those in
-            // view (or very near), far ones at a third of the frame rate
+            // view (or very near), far ones at a third of the frame rate, and so are zombies outside the view whose shadow
+            // may still fall into it
             _alive.Clear();
             bool cull = viewCamera != null && viewCamera.isActiveAndEnabled;
             if (cull) GeometryUtility.CalculateFrustumPlanes(viewCamera, _frustum);
@@ -207,7 +210,9 @@ namespace DeadZone.Game
                 bool show = zv.los && (z.type.lurk ? z.visibleAlpha > 0.5 || d < 90 : true);
                 zv.visible = Mathf.MoveTowards(zv.visible, show ? 1f : 0f, dt * 5f);
                 zv.view.SetVisible(zv.visible > 0.05f);
-                bool hit = !z.dead && (z.hp < zv.lastHp || z.flash > zv.lastFlash);
+                // damage over time (a fire) takes a little health every step and keeps the flash up: only a real blow
+                // (3 % of the health at once or a fresh flash) makes the zombie flinch
+                bool hit = !z.dead && (zv.lastHp - z.hp > 0.03 * z.hpMax || z.flash > zv.lastFlash + 0.05);
                 float hitSize = (float)(zv.lastHp - z.hp) / Mathf.Max(1f, (float)z.hpMax);
                 zv.lastHp = z.hp;
                 zv.lastFlash = z.flash;
@@ -227,7 +232,11 @@ namespace DeadZone.Game
                 zv.view.softFlash = firstPerson;
                 if (hit) zv.view.Hit(Mathf.Clamp(0.45f + hitSize * 3f, 0.45f, 1f), pos - ppos);
                 bool inView = !cull || GeometryUtility.TestPlanesAABB(_frustum, ZombieBounds(pos, z.dead, zv.size));
-                bool animate = dist < ZombieAlwaysPose || (inView && (dist < ZombieFarRange || (_frame + zv.slot) % 3 == 0));
+                // the frustum is last frame's camera: a zombie turning into view keeps its last pose for a frame, which is
+                // why every zombie gets a full pose on its first update
+                bool animate = !zv.posed || dist < ZombieAlwaysPose || (inView && dist < ZombieFarRange)
+                    || ((inView || zv.shadows) && (_frame + zv.slot) % 3 == 0);
+                zv.posed |= animate;
                 // speed over the last simulation step relative to the chase speed: about 0.5 wandering, 1 chasing
                 float stepSpeed = new Vector2(zv.cur.x - zv.prev.x, zv.cur.z - zv.prev.z).magnitude / (float)GameRoot.FixedDt;
                 float chaseSpeed = (float)(z.speed * Coords.S * _raid.moveScale);

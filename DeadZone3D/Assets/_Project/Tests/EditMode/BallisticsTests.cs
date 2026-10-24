@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using DeadZone.Core;
+using DeadZone.Core.Data;
 using NUnit.Framework;
 
 namespace DeadZone.Tests
@@ -150,7 +151,7 @@ namespace DeadZone.Tests
             Shoot(raid, 0);
             Assert.Less(z.hp, z.hpMax, "level aim hits");
             Assert.AreEqual(1, p.stats.shotsHit);
-            // eye level (1.62 m) is the brute's chest (it is 2.25 m tall): blood at about that height
+            // eye level (1.62 m) is below the brute's head (its face starts at about 1.7 m): blood at about that height
             var blood = log.effects.First(e => e.kind == Fx.Blood);
             Assert.AreEqual(1.62, blood.height, 0.1);
             Assert.AreEqual(0, p.stats.headShots);
@@ -196,7 +197,7 @@ namespace DeadZone.Tests
                 return (z.hpMax - z.hp, raid.player.stats.headShots);
             }
             var body = Hit(1.2);
-            var head = Hit(2.1);
+            var head = Hit(1.95); // the brute's eyes
             Assert.Greater(body.loss, 0, "the body hit lands");
             Assert.AreEqual(0, body.heads);
             Assert.AreEqual(1, head.heads);
@@ -209,6 +210,45 @@ namespace DeadZone.Tests
             armored.hp = armored.hpMax = 1000; // survives the shot, so the whole damage shows
             Shoot(raid2, PitchAt(raid2.player, 1.95, M10));
             Assert.AreEqual(150 * 1.35, armored.hpMax - armored.hp, 1e-6);
+        }
+
+        [Test]
+        public void HeadBandsMatchTheModels()
+        {
+            // the head band of an aimed shot runs from HeadShare x HeightPx up to HeightPx plus the 3 px graze (WeaponSystem.HeadGrazePx)
+            const double graze = 3 / Player.PxPerMetre;
+            double TopM(string type, string state) => ZombieAI.HeightPx(new Zombie { id = type, type = DataTables.ZOMBIE_TYPES[type], state = state }) / Player.PxPerMetre;
+
+            // the hunched brute and boss carry their heads lower than 1.8 m x 1.25, a sprinting or striking stalker lower still
+            Assert.AreEqual(2.05, TopM("brute", "chase"), 1e-9);
+            Assert.AreEqual(1.9, TopM("boss", "chase"), 1e-9);
+            Assert.AreEqual(1.5, TopM("stalker", "chase"), 1e-9);
+            Assert.AreEqual(1.5, TopM("stalker", "attack"), 1e-9);
+            Assert.AreEqual(1.71, TopM("stalker", "lurk"), 1e-9);
+            Assert.AreEqual(1.8, TopM("walker", "chase"), 1e-9);
+            Assert.AreEqual(1.62, TopM("runner", "chase"), 1e-9);
+            Assert.AreEqual(2.07, TopM("armored", "idle"), 1e-9);
+
+            // visible head of the 3D model in that state (chin, eyes, top of the skull or helmet, metres; from ZombieLook and
+            // the PoseAlive posture: hunch, sprint lean and knee bend)
+            var heads = new (string type, string state, double chin, double eyes, double skull)[]
+            {
+                ("walker", "idle", 1.57, 1.74, 1.87), ("walker", "chase", 1.55, 1.72, 1.85),
+                ("runner", "idle", 1.48, 1.62, 1.73), ("runner", "chase", 1.35, 1.48, 1.61),
+                ("brute", "idle", 1.64, 1.89, 2.08), ("brute", "chase", 1.60, 1.86, 2.05),
+                ("screamer", "idle", 1.56, 1.71, 1.83), ("toxic", "idle", 1.61, 1.79, 1.93), ("armored", "idle", 1.75, 1.95, 2.15),
+                ("stalker", "lurk", 1.43, 1.57, 1.68), ("stalker", "chase", 1.22, 1.36, 1.48), ("stalker", "attack", 1.29, 1.43, 1.55),
+                ("boss", "idle", 1.55, 1.78, 1.93), ("boss", "chase", 1.50, 1.73, 1.88),
+            };
+            foreach (var h in heads)
+            {
+                double top = TopM(h.type, h.state), from = ZombieAI.HeadShare * top, to = top + graze;
+                string at = h.type + " (" + h.state + ")";
+                Assert.LessOrEqual(from, h.eyes - 0.08, at + ": a shot at the eyes is a head shot");
+                Assert.GreaterOrEqual(from, h.chin - 0.15, at + ": the neck and the chest are not the head");
+                Assert.GreaterOrEqual(to, h.skull, at + ": the whole skull counts");
+                Assert.LessOrEqual(to, h.skull + 0.3, at + ": a shot well over the head does not hit");
+            }
         }
 
         [Test]

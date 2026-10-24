@@ -57,13 +57,23 @@ namespace DeadZone.Core
         public int AliveCount() { int n = 0; foreach (var z in zombies) if (!z.dead) n++; return n; }
 
         /// <summary>
-        /// Standing height in sim px for aimed first-person shots: 1.8 m scaled like the 3D model (capped at 1.25 so brutes fit
-        /// through doors). The top <see cref="HeadShare"/> of it counts as the head.
+        /// Height of the top of the head in sim px for aimed first-person shots, matched to the 3D models: 1.8 m scaled like
+        /// the model (capped at 1.25 so brutes fit through doors). The hunched brute and boss carry their heads lower than
+        /// that, and a stalker drops its head to about 1.5 m while it sprints after the player or strikes. The top
+        /// <see cref="HeadShare"/> of it counts as the head.
         /// </summary>
         public static double HeightPx(Zombie z)
         {
             double size = z?.type != null && z.type.size > 0 ? z.type.size : 1;
-            return 1.8 * Math.Min(size, 1.25) * Player.PxPerMetre;
+            double top;
+            switch (z?.id)
+            {
+                case "brute": top = 2.05; break;
+                case "boss": top = 1.9; break;
+                case "stalker" when z.state == "chase" || z.state == "attack": top = 1.5; break;
+                default: top = 1.8 * Math.Min(size, 1.25); break;
+            }
+            return top * Player.PxPerMetre;
         }
 
         public const double HeadShare = 0.84;
