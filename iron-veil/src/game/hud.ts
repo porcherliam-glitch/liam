@@ -5,6 +5,7 @@
  * overlay, screen blood, hints — plus the tactical map renderer used by the map screen.
  */
 import type { Obstacle } from "./collision"
+import { ScreenBlood } from "./goreOverlay"
 import { ITEMS, type ItemId } from "./items"
 import type { HudSnapshot } from "./types"
 import type { District, ExtractKind } from "./zone"
@@ -17,15 +18,13 @@ export class Hud {
   private ctx: CanvasRenderingContext2D
   private els = new Map<string, HTMLElement>()
   private arcs: HTMLElement[] = []
-  private blood: HTMLElement[] = []
-  private bloodNext = 0
+  private lens: ScreenBlood | null = null
   private lastSnapshot: HudSnapshot | null = null
   showFps = false
 
   constructor(private root: HTMLElement) {
     root.innerHTML = `
       <div class="damage-overlay"></div><div class="lowhp-overlay"></div><div class="bleed-overlay"></div><div class="infect-overlay"></div><div class="death-overlay"></div>
-      <div class="screen-blood">${"<i></i>".repeat(6)}</div>
       <div class="scope-overlay"><i class="h"></i><i class="v"></i><b></b></div>
       <div class="hud-objective"><span class="hud-label" data-hud="area">SPERRZONE</span><b data-hud="objective"></b><small data-hud="objectiveProgress"></small><em data-hud="contract"></em></div>
       <div class="hud-compass"><canvas width="560" height="54"></canvas></div>
@@ -58,7 +57,6 @@ export class Hud {
     this.compass = root.querySelector(".hud-compass canvas")!
     this.ctx = this.compass.getContext("2d")!
     this.arcs = [...root.querySelectorAll<HTMLElement>(".dmg-arcs i")]
-    this.blood = [...root.querySelectorAll<HTMLElement>(".screen-blood i")]
   }
 
   private text(key: string, value: string): void { const el = this.els.get(`h:${key}`); if (el && el.textContent !== value) el.textContent = value }
@@ -67,15 +65,20 @@ export class Hud {
   /** Blood splatter on the "lens" (gore close to the camera, getting hit). amount 0..1. */
   splatter(amount: number): void {
     if (amount <= 0.02) return
-    const n = 1 + Math.round(amount * 2)
-    for (let k = 0; k < n; k++) {
-      const el = this.blood[this.bloodNext]; this.bloodNext = (this.bloodNext + 1) % this.blood.length
-      const size = 18 + amount * 30 + Math.random() * 14
-      el.style.left = `${5 + Math.random() * 80}%`; el.style.top = `${5 + Math.random() * 75}%`
-      el.style.width = el.style.height = `${size}vmin`
-      el.style.transform = `rotate(${Math.random() * 360}deg)`
-      el.classList.remove("on"); void el.offsetWidth; el.style.setProperty("--a", String(Math.min(0.9, 0.35 + amount * 0.6))); el.classList.add("on")
+    this.lensBlood().splatter(amount)
+    if (amount > 0.3) this.lensBlood().hurt(amount * 0.6)
+  }
+  /** Wet splats with drips on a canvas above the game (created on first use, animated by its own frame loop). */
+  private lensBlood(): ScreenBlood {
+    if (!this.lens) {
+      // below the HUD text: the first child of the HUD root
+      const host = document.createElement("div"); host.style.cssText = "position:absolute;inset:0;pointer-events:none"; this.root.prepend(host)
+      this.lens = new ScreenBlood(host)
+      let last = performance.now()
+      const tick = (now: number) => { this.lens?.update(Math.min(0.1, (now - last) / 1000)); last = now; requestAnimationFrame(tick) }
+      requestAnimationFrame(tick)
     }
+    return this.lens
   }
 
   update(h: HudSnapshot): void {
@@ -145,7 +148,7 @@ export class Hud {
   }
 
   /** Removes screen blood (new raid, back to base). */
-  clearBlood(): void { for (const el of this.blood) el.classList.remove("on") }
+  clearBlood(): void { this.lens?.clear() }
 
   private drawCompass(h: HudSnapshot): void {
     const c = this.ctx, w = this.compass.width, height = this.compass.height

@@ -103,6 +103,13 @@ export class ScreenBlood {
     this.dirty = any
   }
 
+  /** Wipes every splat and the vignette at once (leaving a raid, respawning). */
+  clear(): void {
+    for (const s of this.splats) s.active = false
+    this.hurtLevel = 0; this.dirty = true
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height)
+  }
+
   dispose(): void {
     this.canvas.remove()
     for (const s of this.splats) { s.active = false; s.sprite = null }
