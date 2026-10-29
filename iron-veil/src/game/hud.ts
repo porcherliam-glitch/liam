@@ -163,6 +163,8 @@ export class Hud {
 
   /** Removes screen blood (new raid, back to base). */
   clearBlood(): void { this.lens?.clear() }
+  /** Blood splats on the screen right now (tests). */
+  get bloodOnScreen(): number { return this.lens?.activeSplats ?? 0 }
 
   private drawCompass(h: HudSnapshot): void {
     const c = this.ctx, w = this.compass.width, height = this.compass.height

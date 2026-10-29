@@ -23,7 +23,7 @@ import * as THREE from "three"
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js"
 import { STRUCTURES, TIMES, type StructureId, type TimeOfDay } from "./baseData"
 import { baseMap, structureModel, wallsModel, type BaseMap } from "./basemap"
-import { ChunkSet, TextureLayers, keyInfo, uberMaterial, uberize, type KeyInfo } from "./chunks"
+import { ChunkSet, TextureLayers, keyInfo, uberDepthMaterial, uberMaterial, uberize, type KeyInfo } from "./chunks"
 import { CollisionWorld, type Obstacle } from "./collision"
 import { createExtractions } from "./extraction"
 import { computeCoverPoints, type BuildingInfo, type Doorway, type MapProp, type MapSolid } from "./maps"
@@ -126,7 +126,7 @@ const CHUNK = 64
 interface Env {
   high: boolean
   layers: TextureLayers
-  mats: Record<"opaque" | "cut" | "far" | "farcut", THREE.MeshStandardMaterial>
+  mats: Record<"opaque" | "cut" | "far" | "farcut", THREE.MeshStandardMaterial> & { depth: THREE.MeshDepthMaterial }
   fx: FxUniforms
   decalMat: THREE.Material | null
   atlasRects: Map<string, { u0: number; v0: number; u1: number; v1: number }> | null
@@ -176,6 +176,7 @@ class Builder {
     const chunks: Array<{ cx: number; cz: number; mesh: THREE.Mesh }> = []
     for (const c of set.build()) {
       const mesh = new THREE.Mesh(env.own(c.geometry), c.cut ? env.mats.cut : env.mats.opaque)
+      if (c.cut) mesh.customDepthMaterial = env.mats.depth
       mesh.castShadow = env.high && !c.cut; mesh.receiveShadow = env.high
       chunks.push({ cx: c.cx, cz: c.cz, mesh })
     }
@@ -252,7 +253,7 @@ export function createWorld(kind: WorldKind, scene: THREE.Scene, quality: "high"
   const layers = new TextureLayers(), layerU = { value: null as THREE.Texture | null }
   const env: Env = {
     high, layers, fx, own, decalMat: null, atlasRects: null,
-    mats: { opaque: own(uberMaterial(layerU, "opaque", high)), cut: own(uberMaterial(layerU, "cut", high)), far: own(uberMaterial(layerU, "far", high)), farcut: own(uberMaterial(layerU, "farcut", high)) },
+    mats: { opaque: own(uberMaterial(layerU, "opaque", high)), cut: own(uberMaterial(layerU, "cut", high)), far: own(uberMaterial(layerU, "far", high)), farcut: own(uberMaterial(layerU, "farcut", high)), depth: own(uberDepthMaterial(layerU)) },
     windowMat: (() => {
       const w = windowCanvases(high ? 128 : 64)
       const map = own(new THREE.CanvasTexture(w.map)), em = own(new THREE.CanvasTexture(w.emissive))
@@ -309,7 +310,8 @@ export function createWorld(kind: WorldKind, scene: THREE.Scene, quality: "high"
       const cx = Math.floor(k / 1024) - 512, cz = (k % 1024) - 512, r = rec(cx, cz)
       for (const v of [0, 1, 2, 3] as const) {
         const sub = list.filter(t => t.v === v); if (!sub.length) continue
-        const mesh = new THREE.InstancedMesh(tpl.hi[v], env.mats.opaque, sub.length)
+        const mesh = new THREE.InstancedMesh(tpl.hi[v], [env.mats.opaque, env.mats.cut], sub.length)
+        mesh.customDepthMaterial = env.mats.depth
         sub.forEach((t, i) => {
           const w = 0.85 + rng() * 0.3
           mesh.setMatrixAt(i, m4.compose(p.set(t.x, 0, t.z), q.setFromAxisAngle(UP, t.r), s.set(t.h * w, t.h, t.h * w)))
@@ -636,51 +638,127 @@ function outerTerrain(env: Env, map: ZoneMap | BaseMap, look: Look): THREE.Mesh 
   return mesh
 }
 
-/** Tree templates (unit height): spruce, broadleaf, dead tree — bark + canopy layers, merged per template. */
+/**
+ * Tree templates (unit height): spruce, broadleaf, dead tree, bush. Each is one geometry with two groups — group 0
+ * (bark, inner shade volumes) for the opaque material, group 1 (cut-out leaf and needle cards) for the cut material.
+ * Leaf cards sit on a shell around the crown and carry the shell's outward normal, so the crown shades like a
+ * volume while its edge breaks up into single leaves. Low detail keeps the silhouette with a few big cards.
+ */
 function treeTemplates(env: Env, look: Look): { hi: THREE.BufferGeometry[]; lo: THREE.BufferGeometry[] } {
-  const bark = env.layers.layer("bark"), canopy = env.layers.layer("canopy"), bi = keyInfo("bark"), ci = keyInfo("canopy")
+  const bark = env.layers.layer("bark"), canopy = env.layers.layer("canopy"), leafL = env.layers.layer("leaves"), needleL = env.layers.layer("needles")
+  const bi = keyInfo("bark"), ci = keyInfo("canopy"), li = keyInfo("leaves"), ni = keyInfo("needles")
   const leaf = new THREE.Color(raw(look.foliage)).lerp(new THREE.Color(0.42, 0.56, 0.3), 0.7)
   const needle = new THREE.Color(0.3, 0.42, 0.28)
   const trunkC = new THREE.Color(0.8, 0.74, 0.66)
+  const rng = mulberry(91)
+  const V = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z)
   const part = (g: THREE.BufferGeometry, layer: number, info: KeyInfo, su: number, sv: number, c: THREE.Color) => uberize(g.index ? g.toNonIndexed() : g, layer, info, su, sv, c)
-  const spruce: THREE.BufferGeometry[] = [part(new THREE.CylinderGeometry(0.016, 0.032, 0.5, 6).translate(0, 0.25, 0), bark, bi, 0.6, 4, trunkC)]
-  for (const [r, h, y] of [[0.27, 0.34, 0.24], [0.22, 0.3, 0.4], [0.17, 0.27, 0.55], [0.12, 0.24, 0.69], [0.065, 0.2, 0.83]] as const) {
-    const g = new THREE.ConeGeometry(r, h, 9, 1, true).translate(0, y + h / 2, 0)
-    const p = g.attributes.position as THREE.BufferAttribute
-    for (let i = 0; i < p.count; i++) if (p.getY(i) < y + 0.01) { const a = Math.atan2(p.getZ(i), p.getX(i)); p.setY(i, p.getY(i) - 0.03 * (1 + Math.sin(a * 5))) }
-    g.computeVertexNormals()
-    spruce.push(part(g, canopy, ci, 4, 4, needle.clone().multiplyScalar(0.85 + y * 0.3)))
+  /** Tapered limb from a to b (radius r0 at a, r1 at b). */
+  const limb = (a: THREE.Vector3, b: THREE.Vector3, r0: number, r1: number, seg = 5) => {
+    const d = b.clone().sub(a), len = d.length()
+    const g = new THREE.CylinderGeometry(r1, r0, len, seg, 1, true).translate(0, len / 2, 0)
+    g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(UP, d.normalize())); g.translate(a.x, a.y, a.z)
+    return part(g, bark, bi, 0.4, 1.5, trunkC)
   }
-  const broad: THREE.BufferGeometry[] = [part(new THREE.CylinderGeometry(0.022, 0.045, 0.6, 7).translate(0, 0.3, 0), bark, bi, 0.6, 3, trunkC)]
-  for (const [a, l] of [[0.6, 0.25], [2.4, 0.22], [4.2, 0.2]]) broad.push(part(new THREE.CylinderGeometry(0.008, 0.016, l, 5).translate(0, l / 2, 0).rotateZ(0.7).rotateY(a).translate(0, 0.45, 0), bark, bi, 0.6, 2, trunkC))
-  for (const [x, y, z, r] of [[0, 0.66, 0, 0.28], [0.14, 0.76, 0.06, 0.21], [-0.12, 0.8, -0.07, 0.21], [0.02, 0.6, 0.16, 0.18]]) {
-    const g = new THREE.IcosahedronGeometry(r, 1)
-    const p = g.attributes.position as THREE.BufferAttribute
-    for (let i = 0; i < p.count; i++) { const k = 1 + 0.18 * Math.sin(p.getX(i) * 40 + p.getZ(i) * 31) * Math.sin(p.getY(i) * 37); p.setXYZ(i, p.getX(i) * k, p.getY(i) * k * 0.82, p.getZ(i) * k) }
+  /** Cut-out card centred at c spanning u (left → right) and v (bottom → top); every vertex gets normal n. */
+  const card = (c: THREE.Vector3, u: THREE.Vector3, v: THREE.Vector3, n: THREE.Vector3, layer: number, info: KeyInfo, color: THREE.Color) => {
+    const p = [c.clone().addScaledVector(u, -0.5).addScaledVector(v, -0.5), c.clone().addScaledVector(u, 0.5).addScaledVector(v, -0.5), c.clone().addScaledVector(u, 0.5).addScaledVector(v, 0.5), c.clone().addScaledVector(u, -0.5).addScaledVector(v, 0.5)]
+    const uv = [[0, 0], [1, 0], [1, 1], [0, 1]], order = [0, 1, 2, 0, 2, 3]
+    const pos = new Float32Array(18), nor = new Float32Array(18), uvs = new Float32Array(12)
+    order.forEach((k, i) => { pos.set([p[k].x, p[k].y, p[k].z], i * 3); nor.set([n.x, n.y, n.z], i * 3); uvs.set(uv[k], i * 2) })
+    const g = new THREE.BufferGeometry()
+    g.setAttribute("position", new THREE.BufferAttribute(pos, 3)); g.setAttribute("normal", new THREE.BufferAttribute(nor, 3)); g.setAttribute("uv", new THREE.BufferAttribute(uvs, 2))
+    return uberize(g, layer, info, 1, 1, color)
+  }
+  /** Leaf cards on an ellipsoid shell (centre c, radii r), facing outwards with a random roll. */
+  const crown = (out: THREE.BufferGeometry[], c: THREE.Vector3, r: THREE.Vector3, count: number, size: number, minY: number, base: THREE.Color) => {
+    for (let i = 0; i < count; i++) {
+      const t = (i + 0.5) / count, phi = Math.acos(1 - 2 * t), th = i * 2.39996 + rng() * 0.3
+      const dir = V(Math.sin(phi) * Math.cos(th), Math.max(minY, Math.cos(phi)), Math.sin(phi) * Math.sin(th)).normalize()
+      const k = 0.78 + rng() * 0.26, at = V(c.x + dir.x * r.x * k, c.y + dir.y * r.y * k, c.z + dir.z * r.z * k)
+      const side = Math.abs(dir.y) > 0.95 ? V(1, 0, 0) : V(-dir.z, 0, dir.x).normalize(), up = new THREE.Vector3().crossVectors(dir, side)
+      const roll = rng() * Math.PI * 2, s = size * (0.8 + rng() * 0.45)
+      const u = side.clone().multiplyScalar(Math.cos(roll)).addScaledVector(up, Math.sin(roll)).multiplyScalar(s)
+      const v = up.clone().multiplyScalar(Math.cos(roll)).addScaledVector(side, -Math.sin(roll)).multiplyScalar(s)
+      // tilt every card a little off the shell so the crown is not a perfect ball of discs
+      u.applyAxisAngle(side, (rng() - 0.5) * 0.35); v.applyAxisAngle(side, (rng() - 0.5) * 0.35)
+      const shade = (0.72 + 0.38 * (dir.y * 0.5 + 0.5)) * (0.88 + rng() * 0.24)
+      out.push(card(at, u, v, V(dir.x, dir.y * 0.7 + 0.3, dir.z).normalize(), leafL, li, base.clone().multiplyScalar(shade)))
+    }
+  }
+  const blob = (x: number, y: number, z: number, r: number, sx: number, sy: number, sz: number, c: THREE.Color, detail = 1) => {
+    const g = new THREE.IcosahedronGeometry(r, detail), p = g.attributes.position as THREE.BufferAttribute
+    for (let i = 0; i < p.count; i++) { const k = 1 + 0.16 * Math.sin(p.getX(i) * 40 + p.getZ(i) * 31) * Math.sin(p.getY(i) * 37); p.setXYZ(i, p.getX(i) * k * sx, p.getY(i) * k * sy, p.getZ(i) * k * sz) }
     g.computeVertexNormals(); g.translate(x, y, z)
-    broad.push(part(g, canopy, ci, 3, 3, leaf.clone().multiplyScalar(0.85 + y * 0.25)))
+    return part(g, canopy, ci, 3, 3, c)
   }
-  const dead: THREE.BufferGeometry[] = [part(new THREE.CylinderGeometry(0.014, 0.04, 0.9, 6).translate(0, 0.45, 0), bark, bi, 0.6, 4, trunkC.clone().multiplyScalar(0.8))]
-  for (const [a, l, y] of [[0.4, 0.3, 0.5], [2.1, 0.26, 0.62], [3.7, 0.22, 0.4], [5.2, 0.2, 0.72]]) dead.push(part(new THREE.CylinderGeometry(0.005, 0.014, l, 5).translate(0, l / 2, 0).rotateZ(0.8).rotateY(a).translate(0, y, 0), bark, bi, 0.6, 2, trunkC.clone().multiplyScalar(0.8)))
-  const bush: THREE.BufferGeometry[] = []
-  for (const [x, y, z, r] of [[0, 0.42, 0, 0.5], [0.32, 0.34, 0.12, 0.38], [-0.28, 0.36, -0.1, 0.4], [0.05, 0.62, -0.05, 0.34]]) {
-    const g = new THREE.IcosahedronGeometry(r, 0)
-    const p = g.attributes.position as THREE.BufferAttribute
-    for (let i = 0; i < p.count; i++) { const k = 1 + 0.22 * Math.sin(p.getX(i) * 31 + p.getZ(i) * 23) * Math.sin(p.getY(i) * 29); p.setXYZ(i, p.getX(i) * k, p.getY(i) * k * 0.75, p.getZ(i) * k) }
-    g.computeVertexNormals(); g.translate(x, y, z)
-    bush.push(part(g, canopy, ci, 2, 2, leaf.clone().multiplyScalar(0.75 + y * 0.4)))
+  const merge = (parts: THREE.BufferGeometry[]) => { const g = mergeGeometries(parts, false)!; for (const p of parts) p.dispose(); return g }
+  const tpl = (opaque: THREE.BufferGeometry[], cut: THREE.BufferGeometry[]) => {
+    const groups = [merge(opaque)]; if (cut.length) groups.push(merge(cut))
+    const g = mergeGeometries(groups, true)!; for (const x of groups) x.dispose()
+    g.computeBoundingSphere(); return env.own(g)
   }
-  // low detail: two cones, two blobs, bare trunk, one blob (same silhouette, a fraction of the triangles)
-  const spruceLo = [part(new THREE.CylinderGeometry(0.016, 0.032, 0.5, 4).translate(0, 0.25, 0), bark, bi, 0.6, 4, trunkC),
-    part(new THREE.ConeGeometry(0.26, 0.5, 7, 1, true).translate(0, 0.49, 0), canopy, ci, 4, 4, needle.clone().multiplyScalar(0.95)),
-    part(new THREE.ConeGeometry(0.15, 0.45, 7, 1, true).translate(0, 0.78, 0), canopy, ci, 4, 4, needle.clone().multiplyScalar(1.1))]
-  const broadLo = [part(new THREE.CylinderGeometry(0.022, 0.045, 0.6, 4).translate(0, 0.3, 0), bark, bi, 0.6, 3, trunkC),
-    part(new THREE.IcosahedronGeometry(0.3, 0).scale(1, 0.85, 1).translate(0, 0.68, 0), canopy, ci, 3, 3, leaf.clone().multiplyScalar(1.0)),
-    part(new THREE.IcosahedronGeometry(0.2, 0).scale(1, 0.85, 1).translate(0.05, 0.86, 0), canopy, ci, 3, 3, leaf.clone().multiplyScalar(1.1))]
-  const deadLo = [part(new THREE.CylinderGeometry(0.014, 0.04, 0.9, 4).translate(0, 0.45, 0), bark, bi, 0.6, 4, trunkC.clone().multiplyScalar(0.8))]
-  const bushLo = [part(new THREE.IcosahedronGeometry(0.5, 0).scale(1.2, 0.7, 1.1).translate(0, 0.38, 0), canopy, ci, 2, 2, leaf.clone().multiplyScalar(0.9))]
-  const merge = (parts: THREE.BufferGeometry[]) => { const g = mergeGeometries(parts, false)!; for (const p of parts) p.dispose(); g.computeBoundingSphere(); return env.own(g) }
-  return { hi: [spruce, broad, dead, bush].map(merge), lo: [spruceLo, broadLo, deadLo, bushLo].map(merge) }
+
+  // spruce: trunk, dark inner cone, ten tiers of drooping needle sprays, top shoot
+  const spO = [part(new THREE.CylinderGeometry(0.005, 0.028, 0.98, 7).translate(0, 0.49, 0), bark, bi, 0.6, 4, trunkC),
+    part(new THREE.ConeGeometry(0.12, 0.66, 9, 1, true).translate(0, 0.6, 0), canopy, ci, 4, 4, needle.clone().multiplyScalar(0.7))]
+  const spC: THREE.BufferGeometry[] = []
+  for (let t = 0; t < 10; t++) {
+    const y = 0.2 + t * 0.077, R = 0.31 * (1 - t / 10.5) + 0.035, n = t < 7 ? 8 : 6
+    for (let k = 0; k < n; k++) {
+      const a = k / n * Math.PI * 2 + t * 0.47 + rng() * 0.3, droop = 0.32 + rng() * 0.18
+      const out = V(Math.cos(a) * Math.cos(droop), -Math.sin(droop), Math.sin(a) * Math.cos(droop)).multiplyScalar(R * 1.18)
+      const w = V(-Math.sin(a), 0.12, Math.cos(a)).normalize().multiplyScalar(R * 0.85 + 0.04)
+      const nrm = new THREE.Vector3().crossVectors(out, w).normalize(); if (nrm.y < 0) nrm.negate()
+      nrm.addScaledVector(V(Math.cos(a), 0, Math.sin(a)), 0.5).normalize()
+      spC.push(card(V(0, y, 0).addScaledVector(out, 0.5), out, w, nrm, needleL, ni, needle.clone().multiplyScalar((0.85 + t * 0.03) * (0.9 + rng() * 0.2))))
+    }
+  }
+  spO.push(part(new THREE.ConeGeometry(0.03, 0.12, 6).translate(0, 0.94, 0), canopy, ci, 4, 4, needle.clone().multiplyScalar(1.05)))
+
+  // broadleaf: trunk with root flare, five limbs with twigs, shade volumes, 44 leaf cards
+  const brO = [part(new THREE.CylinderGeometry(0.02, 0.046, 0.62, 8).translate(0, 0.31, 0), bark, bi, 0.6, 3, trunkC)]
+  for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2 + 0.4; brO.push(limb(V(0, 0.06, 0), V(Math.cos(a) * 0.075, -0.004, Math.sin(a) * 0.075), 0.026, 0.008)) }
+  for (let i = 0; i < 5; i++) {
+    const a = i * 1.257 + rng() * 0.4, y = 0.4 + i * 0.045, end = V(Math.cos(a) * 0.24, y + 0.2 + rng() * 0.08, Math.sin(a) * 0.24)
+    brO.push(limb(V(0, y, 0), end, 0.017, 0.006))
+    brO.push(limb(end.clone().multiplyScalar(0.6).setY(y + 0.12), V(end.x * 0.7 + Math.cos(a + 1) * 0.08, end.y + 0.08, end.z * 0.7 + Math.sin(a + 1) * 0.08), 0.007, 0.003, 4))
+  }
+  const brC: THREE.BufferGeometry[] = []
+  const clumps = [[0, 0.75, 0, 0.21], [0.17, 0.66, 0.07, 0.16], [-0.16, 0.68, -0.08, 0.17], [0.05, 0.88, -0.11, 0.14], [-0.07, 0.62, 0.17, 0.14], [0.08, 0.6, -0.17, 0.13]] as const
+  for (const [x, y, z, r] of clumps) {
+    brO.push(blob(x, y, z, r * 0.78, 1, 0.85, 1, leaf.clone().multiplyScalar(0.42), 0))
+    crown(brC, V(x, y, z), V(r * 1.15, r * 0.95, r * 1.15), Math.round(r * r * 900), 0.13 + r * 0.55, -0.6, leaf.clone().multiplyScalar(0.9))
+  }
+
+  // dead tree: bare trunk, broken top, limbs with forks
+  const dc = trunkC.clone().multiplyScalar(0.78)
+  const deO = [part(new THREE.CylinderGeometry(0.012, 0.042, 0.9, 7).translate(0, 0.45, 0), bark, bi, 0.6, 4, dc)]
+  for (let i = 0; i < 6; i++) {
+    const a = i * 1.05 + rng() * 0.5, y = 0.36 + i * 0.08, l = 0.26 - i * 0.025, end = V(Math.cos(a) * l, y + l * 0.7, Math.sin(a) * l)
+    deO.push(limb(V(0, y, 0), end, 0.013, 0.004))
+    deO.push(limb(V(end.x * 0.6, y + l * 0.42, end.z * 0.6), V(end.x * 0.75 + Math.cos(a - 1.2) * 0.07, end.y + 0.06, end.z * 0.75 + Math.sin(a - 1.2) * 0.07), 0.005, 0.002, 4))
+  }
+
+  // bush: dark core and a dome of leaf cards
+  const buO = [blob(0, 0.3, 0, 0.36, 1.2, 0.72, 1.1, leaf.clone().multiplyScalar(0.42)), blob(0.18, 0.26, 0.1, 0.22, 1, 0.8, 1, leaf.clone().multiplyScalar(0.48))]
+  const buC: THREE.BufferGeometry[] = []
+  crown(buC, V(0, 0.3, 0), V(0.5, 0.36, 0.46), 26, 0.36, -0.15, leaf.clone().multiplyScalar(0.92))
+
+  // low detail: same silhouettes from a handful of pieces
+  const spLo = [part(new THREE.CylinderGeometry(0.016, 0.032, 0.5, 4).translate(0, 0.25, 0), bark, bi, 0.6, 4, trunkC),
+    part(new THREE.ConeGeometry(0.28, 0.52, 7, 1, true).translate(0, 0.46, 0), canopy, ci, 4, 4, needle.clone().multiplyScalar(0.9)),
+    part(new THREE.ConeGeometry(0.16, 0.46, 7, 1, true).translate(0, 0.76, 0), canopy, ci, 4, 4, needle.clone().multiplyScalar(1.05))]
+  const brLoO = [part(new THREE.CylinderGeometry(0.022, 0.045, 0.6, 4).translate(0, 0.3, 0), bark, bi, 0.6, 3, trunkC), blob(0, 0.72, 0, 0.27, 1.1, 0.85, 1.1, leaf.clone().multiplyScalar(0.62), 0)]
+  const brLoC: THREE.BufferGeometry[] = []
+  for (const [x, y, z, r] of clumps.slice(0, 4)) crown(brLoC, V(x, y, z), V(r * 1.2, r, r * 1.2), 4, 0.2 + r * 0.9, -0.4, leaf.clone().multiplyScalar(0.9))
+  const deLo = [part(new THREE.CylinderGeometry(0.014, 0.04, 0.9, 4).translate(0, 0.45, 0), bark, bi, 0.6, 4, dc)]
+  const buLoO = [blob(0, 0.32, 0, 0.42, 1.2, 0.72, 1.1, leaf.clone().multiplyScalar(0.55), 0)]
+  const buLoC: THREE.BufferGeometry[] = []; crown(buLoC, V(0, 0.3, 0), V(0.5, 0.36, 0.46), 8, 0.5, -0.1, leaf.clone().multiplyScalar(0.92))
+  return {
+    hi: [tpl(spO, spC), tpl(brO, brC), tpl(deO, []), tpl(buO, buC)],
+    lo: [tpl(spLo, []), tpl(brLoO, brLoC), tpl(deLo, []), tpl(buLoO, buLoC)],
+  }
 }
 
 function scaleUv(g: THREE.BufferGeometry, su: number, sv: number): void {

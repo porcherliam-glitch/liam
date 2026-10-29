@@ -44,6 +44,7 @@ declare global {
       stations: () => { id: string; x: number; z: number }[]
       toMenu: () => void
       splatter: (amount: number) => void
+      blood: () => number
       online: () => { available: boolean; others: number; inZone: number; scores: number; chat: string[]; echoes: number; ground: { x: number; z: number; name: string; items: number; fallen: boolean }[] }
     }
   }
@@ -150,6 +151,7 @@ export function startGame(canvas: HTMLCanvasElement, uiHost: HTMLElement): void 
     stations: () => baseLayout().stations.map(s => ({ id: s.id, x: s.x, z: s.z })),
     toMenu: () => { game.leaveToMenu(); ui.showMenu() },
     splatter: amount => game.debug.splatter(amount),
+    blood: () => ui.hud.bloodOnScreen,
     setThreat: (threat, pending) => { company.profile.base.threat = threat; company.profile.base.attackPending = pending; company.save() },
     online: () => ({ available: !!online?.available, others: online?.others().length ?? 0, inZone: online?.inZone().length ?? 0, scores: online?.scores.length ?? 0, chat: online?.chat.map(l => `${l.from}: ${l.text}`) ?? [], echoes: game.debug.echoes(), ground: game.debug.ground() }),
   }

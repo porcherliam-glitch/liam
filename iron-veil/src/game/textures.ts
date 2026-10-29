@@ -9,7 +9,7 @@ export type TexName =
   | "asphalt" | "concrete" | "pavement" | "quay" | "pad" | "gravel" | "dirt" | "grass" | "floor" | "tiles" | "plank"
   | "brick" | "plaster" | "cladding" | "rollup" | "roof" | "container" | "metal" | "crate" | "pallets" | "rack"
   | "sandbag" | "hesco" | "siding" | "block" | "bunker" | "glass" | "chainlink" | "foliage" | "smoke" | "truss"
-  | "concertina" | "burlap" | "padmark" | "rubber" | "sandwall" | "rooftile" | "bark" | "canopy" | "rock" | "field" | "boards"
+  | "concertina" | "burlap" | "padmark" | "rubber" | "sandwall" | "rooftile" | "bark" | "canopy" | "rock" | "field" | "boards" | "leaves" | "needles"
 
 /** Metres covered by one texture tile ([u, v]). Local-UV textures map one tile to one object face. */
 export const TEX: Record<TexName, [number, number]> = {
@@ -18,7 +18,7 @@ export const TEX: Record<TexName, [number, number]> = {
   container: [2.24, 2.24], metal: [2, 2], crate: [1.2, 1.2], pallets: [1.2, 1.2], rack: [2.7, 3.6], sandbag: [1, 1],
   hesco: [1.05, 1.05], siding: [2, 2], block: [2, 2], bunker: [4, 4], glass: [2, 2], chainlink: [0.6, 0.6], foliage: [1, 1],
   smoke: [1, 1], truss: [2, 2], concertina: [1.4, 0.7], burlap: [1, 1], padmark: [1, 1], rubber: [1, 1], sandwall: [1.2, 1.15],
-  rooftile: [2.4, 2.4], bark: [1.2, 2.4], canopy: [3, 3], rock: [7, 7], field: [6, 6], boards: [2.4, 2.4],
+  rooftile: [2.4, 2.4], bark: [1.2, 2.4], canopy: [3, 3], rock: [7, 7], field: [6, 6], boards: [2.4, 2.4], leaves: [1, 1], needles: [1, 1],
 }
 
 type Ctx = CanvasRenderingContext2D
@@ -582,6 +582,65 @@ const GEN: Record<TexName, (n: number) => HTMLCanvasElement> = {
       ctx.fillStyle = t < 0.4 ? `rgba(30,44,20,${0.5 + rng() * 0.4})` : t < 0.8 ? `rgba(${90 + rng() * 40},${112 + rng() * 40},${48 + rng() * 20},0.75)` : "rgba(140,150,80,0.6)"
       ctx.beginPath(); ctx.ellipse(x, y, r * 1.6, r, rng() * 3, 0, 7); ctx.fill()
     }
+    return c
+  },
+  /** Cut-out cluster of broad leaves on twigs (tree and bush cards): ragged round outline, transparent around it. */
+  leaves(n) {
+    const [c, ctx] = canvas(n); const rng = mulberry(47)
+    ctx.clearRect(0, 0, n, n)
+    const cx = n / 2, cy = n / 2
+    // twigs from the bottom centre into the cluster
+    ctx.lineCap = "round"
+    for (let i = 0; i < 7; i++) {
+      const a = -Math.PI / 2 + (rng() - 0.5) * 2.2, l = n * (0.25 + rng() * 0.2)
+      ctx.strokeStyle = `rgb(${70 + rng() * 20},${56 + rng() * 14},${40})`; ctx.lineWidth = Math.max(1, n / 180)
+      ctx.beginPath(); ctx.moveTo(cx, n * 0.95); ctx.quadraticCurveTo(cx + Math.cos(a) * l * 0.4, cy + n * 0.2, cx + Math.cos(a) * l, cy + Math.sin(a) * l * 0.8); ctx.stroke()
+    }
+    // leaves: dark ones first (inside the clump), light ones on top; denser in the middle
+    const leaf = (x: number, y: number, s: number, rot: number, fill: string, vein: string) => {
+      ctx.save(); ctx.translate(x, y); ctx.rotate(rot)
+      ctx.fillStyle = fill; ctx.beginPath(); ctx.moveTo(0, -s); ctx.quadraticCurveTo(s * 0.62, -s * 0.25, 0, s); ctx.quadraticCurveTo(-s * 0.62, -s * 0.25, 0, -s); ctx.fill()
+      ctx.strokeStyle = vein; ctx.lineWidth = Math.max(0.6, s / 14); ctx.beginPath(); ctx.moveTo(0, -s * 0.9); ctx.lineTo(0, s * 0.95); ctx.stroke()
+      ctx.restore()
+    }
+    const count = Math.round(n * 0.42)
+    for (let pass = 0; pass < 2; pass++) for (let i = 0; i < count; i++) {
+      const a = rng() * Math.PI * 2, d = Math.sqrt(rng()) * n * (pass ? 0.42 : 0.34), x = cx + Math.cos(a) * d, y = cy + Math.sin(a) * d * 0.9
+      const s = n * (0.028 + rng() * 0.026), g = pass ? 92 + rng() * 60 : 52 + rng() * 34
+      const fill = pass ? `rgb(${g * 0.62 + rng() * 30},${g},${g * 0.38})` : `rgb(${g * 0.55},${g},${g * 0.35})`
+      leaf(x, y, s, rng() * Math.PI * 2, fill, `rgba(${pass ? 190 : 120},${pass ? 210 : 150},${pass ? 120 : 80},0.45)`)
+    }
+    // a few autumn-tinted leaves
+    for (let i = 0; i < n * 0.04; i++) { const a = rng() * 6.28, d = rng() * n * 0.4; leaf(cx + Math.cos(a) * d, cy + Math.sin(a) * d * 0.9, n * 0.03, rng() * 6.28, `rgb(${150 + rng() * 40},${120 + rng() * 30},${40})`, "rgba(220,190,100,0.4)") }
+    return c
+  },
+  /** Cut-out spruce spray: three stems across the tile (left = trunk side) with dense needle twigs that droop and
+   *  thin out towards the tip; lighter new growth at the ends. */
+  needles(n) {
+    const [c, ctx] = canvas(n); const rng = mulberry(48)
+    ctx.clearRect(0, 0, n, n)
+    ctx.lineCap = "round"
+    const stem = (x0: number, y0: number, x1: number, y1: number, w: number, depth: number) => {
+      const mx = (x0 + x1) / 2, my = (y0 + y1) / 2 + n * 0.035
+      const steps = Math.round(Math.hypot(x1 - x0, y1 - y0) / (n / 220))
+      for (let i = 0; i < steps; i++) {
+        const t = i / steps, x = (1 - t) * (1 - t) * x0 + 2 * (1 - t) * t * mx + t * t * x1, y = (1 - t) * (1 - t) * y0 + 2 * (1 - t) * t * my + t * t * y1
+        const len = n * (0.05 + rng() * 0.025) * (1 - t * 0.4) * (depth ? 0.75 : 1)
+        for (const side of [-1, 1]) {
+          const a = Math.atan2(y1 - y0, x1 - x0) + side * (0.8 + rng() * 0.5)
+          const g = 60 + rng() * 45 + t * 40
+          ctx.strokeStyle = `rgb(${g * 0.42 + t * 30},${g},${g * 0.5})`; ctx.lineWidth = Math.max(1, n / 260)
+          ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a) * len, y + Math.sin(a) * len + len * 0.3); ctx.stroke()
+        }
+      }
+      ctx.strokeStyle = `rgb(${62 + rng() * 14},${48 + rng() * 10},${34})`; ctx.lineWidth = w
+      ctx.beginPath(); ctx.moveTo(x0, y0); ctx.quadraticCurveTo(mx, my, x1, y1); ctx.stroke()
+      if (depth > 0) for (let k = 0; k < 5; k++) {
+        const t = 0.15 + k * 0.15, x = x0 + (x1 - x0) * t, y = y0 + (y1 - y0) * t + n * 0.02, side = k % 2 ? 1 : -1
+        stem(x, y, x + (x1 - x0) * (0.42 - k * 0.04), y + side * n * (0.1 + rng() * 0.05) + n * 0.04, w * 0.55, depth - 1)
+      }
+    }
+    for (const [y0, y1, w] of [[0.5, 0.58, 1], [0.32, 0.4, 0.7], [0.68, 0.78, 0.7]] as const) stem(n * 0.02, n * y0, n * (0.9 + rng() * 0.08), n * y1, Math.max(1.5, n / 90) * w, 1)
     return c
   },
   rock(n) {

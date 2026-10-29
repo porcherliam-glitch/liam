@@ -91,7 +91,7 @@ try {
   await page.evaluate(() => window.__ironVeil.godMode(true))
   // damage() bypasses the hit path; a real hit is simulated through the HUD hook
   await page.evaluate(() => window.__ironVeil.splatter(0.6)); await g.frames(2)
-  check(await page.locator(".screen-blood i.on").count() > 0, "Blut auf dem Bildschirm (Gore an)")
+  check(await page.evaluate(() => window.__ironVeil.blood()) > 0, "Blut auf dem Bildschirm (Gore an)")
   // abort from the pause menu loses the kit
   await page.keyboard.press("Escape"); await g.until(() => window.__ironVeil.screen() === "paused")
   await g.action("abort")

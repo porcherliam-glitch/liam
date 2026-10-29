@@ -51,6 +51,9 @@ export class ScreenBlood {
     this.resize()
   }
 
+  /** Splats currently on the screen. */
+  get activeSplats(): number { let n = 0; for (const s of this.splats) if (s.active) n++; return n }
+
   /** Blood hitting the screen (0..1: a graze at 3 m … point-blank headshot). */
   splatter(amount: number): void {
     const a = Math.max(0, Math.min(1, amount))

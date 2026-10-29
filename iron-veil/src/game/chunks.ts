@@ -104,6 +104,22 @@ export function uberMaterial(layers: { value: THREE.Texture | null }, variant: U
   return m
 }
 
+/** Shadow depth for uber geometry: cut-outs (leaves, fences, wire) cast holed shadows instead of solid quads. */
+export function uberDepthMaterial(layers: { value: THREE.Texture | null }): THREE.MeshDepthMaterial {
+  const m = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, side: THREE.DoubleSide })
+  m.onBeforeCompile = shader => {
+    shader.uniforms.layers = layers
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>", "#include <common>\nattribute vec3 surf;\nvarying vec3 vSurf;\nvarying vec2 vUvA;")
+      .replace("#include <begin_vertex>", "#include <begin_vertex>\nvSurf = surf; vUvA = uv;")
+    shader.fragmentShader = shader.fragmentShader
+      .replace("#include <common>", "#include <common>\nuniform highp sampler2DArray layers;\nvarying vec3 vSurf;\nvarying vec2 vUvA;")
+      .replace("void main() {", "void main() {\n  if (texture(layers, vec3(vUvA, vSurf.x)).a < 0.42) discard;")
+  }
+  m.customProgramCacheKey = () => "uber-depth"
+  return m
+}
+
 // ---------------------------------------------------------------------------------------------------------------
 // Chunked geometry
 // ---------------------------------------------------------------------------------------------------------------
