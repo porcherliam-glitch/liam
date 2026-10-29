@@ -1462,7 +1462,11 @@ export class RaidGame {
       for (const e of this.openExits) if (!this.activeExit || this.activeExit === e) add("extract", e.x, e.z, e.name)
       const range = this.crateRange()
       if (this.containers) for (const c of this.containers.list) if (!c.searched && Math.abs(c.position.x - p.pos.x) < range && Math.abs(c.position.z - p.pos.z) < range && c.position.distanceTo(p.pos) < range) add("crate", c.position.x, c.position.z)
-      for (const g of this.ground) if (g.items.length && g.position.distanceTo(p.pos) < (g.kind === "airdrop" ? 1000 : 14)) add(g.kind === "airdrop" ? "drop" : "body", g.position.x, g.position.z)
+      for (const g of this.ground) {
+        if (g.fallen) { if (g.items.length && !g.searched) add("fallen", g.position.x, g.position.z); continue }
+        if (g.items.length && g.position.distanceTo(p.pos) < (g.kind === "airdrop" ? 1000 : 14)) add(g.kind === "airdrop" ? "drop" : "body", g.position.x, g.position.z)
+      }
+      if (this.survivors) for (const s of this.survivors.list) if (s.calledOut && (s.state === "hide" || s.state === "wounded") && s.position.distanceTo(p.pos) < 120) add("survivor", s.position.x, s.position.z)
       if (this.airdrop?.mesh && !this.airdrop.landed) add("drop", this.airdrop.spot!.x, this.airdrop.spot!.z)
       const layout = this.world.layout as ZoneLayout
       for (const c of this.company.profile.contracts.active) if (c.kind === "activate" && c.subject && !this.stats.activated.includes(c.subject)) { const o = layout.objectives.find(x => x.id === c.subject); if (o) add("objective", o.x, o.z, o.name) }
@@ -1518,6 +1522,7 @@ export class RaidGame {
       objectives: zone ? zone.objectives.filter(o => this.company.profile.contracts.active.some(c => c.subject === o.id)).map(o => ({ x: o.x, z: o.z, name: o.name, done: this.stats.activated.includes(o.id) })) : [],
       drop: this.airdrop?.mesh ? { x: this.airdrop.spot!.x, z: this.airdrop.spot!.z } : null,
       crates: this.containers ? this.containers.list.filter(c => !c.searched && c.position.distanceTo(this.player.pos) < this.crateRange()).map(c => ({ x: c.position.x, z: c.position.z })) : [],
+      fallen: this.ground.filter(g => g.fallen && g.items.length && !g.searched).map(g => ({ x: g.position.x, z: g.position.z, name: g.name.replace(/^Ausrüstung von /, "") })),
       others: this.mode === "raid" ? this.online?.inZone().map(o => ({ x: o.x!, z: o.z!, name: o.callsign })) ?? [] : [],
       survivors: this.survivors?.list.filter(s => s.state !== "dead" && (s.role === "trader" || s.role === "medic" || s.role === "guard" || s.calledOut || s.state === "follow" || s.state === "wait"))
         .map(s => ({ x: s.position.x, z: s.position.z, kind: s.state === "follow" || s.state === "wait" ? "follow" as const : s.role === "lost" || s.role === "wounded" ? "help" as const : "camp" as const, mark: s.role === "trader" ? "H" : s.role === "medic" ? "+" : s.role === "guard" ? "W" : "!" })) ?? [],

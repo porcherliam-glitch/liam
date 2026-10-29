@@ -11,7 +11,7 @@ import type { HudSnapshot } from "./types"
 import type { District, ExtractKind } from "./zone"
 
 const DIRS = ["N", "NO", "O", "SO", "S", "SW", "W", "NW"]
-const MARKER_COLORS: Record<string, string> = { extract: "#66e0b4", crate: "#79e5b8", body: "#c9d2ce", objective: "#e4b461", drop: "#ff9f43", threat: "#ff5a4a" }
+const MARKER_COLORS: Record<string, string> = { extract: "#66e0b4", crate: "#79e5b8", body: "#c9d2ce", objective: "#e4b461", drop: "#ff9f43", threat: "#ff5a4a", survivor: "#e4b461", fallen: "#6fd3ff" }
 
 export class Hud {
   private compass: HTMLCanvasElement
@@ -204,6 +204,12 @@ export class Hud {
         c.fillStyle = MARKER_COLORS.drop; c.font = "bold 10px ui-monospace,monospace"; c.fillText(`${Math.round(m.distance)} m`, x, 49)
       } else if (m.kind === "threat") {
         c.beginPath(); c.moveTo(x, 5); c.lineTo(x + 6, 16); c.lineTo(x - 6, 16); c.closePath(); c.fill()
+      } else if (m.kind === "survivor") {
+        c.beginPath(); c.arc(x, 7.5, 3.2, 0, Math.PI * 2); c.fill(); c.fillRect(x - 3.5, 12, 7, 6)
+        c.font = "bold 10px ui-monospace,monospace"; c.fillText(`${Math.round(m.distance)} m`, x, 49)
+      } else if (m.kind === "fallen") {
+        c.fillRect(x - 1.5, 5, 3, 13); c.fillRect(x - 5.5, 9, 11, 3)
+        c.font = "bold 10px ui-monospace,monospace"; c.fillText(`${Math.round(m.distance)} m`, x, 49)
       }
       c.globalAlpha = 1
     }
@@ -226,6 +232,8 @@ export interface TacticalMapData {
   crates: { x: number; z: number }[]
   /** Other online players in the zone (echoes). */
   others?: { x: number; z: number; name: string }[]
+  /** Other online players' gear where they fell. */
+  fallen?: { x: number; z: number; name: string }[]
   /** Friendly survivors: the camp (trader H, medic +, guard W), people calling for help (!), followers. */
   survivors?: { x: number; z: number; kind: "camp" | "help" | "follow"; mark: string }[]
 }
@@ -315,6 +323,13 @@ export function drawTacticalMap(canvas: HTMLCanvasElement, d: TacticalMapData, v
     c.fillStyle = s.kind === "help" ? "#e4b461" : "#80e0bc"
     c.beginPath(); c.arc(x, z, s.kind === "follow" ? 4 : 7, 0, Math.PI * 2); c.fill(); c.stroke()
     if (s.kind !== "follow") { c.fillStyle = "#04120d"; c.font = "bold 10px ui-monospace,monospace"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(s.mark, x, z + 0.5) }
+  }
+  // other players' gear where they fell
+  for (const f of d.fallen ?? []) {
+    const x = X(f.x), z = Z(f.z)
+    c.fillStyle = "#6fd3ff"; c.strokeStyle = "#04121a"; c.lineWidth = 1.5
+    c.fillRect(x - 1.5, z - 7, 3, 14); c.fillRect(x - 6, z - 3, 12, 3); c.strokeRect(x - 1.5, z - 7, 3, 14)
+    c.font = "10px ui-monospace,monospace"; c.textAlign = "center"; c.fillText(f.name, x, z - 13)
   }
   // other online players (echoes)
   for (const o of d.others ?? []) {

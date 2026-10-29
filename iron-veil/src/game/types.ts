@@ -148,7 +148,7 @@ export interface RaidResult {
   rescued: number
 }
 
-export type MarkerKind = "extract" | "crate" | "body" | "objective" | "drop" | "threat"
+export type MarkerKind = "extract" | "crate" | "body" | "objective" | "drop" | "threat" | "survivor" | "fallen"
 export interface CompassMarker { kind: MarkerKind; bearing: number; distance: number; label?: string }
 
 export interface HudSnapshot {
