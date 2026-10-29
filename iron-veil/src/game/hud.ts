@@ -226,6 +226,8 @@ export interface TacticalMapData {
   crates: { x: number; z: number }[]
   /** Other online players in the zone (echoes). */
   others?: { x: number; z: number; name: string }[]
+  /** Friendly survivors: the camp (trader H, medic +, guard W), people calling for help (!), followers. */
+  survivors?: { x: number; z: number; kind: "camp" | "help" | "follow"; mark: string }[]
 }
 
 const DANGER_FILL = ["", "rgba(102,224,180,.05)", "rgba(228,180,97,.07)", "rgba(239,92,80,.09)"]
@@ -300,6 +302,19 @@ export function drawTacticalMap(canvas: HTMLCanvasElement, d: TacticalMapData, v
     const y = Z(e.z) - Math.max(10, e.r * scale) - 6
     c.fillText(`${EXIT_NAMES[e.kind]} · ${e.name.toUpperCase()}`, X(e.x), y)
     if (e.requirement) { c.font = "10px ui-monospace,monospace"; c.fillText(e.requirement.money ? `${e.requirement.money} $ Bestechung` : e.requirement.item && e.requirement.item in ITEMS ? `${ITEMS[e.requirement.item as ItemId].name} nötig` : "Gegenstand nötig", X(e.x), y + 12 + Math.max(10, e.r * scale) * 2) }
+  }
+  // survivors: the camp, people who called for help, followers
+  const camp = (d.survivors ?? []).filter(s => s.kind === "camp")
+  if (camp.length) {
+    const cx = camp.reduce((a, s) => a + s.x, 0) / camp.length, cz = Math.min(...camp.map(s => s.z))
+    c.font = "bold 11px ui-monospace,monospace"; c.textAlign = "center"; c.fillStyle = "#cfeee0"; c.fillText("LAGER", X(cx), Z(cz) - 16)
+  }
+  for (const s of d.survivors ?? []) {
+    const x = X(s.x), z = Z(s.z)
+    c.lineWidth = 2; c.strokeStyle = "#04120d"
+    c.fillStyle = s.kind === "help" ? "#e4b461" : "#80e0bc"
+    c.beginPath(); c.arc(x, z, s.kind === "follow" ? 4 : 7, 0, Math.PI * 2); c.fill(); c.stroke()
+    if (s.kind !== "follow") { c.fillStyle = "#04120d"; c.font = "bold 10px ui-monospace,monospace"; c.textAlign = "center"; c.textBaseline = "middle"; c.fillText(s.mark, x, z + 0.5) }
   }
   // other online players (echoes)
   for (const o of d.others ?? []) {

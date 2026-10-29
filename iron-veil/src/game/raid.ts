@@ -20,7 +20,7 @@ import { INFECTED, type InfectedKind } from "./infectedData"
 import { Input } from "./input"
 import { ITEMS, type ItemId } from "./items"
 import type { Online, OnlineMode } from "./online"
-import { ROLE_NAMES, SurvivorManager, survivorSpots, type Survivor } from "./survivors"
+import { RESIDENT_LINES, residentSpots, roleName, SurvivorManager, survivorSpots, type Survivor } from "./survivors"
 import { airdropModel, ContainerField, groundBagModel, rollAirdrop, rollContainer, rollInfectedBody, rollMercBody, SEARCH_TIME, type ContainerRef, type GroundLoot } from "./loot"
 import { Player, RADIUS, WALK } from "./player"
 import type { Company, RaidKit, RaidStats } from "./profile"
@@ -298,6 +298,15 @@ export class RaidGame {
     this.viewModel.visible = false
     this.input.capture = true; this.input.clearActions(); this.input.resetAll()
     this.hintsShown.clear()
+    // rescued people live here now
+    const residents = Math.min(8, this.company.profile.residents)
+    if (residents > 0) {
+      const st = (this.world.layout as BaseLayout).stations
+      const around = { x: st.reduce((a, q) => a + q.x, 0) / st.length, z: st.reduce((a, q) => a + q.z, 0) / st.length }
+      this.survivors = new SurvivorManager(this.world.group, {
+        world: this.world, infected: () => null, tracer: () => {}, sfx: (id, at, volume) => this.sfx(id, { position: at, volume }), noise: () => {}, say: (t, sec) => this.say(t, sec), rng: Math.random,
+      }, residentSpots(this.world, residents, Math.random, around))
+    }
     if (!this.company.profile.tutorialDone) this.showHint("base", `Ihre Basis. Gehen Sie zu den Stationen und drücken Sie ${this.key("E")}. Zum Einsatz: Tor im Süden oder Funkstation.`, 9)
     this.audio.setAmbience("base")
     this.requestLock(); this.pushHud()
@@ -498,7 +507,7 @@ export class RaidGame {
       const lost = stepVitals(this.player.vitals, dt, { metabolism: this.company.has("metabolism"), immunology: this.company.has("immunology"), sprinting: this.player.sprinting })
       if (lost > 0.5 * dt && this.player.vitals.bleed !== "none" && this.rng() < dt * 0.6) this.gore.wound({ x: this.player.pos.x, y: 0.9, z: this.player.pos.z }, { x: 0, y: -1, z: 0 }, 6)
     }
-    if (this.mode === "raid") this.survivors?.update(dt, this.player.pos, true)
+    if (this.mode === "raid" || this.mode === "base") this.survivors?.update(dt, this.player.pos, true)
     this.updateInteraction(dt)
     // in the base only E (stations) is used; other key presses must not pile up for the next raid
     if (!fight) this.input.clearActions()
@@ -962,6 +971,8 @@ export class RaidGame {
       const layout = this.world.layout as BaseLayout
       for (const s of layout.stations) consider(s.x, s.z, { kind: "station", id: s.id, name: s.name }, 2.6)
       for (const plot of layout.plots) consider(plot.x, plot.z + plot.d / 2 + 1, { kind: "plot", structure: plot.structure, name: `${STRUCTURES[plot.structure].name} · Stufe ${this.company.level(plot.structure)}` }, 3)
+      const sv = this.survivors?.nearest(p.pos, 2.2)
+      if (sv) consider(sv.position.x, sv.position.z, { kind: "survivor", s: sv }, 2.2)
     } else if (this.mode === "raid") {
       if (this.containers) for (const c of this.containers.list) if (Math.abs(c.position.x - p.pos.x) < 3 && Math.abs(c.position.z - p.pos.z) < 3) consider(c.position.x, c.position.z, { kind: "container", ref: c }, 2.3)
       for (const g of this.ground) if (g.items.length || !g.searched) consider(g.position.x, g.position.z, { kind: "ground", loot: g }, 2.1)
@@ -1024,7 +1035,8 @@ export class RaidGame {
   // ───────────────────────────── other survivors ─────────────────────────────
 
   private survivorPrompt(s: Survivor, E: string): string {
-    if (s.role === "trader") return `${E} · Mit ${s.name} handeln (Händlerin)`
+    if (s.role === "trader") return `${E} · Mit ${s.name} handeln (${roleName(s)})`
+    if (s.role === "resident") return `${E} · Mit ${s.name} reden (${roleName(s)})`
     if (s.role === "medic") return `${E} · ${s.name}: behandeln lassen (${HEAL_PRICE} $)`
     if (s.role === "guard") return `${E} · ${s.name} (Wache) nach der Lage fragen`
     if (s.state === "follow") return `${E} · ${s.name}: hier warten`
@@ -1034,6 +1046,7 @@ export class RaidGame {
 
   private talkTo(s: Survivor): void {
     if (s.role === "trader") { this.openTrade(s); return }
+    if (s.role === "resident") { this.say(`${s.name}: „${RESIDENT_LINES[Math.floor(Math.random() * RESIDENT_LINES.length)]}“`, 4); return }
     if (s.role === "medic") {
       const v = this.player.vitals, money = this.company.profile.money
       if (v.health >= 99 && v.bleed === "none" && v.infection < 5) { this.say(`${s.name}: „Dir fehlt nichts. Pass auf dich auf.“`, 3); return }
@@ -1054,7 +1067,7 @@ export class RaidGame {
     }
     const was = s.state
     this.survivors?.follow(s)
-    this.say(s.state === "follow" ? (was === "wait" ? `${s.name} folgt dir wieder` : `${s.name} folgt dir · bring ${s.look === "medic" ? "sie" : "ihn"} zu einer Extraktion`) : `${s.name} wartet hier`, 3.5)
+    this.say(s.state === "follow" ? (was === "wait" ? `${s.name} folgt dir wieder` : `${s.name} folgt dir · bring ${s.female ? "sie" : "ihn"} zu einer Extraktion`) : `${s.name} wartet hier`, 3.5)
   }
 
   private bandageSurvivor(s: Survivor): void {
@@ -1071,7 +1084,7 @@ export class RaidGame {
     const sync = () => { s.stock.length = 0; for (const it of shop.items) s.stock.push(it) }
     const buy = (id: ItemId) => Math.max(1, Math.ceil(ITEMS[id].value * 1.4)), sell = (id: ItemId) => Math.max(1, Math.floor(ITEMS[id].value * 0.55))
     const session: LootSession = {
-      get title() { return `${s.name} · ${ROLE_NAMES[s.role]} · Nehmen kostet, Ablegen bringt Geld · Kasse ${profile.money} $` },
+      get title() { return `${s.name} · ${roleName(s)} · Nehmen kostet, Ablegen bringt Geld · Kasse ${profile.money} $` },
       get items() { return shop.items }, bag,
       take(index) {
         const slot = shop.items[index]; if (!slot) return 0
@@ -1506,6 +1519,8 @@ export class RaidGame {
       drop: this.airdrop?.mesh ? { x: this.airdrop.spot!.x, z: this.airdrop.spot!.z } : null,
       crates: this.containers ? this.containers.list.filter(c => !c.searched && c.position.distanceTo(this.player.pos) < this.crateRange()).map(c => ({ x: c.position.x, z: c.position.z })) : [],
       others: this.mode === "raid" ? this.online?.inZone().map(o => ({ x: o.x!, z: o.z!, name: o.callsign })) ?? [] : [],
+      survivors: this.survivors?.list.filter(s => s.state !== "dead" && (s.role === "trader" || s.role === "medic" || s.role === "guard" || s.calledOut || s.state === "follow" || s.state === "wait"))
+        .map(s => ({ x: s.position.x, z: s.position.z, kind: s.state === "follow" || s.state === "wait" ? "follow" as const : s.role === "lost" || s.role === "wounded" ? "help" as const : "camp" as const, mark: s.role === "trader" ? "H" : s.role === "medic" ? "+" : s.role === "guard" ? "W" : "!" })) ?? [],
     }
   }
 

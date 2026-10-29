@@ -1,7 +1,7 @@
 import * as THREE from "three"
 import { describe, expect, it } from "vitest"
 import { GoreSystem } from "./gore"
-import { SurvivorManager, type SurvivorHost, type SurvivorSpot } from "./survivors"
+import { roleName, SurvivorManager, type SurvivorHost, type SurvivorSpot } from "./survivors"
 import { headlessWorld } from "./testWorld"
 import { InfectedManager } from "./zombies"
 
@@ -77,5 +77,22 @@ describe("survivors", () => {
     for (let i = 0; i < 60 * 4; i++) mgr.update(1 / 60, new THREE.Vector3(0, 0, 8), true)
     expect(shots.length).toBeGreaterThan(0)
     expect(z.health < hp || !z.alive).toBe(true)
+  })
+
+  it("rescued residents stroll around their home in the base, unarmed", () => {
+    const { mgr } = setup([{ role: "resident", look: "survivor", x: 0, z: 0 }])
+    const s = mgr.list[0]
+    expect(s.model.unarmed).toBe(true)
+    expect(roleName(s)).toBe(s.female ? "Bewohnerin" : "Bewohner")
+    let moved = 0, far = 0
+    const last = s.position.clone()
+    for (let i = 0; i < 60 * 40; i++) {
+      mgr.update(1 / 60, new THREE.Vector3(0, 0, 20), true)
+      moved += s.position.distanceTo(last); last.copy(s.position)
+      far = Math.max(far, Math.hypot(s.position.x, s.position.z))
+    }
+    expect(moved).toBeGreaterThan(3)
+    expect(far).toBeLessThan(11)
+    expect(s.state).toBe("idle")
   })
 })

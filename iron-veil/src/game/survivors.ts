@@ -14,11 +14,20 @@ import { acquireSoldierAssets, makeDrive, releaseSoldierAssets, SoldierModel, ty
 import type { Vec2 } from "./types"
 import type { World } from "./world"
 
-export type SurvivorRole = "trader" | "medic" | "guard" | "lost" | "wounded"
+export type SurvivorRole = "trader" | "medic" | "guard" | "lost" | "wounded" | "resident"
 export type SurvivorState = "idle" | "hide" | "wounded" | "follow" | "wait" | "flee" | "dead"
 
-export const ROLE_NAMES: Record<SurvivorRole, string> = { trader: "Händlerin", medic: "Sanitäterin", guard: "Wache", lost: "Verirrter", wounded: "Verletzter" }
-const NAMES = ["Anna", "Jonas", "Mira", "Paul", "Lena", "Kurt", "Elif", "Tomasz", "Ida", "Malik", "Greta", "Sami", "Vera", "Ole", "Nadia", "Bruno", "Hanna", "Emil"]
+const ROLE_TITLES: Record<SurvivorRole, [string, string]> = { trader: ["Händler", "Händlerin"], medic: ["Sanitäter", "Sanitäterin"], guard: ["Wache", "Wache"], lost: ["Verirrter", "Verirrte"], wounded: ["Verletzter", "Verletzte"], resident: ["Bewohner", "Bewohnerin"] }
+/** What rescued people in the base say when spoken to. */
+export const RESIDENT_LINES = [
+  "Danke, dass du mich da rausgeholt hast.", "Die Mauer hält. Hoffentlich.", "Ich helfe in der Werkstatt, wo ich kann.", "Bring Wasser mit, wenn du kannst.",
+  "Nachts höre ich sie am Zaun kratzen.", "Pass da draußen auf dich auf.", "Wir haben Glück, dass wir dich haben.", "Ich träume noch vom Lager auf dem Schulhof.",
+  "Wenn du Funkteile findest: Wir könnten mehr Leute erreichen.", "Hier drin kann man fast wieder schlafen.",
+]
+/** First names; true = the German role titles and pronouns use the feminine form. */
+const NAMES: [string, boolean][] = [["Anna", true], ["Jonas", false], ["Mira", true], ["Paul", false], ["Lena", true], ["Kurt", false], ["Elif", true], ["Tomasz", false], ["Ida", true], ["Malik", false], ["Greta", true], ["Sami", false], ["Vera", true], ["Ole", false], ["Nadia", true], ["Bruno", false], ["Hanna", true], ["Emil", false]]
+/** "Händlerin", "Verletzter" … matching the survivor's name. */
+export function roleName(s: { role: SurvivorRole; female: boolean }): string { return ROLE_TITLES[s.role][s.female ? 1 : 0] }
 const RADIUS = 0.34
 /** Infected closer than this bite. */
 const BITE_RANGE = 1.35
@@ -33,6 +42,8 @@ export interface Survivor {
   readonly role: SurvivorRole
   readonly look: SurvivorLook
   readonly name: string
+  /** Feminine role title and pronoun ("Händlerin", "sie"). */
+  readonly female: boolean
   readonly position: THREE.Vector3
   readonly home: THREE.Vector3
   readonly group: THREE.Group
@@ -51,6 +62,9 @@ export interface Survivor {
   hurtT: number
   /** Seconds until the next panicked shout (fleeing survivors draw infected to themselves). */
   panicT: number
+  /** Residents stroll around the base: current target and time until the next pick. */
+  wander: Vec2 | null
+  wanderT: number
   drive: SoldierDrive
 }
 
@@ -65,6 +79,17 @@ export interface SurvivorHost {
 }
 
 export interface SurvivorSpot { role: SurvivorRole; look: SurvivorLook; x: number; z: number; yaw?: number }
+
+/** Rescued people walking around the base (around the middle of the stations). */
+export function residentSpots(world: World, count: number, rng: () => number, around: Vec2): SurvivorSpot[] {
+  const looks: SurvivorLook[] = ["survivor", "drifter", "medic"]
+  const spots: SurvivorSpot[] = []
+  for (let i = 0; i < count; i++) {
+    const p = world.nav.randomPointNear(around.x, around.z, 12, rng)
+    if (p) spots.push({ role: "resident", look: looks[Math.floor(rng() * looks.length)], x: p.x, z: p.z, yaw: rng() * Math.PI * 2 })
+  }
+  return spots
+}
 
 /** Camp in the school yard (around the campfire) plus lost and wounded survivors in random districts. */
 export function survivorSpots(world: World, rng: () => number): SurvivorSpot[] {
@@ -98,15 +123,15 @@ export class SurvivorManager {
     this.group.name = "Überlebende"
     const names = [...NAMES]
     for (const s of spots) {
-      const name = names.splice(Math.floor(host.rng() * names.length), 1)[0] ?? "Unbekannt"
-      this.add(s, name)
+      const [name, female] = names.splice(Math.floor(host.rng() * names.length), 1)[0] ?? ["Unbekannt", false]
+      this.add(s, name, female)
     }
     parent.add(this.group)
   }
 
-  private add(spot: SurvivorSpot, name: string): Survivor {
+  private add(spot: SurvivorSpot, name: string, female: boolean): Survivor {
     const model = new SoldierModel(spot.look, this.assets, this.nextId * 7 + 3)
-    if (!WEAPON[spot.look] || spot.role === "trader" || spot.role === "wounded") model.holster()
+    if (!WEAPON[spot.look] || spot.role === "trader" || spot.role === "wounded" || spot.role === "resident") model.holster()
     model.setNight(this.host.world.night && !model.unarmed)
     const group = new THREE.Group(); group.name = `Überlebender_${name}`; group.add(model.root)
     const q = { x: spot.x, z: spot.z }
@@ -116,9 +141,9 @@ export class SurvivorManager {
     group.rotation.y = yaw
     const maxHealth = spot.role === "guard" ? 140 : spot.role === "wounded" ? 60 : 90
     const s: Survivor = {
-      id: this.nextId++, role: spot.role, look: spot.look, name, position: group.position, home: new THREE.Vector3(q.x, 0, q.z), group, model, maxHealth,
+      id: this.nextId++, role: spot.role, look: spot.look, name, female, position: group.position, home: new THREE.Vector3(q.x, 0, q.z), group, model, maxHealth,
       health: spot.role === "wounded" ? 35 : maxHealth, state: spot.role === "lost" ? "hide" : spot.role === "wounded" ? "wounded" : "idle", yaw,
-      calledOut: false, stock: [], path: [], pathT: 0, shotT: this.host.rng(), hurtT: 0, panicT: 0, drive: makeDrive(),
+      calledOut: false, stock: [], path: [], pathT: 0, shotT: this.host.rng(), hurtT: 0, panicT: 0, wander: null, wanderT: this.host.rng() * 4, drive: makeDrive(),
     }
     this.group.add(group)
     this.list.push(s)
@@ -187,10 +212,22 @@ export class SurvivorManager {
       } else if (s.state === "follow") {
         const d = Math.hypot(player.x - s.position.x, player.z - s.position.z)
         if (d > 3.2) { goal = { x: player.x, z: player.z }; run = d > 8 }
-      } else if (s.state === "idle" && s.position.distanceTo(s.home) > 1.5) goal = { x: s.home.x, z: s.home.z }
+      } else if (s.state === "idle" && s.role === "resident") goal = this.stroll(s, dt)
+      else if (s.state === "idle" && s.position.distanceTo(s.home) > 1.5) goal = { x: s.home.x, z: s.home.z }
       this.move(s, goal, run, dt, fight ? nearest : null)
       this.animate(s, dt, fight ? nearest : null)
     }
+  }
+
+  /** A resident picks a spot near home every few seconds (or just stands for a while). */
+  private stroll(s: Survivor, dt: number): Vec2 | null {
+    s.wanderT -= dt
+    if (s.wanderT <= 0) {
+      s.wanderT = 6 + this.host.rng() * 12
+      s.wander = this.host.rng() < 0.35 ? null : this.host.world.nav.randomPointNear(s.home.x, s.home.z, 9, this.host.rng)
+    }
+    if (s.wander && Math.hypot(s.wander.x - s.position.x, s.wander.z - s.position.z) < 0.5) s.wander = null
+    return s.wander
   }
 
   private bites(s: Survivor, threats: Hostile[], dt: number): void {
