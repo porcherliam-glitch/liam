@@ -10,7 +10,7 @@ import * as THREE from "three"
 import type { BuildingInfo, MapProp, MapSolid, Side } from "./maps"
 import { NY, PY, type GeoBatch } from "./meshkit"
 import { addTemplate, buildSolid, decal, fenceRun, jit, lampAt, place, registerExtras, sag, textKey, tint, tpl, type BuildCtx, type WindowReq } from "./props"
-import { CAR_LENGTH, CAR_WIDTH, apcGeometry, boatGeometry, bodyBagGeometry, boxcarGeometry, busGeometry, carGeometry, conveyorGeometry, forkliftGeometry, excavatorGeometry, fuelPumpGeometry, hopperWagonGeometry, litterBinGeometry, tankWagonGeometry, tractorGeometry, trashBagGeometry, trestleGeometry, truckCabGeometry, type CarStyle, type VehicleGeo, type VehiclePart } from "./vehicleModels"
+import { CAR_LENGTH, CAR_WIDTH, apcGeometry, benchGeometry, boatGeometry, bodyBagGeometry, boxcarGeometry, busGeometry, carGeometry, chairGeometry, conveyorGeometry, forkliftGeometry, excavatorGeometry, fuelPumpGeometry, hopperWagonGeometry, litterBinGeometry, tableGeometry, tankWagonGeometry, tractorGeometry, trashBagGeometry, trestleGeometry, truckCabGeometry, type CarStyle, type VehicleGeo, type VehiclePart } from "./vehicleModels"
 
 const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), V = new THREE.Vector3(), S = new THREE.Vector3(), E = new THREE.Euler()
 
@@ -234,6 +234,11 @@ function extraSolid(ctx: BuildCtx, s: MapSolid): boolean {
     case "bunk": bunk(ctx, s, k); return true
     case "bench": case "pew": {
       const wood = ctx.B("plank"), c = tint(s.tint ?? 0x8a6a48, 1, k), seat = Math.min(0.47, s.h)
+      if (s.style === "bench" && s.h <= 0.6) {
+        const L = alongX ? s.w : s.d, D = alongX ? s.d : s.w
+        addTemplate(ctx, benchGeometry(L, Math.min(D, 0.9)), placeAt(s.x, y0, s.z, alongX ? 0 : Math.PI / 2), { paint: ["plank", c], trim: ["metal", tint(0x2e3134)] })
+        return true
+      }
       wood.box(x0, seat - 0.06, z0, x1, seat, z1, { color: c, ao: 0 })
       const legs = alongX ? [[x0 + 0.1, s.z], [x1 - 0.1, s.z]] : [[s.x, z0 + 0.1], [s.x, z1 - 0.1]]
       for (const [lx, lz] of legs) metal.box(lx - 0.04, y0, lz - (alongX ? s.d / 2 - 0.05 : 0.04), lx + 0.04, seat - 0.06, lz + (alongX ? s.d / 2 - 0.05 : 0.04), { color: tint(0x3a3c3e), ao: 0.2 })
@@ -323,19 +328,17 @@ function extraSolid(ctx: BuildCtx, s: MapSolid): boolean {
       return true
     }
     case "table": {
-      const wood = ctx.B("plank"), c = tint(s.tint ?? 0x8a6a48, 1, k)
-      wood.box(x0, y1 - 0.05, z0, x1, y1, z1, { color: c, ao: 0 })
-      for (const [px, pz] of [[x0 + 0.06, z0 + 0.06], [x1 - 0.11, z0 + 0.06], [x0 + 0.06, z1 - 0.11], [x1 - 0.11, z1 - 0.11]]) wood.box(px, y0, pz, px + 0.05, y1 - 0.05, pz + 0.05, { color: c.clone().multiplyScalar(0.85), ao: 0, local: true })
+      const c = tint(s.tint ?? 0xae8a5e, 1, k)
+      addTemplate(ctx, tableGeometry(s.w, s.d, s.h), placeAt(s.x, y0, s.z, 0), { paint: ["plank", c] })
       if (ctx.rng() < 0.6) decal(ctx, "paper", s.x, y1 + 0.005, s.z, 0.6, 0.5, "up", 0xffffff, ctx.rng() * 6)
       if (ctx.rng() < 0.5) place(metal, t.cyl8, s.x + (ctx.rng() - 0.5) * 0.4, y1 + 0.06, s.z + (ctx.rng() - 0.5) * 0.4, 0, 0, 0, 0.05, 0.12, 0.05, 0xd8d4c8)
       return true
     }
     case "chair": {
-      const wood = ctx.B("plank"), c = tint(s.tint ?? 0x6e4b33, 1, k), v = s.v ?? 1, seat = 0.45
-      wood.box(x0 + 0.02, seat - 0.04, z0 + 0.02, x1 - 0.02, seat, z1 - 0.02, { color: c, ao: 0 })
-      for (const [px, pz] of [[x0 + 0.03, z0 + 0.03], [x1 - 0.07, z0 + 0.03], [x0 + 0.03, z1 - 0.07], [x1 - 0.07, z1 - 0.07]]) wood.box(px, y0, pz, px + 0.04, seat - 0.04, pz + 0.04, { color: c, ao: 0, local: true })
-      if (v === 1) wood.box(x0 + 0.02, seat, z0 + 0.02, x0 + 0.06, y1, z1 - 0.02, { color: c, ao: 0 })
-      else wood.box(x0 + 0.02, seat, z0 + 0.02, x1 - 0.02, y1, z0 + 0.06, { color: c, ao: 0 })
+      // template backrest faces -z; v 1 puts it on the x0 side
+      const c = tint(s.tint ?? 0x9a6e4a, 1, k), v = s.v ?? 1
+      const m = placeAt(s.x, y0, s.z, v === 1 ? Math.PI / 2 : 0).multiply(new THREE.Matrix4().makeScale(Math.min(s.w, s.d) / 0.4, s.h / 0.9, Math.min(s.w, s.d) / 0.4))
+      addTemplate(ctx, chairGeometry(Math.floor(s.x * 3.1 + s.z) & 1), m, { paint: ["plank", c] })
       return true
     }
     case "bed": {

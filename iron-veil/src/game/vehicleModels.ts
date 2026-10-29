@@ -1022,6 +1022,75 @@ export function streetLampGeometry(h: number): VehicleGeo {
   })
 }
 
+// ───────────────────────────── furniture ─────────────────────────────
+
+/** Square tapered leg from y0 to y1 (width w at the top, 0.7 w at the foot), optionally raked by dz over its length. */
+function leg(p: Parts, part: VehiclePart, x: number, z: number, y0: number, y1: number, w: number, dz = 0): void {
+  const g = new THREE.CylinderGeometry(w * 0.7071, w * 0.5, y1 - y0, 4, 1).rotateY(Math.PI / 4).translate(0, (y1 - y0) / 2, 0)
+  if (dz) g.applyMatrix4(new THREE.Matrix4().makeShear(0, 0, 0, dz / (y1 - y0), 0, 0))
+  g.translate(x, y0, z); p.add(part, g)
+}
+
+/**
+ * Kitchen chair (0.4 × 0.4 × 0.9 m, origin on the ground, backrest toward -z): seat with a rounded edge, tapered legs,
+ * aprons and side stretchers, back posts raking backward with a curved top rail and three spindles (v 1: two slats).
+ */
+export function chairGeometry(v: number): VehicleGeo {
+  const k = v === 1 ? 1 : 0
+  return cached(`chair:${k}`, () => {
+    const p = new Parts(), W = 0.4, seat = 0.45, h = W / 2 - 0.03
+    p.box("paint", W - 0.01, 0.035, W - 0.02, 0, seat - 0.0175, 0.005, 0.012)
+    for (const sx of [-1, 1]) {
+      leg(p, "paint", sx * h, h, 0, seat - 0.035, 0.036)
+      leg(p, "paint", sx * h, -h, 0, seat - 0.035, 0.036)
+      p.box("paint", 0.022, 0.025, 2 * h, sx * h, 0.16, 0)
+      p.box("paint", 0.02, 0.06, 2 * h, sx * h, seat - 0.065, 0)
+    }
+    for (const sz of [-1, 1]) p.box("paint", 2 * h, 0.06, 0.02, 0, seat - 0.065, sz * h)
+    // back posts lean back a little and carry a wide top rail
+    for (const sx of [-1, 1]) leg(p, "paint", sx * h, -h, seat, 0.9, 0.034, -0.035)
+    p.box("paint", 2 * h + 0.04, 0.075, 0.024, 0, 0.855, -h - 0.032, 0.008)
+    if (k === 0) for (const sx of [-0.09, 0, 0.09]) p.box("paint", 0.022, 0.32, 0.02, sx, 0.66, -h - 0.025)
+    else for (const y of [0.6, 0.72]) p.box("paint", 2 * h, 0.07, 0.02, 0, y, -h - 0.02 - (y - seat) * 0.08)
+    return p.build(["paint"])
+  })
+}
+
+/** Dining table of w × d (top at height h, origin on the ground): overhanging top with rounded edge, aprons, turned legs. */
+export function tableGeometry(w: number, d: number, h: number): VehicleGeo {
+  return cached(`table:${w.toFixed(1)}:${d.toFixed(1)}:${h.toFixed(2)}`, () => {
+    const p = new Parts(), t = 0.04, ix = w / 2 - 0.09, iz = d / 2 - 0.09
+    p.box("paint", w, t, d, 0, h - t / 2, 0, 0.015)
+    for (const sx of [-1, 1]) p.box("paint", 0.025, 0.1, 2 * iz, sx * ix, h - t - 0.05, 0)
+    for (const sz of [-1, 1]) p.box("paint", 2 * ix, 0.1, 0.025, 0, h - t - 0.05, sz * iz)
+    const turned = lathe([[0.022, 0], [0.026, 0.02], [0.02, 0.05], [0.017, 0.25], [0.024, 0.3], [0.028, 0.33], [0.022, 0.36], [0.021, h - t - 0.15], [0.03, h - t - 0.14], [0.03, h - t], [0, h - t]], 8)
+    for (const sx of [-1, 1]) for (const sz of [-1, 1]) p.add("paint", turned.clone().translate(sx * ix, 0, sz * iz))
+    turned.dispose()
+    return p.build(["paint"])
+  })
+}
+
+/** Slatted bench (length L along x, depth d, seat at 0.45 m): five slats on two or three cast-iron side frames. */
+export function benchGeometry(L: number, d: number): VehicleGeo {
+  return cached(`bench:${L.toFixed(1)}:${d.toFixed(1)}`, () => {
+    const p = new Parts(), seat = 0.45, n = 5, sw = (d - 0.06) / n
+    for (let i = 0; i < n; i++) p.box("paint", L - 0.04, 0.035, sw - 0.02, 0, seat - 0.018, -d / 2 + 0.03 + (i + 0.5) * sw, 0.008)
+    const frames = L > 2.2 ? [-L / 2 + 0.18, 0, L / 2 - 0.18] : [-L / 2 + 0.18, L / 2 - 0.18]
+    for (const x of frames) {
+      // cast frame: splayed legs joined by a seat bearer and a lower tie, round feet pads
+      for (const sz of [-1, 1]) {
+        const a = new THREE.Vector3(x, 0.02, sz * (d / 2 - 0.04)), b = new THREE.Vector3(x, seat - 0.04, sz * (d / 2 - 0.12))
+        rod(p, "trim", a, b, 0.03, 0.026, 6)
+        p.add("trim", new THREE.CylinderGeometry(0.045, 0.05, 0.025, 8).translate(x, 0.0125, sz * (d / 2 - 0.04)))
+      }
+      p.box("trim", 0.05, 0.05, d - 0.08, x, seat - 0.06, 0, 0.01)
+      p.box("trim", 0.04, 0.035, d - 0.2, x, 0.16, 0)
+    }
+    p.box("trim", L - 0.3, 0.035, 0.035, 0, 0.16, 0)
+    return p.build(["paint"])
+  })
+}
+
 /** Deterministic small PRNG for template variation. */
 function mulberry32(seed: number): () => number {
   let a = seed >>> 0
