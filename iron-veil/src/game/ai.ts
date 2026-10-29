@@ -163,10 +163,12 @@ export function coverFacesThreat(c: CoverSpot, threat: Vec2): boolean {
   return (c.nx * dx + c.nz * dz) / d < -0.3
 }
 
-/** Indices of usable cover points, best first. */
-export function rankCover(points: readonly CoverSpot[], q: CoverQuery): number[] {
+/** Indices of usable cover points, best first. `candidates` limits the scan (spatial pre-selection on big maps). */
+export function rankCover(points: readonly CoverSpot[], q: CoverQuery, candidates?: readonly number[]): number[] {
   const scored: Array<[number, number]> = []
-  for (let i = 0; i < points.length; i++) {
+  const n = candidates ? candidates.length : points.length
+  for (let k = 0; k < n; k++) {
+    const i = candidates ? candidates[k] : k
     const c = points[i]
     const travel = Math.hypot(c.x - q.from.x, c.z - q.from.z)
     if (travel > q.maxTravel) continue
@@ -242,52 +244,4 @@ function sphereT(o: Vec3, d: Vec3, cx: number, cy: number, cz: number, r: number
   if (t < 0) t = -b + s
   if (t < 0 || t > maxT) return null
   return t
-}
-
-// ---------------------------------------------------------------- packed obstacle tests (allocation-free hot paths)
-
-interface Box { minX: number; maxX: number; minZ: number; maxZ: number; height: number; minY?: number }
-
-/** Packs AABBs into a flat array [minX, minY, minZ, maxX, maxY, maxZ, …] for allocation-free ray tests. */
-export function packBoxes(boxes: readonly Box[]): Float64Array {
-  const out = new Float64Array(boxes.length * 6)
-  boxes.forEach((b, i) => { out.set([b.minX, b.minY ?? 0, b.minZ, b.maxX, b.height, b.maxZ], i * 6) })
-  return out
-}
-
-/** Entry distance of the ray (normalised d) into packed box i within maxT, or -1 (slab method, like collision.rayBox). */
-function slab(data: Float64Array, i: number, ox: number, oy: number, oz: number, dx: number, dy: number, dz: number, maxT: number): number {
-  let t0 = 0, t1 = maxT
-  if (Math.abs(dx) < 1e-12) { if (ox < data[i] || ox > data[i + 3]) return -1 } else {
-    let ta = (data[i] - ox) / dx, tb = (data[i + 3] - ox) / dx
-    if (ta > tb) { const s = ta; ta = tb; tb = s }
-    if (ta > t0) t0 = ta; if (tb < t1) t1 = tb; if (t0 > t1) return -1
-  }
-  if (Math.abs(dy) < 1e-12) { if (oy < data[i + 1] || oy > data[i + 4]) return -1 } else {
-    let ta = (data[i + 1] - oy) / dy, tb = (data[i + 4] - oy) / dy
-    if (ta > tb) { const s = ta; ta = tb; tb = s }
-    if (ta > t0) t0 = ta; if (tb < t1) t1 = tb; if (t0 > t1) return -1
-  }
-  if (Math.abs(dz) < 1e-12) { if (oz < data[i + 2] || oz > data[i + 5]) return -1 } else {
-    let ta = (data[i + 2] - oz) / dz, tb = (data[i + 5] - oz) / dz
-    if (ta > tb) { const s = ta; ta = tb; tb = s }
-    if (ta > t0) t0 = ta; if (tb < t1) t1 = tb; if (t0 > t1) return -1
-  }
-  return t0
-}
-
-/** Distance along the normalised ray to the first packed box, or maxT when nothing is hit. */
-export function rayBoxes(data: Float64Array, o: Vec3, d: Vec3, maxT: number): number {
-  let best = maxT
-  for (let i = 0; i < data.length; i += 6) { const t = slab(data, i, o.x, o.y, o.z, d.x, d.y, d.z, best); if (t >= 0 && t < best) best = t }
-  return best
-}
-
-/** True when the straight segment a→b passes through any packed box (same result as collision.segmentBlocked3D). */
-export function segmentBlockedBoxes(data: Float64Array, a: Vec3, b: Vec3): boolean {
-  const dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z, len = Math.sqrt(dx * dx + dy * dy + dz * dz)
-  if (len < 1e-6) return false
-  const ix = dx / len, iy = dy / len, iz = dz / len
-  for (let i = 0; i < data.length; i += 6) if (slab(data, i, a.x, a.y, a.z, ix, iy, iz, len) >= 0) return true
-  return false
 }

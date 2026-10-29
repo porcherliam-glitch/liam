@@ -1,13 +1,11 @@
 /**
- * ai.test.ts — unit tests for the pure enemy-AI math (ai.ts): hit chance, perception, cover ranking, capsules,
- * packed obstacle ray tests (checked against collision.ts).
+ * ai.test.ts — unit tests for the pure enemy-AI math (ai.ts): hit chance, perception, cover ranking, capsules.
  */
 import { describe, expect, it } from "vitest"
 import {
-  coverFacesThreat, createRng, detectionRate, distanceFalloff, flankPoint, hitChance, inFieldOfView, isPeripheral, packBoxes,
-  randInt, rankCover, rayBoxes, raySegmentCapsule, segmentBlockedBoxes, visionRange, wrapAngle, yawTo, type DetectionInput, type HitChanceInput,
+  coverFacesThreat, createRng, detectionRate, distanceFalloff, flankPoint, hitChance, inFieldOfView, isPeripheral,
+  randInt, rankCover, raySegmentCapsule, visionRange, wrapAngle, yawTo, type DetectionInput, type HitChanceInput,
 } from "./ai"
-import { raycastObstacles, segmentBlocked3D, type Obstacle } from "./collision"
 import { ENEMIES, THEMES } from "./data"
 
 const shot = (o: Partial<HitChanceInput> = {}): HitChanceInput => ({
@@ -115,35 +113,15 @@ describe("cover", () => {
     expect(rankCover(pts, { from: { x: 0, z: 30 }, threat, maxTravel: 15, range: 38, minThreatDist: 6, preferDist: 20 })).toEqual([])
     expect(rankCover(pts, { from: { x: 0, z: 3 }, threat, maxTravel: 15, range: 15, minThreatDist: 6, preferDist: 20 })).toEqual([])
     expect(rankCover(pts, { from: { x: 0, z: 3 }, threat, maxTravel: 15, range: 38, minThreatDist: 6, preferDist: 20, taken: i => i === 0 })).toEqual([])
+    // spatial pre-selection: only the listed candidates are considered
+    expect(rankCover(pts, { from: { x: 3, z: 6 }, threat, maxTravel: 15, range: 38, minThreatDist: 6, preferDist: 20 }, [1, 2])).toEqual([])
+    expect(rankCover(pts, { from: { x: 3, z: 6 }, threat, maxTravel: 15, range: 38, minThreatDist: 6, preferDist: 20 }, [2, 0])).toEqual([0])
   })
   it("flank points sit beside/behind the threat at the requested distance", () => {
     const threat = { x: 0, z: 0 }, from = { x: 0, z: 10 }
     const p = flankPoint(threat, from, 1, Math.PI / 2, 9)
     expect(Math.hypot(p.x, p.z)).toBeCloseTo(9)
     expect(Math.abs(p.z)).toBeLessThan(1e-6) // 90° around: level with the threat
-  })
-})
-
-describe("packed obstacle tests", () => {
-  it("agree with collision.ts on random boxes and segments", () => {
-    const rng = createRng(5)
-    const boxes: Obstacle[] = []
-    for (let i = 0; i < 40; i++) {
-      const x = rng() * 60 - 30, z = rng() * 60 - 30, w = 0.5 + rng() * 6, d = 0.5 + rng() * 6
-      boxes.push({ minX: x, maxX: x + w, minZ: z, maxZ: z + d, height: 0.8 + rng() * 4, minY: rng() < 0.2 ? 2 : undefined })
-    }
-    const packed = packBoxes(boxes)
-    let blocked = 0
-    for (let k = 0; k < 400; k++) {
-      const a = { x: rng() * 70 - 35, y: rng() * 3, z: rng() * 70 - 35 }, b = { x: rng() * 70 - 35, y: rng() * 3, z: rng() * 70 - 35 }
-      const ref = segmentBlocked3D(a, b, boxes)
-      if (ref) blocked++
-      expect(segmentBlockedBoxes(packed, a, b)).toBe(ref)
-      const l = Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z), dir = { x: (b.x - a.x) / l, y: (b.y - a.y) / l, z: (b.z - a.z) / l }
-      const hit = raycastObstacles(a, dir, l, boxes)
-      expect(rayBoxes(packed, a, dir, l)).toBeCloseTo(hit ? hit.distance : l, 9)
-    }
-    expect(blocked).toBeGreaterThan(50)
   })
 })
 

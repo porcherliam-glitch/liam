@@ -1,37 +1,107 @@
-import { chromium } from "playwright"
-import { createServer } from "node:http"
-import { readFile } from "node:fs/promises"
-import { extname, join, resolve, sep } from "node:path"
-import { fileURLToPath } from "node:url"
-const ROOT = fileURLToPath(new URL("../", import.meta.url)), DIST = join(ROOT, "dist")
-const MIME = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css" }
-const server = createServer(async (req, res) => { try { const raw = req.url === "/" ? "/index.html" : req.url.split("?")[0]; const file = resolve(DIST, "." + decodeURIComponent(raw)); if (file !== DIST && !file.startsWith(DIST + sep)) return res.writeHead(403).end(); const data = await readFile(file); res.writeHead(200, { "content-type": MIME[extname(file)] || "application/octet-stream" }); res.end(data) } catch { res.writeHead(404).end() } })
-await new Promise(r => server.listen(0, r)); const port = server.address().port
-const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined, args: ["--no-sandbox", "--use-gl=swiftshader"] })
-const page = await browser.newPage({ viewport: { width: 1280, height: 720 } })
-await page.addInitScript(() => {
-  localStorage.setItem("ironVeil.settings.v1", JSON.stringify({ sensitivity: .75, volume: .5, muted: true, quality: "low", invertY: false }))
-  if (!localStorage.getItem("ironVeil.profile.v2")) localStorage.setItem("ironVeil.profile.v2", JSON.stringify({ version: 2, callsign: "VEIL-TEST", money: 10000, resources: 500, xp: 0, level: 1, stash: { ammo: 8, medkit: 1, armor: 1, parts: 3, intel: 0, electronics: 0, medical: 0, relic: 0 }, buildings: { hq: 1, workshop: 1, lab: 1, clinic: 1 }, staff: { workshop: 1, lab: 1, clinic: 0 }, production: { workshop: 0, clinic: 0 }, research: [], activeResearch: null, loadout: { armor: 55, medkits: 2 }, stats: { raids: 0, extracts: 0, kills: 0, earned: 0, deaths: 0 }, lastTick: Date.now() }))
-})
-const errors = []; page.on("pageerror", e => errors.push(String(e))); page.on("console", m => { if (m.type() === "error") errors.push(m.text()) })
-const check = (v, m) => { if (!v) throw new Error(m); console.log(`PASS ${m}`) }, profile = () => page.evaluate(() => window.__ironVeil.profile()), snapshot = () => page.evaluate(() => window.__ironVeil.snapshot())
-const action = async name => { await page.locator(`button[data-action="${name}"]`).first().click(); await page.waitForTimeout(100) }
+// verify-edge.mjs — edge cases and content: v2 save migration, base/staff/production, research tiers, buying and
+// using all weapons, grenades, healing, crouch, flashlight, map/inventory overlays, all three operations, abort.
+import { openGame, richProfile } from "./browser-lib.mjs"
+
+// 1) migration of an old v2 save
+{
+  const legacy = { key: "ironVeil.profile.v2", value: { version: 2, callsign: "ALT-01", money: 4321, resources: 70, xp: 0, level: 2, stash: { ammo: 3, medkit: 1, armor: 0, parts: 2, intel: 0, electronics: 0, medical: 0, relic: 0 }, buildings: { hq: 2, workshop: 0, lab: 0, clinic: 0 }, staff: { workshop: 0, lab: 0, clinic: 0 }, production: { workshop: 0, clinic: 0 }, research: [], activeResearch: null, loadout: { armor: 55, medkits: 1 }, stats: { raids: 3, extracts: 2, kills: 4, earned: 900, deaths: 1 }, lastTick: Date.now() } }
+  const g = await openGame({ profile: legacy })
+  try {
+    const p = await g.profile()
+    g.check(p.version === 3 && p.money === 4321 && p.callsign === "ALT-01" && p.loadout.armorMax === 55 && p.weapons.includes("mk4"), "Alter Spielstand (v2) wird übernommen")
+    g.check(await g.page.locator(".intro-card").count() === 0, "Keine Kurzeinweisung für erfahrene Spieler")
+    g.check(g.errors.length === 0, "Keine Fehler bei der Übernahme")
+  } finally { await g.close() }
+}
+
+const g = await openGame({ profile: richProfile() })
+const { page, check } = g
+const profile = g.profile, snapshot = g.snapshot
+const fire = async (n, ms = 60) => { for (let i = 0; i < n; i++) { await page.mouse.move(640, 360); await page.mouse.down(); await page.waitForTimeout(ms); await page.mouse.up(); await page.waitForTimeout(ms) } }
 try {
-  await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: "networkidle" }); await page.waitForFunction(() => window.__GAME_READY__ === true)
-  await action("base"); await page.locator('[data-action=build][data-id=hq]').click(); await page.locator('[data-action=build][data-id=hq]').click(); check((await profile()).buildings.hq === 3, "Zwei Gebäudeausbauten")
-  await page.locator('[data-action=staff][data-id=clinic][data-delta="1"]').click(); await page.locator('[data-action=staff][data-id=workshop][data-delta="-1"]').click()
+  // base: HQ to level 3, staff, clinic production
+  await g.action("base")
+  await g.action("build", "hq"); await g.action("build", "hq")
+  check((await profile()).buildings.hq === 3, "Kommandozentrale zweimal ausgebaut")
+  await page.locator('[data-action=staff][data-id=clinic][data-delta="1"]').click(); await page.locator('[data-action=staff][data-id=workshop][data-delta="-1"]').click(); await page.waitForTimeout(80)
   check((await profile()).staff.clinic === 1 && (await profile()).staff.workshop === 0, "Personal zuweisen und abziehen")
-  const medBefore = (await profile()).stash.medkit; await page.evaluate(() => { const key = "ironVeil.profile.v2"; const p = JSON.parse(localStorage.getItem(key)); p.lastTick = Date.now() - 100000; localStorage.setItem(key, JSON.stringify(p)) }); await page.reload({ waitUntil: "networkidle" }); await page.waitForFunction(() => window.__GAME_READY__ === true)
-  check((await profile()).stash.medkit === medBefore + 1, "Feldlazarett-Produktion")
-  for (const id of ["ballistics", "plating", "broker"]) { await action("base"); await page.locator(`[data-action=research][data-id=${id}]`).click(); await page.evaluate(() => { const key = "ironVeil.profile.v2"; const p = JSON.parse(localStorage.getItem(key)); p.activeResearch.endsAt = Date.now() - 1; localStorage.setItem(key, JSON.stringify(p)) }); await page.reload({ waitUntil: "networkidle" }); await page.waitForFunction(() => window.__GAME_READY__ === true); check((await profile()).research.includes(id), `Forschung abgeschlossen: ${id}`) }
-  await action("trader"); const richBefore = await profile(); await page.locator('[data-action=sell-all][data-id=parts]').click(); const richAfter = await profile(); check(richAfter.stash.parts === 0 && richAfter.money - richBefore.money === 504, "Gesamtverkauf mit Forschungsbonus")
-  await action("settings"); await page.locator('[data-setting=sensitivity]').evaluate(el => { el.value = "1.25"; el.dispatchEvent(new Event("input", { bubbles: true })) }); await action("invert")
-  check(await page.evaluate(() => JSON.parse(localStorage.getItem("ironVeil.settings.v1")).sensitivity === 1.25), "Empfindlichkeitsregler")
-  check(await page.evaluate(() => JSON.parse(localStorage.getItem("ironVeil.settings.v1")).invertY === true), "Y-Invertierung")
-  await action("missions"); check(await page.locator(".mission-card.locked").count() === 0, "Alle Missionsfreischaltungen")
-  await page.locator('[data-action=select-mission][data-id=harbor]').click(); await action("deploy"); await page.waitForTimeout(300); check((await snapshot()).enemiesAlive === 7, "Stahlhafen-Gegneranzahl"); check(await page.locator('[data-hud=armor]').textContent() === "80", "Verbundplatten-Forschungsbonus")
-  await page.evaluate(() => window.__ironVeil.damage(40)); await page.keyboard.press("KeyQ"); await page.waitForFunction(() => window.__ironVeil.snapshot().health > 60, null, { timeout: 5000 }); check(await page.locator('[data-hud=medkits]').textContent() === "1", "Heilung und Medkit-Verbrauch")
-  await page.keyboard.press("Escape"); await action("abort"); await action("menu"); await action("missions"); await page.locator('[data-action=select-mission][data-id=blacksite]').click(); await action("deploy"); await page.waitForTimeout(300); check((await snapshot()).enemiesAlive === 9, "Nachtgitter-Gegneranzahl")
-  await page.keyboard.press("Escape"); await action("abort"); check((await snapshot()).screen === "result", "Abbrechen erzeugt Fehlschlag")
-  check(errors.length === 0, `Keine Laufzeitfehler (${errors.length})`); console.log("EDGEVERIFY OK")
-} finally { await browser.close(); server.close() }
+  const medBefore = (await profile()).stash.medkit
+  await page.evaluate(() => { const key = "ironVeil.profile.v3"; const p = JSON.parse(localStorage.getItem(key)); p.lastTick = Date.now() - 100000; localStorage.setItem(key, JSON.stringify(p)) })
+  await g.reload()
+  check((await profile()).stash.medkit === medBefore + 1, "Feldlazarett produziert Trauma-Sets")
+  // research: lab 1 programs, then lab 2 unlocks the next tier
+  for (const id of ["ballistics", "plating", "fieldmed"]) {
+    await g.action("base"); await g.action("research", id)
+    await page.evaluate(() => { const key = "ironVeil.profile.v3"; const p = JSON.parse(localStorage.getItem(key)); p.activeResearch.endsAt = Date.now() - 1; localStorage.setItem(key, JSON.stringify(p)) })
+    await g.reload(); check((await profile()).research.includes(id), `Forschung abgeschlossen: ${id}`)
+  }
+  await g.action("base")
+  check(await page.locator('[data-action=research][data-id=broker]').isDisabled(), "Graumarkt braucht Labor Ebene 2")
+  await g.action("build", "lab"); await page.waitForTimeout(80)
+  check(!(await page.locator('[data-action=research][data-id=broker]').isDisabled()), "Labor Ebene 2 schaltet die nächste Forschung frei")
+
+  // trader: weapons and supplies
+  await g.action("trader")
+  const partsMoney = await profile(); await g.action("sell-all", "parts"); const afterSell = await profile()
+  check(afterSell.stash.parts === 0 && afterSell.money - partsMoney.money === 3 * 140, "Gesamtverkauf einer Sorte")
+  await g.action("buy-weapon", "kv12"); await g.action("buy-weapon", "dr7"); await g.action("buy-weapon", "vx9")
+  const pw = await profile()
+  check(["kv12", "dr7", "vx9"].every(w => pw.weapons.includes(w)) && pw.loadout.primary === "vx9", "Drei Waffen gekauft, die letzte ist ausgerüstet")
+  await g.action("buy", "plate"); await g.action("buy", "grenade")
+  await g.action("inventory"); await g.action("equip", "plate"); await g.action("equip", "grenade"); await g.action("equip", "grenade")
+  const lo = (await profile()).loadout
+  check(lo.armorMax === 85 && lo.grenades === 2, "Plattenträger und zwei Granaten ausgerüstet")
+  check((await profile()).stash.armor === 2, "Alte Weste kommt zurück ins Lager")
+  await g.action("select-weapon", "kv12")
+  check((await profile()).loadout.primary === "kv12", "Schrotflinte als Hauptwaffe gewählt")
+
+  // harbor with the shotgun
+  await g.action("missions"); await g.action("select-mission", "harbor"); await g.action("deploy"); await page.waitForTimeout(700)
+  await page.evaluate(() => window.__ironVeil.godMode(true))
+  let s = await snapshot()
+  check(s.mission === "harbor" && s.enemiesAlive === 8, "Stahlhafen mit 8 Gegnern")
+  check(s.weapon === "kv12" && s.ammo === 6, "Schrotflinte geladen")
+  check(s.hud.armor === 85 + 25, "Verbundplatten-Bonus auf die Rüstung")
+  await fire(1); await page.waitForTimeout(200)
+  check((await snapshot()).ammo === 5, "Schrotflinte verbraucht eine Patrone pro Schuss")
+  await page.keyboard.press("KeyR"); await g.until(() => window.__ironVeil.snapshot().ammo === 6, null, 6000)
+  check(true, "Patronenweises Nachladen")
+  // grenade
+  await page.keyboard.press("KeyG")
+  await g.until(() => window.__ironVeil.snapshot().hud.grenades === 1, null, 8000)
+  await page.waitForTimeout(3000)
+  check(true, "Granate geworfen")
+  // healing with field medicine (65)
+  await page.evaluate(() => window.__ironVeil.damage(70)); await page.waitForTimeout(150)
+  const hpLow = (await snapshot()).health
+  await page.keyboard.press("KeyQ")
+  await g.until(h => window.__ironVeil.snapshot().health >= h, Math.min(100, hpLow + 64), 15000)
+  check((await snapshot()).hud.medkits === 1, "Feldmedizin heilt 65 Gesundheit und verbraucht ein Trauma-Set")
+  // crouch, flashlight, map, inventory
+  await page.keyboard.press("KeyC"); await page.waitForTimeout(200)
+  check((await snapshot()).crouched === true, "C duckt")
+  await page.keyboard.press("KeyC"); await page.keyboard.press("KeyF"); await page.waitForTimeout(150)
+  await page.keyboard.press("KeyM"); await page.waitForTimeout(300)
+  check(await page.locator("canvas.tac-map").count() === 1, "M öffnet die taktische Karte")
+  await g.shot("09-map.png")
+  await page.keyboard.press("KeyM"); await page.waitForTimeout(300)
+  check((await snapshot()).screen === "playing", "M schließt die Karte wieder")
+  await page.keyboard.press("Tab"); await page.waitForTimeout(300)
+  check(await page.locator(".raid-bag").count() === 1, "Tab öffnet das Raid-Inventar")
+  await page.keyboard.press("Tab"); await page.waitForTimeout(300)
+  await page.keyboard.press("Escape"); await page.waitForTimeout(300); await g.action("abort")
+  check((await snapshot()).screen === "result" && await page.locator(".result-failure").count() === 1, "Abbrechen erzeugt einen Fehlschlag")
+
+  // blacksite at night with the DMR
+  await g.action("menu"); await g.action("inventory"); await g.action("select-weapon", "dr7")
+  await g.action("missions"); await g.action("select-mission", "blacksite"); await g.action("deploy"); await page.waitForTimeout(700)
+  s = await snapshot()
+  check(s.mission === "blacksite" && s.enemiesAlive === 10 && s.weapon === "dr7", "Nachtgitter mit 10 Gegnern und Präzisionsgewehr")
+  await page.mouse.down({ button: "right" }); await page.waitForTimeout(700)
+  check((await snapshot()).hud.scoped === true, "Zielfernrohr beim Zielen")
+  await g.shot("10-scope.png")
+  await page.mouse.up({ button: "right" })
+  await page.keyboard.press("Escape"); await page.waitForTimeout(300); await g.action("abort")
+  check(g.errors.length === 0, `Keine Laufzeitfehler (${g.errors.length})${g.errors.length ? ": " + g.errors[0] : ""}`)
+  console.log("EDGEVERIFY OK")
+} finally { await g.close() }

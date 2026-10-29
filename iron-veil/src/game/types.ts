@@ -2,53 +2,98 @@
  * types.ts — shared plain-data types. No three.js imports here so pure logic modules and unit tests stay light.
  * Coordinates: world XZ is the ground plane, Y is up. Yaw 0 looks toward -Z; positive yaw turns left (counter-clockwise from above).
  */
+import type { BagSlot } from "./bag"
+import type { ContractKind, ResearchId, StaffJob, StructureId, TimeOfDay } from "./baseData"
+import type { ItemId } from "./items"
+import type { AmmoId, WeaponId, WeaponMods } from "./weaponData"
+
+export type { WeaponId } from "./weaponData"
+export type { ItemId } from "./items"
+export type { ResearchId } from "./baseData"
 
 export interface Vec2 { x: number; z: number }
 export interface Vec3 { x: number; y: number; z: number }
 
-export type Screen = "menu" | "missions" | "trader" | "base" | "inventory" | "settings" | "playing" | "paused" | "raidInventory" | "result"
-export type MissionId = "greyzone" | "harbor" | "blacksite"
-export type BuildingId = "hq" | "workshop" | "lab" | "clinic"
-export type ItemId = "ammo" | "medkit" | "armor" | "plate" | "grenade" | "parts" | "intel" | "electronics" | "medical" | "relic"
-export type ResearchId = "ballistics" | "plating" | "broker" | "logistics" | "fieldmed" | "recon"
-export type WeaponId = "p9" | "mk4" | "vx9" | "kv12" | "dr7"
+export type Screen = "menu" | "base" | "missions" | "trader" | "inventory" | "armory" | "crafting" | "build" | "radio" | "settings" | "playing" | "paused" | "raidInventory" | "loot" | "result" | "attack"
 export type EnemyKind = "scout" | "rifleman" | "heavy" | "marksman"
+/** The three original operation areas; they are districts of the big zone map now. */
+export type MissionId = "greyzone" | "harbor" | "blacksite"
 export type Difficulty = "easy" | "normal" | "hard"
+/** Lighting presets of the world; the zone uses times of day, the base always "dusk". */
 export type ThemeId = "dusk" | "harbor" | "night"
-export type Surface = "asphalt" | "concrete" | "metal" | "gravel" | "dirt" | "wood"
-export type ContractId = "headhunter" | "heavy" | "silent" | "value" | "fast" | "unharmed"
+export type Surface = "asphalt" | "concrete" | "metal" | "gravel" | "dirt" | "wood" | "grass"
+export type BackpackId = "none" | "pack_small" | "pack_large"
+export type GoreSetting = "off" | "normal" | "brutal"
 
 export interface Loadout {
-  primary: WeaponId
-  /** Current vest durability (0 = no vest carried). */
+  primary: WeaponId | null
+  primaryMods: WeaponMods
+  primaryAmmo: AmmoId | null
+  secondary: WeaponId | null
+  secondaryMods: WeaponMods
+  secondaryAmmo: AmmoId | null
+  melee: WeaponId
+  /** Current vest durability (0 = none) and the fresh value of the carried vest type (55 / 85). */
   armor: number
-  /** Durability of a fresh vest of the carried type (55 vest, 85 plate carrier); 0 when none. */
   armorMax: number
-  medkits: number
-  grenades: number
+  /** Helmet durability (0 = none, 50 = fresh). */
+  helmet: number
+  backpack: BackpackId
+  /** Packed backpack contents (taken into the raid, lost on death). */
+  bag: BagSlot[]
+  /** Secure container contents (kept on death). */
+  secure: BagSlot[]
 }
-export interface Buildings { hq: number; workshop: number; lab: number; clinic: number }
-export interface Staff { workshop: number; lab: number; clinic: number }
-export interface Production { workshop: number; clinic: number }
-export type ActiveResearch = { id: ResearchId; endsAt: number } | null
 
-export interface ProfileStats { raids: number; extracts: number; kills: number; earned: number; deaths: number; headshots: number; bestRaid: number; contracts: number }
+export interface ContractReward { money: number; xp: number; items?: Partial<Record<ItemId, number>> }
+export interface ContractOffer {
+  id: string
+  kind: ContractKind
+  title: string
+  text: string
+  target: number
+  /** fetch: item to deliver. */
+  item?: ItemId
+  /** killKind: infected or merc kind id; recon: district id; activate: objective anchor id. */
+  subject?: string
+  subjectName?: string
+  reward: ContractReward
+}
+export interface ActiveContract extends ContractOffer { progress: number }
+
+export interface ProfileStats {
+  raids: number; extracts: number; deaths: number; kills: number; infectedKills: number; mercKills: number
+  headshots: number; dismembered: number; earned: number; bestRaid: number; contracts: number; defenses: number
+}
 
 export interface Profile {
-  version: 3
+  version: 4
   callsign: string
   money: number
-  resources: number
   xp: number
   level: number
-  stash: Record<ItemId, number>
-  weapons: WeaponId[]
-  buildings: Buildings
-  staff: Staff
-  production: Production
-  research: ResearchId[]
-  activeResearch: ActiveResearch
+  /** Unlimited stash: item id → count (weapons are items `w_<id>`). */
+  stash: Partial<Record<ItemId, number>>
   loadout: Loadout
+  structures: Record<StructureId, number>
+  staff: Record<StaffJob, number>
+  /** Fractional production progress per producing structure. */
+  production: { workshop: number; clinic: number; kitchen: number }
+  /** Ammunition the workshop produces. */
+  workshopAmmo: AmmoId
+  crafting: { station: string; recipe: string; endsAt: number }[]
+  research: ResearchId[]
+  activeResearch: { id: ResearchId; endsAt: number } | null
+  contracts: { offers: ContractOffer[]; active: ActiveContract[]; refreshAt: number }
+  base: { threat: number; attackPending: boolean; lastAttack: number }
+  /** Infection carried between raids (the clinic treats it). */
+  infection: number
+  /** Timestamp of a raid in progress; a reload while it is set counts as death. 0 = none. */
+  raidStarted: number
+  /** Secure-container contents of the raid in progress (returned if the raid is lost by a reload). */
+  raidSecure: BagSlot[]
+  /** Free emergency kit cooldown (raids until available again). */
+  emergencyCooldown: number
   stats: ProfileStats
   tutorialDone: boolean
   lastTick: number
@@ -66,45 +111,63 @@ export interface Settings {
   difficulty: Difficulty
   screenShake: boolean
   showFps: boolean
+  gore: GoreSetting
 }
 
 export interface LootStack { id: ItemId; qty: number }
 
-export interface ContractState { id: ContractId; progress: number; target: number; done: boolean; failed: boolean }
+export interface RaidPlan {
+  insertion: string
+  time: TimeOfDay
+  /** Active contract ids tracked in this raid. */
+  contracts: string[]
+}
 
 export interface RaidResult {
   success: boolean
   reason: string
-  mission: MissionId
+  insertion: string
+  time: TimeOfDay
   kills: number
+  infectedKills: number
+  mercKills: number
   headshots: number
+  dismembered: number
   loot: LootStack[]
+  lost: LootStack[]
   value: number
-  reward: number
-  resources: number
   duration: number
   xp: number
   levelUp: boolean
-  contract: ContractState | null
-  contractReward: number
+  contractUpdates: { title: string; progress: number; target: number; done: boolean }[]
 }
 
-export type MarkerKind = "extract" | "crate" | "body" | "threat"
-export interface CompassMarker { kind: MarkerKind; bearing: number; distance: number }
+export type MarkerKind = "extract" | "crate" | "body" | "objective" | "drop" | "threat"
+export interface CompassMarker { kind: MarkerKind; bearing: number; distance: number; label?: string }
 
 export interface HudSnapshot {
   health: number
   armor: number
   armorMax: number
+  helmet: number
   stamina: number
+  energy: number
+  water: number
+  bleed: "none" | "light" | "heavy"
+  infection: number
+  painkiller: number
+  boost: number
+  weight: number
+  weightLimit: number
   ammo: number
   reserve: number
-  /** -1 = infinite reserve (sidearm). */
-  reserveInfinite: boolean
+  ammoName: string
   weaponName: string
   fireMode: string
-  medkits: number
+  melee: boolean
+  quickMeds: number
   grenades: number
+  throwableName: string
   reloading: number
   reloadTotal: number
   objective: string
@@ -112,7 +175,10 @@ export interface HudSnapshot {
   contract: string
   lootValue: number
   raidTime: number
+  clock: string
+  area: string
   extraction: number
+  extractionName: string
   interaction: string
   interactionProgress: number
   enemies: number
@@ -126,14 +192,22 @@ export interface HudSnapshot {
   spread: number
   crouched: boolean
   ads: boolean
+  /** Scoped rifle at full zoom: show the scope overlay. */
+  scoped: boolean
+  /** Player is dying (death camera). */
+  dead: boolean
+  /** Input device in use, for button prompts. */
+  device: "kb" | "pad"
   message: string
   messageTime: number
   hint: string
   fps: number
+  safe: boolean
 }
 
 export interface GameSnapshot {
   screen: Screen
+  mode: string
   player: Vec3
   yaw: number
   pitch: number
@@ -145,13 +219,19 @@ export interface GameSnapshot {
   ammo: number
   reserve: number
   enemiesAlive: number
+  infectedAlive: number
   lootCollected: number
-  raidLoot: LootStack[]
-  extractionReady: boolean
   extractionProgress: number
-  extractionId: string
-  mission: MissionId
   fps: number
   drawCalls: number
   triangles: number
+}
+
+declare global {
+  interface Window {
+    /** Player feet position — read by the smoke test's direction assertions. */
+    __gameProbe?: () => Vec3
+    /** Set on the first rendered frame. */
+    __GAME_READY__?: boolean
+  }
 }

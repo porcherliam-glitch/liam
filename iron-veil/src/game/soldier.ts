@@ -9,13 +9,19 @@
  *  - new SoldierModel(kind, assets, seed): add `model.root` to a group that carries position (feet) + yaw.
  *  - update(dt, drive) animates; after the owning group's updateMatrixWorld(true) call capture() to refresh the posed
  *    world points (head, neckBase, pelvisPos, shoulders/elbows, hips/knees/ankles, muzzle) used for hit tests and LOS.
- *  - fire(), hit(dirX, dirZ), die(fallX, fallZ), setIndicator(), setLaser(), setNight(), dispose().
+ *  - fire(), hit(dirX, dirZ), die(fallX, fallZ), dropWeapon(), gibbed(), setIndicator(), setLaser(), setNight(), dispose().
+ *  - Gore: `parts` maps head/torso/armL/armR/legL/legR to joint groups whose local origin is the joint (neck, chest,
+ *    shoulder, hip); hiding one leaves a stump. `severed` (shared with the owner's GoreBody) removes those parts from
+ *    rayTest()/nearestZone() and from the corpse ground fit. Without the weapon both arms swing freely.
+ *  - rayTest(): head sphere above the jaw line (neck shots and grazes under the jaw count as torso), torso capsule
+ *    pelvis→upper chest + neck capsule, upper-arm and leg capsules.
  * Draw calls per soldier: 14 (13 body meshes + weapon); +2 at night (lens, cone), +1 muzzle flash, +2 laser, +1 mark.
  */
 import * as THREE from "three"
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js"
 import { ENEMIES, type EnemyWeapon } from "./data"
 import { raySegmentCapsule } from "./ai"
+import type { BodyPartId, HitPart } from "./hostiles"
 import type { EnemyKind, Vec3 } from "./types"
 
 type V3 = [number, number, number]
@@ -368,6 +374,8 @@ export interface SoldierAssets {
   coneGeo: THREE.BufferGeometry; coneMat: THREE.ShaderMaterial
   lensGeo: THREE.BufferGeometry; lensMat: THREE.MeshBasicMaterial
   laserGeo: THREE.BufferGeometry; laserMat: THREE.MeshBasicMaterial; dotMat: THREE.SpriteMaterial
+  /** Wound cap shown at the joint of a severed part (shared, only drawn once something is gone). */
+  stumpGeo: THREE.BufferGeometry; stumpMat: THREE.MeshStandardMaterial
   markMats: { "?": THREE.SpriteMaterial; "!": THREE.SpriteMaterial }
   textures: THREE.Texture[]
 }
@@ -388,8 +396,8 @@ export function releaseSoldierAssets(): void {
   for (const k of Object.values(a.kinds)) {
     for (const g of [k.pelvis, k.chest, k.head, k.boot, k.gun.geo, ...k.upperArm, ...k.forearm, ...k.thigh, ...k.shin]) g.dispose()
   }
-  for (const g of [a.flashGeo, a.coneGeo, a.lensGeo, a.laserGeo]) g.dispose()
-  for (const m of [a.baseMaterial, a.flashMat, a.coneMat, a.lensMat, a.laserMat, a.dotMat, a.markMats["?"], a.markMats["!"]]) m.dispose()
+  for (const g of [a.flashGeo, a.coneGeo, a.lensGeo, a.laserGeo, a.stumpGeo]) g.dispose()
+  for (const m of [a.baseMaterial, a.stumpMat, a.flashMat, a.coneMat, a.lensMat, a.laserMat, a.dotMat, a.markMats["?"], a.markMats["!"]]) m.dispose()
   for (const t of a.textures) t.dispose()
 }
 
@@ -438,6 +446,8 @@ function buildAssets(): SoldierAssets {
     coneGeo: buildConeGeo(), coneMat,
     lensGeo: new THREE.PlaneGeometry(0.24, 0.24).rotateY(Math.PI), lensMat,
     laserGeo: new THREE.CylinderGeometry(0.004, 0.012, 1, 5, 1, true).rotateX(-Math.PI / 2).translate(0, 0, -0.5), laserMat, dotMat,
+    stumpGeo: buildStumpGeo(),
+    stumpMat: new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.32, metalness: 0.05, emissive: 0x200000 }),
     markMats: { "?": spriteMat(qTex), "!": spriteMat(exTex) },
     textures: [glowTex, qTex, exTex],
   }
@@ -452,6 +462,15 @@ function makeTexture(size: number, draw: (ctx: CanvasRenderingContext2D) => void
   if (ctx) draw(ctx)
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace
   return t
+}
+
+/** Wound cap: a wet red dome with a dark rim and a pale bone stub in the middle (local +Y points out of the body). */
+function buildStumpGeo(): THREE.BufferGeometry {
+  const b = new Parts()
+  b.sph(0.075, 0x6e0b07, [0, 0, 0], [1, 0.55, 1], 10, 5, Math.PI * 0.5)
+  b.cyl(0.078, 0.078, 0.025, 0x2e0403, [0, -0.005, 0], undefined, 10)
+  b.cyl(0.018, 0.022, 0.05, 0xd9cfb8, [0.008, 0.035, 0.004], undefined, 6)
+  return b.build()
 }
 
 /** Three crossed diamonds along -Z plus a front star, vertex colours fading to black (additive). */
@@ -527,6 +546,18 @@ export function solveTwoBone(s: THREE.Vector3, t: THREE.Vector3, pole: THREE.Vec
   basisQuat(_n, _f, qb)
 }
 
+/** Head hits below this fraction of the head radius under its centre are the throat (torso). */
+const JAW = 0.55
+/** Neck capsule radius (unscaled). */
+const NECK_R = 0.065
+/** Distance from p to the segment a→b. */
+function segDist(p: Vec3, a: THREE.Vector3, b: THREE.Vector3): number {
+  const abx = b.x - a.x, aby = b.y - a.y, abz = b.z - a.z, l2 = abx * abx + aby * aby + abz * abz
+  let t = l2 > 1e-12 ? ((p.x - a.x) * abx + (p.y - a.y) * aby + (p.z - a.z) * abz) / l2 : 0
+  t = t < 0 ? 0 : t > 1 ? 1 : t
+  return Math.hypot(p.x - a.x - abx * t, p.y - a.y - aby * t, p.z - a.z - abz * t)
+}
+
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t
 const clamp = (v: number, lo: number, hi: number) => v < lo ? lo : v > hi ? hi : v
 const smooth = (t: number) => { t = clamp(t, 0, 1); return t * t * (3 - 2 * t) }
@@ -593,6 +624,13 @@ export class SoldierModel {
   readonly hipLPos = new THREE.Vector3(); readonly hipRPos = new THREE.Vector3()
   readonly kneeLPos = new THREE.Vector3(); readonly kneeRPos = new THREE.Vector3()
   readonly ankleLPos = new THREE.Vector3(); readonly ankleRPos = new THREE.Vector3()
+  readonly handLPos = new THREE.Vector3(); readonly handRPos = new THREE.Vector3()
+  readonly neckLow = new THREE.Vector3(); readonly neckTop = new THREE.Vector3(); readonly headUp = new THREE.Vector3(0, 1, 0)
+  /** Gore groups: local origin is the joint (neck, chest, shoulder, hip). */
+  readonly parts: Record<BodyPartId, THREE.Object3D>
+  /** Severed parts (the owner's GoreBody.severed): ignored by hit tests and the corpse ground fit. */
+  severed: ReadonlySet<string> = new Set<string>()
+  private stumps: Partial<Record<BodyPartId, THREE.Mesh>> = {}
   dead = false
   settled = false
 
@@ -680,6 +718,7 @@ export class SoldierModel {
     this.indicator.position.set(0, 2.15, 0); this.root.add(this.indicator)
 
     this.joints = [this.pelvis, this.spine, this.chestJoint, this.chest, this.neck, this.shoulderL, this.shoulderR, this.elbowL, this.elbowR, this.hipL, this.hipR, this.kneeL, this.kneeR, this.ankleL, this.ankleR]
+    this.parts = { head: this.neck, torso: this.chest, armL: this.shoulderL, armR: this.shoulderR, legL: this.hipL, legR: this.hipR }
     this.phase = (seed * 0.137) % 1
     this.time = seed * 1.7
   }
@@ -749,43 +788,53 @@ export class SoldierModel {
 
     // ---- weapon pose (aim frame)
     const relaxed = (1 - this.alertW) * (1 - aim)
-    _gunPos.copy(POSE_READY.butt); _gunQ.copy(POSE_READY.q)
-    const wCarry = run * (1 - aim) * (1 - relaxed)
-    _gunPos.lerp(POSE_CARRY.butt, wCarry); _gunQ.slerp(POSE_CARRY.q, wCarry)
-    const wSling = relaxed
-    _gunPos.lerp(POSE_SLING.butt, wSling); _gunQ.slerp(POSE_SLING.q, wSling)
-    _gunPos.lerp(POSE_AIM.butt, aim); _gunQ.slerp(POSE_AIM.q, aim)
-    _gunPos.y += amp * 0.012 * Math.cos(2 * ph) * (1 - aim * 0.6) + breathe * 0.25
-    _gunPos.x += amp * 0.012 * Math.sin(ph) * (1 - aim * 0.6)
-    _gunQ.multiply(_q1.setFromAxisAngle(_v1.set(1, 0, 0), this.recoil * this.gunSpec.kick))
-    _v2.set(0, 0, 1).applyQuaternion(_gunQ)
-    _gunPos.addScaledVector(_v2, this.recoil * 0.045)
-    // gun origin = butt − R·buttOffset
-    this.gun.quaternion.copy(_gunQ)
-    this.gun.position.copy(this.gunSpec.butt).applyQuaternion(_gunQ).negate().add(_gunPos)
-    if (this.flashT > 0) { this.flashT -= dt; if (this.flashT <= 0) this.flash.visible = false }
-
-    // ---- arms: IK onto the weapon (in chest-bone space)
-    _qi.copy(this.chest.quaternion).invert()
-    _v1.copy(this.gun.position).applyQuaternion(_qi)
-    solveTwoBone(this.shoulderR.position, _v1, POLE_R, RIG.upperArm, RIG.forearm, 1, _q1, _q2)
-    this.shoulderR.quaternion.copy(_q1)
-    this.elbowR.quaternion.copy(_q1).invert().multiply(_q2)
-    _v1.copy(this.gunSpec.leftGrip).applyQuaternion(this.gun.quaternion).add(this.gun.position).applyQuaternion(_qi)
-    this.shoulderL.position.set(-RIG.shoulderX, RIG.shoulderY, -0.035 * aim)
-    solveTwoBone(this.shoulderL.position, _v1, POLE_L, RIG.upperArm, RIG.forearm, 1, _q1, _q2)
-    const leftW = 1 - relaxed * clamp(amp * 2.2, 0, 1)
-    if (leftW < 0.999) {
-      // free left arm swings against the left leg
-      const swing = -Math.sin(ph) * 0.42 * amp
-      _q3.setFromEuler(_e.set(swing, 0, -0.1, "XYZ"))
-      _q4.setFromEuler(_e.set(0.2 + Math.max(0, swing) * 0.5, 0, 0, "XYZ"))
-      _q2.premultiply(_qp.copy(_q1).invert())
-      this.shoulderL.quaternion.copy(_q3).slerp(_q1, leftW)
-      this.elbowL.quaternion.copy(_q4).slerp(_q2, leftW)
+    if (this.gunDropped) {
+      // no weapon (dropped after losing an arm): both arms swing free, bent like a sprinter
+      const swing = Math.sin(ph) * lerp(0.4, 0.95, run) * amp
+      this.shoulderR.quaternion.setFromEuler(_e.set(swing, 0, 0.14, "XYZ"))
+      this.elbowR.quaternion.setFromEuler(_e.set(0.35 + run * 0.9 + Math.max(0, swing) * 0.3, 0, 0, "XYZ"))
+      this.shoulderL.quaternion.setFromEuler(_e.set(-swing, 0, -0.14, "XYZ"))
+      this.elbowL.quaternion.setFromEuler(_e.set(0.35 + run * 0.9 + Math.max(0, -swing) * 0.3, 0, 0, "XYZ"))
+      this.updateDroppedGun(dt)
     } else {
-      this.shoulderL.quaternion.copy(_q1)
-      this.elbowL.quaternion.copy(_q1).invert().multiply(_q2)
+      _gunPos.copy(POSE_READY.butt); _gunQ.copy(POSE_READY.q)
+      const wCarry = run * (1 - aim) * (1 - relaxed)
+      _gunPos.lerp(POSE_CARRY.butt, wCarry); _gunQ.slerp(POSE_CARRY.q, wCarry)
+      const wSling = relaxed
+      _gunPos.lerp(POSE_SLING.butt, wSling); _gunQ.slerp(POSE_SLING.q, wSling)
+      _gunPos.lerp(POSE_AIM.butt, aim); _gunQ.slerp(POSE_AIM.q, aim)
+      _gunPos.y += amp * 0.012 * Math.cos(2 * ph) * (1 - aim * 0.6) + breathe * 0.25
+      _gunPos.x += amp * 0.012 * Math.sin(ph) * (1 - aim * 0.6)
+      _gunQ.multiply(_q1.setFromAxisAngle(_v1.set(1, 0, 0), this.recoil * this.gunSpec.kick))
+      _v2.set(0, 0, 1).applyQuaternion(_gunQ)
+      _gunPos.addScaledVector(_v2, this.recoil * 0.045)
+      // gun origin = butt − R·buttOffset
+      this.gun.quaternion.copy(_gunQ)
+      this.gun.position.copy(this.gunSpec.butt).applyQuaternion(_gunQ).negate().add(_gunPos)
+      if (this.flashT > 0) { this.flashT -= dt; if (this.flashT <= 0) this.flash.visible = false }
+
+      // ---- arms: IK onto the weapon (in chest-bone space)
+      _qi.copy(this.chest.quaternion).invert()
+      _v1.copy(this.gun.position).applyQuaternion(_qi)
+      solveTwoBone(this.shoulderR.position, _v1, POLE_R, RIG.upperArm, RIG.forearm, 1, _q1, _q2)
+      this.shoulderR.quaternion.copy(_q1)
+      this.elbowR.quaternion.copy(_q1).invert().multiply(_q2)
+      _v1.copy(this.gunSpec.leftGrip).applyQuaternion(this.gun.quaternion).add(this.gun.position).applyQuaternion(_qi)
+      this.shoulderL.position.set(-RIG.shoulderX, RIG.shoulderY, -0.035 * aim)
+      solveTwoBone(this.shoulderL.position, _v1, POLE_L, RIG.upperArm, RIG.forearm, 1, _q1, _q2)
+      const leftW = 1 - relaxed * clamp(amp * 2.2, 0, 1)
+      if (leftW < 0.999) {
+        // free left arm swings against the left leg
+        const swing = -Math.sin(ph) * 0.42 * amp
+        _q3.setFromEuler(_e.set(swing, 0, -0.1, "XYZ"))
+        _q4.setFromEuler(_e.set(0.2 + Math.max(0, swing) * 0.5, 0, 0, "XYZ"))
+        _q2.premultiply(_qp.copy(_q1).invert())
+        this.shoulderL.quaternion.copy(_q3).slerp(_q1, leftW)
+        this.elbowL.quaternion.copy(_q4).slerp(_q2, leftW)
+      } else {
+        this.shoulderL.quaternion.copy(_q1)
+        this.elbowL.quaternion.copy(_q1).invert().multiply(_q2)
+      }
     }
 
     // ---- legs: foot targets in root space + IK
@@ -835,7 +884,11 @@ export class SoldierModel {
   capture(): void {
     const hc = RIG.headCenter
     this.head.set(hc[0], hc[1], hc[2]).applyMatrix4(this.neck.matrixWorld)
-    this.neckBase.set(0, 0.12, 0).applyMatrix4(this.chest.matrixWorld)
+    // torso capsule ends at the upper chest (its top stays below the jaw), the neck has its own thin capsule
+    this.neckBase.set(0, 0.06, 0).applyMatrix4(this.chest.matrixWorld)
+    this.neckLow.set(0, 0.17, 0).applyMatrix4(this.chest.matrixWorld)
+    this.neckTop.set(0, 0.09, 0).applyMatrix4(this.neck.matrixWorld)
+    this.headUp.setFromMatrixColumn(this.neck.matrixWorld, 1).normalize()
     this.chestPos.set(0, 0.02, -0.02).applyMatrix4(this.chest.matrixWorld)
     this.pelvisPos.setFromMatrixPosition(this.pelvis.matrixWorld)
     this.shoulderLPos.setFromMatrixPosition(this.shoulderL.matrixWorld); this.shoulderRPos.setFromMatrixPosition(this.shoulderR.matrixWorld)
@@ -843,28 +896,62 @@ export class SoldierModel {
     this.hipLPos.setFromMatrixPosition(this.hipL.matrixWorld); this.hipRPos.setFromMatrixPosition(this.hipR.matrixWorld)
     this.kneeLPos.setFromMatrixPosition(this.kneeL.matrixWorld); this.kneeRPos.setFromMatrixPosition(this.kneeR.matrixWorld)
     this.ankleLPos.setFromMatrixPosition(this.ankleL.matrixWorld); this.ankleRPos.setFromMatrixPosition(this.ankleR.matrixWorld)
+    this.handLPos.set(0, -0.3, 0).applyMatrix4(this.elbowL.matrixWorld); this.handRPos.set(0, -0.3, 0).applyMatrix4(this.elbowR.matrixWorld)
     if (!this.gunDropped) this.muzzle.copy(this.gunSpec.muzzle).applyMatrix4(this.gun.matrixWorld)
   }
 
   /**
-   * Ray test against the posed hit zones (call after capture()): head sphere at the head joint, torso capsule
-   * pelvis→neck, upper-arm/thigh/shin capsules ("limb"). Returns the nearest entry within maxT, or null.
+   * Ray test against the posed hit zones (call after capture()). Head sphere — but only above the jaw line: hits on
+   * its lower part are the neck (torso). Torso capsule pelvis→upper chest plus a thin neck capsule; upper arms and
+   * legs are limbs. Severed parts are skipped. Returns the nearest entry within maxT, or null.
    */
-  rayTest(o: Vec3, d: Vec3, maxT: number): { t: number; part: "head" | "body" | "limb" } | null {
-    const s = this.scale, z = this.zones, h = this.head
-    let best = maxT, part: "head" | "body" | "limb" | null = null
-    const ox = o.x - h.x, oy = o.y - h.y, oz = o.z - h.z, r = z.head * s
-    const b = ox * d.x + oy * d.y + oz * d.z, c = ox * ox + oy * oy + oz * oz - r * r, disc = b * b - c
-    if (disc >= 0) { const sq = Math.sqrt(disc); let t = -b - sq; if (t < 0) t = -b + sq; if (t >= 0 && t <= best) { best = t; part = "head" } }
-    const cap = (a: THREE.Vector3, e: THREE.Vector3, rad: number, p: "body" | "limb") => {
-      const t = raySegmentCapsule(o, d, a.x, a.y, a.z, e.x, e.y, e.z, rad * s, best)
-      if (t !== null && t < best) { best = t; part = p }
+  rayTest(o: Vec3, d: Vec3, maxT: number): { t: number; part: HitPart; bodyPart: BodyPartId } | null {
+    const s = this.scale, z = this.zones, h = this.head, sev = this.severed
+    let best = maxT, part: HitPart | null = null, bodyPart: BodyPartId = "torso"
+    if (!sev.has("head")) {
+      const ox = o.x - h.x, oy = o.y - h.y, oz = o.z - h.z, r = z.head * s
+      const b = ox * d.x + oy * d.y + oz * d.z, c = ox * ox + oy * oy + oz * oz - r * r, disc = b * b - c
+      if (disc >= 0) {
+        const sq = Math.sqrt(disc); let t = -b - sq; if (t < 0) t = -b + sq
+        if (t >= 0 && t <= best) {
+          // height of the hit point along the head's up axis: under the jaw it is the throat
+          const up = (ox + d.x * t) * this.headUp.x + (oy + d.y * t) * this.headUp.y + (oz + d.z * t) * this.headUp.z
+          best = t
+          if (up >= -JAW * r) { part = "head"; bodyPart = "head" } else { part = "body"; bodyPart = "torso" }
+        }
+      }
     }
-    cap(this.pelvisPos, this.neckBase, z.torso, "body")
-    cap(this.shoulderLPos, this.elbowLPos, z.arm, "limb"); cap(this.shoulderRPos, this.elbowRPos, z.arm, "limb")
-    cap(this.hipLPos, this.kneeLPos, z.thigh, "limb"); cap(this.hipRPos, this.kneeRPos, z.thigh, "limb")
-    cap(this.kneeLPos, this.ankleLPos, z.shin, "limb"); cap(this.kneeRPos, this.ankleRPos, z.shin, "limb")
-    return part ? { t: best, part } : null
+    const cap = (a: THREE.Vector3, e: THREE.Vector3, rad: number, p: HitPart, bp: BodyPartId) => {
+      if (sev.has(bp)) return
+      const t = raySegmentCapsule(o, d, a.x, a.y, a.z, e.x, e.y, e.z, rad * s, best)
+      if (t !== null && t < best) { best = t; part = p; bodyPart = bp }
+    }
+    cap(this.pelvisPos, this.neckBase, z.torso, "body", "torso")
+    cap(this.neckLow, this.neckTop, NECK_R, "body", "torso")
+    cap(this.shoulderLPos, this.elbowLPos, z.arm, "limb", "armL"); cap(this.shoulderRPos, this.elbowRPos, z.arm, "limb", "armR")
+    cap(this.hipLPos, this.kneeLPos, z.thigh, "limb", "legL"); cap(this.hipRPos, this.kneeRPos, z.thigh, "limb", "legR")
+    cap(this.kneeLPos, this.ankleLPos, z.shin, "limb", "legL"); cap(this.kneeRPos, this.ankleRPos, z.shin, "limb", "legR")
+    return part ? { t: best, part, bodyPart } : null
+  }
+
+  /** Body part nearest to a world point (melee swings: the aim point at the target's distance). Skips severed parts. */
+  nearestZone(p: Vec3): { part: HitPart; bodyPart: BodyPartId } {
+    const s = this.scale, z = this.zones, sev = this.severed
+    let best = Infinity, part: HitPart = "body", bodyPart: BodyPartId = "torso"
+    const seg = (a: THREE.Vector3, b: THREE.Vector3, rad: number, hp: HitPart, bp: BodyPartId) => {
+      if (sev.has(bp)) return
+      const d = segDist(p, a, b) - rad * s
+      if (d < best) { best = d; part = hp; bodyPart = bp }
+    }
+    if (!sev.has("head")) {
+      const d = Math.hypot(p.x - this.head.x, p.y - this.head.y, p.z - this.head.z) - z.head * s
+      if (d < best && p.y - this.head.y >= -JAW * z.head * s) { best = d; part = "head"; bodyPart = "head" }
+    }
+    seg(this.pelvisPos, this.neckBase, z.torso, "body", "torso")
+    seg(this.neckLow, this.neckTop, NECK_R, "body", "torso")
+    seg(this.shoulderLPos, this.handLPos, z.arm, "limb", "armL"); seg(this.shoulderRPos, this.handRPos, z.arm, "limb", "armR")
+    seg(this.hipLPos, this.ankleLPos, z.thigh, "limb", "legL"); seg(this.hipRPos, this.ankleRPos, z.thigh, "limb", "legR")
+    return { part, bodyPart }
   }
 
   /** Muzzle flash + recoil kick. */
@@ -909,6 +996,26 @@ export class SoldierModel {
     if (on) this.laser.scale.set(1, 1, Math.max(0.5, length) / this.scale)
   }
 
+  /** Show the bloody stump cap where `part` was attached (call after severing / a head burst). */
+  showStump(part: BodyPartId): void {
+    if (part === "torso" || this.stumps[part]) return
+    const cap = new THREE.Mesh(this.assets.stumpGeo, this.assets.stumpMat)
+    cap.name = `stump_${part}`
+    cap.castShadow = true
+    const s = this.kind === "heavy" ? 1.15 : 1
+    if (part === "head") { cap.position.set(0, RIG.neck + 0.02, 0); cap.scale.set(0.9 * s, 0.8, 0.9 * s); this.chest.add(cap) }
+    else if (part === "armL" || part === "armR") {
+      const side = part === "armL" ? -1 : 1
+      cap.position.set(side * (RIG.shoulderX + 0.035), RIG.shoulderY - 0.02, 0); cap.rotation.z = -side * 1.35; cap.scale.setScalar(0.95 * s)
+      this.chest.add(cap)
+    } else {
+      const side = part === "legL" ? -1 : 1
+      cap.position.set(side * RIG.hipX, RIG.hipY - 0.04, 0); cap.rotation.x = Math.PI; cap.scale.set(1.15 * s, 0.9, 1.15 * s)
+      this.pelvis.add(cap)
+    }
+    this.stumps[part] = cap
+  }
+
   setNight(on: boolean): void { this.lens.visible = on; this.cone.visible = on && !this.dead }
 
   /** Night only: world origin and direction of the weapon light (valid after capture()). */
@@ -942,17 +1049,42 @@ export class SoldierModel {
     this.pelvisStartY = this.pelvis.position.y
     this.deathPose = this.buildDeathPose()
     this.fitRestPose()
-    // the weapon drops on its own
+    this.dropWeapon(fallX, fallZ)
+  }
+
+  /** True once the weapon has left the hands (death or a severed arm). */
+  get unarmed(): boolean { return this.gunDropped }
+
+  /** The weapon leaves the hands (world direction it is flung) and falls to the ground beside the body. */
+  dropWeapon(dirX: number, dirZ: number): void {
     const parent = this.root.parent
-    if (parent) {
-      parent.updateMatrixWorld(true)
-      parent.attach(this.gun)
-      this.gunDropped = true
-      this.gunVel.set(fallX * 0.6, 0.6, fallZ * 0.6).applyAxisAngle(_v1.set(0, 1, 0), -yaw)
-      _v2.set(0, 0, -1).applyQuaternion(this.gun.quaternion)
-      const gy = Math.atan2(-_v2.x, -_v2.z)
-      this.gunRest.setFromEuler(_e.set(0, gy, (this.seed % 2 ? 1 : -1) * Math.PI / 2, "YXZ"))
+    if (this.gunDropped || !parent) return
+    const yaw = parent.rotation.y
+    this.flash.visible = false; this.cone.visible = false; this.lens.visible = false; this.setLaser(false)
+    parent.updateMatrixWorld(true)
+    parent.attach(this.gun)
+    this.gunDropped = true
+    this.gunVel.set(dirX * 0.6, 0.6, dirZ * 0.6).applyAxisAngle(_v1.set(0, 1, 0), -yaw)
+    _v2.set(0, 0, -1).applyQuaternion(this.gun.quaternion)
+    const gy = Math.atan2(-_v2.x, -_v2.z)
+    this.gunRest.setFromEuler(_e.set(0, gy, (this.seed % 2 ? 1 : -1) * Math.PI / 2, "YXZ"))
+  }
+
+  private updateDroppedGun(dt: number): void {
+    const g = this.gun
+    if (g.position.y > 0.045 || this.gunVel.y > 0) {
+      this.gunVel.y -= 9.8 * dt
+      g.position.addScaledVector(this.gunVel, dt)
+      if (g.position.y <= 0.045) { g.position.y = 0.045; this.gunVel.set(0, 0, 0) }
     }
+    g.quaternion.slerp(this.gunRest, ease(dt, g.position.y <= 0.046 ? 14 : 5))
+  }
+
+  /** The body was blown apart (GoreSystem.gib hides it): no death animation, nothing left to pose. */
+  gibbed(): void {
+    this.dead = true; this.settled = true
+    this.setIndicator(""); this.setLaser(false)
+    this.flash.visible = false; this.cone.visible = false; this.lens.visible = false
   }
 
   private buildDeathPose(): DeathPose {
@@ -996,6 +1128,7 @@ export class SoldierModel {
     const lowest = (meshes: THREE.Object3D[]) => {
       let low = Infinity
       for (const o of meshes) {
+        if (!o.visible) continue
         const pos = (o as THREE.Mesh).geometry.attributes.position
         for (let k = 0; k < pos.count; k++) { _v2.fromBufferAttribute(pos, k).applyMatrix4(o.matrixWorld); if (_v2.y < low) low = _v2.y }
       }
@@ -1024,12 +1157,15 @@ export class SoldierModel {
     }
     const eu = (x: number, y: number, z: number) => _qf.setFromEuler(_e.set(x, y, z, "YXZ"))
     const headE = _e2.setFromQuaternion(P.q[4], "YXZ").clone()
-    fit(4, [this.neck], -0.6, 0.9, a => eu(g * a, headE.y, 0))
-    for (const [i, side, meshes] of [[5, -1, [this.shoulderL, this.elbowL]], [6, 1, [this.shoulderR, this.elbowR]]] as Array<[number, number, THREE.Object3D[]]>) {
+    const sev = this.severed
+    if (!sev.has("head")) fit(4, [this.neck], -0.6, 0.9, a => eu(g * a, headE.y, 0))
+    for (const [i, side, meshes, id] of [[5, -1, [this.shoulderL, this.elbowL], "armL"], [6, 1, [this.shoulderR, this.elbowR], "armR"]] as Array<[number, number, THREE.Object3D[], string]>) {
+      if (sev.has(id)) continue
       const ez = _e2.setFromQuaternion(P.q[i], "YXZ").z
       fit(i, meshes, 0, 1.45, a => eu(0, -side * g * a, ez))
     }
-    for (const [i, meshes] of [[9, [this.hipL, this.kneeL, this.ankleL]], [10, [this.hipR, this.kneeR, this.ankleR]]] as Array<[number, THREE.Object3D[]]>) {
+    for (const [i, meshes, id] of [[9, [this.hipL, this.kneeL, this.ankleL], "legL"], [10, [this.hipR, this.kneeR, this.ankleR], "legR"]] as Array<[number, THREE.Object3D[], string]>) {
+      if (sev.has(id)) continue
       const ez = _e2.setFromQuaternion(P.q[i], "YXZ").z
       fit(i, meshes, -0.35, 0.6, a => eu(-g * a, 0, ez))
     }
@@ -1073,15 +1209,7 @@ export class SoldierModel {
       }
     }
     // dropped weapon: falls, then lies flat
-    if (this.gunDropped) {
-      const g = this.gun
-      if (g.position.y > 0.045 || this.gunVel.y > 0) {
-        this.gunVel.y -= 9.8 * dt
-        g.position.addScaledVector(this.gunVel, dt)
-        if (g.position.y <= 0.045) { g.position.y = 0.045; this.gunVel.set(0, 0, 0) }
-      }
-      g.quaternion.slerp(this.gunRest, ease(dt, g.position.y <= 0.046 ? 14 : 5))
-    }
+    if (this.gunDropped) this.updateDroppedGun(dt)
     if (t > B + F + 0.3) {
       // exact rest pose: flat on the ground, nothing moves afterwards
       this.root.quaternion.copy(_q1.setFromAxisAngle(_v1.set(0, 1, 0), this.spin)).multiply(_q2.setFromAxisAngle(_v1.set(1, 0, 0), sign * Math.PI / 2))
