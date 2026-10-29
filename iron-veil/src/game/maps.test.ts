@@ -1,20 +1,25 @@
 /**
- * maps.test.ts — layout validation for every mission: builds the obstacles exactly like world.ts (layoutObstacles)
- * plus the enemy NavGrid and checks counts, distances, walkability/reachability, doorways, crates and cover points.
+ * maps.test.ts — layout validation for the quarantine zone (zonemap.ts) and the base (basemap.ts): builds the
+ * obstacles exactly like world.ts (zoneObstacles + structure models) plus the enemy NavGrid and checks districts,
+ * reachability from every insertion, extraction circles, loot spots, camps, objectives, airdrops, doorways, cover,
+ * and for the base every station and plot interaction point at every structure level.
  */
 import { describe, expect, it } from "vitest"
-import { MISSIONS, MISSION_ORDER } from "./data"
-import { computeCoverPoints, getLayout, layoutObstacles, type MapSolid } from "./maps"
+import { STRUCTURES, STRUCTURE_ORDER, type StructureId } from "./baseData"
+import { baseMap, structureModel, wallsModel } from "./basemap"
+import type { Obstacle } from "./collision"
+import { computeCoverPoints, type MapSolid } from "./maps"
 import { NavGrid } from "./nav"
 import type { Vec2 } from "./types"
-
-const CRATE_W = 1.25, CRATE_D = 0.85
+import type { ContainerKind, StationId } from "./zone"
+import { zoneMap, zoneObstacles } from "./zonemap"
 
 /** Flood fill over open nav cells with the same moves A* uses (8 directions, no corner cutting). */
 function flood(nav: NavGrid, x: number, z: number): Uint8Array {
   const seen = new Uint8Array(nav.cols * nav.rows)
-  const start = nav.rowOf(z) * nav.cols + nav.colOf(x)
-  if (nav.blocked[start]) return seen
+  const s = nav.nearestWalkable(x, z, 3)
+  if (!s) return seen
+  const start = nav.rowOf(s.z) * nav.cols + nav.colOf(s.x)
   const open = (c: number, r: number) => c >= 0 && r >= 0 && c < nav.cols && r < nav.rows && !nav.blocked[r * nav.cols + c]
   const stack = [start]; seen[start] = 1
   while (stack.length) {
@@ -29,203 +34,208 @@ function flood(nav: NavGrid, x: number, z: number): Uint8Array {
   return seen
 }
 
-function boxDistance(x: number, z: number, s: MapSolid): number {
-  const dx = Math.max(s.x - s.w / 2 - x, 0, x - (s.x + s.w / 2)), dz = Math.max(s.z - s.d / 2 - z, 0, z - (s.z + s.d / 2))
+function boxDistance(x: number, z: number, o: Obstacle): number {
+  const dx = Math.max(o.minX - x, 0, x - o.maxX), dz = Math.max(o.minZ - z, 0, z - o.maxZ)
   return Math.hypot(dx, dz)
 }
+const blocksWalking = (o: Obstacle) => (o.minY ?? 0) <= 1.6
+const DEPTH: Record<ContainerKind, number> = { crate: 0.85, cabinet: 0.5, fridge: 0.7, toolbox: 0.3, weaponcase: 0.45, medcab: 0.3, safe: 0.65, duffel: 0.44 }
+const WIDTH: Record<ContainerKind, number> = { crate: 1.25, cabinet: 0.8, fridge: 0.75, toolbox: 0.6, weaponcase: 1.3, medcab: 0.7, safe: 0.7, duffel: 1.05 }
 
-for (const id of MISSION_ORDER) {
-  describe(`map ${id}`, () => {
-    const L = getLayout(id)
-    const mission = MISSIONS[id]
-    const obstacles = layoutObstacles(L)
-    const nav = new NavGrid(L.bounds, obstacles, 0.45, 1)
-    const b = L.bounds
-    const inside = (p: Vec2, margin = 0) => p.x >= b.minX + margin && p.x <= b.maxX - margin && p.z >= b.minZ + margin && p.z <= b.maxZ - margin
-    const edgeDist = (p: Vec2) => Math.min(p.x - b.minX, b.maxX - p.x, p.z - b.minZ, b.maxZ - p.z)
-    const floods = L.playerSpawns.map(p => flood(nav, p.x, p.z))
-    const reachable = (p: Vec2) => nav.walkable(p.x, p.z) && floods.every(f => f[nav.rowOf(p.z) * nav.cols + nav.colOf(p.x)] === 1)
-    const ground = L.solids.filter(s => (s.y ?? 0) <= 1.6)
+describe("zone", () => {
+  const Z = zoneMap()
+  const obstacles = zoneObstacles(Z)
+  const nav = new NavGrid(Z.bounds, obstacles, 0.45, 1)
+  const b = Z.bounds
+  const floods = Z.insertions.map(i => flood(nav, i.x, i.z))
+  const cell = (p: Vec2) => nav.rowOf(p.z) * nav.cols + nav.colOf(p.x)
+  const reachable = (p: Vec2) => nav.walkable(p.x, p.z) && floods.every(f => f[cell(p)] === 1)
+  /** Nearest walkable cell within r is reachable (points next to props, e.g. pump handles). */
+  const reachableNear = (p: Vec2, r = 1.5) => { const w = nav.nearestWalkable(p.x, p.z, r); return !!w && floods.every(f => f[cell(w)] === 1) }
+  const ground = obstacles.filter(blocksWalking)
+  const districtAt = (x: number, z: number) => Z.districts.find(d => x >= d.minX && x <= d.maxX && z >= d.minZ && z <= d.maxZ)
+  const clearOf = (x: number, z: number, r: number) => !ground.some(o => boxDistance(x, z, o) < r)
 
-    it("has a 100–120 m square playable area", () => {
-      const w = b.maxX - b.minX, d = b.maxZ - b.minZ
-      expect(w).toBeGreaterThanOrEqual(100); expect(w).toBeLessThanOrEqual(120)
-      expect(d).toBeGreaterThanOrEqual(100); expect(d).toBeLessThanOrEqual(120)
-    })
-
-    it("has enough spawns, crates and extractions", () => {
-      expect(L.id).toBe(id)
-      expect(L.playerSpawns.length).toBeGreaterThanOrEqual(2)
-      expect(L.extractions.length).toBeGreaterThanOrEqual(2); expect(L.extractions.length).toBeLessThanOrEqual(3)
-      expect(L.lootSpawns.length).toBeGreaterThanOrEqual(mission.crates + 4)
-      expect(L.enemySpawns.length).toBeGreaterThanOrEqual(mission.roster.length + 3)
-      expect(L.reinforcementSpawns.length).toBeGreaterThanOrEqual(3)
-      expect(L.lootSpawns.filter(l => l.tier === 2).length).toBeGreaterThanOrEqual(4)
-      expect(new Set(L.extractions.map(e => e.id)).size).toBe(L.extractions.length)
-    })
-
-    it("turns every solid into one obstacle and adds four perimeter boxes", () => {
-      expect(obstacles.length).toBe(L.solids.length + 4)
-      L.solids.forEach((s, i) => {
-        const o = obstacles[i]
-        expect(o.minX).toBeCloseTo(s.x - s.w / 2); expect(o.maxX).toBeCloseTo(s.x + s.w / 2)
-        expect(o.minZ).toBeCloseTo(s.z - s.d / 2); expect(o.maxZ).toBeCloseTo(s.z + s.d / 2)
-        expect(o.minY ?? 0).toBeCloseTo(s.y ?? 0); expect(o.height).toBeCloseTo((s.y ?? 0) + s.h)
-      })
-      for (const o of obstacles.slice(-4)) expect(o.height).toBeGreaterThan(0.3)
-    })
-
-    it("keeps every solid inside the bounds with a sane size", () => {
-      for (const s of L.solids) {
-        expect(s.w > 0 && s.d > 0 && s.h > 0, JSON.stringify(s)).toBe(true)
-        expect(s.x - s.w / 2 >= b.minX - 1e-6 && s.x + s.w / 2 <= b.maxX + 1e-6 && s.z - s.d / 2 >= b.minZ - 1e-6 && s.z + s.d / 2 <= b.maxZ + 1e-6, JSON.stringify(s)).toBe(true)
+  it("is a ~620 m square with nine districts that tile it exactly", () => {
+    expect(b.maxX - b.minX).toBeGreaterThanOrEqual(600); expect(b.maxX - b.minX).toBeLessThanOrEqual(660)
+    expect(b.maxZ - b.minZ).toBeGreaterThanOrEqual(600); expect(b.maxZ - b.minZ).toBeLessThanOrEqual(660)
+    expect(new Set(Z.districts.map(d => d.id))).toEqual(new Set(["town", "industry", "harbor", "military", "lab", "farm", "station", "forest", "quarry"]))
+    let area = 0
+    for (const d of Z.districts) {
+      area += (d.maxX - d.minX) * (d.maxZ - d.minZ)
+      for (const e of Z.districts) if (e !== d) {
+        const ox = Math.min(d.maxX, e.maxX) - Math.max(d.minX, e.minX), oz = Math.min(d.maxZ, e.maxZ) - Math.max(d.minZ, e.minZ)
+        expect(ox <= 0 || oz <= 0, `${d.id} overlaps ${e.id}`).toBe(true)
       }
-    })
-
-    it("has no unintentionally overlapping solids", () => {
-      const solids = L.solids.filter(s => !s.style.startsWith("proxy"))
-      const bad: string[] = []
-      for (let i = 0; i < solids.length; i++) for (let j = i + 1; j < solids.length; j++) {
-        const a = solids[i], c = solids[j]
-        const ox = Math.min(a.x + a.w / 2, c.x + c.w / 2) - Math.max(a.x - a.w / 2, c.x - c.w / 2)
-        const oz = Math.min(a.z + a.d / 2, c.z + c.d / 2) - Math.max(a.z - a.d / 2, c.z - c.d / 2)
-        const oy = Math.min((a.y ?? 0) + a.h, (c.y ?? 0) + c.h) - Math.max(a.y ?? 0, c.y ?? 0)
-        if (ox > 0.005 && oz > 0.005 && oy > 0.005) bad.push(`${a.style}@${a.x},${a.z} × ${c.style}@${c.x},${c.z}`)
-      }
-      expect(bad).toEqual([])
-    })
-
-    it("keeps every point of interest inside the bounds, walkable and reachable from every player spawn", () => {
-      const points: Array<[string, Vec2]> = [
-        ...L.playerSpawns.map((p, i): [string, Vec2] => [`player ${i}`, p]),
-        ...L.lootSpawns.map((p, i): [string, Vec2] => [`loot ${i}`, p]),
-        ...L.extractions.map((p): [string, Vec2] => [`extraction ${p.id}`, p]),
-        ...L.reinforcementSpawns.map((p, i): [string, Vec2] => [`reinforcement ${i}`, p]),
-        ...L.enemySpawns.flatMap((e, i): Array<[string, Vec2]> => [[`enemy ${i}`, e], ...e.patrol.map((p, j): [string, Vec2] => [`patrol ${i}.${j}`, p])]),
-      ]
-      const bad = points.filter(([, p]) => !inside(p, 0.5) || !reachable(p)).map(([n, p]) => `${n} (${p.x}, ${p.z})`)
-      expect(bad).toEqual([])
-      // spot-check the real path finder as well
-      const s = L.playerSpawns[0]
-      for (const e of L.extractions) expect(nav.findPath(s.x, s.z, e.x, e.z, nav.cols * nav.rows), e.id).not.toBeNull()
-    })
-
-    it("places player spawns at the map edge facing into the map", () => {
-      const cx = (b.minX + b.maxX) / 2, cz = (b.minZ + b.maxZ) / 2
-      for (const p of L.playerSpawns) {
-        expect(edgeDist(p)).toBeLessThanOrEqual(5)
-        const fx = -Math.sin(p.yaw), fz = -Math.cos(p.yaw), tx = cx - p.x, tz = cz - p.z, tl = Math.hypot(tx, tz)
-        expect((fx * tx + fz * tz) / tl, `spawn ${p.x},${p.z}`).toBeGreaterThan(0.3)
-      }
-    })
-
-    it("keeps extractions on open ground at least 45 m from every player spawn", () => {
-      for (const e of L.extractions) {
-        expect(e.radius).toBeGreaterThanOrEqual(4); expect(e.radius).toBeLessThanOrEqual(5)
-        for (const p of L.playerSpawns) expect(Math.hypot(e.x - p.x, e.z - p.z), e.id).toBeGreaterThanOrEqual(45)
-        for (const s of L.solids) expect(boxDistance(e.x, e.z, s), `${e.id} vs ${s.style}@${s.x},${s.z}`).toBeGreaterThan(e.radius)
-        for (let r = 0; r < nav.rows; r++) for (let c = 0; c < nav.cols; c++) {
-          if (Math.hypot(nav.centerX(c) - e.x, nav.centerZ(r) - e.z) > e.radius - 0.6) continue
-          expect(nav.blocked[r * nav.cols + c], `${e.id} cell ${c},${r}`).toBe(0)
-        }
-      }
-    })
-
-    it("keeps enemy spawns 25 m from player spawns with short walkable patrol beats", () => {
-      for (const e of L.enemySpawns) {
-        for (const p of L.playerSpawns) expect(Math.hypot(e.x - p.x, e.z - p.z), `enemy ${e.x},${e.z}`).toBeGreaterThanOrEqual(25)
-        expect(e.patrol.length).toBeGreaterThanOrEqual(2); expect(e.patrol.length).toBeLessThanOrEqual(4)
-        for (let i = 0; i < e.patrol.length; i++) {
-          const a = e.patrol[i], c = e.patrol[(i + 1) % e.patrol.length]
-          expect(nav.findPath(a.x, a.z, c.x, c.z, nav.cols * nav.rows), `patrol leg ${a.x},${a.z} → ${c.x},${c.z}`).not.toBeNull()
-        }
-        expect(Math.hypot(e.patrol[0].x - e.x, e.patrol[0].z - e.z)).toBeLessThan(25)
-      }
-    })
-
-    it("brings reinforcements in at the edges far from the extractions", () => {
-      for (const r of L.reinforcementSpawns) {
-        expect(edgeDist(r)).toBeLessThanOrEqual(5)
-        for (const e of L.extractions) expect(Math.hypot(r.x - e.x, r.z - e.z)).toBeGreaterThanOrEqual(35)
-      }
-    })
-
-    it("fits every crate next to cover without blocking solids or doorways", () => {
-      for (const l of L.lootSpawns) {
-        const rot = Math.abs(Math.sin(l.yaw ?? 0)) > 0.5
-        const hw = (rot ? CRATE_D : CRATE_W) / 2 + 0.04, hd = (rot ? CRATE_W : CRATE_D) / 2 + 0.04
-        for (const s of ground) {
-          const hit = Math.abs(l.x - s.x) < hw + s.w / 2 && Math.abs(l.z - s.z) < hd + s.d / 2 && (s.y ?? 0) < 1
-          expect(hit, `crate ${l.x},${l.z} in ${s.style}@${s.x},${s.z}`).toBe(false)
-        }
-        const near = Math.min(...ground.filter(s => (s.y ?? 0) + s.h >= 0.9).map(s => boxDistance(l.x, l.z, s)))
-        expect(near, `crate ${l.x},${l.z} is not next to cover`).toBeLessThanOrEqual(2.5)
-        for (const d of L.doorways ?? []) expect(Math.hypot(l.x - d.x, l.z - d.z), `crate ${l.x},${l.z} at a door`).toBeGreaterThan(1.9)
-      }
-    })
-
-    it("has doorways at least 2.2 m wide that can be walked through", () => {
-      expect((L.doorways ?? []).length).toBeGreaterThan(4)
-      for (const d of L.doorways ?? []) {
-        expect(d.w).toBeGreaterThanOrEqual(2.2)
-        const ax = d.x + d.nx * 1.3, az = d.z + d.nz * 1.3, bx = d.x - d.nx * 1.3, bz = d.z - d.nz * 1.3
-        expect(nav.walkable(ax, az) && nav.walkable(bx, bz) && nav.lineWalkable(ax, az, bx, bz), `${d.building} door at ${d.x},${d.z}`).toBe(true)
-        expect(reachable({ x: ax, z: az }) && reachable({ x: bx, z: bz }), `${d.building} door at ${d.x},${d.z} reachable`).toBe(true)
-      }
-    })
-
-    it("has 2–4 enterable buildings with a roof above head height and a high-value spot inside", () => {
-      const buildings = L.buildings ?? []
-      expect(buildings.length).toBeGreaterThanOrEqual(2); expect(buildings.length).toBeLessThanOrEqual(4)
-      for (const bd of buildings) {
-        expect((L.doorways ?? []).some(d => d.building === bd.id), bd.id).toBe(true)
-        const roof = L.solids.find(s => (s.y ?? 0) >= 2.6 && Math.abs(s.x - (bd.x0 + bd.x1) / 2) < 0.01 && Math.abs(s.z - (bd.z0 + bd.z1) / 2) < 0.01 && Math.abs(s.w - (bd.x1 - bd.x0)) < 0.01)
-        expect(roof, `${bd.id} roof`).toBeDefined()
-        const tier2 = L.lootSpawns.some(l => l.tier === 2 && l.x > bd.x0 && l.x < bd.x1 && l.z > bd.z0 && l.z < bd.z1)
-        expect(tier2, `${bd.id} has no tier-2 loot spot inside`).toBe(true)
-      }
-      const inBuildings = L.lootSpawns.filter(l => l.tier === 2 && buildings.some(bd => l.x > bd.x0 && l.x < bd.x1 && l.z > bd.z0 && l.z < bd.z1))
-      expect(inBuildings.length).toBeGreaterThanOrEqual(3)
-    })
-
-    it("generates walkable cover points along solids (low and full cover)", () => {
-      const cover = computeCoverPoints(L, nav)
-      expect(cover.length).toBeGreaterThan(150)
-      expect(cover.some(c => c.height >= 1 && c.height <= 1.3)).toBe(true)
-      expect(cover.some(c => c.height > 2)).toBe(true)
-      for (const c of cover) {
-        expect(nav.walkable(c.x, c.z)).toBe(true)
-        expect(Math.abs(c.nx) + Math.abs(c.nz)).toBe(1)
-        // the solid it hides behind is right behind it (opposite the normal, 0.7–1.2 m away)
-        const behind = ground.some(s => {
-          const d = boxDistance(c.x, c.z, s)
-          return d >= 0.65 && d <= 1.25 && boxDistance(c.x - c.nx * (d + 0.05), c.z - c.nz * (d + 0.05), s) < 0.01
-        })
-        expect(behind, `cover ${c.x},${c.z}`).toBe(true)
-      }
-    })
-
-    it("never leaves a walkable spot more than 16 m from cover", () => {
-      const cover = computeCoverPoints(L, nav)
-      let worst = 0, at = ""
-      for (let r = 0; r < nav.rows; r += 2) for (let c = 0; c < nav.cols; c += 2) {
-        if (nav.blocked[r * nav.cols + c]) continue
-        const x = nav.centerX(c), z = nav.centerZ(r)
-        let best = Infinity
-        for (const p of cover) { const d = (p.x - x) ** 2 + (p.z - z) ** 2; if (d < best) best = d }
-        if (Math.sqrt(best) > worst) { worst = Math.sqrt(best); at = `${x},${z}` }
-      }
-      expect(worst, `farthest from cover at ${at}`).toBeLessThanOrEqual(16)
-    })
-
-    it("sizes wooden crate stacks in whole 1.2 m crates", () => {
-      for (const s of L.solids.filter(s => s.style === "crate")) for (const v of [s.w, s.d, s.h]) expect(Math.abs(v / 1.2 - Math.round(v / 1.2)), JSON.stringify(s)).toBeLessThan(0.01)
-    })
-
-    it("keeps areas, props and lights well-formed", () => {
-      for (const a of L.areas ?? []) expect(a.w > 0 && a.d > 0).toBe(true)
-      for (const p of L.props ?? []) expect(Number.isFinite(p.x) && Number.isFinite(p.z), p.kind).toBe(true)
-      expect((L.lights ?? []).length).toBeLessThanOrEqual(4)
-    })
+    }
+    expect(area).toBe((b.maxX - b.minX) * (b.maxZ - b.minZ))
+    expect(Z.districts.find(d => d.id === "town")!.danger).toBe(1)
+    expect(Z.districts.find(d => d.id === "lab")!.danger).toBe(3)
+    expect(Z.labels.map(l => l.name).sort()).toEqual(Z.districts.map(d => d.name).sort())
   })
-}
+
+  it("is one connected walkable area: every insertion reaches every other walkable cell", () => {
+    let walkable = 0, unreachable = 0
+    for (let i = 0; i < nav.blocked.length; i++) if (!nav.blocked[i]) { walkable++; if (!floods.every(f => f[i] === 1)) unreachable++ }
+    expect(walkable).toBeGreaterThan(200000)
+    expect(unreachable).toBe(0)
+  })
+
+  it("has four insertions at the edge with HQ gates 1/1/2/2", () => {
+    expect(Z.insertions.map(i => i.id)).toEqual(["south_road", "west_field", "north_wood", "east_rail"])
+    expect(Z.insertions.map(i => i.hq)).toEqual([1, 1, 2, 2])
+    for (const i of Z.insertions) {
+      expect(reachable(i), i.id).toBe(true)
+      expect(Math.min(i.x - b.minX, b.maxX - i.x, i.z - b.minZ, b.maxZ - i.z), i.id).toBeLessThan(20)
+      expect(districtAt(i.x, i.z)?.id, i.id).toBe(i.district)
+      expect(clearOf(i.x, i.z, 1.5), i.id).toBe(true)
+    }
+  })
+
+  it("keeps the five exits (ids, kinds, requirements) on open, reachable ground", () => {
+    expect(Z.extractions.map(e => [e.id, e.kind, JSON.stringify(e.requirement)])).toEqual([
+      ["heli_town", "heli", "null"], ["boat", "boat", JSON.stringify({ item: "fuel" })], ["tunnel", "tunnel", JSON.stringify({ item: "key_tunnel" })],
+      ["gate", "gate", JSON.stringify({ money: 600 })], ["heli_farm", "heli", "null"],
+    ])
+    for (const e of Z.extractions) {
+      expect(reachable(e), e.id).toBe(true)
+      const hit = ground.find(o => boxDistance(e.x, e.z, o) < e.radius)
+      expect(hit, `${e.id} circle overlaps an obstacle`).toBeUndefined()
+      expect(districtAt(e.x, e.z), e.id).toBeTruthy()
+    }
+    expect(districtAt(Z.extractions[0].x, Z.extractions[0].z)!.id).toBe("town")
+    expect(districtAt(Z.extractions[1].x, Z.extractions[1].z)!.id).toBe("harbor")
+  })
+
+  it("places objectives, the boss arena and supply-drop spots where they belong", () => {
+    const where: Record<string, string> = { generator: "station", radio_mast: "military", pump: "farm", lab_terminal: "lab" }
+    expect(Z.objectives.map(o => o.id)).toEqual(["generator", "radio_mast", "pump", "lab_terminal"])
+    for (const o of Z.objectives) { expect(reachableNear(o, 0.8), o.id).toBe(true); expect(districtAt(o.x, o.z)?.id, o.id).toBe(where[o.id]) }
+    expect(districtAt(Z.bossArena.x, Z.bossArena.z)?.id).toBe("lab")
+    expect(clearOf(Z.bossArena.x, Z.bossArena.z, Z.bossArena.radius)).toBe(true)
+    expect(reachable(Z.bossArena)).toBe(true)
+    expect(Z.airdropSpots.length).toBeGreaterThanOrEqual(5)
+    for (const a of Z.airdropSpots) { expect(reachable(a), `${a.x},${a.z}`).toBe(true); expect(clearOf(a.x, a.z, 3.5), `airdrop ${a.x},${a.z}`).toBe(true) }
+  })
+
+  it("has 5–7 mercenary camps with walkable patrols and one infected zone per district", () => {
+    expect(Z.mercCamps.length).toBeGreaterThanOrEqual(5); expect(Z.mercCamps.length).toBeLessThanOrEqual(7)
+    for (const c of Z.mercCamps) {
+      expect(c.squad).toBeGreaterThanOrEqual(3); expect(c.squad).toBeLessThanOrEqual(6)
+      expect(reachable(c), c.id).toBe(true)
+      for (const p of c.patrol) expect(reachable(p), `${c.id} patrol ${p.x},${p.z}`).toBe(true)
+    }
+    expect(new Set(Z.infectedZones.map(z => z.district))).toEqual(new Set(Z.districts.map(d => d.id)))
+    const dens = (id: string) => Z.infectedZones.find(z => z.district === id)!.density
+    expect(dens("town")).toBeGreaterThan(dens("farm")); expect(dens("lab")).toBeGreaterThan(dens("industry"))
+  })
+
+  it("has 250–400 loot spots, each free-standing, reachable, with tiers following the danger", () => {
+    expect(Z.lootSpots.length).toBeGreaterThanOrEqual(250); expect(Z.lootSpots.length).toBeLessThanOrEqual(400)
+    const tiers = new Map<number, number[]>()
+    for (const s of Z.lootSpots) {
+      const yaw = s.yaw ?? 0, fx = Math.sin(yaw), fz = Math.cos(yaw), d = DEPTH[s.container], w = WIDTH[s.container]
+      const access = { x: s.x + fx * (d / 2 + 0.7), z: s.z + fz * (d / 2 + 0.7) }
+      expect(reachableNear(access, 0.9), `loot ${s.container} at ${s.x},${s.z}`).toBe(true)
+      // the container's footprint (axis-aligned for yaw multiples of 90°) is free of walls and furniture
+      const across = Math.abs(fx) > 0.5
+      const hw = (across ? d : w) / 2 - 0.02, hd = (across ? w : d) / 2 - 0.02
+      if ((s.y ?? 0) < 0.3 && s.container !== "medcab") {
+        const hit = ground.find(o => o.maxX > s.x - hw && o.minX < s.x + hw && o.maxZ > s.z - hd && o.minZ < s.z + hd)
+        expect(hit, `loot ${s.container} at ${s.x},${s.z} overlaps an obstacle`).toBeUndefined()
+      }
+      const dz = districtAt(s.x, s.z)!
+      if (!tiers.has(dz.danger)) tiers.set(dz.danger, [])
+      tiers.get(dz.danger)!.push(s.tier)
+      const inBuilding = Z.buildings.some(bd => !bd.solid && s.x > bd.x0 && s.x < bd.x1 && s.z > bd.z0 && s.z < bd.z1)
+      if (s.indoor) expect(inBuilding || s.container === "duffel", `indoor flag at ${s.x},${s.z}`).toBe(true)
+    }
+    const avg = (k: number) => { const t = tiers.get(k)!; return t.reduce((a, b) => a + b, 0) / t.length }
+    expect(avg(1)).toBeLessThan(avg(2)); expect(avg(2)).toBeLessThan(avg(3))
+    expect(Z.lootSpots.filter(s => s.indoor).length).toBeGreaterThan(Z.lootSpots.length * 0.5)
+    for (const d of Z.districts) expect(Z.lootSpots.filter(s => districtAt(s.x, s.z)?.id === d.id).length, d.id).toBeGreaterThanOrEqual(6)
+  })
+
+  it("has walkable doorways (both sides reachable) and plenty of cover", () => {
+    expect(Z.doorways.length).toBeGreaterThan(150)
+    for (const d of Z.doorways) {
+      for (const s of [-1, 1]) {
+        const p = { x: d.x + d.nx * s * 1.1, z: d.z + d.nz * s * 1.1 }
+        expect(reachableNear(p, 0.8), `doorway ${d.building} at ${d.x},${d.z}`).toBe(true)
+      }
+    }
+    const cover = computeCoverPoints(Z, nav)
+    expect(cover.length).toBeGreaterThan(1500)
+    for (const c of cover.slice(0, 400)) expect(nav.walkable(c.x, c.z)).toBe(true)
+  })
+
+  it("keeps solids inside the bounds and the layout immutable", () => {
+    for (const s of Z.solids) {
+      expect(s.x - s.w / 2, s.style).toBeGreaterThanOrEqual(b.minX - 0.01); expect(s.x + s.w / 2, s.style).toBeLessThanOrEqual(b.maxX + 0.01)
+      expect(s.z - s.d / 2, s.style).toBeGreaterThanOrEqual(b.minZ - 0.01); expect(s.z + s.d / 2, s.style).toBeLessThanOrEqual(b.maxZ + 0.01)
+    }
+    expect(zoneMap()).toBe(Z)
+    const again = zoneObstacles(Z)
+    expect(again).not.toBe(obstacles); expect(again.length).toBe(obstacles.length)
+    expect(obstacles.length).toBe(Z.solids.length + 4)
+  })
+})
+
+describe("base", () => {
+  const B = baseMap()
+  const levelsAll = (n: number): Record<StructureId, number> => Object.fromEntries(STRUCTURE_ORDER.map(id => [id, Math.min(n, STRUCTURES[id].max)])) as Record<StructureId, number>
+  const solidsAt = (levels: Record<StructureId, number>): MapSolid[] => {
+    const out = [...B.solids]
+    for (const p of B.plots) { out.push(...structureModel(p, levels[p.structure]).solids); if (p.structure === "walls") out.push(...wallsModel(levels.walls).solids) }
+    return out
+  }
+  const configs: Array<[string, Record<StructureId, number>]> = [["all 0", levelsAll(0)], ["all 1", levelsAll(1)], ["all 2", levelsAll(2)], ["all max", levelsAll(3)], ["mixed", { ...levelsAll(3), walls: 0, tower: 2, hq: 1, generator: 0 }]]
+
+  it("has every station and one plot per structure, fronts facing the yard", () => {
+    const ids: StationId[] = ["trader", "stash", "radio", "workbench", "armory", "clinic", "build", "lab", "gate"]
+    expect(new Set(B.stations.map(s => s.id))).toEqual(new Set(ids))
+    expect(B.plots.map(p => p.structure).sort()).toEqual([...STRUCTURE_ORDER].sort())
+    expect(B.bounds.maxX - B.bounds.minX).toBeGreaterThanOrEqual(70)
+    expect(B.bounds.maxZ - B.bounds.minZ).toBeGreaterThanOrEqual(100)
+    for (const a of B.attackSpawns) expect(a.z).toBeGreaterThan(B.gate.z + 20)
+  })
+
+  for (const [name, levels] of configs) {
+    it(`keeps stations, plot fronts, spawn and the gate reachable (${name})`, () => {
+      const solids = solidsAt(levels)
+      const obstacles = zoneObstacles({ solids, bounds: B.bounds })
+      const nav = new NavGrid(B.bounds, obstacles, 0.45, 1)
+      const f = flood(nav, B.spawn.x, B.spawn.z)
+      const ok = (p: Vec2, r = 0.8) => { const w = nav.nearestWalkable(p.x, p.z, r); return !!w && f[nav.rowOf(w.z) * nav.cols + nav.colOf(w.x)] === 1 }
+      expect(nav.walkable(B.spawn.x, B.spawn.z)).toBe(true)
+      expect(ok({ x: B.spawn.x, z: B.spawn.z - 6 }, 0.5)).toBe(true)
+      for (const s of B.stations) expect(ok(s), `station ${s.id}`).toBe(true)
+      for (const p of B.plots) expect(ok({ x: p.x, z: p.z + p.d / 2 + 1 }), `plot ${p.structure}`).toBe(true)
+      for (const a of B.attackSpawns) expect(ok(a) && ok(B.gate), `attack ${a.x},${a.z}`).toBe(true)
+      // structure solids stay on their plots (walls/second tower excepted) and never cover a station
+      for (const p of B.plots) {
+        if (p.structure === "walls" || p.structure === "tower") continue
+        for (const s of structureModel(p, levels[p.structure]).solids) {
+          expect(s.x - s.w / 2, p.structure).toBeGreaterThanOrEqual(p.x - p.w / 2 - 0.01); expect(s.x + s.w / 2, p.structure).toBeLessThanOrEqual(p.x + p.w / 2 + 0.01)
+          expect(s.z - s.d / 2, p.structure).toBeGreaterThanOrEqual(p.z - p.d / 2 - 0.01); expect(s.z + s.d / 2, p.structure).toBeLessThanOrEqual(p.z + p.d / 2 + 0.01)
+        }
+      }
+    })
+  }
+
+  it("changes the perimeter with the walls level (broken fence has holes, higher levels are closed)", () => {
+    const inside = (lvl: number) => {
+      const solids = solidsAt({ ...levelsAll(0), walls: lvl })
+      const nav = new NavGrid(B.bounds, zoneObstacles({ solids, bounds: B.bounds }), 0.45, 1)
+      // block the gate passage: is the yard still reachable from outside?
+      const gateBlock = { minX: -6, maxX: 6, minZ: 35, maxZ: 37.5, height: 3 }
+      const nav2 = new NavGrid(B.bounds, [...zoneObstacles({ solids, bounds: B.bounds }), gateBlock], 0.45, 1)
+      const f = flood(nav2, 0, 70)
+      return { open: nav.walkable(0, 36), reach: f[nav2.rowOf(0) * nav2.cols + nav2.colOf(0)] === 1 }
+    }
+    expect(inside(0)).toEqual({ open: true, reach: true })
+    for (const l of [1, 2, 3]) expect(inside(l)).toEqual({ open: true, reach: false })
+    expect(wallsModel(3).solids.length).toBeGreaterThan(4)
+    expect(structureModel(B.plots.find(p => p.structure === "tower")!, 2).solids.length).toBeGreaterThan(structureModel(B.plots.find(p => p.structure === "tower")!, 1).solids.length)
+  })
+})

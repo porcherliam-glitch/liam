@@ -1,11 +1,14 @@
 /**
- * extraction.ts — evac zone visuals for world.setExtraction: painted pad, animated ring (amber dashed = locked,
- * green pulse = ready, red = called), vertical light beam, red smoke flare (GPU particles) and a low-poly helicopter
- * that approaches/descends with the hold progress and lifts off when done. No per-frame allocations in update().
+ * extraction.ts — evac zone visuals for world.setExtraction: animated ring (amber dashed = locked, green pulse =
+ * ready, red = called), vertical light beam, red smoke flare (GPU particles); helicopter zones get a painted pad and
+ * a detailed helicopter that approaches/descends with the hold progress and lifts off when done; the boat zone gets a
+ * patrol boat that comes up the harbour basin from the sea and leaves again. No per-frame allocations in update().
  */
 import * as THREE from "three"
-import type { ExtractionPoint, MapLayout } from "./maps"
 import { GeoBatch, GlowBatch, coneMaterial, raw, type FxUniforms } from "./meshkit"
+import type { Bounds } from "./nav"
+
+export interface ExtractionPoint { id: string; name: string; x: number; z: number; radius: number; kind?: string }
 
 export type EvacState = "hidden" | "locked" | "ready" | "called" | "done"
 
@@ -31,10 +34,10 @@ export interface Extractions {
   dispose(): void
 }
 
-export function createExtractions(layout: MapLayout, fx: FxUniforms, padTexture: THREE.Texture, smokeTex: THREE.Texture, night: number, quality: "high" | "low"): Extractions {
+export function createExtractions(list: readonly ExtractionPoint[], b: Bounds, fx: FxUniforms, padTexture: THREE.Texture, smokeTex: THREE.Texture, night: number, quality: "high" | "low"): Extractions {
   const group = new THREE.Group(); group.name = "Evakuierung"
   const disposables: Array<{ dispose(): void }> = []
-  const b = layout.bounds, cx = (b.minX + b.maxX) / 2, cz = (b.minZ + b.maxZ) / 2
+  const cx = (b.minX + b.maxX) / 2, cz = (b.minZ + b.maxZ) / 2
   const ringGeo = new THREE.CircleGeometry(1, 72); ringGeo.rotateX(-Math.PI / 2); disposables.push(ringGeo)
   const beamGeo = new THREE.CylinderGeometry(0.75, 0.75, 1, 20, 1, true); beamGeo.translate(0, 0.5, 0); disposables.push(beamGeo)
   const smokeCount = quality === "high" ? 44 : 22
@@ -42,14 +45,16 @@ export function createExtractions(layout: MapLayout, fx: FxUniforms, padTexture:
   const zones = new Map<string, Zone>()
   const heli = createHelicopter(fx, night, disposables)
   group.add(heli.group)
-  let heliZone: Zone | null = null
+  const boat = list.some(e => e.kind === "boat") ? createBoat(fx, night, disposables) : null
+  if (boat) group.add(boat.group)
+  let heliZone: Zone | null = null, boatZone: Zone | null = null
   let now = 0
 
-  for (const e of layout.extractions) {
+  for (const e of list) {
     const g = new THREE.Group(); g.position.set(e.x, 0, e.z); group.add(g)
     const padMat = new THREE.MeshStandardMaterial({ map: padTexture, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3, polygonOffsetUnits: -3, roughness: 0.9, opacity: 0.3 })
     const padGeo = new THREE.PlaneGeometry(e.radius * 2, e.radius * 2); padGeo.rotateX(-Math.PI / 2); disposables.push(padMat, padGeo)
-    const pad = new THREE.Mesh(padGeo, padMat); pad.position.y = 0.02; pad.receiveShadow = true; g.add(pad)
+    const pad = new THREE.Mesh(padGeo, padMat); pad.position.y = 0.02; pad.receiveShadow = true; pad.visible = !e.kind || e.kind === "heli"; g.add(pad)
     const ringU = { color: { value: new THREE.Color() }, radius: { value: e.radius }, dashed: { value: 0 }, pulse: { value: 0 }, alpha: { value: 1 }, time: fx.time }
     const ringMat = new THREE.ShaderMaterial({ uniforms: ringU, vertexShader: RING_VS, fragmentShader: RING_FS, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4 })
     disposables.push(ringMat)
@@ -71,7 +76,7 @@ export function createExtractions(layout: MapLayout, fx: FxUniforms, padTexture:
     const smoke = new THREE.Mesh(smokeGeo, smokeMat); smoke.frustumCulled = false; smoke.renderOrder = 7; g.add(smoke)
     const fb = new GlowBatch(); fb.add(0, 0.35, 0, 1.6, 0xff3a22, 2.2, [0.6, 23, 0]); fb.add(0, 0.3, 0, 4.5, 0xff2a10, 0.6, [0.3, 11, 1])
     const flare = fb.build(fx, { fog: false })!; disposables.push(flare.geometry, flare.material as THREE.Material); g.add(flare)
-    const o = new THREE.Vector2(e.x - cx, e.z - cz); if (o.lengthSq() < 1) o.set(1, 0); o.normalize()
+    const o = e.kind === "boat" ? new THREE.Vector2(0.18, 1) : new THREE.Vector2(e.x - cx, e.z - cz); if (o.lengthSq() < 1) o.set(1, 0); o.normalize()
     const z: Zone = { e, group: g, pad, padMat, ring, ringU, beam, beamU, beacons, smoke, smokeU, flare, state: "hidden", progress: 0, since: 0, dirty: true, out: o }
     zones.set(e.id, z)
     apply(z)
@@ -101,9 +106,10 @@ export function createExtractions(layout: MapLayout, fx: FxUniforms, padTexture:
       const z = zones.get(id); if (!z) return
       if (z.state !== state) {
         z.state = state; z.since = now; z.dirty = true
-        if (state === "called") { z.smokeU.start.value = now; heliZone = z }
-        if (state === "done") heliZone = z
-        if ((state === "hidden" || state === "locked" || state === "ready") && heliZone === z) heliZone = null
+        const isBoat = z.e.kind === "boat", vehicle = z.e.kind === undefined || z.e.kind === "heli" || isBoat
+        if (state === "called") z.smokeU.start.value = now
+        if ((state === "called" || state === "done") && vehicle) { if (isBoat) boatZone = z; else heliZone = z }
+        if (state === "hidden" || state === "locked" || state === "ready") { if (heliZone === z) heliZone = null; if (boatZone === z) boatZone = null }
       }
       z.progress = Math.min(1, Math.max(0, progress))
     },
@@ -117,6 +123,7 @@ export function createExtractions(layout: MapLayout, fx: FxUniforms, padTexture:
         z.ringU.alpha.value = z.state === "done" ? Math.max(0, 1 - (time - z.since) * 0.3) : 1
       }
       heli.update(heliZone, time, dt)
+      boat?.update(boatZone, time, dt)
     },
     dispose() { for (const d of disposables) d.dispose() },
   }
@@ -236,6 +243,68 @@ function createHelicopter(fx: FxUniforms, night: number, disposables: Array<{ di
       dust.visible = alt < 16
       dust.position.set(group.position.x - e.x, 0.06, group.position.z - e.z)
       dustU.strength.value = Math.max(0, 1 - alt / 16)
+    },
+  }
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Patrol boat (boat exfil): comes in along the zone's approach vector (from the sea), docks beside the quay, leaves
+// ---------------------------------------------------------------------------------------------------------------
+function createBoat(fx: FxUniforms, night: number, disposables: Array<{ dispose(): void }>) {
+  const group = new THREE.Group(); group.name = "Boot"; group.visible = false
+  const b = new GeoBatch()
+  const hull = 0x2e3a44, deck = 0x5a5e58, cabin = 0xd8d6cc, stripe = 0xc9a227
+  const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3(), e = new THREE.Euler()
+  const shape = (g: THREE.BufferGeometry, x: number, y: number, z: number, rx: number, ry: number, sx: number, sy: number, sz: number, color: number) => {
+    m.compose(p.set(x, y, z), q.setFromEuler(e.set(rx, ry, 0)), s.set(sx, sy, sz)); b.add(g, m, color); g.dispose()
+  }
+  // hull: box body + tapered bow (local -Z = bow), boot top stripe, rubbing strake
+  b.box(-1.6, -0.6, -2.5, 1.6, 0.9, 5.5, { color: hull, local: true, ao: 0 })
+  shape(new THREE.CylinderGeometry(0, 1.6, 4.2, 4, 1).rotateY(Math.PI / 4), 0, 0.15, -4.6, -Math.PI / 2, 0, 1.13, 1.0, 0.53, hull)
+  b.box(-1.62, 0.55, -2.5, 1.62, 0.75, 5.5, { color: stripe, local: true, ao: 0 })
+  b.box(-1.5, 0.9, -2.4, 1.5, 0.95, 5.4, { color: deck, local: true, ao: 0 })
+  // wheelhouse with windows, mast, radar, railing
+  b.box(-1.1, 0.95, -0.6, 1.1, 2.7, 2.6, { color: cabin, local: true, ao: 0 })
+  b.box(-1.12, 1.9, -0.62, 1.12, 2.45, 2.62, { color: 0x1b2633, local: true, ao: 0 })
+  b.box(-1.2, 2.7, -0.8, 1.2, 2.85, 2.8, { color: 0x8a8e92, local: true, ao: 0 })
+  shape(new THREE.CylinderGeometry(0.06, 0.08, 2.4, 6), 0, 4.0, 1.4, 0, 0, 1, 1, 1, 0x8a8e92)
+  b.box(-0.7, 4.6, 1.3, 0.7, 4.7, 1.5, { color: 0x2a2c30, local: true, ao: 0 })
+  for (const x of [-1.45, 1.45]) b.box(x - 0.03, 0.95, -2.3, x + 0.03, 1.8, 5.3, { color: 0xb8bcc0, local: true, ao: 0, skip: 0 })
+  shape(new THREE.TorusGeometry(0.35, 0.09, 6, 14), 1.62, 1.2, 4, 0, Math.PI / 2, 1, 1, 1, 0xe8601c)
+  for (const x of [-0.9, 0.9]) shape(new THREE.CylinderGeometry(0.3, 0.3, 1.1, 10), x, 1.3, 4.6, 0, 0, 1, 1, 1, 0x3a3e42)
+  const geo = b.build()!, mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, metalness: 0.2 })
+  disposables.push(geo, mat)
+  const mesh = new THREE.Mesh(geo, mat); mesh.castShadow = true; group.add(mesh)
+  const lights = new GlowBatch()
+  lights.add(-1.62, 1.4, -2.2, 0.3, 0xff2a20, 1.6); lights.add(1.62, 1.4, -2.2, 0.3, 0x30ff70, 1.6); lights.add(0, 4.8, 1.4, 0.35, 0xffffff, 2, [3, 0.9, 0])
+  lights.add(0, 2.2, -0.7, 0.6, 0xfff1d0, 1.2 + night)
+  const glow = lights.build(fx, { fog: false })!; disposables.push(glow.geometry, glow.material as THREE.Material); group.add(glow)
+  const wakeGeo = new THREE.PlaneGeometry(4, 18); wakeGeo.rotateX(-Math.PI / 2); wakeGeo.translate(0, 0, 13)
+  const wakeMat = new THREE.MeshBasicMaterial({ color: 0xdfe8f0, transparent: true, opacity: 0, depthWrite: false })
+  disposables.push(wakeGeo, wakeMat)
+  const wake = new THREE.Mesh(wakeGeo, wakeMat); wake.position.y = -2.25; group.add(wake)
+  const start = new THREE.Vector3(), dock = new THREE.Vector3()
+  const ease = (t: number) => t * t * (3 - 2 * t)
+  return {
+    group,
+    update(z: Zone | null, time: number, _dt: number) {
+      if (!z) { group.visible = false; return }
+      const ex = z.e
+      dock.set(ex.x + z.out.x * 4 + 13, -2.3 + 0.55, ex.z)
+      start.set(dock.x + z.out.x * 60, dock.y, dock.z + z.out.y * 160)
+      let speed = 0
+      if (z.state === "called") {
+        const t = ease(Math.min(1, z.progress / 0.85))
+        group.position.lerpVectors(start, dock, t); speed = 1 - t
+      } else {
+        const td = time - z.since, t = Math.min(1, td / 14)
+        group.position.lerpVectors(dock, start, t * t); speed = Math.min(1, td * 0.4)
+        if (t >= 1) { group.visible = false; return }
+      }
+      group.position.y += Math.sin(time * 1.3) * 0.08
+      group.rotation.set(Math.sin(time * 0.9) * 0.02, Math.atan2(-(dock.x - start.x), -(dock.z - start.z)) + (z.state === "called" ? 0 : Math.PI), Math.sin(time * 1.1) * 0.03)
+      wakeMat.opacity = 0.35 * speed
+      group.visible = true
     },
   }
 }

@@ -1,11 +1,13 @@
 /**
- * props.ts — turns a MapLayout (solids, props, buildings, perimeter) into batched geometry for world.ts.
- * Everything static goes into GeoBatches keyed by material ("metal", "container", ...); repeated small props into
- * instancing lists; lamps into the glow/pool/cone effect batches. Visual details never leave a solid's box by more
- * than a few centimetres, so the collision boxes keep matching what the player sees.
+ * props.ts — turns layout data (solids, props, buildings, doorways) into batched geometry for world.ts.
+ * Everything static goes into GeoBatches keyed by material ("metal", "container", ...; world.ts maps every key to a
+ * layer of one texture array and splits the batches into chunks); repeated small props into instancing lists; lamps
+ * into the glow/pool/cone effect batches. Visual details never leave a solid's box by more than a few centimetres, so
+ * the collision boxes keep matching what the player sees. ctx.lit(x, z) decides whether a lamp still works (the zone is
+ * abandoned: most are dead); working lamps are reported in ctx.lampSpots for the pooled real lights.
  */
 import * as THREE from "three"
-import type { MapLayout, MapProp, MapSolid, Side } from "./maps"
+import type { BuildingInfo, Doorway, MapProp, MapSolid, Side } from "./maps"
 import { ConeBatch, GeoBatch, GlowBatch, NY, PoolBatch, PY } from "./meshkit"
 import { mulberry } from "./textures"
 
@@ -26,8 +28,12 @@ export interface DecalReq { key: string; x: number; y: number; z: number; w: num
 export interface WindowReq { x: number; y: number; z: number; w: number; h: number; face: Side; cell: number }
 
 export interface BuildCtx {
-  layout: MapLayout
+  data: { props: readonly MapProp[]; buildings: readonly BuildingInfo[]; doorways: readonly Doorway[] }
   look: PropLook
+  /** 0 = dead lamp, 1 = working (position-based, decided by world.ts). */
+  lit(x: number, z: number): number
+  /** Working lamps: x, y, z, colour (candidates for the pooled real point lights). */
+  lampSpots: Array<[number, number, number, number]>
   high: boolean
   rng: () => number
   B(key: string): GeoBatch
@@ -49,14 +55,20 @@ export function tint(hex: number | undefined, mix = 1, k = 1): THREE.Color {
   const c = hex === undefined ? white.clone() : white.clone().lerp(new THREE.Color(hex), mix)
   return c.multiplyScalar(k)
 }
-function jit(s: { x: number; z: number }, amount = 0.07): number { const h = Math.sin(s.x * 12.9898 + s.z * 78.233) * 43758.5453; return 1 - amount + (h - Math.floor(h)) * amount * 2 }
-function place(b: GeoBatch, geo: THREE.BufferGeometry, x: number, y: number, z: number, rx: number, ry: number, rz: number, sx: number, sy: number, sz: number, color: number | THREE.Color, uv: [number, number] = [1, 1]): void {
+/** Lamp strength at a position: time-of-day lamp factor × working flag (records working lamps). */
+export function lampAt(ctx: BuildCtx, x: number, y: number, z: number, color: number): number {
+  const k = ctx.look.lamps * ctx.lit(x, z)
+  if (k > 0) ctx.lampSpots.push([x, y, z, color])
+  return k
+}
+export function jit(s: { x: number; z: number }, amount = 0.07): number { const h = Math.sin(s.x * 12.9898 + s.z * 78.233) * 43758.5453; return 1 - amount + (h - Math.floor(h)) * amount * 2 }
+export function place(b: GeoBatch, geo: THREE.BufferGeometry, x: number, y: number, z: number, rx: number, ry: number, rz: number, sx: number, sy: number, sz: number, color: number | THREE.Color, uv: [number, number] = [1, 1]): void {
   M.compose(P.set(x, y, z), Q.setFromEuler(E.set(rx, ry, rz, "YXZ")), S.set(sx, sy, sz)); b.add(geo, M, color, uv)
 }
 
 // shared template geometries (disposed by disposeTemplates)
 let T: Record<string, THREE.BufferGeometry> | null = null
-function tpl(): Record<string, THREE.BufferGeometry> {
+export function tpl(): Record<string, THREE.BufferGeometry> {
   if (T) return T
   T = {
     cyl8: new THREE.CylinderGeometry(1, 1, 1, 8),
@@ -68,24 +80,51 @@ function tpl(): Record<string, THREE.BufferGeometry> {
     torus: new THREE.TorusGeometry(1, 0.32, 6, 14).rotateX(Math.PI / 2),
     ring: new THREE.TorusGeometry(1, 0.012, 4, 40).rotateX(Math.PI / 2),
     sphere: new THREE.SphereGeometry(1, 10, 8),
+    pyr: new THREE.ConeGeometry(Math.SQRT1_2, 1, 4, 1).rotateY(Math.PI / 4).translate(0, 0.5, 0),
+    cyl16: new THREE.CylinderGeometry(1, 1, 1, 16, 1),
+    taper: new THREE.CylinderGeometry(0.62, 1, 1, 16, 1, true).translate(0, 0.5, 0),
+    dome: new THREE.SphereGeometry(1, 16, 6, 0, Math.PI * 2, 0, Math.PI / 2),
+    disc: new THREE.CircleGeometry(1, 20),
+    chunk: (() => {
+      const g = new THREE.IcosahedronGeometry(1, 1), p = g.attributes.position as THREE.BufferAttribute
+      for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i), z = p.getZ(i), k = 0.78 + 0.22 * Math.abs(Math.sin(x * 5.1 + y * 3.7) * Math.cos(z * 4.3 - x * 2.2)) + 0.08 * Math.sin(y * 9 + z * 7); p.setXYZ(i, x * k, y * k, z * k) }
+      g.computeVertexNormals(); return g
+    })(),
   }
   return T
 }
+/** Hooks for the zone additions (zoneprops.ts registers them; avoids a circular import). */
+export interface Extras {
+  solid(ctx: BuildCtx, s: MapSolid): boolean
+  prop(ctx: BuildCtx, p: MapProp): void
+  /** Facade trim per building (plinth, cornice, balconies, damage). */
+  facade(ctx: BuildCtx, b: BuildingInfo): void
+  /** One facade window (sill, lintel, boarded or glazed). */
+  window(ctx: BuildCtx, b: BuildingInfo, w: WindowReq): void
+  /** Door of a closed block. */
+  door(ctx: BuildCtx, b: BuildingInfo, x: number, z: number, f: Side): void
+}
+let extras: Extras | null = null
+const extraSolid = (ctx: BuildCtx, s: MapSolid) => extras ? extras.solid(ctx, s) : false
+const extraProp = (ctx: BuildCtx, p: MapProp) => { extras?.prop(ctx, p) }
+export function registerExtras(e: Extras): void { extras = e }
 export function disposeTemplates(): void { if (T) { for (const g of Object.values(T)) g.dispose(); T = null } }
 
 // ---------------------------------------------------------------------------------------------------------------
 // Decals and windows (UVs are resolved by world.ts once the atlas exists)
 // ---------------------------------------------------------------------------------------------------------------
-function decal(ctx: BuildCtx, key: string, x: number, y: number, z: number, w: number, h: number, face: Side | "up", color = 0xffffff, rot = 0): void {
+export function decal(ctx: BuildCtx, key: string, x: number, y: number, z: number, w: number, h: number, face: Side | "up", color = 0xffffff, rot = 0): void {
   ctx.decals.push({ key, x, y, z, w, h, face, color, rot })
 }
-function textKey(ctx: BuildCtx, kind: number, text: string): string { const k = `t${kind}:${text}`; ctx.texts.set(k, [kind, text]); return k }
+export function textKey(ctx: BuildCtx, kind: number, text: string): string { const k = `t${kind}:${text}`; ctx.texts.set(k, [kind, text]); return k }
 
 /** Emits decal quads into the "decal" batch with atlas UVs. */
 export function emitDecals(ctx: BuildCtx, rects: Map<string, { u0: number; v0: number; u1: number; v1: number }>): void {
   const b = ctx.B("decal")
   for (const d of ctx.decals) {
-    const r = rects.get(d.key); if (!r) continue
+    const r0 = rects.get(d.key); if (!r0) continue
+    // painted lines: sample the middle of the cell only (no bleeding of neighbouring atlas cells at grazing angles)
+    const r = d.key === "paint" ? { u0: r0.u0 + (r0.u1 - r0.u0) * 0.3, u1: r0.u1 - (r0.u1 - r0.u0) * 0.3, v0: r0.v0 + (r0.v1 - r0.v0) * 0.3, v1: r0.v1 - (r0.v1 - r0.v0) * 0.3 } : r0
     const c = new THREE.Color(d.color), hw = d.w / 2, o = 0.025
     const uv = [r.u0, r.v0, r.u1, r.v0, r.u1, r.v1, r.u0, r.v1]
     if (d.face === "up") {
@@ -114,12 +153,13 @@ export function emitWindows(ctx: BuildCtx): void {
     if (w.face === "w") b.quad([w.x - o, y0, w.z - hw], [w.x - o, y0, w.z + hw], [w.x - o, y1, w.z + hw], [w.x - o, y1, w.z - hw], [-1, 0, 0], uv, c)
   }
 }
-function windowCell(ctx: BuildCtx): number { return ctx.rng() < ctx.look.windowLit ? 4 + Math.floor(ctx.rng() * 4) : Math.floor(ctx.rng() * 4) }
+export function windowCell(ctx: BuildCtx): number { return ctx.rng() < ctx.look.windowLit ? 4 + Math.floor(ctx.rng() * 4) : Math.floor(ctx.rng() * 4) }
 
 // ---------------------------------------------------------------------------------------------------------------
 // Solids
 // ---------------------------------------------------------------------------------------------------------------
 const PLAIN: Record<string, [string, number | undefined, number]> = {
+  boards: ["boards", undefined, 1], rock: ["rock", undefined, 1],
   brick: ["brick", undefined, 0.3], plaster: ["plaster", undefined, 1], cladding: ["cladding", undefined, 1], concrete: ["concrete", 0xb4b0a6, 1],
   bunker: ["bunker", 0x8e8b84, 1], block: ["block", undefined, 1], siding: ["siding", undefined, 1], rollup: ["rollup", 0x9ba3a8, 1],
   pillar: ["metal", 0x5a5e62, 1], twall: ["concrete", 0xaaa69c, 1], plinth: ["concrete", 0xa8a49a, 1], brickwall: ["brick", undefined, 0.3],
@@ -127,6 +167,7 @@ const PLAIN: Record<string, [string, number | undefined, number]> = {
 
 export function buildSolid(ctx: BuildCtx, s: MapSolid): void {
   if (s.style.startsWith("proxy")) return
+  if (extraSolid && extraSolid(ctx, s)) return
   const y0 = s.y ?? 0, y1 = y0 + s.h, x0 = s.x - s.w / 2, x1 = s.x + s.w / 2, z0 = s.z - s.d / 2, z1 = s.z + s.d / 2
   const alongX = s.w >= s.d, L = alongX ? s.w : s.d, W = alongX ? s.d : s.w
   const k = jit(s), v = s.v ?? 0
@@ -335,7 +376,7 @@ function sandbags(ctx: BuildCtx, s: MapSolid, x0: number, y0: number, z0: number
 
 function dockFront(ctx: BuildCtx, s: MapSolid): Side {
   let best: Side = "w", bd = Infinity
-  for (const b of ctx.layout.buildings ?? []) {
+  for (const b of ctx.data.buildings) {
     const cx = (b.x0 + b.x1) / 2, cz = (b.z0 + b.z1) / 2, d = Math.hypot(cx - s.x, cz - s.z)
     if (d < bd) { bd = d; best = Math.abs(cx - s.x) > Math.abs(cz - s.z) ? (cx > s.x ? "w" : "e") : (cz > s.z ? "n" : "s") }
   }
@@ -505,7 +546,7 @@ export function buildProp(ctx: BuildCtx, p: MapProp): void {
     case "decal": {
       const ground = (p.v ?? 0) >= 20
       decal(ctx, textKey(ctx, p.v ?? 0, p.text ?? ""), p.x, ground ? 0 : p.y ?? 2, p.z, p.w ?? 2, p.h ?? 1, ground ? "up" : p.face ?? "s", 0xffffff, ground ? Math.PI : 0)
-      if (!ground && (p.v ?? 0) <= 6 && (p.v ?? 0) >= 1 && L.night + L.lamps > 0.5) {
+      if (!ground && (p.v ?? 0) <= 6 && (p.v ?? 0) >= 1 && L.night + L.lamps > 0.5 && ctx.lit(p.x, p.z) > 0) {
         const f = p.face ?? "s", nx = f === "e" ? 1 : f === "w" ? -1 : 0, nz = f === "s" ? 1 : f === "n" ? -1 : 0
         ctx.glow.add(p.x + nx * 0.5, (p.y ?? 2) + (p.h ?? 1) + 0.35, p.z + nz * 0.5, 0.35, 0xfff0d0, 0.8 * L.lamps)
       }
@@ -538,9 +579,12 @@ export function buildProp(ctx: BuildCtx, p: MapProp): void {
       return
     }
     case "panel": {
-      ctx.B("lamp").box(p.x - 0.7, (p.y ?? 3) - 0.06, p.z - 0.18, p.x + 0.7, p.y ?? 3, p.z + 0.18, { color: tint(0xf2f6ff, 1, 1.6), ao: 0 })
-      ctx.glow.add(p.x, (p.y ?? 3) - 0.2, p.z, 1.1, 0xd8e4ff, 0.25 + 0.3 * L.night, [0.05, 30, p.x])
-      ctx.pool.add(p.x, p.z, 4.2, 3.8, 0xc8d8ff, 0.16 + 0.22 * L.night, 0.03)
+      const on = ctx.lit(p.x, p.z) > 0
+      ctx.B("lamp").box(p.x - 0.7, (p.y ?? 3) - 0.06, p.z - 0.18, p.x + 0.7, p.y ?? 3, p.z + 0.18, { color: on ? tint(0xf2f6ff, 1, 1.6) : tint(0x8a8e92), ao: 0 })
+      if (on) {
+        ctx.glow.add(p.x, (p.y ?? 3) - 0.2, p.z, 1.1, 0xd8e4ff, 0.25 + 0.3 * L.night, [0.05, 30, p.x])
+        ctx.pool.add(p.x, p.z, 4.2, 3.8, 0xc8d8ff, 0.16 + 0.22 * L.night, 0.03)
+      }
       return
     }
     case "tank": return tank(ctx, p)
@@ -565,11 +609,12 @@ export function buildProp(ctx: BuildCtx, p: MapProp): void {
       place(metal, t.box, p.x + ax * 0.8, h - 0.05, p.z + az * 0.8, 0, rot, 0, 0.08, 0.08, 1.6, 0x5a5e62)
       const hx = p.x + ax * 1.5, hz = p.z + az * 1.5
       place(metal, t.box, hx, h - 0.12, hz, 0, rot, 0, 0.35, 0.14, 0.6, 0x3a3e42)
-      if (L.lamps > 0) {
-        ctx.B("lamp").box(hx - 0.14, h - 0.21, hz - 0.14, hx + 0.14, h - 0.18, hz + 0.14, { color: tint(L.lampColor, 1, 2.2), ao: 0 })
-        ctx.glow.add(hx, h - 0.3, hz, 0.9, L.lampColor, 0.9 * L.lamps, [0.04, 17, p.z])
-        ctx.pool.add(hx, hz, 5, 5, L.lampColor, 0.16 * L.lamps)
-        if (L.shafts > 0) ctx.cone.add(hx, h - 0.25, hz, hx, 0, hz, 2.8, L.lampColor, 0.05 * L.shafts)
+      const k = lampAt(ctx, hx, h - 0.3, hz, L.lampColor)
+      ctx.B("lamp").box(hx - 0.14, h - 0.21, hz - 0.14, hx + 0.14, h - 0.18, hz + 0.14, { color: k > 0 ? tint(L.lampColor, 1, 2.2) : tint(0x3a3c3e), ao: 0 })
+      if (k > 0) {
+        ctx.glow.add(hx, h - 0.3, hz, 0.9, L.lampColor, 0.9 * k, [0.04, 17, p.z])
+        ctx.pool.add(hx, hz, 5, 5, L.lampColor, 0.16 * k)
+        if (L.shafts > 0) ctx.cone.add(hx, h - 0.25, hz, hx, 0, hz, 2.8, L.lampColor, 0.05 * L.shafts * ctx.lit(hx, hz))
       }
       return
     }
@@ -680,12 +725,12 @@ export function buildProp(ctx: BuildCtx, p: MapProp): void {
       return
     }
     case "breach": return
-    default: return
+    default: if (extraProp) extraProp(ctx, p); return
   }
 }
 
 /** Catenary wire from a to b (sagging by `sag` m) as line segments. */
-function sag(ctx: BuildCtx, ax: number, ay: number, az: number, bx: number, by: number, bz: number, s: number, n: number): void {
+export function sag(ctx: BuildCtx, ax: number, ay: number, az: number, bx: number, by: number, bz: number, s: number, n: number): void {
   for (let i = 0; i < n; i++) {
     const t0 = i / n, t1 = (i + 1) / n
     const y0 = ay + (by - ay) * t0 - s * 4 * t0 * (1 - t0), y1 = ay + (by - ay) * t1 - s * 4 * t1 * (1 - t1)
@@ -717,12 +762,13 @@ function mast(ctx: BuildCtx, p: MapProp): void {
   for (let i = 0; i < heads; i++) {
     const off = (i - (heads - 1) / 2) * 0.75, hx = p.x + fx * 0.45 + sx * off, hz = p.z + fz * 0.45 + sz * off
     place(metal, t.box, hx, h - 0.35, hz, -0.5, rot, 0, 0.6, 0.45, 0.25, 0x3a3e42)
-    if (L.lamps > 0) {
+    const k = lampAt(ctx, hx, h - 0.6, hz, L.lampColor)
+    ctx.B("lamp").box(hx - 0.22, h - 0.55, hz - 0.22, hx + 0.22, h - 0.5, hz + 0.22, { color: k > 0 ? tint(L.lampColor, 1, 2.6) : tint(0x3a3c3e), ao: 0 })
+    if (k > 0) {
       const tx = p.x + fx * h * 0.75 + sx * off * 3, tz = p.z + fz * h * 0.75 + sz * off * 3
-      ctx.B("lamp").box(hx - 0.22, h - 0.55, hz - 0.22, hx + 0.22, h - 0.5, hz + 0.22, { color: tint(L.lampColor, 1, 2.6), ao: 0 })
-      ctx.glow.add(hx + fx * 0.15, h - 0.6, hz + fz * 0.15, 1.3, L.lampColor, 1.1 * L.lamps, [0.03, 13, i + p.x])
-      ctx.pool.add(tx, tz, h * 0.65, h * 0.65, L.lampColor, 0.14 * L.lamps)
-      if (L.shafts > 0) ctx.cone.add(hx, h - 0.6, hz, tx, 0, tz, h * 0.45, L.lampColor, 0.06 * L.shafts)
+      ctx.glow.add(hx + fx * 0.15, h - 0.6, hz + fz * 0.15, 1.3, L.lampColor, 1.1 * k, [0.03, 13, i + p.x])
+      ctx.pool.add(tx, tz, h * 0.65, h * 0.65, L.lampColor, 0.14 * k)
+      if (L.shafts > 0) ctx.cone.add(hx, h - 0.6, hz, tx, 0, tz, h * 0.45, L.lampColor, 0.06 * L.shafts * ctx.lit(hx, hz))
     }
   }
 }
@@ -783,8 +829,9 @@ function crane(ctx: BuildCtx, p: MapProp): void {
   ctx.glow.add(bx1, by + 2.8, zc, 1.1, 0xff2a18, 2.6, [3, 0.5, zc + 1])
   ctx.glow.add(bx0, by + 2.8, zc, 1.1, 0xff2a18, 2.6, [3, 0.5, zc + 2])
   for (const lx of [x0 + 1, x1 - 1, x1 + 12]) {
-    ctx.glow.add(lx, by - 0.4, zc, 1.6, L.lampColor, 1.0 * L.lamps, [0.02, 9, lx])
-    ctx.pool.add(lx, zc, 9, 9, L.lampColor, 0.12 * L.lamps)
+    const k = lampAt(ctx, lx, by - 0.4, zc, L.lampColor); if (k <= 0) continue
+    ctx.glow.add(lx, by - 0.4, zc, 1.6, L.lampColor, 1.0 * k, [0.02, 9, lx])
+    ctx.pool.add(lx, zc, 9, 9, L.lampColor, 0.12 * k)
     if (L.shafts > 0) ctx.cone.add(lx, by - 0.5, zc, lx, 0, zc, 6, L.lampColor, 0.04 * L.shafts)
   }
 }
@@ -824,16 +871,18 @@ function ship(ctx: BuildCtx, p: MapProp): void {
 // ---------------------------------------------------------------------------------------------------------------
 export function buildBuildingDetails(ctx: BuildCtx): void {
   const t = tpl(), metal = ctx.B("metal"), L = ctx.look
-  const ids = new Map((ctx.layout.buildings ?? []).map(b => [b.id, b]))
-  for (const d of ctx.layout.doorways ?? []) {
-    const b = ids.get(d.building); if (!b) continue
+  const ids = new Map(ctx.data.buildings.map(b => [b.id, b]))
+  for (const d of ctx.data.doorways) {
+    const b = ids.get(d.building); if (!b || b.doorLamps === false) continue
     const top = Math.min(b.h - 0.25, d.w > 3 ? 4.9 : 2.85), lx = d.x + d.nx * 0.42, lz = d.z + d.nz * 0.42
     metal.box(lx - 0.18 - Math.abs(d.nx) * 0.1, top, lz - 0.18 - Math.abs(d.nz) * 0.1, lx + 0.18 + Math.abs(d.nx) * 0.1, top + 0.14, lz + 0.18 + Math.abs(d.nz) * 0.1, { color: tint(0x2c2e30), ao: 0 })
     ctx.B("lamp").box(lx - 0.12, top - 0.03, lz - 0.12, lx + 0.12, top, lz + 0.12, { color: tint(0xffe6b8, 1, 2), ao: 0 })
-    ctx.glow.add(lx + d.nx * 0.1, top - 0.12, lz + d.nz * 0.1, 0.55, 0xffe2b0, 0.55 + 0.6 * L.night, [0.04, 15, d.x])
-    ctx.pool.add(d.x + d.nx * 1.6, d.z + d.nz * 1.6, 3.2, 3.2, 0xffd8a0, 0.1 + 0.18 * L.night)
+    if (ctx.lit(d.x, d.z) > 0) {
+      ctx.glow.add(lx + d.nx * 0.1, top - 0.12, lz + d.nz * 0.1, 0.55, 0xffe2b0, 0.55 + 0.6 * L.night, [0.04, 15, d.x])
+      ctx.pool.add(d.x + d.nx * 1.6, d.z + d.nz * 1.6, 3.2, 3.2, 0xffd8a0, 0.1 + 0.18 * L.night)
+    }
   }
-  for (const b of ctx.layout.buildings ?? []) {
+  for (const b of ctx.data.buildings) {
     for (const [x, z] of [[b.x0 - 0.08, b.z0 - 0.08], [b.x1 + 0.08, b.z0 - 0.08], [b.x0 - 0.08, b.z1 + 0.08], [b.x1 + 0.08, b.z1 + 0.08]]) {
       const top = b.h + b.upper
       place(metal, t.cyl8, x, top / 2, z, 0, 0, 0, 0.06, top, 0.06, 0x7a7e82)
@@ -842,21 +891,31 @@ export function buildBuildingDetails(ctx: BuildCtx): void {
     const faces: Array<[Side, number]> = [["n", b.x1 - b.x0], ["s", b.x1 - b.x0], ["e", b.z1 - b.z0], ["w", b.z1 - b.z0]]
     for (const [f, len] of faces) {
       const pos = (u: number): [number, number] => f === "n" ? [b.x0 + u, b.z0] : f === "s" ? [b.x0 + u, b.z1] : f === "e" ? [b.x1, b.z0 + u] : [b.x0, b.z0 + u]
-      if (b.upper > 0) {
+      if (b.solid) {
+        const n = Math.max(1, Math.floor((len - 0.8) / 2.4)), gable = b.roof === "gable"
+        const door = b.face === f ? Math.floor(n / 2) : -1
+        for (let i = 0; i < n; i++) {
+          const [x, z] = pos((len - n * 2.4) / 2 + (i + 0.5) * 2.4)
+          if (i === door) { if (extras?.door) extras.door(ctx, b, x, z, f); else decal(ctx, "door", x, 0, z, 1.2, 2.3, f); continue }
+          for (let y = 0.95; y + 1.4 < b.h + b.upper; y += 3) addWindow(ctx, b, { x, y, z, w: gable ? 1.2 : 1.6, h: 1.45, face: f, cell: windowCell(ctx) })
+        }
+      } else if (b.upper > 0) {
         const n = Math.floor((len - 1) / 2.6)
-        for (let i = 0; i < n; i++) { const [x, z] = pos((len - n * 2.6) / 2 + (i + 0.5) * 2.6); ctx.windows.push({ x, y: b.h + 0.85, z, w: 1.8, h: 1.55, face: f, cell: windowCell(ctx) }) }
+        for (let i = 0; i < n; i++) { const [x, z] = pos((len - n * 2.6) / 2 + (i + 0.5) * 2.6); for (let y = b.h + 0.85; y + 1.4 < b.h + b.upper; y += 3) addWindow(ctx, b, { x, y, z, w: b.roof === "gable" ? 1.3 : 1.8, h: 1.5, face: f, cell: windowCell(ctx) }) }
       } else if ((b.style === "cladding" || b.style === "block") && b.h >= 5.5 && len > 15) {
         const n = Math.floor(len / 4.2)
         for (let i = 0; i < n; i++) { const [x, z] = pos((len - n * 4.2) / 2 + (i + 0.5) * 4.2); ctx.windows.push({ x, y: b.h - 1.9, z, w: 2.6, h: 0.9, face: f, cell: ctx.rng() < 0.35 ? 1 : ctx.rng() < 0.5 ? 0 : 2 }) }
       }
     }
+    extras?.facade(ctx, b)
   }
 }
+function addWindow(ctx: BuildCtx, b: BuildingInfo, w: WindowReq): void { if (extras?.window) extras.window(ctx, b, w); else ctx.windows.push(w) }
 
 // ---------------------------------------------------------------------------------------------------------------
 // Fences and the map perimeter
 // ---------------------------------------------------------------------------------------------------------------
-function fenceRun(ctx: BuildCtx, ax: number, az: number, bx: number, bz: number, y0: number, y1: number, barbed: boolean, every = 3): void {
+export function fenceRun(ctx: BuildCtx, ax: number, az: number, bx: number, bz: number, y0: number, y1: number, barbed: boolean, every = 3): void {
   const len = Math.hypot(bx - ax, bz - az); if (len < 0.2) return
   const dx = (bx - ax) / len, dz = (bz - az) / len, nx = -dz, nz = dx
   const fence = ctx.B("fence"), c = tint(0xb4b8bc)
@@ -874,78 +933,5 @@ function fenceRun(ctx: BuildCtx, ax: number, az: number, bx: number, bz: number,
 }
 
 export function buildFences(ctx: BuildCtx): void {
-  for (const p of ctx.layout.props ?? []) if (p.kind === "fence") fenceRun(ctx, p.x, p.z, p.x2 ?? p.x, p.z2 ?? p.z, 0.35, 2.4, p.v === 1)
-}
-
-export function buildPerimeter(ctx: BuildCtx): void {
-  const L = ctx.layout, b = L.bounds, per = L.perimeter ?? {}
-  const breaches = (L.props ?? []).filter(p => p.kind === "breach")
-  for (const side of ["n", "e", "s", "w"] as Side[]) {
-    const style = per[side]?.style ?? "fence"
-    const alongX = side === "n" || side === "s"
-    const c = side === "n" ? b.minZ : side === "s" ? b.maxZ : side === "w" ? b.minX : b.maxX
-    const out = side === "n" || side === "w" ? -1 : 1
-    const s0 = (alongX ? b.minX : b.minZ) - 0.3, s1 = (alongX ? b.maxX : b.maxZ) + 0.3
-    const gates = (L.gates ?? []).filter(g => g.side === side)
-    const gaps: Array<[number, number, string]> = gates.map(g => [g.at - g.w / 2, g.at + g.w / 2, "gate"])
-    for (const br of breaches) { const onSide = alongX ? Math.abs(br.z - c) < 1 : Math.abs(br.x - c) < 1; if (onSide) gaps.push([(alongX ? br.x : br.z) - 1.6, (alongX ? br.x : br.z) + 1.6, "breach"]) }
-    gaps.sort((p, q) => p[0] - q[0])
-    const P2 = (s: number, off: number): [number, number] => alongX ? [s, c + out * off] : [c + out * off, s]
-    const runs: Array<[number, number]> = []
-    let cur = s0
-    for (const [a, e] of gaps) { runs.push([cur, a]); cur = e }
-    runs.push([cur, s1])
-    if (style === "quay") {
-      const concrete = ctx.B("concrete"), level = L.water?.level ?? -2.3
-      const [qx0, qz0] = P2(s0 - 30, 0), [qx1, qz1] = P2(s1 + 1, 1)
-      concrete.box(Math.min(qx0, qx1), level - 0.5, Math.min(qz0, qz1), Math.max(qx0, qx1), 0, Math.max(qz0, qz1), { color: tint(0x7a7a76), skip: PY, ao: 0 })
-      const [kx0, kz0] = P2(s0 - 30, 0.55), [kx1, kz1] = P2(s1 + 1, 0.95)
-      concrete.box(Math.min(kx0, kx1), 0, Math.min(kz0, kz1), Math.max(kx0, kx1), 0.18, Math.max(kz0, kz1), { color: tint(0xc9a227), ao: 0 })
-      for (let s = s0 - 28; s < s1; s += 8) { const [fx, fz] = P2(s, 1.05); ctx.B("rubber").box(fx - (alongX ? 0.6 : 0.2), level + 0.3, fz - (alongX ? 0.2 : 0.6), fx + (alongX ? 0.6 : 0.2), -0.3, fz + (alongX ? 0.2 : 0.6), { color: tint(0x222222), ao: 0 }) }
-      for (let s = s0 - 28; s < s1; s += 3) { const [px, pz] = P2(s, 0.3); ctx.inst("chainpost", px, 0, pz, 0, [1, 1, 1], 0xc9a227) }
-      for (let s = s0 - 28; s < s1 - 3; s += 3) { const [ax, az] = P2(s, 0.3), [bx, bz] = P2(s + 3, 0.3); sag(ctx, ax, 0.95, az, bx, 0.95, bz, 0.12, 4) }
-      continue
-    }
-    for (const [a, e] of runs) {
-      if (e - a < 0.3) continue
-      const [ax, az] = P2(a, 0.12), [bx, bz] = P2(e, 0.12)
-      if (style === "wall") {
-        const [wx0, wz0] = P2(a, 0), [wx1, wz1] = P2(e, 0.3)
-        ctx.B("brick").box(Math.min(wx0, wx1), 0, Math.min(wz0, wz1), Math.max(wx0, wx1), 2.5, Math.max(wz0, wz1), { color: tint(0xa06a50, 0.3) })
-        ctx.B("concrete").box(Math.min(wx0, wx1) - 0.04, 2.5, Math.min(wz0, wz1) - 0.04, Math.max(wx0, wx1) + 0.04, 2.62, Math.max(wz0, wz1) + 0.04, { color: tint(0xa8a49a), ao: 0 })
-        for (let s = a + 3; s < e - 1; s += 6) { const [px, pz] = P2(s, 0); ctx.B("brick").box(px - (alongX ? 0.25 : 0.05), 0, pz - (alongX ? 0.05 : 0.25), px + (alongX ? 0.25 : 0.35), 2.7, pz + (alongX ? 0.35 : 0.25), { color: tint(0x9a6650, 0.3) }) }
-        if (ctx.rng() < 0.5) { const s = a + (e - a) * ctx.rng(), [gx, gz] = P2(s, -0.02); decal(ctx, `graffiti${Math.floor(ctx.rng() * 3)}`, gx, 0.4, gz, 2.8, 1, side === "w" ? "e" : side === "e" ? "w" : side === "n" ? "s" : "n") }
-        for (let s = a; s < e; s += 1 + ctx.rng() * 2) { const [wx, wz] = P2(s, -0.25); ctx.weeds.push([wx, wz, 1]) }
-        continue
-      }
-      const [px0, pz0] = P2(a, 0), [px1, pz1] = P2(e, 0.26)
-      ctx.B("concrete").box(Math.min(px0, px1), 0, Math.min(pz0, pz1), Math.max(px0, px1), 0.35, Math.max(pz0, pz1), { color: tint(0xa8a49a) })
-      fenceRun(ctx, ax, az, bx, bz, 0.35, 2.5, style === "double")
-      if (style === "double") {
-        const [ox0, oz0] = P2(a - 4, 4.2), [ox1, oz1] = P2(e + 4, 4.2)
-        fenceRun(ctx, ox0, oz0, ox1, oz1, 0.05, 2.7, true, 3.5)
-        for (let s = a + 6; s < e - 2; s += 24) { const [sx, sz] = P2(s, 0.06); decal(ctx, "restricted", sx, 1.4, sz, 1.6, 0.55, side === "w" ? "e" : side === "e" ? "w" : side === "n" ? "s" : "n") }
-        for (let s = a + 9; s < e - 2; s += 18) {
-          const [lx, lz] = P2(s, 0.6), [ix, iz] = P2(s, -0.3)
-          place(ctx.B("metal"), tpl().cyl8, lx, 1.8, lz, 0, 0, 0, 0.06, 3.6, 0.06, 0x6a6e72)
-          ctx.glow.add(ix, 3.5, iz, 0.7, 0xffc890, 0.9 * ctx.look.lamps, [0.04, 11, s])
-          ctx.pool.add(ix, iz, 4, 4, 0xffc890, 0.12 * ctx.look.lamps)
-        }
-      } else if (ctx.rng() < 0.4) { const s = a + (e - a) * ctx.rng(), [sx, sz] = P2(s, -0.05); decal(ctx, "noentry", sx, 1.3, sz, 1.4, 0.7, side === "w" ? "e" : side === "e" ? "w" : side === "n" ? "s" : "n") }
-    }
-    for (const [a, e, kind] of gaps) {
-      if (kind === "gate") {
-        const [ax, az] = P2(a, 0.12), [bx, bz] = P2(e, 0.12)
-        fenceRun(ctx, ax, az, bx, bz, 0.08, 2.3, style === "double", (e - a) / 2)
-        const m = ctx.B("metal"), cc = tint(0x5a5e62), [mx, mz] = P2((a + e) / 2, 0.12)
-        for (const [px, pz] of [[ax, az], [bx, bz]]) m.box(px - 0.12, 0, pz - 0.12, px + 0.12, 2.6, pz + 0.12, { color: cc, local: true })
-        place(m, tpl().box, mx, 0.1, mz, 0, alongX ? Math.PI / 2 : 0, 0, 0.08, 0.08, e - a, 0x5a5e62)
-        decal(ctx, "noentry", mx, 1.1, mz + (alongX ? -out * 0.04 : 0), 1.3, 0.65, side === "w" ? "e" : side === "e" ? "w" : side === "n" ? "s" : "n")
-      } else {
-        const [bx, bz] = P2(a + 0.4, 0.4), fence = ctx.B("fence"), tc = tint(0xd0d4d8)
-        fence.quad([bx, 0.35, bz], [bx + (alongX ? 1.4 : out * 0.9), 0.15, bz + (alongX ? out * 0.9 : 1.4)], [bx + (alongX ? 1.3 : out * 0.9), 1.9, bz + (alongX ? out * 1.4 : 1.3)], [bx, 2.4, bz], [0, 0, 1], [0, 0, 1.6, 0, 1.6, 2, 0, 2], tc)
-        for (let i = 0; i < 6; i++) ctx.weeds.push([bx + (ctx.rng() - 0.5) * 3, bz + (ctx.rng() - 0.5) * 2, 1.2])
-      }
-    }
-  }
+  for (const p of ctx.data.props) if (p.kind === "fence") fenceRun(ctx, p.x, p.z, p.x2 ?? p.x, p.z2 ?? p.z, 0.35, 2.4, p.v === 1)
 }

@@ -5,7 +5,11 @@
  */
 import type { Vec2, Vec3 } from "./types"
 
-export interface Obstacle { minX: number; maxX: number; minZ: number; maxZ: number; height: number; minY?: number }
+export interface Obstacle {
+  minX: number; maxX: number; minZ: number; maxZ: number; height: number; minY?: number
+  /** Material for bullet impacts (effects/sounds); defaults to concrete. */
+  surface?: "concrete" | "metal" | "wood" | "dirt"
+}
 export interface RayHit { distance: number; normal: Vec3; obstacle: Obstacle }
 
 /** True when a circle at (x, z) overlaps any obstacle. */
@@ -182,4 +186,143 @@ export function rayCapsule(o: Vec3, d: Vec3, cx: number, cz: number, y0: number,
     if (t !== null && (best === null || t < best)) best = t
   }
   return best
+}
+
+/**
+ * Spatial index over obstacles (uniform grid on XZ) for large maps with thousands of boxes. Queries return candidate
+ * lists that the free functions above test exactly; rays and segments walk the grid cells (2D DDA) so a 200 m bullet
+ * only tests the boxes along its path. Obstacles can be added/removed at runtime (base building, doors).
+ */
+export class CollisionWorld {
+  readonly obstacles: Obstacle[] = []
+  private cells = new Map<number, Obstacle[]>()
+  private index = new Map<Obstacle, number>()
+  private stamps = new Uint32Array(256)
+  private stamp = 0
+  private scratch: Obstacle[] = []
+
+  constructor(obstacles: readonly Obstacle[] = [], readonly cell = 8) { for (const o of obstacles) this.add(o) }
+
+  private key(cx: number, cz: number): number { return (cx + 32768) * 65536 + (cz + 32768) }
+
+  add(o: Obstacle): void {
+    if (this.index.has(o)) return
+    const i = this.obstacles.length
+    this.obstacles.push(o); this.index.set(o, i)
+    if (i >= this.stamps.length) { const s = new Uint32Array(this.stamps.length * 2); s.set(this.stamps); this.stamps = s }
+    const c = this.cell
+    for (let cx = Math.floor(o.minX / c); cx <= Math.floor(o.maxX / c); cx++) for (let cz = Math.floor(o.minZ / c); cz <= Math.floor(o.maxZ / c); cz++) {
+      const k = this.key(cx, cz); let list = this.cells.get(k)
+      if (!list) { list = []; this.cells.set(k, list) }
+      list.push(o)
+    }
+  }
+
+  remove(o: Obstacle): void {
+    const i = this.index.get(o); if (i === undefined) return
+    const c = this.cell
+    for (let cx = Math.floor(o.minX / c); cx <= Math.floor(o.maxX / c); cx++) for (let cz = Math.floor(o.minZ / c); cz <= Math.floor(o.maxZ / c); cz++) {
+      const list = this.cells.get(this.key(cx, cz)); if (!list) continue
+      const at = list.indexOf(o); if (at >= 0) list.splice(at, 1)
+    }
+    // keep indices dense: move the last obstacle into the freed slot
+    const last = this.obstacles.pop()!
+    this.index.delete(o)
+    if (last !== o) { this.obstacles[i] = last; this.index.set(last, i); this.stamps[i] = this.stamps[this.obstacles.length] }
+  }
+
+  private nextStamp(): number { if (++this.stamp === 0xffffffff) { this.stamps.fill(0); this.stamp = 1 } return this.stamp }
+
+  /** Obstacles whose boxes may overlap the rectangle. The returned array is reused by the next query unless out is given. */
+  query(minX: number, minZ: number, maxX: number, maxZ: number, out: Obstacle[] = this.scratch): Obstacle[] {
+    out.length = 0
+    const s = this.nextStamp(), c = this.cell
+    const x0 = Math.floor(minX / c), x1 = Math.floor(maxX / c), z0 = Math.floor(minZ / c), z1 = Math.floor(maxZ / c)
+    for (let cx = x0; cx <= x1; cx++) for (let cz = z0; cz <= z1; cz++) {
+      const list = this.cells.get(this.key(cx, cz)); if (!list) continue
+      for (const o of list) {
+        const i = this.index.get(o)!
+        if (this.stamps[i] === s) continue
+        this.stamps[i] = s
+        if (o.maxX >= minX && o.minX <= maxX && o.maxZ >= minZ && o.minZ <= maxZ) out.push(o)
+      }
+    }
+    return out
+  }
+
+  near(x: number, z: number, r: number, out?: Obstacle[]): Obstacle[] { return this.query(x - r, z - r, x + r, z + r, out) }
+
+  collides(x: number, z: number, radius: number): boolean { return collides(x, z, radius, this.near(x, z, radius + 0.01)) }
+
+  moveCircle(x: number, z: number, dx: number, dz: number, radius: number, out: Vec2): Vec2 {
+    const list = this.query(Math.min(x, x + dx) - radius - 0.1, Math.min(z, z + dz) - radius - 0.1, Math.max(x, x + dx) + radius + 0.1, Math.max(z, z + dz) + radius + 0.1)
+    return moveCircle(x, z, dx, dz, radius, list, out)
+  }
+
+  depenetrate(p: Vec2, radius: number): boolean { return depenetrate(p, radius, this.near(p.x, p.z, radius + 1)) }
+
+  /** Nearest box hit along the ray within maxDist (dir normalised). */
+  raycast(origin: Vec3, dir: Vec3, maxDist: number): RayHit | null {
+    let best: RayHit | null = null, bestT = maxDist
+    this.walk(origin, dir, maxDist, (list, tEnter) => {
+      if (tEnter > bestT) return true
+      for (const o of list) {
+        const t = rayBox(origin, dir, o.minX, o.minY ?? 0, o.minZ, o.maxX, o.height, o.maxZ, bestT)
+        if (t !== null && t < bestT) { bestT = t; best = { distance: t, normal: boxNormal(origin.x + dir.x * t, origin.y + dir.y * t, origin.z + dir.z * t, o), obstacle: o } }
+      }
+      return false
+    })
+    return best
+  }
+
+  segmentBlocked3D(a: Vec3, b: Vec3): boolean {
+    const dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z, len = Math.hypot(dx, dy, dz)
+    if (len < 1e-6) return false
+    const dir = { x: dx / len, y: dy / len, z: dz / len }
+    let blocked = false
+    this.walk(a, dir, len, list => {
+      for (const o of list) if (rayBox(a, dir, o.minX, o.minY ?? 0, o.minZ, o.maxX, o.height, o.maxZ, len) !== null) { blocked = true; return true }
+      return false
+    })
+    return blocked
+  }
+
+  segmentBlocked2D(ax: number, az: number, bx: number, bz: number, minHeight = 0): boolean {
+    const dx = bx - ax, dz = bz - az, len = Math.hypot(dx, dz)
+    if (len < 1e-6) return false
+    let blocked = false
+    const tmp: Obstacle[] = []
+    this.walk({ x: ax, y: 0, z: az }, { x: dx / len, y: 0, z: dz / len }, len, list => {
+      tmp.length = 0; for (const o of list) if (o.height >= minHeight) tmp.push(o)
+      if (tmp.length && segmentBlocked2D(ax, az, bx, bz, tmp, minHeight)) { blocked = true; return true }
+      return false
+    })
+    return blocked
+  }
+
+  /**
+   * Visits the grid cells along a ray in order (2D DDA on XZ). visit(list, tEnter) receives the not-yet-visited obstacles
+   * of each cell and the ray distance at which the cell is entered; returning true stops the walk.
+   */
+  private walk(o: Vec3, d: Vec3, maxDist: number, visit: (list: Obstacle[], tEnter: number) => boolean): void {
+    const c = this.cell, s = this.nextStamp()
+    let cx = Math.floor(o.x / c), cz = Math.floor(o.z / c)
+    const stepX = d.x > 0 ? 1 : -1, stepZ = d.z > 0 ? 1 : -1
+    const tDeltaX = Math.abs(d.x) < 1e-12 ? Infinity : c / Math.abs(d.x)
+    const tDeltaZ = Math.abs(d.z) < 1e-12 ? Infinity : c / Math.abs(d.z)
+    let tMaxX = Math.abs(d.x) < 1e-12 ? Infinity : ((d.x > 0 ? (cx + 1) * c : cx * c) - o.x) / d.x
+    let tMaxZ = Math.abs(d.z) < 1e-12 ? Infinity : ((d.z > 0 ? (cz + 1) * c : cz * c) - o.z) / d.z
+    let tEnter = 0
+    const out = this.scratch
+    for (let guard = 0; guard < 4096; guard++) {
+      const list = this.cells.get(this.key(cx, cz))
+      if (list && list.length) {
+        out.length = 0
+        for (const ob of list) { const i = this.index.get(ob)!; if (this.stamps[i] !== s) { this.stamps[i] = s; out.push(ob) } }
+        if (out.length && visit(out, tEnter)) return
+      }
+      if (tMaxX < tMaxZ) { tEnter = tMaxX; tMaxX += tDeltaX; cx += stepX } else { tEnter = tMaxZ; tMaxZ += tDeltaZ; cz += stepZ }
+      if (tEnter > maxDist) return
+    }
+  }
 }

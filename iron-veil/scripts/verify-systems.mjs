@@ -1,68 +1,140 @@
-import { chromium } from "playwright"
-import { createServer } from "node:http"
-import { readFile } from "node:fs/promises"
-import { existsSync, mkdirSync } from "node:fs"
-import { extname, join, resolve, sep } from "node:path"
-import { fileURLToPath } from "node:url"
+// verify-systems.mjs — the economy and raid systems in the real build: trader, packing, armory, crafting, building,
+// contracts; in a raid: killing infected, searching a container (hold E → loot window → take all), healing,
+// extracting through a paid exit; a lost raid keeps only the secure container; a reload mid-raid counts as lost;
+// a base defence. Usage: npm run build && npm run verify:systems
+import { openGame, richProfile } from "./browser-lib.mjs"
 
-const ROOT = fileURLToPath(new URL("../", import.meta.url))
-const DIST = join(ROOT, "dist")
-const SHOTS = join(ROOT, "verification-shots"); mkdirSync(SHOTS, { recursive: true })
-if (!existsSync(join(DIST, "index.html"))) throw new Error("Build fehlt")
-const MIME = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".png": "image/png" }
-const server = createServer(async (req, res) => { try { const raw = req.url === "/" ? "/index.html" : req.url.split("?")[0]; const file = resolve(DIST, "." + decodeURIComponent(raw)); if (file !== DIST && !file.startsWith(DIST + sep)) return res.writeHead(403).end(); const data = await readFile(file); res.writeHead(200, { "content-type": MIME[extname(file)] || "application/octet-stream" }); res.end(data) } catch { res.writeHead(404).end() } })
-await new Promise(r => server.listen(0, r)); const port = server.address().port
-const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined, args: ["--no-sandbox", "--use-gl=swiftshader"] })
-const page = await browser.newPage({ viewport: { width: 1280, height: 720 } })
-await page.addInitScript(() => { if (!localStorage.getItem("ironVeil.settings.v1")) localStorage.setItem("ironVeil.settings.v1", JSON.stringify({ sensitivity: 0.75, volume: 0.55, muted: true, quality: "low", invertY: false })) })
-const errors = []; page.on("pageerror", e => errors.push(String(e))); page.on("console", m => { if (m.type() === "error") errors.push(m.text()) })
-const check = (condition, message) => { if (!condition) throw new Error(`SYSTEMTEST: ${message}`); console.log(`PASS ${message}`) }
-const snapshot = () => page.evaluate(() => window.__ironVeil.snapshot())
-const profile = () => page.evaluate(() => window.__ironVeil.profile())
-const action = async name => { await page.locator(`button[data-action="${name}"]`).first().click(); await page.waitForTimeout(120) }
+const g = await openGame({ profile: richProfile() })
+const { page, check } = g
+const api = (fn, arg) => page.evaluate(fn, arg)
+const profile = () => g.profile()
+const count = async id => (await profile()).stash[id] ?? 0
 try {
-  await page.goto(`http://127.0.0.1:${port}/`, { waitUntil: "networkidle" }); await page.waitForFunction(() => window.__GAME_READY__ === true)
-  check((await snapshot()).screen === "menu", "Hauptmenü erreicht")
-  await page.locator(".hero [data-action=missions]").click(); await page.waitForTimeout(100)
-  check(await page.locator(".mission-card").count() === 3, "Drei Missionen wählbar")
-  check(await page.locator(".mission-card.locked").count() === 2, "Missionsfreischaltungen aktiv")
-  await action("trader"); const beforeBuy = await profile(); await page.locator('[data-action=buy][data-id=ammo]').click(); const afterBuy = await profile()
-  check(afterBuy.stash.ammo === beforeBuy.stash.ammo + 1 && afterBuy.money === beforeBuy.money - 60, "Händlerkauf verändert Geld und Lager")
-  await action("inventory"); await page.locator('[data-action=equip][data-id=armor]').click(); check((await profile()).loadout.armor === 55, "Schutzweste ausgerüstet")
-  await action("missions"); await action("deploy"); await page.waitForTimeout(600)
-  for (let i = 0; i < 3; i++) { await page.evaluate(() => window.__ironVeil.aim()); await page.waitForTimeout(120); await page.mouse.click(640, 360); await page.waitForTimeout(180) }
-  check((await snapshot()).enemiesAlive === 4, "Waffentreffer neutralisieren Gegner")
-  await page.keyboard.press("KeyR"); await page.waitForFunction(() => document.querySelector('[data-hud=ammo]')?.textContent === "30", null, { timeout: 7000 })
-  check(await page.locator('[data-hud=ammo]').textContent() === "30", "Nachladen füllt Magazin aus Reserve")
-  await page.screenshot({ path: join(SHOTS, "04-combat.png") })
-  await page.evaluate(() => window.__ironVeil.teleport(-8, 28)); await page.keyboard.press("KeyE"); await page.waitForTimeout(150)
-  check((await snapshot()).lootCollected === 1, "Erste Kiste per Interaktion geborgen")
-  await page.evaluate(() => window.__ironVeil.teleport(11, 12)); await page.keyboard.press("KeyE"); await page.waitForTimeout(150)
-  check((await snapshot()).extractionReady, "Missionsziel öffnet Extraktion")
-  await page.evaluate(() => window.__ironVeil.teleport(40, -42)); await page.keyboard.down("KeyE"); await page.waitForFunction(() => window.__ironVeil.snapshot().screen === "result", null, { timeout: 10000 }); await page.keyboard.up("KeyE"); await page.waitForTimeout(300)
-  check((await snapshot()).screen === "result", "Extraktion erreicht Ergebnisbildschirm")
-  check((await profile()).stats.extracts === 1, "Erfolgreiche Extraktion im Profil verbucht")
-  check((await profile()).stash.parts > 0 && (await profile()).stash.medical > 0, "Beute ins permanente Lager übertragen")
-  await page.screenshot({ path: join(SHOTS, "05-victory.png") })
-  await action("menu"); await action("trader"); await page.locator('[data-action=sell][data-id=medical]').click(); await page.locator('[data-action=sell][data-id=parts]').click(); await action("base")
-  await page.locator('[data-action=build][data-id=workshop]').click(); await page.locator('[data-action=staff][data-id=workshop][data-delta="1"]').click()
-  await page.locator('[data-action=build][data-id=lab]').click(); await page.locator('[data-action=staff][data-id=lab][data-delta="1"]').click()
-  check((await profile()).staff.workshop === 1 && (await profile()).staff.lab === 1, "Basisbau und Personalzuweisung wirken")
-  await page.locator('[data-action=research][data-id=ballistics]').click(); check((await profile()).activeResearch?.id === "ballistics", "Forschung gestartet")
-  await page.screenshot({ path: join(SHOTS, "06-base.png") })
-  await page.evaluate(() => { const key = "ironVeil.profile.v2"; const p = JSON.parse(localStorage.getItem(key)); p.lastTick = Date.now() - 50000; p.activeResearch.endsAt = Date.now() - 1; localStorage.setItem(key, JSON.stringify(p)) })
-  await page.reload({ waitUntil: "networkidle" }); await page.waitForFunction(() => window.__GAME_READY__ === true)
-  const progressed = await profile(); check(progressed.research.includes("ballistics") && !progressed.activeResearch, "Forschungsabschluss nach Laden verarbeitet")
-  check(progressed.stash.ammo >= 8, "Offline-Produktion und Munitionsrückgabe gespeichert")
-  await action("trader"); const sellBefore = await profile(); await page.locator('[data-action=sell][data-id=parts]').click(); const sellAfter = await profile(); check(sellAfter.money === sellBefore.money + 140, "Beuteverkauf erlöst korrekten Betrag")
-  await page.evaluate(() => window.__ironVeil.start("greyzone")); await page.waitForTimeout(250); await page.evaluate(() => window.__ironVeil.damage(200)); await page.waitForTimeout(350)
-  check((await snapshot()).screen === "result" && (await profile()).stats.deaths === 1, "Tod löst Fehlschlag und Statistik aus")
-  check((await profile()).loadout.armor === 0, "Fehlschlag vernichtet mitgeführte Rüstung")
-  await page.screenshot({ path: join(SHOTS, "07-gameover.png") })
-  await action("menu"); await action("settings"); await action("quality"); await action("mute")
-  check(await page.locator('[data-action=quality]').textContent() === "HOCH", "Qualitätseinstellung schaltbar")
-  await page.reload({ waitUntil: "networkidle" }); await page.waitForFunction(() => window.__GAME_READY__ === true); await action("settings")
-  check(await page.locator('[data-action=quality]').textContent() === "HOCH", "Einstellungen überstehen Neuladen")
-  check(errors.length === 0, `Keine Konsolen- oder Laufzeitfehler (${errors.length})`)
-  console.log("SYSTEMVERIFY OK")
-} finally { await browser.close(); server.close() }
+  // ── base screens ──
+  await g.action("trader"); await g.action("trader-tab", "supply")
+  const money0 = (await profile()).money, band0 = await count("bandage")
+  await g.action("buy", "bandage")
+  check(await count("bandage") === band0 + 1 && (await profile()).money < money0, "Händler: Verband gekauft")
+  await g.action("trader-tab", "sell")
+  await g.action("inventory")
+  await g.action("unpack-all")
+  check((await profile()).loadout.bag.length === 0, "Rucksack ausgepackt")
+  await g.action("quick-pack")
+  const bag = (await profile()).loadout.bag
+  check(bag.some(s => s.id === "ammo_556") && bag.some(s => s.id === "bandage"), `Schnell packen: Munition und Verbände (${bag.length} Plätze)`)
+  await api(() => window.__ironVeil.grant("gold", 2))
+  await g.action("stash-filter", "valuable")
+  await g.action("pack-secure", "gold")
+  check((await profile()).loadout.secure.some(s => s.id === "gold"), "Wertsache im sicheren Behälter")
+  await g.action("armory")
+  await g.action("attach", "att_reddot")
+  check((await profile()).loadout.primaryMods.optic === "att_reddot", "Waffenwerkstatt: Rotpunktvisier montiert")
+  await g.action("crafting"); await g.action("craft-station", "workbench")
+  await g.action("craft", "bandage")
+  check((await profile()).crafting.length === 1, "Werkbank stellt Verbände her")
+  await g.action("build")
+  const walls = (await profile()).structures.walls
+  await g.action("build-structure", "walls")
+  check((await profile()).structures.walls === walls + 1, "Schutzwall ausgebaut")
+  await g.action("radio")
+  const offers = (await profile()).contracts.offers
+  check(offers.length >= 3, `Funk: ${offers.length} Auftragsangebote`)
+  await page.locator('button[data-action="accept"]').first().click(); await page.waitForTimeout(100)
+  check((await profile()).contracts.active.length === 1, "Auftrag angenommen")
+  await g.shot("sys-01-radio.png")
+
+  // ── raid: combat, loot, healing, extraction ──
+  await g.action("deploy")
+  await g.until(() => window.__ironVeil.snapshot().mode === "raid", null, 60000)
+  check((await profile()).raidStarted > 0 && (await profile()).loadout.primary === null, "Ausrüstung ist im Einsatz (nicht mehr im Lager)")
+  await api(() => window.__ironVeil.godMode(true))
+  await api(() => window.__ironVeil.spawnInfected("walker", 9)); await g.frames(3)
+  for (let i = 0; i < 8; i++) {
+    const t = await api(() => window.__ironVeil.nearest("infected"))
+    if (!t) break
+    await api(t => window.__ironVeil.aimAt(t.chest.x, t.chest.y, t.chest.z), t)
+    await page.mouse.move(640, 360); await page.mouse.down(); await g.frames(4); await page.mouse.up(); await g.frames(3)
+  }
+  check(!(await api(() => window.__ironVeil.nearest("infected"))), "Infizierter erledigt")
+  await g.shot("sys-02-kill.png")
+  // container: teleport next to the nearest one, look at it, hold E
+  const box = await api(() => { const p = window.__ironVeil.snapshot().player; return window.__ironVeil.containers().sort((a, b) => Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z))[0] })
+  await api(b => { window.__ironVeil.teleport(b.x + 1.3, b.z); window.__ironVeil.lookAt(b.x, b.z, 0.4) }, box)
+  await g.until(() => window.__ironVeil.snapshot().hud?.interaction?.includes("durchsuchen"))
+  await page.keyboard.down("KeyE")
+  await g.until(() => window.__ironVeil.screen() === "loot", null, 30000)
+  await page.keyboard.up("KeyE")
+  check(true, `Behälter durchsucht (${box.kind})`)
+  await g.shot("sys-03-loot.png")
+  await g.action("loot-all")
+  await page.keyboard.press("KeyE")
+  await g.until(() => window.__ironVeil.screen() === "playing")
+  check(true, "Beutefenster mit E geschlossen")
+  // healing
+  await api(() => window.__ironVeil.godMode(false))
+  await api(() => window.__ironVeil.damage(40)); await g.frames(2)
+  const hurt = (await g.snapshot()).health
+  await page.keyboard.press("KeyQ")
+  await g.until(h => window.__ironVeil.snapshot().health > h, hurt, 30000)
+  check(true, `Q heilt (${Math.round(hurt)} → ${Math.round((await g.snapshot()).health)})`)
+  await api(() => window.__ironVeil.godMode(true))
+  // extraction through the paid border post (instant after holding E)
+  const exits = await api(() => window.__ironVeil.exits())
+  const gate = exits.find(e => e.kind === "gate") ?? exits.find(e => !e.requirement)
+  await api(e => { window.__ironVeil.teleport(e.x, e.z) }, gate)
+  await g.until(() => window.__ironVeil.snapshot().hud?.interaction?.includes("halten"))
+  await page.keyboard.down("KeyE")
+  await g.until(() => window.__ironVeil.screen() === "result" || window.__ironVeil.snapshot().hud?.extraction > 0, null, 60000)
+  await page.keyboard.up("KeyE")
+  await g.until(() => window.__ironVeil.screen() === "result", null, 120000)
+  const p1 = await profile()
+  check(p1.raidStarted === 0 && p1.loadout.primary === "mk4", `Extraktion über ${gate.name}: Ausrüstung zurück`)
+  check((p1.stash.gold ?? 0) >= 2, "Sicherer Behälter ins Lager")
+  check(p1.stats.infectedKills >= 1 && p1.stats.extracts === 3, "Statistik: Infizierte und Extraktionen")
+  await g.shot("sys-04-result.png")
+
+  // ── lost raid: only the secure container survives ──
+  await g.action("inventory")
+  await g.action("stash-filter", "valuable")
+  await api(() => window.__ironVeil.grant("watch", 1))
+  await g.action("stash-filter", "valuable")
+  await g.action("pack-secure", "watch")
+  await g.action("pack", "gold")
+  await api(() => window.__ironVeil.deploy({ time: "day" }))
+  await g.until(() => window.__ironVeil.snapshot().mode === "raid", null, 60000)
+  await api(() => window.__ironVeil.damage(500))
+  await g.until(() => window.__ironVeil.screen() === "result", null, 60000)
+  const p2 = await profile()
+  check(p2.loadout.primary === null && (p2.stash.watch ?? 0) >= 1, "Tod: Waffen weg, sicherer Behälter (Uhr) bleibt")
+  check((p2.stash.gold ?? 0) === (p1.stash.gold ?? 0) - 1, "Tod: Rucksack-Beute verloren")
+
+  // ── reload during a raid counts as lost ──
+  await g.action("inventory")
+  await g.action("stash-filter", "weapon")
+  await g.action("equip-weapon", "kv12")
+  await api(() => window.__ironVeil.deploy({ time: "day" }))
+  await g.until(() => window.__ironVeil.snapshot().mode === "raid", null, 60000)
+  await g.reload()
+  const p3 = await profile()
+  check(p3.raidStarted === 0 && p3.loadout.primary === null && p3.stats.deaths === p2.stats.deaths + 1, "Neuladen im Einsatz zählt als verloren")
+
+  // ── base defence ──
+  await api(() => window.__ironVeil.grant("w_mk4", 1))
+  await api(() => window.__ironVeil.setThreat(80, true))
+  await g.reload()
+  await g.action("inventory"); await g.action("stash-filter", "weapon"); await g.action("equip-weapon", "mk4"); await g.action("quick-pack")
+  await g.action("menu")
+  check(await page.locator(".attack-banner").count() === 1, "Hauptmenü warnt vor dem Angriff")
+  await g.action("attack")
+  check((await g.snapshot()).screen === "attack", "Angriffsbildschirm")
+  await g.action("defend")
+  await g.until(() => window.__ironVeil.snapshot().mode === "defense", null, 60000)
+  await api(() => window.__ironVeil.godMode(true))
+  await g.until(() => (window.__ironVeil.defense()?.wave ?? 0) >= 1, null, 60000)
+  for (let i = 0; i < 180 && (await g.snapshot()).mode === "defense"; i++) { await api(() => window.__ironVeil.killAllInfected()); await page.waitForTimeout(1000) }
+  await g.until(() => window.__ironVeil.screen() === "menu", null, 120000)
+  const p4 = await profile()
+  check(!p4.base.attackPending && p4.stats.defenses === 1, "Basis verteidigt (3 Wellen)")
+  check(g.errors.length === 0, `Keine Fehler (${g.errors.length})${g.errors.length ? ": " + g.errors[0] : ""}`)
+  console.log("SYSTEMSVERIFY OK")
+} finally { await g.close() }

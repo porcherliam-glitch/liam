@@ -1,343 +1,337 @@
 /**
- * world.ts — builds the 3D environment for a mission from its MapLayout (maps.ts).
- * CONTRACT (used by raid.ts and enemies.ts):
- *  - createWorld(mission, scene, quality) adds world.group to the scene and sets scene.background/fog + lights.
- *  - obstacles: one AABB per layout solid plus perimeter walls just outside layout.bounds (maps.layoutObstacles).
- *  - nav: NavGrid over layout.bounds (agent radius 0.45 m, 1 m cells).
- *  - coverPoints: standing spots right next to solids >= 1 m tall (normal points away from the solid).
- *  - surfaceAt(x, z): ground material for footstep sounds.
- *  - update(dt, time, camera): per frame — sky follows the camera, animated props. Allocation-free.
- *  - setExtraction(id, state, progress): drives the evac zone visuals ("hidden" for zones not used this raid).
- *  - dispose(): removes the group from the scene and frees GPU resources it created.
- * Rendering: static geometry is merged per material (props.ts / meshkit.ts), textures are procedural (textures.ts),
- * sky/skyline/water in sky.ts, evac visuals in extraction.ts. "low" quality: no shadows, one real light, fewer props,
- * smaller textures.
+ * world.ts — builds the 3D environment: the big quarantine zone or the player's base (contract in zone.ts).
+ * CONTRACT (used by raid.ts, enemies.ts, zombies.ts):
+ *  - createWorld(kind, scene, quality, opts) adds world.group to the scene and sets scene.background/fog + lights.
+ *  - obstacles / collision: every blocking box (CollisionWorld index — use it for all queries); nav: NavGrid over
+ *    layout.bounds (agent radius 0.45 m, 1 m cells); coverPoints: standing spots next to solids ≥ 1 m tall.
+ *  - lightLevel 0..1 (viewmodel lighting), visionScale (enemy sight multiplier for the time of day), night flag.
+ *  - surfaceAt / districtAt / indoor: per-position queries for footsteps, HUD area name, audio reverb.
+ *  - update(dt, time, camera): sky follows the camera, chunk visibility, animated props, pooled lamp lights.
+ *  - setExtraction(id, state, progress): evac zone visuals ("hidden" for exfils closed this raid).
+ *  - setStructures(levels) (base only): rebuilds structure meshes and their obstacles on the plots (and the nav
+ *    grid/collision in those areas).
+ *  - dispose(): removes the group from the scene and frees every GPU resource it created (incl. shadow maps).
+ *  - zoneLayout() / baseLayout(): the (cached, deterministic) layouts without building meshes — the UI reads
+ *    insertions, extractions and districts from them for raid planning. Never mutated (worlds copy obstacles).
+ * Rendering: layout data (zonemap.ts / basemap.ts) → props.ts + zoneprops.ts batches → chunks.ts: one texture array
+ * and one "uber" material for all static surfaces, geometry split into 64 m chunks (opaque + cut-out per chunk) that
+ * update() hides beyond the fog; trees instanced per chunk; landmarks (church, towers, cranes, stack, silos, ship)
+ * in one far mesh with weaker fog. Night: moonlight, a few working lamps (most are dead), fires, emissive windows;
+ * 4 (high) / 1 (low) real point lights are re-assigned to the working lamps nearest to the camera.
  */
 import * as THREE from "three"
-import { MISSIONS } from "./data"
-import type { Obstacle } from "./collision"
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js"
+import { STRUCTURES, TIMES, type StructureId, type TimeOfDay } from "./baseData"
+import { baseMap, structureModel, wallsModel, type BaseMap } from "./basemap"
+import { ChunkSet, TextureLayers, keyInfo, uberMaterial, uberize, type KeyInfo } from "./chunks"
+import { CollisionWorld, type Obstacle } from "./collision"
 import { createExtractions } from "./extraction"
-import { computeCoverPoints, getLayout, layoutObstacles, type MapLayout, type MapLight } from "./maps"
+import { computeCoverPoints, type BuildingInfo, type Doorway, type MapProp, type MapSolid } from "./maps"
 import { ConeBatch, GeoBatch, GlowBatch, PoolBatch, coneMaterial, raw, type FxUniforms } from "./meshkit"
 import { NavGrid } from "./nav"
-import { buildBuildingDetails, buildFences, buildPerimeter, buildProp, buildSolid, disposeTemplates, emitDecals, emitWindows, type BuildCtx, type InstKind, type PropLook } from "./props"
-import { createSky, createSkyline, createWater, type SkySpec, type SkylineSpec, type WaterSpec } from "./sky"
+import { buildBuildingDetails, buildFences, buildProp, buildSolid, disposeTemplates, emitDecals, emitWindows, textKey, type BuildCtx, type InstKind, type PropLook } from "./props"
+import { createSky, createWater, type SkySpec, type WaterSpec } from "./sky"
 import { TEX, decalAtlas, mulberry, textDecal, textureCanvas, windowCanvases, type TexName } from "./textures"
-import type { MissionId, Surface, ThemeId } from "./types"
+import type { Surface, ThemeId } from "./types"
+import type { AnyLayout, BaseLayout, District, WorldKind, WorldOptions, ZoneLayout } from "./zone"
+import { zoneMap, zoneObstacles, type Rect, type ZoneMap } from "./zonemap"
+import { buildZoneFence } from "./zoneprops"
 
 export interface CoverPoint { x: number; z: number; height: number; nx: number; nz: number }
 export type ExtractionState = "hidden" | "locked" | "ready" | "called" | "done"
 
 export interface World {
-  layout: MapLayout
+  kind: WorldKind
+  layout: AnyLayout
+  time: TimeOfDay
+  /** Legacy lighting preset (used by older enemy code). */
   theme: ThemeId
   group: THREE.Group
   obstacles: Obstacle[]
+  /** Spatial index over obstacles — use this for all movement, ray and sight queries on large maps. */
+  collision: CollisionWorld
   nav: NavGrid
   coverPoints: CoverPoint[]
-  /** Suggested renderer.toneMappingExposure for this theme. */
   exposure: number
+  lightLevel: number
+  visionScale: number
+  night: boolean
   surfaceAt(x: number, z: number): Surface
+  districtAt(x: number, z: number): District | null
+  indoor(x: number, z: number): boolean
   update(dt: number, time: number, camera: THREE.Camera): void
   setExtraction(id: string, state: ExtractionState, progress: number): void
+  setStructures(levels: Partial<Record<StructureId, number>>): void
   dispose(): void
 }
 
+/** The cached layouts (no meshes). */
+export function zoneLayout(): ZoneLayout { return zoneMap() }
+export function baseLayout(): BaseLayout { return baseMap() }
+
+// ---------------------------------------------------------------------------------------------------------------
+// Times of day
+// ---------------------------------------------------------------------------------------------------------------
 interface Look {
   sky: SkySpec
-  fogNear: number; fogFar: number; exposure: number
-  sun: { color: number; intensity: number; dir?: [number, number, number] }
+  fog: [number, number]; exposure: number; light: number
+  sun: { color: number; intensity: number }
   hemi: { sky: number; ground: number; intensity: number }
-  skyline: Omit<SkylineSpec, "seed">
   props: PropLook
   windowGlow: number
+  /** Real point-light intensity of a working lamp. */
+  lampI: number
+  water: Omit<WaterSpec, "lamps">
+  /** Ground/foliage tint (season/light). */
   foliage: number
-  far: string
-  water?: Omit<WaterSpec, "lamps">
 }
 
-const LOOKS: Record<ThemeId, Look> = {
-  dusk: {
-    sky: {
-      zenith: 0x2a3d6e, mid: 0x8c7aa6, horizon: 0xf0a77c, glow: 0xffb45e, fog: 0xc9958a, sunDir: [-0.86, 0.2, 0.47], sunColor: 0xfff2c8, sunSize: 0.028,
-      sunVisible: 1, glowStrength: 1, moon: false, stars: 0, clouds: 0.55, cloudColor: 0x6e5c7c, cloudLit: 0xffa070,
-    },
-    fogNear: 30, fogFar: 215, exposure: 1.12,
-    sun: { color: 0xffb27a, intensity: 3.2 },
-    hemi: { sky: 0x9aa8d6, ground: 0x6a5446, intensity: 1.5 },
-    skyline: { kind: "industrial", fog: 0xc9958a, dark: 0x4a3c52, lit: 0xffc070, litChance: 0.07 },
-    props: { night: 0.15, lamps: 0.75, lampColor: 0xffc27a, windowLit: 0.32, shafts: 0 },
-    windowGlow: 1.1, foliage: 0xe6dca0, far: "dirt",
+const LOOKS: Record<TimeOfDay, Look> = {
+  dawn: {
+    sky: { zenith: 0x2a3550, mid: 0x7c7896, horizon: 0xdca07e, glow: 0xffb070, fog: 0xc98d72, sunDir: [0.86, 0.14, -0.3], sunColor: 0xffd8b0, sunSize: 0.026, sunVisible: 1, glowStrength: 0.9, moon: false, stars: 0.12, clouds: 0.45, cloudColor: 0x6a5a6e, cloudLit: 0xffa878 },
+    fog: [40, 190], exposure: 1.1, light: 0.6,
+    sun: { color: 0xffc7a0, intensity: 1.6 }, hemi: { sky: 0x9aa6c0, ground: 0x5a4a40, intensity: 1.2 },
+    props: { night: 0.35, lamps: 0.45, lampColor: 0xffc27a, windowLit: 0.02, shafts: 0.4 }, windowGlow: 0.9, lampI: 12, foliage: 0xcfc6a0,
+    water: { deep: 0x1c2430, skyLow: 0xc99a80, skyHigh: 0x4a5878, glow: 0xffa060, glowDir: [0.9, -0.3], lampColor: 0xffb060 },
   },
-  harbor: {
-    sky: {
-      zenith: 0x0b1838, mid: 0x1d3667, horizon: 0x405c8c, glow: 0xe07a4a, fog: 0x2f4369, sunDir: [-0.9, 0.02, -0.32], sunColor: 0xffc890, sunSize: 0.02,
-      sunVisible: 0, glowStrength: 0.9, moon: false, stars: 0.3, clouds: 0.35, cloudColor: 0x1a2442, cloudLit: 0x8c5a62,
-    },
-    fogNear: 22, fogFar: 190, exposure: 1.42,
-    sun: { color: 0x9fb4e8, intensity: 0.85, dir: [-0.55, 0.62, -0.3] },
-    hemi: { sky: 0x5672b2, ground: 0x34303a, intensity: 1.45 },
-    skyline: { kind: "harbor", fog: 0x2f4369, dark: 0x0f1a2e, lit: 0xffc890, litChance: 0.32, waterFrom: 0.85, waterTo: 3.7 },
-    props: { night: 0.6, lamps: 1.0, lampColor: 0xff9a40, windowLit: 0.55, shafts: 1 },
-    windowGlow: 1.5, foliage: 0x93a488, far: "asphalt",
-    water: { deep: 0x0b1424, skyLow: 0x405c8c, skyHigh: 0x172a52, glow: 0xd27444, glowDir: [-0.9, -0.3], lampColor: 0xffa040 },
+  day: {
+    sky: { zenith: 0x3a6aa2, mid: 0x7aa2c8, horizon: 0xc6d4da, glow: 0xfff2d6, fog: 0xb9c8cf, sunDir: [-0.35, 0.86, 0.36], sunColor: 0xfffbe8, sunSize: 0.022, sunVisible: 1, glowStrength: 0.35, moon: false, stars: 0, clouds: 0.5, cloudColor: 0xd8dde2, cloudLit: 0xffffff },
+    fog: [70, 260], exposure: 1.0, light: 1,
+    sun: { color: 0xfff3e0, intensity: 2.6 }, hemi: { sky: 0xc6d8e6, ground: 0x6a6a52, intensity: 1.8 },
+    props: { night: 0, lamps: 0, lampColor: 0xffc27a, windowLit: 0, shafts: 0 }, windowGlow: 0.6, lampI: 0, foliage: 0xe6e0b8,
+    water: { deep: 0x22303c, skyLow: 0xa8bcc8, skyHigh: 0x4a78a8, glow: 0xfff0d0, glowDir: [-0.4, 0.4], lampColor: 0xffc890 },
+  },
+  dusk: {
+    sky: { zenith: 0x2a3d6e, mid: 0x8c7aa6, horizon: 0xf0a77c, glow: 0xffb45e, fog: 0xc9958a, sunDir: [-0.86, 0.2, 0.47], sunColor: 0xfff2c8, sunSize: 0.028, sunVisible: 1, glowStrength: 1, moon: false, stars: 0, clouds: 0.55, cloudColor: 0x6e5c7c, cloudLit: 0xffa070 },
+    fog: [50, 210], exposure: 1.05, light: 0.8,
+    sun: { color: 0xffb27a, intensity: 2.8 }, hemi: { sky: 0x9aa8d6, ground: 0x6a5446, intensity: 1.5 },
+    props: { night: 0.15, lamps: 0.75, lampColor: 0xffc27a, windowLit: 0.04, shafts: 0.3 }, windowGlow: 1.1, lampI: 16, foliage: 0xe6dca0,
+    water: { deep: 0x1a2030, skyLow: 0xd09a84, skyHigh: 0x3a4a78, glow: 0xffa060, glowDir: [-0.9, 0.45], lampColor: 0xffa040 },
   },
   night: {
-    sky: {
-      zenith: 0x02050d, mid: 0x07122a, horizon: 0x15253f, glow: 0x2c3c60, fog: 0x0f1b31, sunDir: [0.45, 0.55, -0.7], sunColor: 0xe8eeff, sunSize: 0.024,
-      sunVisible: 0, glowStrength: 0.7, moon: true, stars: 1, clouds: 0.28, cloudColor: 0x0b1324, cloudLit: 0x36486e,
-      glow2: { dir: [-0.9, 0.4], color: 0x4a3a2c, strength: 0.7 },
-    },
-    fogNear: 14, fogFar: 140, exposure: 1.6,
-    sun: { color: 0xaabcff, intensity: 0.8 },
-    hemi: { sky: 0x2e4270, ground: 0x12141a, intensity: 0.95 },
-    skyline: { kind: "forest", fog: 0x0f1b31, dark: 0x03060c, lit: 0xffc070, litChance: 0.12 },
-    props: { night: 1, lamps: 1.0, lampColor: 0xdfe8ff, windowLit: 0.4, shafts: 1.1 },
-    windowGlow: 1.3, foliage: 0x7a8668, far: "grass",
+    sky: { zenith: 0x02050d, mid: 0x07122a, horizon: 0x101c32, glow: 0x24345a, fog: 0x0b1220, sunDir: [0.45, 0.55, -0.7], sunColor: 0xe8eeff, sunSize: 0.024, sunVisible: 0, glowStrength: 0.6, moon: true, stars: 1, clouds: 0.28, cloudColor: 0x0b1324, cloudLit: 0x36486e },
+    fog: [16, 90], exposure: 1.25, light: 0.22,
+    sun: { color: 0x8fa6d6, intensity: 0.45 }, hemi: { sky: 0x34486a, ground: 0x12141a, intensity: 0.55 },
+    props: { night: 1, lamps: 1, lampColor: 0xffc890, windowLit: 0.05, shafts: 1 }, windowGlow: 1.4, lampI: 22, foliage: 0x7a8668,
+    water: { deep: 0x05080e, skyLow: 0x101c32, skyHigh: 0x07122a, glow: 0x24345a, glowDir: [0.45, -0.7], lampColor: 0xffa040 },
   },
 }
 
-const SURFACES: Surface[] = ["asphalt", "concrete", "metal", "gravel", "dirt", "wood"]
-const GROUND_TEX: Record<string, TexName> = { asphalt: "asphalt", gravel: "gravel", dirt: "dirt", grass: "grass", pavement: "pavement", quay: "quay", pad: "pad", floor: "floor", tiles: "tiles", plank: "plank", concrete: "pavement", metal: "pad", wood: "plank" }
+/** Share of lamps per district that still work (generators); the rest of the zone is dark. */
+const POWER: Record<string, number> = { military: 0.55, lab: 0.45, harbor: 0.14, industry: 0.12, quarry: 0.1, station: 0.08, town: 0.05, farm: 0.05, forest: 0 }
+const SURFACES: Surface[] = ["asphalt", "concrete", "metal", "gravel", "dirt", "wood", "grass"]
+const GLOBAL_KEYS = new Set(["decal", "window", "lamp"])
+const CHUNK = 64
 
-export function createWorld(missionId: MissionId, scene: THREE.Scene, quality: "high" | "low"): World {
-  const layout = getLayout(missionId)
-  const theme = MISSIONS[missionId].theme
-  const look = LOOKS[theme]
+interface Env {
+  high: boolean
+  layers: TextureLayers
+  mats: Record<"opaque" | "cut" | "far" | "farcut", THREE.MeshStandardMaterial>
+  fx: FxUniforms
+  decalMat: THREE.Material | null
+  atlasRects: Map<string, { u0: number; v0: number; u1: number; v1: number }> | null
+  windowMat: THREE.Material
+  lampMat: THREE.Material
+  own<T extends { dispose(): void }>(d: T): T
+}
+
+/** Collects batched geometry for a set of solids/props (the static world, or one base structure). */
+class Builder {
+  near = new Map<string, GeoBatch>(); far = new Map<string, GeoBatch>(); farMode = false
+  glow = new GlowBatch(); pool = new PoolBatch(); cone = new ConeBatch()
+  instances = new Map<InstKind, Array<{ m: THREE.Matrix4; c: number }>>()
+  ctx: BuildCtx
+  constructor(data: { props: readonly MapProp[]; buildings: readonly BuildingInfo[]; doorways: readonly Doorway[] }, look: PropLook, high: boolean, seed: number, lit: (x: number, z: number) => number) {
+    this.ctx = {
+      data, look, high, rng: mulberry(seed), lit, lampSpots: [],
+      B: key => { const m = this.farMode && !GLOBAL_KEYS.has(key) ? this.far : this.near; let b = m.get(key); if (!b) { b = new GeoBatch(); m.set(key, b) } return b },
+      glow: this.glow, pool: this.pool, cone: this.cone,
+      inst: (kind, x, y, z, ry, s, color, rx = 0) => {
+        let list = this.instances.get(kind); if (!list) { list = []; this.instances.set(kind, list) }
+        list.push({ m: new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, ry, 0)), new THREE.Vector3(...s)), c: color })
+      },
+      decals: [], texts: new Map(), windows: [], lines: [], searchlights: [], radars: [], weeds: [],
+    }
+  }
+  solids(list: readonly MapSolid[]): void { for (const s of list) { this.farMode = !!s.far; buildSolid(this.ctx, s) } this.farMode = false }
+  props(list: readonly MapProp[]): void { for (const p of list) { this.farMode = !!p.far; buildProp(this.ctx, p) } this.farMode = false }
+  details(): void { buildFences(this.ctx); buildBuildingDetails(this.ctx) }
+
+  /** Turns the batches into meshes: chunked opaque/cut-out, far landmark meshes and the global effect meshes. */
+  meshes(env: Env, chunkSize: number): { chunks: Array<{ cx: number; cz: number; mesh: THREE.Mesh }>; globals: THREE.Object3D[] } {
+    const set = new ChunkSet(chunkSize), farSet = new ChunkSet(Infinity)
+    const add = (s: ChunkSet, key: string, b: GeoBatch) => {
+      const info: KeyInfo = keyInfo(key), tex = info.tex as TexName
+      s.addBatch(b, env.layers.layer(tex), info, 1 / TEX[tex][0], 1 / TEX[tex][1])
+    }
+    for (const [key, b] of this.near) if (!GLOBAL_KEYS.has(key)) add(set, key, b)
+    for (const [key, b] of this.far) add(farSet, key, b)
+    const chunks: Array<{ cx: number; cz: number; mesh: THREE.Mesh }> = []
+    for (const c of set.build()) {
+      const mesh = new THREE.Mesh(env.own(c.geometry), c.cut ? env.mats.cut : env.mats.opaque)
+      mesh.castShadow = env.high && !c.cut; mesh.receiveShadow = env.high
+      chunks.push({ cx: c.cx, cz: c.cz, mesh })
+    }
+    const globals: THREE.Object3D[] = []
+    for (const c of farSet.build()) {
+      const mesh = new THREE.Mesh(env.own(c.geometry), c.cut ? env.mats.farcut : env.mats.far)
+      mesh.castShadow = env.high && !c.cut; mesh.receiveShadow = env.high; mesh.name = "Landmarken"
+      globals.push(mesh)
+    }
+    // decals, windows, lamps
+    if (env.atlasRects) emitDecals(this.ctx, env.atlasRects)
+    emitWindows(this.ctx)
+    for (const key of GLOBAL_KEYS) {
+      const g = this.near.get(key)?.build(); if (!g) continue
+      env.own(g)
+      const mat = key === "decal" ? env.decalMat : key === "window" ? env.windowMat : env.lampMat
+      if (!mat) continue
+      const mesh = new THREE.Mesh(g, mat); mesh.receiveShadow = env.high && key !== "lamp"
+      if (key === "decal") mesh.renderOrder = 1
+      globals.push(mesh)
+    }
+    // instanced small props
+    for (const [kind, list] of this.instances) {
+      const tex: TexName = kind === "sandbag" ? "burlap" : "metal", info = keyInfo(kind === "sandbag" ? "burlap" : "metal")
+      const g = env.own(uberize(INST_GEO[kind](env.high), env.layers.layer(tex), info, 1 / TEX[tex][0], 1 / TEX[tex][1]))
+      const mesh = new THREE.InstancedMesh(g, env.mats.opaque, list.length)
+      const c = new THREE.Color()
+      list.forEach((it, i) => { mesh.setMatrixAt(i, it.m); mesh.setColorAt(i, c.set(it.c)) })
+      mesh.instanceMatrix.needsUpdate = true
+      mesh.castShadow = env.high && kind !== "post"; mesh.receiveShadow = env.high
+      mesh.computeBoundingSphere()
+      env.own({ dispose: () => mesh.dispose() })
+      globals.push(mesh)
+    }
+    if (this.ctx.lines.length) {
+      const g = env.own(new THREE.BufferGeometry()); g.setAttribute("position", new THREE.Float32BufferAttribute(this.ctx.lines, 3))
+      globals.push(new THREE.LineSegments(g, env.own(new THREE.LineBasicMaterial({ color: 0x15171a }))))
+    }
+    for (const m of [this.glow.build(env.fx), this.pool.build(env.fx), env.high ? this.cone.build(env.fx) : null]) if (m) { env.own(m.geometry); env.own(m.material as THREE.Material); globals.push(m) }
+    return { chunks, globals }
+  }
+}
+
+const INST_GEO: Record<InstKind, (high: boolean) => THREE.BufferGeometry> = {
+  barrel: high => {
+    const body = new THREE.CylinderGeometry(0.3, 0.3, 0.9, high ? 14 : 8); scaleUv(body, 1.9, 0.9)
+    const rings = [-0.22, 0.22].map(y => new THREE.CylinderGeometry(0.312, 0.312, 0.04, high ? 14 : 8).translate(0, y, 0))
+    const g = mergeGeometries([body, ...rings].map(x => x.toNonIndexed()), false)!; return g
+  },
+  sandbag: () => pillow(),
+  post: () => new THREE.CylinderGeometry(0.035, 0.035, 1, 5).translate(0, 0.5, 0),
+  bollard: () => new THREE.CylinderGeometry(0.22, 0.28, 0.55, 10).translate(0, 0.275, 0),
+  chainpost: () => new THREE.CylinderGeometry(0.05, 0.05, 1, 6).translate(0, 0.5, 0),
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// createWorld
+// ---------------------------------------------------------------------------------------------------------------
+export function createWorld(kind: WorldKind, scene: THREE.Scene, quality: "high" | "low", opts: WorldOptions = {}): World {
+  const time: TimeOfDay = kind === "base" ? "dusk" : opts.time ?? "dusk"
+  const look = LOOKS[time]
   const high = quality === "high"
-  const group = new THREE.Group(); group.name = "Einsatzgebiet"
+  const map: ZoneMap | BaseMap = kind === "zone" ? zoneMap() : baseMap()
+  const layout = map as AnyLayout
+  const group = new THREE.Group(); group.name = kind === "zone" ? "Sperrzone" : "Basis"
   const disposables: Array<{ dispose(): void }> = []
   const own = <T extends { dispose(): void }>(d: T): T => { disposables.push(d); return d }
-  const fx: FxUniforms = { time: { value: 0 }, fogNear: { value: look.fogNear }, fogFar: { value: look.fogFar } }
+  const fx: FxUniforms = { time: { value: 0 }, fogNear: { value: look.fog[0] }, fogFar: { value: look.fog[1] } }
   scene.background = new THREE.Color(look.sky.fog)
-  scene.fog = new THREE.Fog(look.sky.fog, look.fogNear, look.fogFar)
+  scene.fog = new THREE.Fog(look.sky.fog, look.fog[0], look.fog[1])
 
-  // --- collision, navigation, cover ----------------------------------------------------------------------------
-  const obstacles = layoutObstacles(layout)
+  // --- collision, navigation, cover (per-world copies; the layout itself is never touched) ---------------------
+  const obstacles = zoneObstacles(map)
+  const collision = new CollisionWorld(obstacles)
   const nav = new NavGrid(layout.bounds, obstacles, 0.45, 1)
-  const coverPoints: CoverPoint[] = computeCoverPoints(layout, nav)
-
-  // --- textures & materials ---------------------------------------------------------------------------------
-  const texSize = high ? 512 : 256
-  const textures = new Map<string, THREE.Texture>()
-  const tex = (name: TexName, repeat = true): THREE.Texture => {
-    const key = name + (repeat ? "" : ":1")
-    let t = textures.get(key)
-    if (!t) {
-      t = own(new THREE.CanvasTexture(textureCanvas(name, name === "smoke" ? 128 : name === "padmark" ? 256 : texSize)))
-      t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = high ? 8 : 2
-      if (repeat) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(1 / TEX[name][0], 1 / TEX[name][1]) }
-      textures.set(key, t)
-    }
-    return t
+  const coverPoints: CoverPoint[] = computeCoverPoints(map, nav)
+  const districts = map.kind === "zone" ? map.districts : []
+  const districtAt = (x: number, z: number): District | null => { for (const d of districts) if (x >= d.minX && x <= d.maxX && z >= d.minZ && z <= d.maxZ) return d; return null }
+  const lit = kind === "base" ? () => 1 : (x: number, z: number) => {
+    const p = POWER[districtAt(x, z)?.id ?? ""] ?? 0
+    const h = Math.sin(x * 12.9898 + z * 78.233) * 43758.5453
+    return h - Math.floor(h) < p ? 1 : 0
   }
-  const materials = new Map<string, THREE.Material>()
-  const std = (o: THREE.MeshStandardMaterialParameters) => own(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.9, metalness: 0, ...o }))
+
+  // --- materials -----------------------------------------------------------------------------------------------
+  const layers = new TextureLayers(), layerU = { value: null as THREE.Texture | null }
+  const env: Env = {
+    high, layers, fx, own, decalMat: null, atlasRects: null,
+    mats: { opaque: own(uberMaterial(layerU, "opaque", high)), cut: own(uberMaterial(layerU, "cut", high)), far: own(uberMaterial(layerU, "far", high)), farcut: own(uberMaterial(layerU, "farcut", high)) },
+    windowMat: (() => {
+      const w = windowCanvases(high ? 128 : 64)
+      const map = own(new THREE.CanvasTexture(w.map)), em = own(new THREE.CanvasTexture(w.emissive))
+      map.colorSpace = em.colorSpace = THREE.SRGBColorSpace
+      return own(new THREE.MeshStandardMaterial({ vertexColors: true, map, emissiveMap: em, emissive: new THREE.Color(1, 1, 1), emissiveIntensity: look.windowGlow, roughness: 0.25, metalness: 0.1 }))
+    })(),
+    lampMat: own(new THREE.MeshBasicMaterial({ vertexColors: true })),
+  }
+
+  // --- static geometry ----------------------------------------------------------------------------------------
+  const seed = kind === "zone" ? 0x2026 : 0x0ba5e
+  const B = new Builder(map, look.props, high, seed, lit)
+  const ctx = B.ctx
+  const ground = buildGround(ctx, map, look, high)
+  B.solids(map.solids)
+  B.props(map.props)
+  B.details()
+  if (map.kind === "zone") buildZoneFence(ctx, map.bounds, map.gates, ["n", "e", "w"])
+  scatterWeeds(ctx, ground, map, look, high)
+  for (const l of map.lights) if (lit(l.x, l.z) > 0) ctx.lampSpots.push([l.x, l.y, l.z, l.color])
+
+  // decal atlas (incl. every text a base structure can show)
+  if (map.kind === "base") for (const p of map.plots) for (let lvl = 0; lvl <= STRUCTURES[p.structure].max; lvl++) for (const q of structureModel(p, lvl).props) if (q.kind === "decal") textKey(ctx, q.v ?? 0, q.text ?? "")
   const atlasExtra = new Map<string, ReturnType<typeof textDecal>>()
-  let atlasTex: THREE.Texture | null = null
-  const material = (key: string): THREE.Material => {
-    let m = materials.get(key)
-    if (m) return m
-    if (key.startsWith("g:")) m = std({ map: tex(GROUND_TEX[key.slice(2)] ?? "gravel"), roughness: key === "g:asphalt" ? 0.86 : 0.95 })
-    else switch (key) {
-      case "decal": m = std({ map: atlasTex!, transparent: true, depthWrite: false, roughness: 0.85, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }); break
-      case "window": {
-        const w = windowCanvases(high ? 128 : 64)
-        const map = own(new THREE.CanvasTexture(w.map)), em = own(new THREE.CanvasTexture(w.emissive))
-        map.colorSpace = em.colorSpace = THREE.SRGBColorSpace
-        m = std({ map, emissiveMap: em, emissive: new THREE.Color(1, 1, 1), emissiveIntensity: look.windowGlow, roughness: 0.25, metalness: 0.1 }); break
-      }
-      case "lamp": m = own(new THREE.MeshBasicMaterial({ vertexColors: true })); break
-      case "fence": m = std({ map: tex("chainlink"), transparent: true, depthWrite: false, side: THREE.DoubleSide, roughness: 0.6, metalness: 0.2 }); break
-      case "foliage": m = std({ map: tex("foliage", false), alphaTest: 0.45, side: THREE.DoubleSide, roughness: 0.95 }); break
-      case "truss": m = std({ map: tex("truss"), alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.6, metalness: 0.2 }); break
-      case "concertina": m = std({ map: tex("concertina"), alphaTest: 0.4, side: THREE.DoubleSide, roughness: 0.5, metalness: 0.4 }); break
-      case "glass": m = std({ map: tex("glass"), roughness: 0.12, metalness: 0.3 }); break
-      case "metal": m = std({ map: tex("metal"), roughness: 0.55, metalness: 0.2 }); break
-      case "container": m = std({ map: tex("container"), roughness: 0.62, metalness: 0.15 }); break
-      case "rubber": m = std({ map: tex("rubber"), roughness: 0.95 }); break
-      case "burlap": m = std({ map: tex("burlap"), roughness: 1 }); break
-      default: m = std({ map: tex(key as TexName) })
-    }
-    materials.set(key, m)
-    return m
-  }
-
-  // --- build context ---------------------------------------------------------------------------------------
-  const batches = new Map<string, GeoBatch>()
-  const instances = new Map<InstKind, Array<{ m: THREE.Matrix4; c: number }>>()
-  const glow = new GlowBatch(), pool = new PoolBatch(), cone = new ConeBatch()
-  const ctx: BuildCtx = {
-    layout, look: look.props, high, rng: mulberry(MISSIONS[missionId].seed),
-    B: key => { let b = batches.get(key); if (!b) { b = new GeoBatch(); batches.set(key, b) } return b },
-    glow, pool, cone,
-    inst: (kind, x, y, z, ry, s, color, rx = 0) => {
-      let list = instances.get(kind); if (!list) { list = []; instances.set(kind, list) }
-      list.push({ m: new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, ry, 0)), new THREE.Vector3(...s)), c: color })
-    },
-    decals: [], texts: new Map(), windows: [], lines: [], searchlights: [], radars: [], weeds: [],
-  }
-
-  // --- ground ----------------------------------------------------------------------------------------------
-  const b = layout.bounds, margin = 34
-  const water = layout.water?.sides ?? []
-  const gx0 = b.minX - (water.includes("w") ? 1 : margin), gx1 = b.maxX + (water.includes("e") ? 1 : margin)
-  const gz0 = b.minZ - (water.includes("n") ? 1 : margin), gz1 = b.maxZ + (water.includes("s") ? 1 : margin)
-  const gcols = Math.round(gx1 - gx0), grows = Math.round(gz1 - gz0)
-  const areas = layout.areas ?? []
-  const def = layout.ground ?? { surface: "gravel" as Surface, look: "gravel" }
-  const looks: string[] = [def.look], lookIndex = new Map<string, number>([[def.look, 0]])
-  const lookGrid = new Uint8Array(gcols * grows), surfGrid = new Uint8Array(gcols * grows)
-  const defSurf = SURFACES.indexOf(def.surface)
-  surfGrid.fill(defSurf)
-  for (const a of areas) {
-    const l = a.look ?? a.surface
-    if (!lookIndex.has(l)) { lookIndex.set(l, looks.length); looks.push(l) }
-    const li = lookIndex.get(l)!, si = SURFACES.indexOf(a.surface)
-    const c0 = Math.max(0, Math.round(a.x - a.w / 2 - gx0)), c1 = Math.min(gcols, Math.round(a.x + a.w / 2 - gx0))
-    const r0 = Math.max(0, Math.round(a.z - a.d / 2 - gz0)), r1 = Math.min(grows, Math.round(a.z + a.d / 2 - gz0))
-    for (let r = r0; r < r1; r++) for (let c = c0; c < c1; c++) { lookGrid[r * gcols + c] = li; surfGrid[r * gcols + c] = si }
-  }
-  for (const s of layout.solids) if (s.style === "container" && !(s.y ?? 0)) {
-    for (let r = Math.max(0, Math.round(s.z - s.d / 2 - gz0)); r < Math.min(grows, Math.round(s.z + s.d / 2 - gz0)); r++) for (let c = Math.max(0, Math.round(s.x - s.w / 2 - gx0)); c < Math.min(gcols, Math.round(s.x + s.w / 2 - gx0)); c++) surfGrid[r * gcols + c] = 2
-  }
-  for (const p of layout.props ?? []) if (p.kind === "rail") for (let r = 0; r < grows; r++) for (const dx of [-0.5, 0]) { const c = Math.floor(p.x + dx - gx0); if (c >= 0 && c < gcols) surfGrid[r * gcols + c] = 2 }
-  const interior = new Set(["floor", "tiles", "plank"])
-  const macro = (x: number, z: number) => 0.9 + 0.1 * Math.sin(x * 0.11 + Math.sin(z * 0.07) * 2) * Math.sin(z * 0.13 + Math.sin(x * 0.05) * 2) + 0.05 * Math.sin(x * 0.53 + z * 0.37)
-  const gc = new THREE.Color()
-  for (let r = 0; r < grows; r++) {
-    let c = 0
-    while (c < gcols) {
-      const li = lookGrid[r * gcols + c]
-      let e = c + 1
-      while (e < gcols && e - c < 4 && lookGrid[r * gcols + e] === li) e++
-      const x0 = gx0 + c, x1 = gx0 + e, z0 = gz0 + r, z1 = z0 + 1
-      const l = looks[li], k = interior.has(l) ? 0.72 : 1
-      gc.setRGB(k, k, k)
-      ctx.B("g:" + l).flat(x0, z0, x1, z1, 0, gc, [macro(x0, z1), macro(x1, z1), macro(x1, z0), macro(x0, z0)])
-      c = e
-    }
-  }
-  const farB = ctx.B("g:" + look.far), far = 1300, fc = new THREE.Color(0.85, 0.85, 0.85)
-  farB.flat(-far, -far, water.includes("e") ? gx1 : far, gz0, -0.02, fc)
-  if (!water.includes("s")) farB.flat(-far, gz1, far, far, -0.02, fc)
-  if (!water.includes("w")) farB.flat(-far, gz0, gx0, gz1, -0.02, fc)
-  if (!water.includes("e")) farB.flat(gx1, gz0, far, gz1, -0.02, fc)
-  // scattered ground decals (stains, cracks, manholes)
-  const lookAt = (x: number, z: number) => { const c = Math.floor(x - gx0), r = Math.floor(z - gz0); return c >= 0 && r >= 0 && c < gcols && r < grows ? looks[lookGrid[r * gcols + c]] : look.far }
-  const solidAt = (x: number, z: number, pad = 0) => layout.solids.some(s => (s.y ?? 0) < 0.3 && Math.abs(x - s.x) < s.w / 2 + pad && Math.abs(z - s.z) < s.d / 2 + pad)
-  for (let i = 0; i < (high ? 170 : 80); i++) {
-    const x = b.minX + ctx.rng() * (b.maxX - b.minX), z = b.minZ + ctx.rng() * (b.maxZ - b.minZ), l = lookAt(x, z)
-    if (solidAt(x, z, 0.5)) continue
-    const roll = ctx.rng()
-    if (l === "asphalt" || l === "quay" || l === "pavement" || l === "pad") {
-      const key = roll < 0.35 ? "oil" : roll < 0.65 ? "crack" : roll < 0.75 ? "manhole" : roll < 0.82 ? "drain" : roll < 0.93 ? "tyremark" : "paper"
-      const s = key === "manhole" || key === "drain" ? 0.9 : key === "tyremark" ? 5 : 1.5 + ctx.rng() * 2.5
-      ctx.decals.push({ key, x, y: 0, z, w: s, h: key === "tyremark" ? 1.2 : s, face: "up", color: 0xffffff, rot: key === "manhole" ? 0 : ctx.rng() * 6.28 })
-    } else if (l === "floor" || l === "tiles" || l === "plank") {
-      if (roll < 0.5) ctx.decals.push({ key: roll < 0.25 ? "oil" : "paper", x, y: 0, z, w: 1.2, h: 1.2, face: "up", color: 0xffffff, rot: ctx.rng() * 6.28 })
-    } else if (roll < 0.25 && look.props.night < 0.5) ctx.weeds.push([x, z, 1])
-  }
-
-  // --- solids, props, buildings, perimeter -------------------------------------------------------------------
-  for (const s of layout.solids) buildSolid(ctx, s)
-  for (const p of layout.props ?? []) buildProp(ctx, p)
-  buildFences(ctx)
-  buildBuildingDetails(ctx)
-  buildPerimeter(ctx)
-  for (const bd of layout.buildings ?? []) for (const [ax, az, bx, bz] of [[bd.x0, bd.z0 - 0.3, bd.x1, bd.z0 - 0.3], [bd.x0, bd.z1 + 0.3, bd.x1, bd.z1 + 0.3], [bd.x0 - 0.3, bd.z0, bd.x0 - 0.3, bd.z1], [bd.x1 + 0.3, bd.z0, bd.x1 + 0.3, bd.z1]]) {
-    const len = Math.hypot(bx - ax, bz - az)
-    for (let s = 0.5; s < len; s += 1.2 + ctx.rng() * 2.4) if (ctx.rng() < 0.55) ctx.weeds.push([ax + (bx - ax) * s / len, az + (bz - az) * s / len, 0.6 + ctx.rng() * 0.6])
-  }
-
-  // weeds (crossed alpha quads)
-  {
-    const fb = ctx.B("foliage"), base = new THREE.Color(look.foliage)
-    const keep = high ? 1 : 0.4
-    for (const [x, z, s] of ctx.weeds) {
-      if (ctx.rng() > keep) continue
-      const l = lookAt(x, z)
-      if (interior.has(l) || l === "pad" || ((l === "asphalt" || l === "quay") && ctx.rng() < 0.6) || solidAt(x, z, 0.05)) continue
-      const cell = Math.floor(ctx.rng() * 4), cu = (cell % 2) * 0.5, cv = cell < 2 ? 0.5 : 0
-      const w = 0.32 * s * (0.8 + ctx.rng() * 0.6), h = 0.5 * s * (0.7 + ctx.rng() * 0.6), a = ctx.rng() * Math.PI
-      const col = base.clone().multiplyScalar(0.7 + ctx.rng() * 0.5)
-      for (const rot of [a, a + Math.PI / 2]) {
-        const dx = Math.cos(rot) * w, dz = Math.sin(rot) * w
-        fb.quad([x - dx, 0, z - dz], [x + dx, 0, z + dz], [x + dx, h, z + dz], [x - dx, h, z - dz], [0, 1, 0], [cu, cv, cu + 0.5, cv, cu + 0.5, cv + 0.5, cu, cv + 0.5], col, [0.6, 0.6, 1, 1])
-      }
-    }
-  }
-
-  // decals (atlas built from generic decals + the map's text signs) and windows
-  for (const [k, [kind, text]] of ctx.texts) atlasExtra.set(k, textDecal(kind, text))
+  for (const [k, [kd, text]] of ctx.texts) atlasExtra.set(k, textDecal(kd, text))
   const atlas = decalAtlas(atlasExtra, high ? 64 : 48)
-  atlasTex = own(new THREE.CanvasTexture(atlas.canvas)); atlasTex.colorSpace = THREE.SRGBColorSpace; atlasTex.anisotropy = high ? 8 : 2
-  emitDecals(ctx, atlas.rects)
-  emitWindows(ctx)
+  const atlasTex = own(new THREE.CanvasTexture(atlas.canvas)); atlasTex.colorSpace = THREE.SRGBColorSpace; atlasTex.anisotropy = high ? 8 : 2
+  env.atlasRects = atlas.rects
+  env.decalMat = own(new THREE.MeshStandardMaterial({ map: atlasTex, transparent: true, depthWrite: false, roughness: 0.85, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }))
 
-  // --- meshes from batches ----------------------------------------------------------------------------------
-  const noShadow = new Set(["decal", "foliage", "fence", "lamp", "window", "concertina"])
-  for (const [key, batch] of batches) {
-    const geo = batch.build(); if (!geo) continue
-    own(geo)
-    const mesh = new THREE.Mesh(geo, material(key))
-    mesh.name = key
-    const ground = key.startsWith("g:")
-    mesh.receiveShadow = high && key !== "lamp"
-    mesh.castShadow = high && !ground && !noShadow.has(key)
-    if (key === "decal") mesh.renderOrder = 1
-    group.add(mesh)
+  const built = B.meshes(env, CHUNK)
+  const lampSpots = ctx.lampSpots
+  // chunk records for distance culling
+  interface ChunkRec { minX: number; maxX: number; minZ: number; maxZ: number; objects: THREE.Object3D[] }
+  const chunkMap = new Map<number, ChunkRec>()
+  const rec = (cx: number, cz: number): ChunkRec => {
+    const k = (cx + 512) * 1024 + cz + 512
+    let r = chunkMap.get(k); if (!r) { r = { minX: cx * CHUNK, maxX: (cx + 1) * CHUNK, minZ: cz * CHUNK, maxZ: (cz + 1) * CHUNK, objects: [] }; chunkMap.set(k, r) }
+    return r
   }
-
-  // instanced props
-  const instGeo: Record<InstKind, () => THREE.BufferGeometry> = {
-    barrel: () => { const g = new THREE.CylinderGeometry(0.3, 0.3, 0.9, high ? 14 : 8); scaleUv(g, 1.9, 0.9); return g },
-    sandbag: () => pillow(),
-    post: () => new THREE.CylinderGeometry(0.035, 0.035, 1, 5).translate(0, 0.5, 0),
-    bollard: () => { const g = new THREE.CylinderGeometry(0.22, 0.28, 0.55, 10).translate(0, 0.275, 0); return g },
-    chainpost: () => new THREE.CylinderGeometry(0.05, 0.05, 1, 6).translate(0, 0.5, 0),
+  for (const c of built.chunks) {
+    const r = rec(c.cx, c.cz), bb = c.mesh.geometry.boundingBox!
+    r.minX = Math.min(r.minX, bb.min.x); r.maxX = Math.max(r.maxX, bb.max.x); r.minZ = Math.min(r.minZ, bb.min.z); r.maxZ = Math.max(r.maxZ, bb.max.z)
+    r.objects.push(c.mesh); group.add(c.mesh)
   }
-  for (const [kind, list] of instances) {
-    const g = own(instGeo[kind]())
-    g.setAttribute("color", new THREE.BufferAttribute(new Float32Array(g.attributes.position.count * 3).fill(1), 3))
-    const mesh = new THREE.InstancedMesh(g, material(kind === "sandbag" ? "burlap" : "metal"), list.length)
-    const c = new THREE.Color()
-    list.forEach((it, i) => { mesh.setMatrixAt(i, it.m); mesh.setColorAt(i, c.set(it.c)) })
-    mesh.instanceMatrix.needsUpdate = true
-    mesh.castShadow = high && kind !== "post"; mesh.receiveShadow = high
-    mesh.computeBoundingSphere()
-    group.add(mesh)
-    disposables.push({ dispose: () => mesh.dispose() })
+  for (const o of built.globals) group.add(o)
+  // trees: instanced per chunk and kind
+  if (map.trees.length) {
+    const tpl = treeTemplates(env, look)
+    const byChunk = new Map<number, Array<typeof map.trees[number]>>()
+    for (const t of map.trees) { const k = (Math.floor(t.x / CHUNK) + 512) * 1024 + Math.floor(t.z / CHUNK) + 512; let l = byChunk.get(k); if (!l) { l = []; byChunk.set(k, l) } l.push(t) }
+    const m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3(), c = new THREE.Color(), rng = mulberry(77)
+    for (const [k, list] of byChunk) {
+      const cx = Math.floor(k / 1024) - 512, cz = (k % 1024) - 512, r = rec(cx, cz)
+      for (const v of [0, 1, 2, 3] as const) {
+        const sub = list.filter(t => t.v === v); if (!sub.length) continue
+        const mesh = new THREE.InstancedMesh(tpl[v], env.mats.opaque, sub.length)
+        sub.forEach((t, i) => {
+          const w = 0.85 + rng() * 0.3
+          mesh.setMatrixAt(i, m4.compose(p.set(t.x, 0, t.z), q.setFromAxisAngle(UP, t.r), s.set(t.h * w, t.h, t.h * w)))
+          mesh.setColorAt(i, c.setRGB(0.8 + rng() * 0.3, 0.82 + rng() * 0.3, 0.8 + rng() * 0.25))
+          r.minX = Math.min(r.minX, t.x - t.h * 0.35); r.maxX = Math.max(r.maxX, t.x + t.h * 0.35); r.minZ = Math.min(r.minZ, t.z - t.h * 0.35); r.maxZ = Math.max(r.maxZ, t.z + t.h * 0.35)
+        })
+        mesh.instanceMatrix.needsUpdate = true; mesh.computeBoundingSphere()
+        mesh.castShadow = high; mesh.receiveShadow = high
+        own({ dispose: () => mesh.dispose() })
+        r.objects.push(mesh); group.add(mesh)
+      }
+    }
   }
+  const chunkList = [...chunkMap.values()]
 
-  // wires, cables, crane rigging
-  if (ctx.lines.length) {
-    const g = own(new THREE.BufferGeometry()); g.setAttribute("position", new THREE.Float32BufferAttribute(ctx.lines, 3))
-    const lines = new THREE.LineSegments(g, own(new THREE.LineBasicMaterial({ color: theme === "night" ? 0x0c0e12 : 0x1c1f24 })))
-    group.add(lines)
-  }
-
-  // --- light effects ----------------------------------------------------------------------------------------
-  const skyline = createSkyline({ ...look.skyline, seed: MISSIONS[missionId].seed })
-  own(skyline.mesh.geometry); own(skyline.mesh.material as THREE.Material)
-  const glowMesh = glow.build(fx), poolMesh = pool.build(fx), coneMesh = high ? cone.build(fx) : null
-  for (const m of [glowMesh, poolMesh, coneMesh]) if (m) { own(m.geometry); own(m.material as THREE.Material); group.add(m) }
-  // the skyline beacons sit ~300 m away and follow the camera like the skyline: put them in their own glow mesh
-  const farGlow = new GlowBatch()
-  for (const [x, y, z] of skyline.beacons) farGlow.add(x, y, z, 1.5, 0xff3a22, 1.4, [3, 0.45, x])
-  const farGlowMesh = farGlow.build(fx, { fog: false, grow: 0 })
-  if (farGlowMesh) {
-    own(farGlowMesh.geometry); own(farGlowMesh.material as THREE.Material)
-    const mat = farGlowMesh.material as THREE.ShaderMaterial
-    farGlowMesh.renderOrder = -998
-    mat.vertexShader = mat.vertexShader.replace("gl_Position = projectionMatrix * mv;", "gl_Position = projectionMatrix * mv; gl_Position.z = gl_Position.w * 0.99997;")
-  }
-
-  // searchlights (blacksite): beams, ground spots and housings sweep in the vertex shader
-  const searchMeshes = buildSearchlights(ctx.searchlights, fx, own)
-  for (const m of searchMeshes) group.add(m)
-
-  // radar dishes
+  // searchlights and radar dishes (authored military compound)
+  for (const m of buildSearchlights(look.props.lamps > 0 ? ctx.searchlights : [], fx, own, look.props.lamps)) group.add(m)
   const radars: THREE.Object3D[] = []
   for (const [x, y, z] of ctx.radars) {
     const dish = new THREE.Group(); dish.position.set(x, y + 1.2, z)
@@ -345,40 +339,80 @@ export function createWorld(missionId: MissionId, scene: THREE.Scene, quality: "
     const dm = own(new THREE.MeshStandardMaterial({ color: 0xd8dcdc, roughness: 0.5, metalness: 0.2, side: THREE.DoubleSide }))
     const d = new THREE.Mesh(geo, dm); d.castShadow = high; dish.add(d)
     const yoke = own(new THREE.BoxGeometry(0.5, 2.4, 0.5)); const ym = new THREE.Mesh(yoke, dm); ym.position.set(0, 1.2, -0.6); dish.add(ym)
-    const horn = own(new THREE.BoxGeometry(0.2, 0.2, 2.6)); const hm = new THREE.Mesh(horn, dm); hm.position.set(0, 2.3, 2.1); dish.add(hm)
     group.add(dish); radars.push(dish)
   }
 
-  // --- sky, skyline, water -------------------------------------------------------------------------------------
-  const sky = createSky(look.sky, fx.time); own(sky.geometry); own(sky.material as THREE.Material)
-  group.add(sky, skyline.mesh)
-  if (farGlowMesh) group.add(farGlowMesh)
-  if (layout.water && look.water) {
-    const lampPos = (layout.props ?? []).filter(p => p.kind === "mast" && p.x > 20).map(p => [p.x + 1, (p.h ?? 18) - 0.6, p.z] as [number, number, number])
-    lampPos.push([134.5, 11.6, -80], [134.5, 11.6, -10])
-    const w = createWater({ ...look.water, lamps: lampPos }, layout.water.level, fx.time, quality)
+  // --- sky, outer terrain, water -----------------------------------------------------------------------------
+  const sky = createSky(look.sky, fx.time); own(sky.geometry); own(sky.material as THREE.Material); group.add(sky)
+  const terrain = outerTerrain(env, map, look)
+  group.add(terrain)
+  if (map.kind === "zone") {
+    const near = lampSpots.filter(l => l[0] > 20 && l[0] < 140 && l[2] > 180).slice(0, 6).map(l => [l[0], l[1], l[2]] as [number, number, number])
+    const w = createWater({ ...look.water, lamps: near }, map.water.level, fx.time, quality)
     own(w.geometry); own(w.material as THREE.Material); group.add(w)
   }
 
   // --- lights ------------------------------------------------------------------------------------------------
   const hemi = new THREE.HemisphereLight(look.hemi.sky, look.hemi.ground, look.hemi.intensity); group.add(hemi)
-  const sunDir = new THREE.Vector3(...(look.sun.dir ?? look.sky.sunDir)).normalize()
+  const sunDir = new THREE.Vector3(...look.sky.sunDir).normalize()
+  if (sunDir.y < 0.25) sunDir.y = 0.25
+  sunDir.normalize()
   const sun = new THREE.DirectionalLight(look.sun.color, look.sun.intensity)
-  const half = 46, mapSize = 2048
+  const half = 48, mapSize = 2048
   sun.castShadow = high
   sun.shadow.mapSize.set(mapSize, mapSize)
-  Object.assign(sun.shadow.camera, { left: -half, right: half, top: half, bottom: -half, near: 1, far: 420 })
-  sun.shadow.bias = -0.0004; sun.shadow.normalBias = theme === "dusk" ? 0.06 : 0.035
-  sun.position.copy(sunDir).multiplyScalar(200); group.add(sun, sun.target)
-  const realLights: Array<{ light: THREE.PointLight | THREE.SpotLight; base: number; flicker: boolean }> = []
-  for (const l of (layout.lights ?? []).slice(0, high ? 4 : 1)) realLights.push(makeLight(l, group))
+  Object.assign(sun.shadow.camera, { left: -half, right: half, top: half, bottom: -half, near: 1, far: 460 })
+  sun.shadow.bias = -0.0004; sun.shadow.normalBias = 0.05
+  sun.position.copy(sunDir).multiplyScalar(220); group.add(sun, sun.target)
+  const pooled: THREE.PointLight[] = []
+  for (let i = 0; i < (high ? 4 : 1); i++) { const l = new THREE.PointLight(0xffc890, 0, 22, 2); l.position.set(0, -50, 0); pooled.push(l); group.add(l) }
 
   // --- extraction zones ------------------------------------------------------------------------------------------
-  const padTex = tex("padmark", false), smokeTex = tex("smoke", false)
-  const evac = createExtractions(layout, fx, padTex, smokeTex, look.props.night, quality)
+  const padTex = own(new THREE.CanvasTexture(textureCanvas("padmark", 256))); padTex.colorSpace = THREE.SRGBColorSpace
+  const smokeTex = own(new THREE.CanvasTexture(textureCanvas("smoke", 128)))
+  const evac = createExtractions(map.kind === "zone" ? map.extractions : [], layout.bounds, fx, padTex, smokeTex, look.props.night, quality)
   group.add(evac.group)
 
+  // texture array last: every layer is known now
+  layerU.value = own(layers.build(high ? 512 : 256, high ? 8 : 2))
   disposeTemplates()
+
+  // --- base structures --------------------------------------------------------------------------------------------
+  const structures = new Map<StructureId, { level: number; group: THREE.Group; obstacles: Obstacle[]; disposables: Array<{ dispose(): void }> }>()
+  const structureGroup = new THREE.Group(); structureGroup.name = "Bauten"; group.add(structureGroup)
+  const setStructures = (levels: Partial<Record<StructureId, number>>) => {
+    if (map.kind !== "base") return
+    for (const plot of map.plots) {
+      const lvl = Math.max(0, Math.min(STRUCTURES[plot.structure].max, levels[plot.structure] ?? 0))
+      const cur = structures.get(plot.structure)
+      if (cur && cur.level === lvl) continue
+      let minX = plot.x - plot.w / 2, maxX = plot.x + plot.w / 2, minZ = plot.z - plot.d / 2, maxZ = plot.z + plot.d / 2
+      const grow = (o: { minX: number; maxX: number; minZ: number; maxZ: number }) => { minX = Math.min(minX, o.minX); maxX = Math.max(maxX, o.maxX); minZ = Math.min(minZ, o.minZ); maxZ = Math.max(maxZ, o.maxZ) }
+      if (cur) {
+        for (const o of cur.obstacles) { collision.remove(o); const i = obstacles.indexOf(o); if (i >= 0) obstacles.splice(i, 1); grow(o) }
+        structureGroup.remove(cur.group); for (const d of cur.disposables) d.dispose()
+      }
+      const data = structureModel(plot, lvl)
+      if (plot.structure === "walls") { const w = wallsModel(lvl); data.solids.push(...w.solids); data.props.push(...w.props); grow({ minX: map.wallRect.x0, maxX: map.wallRect.x1, minZ: map.wallRect.z0, maxZ: map.wallRect.z1 }) }
+      const own2: Array<{ dispose(): void }> = []
+      const sub: Env = { ...env, own: <T extends { dispose(): void }>(d: T): T => { own2.push(d); return d } }
+      const sb = new Builder({ props: data.props, buildings: data.buildings, doorways: [] }, look.props, high, 7 + lvl, lit)
+      sb.solids(data.solids); sb.props(data.props); sb.details()
+      const res = sb.meshes(sub, Infinity)
+      const g = new THREE.Group(); g.name = STRUCTURES[plot.structure].name
+      for (const c of res.chunks) g.add(c.mesh)
+      for (const o of res.globals) g.add(o)
+      for (const m of buildSearchlights(look.props.lamps > 0 ? sb.ctx.searchlights : [], fx, sub.own, look.props.lamps)) g.add(m)
+      structureGroup.add(g)
+      const obs = zoneObstacles({ solids: data.solids, bounds: { minX: 0, maxX: 0, minZ: 0, maxZ: 0 } }).slice(0, data.solids.length)
+      for (const o of obs) { collision.add(o); obstacles.push(o); grow(o) }
+      nav.rebuildRegion(minX, minZ, maxX, maxZ, collision.query(minX - 2, minZ - 2, maxX + 2, maxZ + 2, []))
+      structures.set(plot.structure, { level: lvl, group: g, obstacles: obs, disposables: own2 })
+      for (const l of sb.ctx.lampSpots) lampSpots.push(l)
+    }
+    disposeTemplates()
+  }
+
   scene.add(group)
 
   // --- per-frame update (allocation-free) -------------------------------------------------------------------
@@ -386,59 +420,259 @@ export function createWorld(missionId: MissionId, scene: THREE.Scene, quality: "
   const lu = new THREE.Vector3().crossVectors(sunDir, lr).normalize()
   const texel = (2 * half) / mapSize
   const fwd = new THREE.Vector3(), center = new THREE.Vector3()
-  const radarSpeed = 0.55
+  const best: number[] = [], bestD: number[] = []
+  let lightClock = 0, lastLX = Infinity, lastLZ = Infinity
 
-  return {
-    layout, theme, group, obstacles, nav, coverPoints, exposure: look.exposure,
-    surfaceAt(x, z) {
-      const c = Math.floor(x - gx0), r = Math.floor(z - gz0)
-      if (c < 0 || r < 0 || c >= gcols || r >= grows) return def.surface
-      return SURFACES[surfGrid[r * gcols + c]]
-    },
-    update(dt, time, camera) {
-      fx.time.value = time
+  const world: World = {
+    kind, layout, time, theme: time === "night" ? "night" : "dusk", group, obstacles, collision, nav, coverPoints,
+    exposure: look.exposure, lightLevel: look.light, visionScale: TIMES[time].visionScale, night: time === "night",
+    surfaceAt: (x, z) => ground.surface(x, z),
+    districtAt,
+    indoor: (x, z) => ground.indoor(x, z),
+    update(dt, t, camera) {
+      fx.time.value = t
       const cp = camera.position
       sky.position.copy(cp)
-      skyline.mesh.position.set(cp.x, cp.y - 1.6, cp.z)
-      if (farGlowMesh) farGlowMesh.position.set(cp.x, cp.y - 1.6, cp.z)
+      // chunks beyond the fog are invisible anyway: hide them (three frustum-culls the rest)
+      const fog = scene.fog as THREE.Fog | null
+      const cull = fog && fog.isFog ? fog.far + 12 : Infinity, c2 = cull * cull
+      for (let i = 0; i < chunkList.length; i++) {
+        const r = chunkList[i]
+        const dx = cp.x < r.minX ? r.minX - cp.x : cp.x > r.maxX ? cp.x - r.maxX : 0, dz = cp.z < r.minZ ? r.minZ - cp.z : cp.z > r.maxZ ? cp.z - r.maxZ : 0
+        const vis = dx * dx + dz * dz < c2
+        for (let j = 0; j < r.objects.length; j++) r.objects[j].visible = vis
+      }
       if (sun.castShadow) {
         camera.getWorldDirection(fwd); fwd.y = 0
-        const fl = fwd.length(); if (fl > 1e-4) fwd.multiplyScalar(16 / fl)
+        const fl = fwd.length(); if (fl > 1e-4) fwd.multiplyScalar(18 / fl)
         center.set(cp.x + fwd.x, 0, cp.z + fwd.z)
         const px = Math.round(center.dot(lr) / texel) * texel, py = Math.round(center.dot(lu) / texel) * texel, pz = center.dot(sunDir)
         center.copy(lr).multiplyScalar(px).addScaledVector(lu, py).addScaledVector(sunDir, pz)
-        sun.target.position.copy(center); sun.position.copy(center).addScaledVector(sunDir, 200)
+        sun.target.position.copy(center); sun.position.copy(center).addScaledVector(sunDir, 220)
         sun.target.updateMatrixWorld()
       }
-      for (let i = 0; i < realLights.length; i++) {
-        const r = realLights[i]
-        if (r.flicker) r.light.intensity = r.base * (0.93 + 0.07 * Math.sin(time * 11 + i * 3.1) * Math.sin(time * 4.3 + i))
+      // pooled real lights follow the working lamps nearest to the camera
+      lightClock -= dt
+      if (look.lampI > 0 && (lightClock <= 0 || Math.abs(cp.x - lastLX) + Math.abs(cp.z - lastLZ) > 6)) {
+        lightClock = 0.4; lastLX = cp.x; lastLZ = cp.z
+        best.length = 0; bestD.length = 0
+        for (let i = 0; i < lampSpots.length; i++) {
+          const l = lampSpots[i], d = (l[0] - cp.x) ** 2 + (l[2] - cp.z) ** 2
+          if (d > 2500) continue
+          let k = best.length
+          while (k > 0 && bestD[k - 1] > d) k--
+          if (k >= pooled.length) continue
+          best.splice(k, 0, i); bestD.splice(k, 0, d)
+          if (best.length > pooled.length) { best.pop(); bestD.pop() }
+        }
+        for (let i = 0; i < pooled.length; i++) {
+          const l = pooled[i]
+          if (i < best.length) { const s = lampSpots[best[i]]; l.position.set(s[0], s[1] - 0.3, s[2]); l.color.setHex(s[3]); l.intensity = look.lampI } else l.intensity = 0
+        }
       }
-      for (let i = 0; i < radars.length; i++) radars[i].rotation.y = time * radarSpeed + i
-      evac.update(dt, time)
+      for (let i = 0; i < radars.length; i++) radars[i].rotation.y = t * 0.55 + i
+      evac.update(dt, t)
     },
     setExtraction(id, state, progress) { evac.set(id, state, progress) },
+    setStructures,
     dispose() {
       scene.remove(group)
       evac.dispose()
       sun.dispose(); hemi.dispose()
-      for (const r of realLights) r.light.dispose()
+      for (const l of pooled) l.dispose()
+      for (const s of structures.values()) for (const d of s.disposables) d.dispose()
       for (const d of disposables) d.dispose()
       disposables.length = 0
     },
   }
+  if (map.kind === "base") setStructures(opts.structures ?? {})
+  return world
 }
 
-function makeLight(l: MapLight, group: THREE.Group): { light: THREE.PointLight | THREE.SpotLight; base: number; flicker: boolean } {
-  if (l.tx !== undefined && l.tz !== undefined) {
-    const s = new THREE.SpotLight(l.color, l.intensity, l.distance, l.angle ?? 0.6, 0.55, 2)
-    s.position.set(l.x, l.y, l.z); s.target.position.set(l.tx, l.ty ?? 0, l.tz)
-    group.add(s, s.target)
-    return { light: s, base: l.intensity, flicker: false }
+const UP = new THREE.Vector3(0, 1, 0)
+
+
+// ---------------------------------------------------------------------------------------------------------------
+// Ground: raster of the layout areas (1 m), greedy-merged into ≤ 16 m tiles; footstep surfaces and indoor flags
+// ---------------------------------------------------------------------------------------------------------------
+interface Ground { surface(x: number, z: number): Surface; indoor(x: number, z: number): boolean; lookAt(x: number, z: number): string; solidAt(x: number, z: number): boolean }
+
+function buildGround(ctx: BuildCtx, map: ZoneMap | BaseMap, look: Look, high: boolean): Ground {
+  const b = map.bounds, m = 10
+  const gx0 = Math.floor(b.minX - m), gz0 = Math.floor(b.minZ - m), gx1 = Math.ceil(b.maxX + m), gz1 = Math.ceil(b.maxZ + m)
+  const W = gx1 - gx0, H = gz1 - gz0
+  const looks: string[] = [map.ground.look], lookIndex = new Map<string, number>([[map.ground.look, 0]])
+  const lookGrid = new Uint8Array(W * H), surfGrid = new Uint8Array(W * H).fill(SURFACES.indexOf(map.ground.surface)), flags = new Uint8Array(W * H)
+  const cells = (x0: number, z0: number, x1: number, z1: number, fn: (i: number) => void) => {
+    const c0 = Math.max(0, Math.round(x0 - gx0)), c1 = Math.min(W, Math.round(x1 - gx0)), r0 = Math.max(0, Math.round(z0 - gz0)), r1 = Math.min(H, Math.round(z1 - gz0))
+    for (let r = r0; r < r1; r++) for (let c = c0; c < c1; c++) fn(r * W + c)
   }
-  const p = new THREE.PointLight(l.color, l.intensity, l.distance, 2)
-  p.position.set(l.x, l.y, l.z); group.add(p)
-  return { light: p, base: l.intensity, flicker: true }
+  for (const a of map.areas) {
+    const l = a.look ?? a.surface
+    if (!lookIndex.has(l)) { lookIndex.set(l, looks.length); looks.push(l) }
+    const li = lookIndex.get(l)!, si = Math.max(0, SURFACES.indexOf(a.surface))
+    cells(a.x - a.w / 2, a.z - a.d / 2, a.x + a.w / 2, a.z + a.d / 2, i => { lookGrid[i] = li; surfGrid[i] = si })
+  }
+  const metal = SURFACES.indexOf("metal")
+  for (const s of map.solids) {
+    if (!(s.y ?? 0) && (s.style === "container")) cells(s.x - s.w / 2, s.z - s.d / 2, s.x + s.w / 2, s.z + s.d / 2, i => { surfGrid[i] = metal })
+    if ((s.y ?? 0) < 0.3 && !s.style.startsWith("proxy-water")) cells(s.x - s.w / 2, s.z - s.d / 2, s.x + s.w / 2, s.z + s.d / 2, i => { flags[i] |= 2 })
+  }
+  for (const bd of map.buildings) if (!bd.solid) cells(bd.x0, bd.z0, bd.x1, bd.z1, i => { flags[i] |= 1 })
+  // holes: open water (and the sea beyond the zone's south edge)
+  const water: Rect[] = map.kind === "zone" ? [...map.water.rects, { x0: -10000, z0: b.maxZ, x1: 10000, z1: 10000 }] : []
+  for (const r of water) cells(r.x0, r.z0, r.x1, r.z1, i => { flags[i] |= 4 })
+
+  // greedy rectangles (≤ 16 m) per look; interior floors darker
+  const used = new Uint8Array(W * H)
+  const interior = new Set(["floor", "tiles", "plank"])
+  const tintFor = (l: string) => {
+    const k = interior.has(l) ? 0.72 : 1
+    if (l === "lawn") return new THREE.Color(0.86, 1.02, 0.8).multiplyScalar(k)
+    if (l === "forest") return new THREE.Color(0.62, 0.62, 0.52)
+    if (l === "garden") return new THREE.Color(0.85, 0.82, 0.72)
+    if (l === "ballast") return new THREE.Color(0.78, 0.76, 0.74)
+    if (l === "rock") return new THREE.Color(0.98, 0.94, 0.88)
+    if (l === "grass") return new THREE.Color(raw(look.foliage)).lerp(new THREE.Color(1, 1, 1), 0.55)
+    return new THREE.Color(k, k, k)
+  }
+  const colors = looks.map(tintFor)
+  const macro = (x: number, z: number) => 0.9 + 0.1 * Math.sin(x * 0.11 + Math.sin(z * 0.07) * 2) * Math.sin(z * 0.13 + Math.sin(x * 0.05) * 2) + 0.05 * Math.sin(x * 0.53 + z * 0.37)
+  for (let r = 0; r < H; r++) for (let c = 0; c < W; c++) {
+    const i = r * W + c
+    if (used[i] || flags[i] & 4) continue
+    const li = lookGrid[i]
+    let e = c + 1
+    while (e < W && e - c < 16 && !used[r * W + e] && !(flags[r * W + e] & 4) && lookGrid[r * W + e] === li) e++
+    let h = 1
+    grow: while (r + h < H && h < 16) { for (let k = c; k < e; k++) { const j = (r + h) * W + k; if (used[j] || flags[j] & 4 || lookGrid[j] !== li) break grow } h++ }
+    for (let rr = r; rr < r + h; rr++) used.fill(1, rr * W + c, rr * W + e)
+    const x0 = gx0 + c, x1 = gx0 + e, z0 = gz0 + r, z1 = z0 + h
+    ctx.B("g:" + looks[li]).flat(x0, z0, x1, z1, 0, colors[li], [macro(x0, z1), macro(x1, z1), macro(x1, z0), macro(x0, z0)])
+  }
+  const idx = (x: number, z: number) => { const c = Math.floor(x - gx0), r = Math.floor(z - gz0); return c < 0 || r < 0 || c >= W || r >= H ? -1 : r * W + c }
+  const g: Ground = {
+    surface: (x, z) => { const i = idx(x, z); return i < 0 ? map.ground.surface : SURFACES[surfGrid[i]] },
+    indoor: (x, z) => { const i = idx(x, z); return i >= 0 && (flags[i] & 1) === 1 },
+    lookAt: (x, z) => { const i = idx(x, z); return i < 0 ? map.ground.look : looks[lookGrid[i]] },
+    solidAt: (x, z) => { const i = idx(x, z); return i < 0 || (flags[i] & 6) !== 0 },
+  }
+  // ground decals: stains, cracks, manholes on hard ground; litter indoors
+  const rng = ctx.rng, n = Math.round((high ? 0.004 : 0.0018) * W * H)
+  for (let k = 0; k < n; k++) {
+    const x = gx0 + rng() * W, z = gz0 + rng() * H, l = g.lookAt(x, z)
+    if (g.solidAt(x, z)) continue
+    const roll = rng()
+    if (l === "asphalt" || l === "quay" || l === "pavement" || l === "pad") {
+      const key = roll < 0.3 ? "oil" : roll < 0.6 ? "crack" : roll < 0.68 ? "manhole" : roll < 0.74 ? "drain" : roll < 0.86 ? "tyremark" : roll < 0.93 ? "blood" : "paper"
+      const s = key === "manhole" || key === "drain" ? 0.9 : key === "tyremark" ? 5 : 1.5 + rng() * 2.5
+      ctx.decals.push({ key, x, y: 0, z, w: s, h: key === "tyremark" ? 1.2 : s, face: "up", color: 0xffffff, rot: key === "manhole" ? 0 : rng() * 6.28 })
+    } else if (interior.has(l)) {
+      if (roll < 0.5) ctx.decals.push({ key: roll < 0.2 ? "blood" : roll < 0.35 ? "oil" : "paper", x, y: 0, z, w: 1.2, h: 1.2, face: "up", color: 0xffffff, rot: rng() * 6.28 })
+    }
+  }
+  return g
+}
+
+/** Foliage cards: weeds/grass tufts on soft ground, denser near walls and fences (ctx.weeds). */
+function scatterWeeds(ctx: BuildCtx, g: Ground, map: ZoneMap | BaseMap, look: Look, high: boolean): void {
+  const fb = ctx.B("foliage"), base = new THREE.Color(raw(look.foliage)), rng = ctx.rng, b = map.bounds
+  const soft = new Set(["grass", "lawn", "dirt", "forest", "field", "garden", "gravel", "ballast", "rock"])
+  const area = (b.maxX - b.minX) * (b.maxZ - b.minZ)
+  const n = Math.round(area * (high ? 0.03 : 0.011))
+  const spots: Array<[number, number, number]> = []
+  for (let i = 0; i < n; i++) spots.push([b.minX + rng() * (b.maxX - b.minX), b.minZ + rng() * (b.maxZ - b.minZ), 0.7 + rng() * 0.8])
+  if (map.kind === "zone") for (let i = 0; i < (high ? 14000 : 5000); i++) spots.push([-305 + rng() * 200, -305 + rng() * 200, 0.8 + rng() * 0.9])
+  const keep = high ? 1 : 0.45
+  for (const w of ctx.weeds) if (rng() < keep) spots.push(w)
+  for (const [x, z, s] of spots) {
+    const l = g.lookAt(x, z)
+    if (!soft.has(l) || g.solidAt(x, z) || g.indoor(x, z)) continue
+    if ((l === "gravel" || l === "ballast" || l === "rock") && rng() < 0.6) continue
+    const cell = l === "field" ? 2 : l === "forest" ? (rng() < 0.5 ? 3 : 1) : Math.floor(rng() * 4), cu = (cell % 2) * 0.5, cv = cell < 2 ? 0.5 : 0
+    const w = 0.32 * s * (0.8 + rng() * 0.6), h = 0.5 * s * (0.7 + rng() * 0.6) * (l === "field" ? 1.5 : 1), a = rng() * Math.PI
+    const col = base.clone().multiplyScalar(0.7 + rng() * 0.5)
+    for (const rot of [a, a + Math.PI / 2]) {
+      const dx = Math.cos(rot) * w, dz = Math.sin(rot) * w
+      fb.quad([x - dx, 0, z - dz], [x + dx, 0, z + dz], [x + dx, h, z + dz], [x - dx, h, z - dz], [0, 1, 0], [cu, cv, cu + 0.5, cv, cu + 0.5, cv + 0.5, cu, cv + 0.5], col, [0.6, 0.6, 1, 1])
+    }
+  }
+}
+
+/** Hills around the playable area (sea to the south of the zone), drawn with the far-fog material as the horizon. */
+function outerTerrain(env: Env, map: ZoneMap | BaseMap, look: Look): THREE.Mesh {
+  const b = map.bounds, inner = 10, R = 1500, step = 30
+  const sea = map.kind === "zone" ? b.maxZ : Infinity
+  const n = Math.round(2 * R / step)
+  const pos: number[] = [], nor: number[] = [], uv: number[] = [], col: number[] = [], idx: number[] = []
+  const height = (x: number, z: number) => {
+    const dx = Math.max(b.minX - inner - x, x - b.maxX - inner, 0), dz = Math.max(b.minZ - inner - z, z - b.maxZ - inner, 0), d = Math.hypot(dx, dz)
+    if (z > sea + 6) return -7
+    if (d < 1) return -0.06
+    const hill = 14 + 26 * (0.5 + 0.5 * Math.sin(x * 0.006 + Math.sin(z * 0.004) * 3)) * (0.6 + 0.4 * Math.sin(z * 0.009 + x * 0.002))
+    return Math.min(1, d / 140) ** 1.6 * hill * (z > sea - 40 ? Math.max(0, (sea + 6 - z) / 46) : 1)
+  }
+  const gc = new THREE.Color(raw(look.foliage)).lerp(new THREE.Color(0.5, 0.56, 0.42), 0.5)
+  for (let r = 0; r <= n; r++) for (let c = 0; c <= n; c++) {
+    const x = -R + c * step + (b.minX + b.maxX) / 2, z = -R + r * step + (b.minZ + b.maxZ) / 2, y = height(x, z)
+    pos.push(x, y, z); uv.push(x / 5, -z / 5)
+    const k = 0.55 + 0.25 * Math.sin(x * 0.03) * Math.sin(z * 0.025) + Math.min(0.2, y * 0.004)
+    col.push(gc.r * k, gc.g * k, gc.b * k)
+    const e = 2, hx = height(x + e, z) - height(x - e, z), hz = height(x, z + e) - height(x, z - e), l = Math.hypot(hx, 2 * e, hz)
+    nor.push(-hx / l, 2 * e / l, -hz / l)
+  }
+  for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) {
+    const x0 = -R + c * step + (b.minX + b.maxX) / 2, z0 = -R + r * step + (b.minZ + b.maxZ) / 2
+    if (x0 >= b.minX - inner && x0 + step <= b.maxX + inner && z0 >= b.minZ - inner && z0 + step <= b.maxZ + inner) continue
+    const i = r * (n + 1) + c
+    idx.push(i, i + n + 1, i + 1, i + 1, i + n + 1, i + n + 2)
+  }
+  const g = new THREE.BufferGeometry()
+  g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute("normal", new THREE.Float32BufferAttribute(nor, 3))
+  g.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2)); g.setAttribute("color", new THREE.Float32BufferAttribute(col, 3)); g.setIndex(idx)
+  uberize(g, env.layers.layer("grass"), keyInfo("g:grass"), 1, 1, undefined)
+  g.computeBoundingSphere()
+  env.own(g)
+  const mesh = new THREE.Mesh(g, env.mats.far); mesh.receiveShadow = false; mesh.name = "Hügel"
+  // the inner square gap (between ground raster and terrain grid) is covered by a flat skirt at y = -0.02
+  return mesh
+}
+
+/** Tree templates (unit height): spruce, broadleaf, dead tree — bark + canopy layers, merged per template. */
+function treeTemplates(env: Env, look: Look): THREE.BufferGeometry[] {
+  const bark = env.layers.layer("bark"), canopy = env.layers.layer("canopy"), bi = keyInfo("bark"), ci = keyInfo("canopy")
+  const leaf = new THREE.Color(raw(look.foliage)).lerp(new THREE.Color(0.42, 0.56, 0.3), 0.7)
+  const needle = new THREE.Color(0.3, 0.42, 0.28)
+  const trunkC = new THREE.Color(0.8, 0.74, 0.66)
+  const part = (g: THREE.BufferGeometry, layer: number, info: KeyInfo, su: number, sv: number, c: THREE.Color) => uberize(g.index ? g.toNonIndexed() : g, layer, info, su, sv, c)
+  const spruce: THREE.BufferGeometry[] = [part(new THREE.CylinderGeometry(0.016, 0.032, 0.5, 6).translate(0, 0.25, 0), bark, bi, 0.6, 4, trunkC)]
+  for (const [r, h, y] of [[0.27, 0.34, 0.24], [0.22, 0.3, 0.4], [0.17, 0.27, 0.55], [0.12, 0.24, 0.69], [0.065, 0.2, 0.83]] as const) {
+    const g = new THREE.ConeGeometry(r, h, 9, 1, true).translate(0, y + h / 2, 0)
+    const p = g.attributes.position as THREE.BufferAttribute
+    for (let i = 0; i < p.count; i++) if (p.getY(i) < y + 0.01) { const a = Math.atan2(p.getZ(i), p.getX(i)); p.setY(i, p.getY(i) - 0.03 * (1 + Math.sin(a * 5))) }
+    g.computeVertexNormals()
+    spruce.push(part(g, canopy, ci, 4, 4, needle.clone().multiplyScalar(0.85 + y * 0.3)))
+  }
+  const broad: THREE.BufferGeometry[] = [part(new THREE.CylinderGeometry(0.022, 0.045, 0.6, 7).translate(0, 0.3, 0), bark, bi, 0.6, 3, trunkC)]
+  for (const [a, l] of [[0.6, 0.25], [2.4, 0.22], [4.2, 0.2]]) broad.push(part(new THREE.CylinderGeometry(0.008, 0.016, l, 5).translate(0, l / 2, 0).rotateZ(0.7).rotateY(a).translate(0, 0.45, 0), bark, bi, 0.6, 2, trunkC))
+  for (const [x, y, z, r] of [[0, 0.66, 0, 0.27], [0.15, 0.74, 0.06, 0.2], [-0.13, 0.72, -0.08, 0.21], [0.03, 0.88, -0.02, 0.18], [-0.05, 0.6, 0.15, 0.17]]) {
+    const g = new THREE.IcosahedronGeometry(r, 1)
+    const p = g.attributes.position as THREE.BufferAttribute
+    for (let i = 0; i < p.count; i++) { const k = 1 + 0.18 * Math.sin(p.getX(i) * 40 + p.getZ(i) * 31) * Math.sin(p.getY(i) * 37); p.setXYZ(i, p.getX(i) * k, p.getY(i) * k * 0.82, p.getZ(i) * k) }
+    g.computeVertexNormals(); g.translate(x, y, z)
+    broad.push(part(g, canopy, ci, 3, 3, leaf.clone().multiplyScalar(0.85 + y * 0.25)))
+  }
+  const dead: THREE.BufferGeometry[] = [part(new THREE.CylinderGeometry(0.014, 0.04, 0.9, 6).translate(0, 0.45, 0), bark, bi, 0.6, 4, trunkC.clone().multiplyScalar(0.8))]
+  for (const [a, l, y] of [[0.4, 0.3, 0.5], [2.1, 0.26, 0.62], [3.7, 0.22, 0.4], [5.2, 0.2, 0.72]]) dead.push(part(new THREE.CylinderGeometry(0.005, 0.014, l, 5).translate(0, l / 2, 0).rotateZ(0.8).rotateY(a).translate(0, y, 0), bark, bi, 0.6, 2, trunkC.clone().multiplyScalar(0.8)))
+  const bush: THREE.BufferGeometry[] = []
+  for (const [x, y, z, r] of [[0, 0.42, 0, 0.5], [0.32, 0.34, 0.12, 0.38], [-0.28, 0.36, -0.1, 0.4], [0.05, 0.62, -0.05, 0.34]]) {
+    const g = new THREE.IcosahedronGeometry(r, 0)
+    const p = g.attributes.position as THREE.BufferAttribute
+    for (let i = 0; i < p.count; i++) { const k = 1 + 0.22 * Math.sin(p.getX(i) * 31 + p.getZ(i) * 23) * Math.sin(p.getY(i) * 29); p.setXYZ(i, p.getX(i) * k, p.getY(i) * k * 0.75, p.getZ(i) * k) }
+    g.computeVertexNormals(); g.translate(x, y, z)
+    bush.push(part(g, canopy, ci, 2, 2, leaf.clone().multiplyScalar(0.75 + y * 0.4)))
+  }
+  return [spruce, broad, dead, bush].map(parts => { const g = mergeGeometries(parts, false)!; for (const p of parts) p.dispose(); g.computeBoundingSphere(); return env.own(g) })
 }
 
 function scaleUv(g: THREE.BufferGeometry, su: number, sv: number): void {
@@ -472,7 +706,7 @@ mat3 sweepRot(float t) {
   return ry * rx;
 }`
 
-function buildSearchlights(list: Array<{ x: number; y: number; z: number; rot: number; amp: number; dist: number; phase: number }>, fx: FxUniforms, own: <T extends { dispose(): void }>(d: T) => T): THREE.Mesh[] {
+function buildSearchlights(list: Array<{ x: number; y: number; z: number; rot: number; amp: number; dist: number; phase: number }>, fx: FxUniforms, own: <T extends { dispose(): void }>(d: T) => T, k = 1): THREE.Mesh[] {
   if (!list.length) return []
   const beams = new GeoBatch(), spots = new GeoBatch(), housings = new GeoBatch()
   const attrs = { lamp: [] as number[], sweep: [] as number[], pitch: [] as number[] }
@@ -483,11 +717,11 @@ function buildSearchlights(list: Array<{ x: number; y: number; z: number; rot: n
     const len = Math.hypot(s.dist, s.y) + 4, pitch = Math.atan2(s.y, s.dist)
     const before = beams.extras.length
     const g = new THREE.CylinderGeometry(0.22, len * 0.085, len, 18, 1, true).rotateX(Math.PI / 2).translate(0, 0, -len / 2)
-    beams.add(g, I, raw(0xd8e4ff).multiplyScalar(0.55)); g.dispose()
+    beams.add(g, I, raw(0xd8e4ff).multiplyScalar(0.55 * k)); g.dispose()
     const n = beams.extras[before].attributes.position.count
     for (let i = 0; i < n; i++) { attrs.lamp.push(s.x, s.y, s.z); attrs.sweep.push(s.rot, s.amp, 0.35 + s.phase * 0.03, s.phase); attrs.pitch.push(pitch) }
     const sp = new THREE.PlaneGeometry(2, 2); sp.rotateX(-Math.PI / 2)
-    spots.add(sp, I, raw(0xc8d8ff).multiplyScalar(0.55)); sp.dispose()
+    spots.add(sp, I, raw(0xc8d8ff).multiplyScalar(0.55 * k)); sp.dispose()
     for (let i = 0; i < 4; i++) { spotAttrs.lamp.push(s.x, s.y, s.z); spotAttrs.sweep.push(s.rot, s.amp, 0.35 + s.phase * 0.03, s.phase); spotAttrs.pitch.push(pitch) }
     const hb = housings.extras.length
     const hg = new THREE.CylinderGeometry(0.38, 0.32, 0.7, 12).rotateX(Math.PI / 2)

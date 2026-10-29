@@ -26,7 +26,7 @@ import type { MissionId, Surface, Vec2 } from "./types"
 
 export type Side = "n" | "s" | "e" | "w"
 
-export interface MapSolid { x: number; z: number; w: number; d: number; h: number; y?: number; style: string; tint?: number; v?: number }
+export interface MapSolid { x: number; z: number; w: number; d: number; h: number; y?: number; style: string; tint?: number; v?: number; /** Far-visible landmark (drawn with weaker fog, never distance-culled). */ far?: boolean }
 export interface EnemySpawn { x: number; z: number; patrol: Vec2[] }
 export interface ExtractionPoint { id: string; name: string; x: number; z: number; radius: number }
 export interface LootSpawn { x: number; z: number; tier: 0 | 1 | 2; yaw?: number }
@@ -39,12 +39,21 @@ export interface MapProp {
   kind: string; x: number; z: number; y?: number
   w?: number; d?: number; h?: number; r?: number; rot?: number
   x2?: number; z2?: number; tint?: number; v?: number; face?: Side; text?: string
+  /** Secondary colour (gable end walls, …). */
+  tint2?: number
+  /** Far-visible landmark (see MapSolid.far). */
+  far?: boolean
 }
 /** Real light. Spot light when tx/tz are set (aims at tx, ty, tz), point light otherwise. */
 export interface MapLight { x: number; y: number; z: number; color: number; intensity: number; distance: number; tx?: number; ty?: number; tz?: number; angle?: number }
 /** Walkable opening in a building wall: centre on the wall line, outward normal, clear width. */
 export interface Doorway { x: number; z: number; nx: number; nz: number; w: number; building: string }
-export interface BuildingInfo { id: string; name: string; x0: number; z0: number; x1: number; z1: number; h: number; style: string; tint?: number; upper: number; roof: string }
+export interface BuildingInfo { id: string; name: string; x0: number; z0: number; x1: number; z1: number; h: number; style: string; tint?: number; upper: number; roof: string
+  /** Closed block (not enterable): facade windows on every storey and a door panel on `face`. */
+  solid?: boolean; face?: Side
+  /** Lamps above the doors (default true). */
+  doorLamps?: boolean
+}
 export interface PerimeterSide { h: number; style: "fence" | "wall" | "quay" | "double" }
 
 export interface MapLayout {
@@ -97,24 +106,39 @@ export interface CoverSpot { x: number; z: number; height: number; nx: number; n
  * Standing spots next to every ground-based solid that (with whatever is stacked on it, e.g. a car cabin) is >= 1 m
  * tall: about every 3 m along each side that is long enough, 0.7–1.2 m out from the face (the first offset that lands
  * on a walkable nav cell), normal pointing away from the solid. `height` is the top of the cover. De-duplicated.
+ * Grid-accelerated (stack lookup and de-duplication), so it scales to zone-sized solid lists.
  */
-export function computeCoverPoints(layout: MapLayout, nav: NavGrid): CoverSpot[] {
+export function computeCoverPoints(layout: { solids: readonly MapSolid[] }, nav: NavGrid): CoverSpot[] {
   const out: CoverSpot[] = []
+  const G = 8, key = (x: number, z: number) => Math.floor(x / G) * 100003 + Math.floor(z / G)
+  const outGrid = new Map<number, CoverSpot[]>()
   const add = (x: number, z: number, height: number, nx: number, nz: number) => {
     for (const off of [0.7, 0.95, 1.2]) {
       const px = Math.round((x + nx * off) * 100) / 100, pz = Math.round((z + nz * off) * 100) / 100
       if (!nav.walkable(px, pz)) continue
-      for (const c of out) if (Math.abs(c.x - px) < 1.1 && Math.abs(c.z - pz) < 1.1) return
-      out.push({ x: px, z: pz, height, nx, nz })
+      for (let gx = -1; gx <= 1; gx++) for (let gz = -1; gz <= 1; gz++) {
+        for (const c of outGrid.get(key(px + gx * G, pz + gz * G)) ?? []) if (Math.abs(c.x - px) < 1.1 && Math.abs(c.z - pz) < 1.1) return
+      }
+      const c = { x: px, z: pz, height, nx, nz }
+      out.push(c)
+      const k = key(px, pz); let list = outGrid.get(k); if (!list) { list = []; outGrid.set(k, list) } list.push(c)
       return
     }
   }
   const solids = layout.solids
+  // solids that start above the ground, bucketed by cell for the "stacked on top" lookup
+  const raised = new Map<number, MapSolid[]>()
+  for (const o of solids) {
+    if (!(o.y ?? 0) || o.style.startsWith("proxy")) continue
+    const x0 = Math.floor((o.x - o.w / 2) / G), x1 = Math.floor((o.x + o.w / 2) / G), z0 = Math.floor((o.z - o.d / 2) / G), z1 = Math.floor((o.z + o.d / 2) / G)
+    if ((x1 - x0 + 1) * (z1 - z0 + 1) > 400) continue
+    for (let gx = x0; gx <= x1; gx++) for (let gz = z0; gz <= z1; gz++) { const k = gx * 100003 + gz; let l = raised.get(k); if (!l) { l = []; raised.set(k, l) } l.push(o) }
+  }
   for (const s of solids) {
     const y = s.y ?? 0
     let top = y + s.h
-    if (y > 1.2 || Math.max(s.w, s.d) < 0.9) continue
-    for (const o of solids) {
+    if (y > 1.2 || Math.max(s.w, s.d) < 0.9 || s.style.startsWith("proxy-water")) continue
+    for (const o of raised.get(key(s.x, s.z)) ?? []) {
       if (o === s || Math.abs((o.y ?? 0) - top) > 0.05) continue
       if (Math.abs(o.x - s.x) < (o.w + s.w) / 2 - 0.2 && Math.abs(o.z - s.z) < (o.d + s.d) / 2 - 0.2) top = Math.max(top, (o.y ?? 0) + o.h)
     }
@@ -131,10 +155,10 @@ export function computeCoverPoints(layout: MapLayout, nav: NavGrid): CoverSpot[]
 // Authoring helpers
 // ---------------------------------------------------------------------------------------------------------------
 
-type OpeningKind = "door" | "gate" | "window" | "dock" | "closed"
+export type OpeningKind = "door" | "gate" | "window" | "dock" | "closed"
 /** Opening in a wall; `at` is the absolute centre coordinate along the wall. */
-interface Opening { at: number; w: number; kind?: OpeningKind; top?: number; sill?: number }
-interface BuildingSpec {
+export interface Opening { at: number; w: number; kind?: OpeningKind; top?: number; sill?: number }
+export interface BuildingSpec {
   id: string; name: string; x0: number; z0: number; x1: number; z1: number; h: number
   style: string; tint?: number; t?: number; roof?: string
   floor?: Surface; floorLook?: string
@@ -150,7 +174,12 @@ export const PAINT = {
   brown: 0x6e4b33, yellow: 0xc69c2c, navy: 0x253a5a, olive: 0x59603f, maroon: 0x6a2a2a, sand: 0xa89470,
 } as const
 
-class Draft {
+export interface SolidOpts { y?: number; tint?: number; v?: number; far?: boolean }
+
+/** Everything a Draft collected (the render/collision data of a layout without its mission fields). */
+export interface DraftData { solids: MapSolid[]; areas: MapArea[]; props: MapProp[]; lights: MapLight[]; doorways: Doorway[]; buildings: BuildingInfo[] }
+
+export class Draft {
   solids: MapSolid[] = []
   areas: MapArea[] = []
   props: MapProp[] = []
@@ -158,15 +187,16 @@ class Draft {
   doorways: Doorway[] = []
   buildings: BuildingInfo[] = []
 
-  solid(x: number, z: number, w: number, d: number, h: number, style: string, o: { y?: number; tint?: number; v?: number } = {}): MapSolid {
+  solid(x: number, z: number, w: number, d: number, h: number, style: string, o: SolidOpts = {}): MapSolid {
     const s: MapSolid = { x, z, w, d, h, style }
     if (o.y) s.y = o.y
     if (o.tint !== undefined) s.tint = o.tint
     if (o.v !== undefined) s.v = o.v
+    if (o.far) s.far = true
     this.solids.push(s); return s
   }
   /** Solid from corner coordinates. */
-  rect(x0: number, z0: number, x1: number, z1: number, h: number, style: string, o: { y?: number; tint?: number; v?: number } = {}): MapSolid {
+  rect(x0: number, z0: number, x1: number, z1: number, h: number, style: string, o: SolidOpts = {}): MapSolid {
     return this.solid((x0 + x1) / 2, (z0 + z1) / 2, x1 - x0, z1 - z0, h, style, o)
   }
   area(x0: number, z0: number, x1: number, z1: number, surface: Surface, look?: string): void {
@@ -318,13 +348,35 @@ class Draft {
     }
   }
 
+  /** Copies another layout's content into this draft, translated by (dx, dz) (perimeter and mission fields are not copied). */
+  stamp(src: DraftData, dx: number, dz: number): void {
+    for (const s of src.solids) this.solids.push({ ...s, x: s.x + dx, z: s.z + dz })
+    for (const a of src.areas) this.areas.push({ ...a, x: a.x + dx, z: a.z + dz })
+    for (const p of src.props) {
+      const q: MapProp = { ...p, x: p.x + dx, z: p.z + dz }
+      if (p.x2 !== undefined) q.x2 = p.x2 + dx
+      if (p.z2 !== undefined) q.z2 = p.z2 + dz
+      this.props.push(q)
+    }
+    for (const l of src.lights) {
+      const q: MapLight = { ...l, x: l.x + dx, z: l.z + dz }
+      if (l.tx !== undefined) q.tx = l.tx + dx
+      if (l.tz !== undefined) q.tz = l.tz + dz
+      this.lights.push(q)
+    }
+    for (const d of src.doorways) this.doorways.push({ ...d, x: d.x + dx, z: d.z + dz })
+    for (const b of src.buildings) this.buildings.push({ ...b, x0: b.x0 + dx, x1: b.x1 + dx, z0: b.z0 + dz, z1: b.z1 + dz })
+  }
+
+  data(): DraftData { return { solids: this.solids, areas: this.areas, props: this.props, lights: this.lights, doorways: this.doorways, buildings: this.buildings } }
+
   finish(base: Omit<MapLayout, "solids" | "areas" | "props" | "lights" | "doorways" | "buildings">): MapLayout {
     return { ...base, solids: this.solids, areas: this.areas, props: this.props, lights: this.lights, doorways: this.doorways, buildings: this.buildings }
   }
 }
 
 /** Yaw that looks from (x, z) toward (tx, tz) (yaw 0 = -Z, positive = counter-clockwise). */
-function yawTo(x: number, z: number, tx: number, tz: number): number { return Math.round(Math.atan2(-(tx - x), -(tz - z)) * 1000) / 1000 }
+export function yawTo(x: number, z: number, tx: number, tz: number): number { return Math.round(Math.atan2(-(tx - x), -(tz - z)) * 1000) / 1000 }
 const P = (x: number, z: number): Vec2 => ({ x, z })
 
 // ---------------------------------------------------------------------------------------------------------------

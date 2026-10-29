@@ -9,7 +9,7 @@ export type TexName =
   | "asphalt" | "concrete" | "pavement" | "quay" | "pad" | "gravel" | "dirt" | "grass" | "floor" | "tiles" | "plank"
   | "brick" | "plaster" | "cladding" | "rollup" | "roof" | "container" | "metal" | "crate" | "pallets" | "rack"
   | "sandbag" | "hesco" | "siding" | "block" | "bunker" | "glass" | "chainlink" | "foliage" | "smoke" | "truss"
-  | "concertina" | "burlap" | "padmark" | "rubber" | "sandwall"
+  | "concertina" | "burlap" | "padmark" | "rubber" | "sandwall" | "rooftile" | "bark" | "canopy" | "rock" | "field" | "boards"
 
 /** Metres covered by one texture tile ([u, v]). Local-UV textures map one tile to one object face. */
 export const TEX: Record<TexName, [number, number]> = {
@@ -18,6 +18,7 @@ export const TEX: Record<TexName, [number, number]> = {
   container: [2.24, 2.24], metal: [2, 2], crate: [1.2, 1.2], pallets: [1.2, 1.2], rack: [2.7, 3.6], sandbag: [1, 1],
   hesco: [1.05, 1.05], siding: [2, 2], block: [2, 2], bunker: [4, 4], glass: [2, 2], chainlink: [0.6, 0.6], foliage: [1, 1],
   smoke: [1, 1], truss: [2, 2], concertina: [1.4, 0.7], burlap: [1, 1], padmark: [1, 1], rubber: [1, 1], sandwall: [1.2, 1.15],
+  rooftile: [2.4, 2.4], bark: [1.2, 2.4], canopy: [3, 3], rock: [7, 7], field: [6, 6], boards: [2.4, 2.4],
 }
 
 type Ctx = CanvasRenderingContext2D
@@ -546,6 +547,85 @@ const GEN: Record<TexName, (n: number) => HTMLCanvasElement> = {
     ctx.fillStyle = "rgba(0,0,0,0.4)"; for (let i = 0; i < 16; i++) ctx.fillRect(i * n / 16, 0, n / 40, n)
     return c
   },
+  rooftile(n) {
+    const [c, ctx] = canvas(n); const rng = mulberry(43)
+    ctx.fillStyle = "rgb(70,62,56)"; ctx.fillRect(0, 0, n, n)
+    const rows = 10, cols = 8, rh = n / rows, cw = n / cols
+    for (let r = 0; r < rows; r++) for (let k = -1; k < cols; k++) {
+      const x = k * cw + (r % 2 ? cw / 2 : 0), y = r * rh, t = rng()
+      const g = ctx.createLinearGradient(0, y, 0, y + rh)
+      const rr = 205 + (t - 0.5) * 50, gg = rr * (0.93 + (rng() - 0.5) * 0.05), bb = rr * (0.88 + (rng() - 0.5) * 0.05)
+      g.addColorStop(0, `rgb(${rr * 0.62},${gg * 0.6},${bb * 0.6})`); g.addColorStop(0.25, `rgb(${rr},${gg},${bb})`); g.addColorStop(1, `rgb(${rr * 0.86},${gg * 0.84},${bb * 0.84})`)
+      ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(x + 1, y); ctx.lineTo(x + cw - 1, y); ctx.lineTo(x + cw - 1, y + rh * 0.8); ctx.quadraticCurveTo(x + cw / 2, y + rh * 1.05, x + 1, y + rh * 0.8); ctx.fill()
+      if (rng() < 0.1) { ctx.fillStyle = "rgba(60,70,40,0.35)"; ctx.fillRect(x + 2, y + rh * 0.4, cw - 4, rh * 0.4) }
+    }
+    const f = fbm(n, 4, 3, 43), g2 = mulberry(430)
+    pixels(ctx, n, n, (x, y, cc) => { const v = (f[y * n + x] - 0.5) * 36 + (g2() - 0.5) * 14; cc[0] += v; cc[1] += v * 0.8; cc[2] += v * 0.7 })
+    blotches(ctx, n, rng, 6, "rgba(30,34,20,0.25)", 0.05, 0.15)
+    return c
+  },
+  bark(n) {
+    const [c, ctx] = canvas(n); const rng = mulberry(44)
+    base(ctx, n, [92, 78, 64], 44, 26, 18, 14, 3)
+    for (let i = 0; i < n / 5; i++) {
+      const x = rng() * n, w = 1 + rng() * n / 90, y = rng() * n, l = n * (0.2 + rng() * 0.5)
+      wrap(ctx, n, n, () => { ctx.fillStyle = `rgba(26,20,14,${0.35 + rng() * 0.4})`; ctx.fillRect(x, y, w, l) })
+    }
+    blotches(ctx, n, rng, 8, "rgba(90,104,60,0.3)", 0.05, 0.15)
+    return c
+  },
+  canopy(n) {
+    const [c, ctx] = canvas(n); const rng = mulberry(45)
+    base(ctx, n, [62, 80, 40], 45, 40, 22, 10, 3)
+    for (let i = 0; i < n * 2.2; i++) {
+      const x = rng() * n, y = rng() * n, r = n / 90 * (0.6 + rng()), t = rng()
+      ctx.fillStyle = t < 0.4 ? `rgba(30,44,20,${0.5 + rng() * 0.4})` : t < 0.8 ? `rgba(${90 + rng() * 40},${112 + rng() * 40},${48 + rng() * 20},0.75)` : "rgba(140,150,80,0.6)"
+      ctx.beginPath(); ctx.ellipse(x, y, r * 1.6, r, rng() * 3, 0, 7); ctx.fill()
+    }
+    return c
+  },
+  rock(n) {
+    const [c, ctx] = canvas(n); const rng = mulberry(46)
+    base(ctx, n, [132, 126, 116], 46, 70, 30, 18, 2)
+    // angular facets: patches of lighter/darker stone separated by cracks
+    const f = fbm(n, 6, 2, 461), g2 = fbm(n, 3, 3, 462)
+    pixels(ctx, n, n, (x, y, cc) => {
+      const i = y * n + x, facet = Math.floor(f[i] * 7) / 7, k = 0.82 + facet * 0.32 + (g2[i] - 0.5) * 0.18
+      cc[0] *= k; cc[1] *= k * 0.99; cc[2] *= k * 0.97
+    })
+    cracks(ctx, n, rng, 18, "rgba(34,30,26,0.8)", n / 512 * 2.2, 0.32)
+    cracks(ctx, n, rng, 26, "rgba(60,54,48,0.5)", n / 512 * 1.2, 0.18)
+    blotches(ctx, n, rng, 9, "rgba(90,96,60,0.25)", 0.03, 0.1)
+    blotches(ctx, n, rng, 12, "rgba(190,182,166,0.22)", 0.03, 0.1)
+    speckle(ctx, n, rng, n * n / 60, ["rgba(200,196,186,0.5)", "rgba(40,38,34,0.5)"], n / 512 * 1.6)
+    return c
+  },
+  field(n) {
+    const [c, ctx] = canvas(n); const rng = mulberry(47)
+    base(ctx, n, [98, 80, 58], 47, 30, 14, 18, 3)
+    const rows = 12, rh = n / rows
+    for (let r = 0; r < rows; r++) {
+      const g = ctx.createLinearGradient(0, r * rh, 0, (r + 1) * rh)
+      g.addColorStop(0, "rgba(40,30,20,0.45)"); g.addColorStop(0.5, "rgba(150,126,96,0.18)"); g.addColorStop(1, "rgba(40,30,20,0.45)")
+      ctx.fillStyle = g; ctx.fillRect(0, r * rh, n, rh)
+      for (let i = 0; i < n / 6; i++) { ctx.fillStyle = `rgba(${90 + rng() * 40},${110 + rng() * 30},${50},${0.5 + rng() * 0.4})`; ctx.fillRect(rng() * n, r * rh + rh * (0.4 + rng() * 0.2), 1 + rng() * n / 200, 1 + rng() * n / 260) }
+    }
+    return c
+  },
+  boards(n) {
+    const [c, ctx] = canvas(n); const rng = mulberry(48)
+    base(ctx, n, [112, 92, 72], 48, 22, 14, 12, 2)
+    const cols = 10, w = n / cols
+    for (let k = 0; k < cols; k++) {
+      ctx.fillStyle = `rgba(${rng() < 0.5 ? "0,0,0" : "220,200,170"},${rng() * 0.16})`; ctx.fillRect(k * w, 0, w, n)
+      ctx.strokeStyle = "rgba(40,28,18,0.3)"; ctx.lineWidth = 1
+      for (let g = 0; g < 3; g++) { const x = k * w + rng() * w; ctx.beginPath(); ctx.moveTo(x, 0); for (let y = 0; y <= n; y += n / 16) ctx.lineTo(x + Math.sin(y * 0.03 + g) * w * 0.08, y); ctx.stroke() }
+      ctx.fillStyle = "rgba(24,16,10,0.75)"; ctx.fillRect(k * w, 0, Math.max(1.5, n / 300), n)
+      for (const y of [n * 0.18, n * 0.82]) { ctx.fillStyle = "rgba(30,26,22,0.6)"; ctx.fillRect(k * w + w * 0.45, y, 2, 2) }
+    }
+    streaks(ctx, n, rng, 20, "40,30,20", 0.25)
+    return c
+  },
 }
 
 /** Cached seamless texture canvas. */
@@ -649,6 +729,14 @@ const GENERIC_DECALS: Record<string, [number, number, DecalDraw]> = {
   vent: [2, 1, (ctx, w, h) => { ctx.fillStyle = "rgb(60,62,64)"; ctx.fillRect(0, 0, w, h); ctx.fillStyle = "rgb(20,20,22)"; for (let i = 0; i < 8; i++) ctx.fillRect(w * 0.06, h * (0.1 + i * 0.1), w * 0.88, h * 0.05) }],
   paint: [1, 1, (ctx, w, h, rng) => { ctx.fillStyle = "rgba(255,255,255,0.92)"; ctx.fillRect(0, 0, w, h); ctx.globalCompositeOperation = "destination-out"; for (let i = 0; i < 160; i++) { ctx.fillStyle = `rgba(0,0,0,${0.2 + rng() * 0.6})`; ctx.beginPath(); ctx.arc(rng() * w, rng() * h, 1 + rng() * 4, 0, 7); ctx.fill() } ctx.globalCompositeOperation = "source-over" }],
   puddle: [2, 2, (ctx, w, h, rng) => { for (let i = 0; i < 6; i++) { const x = w * (0.3 + rng() * 0.4), y = h * (0.3 + rng() * 0.4), r = w * (0.15 + rng() * 0.2); const g = ctx.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, "rgba(14,16,20,0.75)"); g.addColorStop(0.7, "rgba(14,16,20,0.55)"); g.addColorStop(1, "rgba(14,16,20,0)"); ctx.fillStyle = g; ctx.fillRect(0, 0, w, h) } }],
+  soot: [1, 2, (ctx, w, h, rng) => { for (let i = 0; i < 6; i++) { const x = w * (0.3 + rng() * 0.4), g = ctx.createLinearGradient(0, h, 0, 0); g.addColorStop(0, "rgba(14,12,10,0.75)"); g.addColorStop(0.5, "rgba(14,12,10,0.35)"); g.addColorStop(1, "rgba(14,12,10,0)"); ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(x, h * 0.75, w * (0.15 + rng() * 0.2), h * 0.6, 0, 0, Math.PI * 2); ctx.fill() } }],
+  door: [1, 2, (ctx, w, h, rng) => { const g = ctx.createLinearGradient(0, 0, w, 0); const c = 60 + rng() * 50; g.addColorStop(0, `rgb(${c},${c * 0.8},${c * 0.6})`); g.addColorStop(1, `rgb(${c * 0.8},${c * 0.64},${c * 0.5})`); ctx.fillStyle = g; ctx.fillRect(w * 0.04, h * 0.02, w * 0.92, h * 0.98); ctx.strokeStyle = "rgba(0,0,0,0.45)"; ctx.lineWidth = w * 0.03; ctx.strokeRect(w * 0.16, h * 0.08, w * 0.68, h * 0.36); ctx.strokeRect(w * 0.16, h * 0.52, w * 0.68, h * 0.4); ctx.fillStyle = "rgba(200,190,150,0.9)"; ctx.fillRect(w * 0.78, h * 0.5, w * 0.08, h * 0.03) }],
+  blood: [2, 2, (ctx, w, h, rng) => { for (let i = 0; i < 9; i++) { const x = w * (0.25 + rng() * 0.5), y = h * (0.25 + rng() * 0.5), r = w * (0.04 + rng() * 0.16); const g = ctx.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, "rgba(70,6,6,0.85)"); g.addColorStop(0.6, "rgba(60,8,6,0.6)"); g.addColorStop(1, "rgba(50,8,6,0)"); ctx.fillStyle = g; ctx.fillRect(0, 0, w, h) } ctx.strokeStyle = "rgba(60,6,6,0.6)"; ctx.lineWidth = w * 0.02; for (let i = 0; i < 5; i++) { ctx.beginPath(); ctx.moveTo(w / 2, h / 2); ctx.lineTo(w * rng(), h * rng()); ctx.stroke() } }],
+  quarantine: [3, 1, plate("QUARANTÄNEZONE · BETRETEN VERBOTEN", "rgb(236,196,40)", "rgb(20,20,20)", "rgb(20,20,20)")],
+  biohazard: [1, 1, (ctx, w) => { ctx.fillStyle = "rgb(236,196,40)"; ctx.beginPath(); ctx.moveTo(w / 2, w * 0.06); ctx.lineTo(w * 0.96, w * 0.92); ctx.lineTo(w * 0.04, w * 0.92); ctx.fill(); ctx.strokeStyle = "rgb(20,20,20)"; ctx.lineWidth = w * 0.05; ctx.stroke(); ctx.lineWidth = w * 0.045; for (let i = 0; i < 3; i++) { const a = i / 3 * Math.PI * 2 - Math.PI / 2; ctx.beginPath(); ctx.arc(w / 2 + Math.cos(a) * w * 0.1, w * 0.62 + Math.sin(a) * w * 0.1, w * 0.12, 0, 7); ctx.stroke() } }],
+  target: [1, 1, (ctx, w) => { ctx.fillStyle = "rgb(226,220,200)"; ctx.fillRect(0, 0, w, w); ctx.strokeStyle = "rgb(30,30,30)"; ctx.lineWidth = w * 0.03; for (let r = 0.1; r < 0.5; r += 0.1) { ctx.beginPath(); ctx.arc(w / 2, w * 0.45, w * r, 0, 7); ctx.stroke() } ctx.fillStyle = "rgb(30,30,30)"; ctx.beginPath(); ctx.arc(w / 2, w * 0.45, w * 0.05, 0, 7); ctx.fill() }],
+  clock: [1, 1, (ctx, w) => { ctx.fillStyle = "rgb(236,232,218)"; ctx.beginPath(); ctx.arc(w / 2, w / 2, w * 0.47, 0, 7); ctx.fill(); ctx.strokeStyle = "rgb(30,30,30)"; ctx.lineWidth = w * 0.04; ctx.stroke(); for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; ctx.beginPath(); ctx.moveTo(w / 2 + Math.cos(a) * w * 0.36, w / 2 + Math.sin(a) * w * 0.36); ctx.lineTo(w / 2 + Math.cos(a) * w * 0.43, w / 2 + Math.sin(a) * w * 0.43); ctx.stroke() } ctx.lineWidth = w * 0.05; ctx.beginPath(); ctx.moveTo(w / 2, w / 2); ctx.lineTo(w * 0.5, w * 0.2); ctx.moveTo(w / 2, w / 2); ctx.lineTo(w * 0.7, w * 0.58); ctx.stroke() }],
+  medic: [1, 1, (ctx, w) => { ctx.fillStyle = "rgb(240,240,236)"; ctx.fillRect(0, 0, w, w); ctx.fillStyle = "rgb(200,30,30)"; ctx.fillRect(w * 0.38, w * 0.15, w * 0.24, w * 0.7); ctx.fillRect(w * 0.15, w * 0.38, w * 0.7, w * 0.24) }],
   helipad: [4, 4, (ctx, w) => { ctx.strokeStyle = "rgba(236,232,218,0.9)"; ctx.lineWidth = w * 0.035; ctx.beginPath(); ctx.arc(w / 2, w / 2, w * 0.44, 0, 7); ctx.stroke(); ctx.fillStyle = "rgba(236,232,218,0.9)"; const s = w * 0.07; ctx.fillRect(w * 0.34, w * 0.27, s, w * 0.46); ctx.fillRect(w * 0.66 - s, w * 0.27, s, w * 0.46); ctx.fillRect(w * 0.34, w * 0.465, w * 0.32, s); ctx.globalCompositeOperation = "destination-out"; for (let i = 0; i < 500; i++) { ctx.fillStyle = `rgba(0,0,0,${Math.random() * 0.5})`; ctx.fillRect(Math.random() * w, Math.random() * w, 3, 3) } ctx.globalCompositeOperation = "source-over" }],
 }
 

@@ -1,0 +1,242 @@
+/* ui.css — v0.3 menu components: item icons, tabs, backpack grids, stash list, armory, crafting, build cards, radio and
+   raid planning, loot window, raid backpack, base-attack screen (loaded after index.css and hud.css). */
+
+.resources .warn{color:var(--red)}
+.resources .warn i{color:var(--red)}
+.close-panel{width:100%;margin-top:22px}
+.panel-screen.from-base{background:rgba(10,18,21,.86)}
+.empty-note{color:var(--muted);font-size:12px;padding:16px 0}
+.heading-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:flex-end}
+.heading-actions .primary{min-width:200px}
+.ok{color:var(--mint)}
+.miss{color:var(--red)}
+
+/* item icons */
+.ic{--rar:#567;display:grid;place-items:center;flex:none;border:1px solid color-mix(in srgb,var(--rar) 70%,transparent);background:radial-gradient(circle at 50% 35%,color-mix(in srgb,var(--rar) 22%,#18282a),#121d20);position:relative;overflow:hidden}
+.ic-m{width:46px;height:46px}
+.ic-s{width:34px;height:34px}
+.ic img{width:100%;height:100%;object-fit:contain;image-rendering:auto}
+.ic em{font:bold 9px ui-monospace,monospace;font-style:normal;color:#dfe9e4;letter-spacing:.5px;text-align:center;line-height:1.1;padding:2px}
+.ic-s em{font-size:8px}
+.ic.empty{border-style:dashed;background:transparent;border-color:#3a4c46}
+
+/* tabs */
+.tabs{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 18px}
+.tab{height:34px;padding:0 14px;border:1px solid var(--line);background:rgba(17,30,32,.6);font:10px ui-monospace,monospace;letter-spacing:1.4px;color:#a3b3ac}
+.tab small{color:var(--mint);margin-left:4px}
+.tab:hover,.tab.active{border-color:rgba(128,224,188,.55);color:#e8f3ec;background:rgba(71,113,96,.25)}
+.tab.small{height:28px;padding:0 10px;font-size:9px}
+.tabs.wrap{margin-top:10px}
+
+/* trader */
+.trader-list{max-width:1100px}
+.trade-row.v3{grid-template-columns:50px 1fr 70px 130px}
+.trade-row.v3.sell{grid-template-columns:50px 1fr 70px 120px 140px}
+.trade-row.v3 .item-info em{font-style:normal;color:var(--amber);font:11px ui-monospace,monospace}
+.owned-tag{color:var(--mint)!important}
+.weapon-card .weapon-head .ic{width:64px;height:46px}
+.sell-everything{margin-bottom:12px;width:100%}
+
+/* stash & backpack */
+.inv-layout{display:grid;grid-template-columns:minmax(260px,.9fr) minmax(300px,1fr) minmax(320px,1.2fr);gap:26px;max-width:1500px;align-items:start}
+.inv-col{display:flex;flex-direction:column;gap:10px}
+.loadout-slot.v3{display:grid;grid-template-columns:46px 1fr auto;align-items:center;gap:12px;padding:10px 12px;border:1px solid var(--line);background:rgba(17,29,32,.7)}
+.loadout-slot.v3 small{display:block;font:9px ui-monospace,monospace;letter-spacing:2px;color:var(--muted)}
+.loadout-slot.v3 b{font-size:13px;display:block;margin-top:3px}
+.loadout-slot.v3 b small{letter-spacing:.5px;color:var(--amber);margin-top:3px}
+.slot-actions{display:flex;flex-direction:column;gap:4px}
+.slot-actions button,.row-actions button{padding:5px 8px;border:1px solid #4f7466;background:#18322b;font:9px ui-monospace,monospace}
+.slot-actions button:hover,.row-actions button:hover{border-color:var(--mint)}
+.bag-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(58px,1fr));gap:6px}
+.bag-slot{position:relative;aspect-ratio:1;border:1px solid var(--line);background:rgba(17,29,32,.75);display:grid;place-items:center;padding:4px}
+button.bag-slot:hover{border-color:var(--mint)}
+.bag-slot.empty{border-style:dashed;opacity:.5}
+.bag-slot>b{position:absolute;right:4px;bottom:14px;font:bold 11px ui-monospace,monospace;text-shadow:0 1px 2px #000}
+.bag-slot>small{position:absolute;left:0;right:0;bottom:2px;text-align:center;font:8px ui-monospace,monospace;color:var(--muted);white-space:nowrap;overflow:hidden}
+.bag-slot .ic{width:70%;height:70%;margin-bottom:8px}
+.secure-head{margin-top:14px}
+.secure-head h3{color:var(--amber)}
+.stash-list{display:flex;flex-direction:column;max-height:62vh;overflow-y:auto;border-top:1px solid var(--line)}
+.stash-row{display:grid;grid-template-columns:34px 1fr auto auto;align-items:center;gap:10px;padding:8px 4px;border-bottom:1px solid var(--line);border-left:2px solid var(--rar,#567)}
+.stash-row b{font-size:12px;display:block}
+.stash-row small{font-size:9px;color:var(--muted)}
+.stash-row>strong{font:14px ui-monospace,monospace;min-width:36px;text-align:right}
+.row-actions{display:flex;gap:4px}
+
+/* armory */
+.armory-layout{display:grid;grid-template-columns:minmax(300px,.8fr) 1.2fr;gap:26px;max-width:1300px;align-items:start}
+.armory-weapon{border:1px solid var(--line);background:#152225;padding:18px;display:grid;gap:14px}
+.armory-weapon>.ic{width:100%;height:120px}
+.armory-weapon h3{margin:0;font-size:20px}
+.armory-weapon p{margin:4px 0 0;color:var(--muted);font-size:12px;line-height:1.5}
+.armory-slots{display:flex;flex-direction:column;gap:12px}
+.att-slot{border:1px solid var(--line);background:rgba(17,29,32,.7);padding:12px}
+.att-head{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.att-head small{font:9px ui-monospace,monospace;letter-spacing:2px;color:var(--mint);min-width:80px}
+.att-head b{flex:1;font-size:13px}
+.att-head button{padding:5px 10px;border:1px solid #6b4f47;background:#2c1f1c;font:9px ui-monospace,monospace;color:#f0b3a8}
+.att-options{display:flex;flex-wrap:wrap;gap:6px}
+.att-option{display:flex;align-items:center;gap:8px;padding:6px 10px 6px 6px;border:1px solid var(--line);background:#132124;text-align:left;font-size:11px}
+.att-option small{display:block;font:8px ui-monospace,monospace;color:var(--muted);margin-top:2px}
+.att-option.active{border-color:var(--mint);background:#18322b}
+.att-option.active:disabled{opacity:1}
+.att-option:not(:disabled):hover{border-color:var(--mint)}
+
+/* crafting */
+.recipe-list{display:flex;flex-direction:column;max-width:1100px;border-top:1px solid var(--line)}
+.recipe{display:grid;grid-template-columns:50px 1fr 70px 130px;gap:14px;align-items:center;padding:12px 0;border-bottom:1px solid var(--line)}
+.recipe.locked{opacity:.55}
+.recipe b{font-size:13px}
+.recipe .inputs{display:flex;flex-wrap:wrap;gap:4px 12px;margin-top:5px;font-size:11px}
+.recipe .inputs small{color:var(--muted)}
+.recipe>small{font:11px ui-monospace,monospace;color:var(--muted)}
+.recipe button{height:36px;border:1px solid #4d6a5f;background:#1c3029;font:10px ui-monospace,monospace;letter-spacing:1px}
+.craft-running{margin:0 0 14px;padding:12px 14px;border-left:3px solid var(--mint);background:rgba(128,224,188,.07);font:12px ui-monospace,monospace}
+.production-box{margin:0 0 18px;padding:14px;border:1px solid var(--line);background:rgba(17,29,32,.6);display:grid;gap:8px;max-width:1100px}
+.production-box>span{font-size:12px;color:var(--muted)}
+
+/* build & staff */
+.base-status{display:flex;align-items:center;gap:28px;flex-wrap:wrap;padding:16px 18px;border:1px solid var(--line);background:rgba(17,29,32,.7);margin-bottom:22px;max-width:1500px}
+.base-status>div small{display:block;font:9px ui-monospace,monospace;color:var(--muted);letter-spacing:1.5px}
+.base-status>div b{font:20px ui-monospace,monospace}
+.base-status>div:first-child{flex:1;min-width:240px}
+.threat-bar{position:relative;height:8px;background:rgba(98,119,110,.3);margin:6px 0}
+.threat-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--amber),var(--red))}
+.threat-bar em{position:absolute;top:-3px;bottom:-3px;width:2px;background:#fff}
+.staff-section{max-width:1500px;margin-bottom:24px}
+.staff-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:4px 26px}
+.staff-row.v3{grid-template-columns:1fr 30px 56px 30px}
+.staff-row.v3 small{display:block;font-size:8px;color:#6f847b;margin-top:2px}
+.building-grid.v3{grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
+.building-card.v3{min-height:0;gap:6px}
+.building-card.v3.focus{border-color:var(--mint);box-shadow:0 0 0 1px var(--mint) inset}
+.building-card.v3 .perk{font:9px ui-monospace,monospace;color:var(--amber);line-height:1.5}
+.building-card.v3 .cost{display:flex;flex-wrap:wrap;gap:4px 10px;font:10px ui-monospace,monospace;margin:4px 0 10px}
+
+/* radio & planning */
+.radio-layout{display:grid;grid-template-columns:minmax(340px,1fr) minmax(380px,1fr);gap:26px;max-width:1400px;align-items:start}
+.contract-card.v3{grid-template-columns:1fr auto;margin:10px 0}
+.contract-card.v3.active{border-color:rgba(128,224,188,.45);background:rgba(128,224,188,.05)}
+.contract-card.v3 .thin-bar{margin:10px 0 0}
+.contract-side{display:flex;flex-direction:column;align-items:flex-end;gap:6px;text-align:right}
+.contract-side small{font:9px ui-monospace,monospace;color:var(--muted)}
+.contract-side button{padding:6px 12px;border:1px solid #4f7466;background:#18322b;font:10px ui-monospace,monospace}
+.contract-side .text-button{border:0;padding:2px 0;font-size:9px}
+.briefing-card.plan .briefing-body{display:flex;flex-direction:column;gap:10px}
+.choices{display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-bottom:8px}
+.choice{padding:10px 12px;border:1px solid var(--line);background:#132124;text-align:left}
+.choice b{display:block;font-size:13px}
+.choice small{display:block;font:9px ui-monospace,monospace;color:var(--muted);margin-top:4px}
+.choice.active{border-color:var(--mint);background:#18322b;box-shadow:inset 3px 0 var(--mint)}
+.plan-actions{display:grid;grid-template-columns:1fr 1.4fr;gap:10px;margin-top:6px}
+.plan-actions .deploy{height:54px}
+
+/* main menu */
+.large-secondary{height:58px;padding:0 22px}
+.attack-banner{display:grid;grid-template-columns:1fr auto;gap:4px 18px;align-items:center;margin:-10px 0 26px;padding:14px 16px;border:1px solid rgba(239,112,99,.55);background:rgba(239,112,99,.1);max-width:600px}
+.attack-banner b{color:var(--red);font:12px ui-monospace,monospace;letter-spacing:2px}
+.attack-banner span{grid-column:1;font-size:12px;color:#f3cfc9}
+.attack-banner button{grid-column:2;grid-row:1/3}
+.menu-contracts{margin-top:18px;border-top:1px solid var(--line);padding-top:12px}
+.menu-contracts small{font:9px ui-monospace,monospace;color:var(--muted);letter-spacing:2px}
+.menu-contracts>div{display:flex;justify-content:space-between;gap:10px;font-size:11px;margin-top:8px}
+.menu-contracts b{font:11px ui-monospace,monospace;color:var(--amber)}
+
+/* pause */
+.pause-card{width:min(520px,92vw)}
+.pause-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.pause-settings{margin-top:18px;text-align:left}
+.pause-settings .setting-row{padding:12px 0;grid-template-columns:1fr 140px 60px}
+.pause-contracts{text-align:left;margin:6px 0 10px;border-top:1px solid var(--line)}
+.pause-contracts>div{display:flex;justify-content:space-between;font-size:11px;padding:8px 0;border-bottom:1px solid var(--line)}
+.pause-contracts b{font:11px ui-monospace,monospace;color:var(--amber)}
+
+/* raid backpack */
+.raid-bag.v3{width:min(900px,94vw)}
+.raid-bag-head{display:flex;justify-content:space-between;align-items:end;gap:20px}
+.raid-bag-head h2{margin:6px 0 14px;text-align:left}
+.raid-bag-head .weight{text-align:right}
+.raid-bag-head .weight small{display:block;font:9px ui-monospace,monospace;color:var(--muted)}
+.raid-bag-head .weight b{font:16px ui-monospace,monospace}
+.raid-bag-head .weight.over b{color:var(--red)}
+.raid-bag-body{display:grid;grid-template-columns:1fr 240px;gap:24px;text-align:left}
+.bag-slot.live{cursor:default}
+.bag-slot.live:hover,.bag-slot.live:focus-within{border-color:var(--mint);z-index:2}
+.slot-menu{position:absolute;inset:0;display:none;flex-direction:column;justify-content:center;gap:2px;background:rgba(8,16,18,.94);padding:3px}
+.bag-slot.live:hover .slot-menu,.bag-slot.live:focus-within .slot-menu{display:flex}
+.slot-menu button{font:8px ui-monospace,monospace;padding:4px 2px;border:1px solid #3f5e50;background:#18322b}
+.slot-menu button:hover,.slot-menu button:focus-visible{border-color:var(--mint)}
+.vitals-panel{display:flex;flex-direction:column;gap:10px}
+.vbar small{font:9px ui-monospace,monospace;color:var(--muted);letter-spacing:1px}
+.vbar>div{height:6px;background:rgba(98,119,110,.3);margin:4px 0}
+.vbar i{display:block;height:100%;background:var(--mint)}
+.vbar.food i{background:#d9b26a}
+.vbar.water i{background:#6ab4d9}
+.vbar.infect i{background:#94d14d}
+.vbar b{font:12px ui-monospace,monospace}
+.status-tags{display:flex;flex-wrap:wrap;gap:6px}
+.status-tags span{font:9px ui-monospace,monospace;padding:3px 6px;border:1px solid var(--line)}
+.status-tags .bleed{color:#ff6b5e;border-color:rgba(255,80,60,.6)}
+.kit-lines{display:flex;flex-direction:column;gap:4px;font-size:11px;color:#c7d6cf;border-top:1px solid var(--line);padding-top:10px}
+
+/* loot window */
+.loot-card{width:min(940px,94vw);text-align:left}
+.loot-cols{display:grid;grid-template-columns:1.1fr 1fr;gap:28px}
+.loot-card h2{font-size:24px;letter-spacing:1px;margin:6px 0 14px}
+.loot-card h3{font-size:14px;margin:6px 0 12px}
+.loot-list{display:flex;flex-direction:column;gap:4px;max-height:52vh;overflow-y:auto;margin-bottom:6px}
+.loot-row{display:grid;grid-template-columns:34px 1fr auto;align-items:center;gap:10px;padding:6px 8px;border:1px solid var(--line);border-left:3px solid var(--rar,#567);background:#132124;text-align:left}
+.loot-row:hover,.loot-row:focus-visible{border-color:var(--mint);background:#18322b}
+.loot-row b{display:block;font-size:12px}
+.loot-row small{font:9px ui-monospace,monospace;color:var(--muted)}
+.loot-row strong{font:12px ui-monospace,monospace}
+.loot-card>.secondary{width:100%;margin-top:16px}
+
+/* map */
+.map-card.v3{width:min(820px,96vw)}
+.map-head{display:flex;gap:8px;align-items:center;margin-bottom:10px}
+.map-head .eyebrow{flex:1;text-align:left}
+.map-card.v3 canvas{width:min(760px,90vw,70vh);height:auto;aspect-ratio:1;display:block;margin:0 auto;border:1px solid var(--line)}
+.map-legend{display:flex;flex-wrap:wrap;gap:6px 14px;justify-content:center;margin:10px 0 0;font-size:10px;color:var(--muted)}
+.map-legend i{display:inline-block;width:10px;height:10px;margin-right:5px;vertical-align:-1px;border-radius:50%}
+.map-legend .you{background:#fff;border-radius:0;clip-path:polygon(50% 0,100% 100%,50% 75%,0 100%)}
+.map-legend .exfil{border:2px solid #66e0b4}
+.map-legend .exfil-req{border:2px solid #e4b461}
+.map-legend .obj{border:2px solid #e4b461;background:rgba(228,180,97,.3)}
+.map-legend .crate{background:#79e5b8;border-radius:0;transform:rotate(45deg) scale(.8)}
+.map-legend .drop{background:#ff9f43;border-radius:0}
+.map-legend .danger{background:rgba(239,92,80,.35);border:1px dashed rgba(239,92,80,.8);border-radius:0}
+
+/* result */
+.result-stats{grid-template-columns:repeat(4,1fr)}
+.result-contract{display:flex;justify-content:space-between;padding:10px 12px;margin:6px 0;border:1px solid var(--line);font-size:12px}
+.result-contract.ok{border-color:rgba(128,224,188,.5);color:var(--mint)}
+.result-loot{max-height:70vh;overflow-y:auto}
+.result-loot>div{display:grid!important;grid-template-columns:34px 1fr auto;align-items:center;gap:10px}
+.result-loot .eyebrow.lost{color:var(--red);margin-top:18px}
+.level-up{margin:12px 0;padding:10px 14px;border:1px solid var(--amber);color:var(--amber);font:12px ui-monospace,monospace;letter-spacing:2px}
+
+/* base attack */
+.attack-screen{background:radial-gradient(circle at 50% 40%,rgba(70,10,8,.75),rgba(6,10,12,.92))}
+.attack-card{border-color:rgba(239,112,99,.6)}
+.attack-card .eyebrow{color:var(--red)}
+.attack-card p b{color:#fff}
+
+@media(max-width:1150px){.inv-layout{grid-template-columns:1fr 1fr}.stash-col{grid-column:1/-1}.armory-layout,.radio-layout{grid-template-columns:1fr}.raid-bag-body{grid-template-columns:1fr 200px}}
+@media(max-width:760px){.raid-bag-body,.loot-cols{grid-template-columns:1fr}.inv-layout{grid-template-columns:1fr}.choices{grid-template-columns:1fr}.plan-actions{grid-template-columns:1fr}.trade-row.v3,.trade-row.v3.sell{grid-template-columns:44px 1fr 110px}.trade-row.v3 .stock{display:none}.recipe{grid-template-columns:44px 1fr 100px}.recipe>small{display:none}}
+
+/* side navigation: long German labels must not run into the arrow */
+.side-nav .nav-item{grid-template-columns:24px 1fr 12px;letter-spacing:1px;padding:0 12px}
+/* in the safe base the HUD only shows vitals, compass and prompts */
+.hud.safe .hud-weapon,.hud.safe .hud-value,.hud.safe .hud-status,.hud.safe .hud-vitals .kit,.hud.safe .hud-vitals .st,.hud.safe .xhair i{display:none}
+/* the side navigation scrolls on short screens instead of pushing buttons out of reach */
+.side-nav{overflow-y:auto;scrollbar-width:thin}
+.side-nav .main-nav{position:static}
+.side-nav .nav-item{height:50px}
+.side-nav .settings-link{margin-top:14px}
+@media(max-height:720px){.side-nav{padding-top:16px}.side-nav .nav-item{height:42px}.side-nav .settings-link{margin-top:8px}.menu-layout>.main-nav .nav-item{height:46px}}
+.side-nav .nav-item{font-size:10px;letter-spacing:.8px}
+/* modal dialogs taller than the window scroll instead of being cut off */
+.modal-screen{overflow-y:auto;padding:16px 0}
+.modal-card{max-width:calc(100vw - 24px)}
+@media(max-height:620px){.modal-card{padding:20px 24px}.modal-card h2{font-size:30px;margin:6px}.raid-bag-head h2{margin:2px 0 8px}.bag-grid{grid-template-columns:repeat(auto-fill,minmax(50px,1fr))}}
