@@ -241,7 +241,7 @@ export class RaidGame {
     const startMag = Math.min(this.primary.def.magazine, this.primary.reserve); this.primary.mag = startMag; this.primary.reserve -= startMag
     this.sidearm = new WeaponRuntime("p9", 0)
     this.active = this.primary.total > 0 ? "primary" : "sidearm"
-    this.viewModel.setWeapon(this.weapon.id)
+    this.viewModel.setWeapon(this.weapon.id, {})
     this.health = 100
     this.armorMax = k.armorMax; this.armor = k.armor + (k.armor > 0 && this.company.has("plating") ? 25 : 0)
     this.medkits = k.medkits; this.grenadeCount = k.grenades
@@ -397,7 +397,7 @@ export class RaidGame {
     // weapon switch animation (lower → swap → raise)
     if (this.switchTime >= 0) {
       this.switchTime += dt / 0.5
-      if (this.pendingWeapon && this.switchTime >= 0.5) { this.active = this.pendingWeapon; this.pendingWeapon = null; this.viewModel.setWeapon(this.weapon.id) }
+      if (this.pendingWeapon && this.switchTime >= 0.5) { this.active = this.pendingWeapon; this.pendingWeapon = null; this.viewModel.setWeapon(this.weapon.id, {}) }
       if (this.switchTime >= 1) this.switchTime = -1
     }
     for (const rw of [this.primary, this.sidearm]) {
@@ -790,11 +790,11 @@ export class RaidGame {
       if (Math.abs(cam.fov - targetFov) > 0.01) { cam.fov += (targetFov - cam.fov) * Math.min(1, dt * 14); cam.updateProjectionMatrix() }
       this.flashlight.intensity = this.flashlightOn && this.mode === "raid" ? 26 : 0
       this.viewModel.update(dt, {
-        weapon: this.weapon.id, ads: this.ads, move: moving / WALK, sprinting: this.sprinting, crouched: this.crouched,
+        weapon: this.weapon.id, mods: {}, ads: this.ads, move: moving / WALK, sprinting: this.sprinting, crouched: this.crouched,
         lookYaw: this.lookFrame.yaw, lookPitch: this.lookFrame.pitch,
-        reload: this.weapon.reloading ? 1 - this.weapon.reloadLeft / this.weapon.reloadTotal : -1, shellReload: this.weapon.def.cls === "shotgun",
-        switching: this.switchTime, throwing: this.throwTime >= 0 ? this.throwTime : this.healTime >= 0 ? Math.min(1, this.healTime * 1.2) : -1,
-        light: LIGHT_LEVEL[this.world.theme], flashlight: this.flashlightOn,
+        reload: this.weapon.reloading ? 1 - this.weapon.reloadLeft / this.weapon.reloadTotal : -1, singleLoad: this.weapon.def.cls === "shotgun", empty: false,
+        switching: this.switchTime, using: -1, usingKind: null, melee: -1, meleeQuick: false,
+        light: LIGHT_LEVEL[this.world.theme], flashlight: this.flashlightOn, laser: false,
       })
       this.lookFrame.yaw = 0; this.lookFrame.pitch = 0
       this.audio.setListener(cam.position, this.yaw)
