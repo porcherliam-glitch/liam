@@ -6,11 +6,16 @@
 import * as THREE from "three"
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js"
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js"
+import { SURF, surfAttribute, withSurface, type SurfaceOptions } from "./surface"
 
 const _m = new THREE.Matrix4(), _e = new THREE.Euler(), _c = new THREE.Color()
 
 export class Shape {
+  /** Surface type (surface.ts) per colour, shared by every prop builder; unknown colours use the shape's default. */
+  static readonly types = new Map<number, number>()
   private parts: THREE.BufferGeometry[] = []
+  /** @param surface default surface type of this prop's parts */
+  constructor(private surface: number = SURF.paint) {}
 
   /** Adds a geometry rotated by (rx, ry, rz) and moved to (x, y, z), filled with one colour. */
   add(g: THREE.BufferGeometry, color: number, x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0): this {
@@ -23,6 +28,7 @@ export class Shape {
     _c.set(color)
     for (let i = 0; i < n; i++) { a[i * 3] = _c.r; a[i * 3 + 1] = _c.g; a[i * 3 + 2] = _c.b }
     ng.setAttribute("color", new THREE.BufferAttribute(a, 3))
+    ng.setAttribute("surf", surfAttribute(n, Shape.types.get(color) ?? this.surface))
     this.parts.push(ng)
     return this
   }
@@ -67,7 +73,10 @@ export class Shape {
   }
 }
 
-/** Standard material for Shape geometry. */
-export function propMaterial(roughness = 0.7, metalness = 0.15, extra: THREE.MeshStandardMaterialParameters = {}): THREE.MeshStandardMaterial {
-  return new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness, metalness, ...extra })
+/** Detail defaults for props (painted wood and steel, plastic, canvas). */
+export const PROP_SURFACE: SurfaceOptions = { scale: 16, bump: 0.0016, grime: 0.55, mottle: 0.22, wear: 0.65, weave: 0.7, rough: 0.18 }
+
+/** Standard material for Shape geometry, with procedural surface detail. */
+export function propMaterial(roughness = 0.7, metalness = 0.15, extra: THREE.MeshStandardMaterialParameters = {}, surface: Partial<SurfaceOptions> = {}): THREE.MeshStandardMaterial {
+  return withSurface(new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, roughness, metalness, ...extra }), { ...PROP_SURFACE, ...surface })
 }

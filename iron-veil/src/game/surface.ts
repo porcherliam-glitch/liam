@@ -33,6 +33,8 @@ export interface SurfaceOptions {
   weave?: number
   /** Roughness variation (±). */
   rough?: number
+  /** Three-tone camouflage on fabric (0..1). */
+  camo?: number
   /** Surface type for geometries without a `surf` attribute. */
   type?: Surf
 }
@@ -74,7 +76,7 @@ vSurfPos += instanceMatrix[3].xyz * 0.6180339;
 const FRAG_HEAD = /* glsl */ `
 uniform highp sampler3D uSurfNoise;
 uniform vec4 uSurfA; // scale (1/m), bump (m), grime, mottle
-uniform vec4 uSurfB; // wear, weave, roughness variation, -
+uniform vec4 uSurfB; // wear, weave, roughness variation, camouflage on fabric
 varying vec3 vSurfPos;
 flat varying float vSurfType;
 float sN(vec3 p) { return texture(uSurfNoise, p).r; }
@@ -97,6 +99,12 @@ float sLo = sFbm(sP * 0.21 + 0.13);
 float sHi = mix(0.5, sFbm(sP), sFine);
 float sFab = sIs(1.0), sSkin = sIs(2.0), sMet = sIs(3.0), sWood = sIs(4.0), sPoly = sIs(5.0), sWet = sIs(6.0);
 float sGrime = smoothstep(0.42, 0.82, sLo) * uSurfA.z;
+if (uSurfB.w > 0.0) {
+  // three-tone camouflage blotches on fabric
+  float sCn = sFbm(vSurfPos * 0.3 + 7.0);
+  float sCm = sCn < 0.43 ? 0.66 : (sCn < 0.6 ? 1.0 : 1.25);
+  diffuseColor.rgb *= mix(1.0, sCm, sFab * uSurfB.w);
+}
 diffuseColor.rgb *= (1.0 + (sHi - 0.5) * uSurfA.w * (1.0 + sSkin * 1.2 + sWood)) * (1.0 - sGrime * 0.55);
 diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.8, 0.72, 0.86), sSkin * smoothstep(0.5, 0.78, sLo) * 0.7);
 diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(1.08, 1.0, 0.82), sSkin * smoothstep(0.55, 0.3, sLo) * 0.35);
@@ -129,7 +137,7 @@ const FRAG_NORMAL = /* glsl */ `
 /** Adds the procedural surface detail to a standard material (keeps an existing onBeforeCompile patch). */
 export function withSurface<M extends THREE.MeshStandardMaterial>(mat: M, o: SurfaceOptions): M {
   const prev = mat.onBeforeCompile, prevKey = mat.customProgramCacheKey
-  const a = new THREE.Vector4(o.scale, o.bump, o.grime, o.mottle), b = new THREE.Vector4(o.wear ?? 0.5, o.weave ?? 0.5, o.rough ?? 0.15, 0)
+  const a = new THREE.Vector4(o.scale, o.bump, o.grime, o.mottle), b = new THREE.Vector4(o.wear ?? 0.5, o.weave ?? 0.5, o.rough ?? 0.15, o.camo ?? 0)
   const tex = noise3d()
   mat.onBeforeCompile = (shader, renderer) => {
     prev.call(mat, shader, renderer)

@@ -20,6 +20,7 @@
 import * as THREE from "three"
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js"
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js"
+import { SURF, surfAttribute, withSurface } from "./surface"
 import { ENEMIES, type EnemyWeapon } from "./data"
 import { raySegmentCapsule } from "./ai"
 import type { BodyPartId, HitPart } from "./hostiles"
@@ -45,6 +46,18 @@ export const RIG = {
 
 // ------------------------------------------------------------------ geometry builder
 
+/** Hard knuckle protector colour on gloves. */
+const SOLDIER_KNUCKLE = 0x1c1d1b
+/** Surface type (surface.ts) per palette colour of the kind being built. */
+const SOLDIER_SURF = new Map<number, number>()
+function classifySoldier(P: Palette): void {
+  SOLDIER_SURF.clear()
+  for (const c of [P.fabric, P.pants, P.strap, P.pouch, P.gear]) SOLDIER_SURF.set(c, SURF.fabric)
+  for (const c of [P.helmet, P.boots, P.gloves, P.pads, P.accent, P.dark]) SOLDIER_SURF.set(c, SURF.polymer)
+  for (const c of [P.gunMetal, P.gunAccent, 0x111214, 0x050505]) SOLDIER_SURF.set(c, SURF.metal)
+  SOLDIER_SURF.set(P.skin, SURF.skin)
+}
+
 class Parts {
   private list: THREE.BufferGeometry[] = []
   private m = new THREE.Matrix4(); private q = new THREE.Quaternion(); private e = new THREE.Euler()
@@ -61,6 +74,7 @@ class Parts {
     for (let i = 0; i < n; i++) { col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b; gl[i] = glow }
     g.setAttribute("color", new THREE.BufferAttribute(col, 3))
     g.setAttribute("glow", new THREE.BufferAttribute(gl, 1))
+    g.setAttribute("surf", surfAttribute(n, SOLDIER_SURF.get(color) ?? SURF.paint))
     this.list.push(g)
     return this
   }
@@ -75,6 +89,81 @@ class Parts {
   cyl(rTop: number, rBot: number, h: number, color: number, pos: V3, rot?: V3, seg = 7): this { return this.add(new THREE.CylinderGeometry(rTop, rBot, h, Math.max(seg, Math.round(seg * 1.45))), color, pos, rot) }
   sph(r: number, color: number, pos: V3, scale: V3 = [1, 1, 1], ws = 9, hs = 6, thetaLen = Math.PI, rot?: V3): this {
     return this.add(new THREE.SphereGeometry(r, Math.round(ws * 1.35), Math.round(hs * 1.35), 0, TAU, 0, thetaLen), color, pos, rot, scale)
+  }
+  /** Pushes a ready geometry that already carries position/normal/color/surf (indexed is expanded; glow added). */
+  private raw(g: THREE.BufferGeometry, glow = 0): this {
+    const ng = g.index ? g.toNonIndexed() : g
+    if (ng !== g) g.dispose()
+    ng.setAttribute("glow", new THREE.BufferAttribute(new Float32Array(ng.attributes.position.count).fill(glow), 1))
+    this.list.push(ng)
+    return this
+  }
+  /**
+   * Smooth lofted tube through elliptical rings (y, half width w, half depth d, optional centre x/z) with Catmull-Rom
+   * sub-rings; `deform(a, y)` pushes vertices radially (folds, muscles), `paint(a, y, c)` may recolour (returns a surface type).
+   */
+  loft(rings: { y: number; w: number; d: number; x?: number; z?: number }[], color: number, segs = 16, fx: { deform?: (a: number, y: number) => number; paint?: (a: number, y: number, c: THREE.Color) => number | void } = {}, caps = 3): this {
+    const cr = (a: number, b: number, c: number, d: number, t: number) => 0.5 * (2 * b + (c - a) * t + (2 * a - 5 * b + 4 * c - d) * t * t + (3 * b - a - 3 * c + d) * t * t * t)
+    const R: { y: number; w: number; d: number; x: number; z: number }[] = [], n0 = rings.length, sub = 3
+    for (let k = 0; k < n0 - 1; k++) {
+      const A = rings[Math.max(0, k - 1)], B = rings[k], C = rings[k + 1], D = rings[Math.min(n0 - 1, k + 2)]
+      for (let i = 0; i < sub; i++) { const t = i / sub; R.push({ y: cr(A.y, B.y, C.y, D.y, t), w: cr(A.w, B.w, C.w, D.w, t), d: cr(A.d, B.d, C.d, D.d, t), x: cr(A.x ?? 0, B.x ?? 0, C.x ?? 0, D.x ?? 0, t), z: cr(A.z ?? 0, B.z ?? 0, C.z ?? 0, D.z ?? 0, t) }) }
+    }
+    const L = rings[n0 - 1]; R.push({ y: L.y, w: L.w, d: L.d, x: L.x ?? 0, z: L.z ?? 0 })
+    const pos: number[] = [], col: number[] = [], sf: number[] = [], idx: number[] = [], base = new THREE.Color(color), c = new THREE.Color(), st0 = SOLDIER_SURF.get(color) ?? SURF.paint
+    for (const r of R) for (let i = 0; i < segs; i++) {
+      const a = (i + 0.5) / segs * TAU, ca = Math.cos(a), sa = Math.sin(a), nl = Math.hypot(ca * r.d, sa * r.w) || 1
+      const off = fx.deform ? fx.deform(a, r.y) : 0
+      pos.push(r.x + ca * r.w + ca * r.d / nl * off, r.y, r.z + sa * r.d + sa * r.w / nl * off)
+      c.copy(base); const st = fx.paint?.(a, r.y, c)
+      col.push(c.r, c.g, c.b); sf.push(st ?? st0)
+    }
+    const n = R.length, down = R[n - 1].y < R[0].y
+    for (let r = 0; r < n - 1; r++) for (let i = 0; i < segs; i++) {
+      const v00 = r * segs + i, v01 = r * segs + (i + 1) % segs, v10 = v00 + segs, v11 = v01 + segs
+      if (down) idx.push(v00, v01, v10, v01, v11, v10); else idx.push(v00, v10, v01, v01, v10, v11)
+    }
+    const cap = (ri: number, bottom: boolean) => {
+      const ctr = pos.length / 3, r = R[ri]; pos.push(r.x, r.y, r.z); col.push(base.r, base.g, base.b); sf.push(st0)
+      for (let i = 0; i < segs; i++) { const a = ri * segs + i, b = ri * segs + (i + 1) % segs; if (bottom !== down) idx.push(ctr, a, b); else idx.push(ctr, b, a) }
+    }
+    if (caps & 1) cap(0, true)
+    if (caps & 2) cap(n - 1, false)
+    const g = new THREE.BufferGeometry()
+    g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute("color", new THREE.Float32BufferAttribute(col, 3)); g.setAttribute("surf", new THREE.Float32BufferAttribute(sf, 1)); g.setIndex(idx)
+    g.computeVertexNormals()
+    return this.raw(g)
+  }
+  /** Seamless sculpted ellipsoid: fn(u, colour) returns the radial displacement (radius units) and may return a surface type. */
+  sculpt(c: V3, r: V3, color: number, fn: (u: THREE.Vector3, col: THREE.Color) => [number, number?], wSeg = 28, hSeg = 20): this {
+    const pos: number[] = [], col: number[] = [], sf: number[] = [], idx: number[] = [], u = new THREE.Vector3(), cc = new THREE.Color(), st0 = SOLDIER_SURF.get(color) ?? SURF.paint
+    const vert = (th: number, ph: number) => {
+      u.set(Math.sin(th) * Math.cos(ph), Math.cos(th), Math.sin(th) * Math.sin(ph)); cc.setHex(color)
+      const [d, st] = fn(u, cc), k = 1 + d
+      pos.push(c[0] + u.x * r[0] * k, c[1] + u.y * r[1] * k, c[2] + u.z * r[2] * k); col.push(cc.r, cc.g, cc.b); sf.push(st ?? st0)
+    }
+    vert(0, 0)
+    for (let i = 1; i < hSeg; i++) for (let j = 0; j < wSeg; j++) vert(i / hSeg * Math.PI, j / wSeg * TAU)
+    vert(Math.PI, 0)
+    const ring = (i: number, j: number) => 1 + (i - 1) * wSeg + (j % wSeg), last = 1 + (hSeg - 1) * wSeg
+    for (let j = 0; j < wSeg; j++) idx.push(0, ring(1, j + 1), ring(1, j))
+    for (let i = 1; i < hSeg - 1; i++) for (let j = 0; j < wSeg; j++) idx.push(ring(i, j), ring(i, j + 1), ring(i + 1, j), ring(i, j + 1), ring(i + 1, j + 1), ring(i + 1, j))
+    for (let j = 0; j < wSeg; j++) idx.push(last, ring(hSeg - 1, j), ring(hSeg - 1, j + 1))
+    const g = new THREE.BufferGeometry()
+    g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute("color", new THREE.Float32BufferAttribute(col, 3)); g.setAttribute("surf", new THREE.Float32BufferAttribute(sf, 1)); g.setIndex(idx)
+    g.computeVertexNormals()
+    return this.raw(g)
+  }
+  /** Gloved hand closed around a grip below the wrist at y0 (fingers curl toward -Z). */
+  glove(y0: number, color: number, side: number): this {
+    this.box(0.068, 0.07, 0.046, color, [0, y0 - 0.035, -0.004])
+    for (let i = 0; i < 4; i++) {
+      const x = (i - 1.5) * 0.017, l = [0.03, 0.034, 0.032, 0.026][i]
+      this.add(new THREE.CapsuleGeometry(0.0085, l, 2, 6), color, [x, y0 - 0.074 - l * 0.3, -0.016], [0.9, 0, 0])
+      this.add(new THREE.CapsuleGeometry(0.0078, l * 0.8, 2, 6), color, [x, y0 - 0.085 - l * 0.4, -0.046], [2.1, 0, 0])
+    }
+    this.add(new THREE.CapsuleGeometry(0.009, 0.03, 2, 6), color, [-side * 0.036, y0 - 0.045, -0.026], [0.6, 0, -side * 0.5])
+    return this.hard(0.06, 0.012, 0.03, SOLDIER_KNUCKLE, [0, y0 - 0.062, -0.026])
   }
   build(): THREE.BufferGeometry {
     const g = mergeGeometries(this.list, false)
@@ -110,8 +199,9 @@ const ZONES: Record<EnemyKind, { head: number; torso: number; arm: number; thigh
 // ------------------------------------------------------------------ body parts (joint-local space, forward = -Z)
 
 function buildPelvis(kind: EnemyKind): THREE.BufferGeometry {
-  const P = PAL[kind], b = new Parts(), heavy = kind === "heavy"
-  b.box(heavy ? 0.35 : 0.32, 0.2, 0.2, P.pants, [0, -0.03, 0.005])
+  const P = PAL[kind], b = new Parts(), heavy = kind === "heavy", hw = heavy ? 1.09 : 1
+  b.loft([{ y: -0.135, w: 0.14 * hw, d: 0.088 }, { y: -0.06, w: 0.163 * hw, d: 0.101, z: 0.005 }, { y: 0.02, w: 0.162 * hw, d: 0.1, z: 0.005 }, { y: 0.07, w: 0.152 * hw, d: 0.095 }],
+    P.pants, 20, { deform: (a, y) => 0.003 * Math.sin(a * 5 + y * 60) })
   b.box(heavy ? 0.37 : 0.345, 0.055, 0.215, P.strap, [0, 0.065, 0])
   b.box(0.05, 0.035, 0.012, P.gunMetal, [0, 0.065, -0.11])
   b.box(0.045, 0.085, 0.075, P.pouch, [-0.185, 0.035, 0.03])
@@ -130,8 +220,10 @@ function buildPelvis(kind: EnemyKind): THREE.BufferGeometry {
 
 function buildChest(kind: EnemyKind): THREE.BufferGeometry {
   const P = PAL[kind], b = new Parts(), w = kind === "heavy" ? 1.08 : kind === "scout" ? 0.96 : 1
-  b.box(0.29 * w, 0.22, 0.185, P.fabric, [0, -0.12, 0])
-  b.box(0.37 * w, 0.27, 0.21, P.fabric, [0, 0.09, 0])
+  b.loft([
+    { y: -0.235, w: 0.138 * w, d: 0.09 }, { y: -0.12, w: 0.145 * w, d: 0.094 }, { y: 0.0, w: 0.168 * w, d: 0.102 }, { y: 0.1, w: 0.186 * w, d: 0.107 },
+    { y: 0.18, w: 0.18 * w, d: 0.098 }, { y: 0.228, w: 0.12 * w, d: 0.075 }, { y: 0.255, w: 0.068, d: 0.06 },
+  ], P.fabric, 22, { deform: (a, y) => 0.0028 * Math.sin(a * 6 + y * 46) + 0.0018 * Math.sin(a * 11 - y * 70) })
   b.sph(0.075, P.fabric, [-0.175 * w, 0.17, 0])
   b.sph(0.075, P.fabric, [0.175 * w, 0.17, 0])
   b.cyl(0.058, 0.066, 0.07, P.fabric, [0, 0.245, 0])
@@ -146,9 +238,16 @@ function buildChest(kind: EnemyKind): THREE.BufferGeometry {
     b.box(0.21, 0.25, 0.05, P.pouch, [0, 0.03, 0.173])
     b.box(0.06, 0.13, 0.05, P.dark, [-0.135, 0.1, 0.165])
     b.cyl(0.005, 0.005, 0.32, P.dark, [-0.145, 0.32, 0.17], undefined, 4)
+    // magazines sticking out of the pouches, MOLLE webbing, frag grenade, knife, hydration tube
+    for (const x of [-0.092, 0, 0.092]) b.hard(0.058, 0.03, 0.024, 0x1b1c1d, [x, 0.03, -0.17], [-0.12, 0, 0])
+    for (const y of [0.04, 0.075, 0.15, 0.18]) b.hard(0.29, 0.008, 0.004, P.strap, [0, y, -0.151])
+    for (const y of [-0.02, 0.04, 0.1, 0.16]) b.hard(0.28, 0.008, 0.004, P.strap, [0, y, 0.151])
+    b.sph(0.024, 0x4a5137, [0.135, -0.075, -0.17], [1, 1.15, 1], 8, 6).hard(0.006, 0.03, 0.012, 0x6a6e70, [0.15, -0.05, -0.17])
+    b.box(0.022, 0.11, 0.016, P.dark, [-0.13, 0.12, -0.16], [0, 0, 0.25])
+    b.cyl(0.005, 0.005, 0.2, 0x1e1e1c, [0.1, 0.12, -0.13], [0.3, 0, 0.2], 5)
   } else if (kind === "scout") {
     b.box(0.29, 0.14, 0.04, P.gear, [0, -0.04, -0.112])
-    for (const x of [-0.1, -0.034, 0.034, 0.1]) b.box(0.055, 0.1, 0.04, P.pouch, [x, -0.04, -0.142])
+    for (const x of [-0.1, -0.034, 0.034, 0.1]) b.box(0.055, 0.1, 0.04, P.pouch, [x, -0.04, -0.142]).hard(0.044, 0.026, 0.02, 0x1b1c1d, [x, 0.02, -0.142], [-0.1, 0, 0])
     b.box(0.04, 0.24, 0.02, P.strap, [-0.1, 0.1, -0.103]); b.box(0.04, 0.24, 0.02, P.strap, [0.1, 0.1, -0.103])
     b.box(0.04, 0.03, 0.22, P.strap, [-0.1, 0.21, 0]); b.box(0.04, 0.03, 0.22, P.strap, [0.1, 0.21, 0])
     b.box(0.23, 0.26, 0.1, P.gear, [0, 0.04, 0.15])
@@ -160,7 +259,9 @@ function buildChest(kind: EnemyKind): THREE.BufferGeometry {
     b.box(0.44, 0.16, 0.25, P.gear, [0, -0.09, 0])
     b.box(0.35, 0.08, 0.28, P.gear, [0, 0.235, 0])
     b.box(0.32, 0.1, 0.03, P.pads, [0, 0.17, -0.185])
-    for (const x of [-0.115, 0, 0.115]) b.box(0.09, 0.12, 0.05, P.pouch, [x, -0.06, -0.2])
+    for (const x of [-0.115, 0, 0.115]) b.box(0.09, 0.12, 0.05, P.pouch, [x, -0.06, -0.2]).hard(0.07, 0.03, 0.026, 0x1b1c1d, [x, 0.012, -0.2], [-0.1, 0, 0])
+    for (const y of [0.04, 0.08, 0.12]) b.hard(0.37, 0.009, 0.004, P.dark, [0, y, -0.176])
+    for (const x of [-0.17, 0.17]) b.box(0.035, 0.3, 0.26, P.gear, [x * 1.12, 0.03, 0], [0, 0, x > 0 ? -0.05 : 0.05])
     b.box(0.34, 0.04, 0.008, P.accent, [0, 0.17, 0.178])
     b.box(0.07, 0.045, 0.008, P.accent, [-0.11, 0.1, -0.178])
     b.box(0.24, 0.2, 0.06, P.pouch, [0, -0.02, 0.2])
@@ -186,22 +287,37 @@ function buildHead(kind: EnemyKind): THREE.BufferGeometry {
   const P = PAL[kind], b = new Parts()
   const face = kind === "scout" ? P.accent : P.skin
   b.cyl(kind === "heavy" ? 0.062 : 0.05, kind === "heavy" ? 0.07 : 0.056, 0.11, kind === "heavy" ? P.gear : P.skin, [0, 0.04, 0])
-  b.sph(0.103, face, [0, 0.17, -0.005], [1, 1.14, 1.06], 10, 8)
-  b.box(0.026, 0.045, 0.03, face, [0, 0.155, -0.112], [0.2, 0, 0])
-  b.box(0.02, 0.05, 0.035, face, [-0.103, 0.165, 0]); b.box(0.02, 0.05, 0.035, face, [0.103, 0.165, 0])
-  // face: eyes with pupils, brows, chin and mouth (the heavy wears a closed visor)
-  if (kind !== "heavy") {
-    const ey = kind === "scout" ? 0.187 : 0.166
+  if (kind === "heavy") b.sph(0.103, face, [0, 0.17, -0.005], [1, 1.14, 1.06], 10, 8)
+  else {
+    // sculpted face: brow, eye sockets, nose, cheekbones, lips and chin; the scout's balaclava leaves only the eyes
+    const ey = kind === "scout" ? 0.187 : 0.166, eyeU = (sx: number) => new THREE.Vector3(sx * 0.36, (ey - 0.17) / 0.117, -0.93).normalize()
+    const skin = new THREE.Color(P.skin), lip = new THREE.Color(0x7a4a3e), shade = new THREE.Color(P.skin).multiplyScalar(0.62), stubble = new THREE.Color(P.skin).multiplyScalar(0.78).lerp(new THREE.Color(0x3a3530), 0.25)
+    const bump = (u: THREE.Vector3, x: number, y: number, z: number, rad: number) => { const l = Math.hypot(x, y, z), a = Math.acos(Math.max(-1, Math.min(1, (u.x * x + u.y * y + u.z * z) / l))), k = 1 - a / rad; return k > 0 ? k * k * (3 - 2 * k) : 0 }
+    b.sculpt([0, 0.17, -0.005], [0.103, 0.117, 0.109], face, (u, c) => {
+      const front = -u.z
+      let d = 0, st: number | undefined
+      for (const sx of [-1, 1]) {
+        const k = bump(u, ...eyeU(sx).toArray() as [number, number, number], 0.24)
+        d -= 0.07 * k; if (kind === "scout") { if (k > 0) { c.copy(skin).lerp(shade, k * 0.7); st = SURF.skin } } else c.lerp(shade, k * 0.45)
+        d += 0.045 * bump(u, sx * 0.55, -0.32, -0.77, 0.3)
+      }
+      if (front > 0.5) d += 0.05 * Math.exp(-((u.y - (ey - 0.17) / 0.117 - 0.2) ** 2) / 0.006) * Math.max(0, 1 - Math.abs(u.x) / 0.62)
+      if (front > 0.72 && Math.abs(u.x) < 0.13) { const t = Math.max(0, Math.min(1, ((ey - 0.17) / 0.117 - u.y) / 0.42)), w = 1 - Math.abs(u.x) / (0.06 + 0.08 * t); if (w > 0 && u.y > -0.5) d += (0.03 + 0.13 * t) * w }
+      if (kind !== "scout") {
+        const mk = bump(u, 0, -0.62, -0.79, 0.22)
+        if (mk > 0) { d += 0.02 * mk; c.lerp(lip, Math.min(1, mk * 1.4) * (Math.abs(u.y + 0.62) < 0.05 ? 1 : 0.55)) }
+        if (u.y < -0.45 && front > 0.2) c.lerp(stubble, 0.35)
+        d += 0.05 * bump(u, 0, -0.9, -0.45, 0.35)
+      }
+      return [d, st]
+    })
     for (const sx of [-1, 1]) {
-      b.sph(0.0125, 0xe8e2d6, [sx * 0.036, ey, -0.101], [1, 0.75, 0.6], 8, 6)
-      b.sph(0.0065, 0x2a2018, [sx * 0.036, ey, -0.108], [1, 1, 0.5], 6, 5)
-      if (kind !== "scout") b.hard(0.034, 0.008, 0.012, 0x3a2a1e, [sx * 0.037, ey + 0.017, -0.106], [0.15, 0, sx * -0.12])
+      const e = eyeU(sx), p = new THREE.Vector3(e.x * 0.103 * 0.95, 0.17 + e.y * 0.117 * 0.95, -0.005 + e.z * 0.109 * 0.95)
+      b.sph(0.0125, 0xe8e2d6, [p.x, p.y, p.z], [1, 0.72, 0.6], 8, 6)
+      b.sph(0.0068, 0x3a2a1a, [p.x, p.y, p.z - 0.006], [1, 1, 0.5], 6, 5)
+      if (kind !== "scout") b.hard(0.034, 0.008, 0.012, 0x3a2a1e, [sx * 0.037, ey + 0.019, -0.107], [0.15, 0, sx * -0.12])
     }
-    if (kind !== "scout") {
-      b.sph(0.05, face, [0, 0.112, -0.062], [1.15, 0.7, 0.9], 10, 7)
-      b.hard(0.034, 0.006, 0.01, 0x6a3e30, [0, 0.122, -0.108])
-      b.sph(0.024, face, [-0.07, 0.148, -0.078], [0.8, 0.85, 0.6], 7, 5); b.sph(0.024, face, [0.07, 0.148, -0.078], [0.8, 0.85, 0.6], 7, 5)
-    }
+    b.sph(0.022, face, [-0.104, 0.165, 0.004], [0.45, 1.1, 0.85], 8, 6); b.sph(0.022, face, [0.104, 0.165, 0.004], [0.45, 1.1, 0.85], 8, 6)
   }
   if (kind === "rifleman") {
     b.sph(0.128, P.helmet, [0, 0.2, 0.012], [1, 0.92, 1.08], 12, 6, Math.PI * 0.5)
@@ -240,7 +356,8 @@ function buildHead(kind: EnemyKind): THREE.BufferGeometry {
 function buildUpperArm(kind: EnemyKind, side: -1 | 1): THREE.BufferGeometry {
   const P = PAL[kind], b = new Parts(), t = kind === "heavy" ? 1.15 : 1
   b.sph(0.064 * t, P.fabric, [0, -0.015, 0])
-  b.cyl(0.056 * t, 0.048 * t, 0.29, P.fabric, [0, -0.15, 0])
+  b.loft([{ y: 0.0, w: 0.059 * t, d: 0.058 * t }, { y: -0.06, w: 0.061 * t, d: 0.057 * t }, { y: -0.15, w: 0.054 * t, d: 0.052 * t, z: -0.003 }, { y: -0.25, w: 0.048 * t, d: 0.047 * t }, { y: -0.3, w: 0.046 * t, d: 0.046 * t }],
+    P.fabric, 16, { deform: (a, y) => (y < -0.22 ? 0.004 * Math.sin(a * 4 + y * 140) : 0.0015 * Math.sin(a * 7 + y * 50)) })
   if (kind !== "scout") b.box(0.06, 0.07, 0.025, P.pads, [0, -0.285, 0.05])
   if (kind === "rifleman") b.box(0.012, 0.05, 0.07, side < 0 ? 0x6d6448 : P.accent, [side * 0.057, -0.08, 0])
   if (kind === "heavy") {
@@ -254,17 +371,18 @@ function buildUpperArm(kind: EnemyKind, side: -1 | 1): THREE.BufferGeometry {
 
 function buildForearm(kind: EnemyKind, side: -1 | 1): THREE.BufferGeometry {
   const P = PAL[kind], b = new Parts(), t = kind === "heavy" ? 1.12 : 1
-  b.cyl(0.047 * t, 0.04 * t, 0.24, P.fabric, [0, -0.12, 0])
-  b.cyl(0.044, 0.044, 0.04, P.gloves, [0, -0.245, 0])
-  b.box(0.072, 0.095, 0.05, P.gloves, [0, -0.3, 0])
-  b.box(0.025, 0.05, 0.025, P.gloves, [-side * 0.04, -0.27, -0.02], [0, 0, -side * 0.4])
+  b.loft([{ y: 0.01, w: 0.048 * t, d: 0.047 * t }, { y: -0.07, w: 0.05 * t, d: 0.048 * t }, { y: -0.17, w: 0.043 * t, d: 0.041 * t }, { y: -0.232, w: 0.041 * t, d: 0.04 * t }],
+    P.fabric, 16, { deform: (a, y) => (y > -0.1 ? 0.004 * Math.sin(a * 5 + y * 120) : 0) })
+  b.loft([{ y: -0.222, w: 0.044, d: 0.043 }, { y: -0.245, w: 0.043, d: 0.042 }, { y: -0.262, w: 0.038, d: 0.034 }], P.gloves, 14)
+  b.glove(-0.26, P.gloves, side)
   if (kind === "heavy") b.box(0.085, 0.16, 0.075, P.gear, [0, -0.12, 0])
   return b.build()
 }
 
 function buildThigh(kind: EnemyKind, side: -1 | 1): THREE.BufferGeometry {
   const P = PAL[kind], b = new Parts(), t = kind === "heavy" ? 1.1 : 1
-  b.cyl(0.08 * t, 0.062 * t, 0.43, P.pants, [0, -0.215, 0])
+  b.loft([{ y: 0.0, w: 0.082 * t, d: 0.08 * t }, { y: -0.1, w: 0.08 * t, d: 0.079 * t, z: -0.004 }, { y: -0.25, w: 0.07 * t, d: 0.068 * t }, { y: -0.38, w: 0.063 * t, d: 0.062 * t }, { y: -0.435, w: 0.06 * t, d: 0.06 * t }],
+    P.pants, 18, { deform: (a, y) => 0.003 * Math.sin(a * 5 + y * 52) + (y < -0.36 ? 0.004 * Math.sin(a * 3 + y * 150) : 0) })
   b.box(0.035, 0.11, 0.09, P.pouch, [side * 0.074 * t, -0.2, 0])
   if (kind === "rifleman" && side > 0) {
     b.box(0.045, 0.15, 0.075, P.strap, [0.088, -0.13, 0])
@@ -280,7 +398,8 @@ function buildThigh(kind: EnemyKind, side: -1 | 1): THREE.BufferGeometry {
 
 function buildShin(kind: EnemyKind, side: -1 | 1): THREE.BufferGeometry {
   const P = PAL[kind], b = new Parts(), t = kind === "heavy" ? 1.1 : 1
-  b.cyl(0.06 * t, 0.047 * t, 0.42, P.pants, [0, -0.21, 0])
+  b.loft([{ y: 0.0, w: 0.06 * t, d: 0.06 * t }, { y: -0.12, w: 0.058 * t, d: 0.062 * t, z: 0.006 }, { y: -0.26, w: 0.05 * t, d: 0.05 * t }, { y: -0.335, w: 0.05 * t, d: 0.05 * t }],
+    P.pants, 16, { deform: (a, y) => 0.0026 * Math.sin(a * 6 + y * 60) + (y < -0.27 ? 0.004 * Math.sin(a * 4 + y * 200) : 0) })
   b.box(kind === "scout" ? 0.075 : 0.09, 0.1, 0.035, P.pads, [0, -0.025, -0.066], [-0.1, 0, 0])
   b.cyl(0.054 * t, 0.056 * t, 0.1, P.boots, [0, -0.37, 0])
   if (kind === "heavy") b.box(0.09, 0.22, 0.03, P.gear, [0, -0.2, -0.058])
@@ -290,9 +409,12 @@ function buildShin(kind: EnemyKind, side: -1 | 1): THREE.BufferGeometry {
 
 function buildBoot(kind: EnemyKind): THREE.BufferGeometry {
   const P = PAL[kind], b = new Parts(), t = kind === "heavy" ? 1.08 : 1
-  b.box(0.1 * t, 0.085, 0.24, P.boots, [0, -0.04, -0.05])
+  b.box(0.1 * t, 0.08, 0.2, P.boots, [0, -0.038, -0.03])
+  b.sph(0.05 * t, P.boots, [0, -0.045, -0.13], [1, 0.75, 1.15], 12, 8)
   b.box(0.106 * t, 0.022, 0.255, P.dark, [0, -0.079, -0.052])
-  b.box(0.09 * t, 0.045, 0.06, P.boots, [0, -0.025, -0.15], [0.35, 0, 0])
+  for (let i = 0; i < 6; i++) b.hard(0.104 * t, 0.006, 0.012, 0x0c0c0b, [0, -0.0905, -0.16 + i * 0.044])
+  for (let i = 0; i < 4; i++) b.hard(0.05, 0.006, 0.008, 0x3a3a34, [0, 0.0 - i * 0.014, -0.085 + i * 0.012], [0.5, 0, 0])
+  b.box(0.104 * t, 0.025, 0.07, P.dark, [0, -0.06, -0.165], [0.35, 0, 0])
   return b.build()
 }
 
@@ -450,6 +572,7 @@ export function releaseSoldierAssets(): void {
 function buildAssets(): SoldierAssets {
   const kinds = {} as Record<EnemyKind, KindAssets>
   for (const kind of ["scout", "rifleman", "heavy", "marksman"] as EnemyKind[]) {
+    classifySoldier(PAL[kind])
     const chest = buildChest(kind), scale = KIND_SCALE[kind], bb = chest.boundingBox!
     kinds[kind] = {
       pelvis: buildPelvis(kind), chest, head: buildHead(kind),
@@ -725,6 +848,7 @@ export class SoldierModel {
         .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\ntotalEmissiveRadiance += diffuseColor.rgb * vGlow * uGlow + vec3(0.36, 0.06, 0.035) * uFlash * uFlash;")
     }
     this.material.customProgramCacheKey = () => "iv-soldier-1"
+    withSurface(this.material, { scale: 26, bump: 0.0016, grime: 0.4, mottle: 0.22, wear: 0.55, weave: 0.8, rough: 0.15, camo: kind === "heavy" ? 0 : 0.85, type: SURF.fabric })
 
     const mesh = (geo: THREE.BufferGeometry, name: string) => {
       const m = new THREE.Mesh(geo, this.material); m.name = name; m.castShadow = true; m.receiveShadow = true; return m

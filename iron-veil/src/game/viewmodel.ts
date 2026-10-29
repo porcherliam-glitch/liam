@@ -13,6 +13,7 @@ import * as THREE from "three"
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js"
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js"
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js"
+import { SURF, withSurface } from "./surface"
 import type { ItemId } from "./items"
 import { effectiveWeapon, type WeaponId, type WeaponMods } from "./weaponData"
 import { buildHandItem, buildWeaponRig, type HandItem, type Hold, type WeaponRig } from "./weaponModels"
@@ -432,8 +433,8 @@ export class ViewModel {
     this.scene.add(this.holder)
     const camo = camoTexture()
     this.armMats = {
-      sleeve: new THREE.MeshStandardMaterial({ color: camo ? 0xffffff : 0x4f5642, map: camo, roughness: 0.95, metalness: 0 }),
-      glove: new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.84, metalness: 0.02, vertexColors: true }),
+      sleeve: withSurface(new THREE.MeshStandardMaterial({ color: camo ? 0xffffff : 0x4f5642, map: camo, roughness: 0.95, metalness: 0 }), { scale: 40, bump: 0.0005, grime: 0.3, mottle: 0.1, weave: 1, rough: 0.05, type: SURF.fabric }),
+      glove: withSurface(new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.84, metalness: 0.02, vertexColors: true }), { scale: 90, bump: 0.00028, grime: 0.35, mottle: 0.15, weave: 1, rough: 0.12, type: SURF.fabric }),
     }
     this.armR = new Arm(false, this.armMats, this.handCache); this.armL = new Arm(true, this.armMats, this.handCache)
     this.scene.add(this.armR.group, this.armL.group)

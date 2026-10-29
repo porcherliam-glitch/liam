@@ -8,6 +8,7 @@
 import * as THREE from "three"
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js"
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js"
+import { SURF, withSurface } from "./surface"
 import { WEAPONS, canAttach, type AttachmentId, type AttachmentSlot, type WeaponClass, type WeaponId, type WeaponMods } from "./weaponData"
 
 // ───────────────────────────── materials ─────────────────────────────
@@ -28,6 +29,12 @@ const SOLID: Partial<Record<MatName, [number, number, number, number]>> = {
 }
 
 export type WeaponMaterials = Record<MatName, THREE.Material>
+/** Surface detail type per weapon material (surface.ts). */
+const SURFACE_OF: Partial<Record<MatName, number>> = {
+  steel: SURF.metal, steelDark: SURF.metal, steelLight: SURF.metal, stainless: SURF.metal, alu: SURF.metal, blade: SURF.metal, bladeEdge: SURF.metal, brass: SURF.metal, copper: SURF.metal, tin: SURF.metal,
+  polymer: SURF.polymer, polyGrey: SURF.polymer, od: SURF.polymer, tan: SURF.polymer, plum: SURF.polymer, rubber: SURF.polymer, paintRed: SURF.paint, shellRed: SURF.polymer,
+  wood: SURF.wood, woodLight: SURF.wood, cloth: SURF.fabric, cream: SURF.fabric,
+}
 const materialCache: Partial<Record<"vm" | "world", WeaponMaterials>> = {}
 
 /** Shared weapon materials. "vm" expects an environment map (viewmodel scene); "world" is tuned for plain lights. */
@@ -37,7 +44,8 @@ export function weaponMaterials(kind: "vm" | "world" = "vm"): WeaponMaterials {
   const out = {} as WeaponMaterials
   for (const [name, def] of Object.entries(SOLID) as [MatName, [number, number, number, number]][]) {
     const color = new THREE.Color(def[0]); if (world) color.multiplyScalar(1.3)
-    out[name] = new THREE.MeshStandardMaterial({ color, roughness: world ? Math.max(0.5, def[1]) : def[1], metalness: world ? def[2] * 0.35 : def[2], vertexColors: true })
+    out[name] = withSurface(new THREE.MeshStandardMaterial({ color, roughness: world ? Math.max(0.5, def[1]) : def[1], metalness: world ? def[2] * 0.35 : def[2], vertexColors: true }),
+      { scale: 70, bump: 0.00035, grime: 0.3, mottle: 0.12, wear: 0.5, weave: 0.6, rough: 0.12, type: SURFACE_OF[name] ?? SURF.paint })
   }
   out.glass = new THREE.MeshStandardMaterial({ color: 0xa8c8ff, roughness: 0.05, metalness: 1, transparent: true, opacity: 0.16, depthWrite: false, vertexColors: true })
   out.lens = new THREE.MeshStandardMaterial({ color: 0x2a3a6a, roughness: 0.06, metalness: 1, emissive: 0x1c0f3a, emissiveIntensity: 0.8, transparent: true, opacity: 0.62, depthWrite: false, vertexColors: true })

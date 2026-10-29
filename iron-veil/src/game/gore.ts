@@ -35,6 +35,7 @@
  *  - Additions: random (seedable RNG), stats(), and the pure helpers GibBody/stepGib/heartbeat/Ring/buildAtlasData.
  */
 import * as THREE from "three"
+import { SURF, withSurface } from "./surface"
 import { rayBox, type CollisionWorld, type Obstacle } from "./collision"
 import type { Vec3 } from "./types"
 
@@ -775,7 +776,7 @@ export class GoreSystem {
   private emitters: Emitter[] = []
   private caps: (THREE.Mesh | null)[] = new Array(MAX_CAPS).fill(null)
   private capRing = new Ring(MAX_CAPS)
-  private chunkMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.34, metalness: 0 })
+  private chunkMat = withSurface(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.34, metalness: 0 }), { scale: 70, bump: 0.0008, grime: 0.2, mottle: 0.35, rough: 0.2, type: SURF.wet })
   private capMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.3, metalness: 0, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -1 })
   private capGeo = capGeo()
   private chunks: Record<ChunkKind, THREE.BufferGeometry[]>
