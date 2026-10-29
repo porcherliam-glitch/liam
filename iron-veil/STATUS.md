@@ -25,7 +25,7 @@ Stand: 29.10.2026, Version 0.4 (Überlebende und Online).
   - Infizierte: geformte Gesichter (Augenhöhlen, Brauen, Nase, Wangenknochen, Kiefer), Wunden als echte Krater mit Blutspuren, Muskeln, Rippen und Wirbelsäule, Hände mit Fingergelenken und Krallen.
   - Söldner: geformte Körper und Gesichter, Tarnmuster, Handschuhe mit Fingern, Stiefel mit Profil und Schnürung, Magazine, Gurtbänder, Granaten.
   - Schablonen-Schriften auf Kisten, Waffenkoffern, Medizinschränken und dem Versorgungsabwurf.
-- **Andere Überlebende** (29.10.2026): Lager auf dem Schulhof mit Händlerin, Sanitäterin und Wache; verirrte und verletzte Überlebende zum Mitnehmen, Verbinden und Retten; Gerettete ziehen in die Basis; Infizierte beißen Überlebende, Fliehende locken sie mit Schreien an. Neue zivile Figuren (Jacke, Kapuzenpulli, Kittel mit Mundschutz).
+- **Andere Überlebende** (29.10.2026): Lager auf dem Schulhof mit Händlerin, Sanitäterin und Wache; verirrte und verletzte Überlebende zum Mitnehmen, Verbinden und Retten; Gerettete ziehen in die Basis und laufen dort herum (ansprechbar mit E); Hilferufe und das Lager auf Kompass und Karte; Infizierte beißen Überlebende, Fliehende locken sie mit Schreien an. Neue zivile Figuren (Jacke, Kapuzenpulli, Kittel mit Mundschutz).
 - **Online** (29.10.2026, nur als claude.ai-Artefakt): wer gerade spielt, Echos anderer Spieler in der Zone und auf der Karte, Funk (Enter im Einsatz) mit automatischen Meldungen, Bestenliste, Ausrüstung gefallener Spieler in fremden Einsätzen. Fremde Daten werden bereinigt und nur als Text gezeigt. Ohne claude.ai läuft alles offline.
 - **Tests**: 188 Logik-Tests grün; Browser-Prüfungen für Hauptablauf, Systeme, Sonderfälle, Controller und Online (mit simuliertem zweiten Spieler).
 

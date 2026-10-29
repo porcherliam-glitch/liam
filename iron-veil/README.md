@@ -54,7 +54,7 @@ Wer stirbt, abbricht, die Seite neu lädt oder zu lange braucht, verliert alles 
 
 ### Andere Überlebende
 
-In der Zone leben noch Menschen. Im **Lager auf dem Schulhof** am Lagerfeuer gibt es eine **Händlerin** (kauft und verkauft mitten im Einsatz), eine **Sanitäterin** (heilt gegen Geld, auch Infektion) und eine **Wache**, die auf Infizierte schießt und verrät, welcher Ausgang am nächsten ist. Überall in ruhigeren Stadtteilen verstecken sich **verirrte** und **verletzte** Überlebende: Mit **E** nehmen Sie sie mit oder lassen sie warten, Verletzte brauchen erst einen Verband (E halten). Wer mit Ihnen eine Extraktion erreicht, zieht in Ihre Basis (mehr Personal, 150 $ pro Person). Infizierte beißen Überlebende; wer flieht, schreit – und lockt sie an.
+In der Zone leben noch Menschen. Im **Lager auf dem Schulhof** am Lagerfeuer gibt es eine **Händlerin** (kauft und verkauft mitten im Einsatz), eine **Sanitäterin** (heilt gegen Geld, auch Infektion) und eine **Wache**, die auf Infizierte schießt und verrät, welcher Ausgang am nächsten ist. Überall in ruhigeren Stadtteilen verstecken sich **verirrte** und **verletzte** Überlebende: Mit **E** nehmen Sie sie mit oder lassen sie warten, Verletzte brauchen erst einen Verband (E halten). Wer um Hilfe ruft, erscheint als gelbe Figur auf dem Kompass und als „!“ auf der Karte; das Lager ist mit H, + und W eingezeichnet. Wer mit Ihnen eine Extraktion erreicht, zieht in Ihre Basis (mehr Personal, 150 $ pro Person) und läuft dort herum – mit **E** können Sie mit den Bewohnern reden. Infizierte beißen Überlebende; wer flieht, schreit – und lockt sie an.
 
 ### Online
 
@@ -63,7 +63,7 @@ Läuft das Spiel als claude.ai-Artefakt, ist die Zone nicht mehr leer:
 - **Menüpunkt ONLINE**: wer gerade da ist (im Menü, in der Basis, in der Zone), eine **Bestenliste** (verdient, Infizierte, Gerettete, bester Einsatz) und der **Funk** an alle.
 - **Echos**: Andere Spieler in der Zone erscheinen als Figur mit Namensschild und als blaue Punkte auf der Karte. Jeder spielt seine eigene Zone – Echos kann man nicht treffen und sie nehmen einem nichts weg.
 - **Funk**: Im Einsatz mit **Enter** eine Nachricht an alle schreiben. Extraktionen, Tode, Rettungen und gehaltene Basen werden automatisch gemeldet.
-- **Ausrüstung Gefallener**: Wer in der Zone stirbt, hinterlässt seine wertvollste Ausrüstung an der Stelle. Andere Spieler finden diese Tasche („Ausrüstung von …“) in ihren nächsten Einsätzen – jede Tasche einmal pro Browser.
+- **Ausrüstung Gefallener**: Wer in der Zone stirbt, hinterlässt seine wertvollste Ausrüstung an der Stelle. Andere Spieler finden diese Tasche („Ausrüstung von …“, blaues Kreuz auf Kompass und Karte) in ihren nächsten Einsätzen – jede Tasche einmal pro Browser.
 
 Schreiben dürfen Personen, mit denen das Artefakt mindestens als „Contributor“ geteilt ist; reine Betrachter sehen alles, senden aber nichts. Der eigene Spielstand bleibt im eigenen Browser.
 
