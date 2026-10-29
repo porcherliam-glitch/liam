@@ -123,8 +123,9 @@ export function emitDecals(ctx: BuildCtx, rects: Map<string, { u0: number; v0: n
   const b = ctx.B("decal")
   for (const d of ctx.decals) {
     const r0 = rects.get(d.key); if (!r0) continue
-    // painted lines: sample the middle of the cell only (no bleeding of neighbouring atlas cells at grazing angles)
-    const r = d.key === "paint" ? { u0: r0.u0 + (r0.u1 - r0.u0) * 0.3, u1: r0.u1 - (r0.u1 - r0.u0) * 0.3, v0: r0.v0 + (r0.v1 - r0.v0) * 0.3, v1: r0.v1 - (r0.v1 - r0.v0) * 0.3 } : r0
+    // painted lines: sample the middle of the cell only (no bleeding of neighbouring atlas cells at grazing angles,
+    // and the wear pattern is not stretched into streaks along long dashes)
+    const r = d.key === "paint" ? { u0: r0.u0 + (r0.u1 - r0.u0) * 0.4, u1: r0.u1 - (r0.u1 - r0.u0) * 0.4, v0: r0.v0 + (r0.v1 - r0.v0) * 0.4, v1: r0.v1 - (r0.v1 - r0.v0) * 0.4 } : r0
     const c = new THREE.Color(d.color), hw = d.w / 2, o = 0.025
     const uv = [r.u0, r.v0, r.u1, r.v0, r.u1, r.v1, r.u0, r.v1]
     if (d.face === "up") {
@@ -552,7 +553,7 @@ export function buildProp(ctx: BuildCtx, p: MapProp): void {
       }
       return
     }
-    case "line": decal(ctx, "paint", p.x, 0, p.z, Math.abs(p.w ?? 1), Math.abs(p.d ?? 1), "up", p.tint ?? 0xe8e4d8); return
+    case "line": decal(ctx, "paint", p.x, 0, p.z, Math.abs(p.w ?? 1), Math.abs(p.d ?? 1), "up", p.tint ?? 0xd4d0c6); return
     case "rail": {
       const len = p.d ?? 100
       for (const dx of [-0.42, 0.42]) decal(ctx, "paint", p.x + dx, 0, p.z, 0.09, len, "up", 0x5e6064)

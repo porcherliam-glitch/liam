@@ -337,9 +337,9 @@ export class Draft {
   }
 
   /** Painted road line (flat). */
-  line(x0: number, z0: number, x1: number, z1: number, tint = 0xe8e4d8): void { this.prop("line", (x0 + x1) / 2, (z0 + z1) / 2, { w: x1 - x0, d: z1 - z0, tint }) }
+  line(x0: number, z0: number, x1: number, z1: number, tint = 0xd4d0c6): void { this.prop("line", (x0 + x1) / 2, (z0 + z1) / 2, { w: x1 - x0, d: z1 - z0, tint }) }
   /** Dashed line along an axis. */
-  dashed(x0: number, z0: number, x1: number, z1: number, width: number, dash: number, gap: number, tint = 0xe8e4d8): void {
+  dashed(x0: number, z0: number, x1: number, z1: number, width: number, dash: number, gap: number, tint = 0xd4d0c6): void {
     const alongX = Math.abs(z0 - z1) < 1e-6
     const s0 = alongX ? x0 : z0, s1 = alongX ? x1 : z1
     for (let s = s0; s + dash <= s1 + 1e-6; s += dash + gap) {

@@ -3,6 +3,8 @@
  * ready, red = called), vertical light beam, red smoke flare (GPU particles); helicopter zones get a painted pad and
  * a detailed helicopter that approaches/descends with the hold progress and lifts off when done; the boat zone gets a
  * patrol boat that comes up the harbour basin from the sea and leaves again. No per-frame allocations in update().
+ * Everything starts visible (vehicles parked far below the ground) so renderer.compile() right after createWorld
+ * builds every shader; the first update() applies the real states and hides what is not in use.
  */
 import * as THREE from "three"
 import { GeoBatch, GlowBatch, coneMaterial, raw, type FxUniforms } from "./meshkit"
@@ -79,7 +81,6 @@ export function createExtractions(list: readonly ExtractionPoint[], b: Bounds, f
     const o = e.kind === "boat" ? new THREE.Vector2(0.18, 1) : new THREE.Vector2(e.x - cx, e.z - cz); if (o.lengthSq() < 1) o.set(1, 0); o.normalize()
     const z: Zone = { e, group: g, pad, padMat, ring, ringU, beam, beamU, beacons, smoke, smokeU, flare, state: "hidden", progress: 0, since: 0, dirty: true, out: o }
     zones.set(e.id, z)
-    apply(z)
   }
 
   function apply(z: Zone): void {
@@ -133,7 +134,7 @@ export function createExtractions(list: readonly ExtractionPoint[], b: Bounds, f
 // Helicopter
 // ---------------------------------------------------------------------------------------------------------------
 function createHelicopter(fx: FxUniforms, night: number, disposables: Array<{ dispose(): void }>) {
-  const group = new THREE.Group(); group.name = "Hubschrauber"; group.visible = false
+  const group = new THREE.Group(); group.name = "Hubschrauber"; group.position.y = -400
   const body = new GeoBatch()
   const m = new THREE.Matrix4(), e = new THREE.Euler(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3()
   const olive = 0x3c4237, dark = 0x22262a, glass = 0x1b2633, stripe = 0xc9a227
@@ -193,7 +194,7 @@ function createHelicopter(fx: FxUniforms, night: number, disposables: Array<{ di
   const dustGeo = new THREE.CircleGeometry(14, 48); dustGeo.rotateX(-Math.PI / 2)
   const dustMat = new THREE.ShaderMaterial({ uniforms: dustU, vertexShader: RING_VS, fragmentShader: DUST_FS, transparent: true, depthWrite: false, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -5, polygonOffsetUnits: -5 })
   disposables.push(dustGeo, dustMat)
-  const dust = new THREE.Mesh(dustGeo, dustMat); dust.renderOrder = 3; dust.visible = false
+  const dust = new THREE.Mesh(dustGeo, dustMat); dust.renderOrder = 3; group.add(dust)
 
   const start = new THREE.Vector3(), hover = new THREE.Vector3()
   let attached: Zone | null = null
@@ -251,7 +252,7 @@ function createHelicopter(fx: FxUniforms, night: number, disposables: Array<{ di
 // Patrol boat (boat exfil): comes in along the zone's approach vector (from the sea), docks beside the quay, leaves
 // ---------------------------------------------------------------------------------------------------------------
 function createBoat(fx: FxUniforms, night: number, disposables: Array<{ dispose(): void }>) {
-  const group = new THREE.Group(); group.name = "Boot"; group.visible = false
+  const group = new THREE.Group(); group.name = "Boot"; group.position.y = -400
   const b = new GeoBatch()
   const hull = 0x2e3a44, deck = 0x5a5e58, cabin = 0xd8d6cc, stripe = 0xc9a227
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = new THREE.Vector3(), p = new THREE.Vector3(), e = new THREE.Euler()
