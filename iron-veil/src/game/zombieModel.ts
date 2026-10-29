@@ -94,7 +94,7 @@ interface Look {
 
 const C = {
   wound: 0x84170f, flesh: 0xa53a26, blood: 0x6a120b, gore: 0x3c0806, bone: 0xd8cfae, teeth: 0xcdbd8c, dark: 0x0e0504, nail: 0x2a2018, gut: 0xa65a55,
-  plate: 0xc8bd9c, muscle: 0x8a3027, bile: 0x9aa457, sac: 0xa9b35e, acid: 0x9cff52, weak: 0xffa236,
+  plate: 0xb8a988, muscle: 0x8a3027, bile: 0x9aa457, sac: 0xa9b35e, acid: 0x9cff52, weak: 0xffa236,
 }
 const SKINS = [0x9aa18a, 0x8a9a76, 0xa8a38c, 0x7f8a6e, 0x9c9894, 0x8a826e, 0x93907c]
 const EYES: Record<InfectedKind, number> = { walker: 0xf2e7a6, runner: 0xff7a3a, screamer: 0xe6f0ff, spitter: 0xbdff6a, stalker: 0x9fd8ff, crawler: 0xf2e7a6, brute: 0xffb24a, boss: 0xff8a1e }
@@ -261,6 +261,13 @@ export class GeoBuilder {
   blob(x: number, y: number, z: number, rx: number, ry: number, rz: number, color: number, ex = 0, ey = 0, ez = 0, glow = 0): this {
     _m.compose(_p.set(x, y, z), _q.setFromEuler(_e.set(ex, ey, ez)), _s.set(rx, ry, rz)); return this.add(DETAIL < 1 ? TPL.ballLo : TPL.ball, _m, color, glow, 0.12)
   }
+  /** Bony plate grown out of the flesh: raw rim where it breaks through, the plate, a weathered ridge (thinnest axis = surface normal). */
+  plate(x: number, y: number, z: number, rx: number, ry: number, rz: number, ex = 0, ey = 0, ez = 0): this {
+    const thin = Math.min(rx, ry, rz), n = (v: number, k: number, o: number) => v === thin ? v * k : v * o
+    this.blob(x, y, z, n(rx, 0.75, 1.13), n(ry, 0.75, 1.13), n(rz, 0.75, 1.13), 0x5c1810, ex, ey, ez)
+    this.blob(x, y, z, rx, ry, rz, C.plate, ex, ey, ez)
+    return this.blob(x, y, z, n(rx, 1.12, 0.5), n(ry, 1.12, 0.5), n(rz, 1.12, 0.5), 0x8a7a5c, ex, ey, ez)
+  }
   /** Wound on a surface: dark crater with a raw-flesh rim, oriented by the yaw/roll of the surface. */
   wound(x: number, y: number, z: number, size: number, ry: number, rz = 0): this {
     this.blob(x, y, z, size * 0.55, size * 0.45, size * 0.07, 0x6e1e14, 0, ry, rz)
@@ -389,10 +396,10 @@ function torsoSeg(kind: InfectedKind, S: BodySpec, L: Look, r: () => number): TH
     for (const sx of [-1, 1]) {
       g.ball(sx * s * 0.24, T * 0.7, F * cd * 0.72, s * 0.25, T * 0.18, cd * 0.42, L.skin)
       g.ball(sx * s * 0.3, T - 0.02, cd * 0.1, s * 0.28, T * 0.17, cd * 0.82, L.skin)
-      g.blob(sx * s * 0.42, T + 0.03, 0, s * 0.19, 0.055 * s, cd * 0.7, C.plate, 0.1, 0, sx * -0.35)
-      g.blob(sx * s * 0.36, T * 0.84, cd * 0.62, s * 0.16, 0.05 * s, cd * 0.42, C.plate, 0.6, 0, sx * -0.3)
+      g.plate(sx * s * 0.42, T + 0.03, 0, s * 0.19, 0.055 * s, cd * 0.7, 0.1, 0, sx * -0.35)
+      g.plate(sx * s * 0.36, T * 0.84, cd * 0.62, s * 0.16, 0.05 * s, cd * 0.42, 0.6, 0, sx * -0.3)
     }
-    for (let k = 0; k < 3; k++) g.blob(0, T * (0.35 + k * 0.2), cd * 0.96, s * (0.3 - k * 0.035), T * 0.1, 0.06 * s, C.plate, -0.25, 0, 0)
+    for (let k = 0; k < 3; k++) g.plate(0, T * (0.35 + k * 0.2), cd * 0.96, s * (0.3 - k * 0.035), T * 0.1, 0.06 * s, -0.25, 0, 0)
     g.ball(0, T * 0.36, F * cd * 0.78, ww * 0.85, T * 0.2, cd * 0.62, L.skin)
     for (let i = 0; i < 6; i++) g.lump(-s * 0.36 + r() * 0.14, T * (0.72 + r() * 0.22), F * cd * 0.4 + (r() - 0.5) * cd * 0.8, s * (0.06 + r() * 0.06), r() < 0.5 ? C.muscle : 0x8e6a5a)
     g.box(s * 0.12, T * 0.55, F * cd * 1.22, s * 0.24, T * 0.2, 0.03, C.muscle, 0, 0.2, 0.2).box(-s * 0.18, T * 0.5, F * cd * 1.2, s * 0.12, T * 0.12, 0.03, C.wound)
@@ -470,7 +477,7 @@ function headSeg(kind: InfectedKind, S: BodySpec, L: Look, r: () => number): THR
     }
   }
   if (big) {
-    g.blob(0, h * 1.62 * sy, h * 0.05, h * 0.82 * sx, h * 0.2, h * 0.85 * sz, C.plate, 0.15)
+    g.plate(0, h * 1.62 * sy, h * 0.05, h * 0.82 * sx, h * 0.2, h * 0.85 * sz, 0.15)
     for (const ex of [-1, 1]) g.spike(ex * h * 0.6, h * 1.5, h * 0.2, ex * h * 1.05, h * 2.1, h * 0.5, h * 0.18, C.bone)
   }
   if (kind === "screamer") g.box(0, h * 0.42 * sy, fz * 0.45, h * 0.95, h * 0.55, h * 0.8, C.dark) // huge throat opening
@@ -505,7 +512,7 @@ function armSegs(S: BodySpec, L: Look, side: number, r: () => number, kind: Infe
   ], 7)
   if (sleeveLen > 0) up.loft([{ y: 0.05, w: R * 1.18, d: R * 1.15, c: sleeve }, { y: -0.05, w: R * 1.4, d: R * 1.3, c: sleeve }, { y: -A * sleeveLen * 0.98, w: R * 1.15, d: R * 1.1, c: sleeve, jag: 0.05 }], 7, sleeveLen === 1 ? 0 : 0)
   up.wound(side * R * 0.95, -A * (0.3 + r() * 0.45), F * R * 0.2, R * 1.6, side * 1.25 + Math.PI / 2)
-  if (big) up.blob(side * R * 1.0, -A * 0.3, 0, R * 0.32, A * 0.3, R * 0.8, C.plate, 0, 0, side * 0.1)
+  if (big) up.plate(side * R * 1.0, -A * 0.3, 0, R * 0.32, A * 0.3, R * 0.8, 0, 0, side * 0.1)
   // forearm
   const club = S.club && side > 0
   fo.loft([
@@ -525,7 +532,7 @@ function armSegs(S: BodySpec, L: Look, side: number, r: () => number, kind: Infe
     fo.ball(0, -Fa - S.hand * 0.3, 0, Q * 1.9, S.hand * 0.9, Q * 1.8, C.plate)
     for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; fo.spike(Math.cos(a) * Q * 1.4, -Fa - S.hand * 0.3, Math.sin(a) * Q * 1.4, Math.cos(a) * Q * 2.6, -Fa - S.hand * 0.5, Math.sin(a) * Q * 2.6, Q * 0.35, C.bone) }
   } else if (big) {
-    fo.blob(side * Q, -Fa * 0.5, 0, Q * 0.34, Fa * 0.4, Q * 0.95, C.plate, 0, 0, side * 0.08)
+    fo.plate(side * Q, -Fa * 0.5, 0, Q * 0.34, Fa * 0.4, Q * 0.95, 0, 0, side * 0.08)
     fo.loft([{ y: hy + 0.02, w: Q * 1.05, d: Q * 0.85, c: L.skin }, { y: hy - S.hand * 0.55, w: Q * 1.2, d: Q * 0.95, c: dim(L.skin, 0.85) }, { y: hy - S.hand * 0.9, w: Q * 1.0, d: Q * 0.8, c: C.blood }], 7)
     for (let i = 0; i < 4; i++) {
       const x = (i - 1.5) * Q * 0.5
@@ -559,7 +566,7 @@ function legSegs(S: BodySpec, L: Look, side: number, r: () => number): [THREE.Bu
   ], 7)
   if (!fullPants) th.loft([{ y: 0.05, w: R * 1.15, d: R * 1.15, c: pants }, { y: -0.06, w: R * 1.32, d: R * 1.28, c: pants }, { y: -Th * (L.pants === "shorts" ? 0.45 : 0.25), w: R * 1.2, d: R * 1.15, c: pants, jag: 0.06 }], 7, 0)
   for (let i = 0; i < 2; i++) { const a = r() * Math.PI * 2; th.wound(Math.cos(a) * R * 0.95, -Th * (0.25 + r() * 0.5), Math.sin(a) * R * 0.95, R * 1.3, Math.atan2(Math.cos(a), Math.sin(a))) }
-  if (S.plates) th.blob(side * R * 0.95, -Th * 0.4, 0, R * 0.32, Th * 0.3, R * 0.85, C.plate, 0, 0, side * 0.08)
+  if (S.plates) th.plate(side * R * 0.95, -Th * 0.4, 0, R * 0.32, Th * 0.3, R * 0.85, 0, 0, side * 0.08)
   // shin + foot
   const torn = L.pants === "torn" ? 0.35 + r() * 0.35 : L.pants === "long" ? 1 : 0
   sh.loft([
@@ -578,7 +585,7 @@ function legSegs(S: BodySpec, L: Look, side: number, r: () => number): [THREE.Bu
     for (let i = 0; i < 4; i++) sh.box((i - 1.5) * Q * 0.5, fy - S.foot * 0.15, F * fl * 0.7, Q * 0.38, S.foot * 0.5, 0.035, C.nail)
     sh.box(0, fy + S.foot * 0.25, F * fl * 0.05, Q * 1.5, S.foot * 0.35, fl * 0.55, C.blood)
   }
-  if (S.plates) sh.blob(0, -Sh * 0.45, F * Q * 0.95, Q * 0.85, Sh * 0.34, Q * 0.32, C.plate, -0.05)
+  if (S.plates) sh.plate(0, -Sh * 0.45, F * Q * 0.95, Q * 0.85, Sh * 0.34, Q * 0.32, -0.05)
   return [th.build(), sh.build()]
 }
 
