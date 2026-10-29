@@ -1189,6 +1189,23 @@ export class RaidGame {
   private sfx(id: string, opts: { position?: Vec3; volume?: number; rate?: number } = {}): void { this.audio.play(id as SfxId, opts) }
   private key(k: string): string { return this.input.device === "pad" ? PAD_LABEL[k] ?? k : k }
   private say(text: string, seconds: number): void { this.message = text; this.messageTime = seconds }
+
+  /** Called once when the first raid runs too slowly on high quality (boot switches the setting to low). */
+  onSlow: (() => void) | null = null
+  private slow = { start: 0, frames: 0, done: false }
+  /** Measures the frame rate over 5 s, starting 4 s into a raid on high quality; below 24 fps the quality drops to low. */
+  private checkSlow(now: number): void {
+    const s = this.slow
+    if (s.done || this.mode !== "raid" || this.quality !== "high" || !this.onSlow) return
+    if (s.start === 0) { if (this.elapsed >= 4) { s.start = now; s.frames = 0 } return }
+    s.frames++
+    if (now - s.start < 5000) return
+    s.done = true
+    if (s.frames / ((now - s.start) / 1000) < 24) {
+      this.onSlow()
+      this.say("Grafik automatisch auf NIEDRIG gestellt, weil das Bild ruckelte · änderbar in den Einstellungen", 7)
+    }
+  }
   private showHint(key: string, text: string, seconds: number): void { if (this.hintsShown.has(key)) return; this.hintsShown.add(key); this.hint = text; this.hintTime = seconds }
   private updateHints(): void {
     if (this.company.profile.tutorialDone || this.mode !== "raid") return
@@ -1204,6 +1221,7 @@ export class RaidGame {
     const now = performance.now(), dt = Math.min(0.1, (now - this.lastRender) / 1000); this.lastRender = now
     this.fpsFrames++
     if (this.fpsTime >= 1) { this.fps = Math.round(this.fpsFrames / this.fpsTime); this.fpsFrames = 0; this.fpsTime = 0 }
+    this.checkSlow(now)
     const cam = this.camera, p = this.player
     if (this.mode === "menu" || (this.mode === "ended" && !this.kit)) {
       const b = this.world.layout.bounds, cx = (b.minX + b.maxX) / 2, cz = (b.minZ + b.maxZ) / 2, r = Math.max(b.maxX - b.minX, b.maxZ - b.minZ) * 0.55

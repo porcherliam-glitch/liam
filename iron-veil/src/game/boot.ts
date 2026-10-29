@@ -88,6 +88,8 @@ export function startGame(canvas: HTMLCanvasElement, uiHost: HTMLElement): void 
   })
   const game = raid
   game.screenBlood = amount => ui.hud.splatter(amount)
+  // the first raid stutters on high quality: drop to low once and remember it
+  game.onSlow = () => { if (settings.quality !== "high") return; settings.quality = "low"; saveSettings(settings); game.applySettings(settings) }
   if (recovered) ui.notify(recovered)
   // icons are rendered from the 3D models; prepare them while the player looks at the menu
   window.setTimeout(() => warmIcons(ITEM_IDS), 1500)
