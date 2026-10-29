@@ -140,10 +140,12 @@ function makeLook(kind: InfectedKind, r: () => number): Look {
 
 const TPL = {
   box: new THREE.BoxGeometry(1, 1, 1),
-  ball: new THREE.SphereGeometry(1, 8, 6),
-  ballLo: new THREE.SphereGeometry(1, 6, 4),
-  ico: new THREE.IcosahedronGeometry(1, 0),
+  ball: new THREE.SphereGeometry(1, 12, 8),
+  ballLo: new THREE.SphereGeometry(1, 8, 6),
+  ico: new THREE.IcosahedronGeometry(1, 1),
 }
+/** Geometry detail while building (1 = close-up rig, ~0.45 = distant LOD bake). */
+let DETAIL = 1
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _s = new THREE.Vector3(), _p = new THREE.Vector3()
 const _v = new THREE.Vector3(), _n = new THREE.Vector3(), _nm = new THREE.Matrix3(), _c = new THREE.Color(), _up = new THREE.Vector3(0, 1, 0)
 
@@ -200,7 +202,7 @@ export class GeoBuilder {
     _m.compose(_p.set(x, y, z), _q.setFromEuler(_e.set(rx, ry, rz)), _s.set(w, h, d)); return this.add(TPL.box, _m, color, glow)
   }
   ball(x: number, y: number, z: number, rx: number, ry: number, rz: number, color: number, glow = 0, lo = false, rotX = 0, rotZ = 0): this {
-    _m.compose(_p.set(x, y, z), _q.setFromEuler(_e.set(rotX, 0, rotZ)), _s.set(rx, ry, rz)); return this.add(lo ? TPL.ballLo : TPL.ball, _m, color, glow)
+    _m.compose(_p.set(x, y, z), _q.setFromEuler(_e.set(rotX, 0, rotZ)), _s.set(rx, ry, rz)); return this.add(lo || DETAIL < 1 ? TPL.ballLo : TPL.ball, _m, color, glow)
   }
   lump(x: number, y: number, z: number, r: number, color: number, glow = 0): this {
     _m.compose(_p.set(x, y, z), _q.setFromEuler(_e.set(x * 7, y * 5, z * 3)), _s.set(r, r * 0.85, r)); return this.add(TPL.ico, _m, color, glow, 0.14)
@@ -209,7 +211,7 @@ export class GeoBuilder {
   tube(ax: number, ay: number, az: number, bx: number, by: number, bz: number, r0: number, r1: number, color: number, segs = 6, depth = 1, glow = 0): this {
     const dx = bx - ax, dy = by - ay, dz = bz - az, len = Math.hypot(dx, dy, dz)
     if (len < 1e-5) return this
-    const g = new THREE.CylinderGeometry(r1, r0, len, segs, 1, false)
+    const g = new THREE.CylinderGeometry(r1, r0, len, Math.max(DETAIL < 1 ? 4 : 6, Math.round(segs * 1.5 * DETAIL)), 1, false)
     if (depth !== 1) g.scale(1, 1, depth)
     _q.setFromUnitVectors(_up, _v.set(dx / len, dy / len, dz / len))
     _m.compose(_p.set(ax + dx / 2, ay + dy / 2, az + dz / 2), _q, _s.set(1, 1, 1))
@@ -221,6 +223,7 @@ export class GeoBuilder {
    * edge `jag`). Works bottom→top or top→bottom; caps: 1 = first ring, 2 = last ring, 3 = both, 0 = open shell.
    */
   loft(rings: Ring[], segs = 8, caps = 3, glow = 0, jitter = 0.08): this {
+    segs = Math.max(5, Math.round(segs * 1.5 * DETAIL)) // rounder limbs and torsos (smooth shading)
     const base = this.pos.length / 3, n = rings.length
     const down = rings[n - 1].y < rings[0].y
     for (const ring of rings) {
@@ -253,6 +256,17 @@ export class GeoBuilder {
     if (caps & 1) cap(0, true)
     if (caps & 2) cap(n - 1, false)
     return this
+  }
+  /** Ellipsoid with a full rotation (flattened ones make organic wounds, scabs and bony plates). */
+  blob(x: number, y: number, z: number, rx: number, ry: number, rz: number, color: number, ex = 0, ey = 0, ez = 0, glow = 0): this {
+    _m.compose(_p.set(x, y, z), _q.setFromEuler(_e.set(ex, ey, ez)), _s.set(rx, ry, rz)); return this.add(DETAIL < 1 ? TPL.ballLo : TPL.ball, _m, color, glow, 0.12)
+  }
+  /** Wound on a surface: dark crater with a raw-flesh rim, oriented by the yaw/roll of the surface. */
+  wound(x: number, y: number, z: number, size: number, ry: number, rz = 0): this {
+    this.blob(x, y, z, size * 0.55, size * 0.45, size * 0.07, 0x6e1e14, 0, ry, rz)
+    this.blob(x * 1.004, y + size * 0.04, z * 1.004, size * 0.34, size * 0.28, size * 0.06, C.gore, 0, ry, rz)
+    // a dried trail of blood running down from the wound
+    return this.blob(x, y - size * 0.55, z, size * 0.12, size * 0.5, size * 0.035, 0x4a0c08, 0, ry, rz)
   }
   /** Cone spike with its base at a and tip at b. */
   spike(ax: number, ay: number, az: number, bx: number, by: number, bz: number, r: number, color: number): this {
@@ -344,20 +358,21 @@ function torsoSeg(kind: InfectedKind, S: BodySpec, L: Look, r: () => number): TH
     const a = r() * Math.PI * 2, y = 0.15 + r() * (T - 0.3), hw = y > 0.34 ? cw : ww, hd = y > 0.34 ? cd : wd
     const x = Math.cos(a) * hw * 1.0, z = Math.sin(a) * hd * 1.0, s = 0.05 + r() * 0.07
     const ry = Math.atan2(Math.cos(a) * hd, Math.sin(a) * hw)
-    g.box(x, y, z, s, s * (0.6 + r() * 0.8), 0.022, clothed(L) && r() < 0.5 ? L.skin : C.wound, 0, ry, r() * 0.8)
-    if (r() < 0.7) g.box(x * 1.03, y - s * 0.1, z * 1.03, s * 0.55, s * 0.5, 0.02, C.flesh, 0, ry, r())
+    if (clothed(L) && r() < 0.5) g.blob(x, y, z, s * 0.55, s * 0.4 * (0.6 + r() * 0.8), s * 0.12, L.skin, 0, ry, r() * 0.8)
+    g.wound(x * 1.01, y - s * 0.1, z * 1.01, s * (0.7 + r() * 0.4), ry, r())
   }
   if (!big && kind !== "stalker") {
-    g.box(0.01, T * 0.86, F * cd * 1.03, cw * 0.62, T * 0.16, 0.016, C.blood, 0.05, 0, 0.08)
-    g.box(-0.02, T * 0.7, F * cd * 1.04, cw * 0.34, T * 0.22, 0.014, C.blood, 0.04, 0, -0.2)
-    g.box(0.04, T * 0.55, F * cd * 1.02, cw * 0.14, T * 0.24, 0.012, C.gore, 0.02, 0, 0.1)
+    // blood from feeding: a soaked bib under the chin and streaks running down the front
+    g.blob(0.01, T * 0.86, F * cd * 0.99, cw * 0.38, T * 0.1, 0.012, C.blood, 0.05, 0, 0.08)
+    g.blob(-0.02, T * 0.7, F * cd * 1.0, cw * 0.17, T * 0.13, 0.012, C.blood, 0.04, 0, -0.2)
+    g.blob(0.04, T * 0.55, F * cd * 0.99, cw * 0.07, T * 0.14, 0.01, C.gore, 0.02, 0, 0.1)
   }
   // exposed ribs (one side, both for the stalker)
   const ribSides = L.ribs === 2 ? [-1, 1] : L.ribs ? [L.ribs] : []
   for (const side of ribSides) {
     const x = side * cw * 0.42, y = T * 0.64
-    g.box(x, y, F * cd * 0.97, cw * 0.62, T * 0.36, 0.03, C.gore, 0, side * 0.25)
-    for (let k = 0; k < 4; k++) g.box(x, y - T * 0.13 + k * T * 0.085, F * cd * 1.01, cw * 0.6, 0.016, 0.02, C.bone, 0, side * 0.25, side * -0.18)
+    g.blob(x, y, F * cd * 0.97, cw * 0.36, T * 0.2, 0.025, C.gore, 0, side * 0.25)
+    for (let k = 0; k < 4; k++) g.blob(x, y - T * 0.13 + k * T * 0.085, F * cd * 1.01, cw * 0.32, 0.009, 0.012, C.bone, 0, side * 0.25, side * -0.18)
   }
   if (S.spine) for (let k = 0; k < 8; k++) g.lump(0, 0.08 + k * T * 0.12, cd * 0.98, 0.026, C.bone)
   // spitter: bloated bile sac + swollen throat
@@ -374,10 +389,10 @@ function torsoSeg(kind: InfectedKind, S: BodySpec, L: Look, r: () => number): TH
     for (const sx of [-1, 1]) {
       g.ball(sx * s * 0.24, T * 0.7, F * cd * 0.72, s * 0.25, T * 0.18, cd * 0.42, L.skin)
       g.ball(sx * s * 0.3, T - 0.02, cd * 0.1, s * 0.28, T * 0.17, cd * 0.82, L.skin)
-      g.box(sx * s * 0.42, T + 0.03, 0, s * 0.32, 0.08 * s, cd * 1.25, C.plate, 0.1, 0, sx * -0.35)
-      g.box(sx * s * 0.36, T * 0.84, cd * 0.62, s * 0.28, 0.07 * s, cd * 0.75, C.plate, 0.6, 0, sx * -0.3)
+      g.blob(sx * s * 0.42, T + 0.03, 0, s * 0.19, 0.055 * s, cd * 0.7, C.plate, 0.1, 0, sx * -0.35)
+      g.blob(sx * s * 0.36, T * 0.84, cd * 0.62, s * 0.16, 0.05 * s, cd * 0.42, C.plate, 0.6, 0, sx * -0.3)
     }
-    for (let k = 0; k < 3; k++) g.box(0, T * (0.35 + k * 0.2), cd * 0.96, s * (0.52 - k * 0.06), T * 0.17, 0.09 * s, C.plate, -0.25, 0, 0)
+    for (let k = 0; k < 3; k++) g.blob(0, T * (0.35 + k * 0.2), cd * 0.96, s * (0.3 - k * 0.035), T * 0.1, 0.06 * s, C.plate, -0.25, 0, 0)
     g.ball(0, T * 0.36, F * cd * 0.78, ww * 0.85, T * 0.2, cd * 0.62, L.skin)
     for (let i = 0; i < 6; i++) g.lump(-s * 0.36 + r() * 0.14, T * (0.72 + r() * 0.22), F * cd * 0.4 + (r() - 0.5) * cd * 0.8, s * (0.06 + r() * 0.06), r() < 0.5 ? C.muscle : 0x8e6a5a)
     g.box(s * 0.12, T * 0.55, F * cd * 1.22, s * 0.24, T * 0.2, 0.03, C.muscle, 0, 0.2, 0.2).box(-s * 0.18, T * 0.5, F * cd * 1.2, s * 0.12, T * 0.12, 0.03, C.wound)
@@ -419,27 +434,30 @@ function headSeg(kind: InfectedKind, S: BodySpec, L: Look, r: () => number): THR
   ], 9)
   const fz = F * h * 0.98 * sz
   // brow ridge, cheekbones, sunken sockets with glowing eyes
-  g.box(0, h * 1.28 * sy, fz * 0.94, h * 1.5 * sx, h * 0.2, h * 0.3, dim(L.skin, 0.85), -0.2)
+  for (const bx of [-1, 1]) g.blob(bx * h * 0.36 * sx, h * 1.27 * sy, fz * 0.9, h * 0.36 * sx, h * 0.11, h * 0.16, dim(L.skin, 0.88), -0.25, 0, bx * -0.18)
   for (const ex of [-1, 1]) {
     const x = ex * h * 0.36 * sx, y = h * 1.07 * sy
-    g.ball(ex * h * 0.62 * sx, h * 0.86 * sy, fz * 0.82, h * 0.26, h * 0.16, h * 0.2, L.skin, 0, true)
-    g.ball(x, y, fz * 0.9, h * 0.22, h * 0.17, h * 0.14, C.dark, 0, true)
+    g.blob(ex * h * 0.58 * sx, h * 0.86 * sy, fz * 0.8, h * 0.17, h * 0.1, h * 0.13, dim(L.skin, 0.95), 0, ex * 0.3)
+    g.ball(x, y, fz * 0.9, h * 0.18, h * 0.14, h * 0.12, dim(L.skin, 0.35), 0, true)
     if (L.missingEye && ex === 1) g.ball(x, y - h * 0.02, fz * 0.97, h * 0.12, h * 0.1, h * 0.05, C.wound, 0, true)
     else g.ball(x, y, fz * 0.97, h * 0.11, h * 0.09, h * 0.06, L.eye, 1, true)
   }
-  g.box(0, h * 0.8 * sy, fz * 1.02, h * 0.26, h * 0.24, h * 0.12, C.dark) // rotted nose
+  // rotted nose: bridge, tip and dark nostrils
+  g.blob(0, h * 0.92 * sy, fz * 1.0, h * 0.1, h * 0.2, h * 0.1, dim(L.skin, 0.9), -0.35)
+  g.blob(0, h * 0.78 * sy, fz * 1.04, h * 0.13, h * 0.09, h * 0.08, dim(L.skin, 0.8))
+  for (const nx of [-1, 1]) g.ball(nx * h * 0.06, h * 0.74 * sy, fz * 1.06, h * 0.04, h * 0.03, h * 0.03, C.dark, 0, true)
   // lipless upper jaw: gums and teeth
-  g.box(0, h * 0.55 * sy, fz * 0.9, h * 0.95 * sx, h * 0.14, h * 0.22, C.gore)
+  g.blob(0, h * 0.55 * sy, fz * 0.88, h * 0.48 * sx, h * 0.08, h * 0.13, C.gore)
   for (let i = 0; i < 7; i++) { const a = (i - 3) * 0.24; g.box(Math.sin(a) * h * 0.42 * sx, h * 0.46 * sy, fz * (0.88 + Math.cos(a) * 0.06), h * 0.1, h * 0.15 + r() * h * 0.07, h * 0.07, C.teeth, 0, a, (r() - 0.5) * 0.3) }
   if (L.cheek) {
-    g.box(L.cheek * h * 0.62 * sx, h * 0.62 * sy, fz * 0.62, h * 0.12, h * 0.42, h * 0.5, C.wound, 0, L.cheek * 0.5)
+    g.blob(L.cheek * h * 0.62 * sx, h * 0.62 * sy, fz * 0.62, h * 0.07, h * 0.22, h * 0.26, C.gore, 0, L.cheek * 0.5)
     for (let i = 0; i < 3; i++) g.box(L.cheek * h * 0.66 * sx, h * 0.5 * sy, fz * (0.45 + i * 0.12), h * 0.07, h * 0.12, h * 0.08, C.teeth)
   }
   // ears (one torn)
-  g.box(-h * 0.9 * sx, h * 1.0 * sy, h * 0.05, h * 0.1, h * 0.38, h * 0.26, L.skin)
-  if (r() < 0.6) g.box(h * 0.9 * sx, h * 1.0 * sy, h * 0.05, h * 0.1, h * 0.38, h * 0.26, L.skin); else g.box(h * 0.88 * sx, h * 1.0 * sy, h * 0.05, h * 0.08, h * 0.2, h * 0.2, C.wound)
+  g.blob(-h * 0.9 * sx, h * 1.0 * sy, h * 0.05, h * 0.05, h * 0.2, h * 0.14, dim(L.skin, 0.92), 0, 0, 0.15)
+  if (r() < 0.6) g.blob(h * 0.9 * sx, h * 1.0 * sy, h * 0.05, h * 0.05, h * 0.2, h * 0.14, dim(L.skin, 0.92), 0, 0, -0.15); else g.blob(h * 0.88 * sx, h * 1.0 * sy, h * 0.05, h * 0.045, h * 0.11, h * 0.1, C.gore)
   // scalp: wounds, stringy hair or a helmet
-  g.box((r() - 0.5) * h * 0.6, h * 1.8 * sy, (r() - 0.3) * h * 0.4, h * 0.55, h * 0.1, h * 0.45, C.wound, 0.4, r(), 0.2)
+  g.blob((r() - 0.5) * h * 0.6, h * 1.82 * sy, (r() - 0.3) * h * 0.4, h * 0.28, h * 0.05, h * 0.22, C.gore, 0.4, r(), 0.2)
   if (L.helmet) {
     g.ball(0, h * 1.38 * sy, h * 0.06, h * sx * 1.08, h * sy * 0.82, h * sz * 1.12, 0x3f4430)
     g.box(0, h * 1.12 * sy, h * 0.06, h * sx * 2.1, h * 0.1, h * sz * 2.05, 0x353a28)
@@ -447,11 +465,12 @@ function headSeg(kind: InfectedKind, S: BodySpec, L: Look, r: () => number): THR
     for (let i = 0; i < 12; i++) {
       const a = r() * Math.PI * 1.5 - 0.25 + Math.PI * 0.25, x = Math.cos(a) * h * sx * 0.78, z = Math.sin(a) * h * sz * 0.86 + h * 0.12
       const len = h * (0.5 + r() * 1.4)
-      g.box(x, h * 1.62 * sy - len * 0.42, z, h * 0.13, len, h * 0.1, L.hair, (r() - 0.3) * 0.5, -a, (r() - 0.5) * 0.3)
+      const y0 = h * 1.72 * sy, dx = Math.cos(a) * h * 0.25, dz = Math.sin(a) * h * 0.25
+      g.tube(x * 0.8, y0, z * 0.8, x + dx, y0 - len, z + dz, h * 0.07, h * 0.02, L.hair, 4)
     }
   }
   if (big) {
-    g.box(0, h * 1.62 * sy, h * 0.05, h * 1.5 * sx, h * 0.28, h * 1.55 * sz, C.plate, 0.15)
+    g.blob(0, h * 1.62 * sy, h * 0.05, h * 0.82 * sx, h * 0.2, h * 0.85 * sz, C.plate, 0.15)
     for (const ex of [-1, 1]) g.spike(ex * h * 0.6, h * 1.5, h * 0.2, ex * h * 1.05, h * 2.1, h * 0.5, h * 0.18, C.bone)
   }
   if (kind === "screamer") g.box(0, h * 0.42 * sy, fz * 0.45, h * 0.95, h * 0.55, h * 0.8, C.dark) // huge throat opening
@@ -469,7 +488,7 @@ function jawSeg(kind: InfectedKind, S: BodySpec, L: Look, r: () => number): THRE
   ], 8)
   g.box(0, -h * 0.03, F * len * 0.5, w * 0.78, h * 0.05, len * 0.8, C.gore) // tongue / inside
   for (let i = 0; i < 6; i++) { const a = (i - 2.5) * 0.26; g.box(Math.sin(a) * w * 0.34, h * 0.03, F * (len * 0.84 + Math.cos(a) * h * 0.04), h * 0.09, h * 0.13 + r() * h * 0.05, h * 0.07, C.teeth, 0, a) }
-  g.box(0, -h * 0.26, F * len * 0.92, w * 0.62, h * 0.18, h * 0.08, C.blood).box(0.01, -h * 0.42, F * len * 0.86, w * 0.26, h * 0.22, h * 0.06, C.blood)
+  g.blob(0, -h * 0.26, F * len * 0.9, w * 0.32, h * 0.1, h * 0.05, C.blood).blob(0.01, -h * 0.44, F * len * 0.84, w * 0.13, h * 0.13, h * 0.04, C.blood)
   return g.build()
 }
 
@@ -485,8 +504,8 @@ function armSegs(S: BodySpec, L: Look, side: number, r: () => number, kind: Infe
     { y: -A - 0.012, w: R * 0.8, d: R * 0.8, c: dim(L.skin, 0.92) },
   ], 7)
   if (sleeveLen > 0) up.loft([{ y: 0.05, w: R * 1.18, d: R * 1.15, c: sleeve }, { y: -0.05, w: R * 1.4, d: R * 1.3, c: sleeve }, { y: -A * sleeveLen * 0.98, w: R * 1.15, d: R * 1.1, c: sleeve, jag: 0.05 }], 7, sleeveLen === 1 ? 0 : 0)
-  up.box(side * R * 0.95, -A * (0.3 + r() * 0.45), F * R * 0.2, R * 0.9, R * 1.5, 0.016, C.wound, 0, side * 1.25)
-  if (big) up.box(side * R * 1.0, -A * 0.3, 0, R * 0.5, A * 0.5, R * 1.3, C.plate, 0, 0, side * 0.1)
+  up.wound(side * R * 0.95, -A * (0.3 + r() * 0.45), F * R * 0.2, R * 1.6, side * 1.25 + Math.PI / 2)
+  if (big) up.blob(side * R * 1.0, -A * 0.3, 0, R * 0.32, A * 0.3, R * 0.8, C.plate, 0, 0, side * 0.1)
   // forearm
   const club = S.club && side > 0
   fo.loft([
@@ -498,7 +517,7 @@ function armSegs(S: BodySpec, L: Look, side: number, r: () => number, kind: Infe
   if (sleeveLen === 1) fo.loft([{ y: 0.05, w: Q * 1.2, d: Q * 1.15, c: sleeve }, { y: -Fa * (0.35 + r() * 0.3), w: Q * 1.28, d: Q * 1.2, c: sleeve, jag: 0.06 }], 7, 0)
   else if (r() < 0.45) {
     // flesh torn open down to the bone
-    fo.box(side * Q * 0.75, -Fa * 0.5, F * Q * 0.3, Q * 0.9, Fa * 0.42, Q * 1.1, C.gore, 0, side * 0.3).tube(side * Q * 0.95, -Fa * 0.28, F * Q * 0.45, side * Q * 0.85, -Fa * 0.72, F * Q * 0.45, 0.011, 0.01, C.bone, 4)
+    fo.blob(side * Q * 0.75, -Fa * 0.5, F * Q * 0.3, Q * 0.55, Fa * 0.24, Q * 0.6, C.gore, 0, side * 0.3).tube(side * Q * 0.95, -Fa * 0.28, F * Q * 0.45, side * Q * 0.85, -Fa * 0.72, F * Q * 0.45, 0.011, 0.01, C.bone, 4)
   }
   const hy = -Fa
   if (club) {
@@ -506,7 +525,7 @@ function armSegs(S: BodySpec, L: Look, side: number, r: () => number, kind: Infe
     fo.ball(0, -Fa - S.hand * 0.3, 0, Q * 1.9, S.hand * 0.9, Q * 1.8, C.plate)
     for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; fo.spike(Math.cos(a) * Q * 1.4, -Fa - S.hand * 0.3, Math.sin(a) * Q * 1.4, Math.cos(a) * Q * 2.6, -Fa - S.hand * 0.5, Math.sin(a) * Q * 2.6, Q * 0.35, C.bone) }
   } else if (big) {
-    fo.box(side * Q, -Fa * 0.5, 0, Q * 0.5, Fa * 0.7, Q * 1.6, C.plate, 0, 0, side * 0.08)
+    fo.blob(side * Q, -Fa * 0.5, 0, Q * 0.34, Fa * 0.4, Q * 0.95, C.plate, 0, 0, side * 0.08)
     fo.loft([{ y: hy + 0.02, w: Q * 1.05, d: Q * 0.85, c: L.skin }, { y: hy - S.hand * 0.55, w: Q * 1.2, d: Q * 0.95, c: dim(L.skin, 0.85) }, { y: hy - S.hand * 0.9, w: Q * 1.0, d: Q * 0.8, c: C.blood }], 7)
     for (let i = 0; i < 4; i++) {
       const x = (i - 1.5) * Q * 0.5
@@ -539,8 +558,8 @@ function legSegs(S: BodySpec, L: Look, side: number, r: () => number): [THREE.Bu
     { y: -Th - 0.012, w: R * 0.75, d: R * 0.75, c: fullPants ? dim(pants, 0.9) : L.skin },
   ], 7)
   if (!fullPants) th.loft([{ y: 0.05, w: R * 1.15, d: R * 1.15, c: pants }, { y: -0.06, w: R * 1.32, d: R * 1.28, c: pants }, { y: -Th * (L.pants === "shorts" ? 0.45 : 0.25), w: R * 1.2, d: R * 1.15, c: pants, jag: 0.06 }], 7, 0)
-  for (let i = 0; i < 2; i++) { const a = r() * Math.PI * 2; th.box(Math.cos(a) * R * 0.95, -Th * (0.25 + r() * 0.5), Math.sin(a) * R * 0.95, R * 0.8, R * 1.1, 0.016, r() < 0.5 ? C.wound : L.skin, 0, Math.atan2(Math.cos(a), Math.sin(a))) }
-  if (S.plates) th.box(side * R * 0.95, -Th * 0.4, 0, R * 0.5, Th * 0.5, R * 1.4, C.plate, 0, 0, side * 0.08)
+  for (let i = 0; i < 2; i++) { const a = r() * Math.PI * 2; th.wound(Math.cos(a) * R * 0.95, -Th * (0.25 + r() * 0.5), Math.sin(a) * R * 0.95, R * 1.3, Math.atan2(Math.cos(a), Math.sin(a))) }
+  if (S.plates) th.blob(side * R * 0.95, -Th * 0.4, 0, R * 0.32, Th * 0.3, R * 0.85, C.plate, 0, 0, side * 0.08)
   // shin + foot
   const torn = L.pants === "torn" ? 0.35 + r() * 0.35 : L.pants === "long" ? 1 : 0
   sh.loft([
@@ -552,13 +571,14 @@ function legSegs(S: BodySpec, L: Look, side: number, r: () => number): [THREE.Bu
   if (torn > 0) sh.loft([{ y: 0.05, w: Q * 1.28, d: Q * 1.28, c: pants }, { y: -Sh * 0.3, w: Q * 1.36, d: Q * 1.34, z: Q * 0.1, c: dim(pants, 0.92) }, { y: -Sh * torn * 0.97, w: Q * 1.18, d: Q * 1.15, c: dim(pants, 0.75), jag: torn < 1 ? 0.07 : 0.02 }], 7, 0)
   const fy = -Sh - S.foot * 0.5, fl = S.plates ? 0.36 * (S.foot / 0.07) : 0.25
   if (L.shoes !== null && !S.plates) {
-    sh.box(0, fy, F * fl * 0.2, Q * 1.75, S.foot * 1.2, fl * 0.92, L.shoes).box(0, fy - S.foot * 0.5, F * fl * 0.2, Q * 1.8, S.foot * 0.3, fl * 0.94, dim(L.shoes, 0.6))
+    sh.box(0, fy, F * fl * 0.1, Q * 1.75, S.foot * 1.2, fl * 0.72, L.shoes).box(0, fy - S.foot * 0.5, F * fl * 0.2, Q * 1.8, S.foot * 0.3, fl * 0.94, dim(L.shoes, 0.6))
+    sh.blob(0, fy - S.foot * 0.05, F * fl * 0.52, Q * 0.88, S.foot * 0.62, fl * 0.24, L.shoes)
   } else {
     sh.box(0, fy, F * fl * 0.18, Q * 2.0, S.foot * 1.05, fl, dim(L.skin, 0.75))
     for (let i = 0; i < 4; i++) sh.box((i - 1.5) * Q * 0.5, fy - S.foot * 0.15, F * fl * 0.7, Q * 0.38, S.foot * 0.5, 0.035, C.nail)
     sh.box(0, fy + S.foot * 0.25, F * fl * 0.05, Q * 1.5, S.foot * 0.35, fl * 0.55, C.blood)
   }
-  if (S.plates) sh.box(0, -Sh * 0.45, F * Q * 0.95, Q * 1.4, Sh * 0.6, Q * 0.5, C.plate, -0.05)
+  if (S.plates) sh.blob(0, -Sh * 0.45, F * Q * 0.95, Q * 0.85, Sh * 0.34, Q * 0.32, C.plate, -0.05)
   return [th.build(), sh.build()]
 }
 
@@ -566,7 +586,12 @@ export interface VariantGeo { segs: Record<SegName, THREE.BufferGeometry | null>
 
 function kindSeed(kind: InfectedKind): number { let h = 2166136261; for (let i = 0; i < kind.length; i++) h = Math.imul(h ^ kind.charCodeAt(i), 16777619); return h >>> 0 }
 
-export function buildVariant(kind: InfectedKind, variant: number): VariantGeo {
+export function buildVariant(kind: InfectedKind, variant: number, detail = 1): VariantGeo {
+  DETAIL = detail
+  try { return buildVariantAt(kind, variant) } finally { DETAIL = 1 }
+}
+
+function buildVariantAt(kind: InfectedKind, variant: number): VariantGeo {
   const r = makeRng(kindSeed(kind) + variant * 7919)
   const S = SPECS[kind], L = makeLook(kind, r)
   const [ual, fal] = armSegs(S, L, -1, r, kind), [uar, far] = armSegs(S, L, 1, r, kind)
@@ -584,7 +609,7 @@ export function buildVariant(kind: InfectedKind, variant: number): VariantGeo {
 
 /** Shared vertex-coloured material; `glow` (per vertex) × uGlow adds emissive (eyes, sacs, weak spot). */
 export function createInfectedMaterial(glow: { value: number }): THREE.MeshStandardMaterial {
-  const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.84, metalness: 0, flatShading: true })
+  const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8, metalness: 0 })
   m.onBeforeCompile = shader => {
     shader.uniforms.uGlow = glow
     shader.vertexShader = shader.vertexShader.replace("#include <common>", "#include <common>\nattribute float glow;\nvarying float vGlow;").replace("#include <begin_vertex>", "#include <begin_vertex>\nvGlow = glow;")
@@ -610,7 +635,14 @@ export class InfectedAssets {
   /** Static merged pose for distant infected (built once per variant from a posed rig). */
   lod(kind: InfectedKind, variant: number, posed: Rig): THREE.BufferGeometry {
     const v = this.get(kind, variant)
-    if (!v.lod) v.lod = bakeRig(posed)
+    if (!v.lod) {
+      // bake the posed rig with a low-detail copy of every segment (same look, far fewer triangles)
+      const low = buildVariant(kind, variant, 0.45)
+      const names: Record<string, SegName> = { torsoMesh: "torso", headMesh: "head", jaw: "jaw", upperArmL: "upperArmL", foreArmL: "foreArmL", upperArmR: "upperArmR", foreArmR: "foreArmR", thighL: "thighL", shinL: "shinL", thighR: "thighR", shinR: "shinR" }
+      const saved = posed.meshes.map(m => m.geometry)
+      posed.meshes.forEach(m => { const seg = names[m.name]; const g = seg ? low.segs[seg] : null; if (g) m.geometry = g })
+      try { v.lod = bakeRig(posed) } finally { posed.meshes.forEach((m, i) => { m.geometry = saved[i] }); for (const g of Object.values(low.segs)) g?.dispose() }
+    }
     return v.lod
   }
 
