@@ -7,7 +7,7 @@ const ROOT = fileURLToPath(new URL("../", import.meta.url)), DIST = join(ROOT, "
 const MIME = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css" }
 const server = createServer(async (req, res) => { try { const raw = req.url === "/" ? "/index.html" : req.url.split("?")[0]; const file = resolve(DIST, "." + decodeURIComponent(raw)); if (file !== DIST && !file.startsWith(DIST + sep)) return res.writeHead(403).end(); const data = await readFile(file); res.writeHead(200, { "content-type": MIME[extname(file)] || "application/octet-stream" }); res.end(data) } catch { res.writeHead(404).end() } })
 await new Promise(r => server.listen(0, r)); const port = server.address().port
-const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || "/usr/bin/chromium", args: ["--no-sandbox", "--use-gl=swiftshader"] })
+const browser = await chromium.launch({ executablePath: process.env.CHROMIUM_PATH || undefined, args: ["--no-sandbox", "--use-gl=swiftshader"] })
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } })
 await page.addInitScript(() => {
   localStorage.setItem("ironVeil.settings.v1", JSON.stringify({ sensitivity: .75, volume: .5, muted: true, quality: "low", invertY: false }))

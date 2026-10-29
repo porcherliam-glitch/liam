@@ -21,8 +21,7 @@
     "isolatedModules": true,
     "moduleDetection": "force",
     "noEmit": true,
-    "jsx": "react-jsx",
-
+    
     /* Linting (looser than webapp 0-origin: game code keeps parameter properties and WIP locals) */
     "strict": true,
     "noUnusedLocals": false,
