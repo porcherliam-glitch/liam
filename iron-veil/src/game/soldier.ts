@@ -18,6 +18,7 @@
  * Draw calls per soldier: 14 (13 body meshes + weapon); +2 at night (lens, cone), +1 muzzle flash, +2 laser, +1 mark.
  */
 import * as THREE from "three"
+import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js"
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js"
 import { ENEMIES, type EnemyWeapon } from "./data"
 import { raySegmentCapsule } from "./ai"
@@ -63,10 +64,17 @@ class Parts {
     this.list.push(g)
     return this
   }
-  box(w: number, h: number, d: number, color: number, pos: V3, rot?: V3, glow = 0): this { return this.add(new THREE.BoxGeometry(w, h, d), color, pos, rot, undefined, glow) }
-  cyl(rTop: number, rBot: number, h: number, color: number, pos: V3, rot?: V3, seg = 7): this { return this.add(new THREE.CylinderGeometry(rTop, rBot, h, seg), color, pos, rot) }
+  /** Box with softly rounded edges (fabric, pouches, plates); tiny details stay sharp. */
+  box(w: number, h: number, d: number, color: number, pos: V3, rot?: V3, glow = 0): this {
+    const m = Math.min(w, h, d)
+    const geo = m < 0.012 ? new THREE.BoxGeometry(w, h, d) : new RoundedBoxGeometry(w, h, d, 1, Math.min(m * 0.3, 0.018))
+    return this.add(geo, color, pos, rot, undefined, glow)
+  }
+  /** Sharp-edged box (rails, buckles, straps seen edge-on). */
+  hard(w: number, h: number, d: number, color: number, pos: V3, rot?: V3, glow = 0): this { return this.add(new THREE.BoxGeometry(w, h, d), color, pos, rot, undefined, glow) }
+  cyl(rTop: number, rBot: number, h: number, color: number, pos: V3, rot?: V3, seg = 7): this { return this.add(new THREE.CylinderGeometry(rTop, rBot, h, Math.max(seg, Math.round(seg * 1.45))), color, pos, rot) }
   sph(r: number, color: number, pos: V3, scale: V3 = [1, 1, 1], ws = 9, hs = 6, thetaLen = Math.PI, rot?: V3): this {
-    return this.add(new THREE.SphereGeometry(r, ws, hs, 0, TAU, 0, thetaLen), color, pos, rot, scale)
+    return this.add(new THREE.SphereGeometry(r, Math.round(ws * 1.35), Math.round(hs * 1.35), 0, TAU, 0, thetaLen), color, pos, rot, scale)
   }
   build(): THREE.BufferGeometry {
     const g = mergeGeometries(this.list, false)
@@ -181,9 +189,22 @@ function buildHead(kind: EnemyKind): THREE.BufferGeometry {
   b.sph(0.103, face, [0, 0.17, -0.005], [1, 1.14, 1.06], 10, 8)
   b.box(0.026, 0.045, 0.03, face, [0, 0.155, -0.112], [0.2, 0, 0])
   b.box(0.02, 0.05, 0.035, face, [-0.103, 0.165, 0]); b.box(0.02, 0.05, 0.035, face, [0.103, 0.165, 0])
+  // face: eyes with pupils, brows, chin and mouth (the heavy wears a closed visor)
+  if (kind !== "heavy") {
+    const ey = kind === "scout" ? 0.187 : 0.166
+    for (const sx of [-1, 1]) {
+      b.sph(0.0125, 0xe8e2d6, [sx * 0.036, ey, -0.101], [1, 0.75, 0.6], 8, 6)
+      b.sph(0.0065, 0x2a2018, [sx * 0.036, ey, -0.108], [1, 1, 0.5], 6, 5)
+      if (kind !== "scout") b.hard(0.034, 0.008, 0.012, 0x3a2a1e, [sx * 0.037, ey + 0.017, -0.106], [0.15, 0, sx * -0.12])
+    }
+    if (kind !== "scout") {
+      b.sph(0.05, face, [0, 0.112, -0.062], [1.15, 0.7, 0.9], 10, 7)
+      b.hard(0.034, 0.006, 0.01, 0x6a3e30, [0, 0.122, -0.108])
+      b.sph(0.024, face, [-0.07, 0.148, -0.078], [0.8, 0.85, 0.6], 7, 5); b.sph(0.024, face, [0.07, 0.148, -0.078], [0.8, 0.85, 0.6], 7, 5)
+    }
+  }
   if (kind === "rifleman") {
-    b.box(0.028, 0.012, 0.01, P.dark, [-0.036, 0.186, -0.104]); b.box(0.028, 0.012, 0.01, P.dark, [0.036, 0.186, -0.104])
-    b.sph(0.128, P.helmet, [0, 0.19, 0.005], [1, 0.92, 1.08], 12, 6, Math.PI * 0.56)
+    b.sph(0.128, P.helmet, [0, 0.2, 0.012], [1, 0.92, 1.08], 12, 6, Math.PI * 0.5)
     b.box(0.012, 0.03, 0.12, P.dark, [-0.127, 0.2, 0]); b.box(0.012, 0.03, 0.12, P.dark, [0.127, 0.2, 0])
     b.box(0.05, 0.045, 0.025, P.dark, [0, 0.235, -0.137])
     b.box(0.16, 0.045, 0.04, P.dark, [0, 0.268, -0.108], [-0.55, 0, 0])
@@ -194,7 +215,6 @@ function buildHead(kind: EnemyKind): THREE.BufferGeometry {
     b.cyl(0.07, 0.074, 0.075, P.accent, [0, 0.065, -0.005])
   } else if (kind === "scout") {
     b.box(0.124, 0.036, 0.03, P.skin, [0, 0.186, -0.097])
-    b.box(0.026, 0.012, 0.01, P.dark, [-0.035, 0.187, -0.113]); b.box(0.026, 0.012, 0.01, P.dark, [0.035, 0.187, -0.113])
     b.cyl(0.109, 0.114, 0.075, P.helmet, [0, 0.245, 0], undefined, 10)
     b.cyl(0.1, 0.109, 0.022, P.helmet, [0, 0.293, 0], undefined, 10)
     b.box(0.13, 0.012, 0.08, P.helmet, [0, 0.224, -0.135], [0.14, 0, 0])
@@ -209,9 +229,8 @@ function buildHead(kind: EnemyKind): THREE.BufferGeometry {
     b.box(0.03, 0.03, 0.06, P.dark, [0.145, 0.22, -0.03])
     b.box(0.08, 0.02, 0.006, P.accent, [0, 0.27, 0.152], [0.35, 0, 0])
   } else {
-    b.box(0.028, 0.012, 0.01, P.dark, [-0.036, 0.186, -0.104]); b.box(0.028, 0.012, 0.01, P.dark, [0.036, 0.186, -0.104])
-    b.box(0.15, 0.09, 0.02, 0x3a3b2e, [0, 0.128, -0.104])
-    b.sph(0.135, GHILLIE[0], [0, 0.196, 0.028], [1.06, 1.08, 1.12], 10, 7, Math.PI * 0.62)
+    b.box(0.15, 0.06, 0.02, 0x3a3b2e, [0, 0.118, -0.104])
+    b.sph(0.135, GHILLIE[0], [0, 0.204, 0.034], [1.06, 1.08, 1.12], 10, 7, Math.PI * 0.55)
     b.box(0.2, 0.03, 0.08, GHILLIE[1], [0, 0.268, -0.112], [0.25, 0, 0])
     for (let i = 0; i < 6; i++) b.box(0.04, 0.15, 0.012, GHILLIE[(i + 2) % 4], [-0.1 + i * 0.04, 0.2, 0.15], [-0.4, 0, (i - 2.5) * 0.12])
   }
