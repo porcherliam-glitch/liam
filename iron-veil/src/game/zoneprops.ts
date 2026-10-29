@@ -10,7 +10,7 @@ import * as THREE from "three"
 import type { BuildingInfo, MapProp, MapSolid, Side } from "./maps"
 import { NY, PY, type GeoBatch } from "./meshkit"
 import { addTemplate, buildSolid, decal, fenceRun, jit, lampAt, place, registerExtras, sag, textKey, tint, tpl, type BuildCtx, type WindowReq } from "./props"
-import { CAR_LENGTH, CAR_WIDTH, apcGeometry, benchGeometry, boatGeometry, bodyBagGeometry, boxcarGeometry, busGeometry, carGeometry, chairGeometry, conveyorGeometry, forkliftGeometry, excavatorGeometry, fuelPumpGeometry, hopperWagonGeometry, litterBinGeometry, tableGeometry, tankWagonGeometry, tractorGeometry, trashBagGeometry, trestleGeometry, truckCabGeometry, type CarStyle, type VehicleGeo, type VehiclePart } from "./vehicleModels"
+import { CAR_LENGTH, CAR_WIDTH, apcGeometry, beddingGeometry, benchGeometry, boatGeometry, bodyBagGeometry, boxcarGeometry, busGeometry, carGeometry, chairGeometry, conveyorGeometry, forkliftGeometry, excavatorGeometry, fuelPumpGeometry, hopperWagonGeometry, litterBinGeometry, tableGeometry, tankWagonGeometry, tractorGeometry, trashBagGeometry, trestleGeometry, truckCabGeometry, type CarStyle, type VehicleGeo, type VehiclePart } from "./vehicleModels"
 
 const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), V = new THREE.Vector3(), S = new THREE.Vector3(), E = new THREE.Euler()
 
@@ -346,9 +346,11 @@ function extraSolid(ctx: BuildCtx, s: MapSolid): boolean {
       wood.box(x0, y0 + 0.15, z0, x1, y0 + 0.3, z1, { color: tint(0x6e4b33), ao: 0 })
       for (const [px, pz] of [[x0, z0], [x1 - 0.06, z0], [x0, z1 - 0.06], [x1 - 0.06, z1 - 0.06]]) wood.box(px, y0, pz, px + 0.06, y0 + 0.15, pz + 0.06, { color: tint(0x5a3e2a), ao: 0, local: true })
       cloth.box(x0 + 0.03, y0 + 0.3, z0 + 0.03, x1 - 0.03, y0 + 0.45, z1 - 0.03, { color: tint(0xd8d4c8), ao: 0 })
-      const long = s.w > s.d
-      if (long) { cloth.box(x0 + 0.5, y0 + 0.45, z0 + 0.02, x1 - 0.02, y1, z1 - 0.02, { color: c, ao: 0 }); cloth.box(x0 + 0.06, y0 + 0.45, z0 + 0.15, x0 + 0.45, y0 + 0.58, z1 - 0.15, { color: tint(0xe8e4dc), ao: 0 }); wood.box(x0 - 0.02, y0, z0, x0 + 0.04, y0 + 0.9, z1, { color: tint(0x5a3e2a), ao: 0 }) }
-      else { cloth.box(x0 + 0.02, y0 + 0.45, z0 + 0.5, x1 - 0.02, y1, z1 - 0.02, { color: c, ao: 0 }); cloth.box(x0 + 0.15, y0 + 0.45, z0 + 0.06, x1 - 0.15, y0 + 0.58, z0 + 0.45, { color: tint(0xe8e4dc), ao: 0 }); wood.box(x0, y0, z0 - 0.02, x1, y0 + 0.9, z0 + 0.04, { color: tint(0x5a3e2a), ao: 0 }) }
+      // bedding template: head toward -z (long beds turn so the head sits at x0)
+      const long = s.w > s.d, L = (long ? s.w : s.d) - 0.06, W = (long ? s.d : s.w) - 0.06
+      addTemplate(ctx, beddingGeometry(W, L, Math.floor(s.x * 1.3 + s.z)), placeAt(s.x, y0 + 0.45, s.z, long ? Math.PI / 2 : 0), { paint: ["burlap", c], trim: ["burlap", tint(0xe8e4dc)], interior: ["burlap", tint(0xd8d4c8)] })
+      if (long) wood.box(x0 - 0.02, y0, z0, x0 + 0.04, y0 + 0.9, z1, { color: tint(0x5a3e2a), ao: 0 })
+      else wood.box(x0, y0, z0 - 0.02, x1, y0 + 0.9, z0 + 0.04, { color: tint(0x5a3e2a), ao: 0 })
       if (ctx.rng() < 0.25) decal(ctx, "blood", s.x, y1 + 0.01, s.z, 0.9, 0.9, "up", 0xffffff, ctx.rng() * 6)
       return true
     }
@@ -490,7 +492,7 @@ function barricade(ctx: BuildCtx, s: MapSolid, alongX: boolean): void {
     if (kind === 0) place(ctx.B("pallets"), t.box, x, h * 0.42, z, tilt, f.ry, (rng() - 0.5) * 0.12, w, h * 0.84, 0.16, tint(undefined, 1, 0.8 + rng() * 0.3), [1.2, 1.2])
     else if (kind === 1) place(ctx.B("cladding"), t.box, x, h * 0.48, z, tilt, f.ry, (rng() - 0.5) * 0.1, w + 0.2, h * 0.95, 0.04, tint([0x7a4a34, 0x5a6066, 0x8a9096, 0x6a5a40][Math.floor(rng() * 4)], 1, 0.8 + rng() * 0.3), [w, h])
     else if (kind === 2) place(ctx.B("plaster"), t.box, x, h * 0.4, z, tilt * 0.5, f.ry, 0, 0.8, h * 0.8, 0.5, tint(rng() < 0.5 ? 0xd8d8d0 : 0x6e4b33), [1, 1])
-    else if (kind === 3) for (let i = 0; i < 3; i++) place(ctx.B("rubber"), t.torus, x + (rng() - 0.5) * 0.1, 0.12 + i * 0.24, z, 0, rng() * 3, 0, 0.36, 0.36, 0.36, 0x222222)
+    else if (kind === 3) for (let i = 0; i < 3; i++) place(ctx.B("rubber"), t.tyre, x + (rng() - 0.5) * 0.1, 0.12 + i * 0.24, z, 0, rng() * 3, 0, 0.36, 0.24, 0.36, 0x8a8a8c)
     else place(ctx.B("crate"), t.box, x, 0.35, z, 0, f.ry + (rng() - 0.5) * 0.4, 0, Math.min(w, 1), 0.7, Math.min(W, 0.8), tint(undefined, 1, 0.8 + rng() * 0.3), [1.2, 1.2])
     u += w + 0.05
   }
@@ -1086,7 +1088,7 @@ function extraProp(ctx: BuildCtx, p: MapProp): void {
         place(metal, t.box, bx, by + sh / 2, bz, (rng() - 0.5) * 0.4, rng() * 3, (rng() - 0.5) * 0.4, sw, sh, sd, tint(rng() < 0.5 ? 0x7a4a30 : 0x5a5650, 1, 0.7 + rng() * 0.4))
       }
       metal.box(p.x - w / 2 + 0.3, 0, p.z - d / 2 + 0.3, p.x + w / 2 - 0.3, h * 0.55, p.z + d / 2 - 0.3, { color: tint(0x5a4a40), local: true })
-      for (let i = 0; i < 3; i++) place(ctx.B("rubber"), t.torus, p.x + (rng() - 0.5) * w * 0.6, h * 0.55 + 0.12 + i * 0.05, p.z + (rng() - 0.5) * d * 0.6, (rng() - 0.5) * 0.6, 0, (rng() - 0.5) * 0.6, 0.38, 0.38, 0.38, 0x222222)
+      for (let i = 0; i < 3; i++) place(ctx.B("rubber"), t.tyre, p.x + (rng() - 0.5) * w * 0.6, h * 0.55 + 0.12 + i * 0.05, p.z + (rng() - 0.5) * d * 0.6, (rng() - 0.5) * 0.6, 0, (rng() - 0.5) * 0.6, 0.38, 0.25, 0.38, 0x8a8a8c)
       return
     }
     case "target": {

@@ -87,6 +87,13 @@ export function tpl(): Record<string, THREE.BufferGeometry> {
     box: new THREE.BoxGeometry(1, 1, 1),
     cone: new THREE.ConeGeometry(1, 1, 12),
     torus: new THREE.TorusGeometry(1, 0.32, 6, 14).rotateX(Math.PI / 2),
+    // loose tyre lying flat (unit outer radius, unit width, axle along y): bead hole, rounded shoulders, tread blocks
+    tyre: (() => {
+      const pts: [number, number][] = [[0.56, -0.38], [0.66, -0.46], [0.8, -0.5], [0.92, -0.46], [0.985, -0.34], [1, -0.18], [1, 0.18], [0.985, 0.34], [0.92, 0.46], [0.8, 0.5], [0.66, 0.46], [0.56, 0.38], [0.56, -0.38]]
+      const g = new THREE.LatheGeometry(pts.map(([r, y]) => new THREE.Vector2(r, y)), 28), q = g.attributes.position as THREE.BufferAttribute
+      for (let i = 0; i < q.count; i++) { const x = q.getX(i), y = q.getY(i), z = q.getZ(i), r = Math.hypot(x, z); if (r > 0.97 && Math.abs(y) < 0.3) { const k = 1 + 0.025 * Math.sign(Math.sin(Math.atan2(z, x) * 14 + (y > 0 ? 0.6 : 0))); q.setXYZ(i, x * k, y, z * k) } }
+      g.computeVertexNormals(); return g
+    })(),
     ring: new THREE.TorusGeometry(1, 0.012, 4, 40).rotateX(Math.PI / 2),
     sphere: new THREE.SphereGeometry(1, 10, 8),
     pyr: new THREE.ConeGeometry(Math.SQRT1_2, 1, 4, 1).rotateY(Math.PI / 4).translate(0, 0.5, 0),
@@ -671,7 +678,7 @@ export function buildProp(ctx: BuildCtx, p: MapProp): void {
     }
     case "tyres": {
       const stacks = p.v === 1 ? [[0, 0]] : [[0, 0], [0.9, 0.3], [0.3, 0.95]]
-      for (const [ox, oz] of stacks) { const n = 2 + Math.floor(ctx.rng() * 3); for (let i = 0; i < n; i++) place(ctx.B("rubber"), t.torus, p.x + ox + (ctx.rng() - 0.5) * 0.06, 0.12 + i * 0.24, p.z + oz, 0, ctx.rng(), 0, 0.36, 0.55, 0.36, 0x2a2a2c) }
+      for (const [ox, oz] of stacks) { const n = 2 + Math.floor(ctx.rng() * 3); for (let i = 0; i < n; i++) place(ctx.B("rubber"), t.tyre, p.x + ox + (ctx.rng() - 0.5) * 0.06, 0.12 + i * 0.24, p.z + oz, (ctx.rng() - 0.5) * 0.06, ctx.rng() * 6, (ctx.rng() - 0.5) * 0.06, 0.37, 0.24, 0.37, 0x9a9a9c) }
       return
     }
     case "pallet": {

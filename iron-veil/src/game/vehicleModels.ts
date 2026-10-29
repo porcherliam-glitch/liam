@@ -1091,6 +1091,39 @@ export function benchGeometry(L: number, d: number): VehicleGeo {
   })
 }
 
+/**
+ * Bedding for a mattress of w × L (top at y = 0, head toward -z): a rumpled blanket from 0.45 m below the head to the
+ * foot that drapes over the sides and the foot end, turned down at the top, and a plump pillow.
+ */
+export function beddingGeometry(w: number, L: number, v: number): VehicleGeo {
+  const k = ((v % 3) + 3) % 3
+  return cached(`bedding:${w.toFixed(1)}:${L.toFixed(1)}:${k}`, () => {
+    const p = new Parts(), rnd = mulberry32(57 + k * 13), z0 = -L / 2 + 0.45, z1 = L / 2, drop = 0.16, ph = [rnd() * 6, rnd() * 6, rnd() * 6]
+    const nx = 18, nz = 26, X0 = -w / 2 - drop, X1 = w / 2 + drop, Z1 = z1 + drop
+    const g = new THREE.PlaneGeometry(1, 1, nx, nz).rotateX(-Math.PI / 2), q = g.attributes.position as THREE.BufferAttribute
+    for (let i = 0; i < q.count; i++) {
+      const u = q.getX(i) + 0.5, t = q.getZ(i) + 0.5
+      let x = X0 + u * (X1 - X0), z = z0 + t * (Z1 - z0), y = 0.03
+      // folds: long creases plus a bunched area near the middle
+      y += 0.018 * Math.sin(x * 9 + ph[0] + z * 2) + 0.012 * Math.sin(z * 7 + ph[1]) + 0.05 * Math.exp(-(((z - (z0 + z1) / 2 - 0.2) / 0.25) ** 2) - ((x - 0.1) / 0.3) ** 2) * (0.6 + 0.4 * Math.sin(x * 14 + ph[2]))
+      // over the edges the cloth hangs down
+      const ox = Math.max(0, Math.abs(x) - w / 2), oz = Math.max(0, z - z1)
+      if (ox > 0) { y -= ox * 1.9; x = Math.sign(x) * (w / 2 + ox * 0.25) }
+      if (oz > 0) { y -= oz * 1.9; z = z1 + oz * 0.25 }
+      // turned-down top edge
+      if (t < 0.06) y += 0.025
+      q.setXYZ(i, x, y, z)
+    }
+    g.computeVertexNormals(); p.add("paint", g)
+    // turn-down band (sheet) at the top edge
+    p.box("interior", w + 0.02, 0.03, 0.12, 0, 0.055, z0 + 0.04, 0.012)
+    const pil = new THREE.SphereGeometry(1, 16, 10), pq = pil.attributes.position as THREE.BufferAttribute
+    for (let i = 0; i < pq.count; i++) { const x = pq.getX(i), y = pq.getY(i), z = pq.getZ(i); const f = 1 - 0.35 * Math.abs(x) ** 3; pq.setXYZ(i, x * Math.min(0.3, w * 0.36), y * 0.07 * f, z * 0.2 * (1 - 0.25 * Math.abs(x) ** 4)) }
+    pil.computeVertexNormals(); pil.rotateX(-0.12); pil.translate(0, 0.075, -L / 2 + 0.24); p.add("trim", pil)
+    return p.build(["paint", "trim", "interior"])
+  })
+}
+
 /** Deterministic small PRNG for template variation. */
 function mulberry32(seed: number): () => number {
   let a = seed >>> 0
