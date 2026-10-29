@@ -19,11 +19,17 @@ Stand: 29.10.2026, Version 0.3 (Zombie-Extraction-Umbau).
   - Hände in der Ich-Ansicht: zweifarbige Einsatzhandschuhe mit Knöchelschutz, Polstern, Klettverschluss und Armbanduhr.
   - Beute-Behälter: Versorgungskiste, Spind, Kühlschrank, Werkzeugkasten, Waffenkoffer, Medizinschrank, Tresor und Tasche mit Details; Türen und Deckel öffnen sich und zeigen den Inhalt.
   - Versorgungsabwurf mit Palette, Spanngurten, Leuchte und Fallschirm; abgelegter Rucksack; geworfene Granaten und Molotows sehen aus wie in der Hand.
-- **Tests**: 159 Logik-Tests grün; Browser-Prüfungen für Hauptablauf, Systeme, Sonderfälle und Controller.
+- **Tests**: 175 Logik-Tests grün; Browser-Prüfungen für Hauptablauf, Systeme, Sonderfälle und Controller.
+- **Große Sperrzone und Basis** (29.10.2026): 620 m mit 9 Stadtteilen (Stadt, Industrie, Hafen, Militär, Labor, Bauernhof, Bahnhof, Wald, Steinbruch), Fahrzeuge, Fassaden, Möbel, Barrikaden, Lager; begehbare Basis mit Gebäudestufen; Tag und sehr dunkle Nacht.
+- **Qualitätsschub für alle Modelle** (29.10.2026):
+  - Feine Oberflächen ohne Texturdateien: Stoffgewebe, Haut mit Flecken und Poren, nasses Blut, Holzmaserung, Metall mit abgenutzten Kanten, Kunststoff; Schmutz in Mulden.
+  - Infizierte: geformte Gesichter (Augenhöhlen, Brauen, Nase, Wangenknochen, Kiefer), Wunden als echte Krater mit Blutspuren, Muskeln, Rippen und Wirbelsäule, Hände mit Fingergelenken und Krallen.
+  - Söldner: geformte Körper und Gesichter, Tarnmuster, Handschuhe mit Fingern, Stiefel mit Profil und Schnürung, Magazine, Gurtbänder, Granaten.
+  - Schablonen-Schriften auf Kisten, Waffenkoffern, Medizinschränken und dem Versorgungsabwurf.
 
 ## In Arbeit
 
-- **Sperrzone und Basis in 3D**: die echte, große Karte mit allen Stadtteilen und die ausgebaute Basis mit Gebäudestufen (zurzeit noch Platzhalter-Klötze).
+- Weitere Feinarbeit an Modellen und Animationen.
 
 ## Bekannte Grenzen
 

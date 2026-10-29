@@ -72,7 +72,7 @@ npm test             # Logik-Tests (Vitest)
 npm run verify:all   # Browser-Tests mit Playwright (vorher bauen)
 ```
 
-Prüfstände (nur mit `npm run dev`): `dev.html` (Zone, Basis und Gegner ohne Spiel), `dev-ai.html` (Söldner), `dev-zombies.html` (Infizierte und Horden), `dev-gore.html` (Gore), `dev-weapons.html` (Waffen in der Hand, Symbole, Weltmodelle), `dev-props.html` (Beute-Behälter, Versorgungsabwurf, Rucksack, Wurfwaffen), `dev-audio.html` (alle Geräusche).
+Prüfstände (nur mit `npm run dev`): `dev.html` (Zone, Basis und Gegner ohne Spiel), `dev-ai.html` (Söldner), `dev-zombies.html` (Infizierte und Horden), `dev-gore.html` (Gore), `dev-weapons.html` (Waffen in der Hand, Symbole, Weltmodelle), `dev-props.html` (Beute-Behälter, Versorgungsabwurf, Rucksack, Wurfwaffen), `dev-models.html` (Infizierte in Ruhepose mit Nahansichten), `dev-audio.html` (alle Geräusche).
 
 | Datei | Inhalt |
 |---|---|
