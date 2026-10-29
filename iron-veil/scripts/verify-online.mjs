@@ -117,6 +117,7 @@ try {
   check(fallen.items.length > 0 && fallen.cs === "VEIL-TEST", `Eigene Ausrüstung bleibt für andere liegen (${fallen.items.length} Stapel)`)
   check(await fake(() => window.__fake.emitted.some(e => e.topic === "news" && e.data.k === "death")), "Nachricht an alle: gefallen")
   check((await fake(() => window.__fake.docs.get("scores/u_me").deaths)) === 2, "Bestenliste aktualisiert (Tode 2)")
+  check((await page.locator(".result-loot").innerText()).includes("andere Spieler können sie finden"), "Ergebnis: Hinweis auf zurückgelassene Ausrüstung")
   check(g.errors.length === 0, `Keine Konsolenfehler (${g.errors.length})${g.errors.length ? ": " + g.errors[0] : ""}`)
   console.log("verify-online: alle Prüfungen bestanden")
 } finally { await g.close() }

@@ -1358,7 +1358,10 @@ export class RaidGame {
     if (!online?.available) return
     if (result.success) online.announce("extract", p.callsign, result.value)
     if (result.rescued) online.announce("rescue", p.callsign, result.rescued)
-    if (died) { online.announce("death", p.callsign); online.recordDeath(this.player.pos.x, this.player.pos.z, result.lost, p.callsign) }
+    if (died) {
+      online.announce("death", p.callsign)
+      if (online.canStore && result.lost.length) { online.recordDeath(this.player.pos.x, this.player.pos.z, result.lost, p.callsign); result.leftForOthers = true }
+    }
     online.submitScore(p)
   }
 

@@ -146,6 +146,8 @@ export interface RaidResult {
   contractUpdates: { title: string; progress: number; target: number; done: boolean }[]
   /** Survivors brought out with the player. */
   rescued: number
+  /** Online: the lost gear now lies in the zone for other players. */
+  leftForOthers?: boolean
 }
 
 export type MarkerKind = "extract" | "crate" | "body" | "objective" | "drop" | "threat" | "survivor" | "fallen"
