@@ -10,6 +10,7 @@ import { GoreSystem, type GoreLevel } from "./gore"
 import type { AttackEvent, BodyPartId, Hostile, HostileHit, PlayerState } from "./hostiles"
 import { NavGrid } from "./nav"
 import type { Difficulty, ThemeId } from "./types"
+import { headlessWorld } from "./testWorld"
 import type { World } from "./world"
 import { FlowField, SPAWN_RULES, findSpawnPoint, goreOutcome, inViewCone, makeRng, nextMind, rayCapsule, separation, spawnAllowed, zoneTarget, type GoreInput } from "./zombieAi"
 import { GORE_RULES, InfectedManager, type Infected, type InfectedZone } from "./zombies"
@@ -17,12 +18,7 @@ import { GORE_RULES, InfectedManager, type Infected, type InfectedZone } from ".
 // ------------------------------------------------------------------ helpers
 
 function testWorld(obstacles: Obstacle[], half = 60, theme: ThemeId = "dusk"): World {
-  const bounds = { minX: -half, maxX: half, minZ: -half, maxZ: half }
-  return {
-    layout: { id: "greyzone", bounds, solids: [], playerSpawns: [], lootSpawns: [], enemySpawns: [], extractions: [], reinforcementSpawns: [] },
-    theme, group: new THREE.Group(), obstacles, collision: new CollisionWorld(obstacles), nav: new NavGrid(bounds, obstacles, 0.45, 1),
-    coverPoints: [], exposure: 1, surfaceAt: () => "asphalt", update() {}, setExtraction() {}, dispose() {},
-  }
+  return headlessWorld(obstacles, { minX: -half, maxX: half, minZ: -half, maxZ: half }, theme === "night" ? "night" : "dusk")
 }
 
 type TestPlayer = PlayerState & { yaw: number }

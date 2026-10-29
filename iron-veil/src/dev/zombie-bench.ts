@@ -3,7 +3,7 @@
  * with a GoreSystem, a simulated player (blue marker), the InfectedManager and a button panel (spawn per kind, horde,
  * populate, shoot/explode/melee, gore level, time of day). Exposes window.__zombieBench for Playwright scripts:
  *
- *   dev-zombies.html?mission=blacksite&gore=brutal&ui=0&seed=7
+ *   dev-zombies.html?world=zone&time=night&gore=brutal&ui=0&seed=7
  *   __zombieBench.spawn(kind, x, z, { state, target }) → id      __zombieBench.get(id) → Infected
  *   __zombieBench.horde(cx, cz, n, tx, tz, kinds?)                 __zombieBench.populate(zones, budget)
  *   __zombieBench.setPlayer(x, z, { yaw, pitch, active, crouched, sprinting, flashlight, speed })
@@ -20,7 +20,7 @@ import type { Obstacle } from "../game/collision"
 import { GoreSystem, type GoreLevel } from "../game/gore"
 import type { AttackEvent, BodyPartId, DamageInfo, HostileSound, PlayerState } from "../game/hostiles"
 import type { InfectedKind } from "../game/infectedData"
-import type { MissionId, Vec2 } from "../game/types"
+import type { Vec2 } from "../game/types"
 import { createWorld, type World } from "../game/world"
 import type { Action } from "../game/zombieAnim"
 import type { ClipName } from "../game/zombieAnim"
@@ -30,7 +30,7 @@ type View = "orbit" | "player" | "free" | "top"
 const params = new URLSearchParams(location.search)
 const quality = params.get("quality") === "low" ? "low" : "high"
 let view: View = (params.get("view") as View) || "orbit"
-let mission: MissionId = (params.get("mission") as MissionId) || "greyzone"
+let mission: "zone" | "base" = params.get("world") === "base" ? "base" : "zone"
 let goreLevel: GoreLevel = (params.get("gore") as GoreLevel) || "brutal"
 const seed = Number(params.get("seed") ?? 7)
 
@@ -62,15 +62,15 @@ const marker = new THREE.Group()
   scene.add(marker)
 }
 
-function load(id: MissionId): void {
+function load(id: "zone" | "base"): void {
   if (mgr) mgr.dispose()
   if (gore) gore.dispose()
   if (world) world.dispose()
   mission = id
-  world = createWorld(id, scene, quality)
+  world = createWorld(id, scene, quality, { time: (params.get("time") as "dawn" | "day" | "dusk" | "night") || "dusk" })
   renderer.toneMappingExposure = world.exposure
   gore = new GoreSystem(scene, world.collision, goreLevel)
-  const spawn = world.layout.playerSpawns[0]
+  const spawn = world.layout.kind === "zone" ? world.layout.insertions[0] : world.layout.spawn
   player.position.set(spawn.x, 0, spawn.z); player.yaw = spawn.yaw
   mgr = new InfectedManager(world.group, world, {
     difficulty: "normal", seed, gore,
@@ -84,8 +84,7 @@ function load(id: MissionId): void {
   })
   mgr.onImpact = () => { log.impacts++ }
   demoZones.length = 0
-  const b = world.layout.bounds
-  for (const [fx, fz] of [[0.2, 0.2], [0.8, 0.25], [0.25, 0.8], [0.75, 0.75], [0.5, 0.5]]) demoZones.push({ x: b.minX + (b.maxX - b.minX) * fx, z: b.minZ + (b.maxZ - b.minZ) * fz, radius: 14, density: 0.012 })
+  for (const [fx, fz] of [[-40, -40], [40, -35], [-35, 40], [35, 35], [0, -60]]) demoZones.push({ x: spawn.x + fx, z: spawn.z + fz - 40, radius: 14, density: 0.012 })
 }
 
 function update(dt: number): void {
@@ -135,7 +134,7 @@ function damage(amount: number, dir: THREE.Vector3, kind: DamageInfo["kind"], se
 const bench = {
   THREE, scene, camera, renderer, player, log, ready: false,
   get world() { return world }, get mgr() { return mgr }, get gore() { return gore }, get mission() { return mission }, get time() { return time },
-  load(id: MissionId) { load(id); render() },
+  load(id: "zone" | "base") { load(id); render() },
   spawn(kind: InfectedKind, x: number, z: number, opts: { state?: "idle" | "wander" | "hunt"; target?: Vec2; yaw?: number } = {}) {
     const e = mgr.spawn(kind, x, z, opts)
     if (opts.yaw !== undefined) { e.yaw = opts.yaw; e.group.rotation.y = opts.yaw }
@@ -238,7 +237,7 @@ if (params.get("ui") !== "0") {
   btn("Machete", () => bench.melee())
   btn("Lärm", () => bench.noise(player.position.x, player.position.z, 50))
   for (const g of ["off", "normal", "brutal"] as GoreLevel[]) btn(`Gore ${g}`, () => bench.setGore(g))
-  btn("Dämmerung", () => bench.load("greyzone")); btn("Hafen", () => bench.load("harbor")); btn("Nacht", () => bench.load("blacksite"))
+  btn("Zone", () => bench.load("zone")); btn("Basis", () => bench.load("base"))
   btn("Spieler aktiv", () => { player.active = !player.active })
   btn("Lampe", () => { player.flashlight = !player.flashlight })
   btn("Ansicht", () => { view = view === "orbit" ? "player" : view === "player" ? "top" : "orbit" })

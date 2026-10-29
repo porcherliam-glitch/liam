@@ -3,6 +3,7 @@ import { it } from "vitest"
 import { CollisionWorld, type Obstacle } from "./collision"
 import { GoreSystem } from "./gore"
 import { NavGrid } from "./nav"
+import { headlessWorld } from "./testWorld"
 import type { World } from "./world"
 import { InfectedManager } from "./zombies"
 
@@ -10,7 +11,7 @@ it("perf", () => {
   const obstacles: Obstacle[] = []
   for (let i = 0; i < 300; i++) { const x = ((i * 37) % 280) - 140, z = ((i * 53) % 280) - 140; obstacles.push({ minX: x, maxX: x + 5, minZ: z, maxZ: z + 3, height: 4 }) }
   const bounds = { minX: -150, maxX: 150, minZ: -150, maxZ: 150 }
-  const world: World = { layout: { id: "greyzone", bounds, solids: [], playerSpawns: [], lootSpawns: [], enemySpawns: [], extractions: [], reinforcementSpawns: [] }, theme: "dusk", group: new THREE.Group(), obstacles, collision: new CollisionWorld(obstacles), nav: new NavGrid(bounds, obstacles, 0.45, 1), coverPoints: [], exposure: 1, surfaceAt: () => "asphalt", update() {}, setExtraction() {}, dispose() {} }
+  const world: World = headlessWorld(obstacles, bounds)
   const gore = new GoreSystem(new THREE.Scene(), world.collision, "brutal")
   const mgr = new InfectedManager(world.group, world, { difficulty: "normal", seed: 3, gore, events: { died() {} } })
   const pl = { position: new THREE.Vector3(0.5, 0, 0.5), eyeY: 1.62, crouched: false, speed: 3, sprinting: false, flashlight: false, alive: true, active: true, yaw: 0 }
