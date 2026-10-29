@@ -740,10 +740,14 @@ function treeTemplates(env: Env, look: Look): { hi: THREE.BufferGeometry[]; lo: 
     deO.push(limb(V(end.x * 0.6, y + l * 0.42, end.z * 0.6), V(end.x * 0.75 + Math.cos(a - 1.2) * 0.07, end.y + 0.06, end.z * 0.75 + Math.sin(a - 1.2) * 0.07), 0.005, 0.002, 4))
   }
 
-  // bush: dark core and a dome of leaf cards
-  const buO = [blob(0, 0.3, 0, 0.36, 1.2, 0.72, 1.1, leaf.clone().multiplyScalar(0.42)), blob(0.18, 0.26, 0.1, 0.22, 1, 0.8, 1, leaf.clone().multiplyScalar(0.48))]
-  const buC: THREE.BufferGeometry[] = []
-  crown(buC, V(0, 0.3, 0), V(0.5, 0.36, 0.46), 26, 0.36, -0.15, leaf.clone().multiplyScalar(0.92))
+  // bush: woody stems from the ground, three clumps (dark cores in leaf-card shells) for an uneven outline
+  const buO: THREE.BufferGeometry[] = [], buC: THREE.BufferGeometry[] = []
+  const buClumps = [[0, 0.34, 0, 0.34], [0.27, 0.25, 0.12, 0.24], [-0.24, 0.27, -0.1, 0.26], [0.05, 0.22, -0.26, 0.2]] as const
+  for (const [x, y, z, r] of buClumps) {
+    buO.push(blob(x, y, z, r * 0.72, 1.15, 0.8, 1.1, leaf.clone().multiplyScalar(0.4), 0))
+    buO.push(limb(V(x * 0.3, 0, z * 0.3), V(x, y - r * 0.3, z), 0.012, 0.006, 4))
+    crown(buC, V(x, y, z), V(r * 1.2, r * 0.95, r * 1.15), Math.round(r * r * 380), 0.16 + r * 0.42, -0.25, leaf.clone().multiplyScalar(0.86 + x * 0.3))
+  }
 
   // low detail: same silhouettes from a handful of pieces
   const spLo = [part(new THREE.CylinderGeometry(0.016, 0.032, 0.5, 4).translate(0, 0.25, 0), bark, bi, 0.6, 4, trunkC),
@@ -753,8 +757,9 @@ function treeTemplates(env: Env, look: Look): { hi: THREE.BufferGeometry[]; lo: 
   const brLoC: THREE.BufferGeometry[] = []
   for (const [x, y, z, r] of clumps.slice(0, 4)) crown(brLoC, V(x, y, z), V(r * 1.2, r, r * 1.2), 4, 0.2 + r * 0.9, -0.4, leaf.clone().multiplyScalar(0.9))
   const deLo = [part(new THREE.CylinderGeometry(0.014, 0.04, 0.9, 4).translate(0, 0.45, 0), bark, bi, 0.6, 4, dc)]
-  const buLoO = [blob(0, 0.32, 0, 0.42, 1.2, 0.72, 1.1, leaf.clone().multiplyScalar(0.55), 0)]
-  const buLoC: THREE.BufferGeometry[] = []; crown(buLoC, V(0, 0.3, 0), V(0.5, 0.36, 0.46), 8, 0.5, -0.1, leaf.clone().multiplyScalar(0.92))
+  const buLoO = [blob(0, 0.3, 0, 0.4, 1.2, 0.72, 1.1, leaf.clone().multiplyScalar(0.5), 0)]
+  const buLoC: THREE.BufferGeometry[] = []
+  for (const [x, y, z, r] of buClumps.slice(0, 3)) crown(buLoC, V(x, y, z), V(r * 1.2, r, r * 1.15), 6, 0.28 + r * 0.6, -0.15, leaf.clone().multiplyScalar(0.9))
   return {
     hi: [tpl(spO, spC), tpl(brO, brC), tpl(deO, []), tpl(buO, buC)],
     lo: [tpl(spLo, []), tpl(brLoO, brLoC), tpl(deLo, []), tpl(buLoO, buLoC)],

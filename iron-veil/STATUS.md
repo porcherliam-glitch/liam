@@ -29,7 +29,7 @@ Stand: 29.10.2026, Version 0.5 (mehr Waffen, neue Modelle).
 - **Online** (29.10.2026, nur als claude.ai-Artefakt): wer gerade spielt, Echos anderer Spieler in der Zone und auf der Karte, Funk (Enter im Einsatz) mit automatischen Meldungen, Bestenliste, Ausrüstung gefallener Spieler in fremden Einsätzen. Fremde Daten werden bereinigt und nur als Text gezeigt. Ohne claude.ai läuft alles offline.
 - **Mehr Waffen und Aufsätze** (29.10.2026): P18 Reihenfeuerpistole, DE-50, V-45 Vektor (.45 ACP), StG-77 Bullpup, AS-12 Sturmflinte; Brechstange, Baseballschläger, Katana, Vorschlaghammer. Neue Aufsätze: 2,5×-Prismenvisier mit beleuchtetem Absehen, Mündungsbremse, Zweibein, Trommelmagazin, Waffenlicht (leuchtet doppelt so weit wie die Taschenlampe). Alle mit eigenem Modell, Symbol, Geräusch, Beute und Rezept.
 - **Neue Modelle für die Welt** (29.10.2026):
-  - Bäume: Fichten aus Nadelzweigen, Laubbäume mit Blattbüscheln, die Licht durchlassen und richtige Schatten werfen; Sträucher und tote Bäume.
+  - Bäume: Fichten aus Nadelzweigen, Laubbäume mit Blattbüscheln, die Licht durchlassen und richtige Schatten werfen; Sträucher aus mehreren Blattbüscheln mit Zweigen; tote Bäume.
   - Fahrzeuge: Limousine, Schrägheck und Kombi mit Scheiben, Türfugen, Lampen, Kennzeichen und Felgen; Schützenpanzer, Lkw, Bus, Traktor, Bagger und Boote neu gebaut.
   - Felsen und Steinbruch: verwitterte Brocken mit Bruchflächen; runde Reifen.
   - Güterzüge: gedeckte Güterwagen mit Schiebetüren und gewölbtem Dach, Schüttgutwagen mit Kiesladung, Kesselwagen mit Laufsteg und Leitern; alle mit Drehgestellen, Puffern und Kupplungen.
