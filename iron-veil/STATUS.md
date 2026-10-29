@@ -39,6 +39,7 @@ Stand: 29.10.2026, Version 0.5 (mehr Waffen, neue Modelle).
   - Wachtürme mit Kreuzstreben, Dach und Leiter; Zelte mit durchhängender Plane, Eingang, Spannseilen und Heringen.
   - Lkw-Aufbauten mit Hecktüren, Verriegelungsstangen, Stoßstange, Seitenschutz und Rückleuchten am richtigen Ende.
   - Gabelstapler mit Schutzdach, Hubmast und Gabeln; Pumpen mit Motor und Schaltkasten; Brecheranlage im Steinbruch mit Bühne, Schwungrädern und offenem Trichter.
+  - Infizierte: kräftigere Arme und Beine, breitere Schultern, größere Köpfe; fleckige, kränkliche Haut; Brute und Koloss mit spitzen Knochendornen statt runder Platten.
   - Weniger Speicher: Fahrzeugmodelle teilen sich Eckpunkte; die Zone braucht nur noch halb so viele Punkte wie vorher.
 - **Tests**: 189 Logik-Tests grün; Browser-Prüfungen für Hauptablauf, Systeme, Sonderfälle, Controller und Online (mit simuliertem zweiten Spieler).
 

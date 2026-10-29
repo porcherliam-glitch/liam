@@ -51,20 +51,20 @@ function spec(s: Omit<BodySpec, "lie" | "height">): BodySpec {
 }
 
 const HUMAN = {
-  hipH: 0.9, thigh: 0.44, shin: 0.41, foot: 0.05, pelvisW: 0.3, waistW: 0.25, waistD: 0.17, chestW: 0.35, chestD: 0.2, torsoLen: 0.56,
-  shoulderX: 0.2, neck: 0.08, headR: 0.112, headS: [0.95, 1.12, 1.05] as const, headZ: 0, upperArm: 0.3, foreArm: 0.27, hand: 0.1,
-  armR: 0.046, foreR: 0.038, thighR: 0.068, shinR: 0.05, claw: 0.03, jawMax: 0.6, hunch: -0.18, legs: true, radius: 0.32,
+  hipH: 0.88, thigh: 0.43, shin: 0.4, foot: 0.05, pelvisW: 0.32, waistW: 0.26, waistD: 0.18, chestW: 0.38, chestD: 0.22, torsoLen: 0.58,
+  shoulderX: 0.215, neck: 0.08, headR: 0.117, headS: [0.95, 1.12, 1.05] as const, headZ: 0, upperArm: 0.3, foreArm: 0.27, hand: 0.1,
+  armR: 0.052, foreR: 0.042, thighR: 0.08, shinR: 0.056, claw: 0.03, jawMax: 0.6, hunch: -0.18, legs: true, radius: 0.32,
 }
 
 export const SPECS: Record<InfectedKind, BodySpec> = {
   walker: spec(HUMAN),
-  runner: spec({ ...HUMAN, hipH: 0.94, thigh: 0.46, shin: 0.43, chestW: 0.33, waistW: 0.22, armR: 0.042, foreR: 0.034, thighR: 0.062, shinR: 0.046, claw: 0.045, hunch: -0.3, radius: 0.3 }),
+  runner: spec({ ...HUMAN, hipH: 0.92, thigh: 0.45, shin: 0.42, chestW: 0.35, waistW: 0.23, armR: 0.047, foreR: 0.038, thighR: 0.072, shinR: 0.051, claw: 0.045, hunch: -0.3, radius: 0.3 }),
   screamer: spec({ ...HUMAN, hipH: 0.96, thigh: 0.47, shin: 0.44, chestW: 0.31, chestD: 0.18, waistW: 0.2, torsoLen: 0.6, neck: 0.17, headR: 0.118, headS: [0.86, 1.3, 1.02],
-    upperArm: 0.33, foreArm: 0.31, armR: 0.038, foreR: 0.032, thighR: 0.058, shinR: 0.044, claw: 0.06, jawMax: 1.25, hunch: -0.08, radius: 0.3 }),
+    upperArm: 0.33, foreArm: 0.31, armR: 0.043, foreR: 0.036, thighR: 0.066, shinR: 0.049, claw: 0.06, jawMax: 1.25, hunch: -0.08, radius: 0.3 }),
   spitter: spec({ ...HUMAN, hipH: 0.86, thigh: 0.42, shin: 0.39, waistW: 0.33, waistD: 0.24, chestW: 0.38, chestD: 0.24, torsoLen: 0.54, belly: 0.26, throat: 0.1,
     armR: 0.05, foreR: 0.042, thighR: 0.08, shinR: 0.058, jawMax: 0.9, hunch: -0.02, radius: 0.42 }),
-  stalker: spec({ ...HUMAN, hipH: 0.92, thigh: 0.45, shin: 0.42, chestW: 0.33, chestD: 0.19, waistW: 0.21, upperArm: 0.37, foreArm: 0.36, hand: 0.12, armR: 0.043, foreR: 0.036,
-    thighR: 0.062, shinR: 0.046, claw: 0.09, jawMax: 0.8, hunch: -0.35, spine: true, radius: 0.34 }),
+  stalker: spec({ ...HUMAN, hipH: 0.9, thigh: 0.44, shin: 0.41, chestW: 0.35, chestD: 0.2, waistW: 0.22, upperArm: 0.37, foreArm: 0.36, hand: 0.12, armR: 0.047, foreR: 0.039,
+    thighR: 0.07, shinR: 0.05, claw: 0.09, jawMax: 0.8, hunch: -0.35, spine: true, radius: 0.34 }),
   crawler: spec({ ...HUMAN, legs: false, upperArm: 0.32, foreArm: 0.29, claw: 0.05, jawMax: 0.75, hunch: 0, radius: 0.36 }),
   brute: spec({ hipH: 1.02, thigh: 0.5, shin: 0.45, foot: 0.07, pelvisW: 0.62, waistW: 0.62, waistD: 0.46, chestW: 0.98, chestD: 0.62, torsoLen: 0.88,
     shoulderX: 0.56, neck: 0.0, headR: 0.135, headS: [1.05, 0.95, 1.05], headZ: -0.2, upperArm: 0.5, foreArm: 0.52, hand: 0.2, armR: 0.16, foreR: 0.185,
@@ -97,7 +97,7 @@ const C = {
   wound: 0x84170f, flesh: 0xa53a26, blood: 0x6a120b, gore: 0x3c0806, bone: 0xd8cfae, teeth: 0xcdbd8c, dark: 0x0e0504, nail: 0x2a2018, gut: 0xa65a55,
   plate: 0xb8a988, muscle: 0x8a3027, bile: 0x9aa457, sac: 0xa9b35e, acid: 0x9cff52, weak: 0xffa236,
 }
-const SKINS = [0x9aa18a, 0x8a9a76, 0xa8a38c, 0x7f8a6e, 0x9c9894, 0x8a826e, 0x93907c]
+const SKINS = [0x8e9a80, 0x84926e, 0x969880, 0x7a866a, 0x8c8e8c, 0x86806c, 0x8a8c78, 0x7e8a84]
 const EYES: Record<InfectedKind, number> = { walker: 0xf2e7a6, runner: 0xff7a3a, screamer: 0xe6f0ff, spitter: 0xbdff6a, stalker: 0x9fd8ff, crawler: 0xf2e7a6, brute: 0xffb24a, boss: 0xff8a1e }
 const CIV_TOPS = [0x6b4a3a, 0x3d4f66, 0x7a7466, 0x5e2b2b, 0x4a5a3a, 0x8a7a5a, 0x2e3440, 0x6a6a72, 0x7c5a2e]
 const CIV_PANTS = [0x3d4b66, 0x4b4236, 0x3a3a3c, 0x5a5444, 0x48505a, 0x5b4a3a]
@@ -159,12 +159,19 @@ const TPL = {
   ball: new THREE.SphereGeometry(1, 12, 8),
   ballLo: new THREE.SphereGeometry(1, 8, 6),
   ico: new THREE.IcosahedronGeometry(1, 1),
+  // bone spur: five-sided spike, base at the origin, tip at +Y
+  spur: new THREE.ConeGeometry(1, 1, 5).translate(0, 0.5, 0),
 }
 /** Geometry detail while building (1 = close-up rig, ~0.45 = distant LOD bake). */
 let DETAIL = 1
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _s = new THREE.Vector3(), _p = new THREE.Vector3()
 const _v = new THREE.Vector3(), _n = new THREE.Vector3(), _nm = new THREE.Matrix3(), _c = new THREE.Color(), _cP = new THREE.Color(), _cW = new THREE.Color(), _up = new THREE.Vector3(0, 1, 0)
 
+/** Smooth mottling in ±1 over ~10 cm (bruises, lividity and grime patches on skin and cloth). */
+function mottle(x: number, y: number, z: number): number {
+  x *= 21; y *= 17; z *= 23
+  return Math.sin(x + Math.sin(y * 1.3)) * Math.sin(y * 0.9 + Math.sin(z * 1.1)) * Math.sin(z * 1.2 + Math.sin(x * 0.7))
+}
 function hash3(x: number, y: number, z: number): number { const h = Math.sin(x * 127.1 + y * 311.7 + z * 74.7) * 43758.5453; return h - Math.floor(h) }
 
 export interface Ring { y: number; w: number; d: number; x?: number; z?: number; c: number; jag?: number }
@@ -187,7 +194,7 @@ export class GeoBuilder {
       _v.fromBufferAttribute(p, i).applyMatrix4(m); this.pos.push(_v.x, _v.y, _v.z)
       _n.fromBufferAttribute(n, i).applyMatrix3(_nm).normalize(); this.nor.push(_n.x, _n.y, _n.z)
       // grime: per-vertex jitter + darker toward the bottom of each piece
-      const k = 1 + (hash3(_v.x, _v.y, _v.z) - 0.5) * 2 * jitter
+      const k = (1 + (hash3(_v.x, _v.y, _v.z) - 0.5) * 2 * jitter) * (1 + 0.14 * mottle(_v.x, _v.y, _v.z))
       this.col.push(_c.r * k, _c.g * k, _c.b * k); this.glow.push(glow); this.surf.push(st); this.lofted.push(0)
     }
     if (g.index) for (let i = 0; i < g.index.count; i++) this.idx.push(base + g.index.getX(i))
@@ -285,7 +292,7 @@ export class GeoBuilder {
         let x = ring.x + ca * ring.w, y = ring.y + jag, z = ring.z + sa * ring.d
         if (fx?.deform) { const off = fx.deform(a, y, ring.v, x, z); x += rx * off; z += rz * off }
         this.pos.push(x, y, z); this.nor.push(rx, 0, rz)
-        const k = 1 + (hash3(x, y, z) - 0.5) * 2 * jitter
+        const k = (1 + (hash3(x, y, z) - 0.5) * 2 * jitter) * (1 + 0.16 * mottle(x, y, z))
         _cP.setRGB(_c.r * k, _c.g * k, _c.b * k)
         let stv = st
         if (fx?.paint) { const ps = fx.paint(a, y, ring.v, _cP, x, z); if (ps !== undefined) stv = ps }
@@ -392,12 +399,31 @@ export class GeoBuilder {
   blob(x: number, y: number, z: number, rx: number, ry: number, rz: number, color: number, ex = 0, ey = 0, ez = 0, glow = 0): this {
     _m.compose(_p.set(x, y, z), _q.setFromEuler(_e.set(ex, ey, ez)), _s.set(rx, ry, rz)); return this.add(DETAIL < 1 ? TPL.ballLo : TPL.ball, _m, color, glow, 0.12)
   }
-  /** Bony plate grown out of the flesh: raw rim where it breaks through, the plate, a weathered ridge (thinnest axis = surface normal). */
+  /**
+   * Bone breaking out of the flesh: a torn raw rim and four pointed bone spurs of uneven size jutting out of it
+   * (thinnest axis = surface normal; the layout is hashed from the position, so mirrored plates differ).
+   */
   plate(x: number, y: number, z: number, rx: number, ry: number, rz: number, ex = 0, ey = 0, ez = 0): this {
     const thin = Math.min(rx, ry, rz), n = (v: number, k: number, o: number) => v === thin ? v * k : v * o
-    this.blob(x, y, z, n(rx, 0.75, 1.13), n(ry, 0.75, 1.13), n(rz, 0.75, 1.13), 0x5c1810, ex, ey, ez)
-    this.blob(x, y, z, rx, ry, rz, C.plate, ex, ey, ez)
-    return this.blob(x, y, z, n(rx, 1.12, 0.5), n(ry, 1.12, 0.5), n(rz, 1.12, 0.5), 0x8a7a5c, ex, ey, ez)
+    this.blob(x, y, z, n(rx, 0.7, 0.92), n(ry, 0.7, 0.92), n(rz, 0.7, 0.92), 0x5c1810, ex, ey, ez)
+    this.blob(x, y, z, n(rx, 0.85, 0.66), n(ry, 0.85, 0.66), n(rz, 0.85, 0.66), C.muscle, ex, ey, ez)
+    const tx = rx !== thin, ty = ry !== thin, tz = rz !== thin, broad = Math.min(tx ? rx : 9, ty ? ry : 9, tz ? rz : 9)
+    // the spur's +Y goes out along the plate normal (its thinnest axis, pointing away from the segment's axis)
+    const out = (rx === thin ? Math.sign(x) : rz === thin ? Math.sign(z) : Math.sign(y)) || 1
+    const toNormal = new THREE.Quaternion().setFromEuler(rx === thin ? new THREE.Euler(0, 0, -out * Math.PI / 2) : rz === thin ? new THREE.Euler(out * Math.PI / 2, 0, 0) : new THREE.Euler(out > 0 ? 0 : Math.PI, 0, 0))
+    const plateQ = new THREE.Quaternion().setFromEuler(new THREE.Euler(ex, ey, ez))
+    for (let i = 0; i < 4; i++) {
+      const h = hash3(x * 13.1 + i * 1.7, y * 7.3 + i, z * 5.9), h2 = hash3(y * 11.3 + i * 5.1, z * 3.7, x * 17.9 + i), h3 = hash3(z * 9.1 + i, x * 2.3, y * 6.1 + i * 2)
+      const a = (h - 0.5) * 1.1, b = (h2 - 0.5) * 1.1
+      _v.set(tx ? rx * a : 0, ty ? ry * (tx ? b : a) : 0, tz ? rz * b : 0).applyQuaternion(plateQ)
+      // lean the spur away from the plate centre a little, then into the plate frame
+      const lean = new THREE.Quaternion().setFromEuler(new THREE.Euler(b * 0.9, h3 * 6.28, -a * 0.9))
+      const q = plateQ.clone().multiply(toNormal).multiply(lean)
+      const len = thin * (2.6 + h3 * 2.2) * (i === 0 ? 1.3 : 1), rad = broad * (0.16 + h * 0.12)
+      _m.compose(_p.set(x + _v.x, y + _v.y, z + _v.z), q, _s.set(rad, len, rad * (0.7 + h2 * 0.3)))
+      this.add(TPL.spur, _m, i === 0 ? C.plate : i === 1 ? 0xc8b896 : i === 2 ? 0xa89878 : 0xd6c8a6, 0, 0.1)
+    }
+    return this
   }
   /** Wound on a surface: dark crater with a raw-flesh rim, oriented by the yaw/roll of the surface. */
   wound(x: number, y: number, z: number, size: number, ry: number, rz = 0): this {
