@@ -1,3 +1,4 @@
+import type { WeatherId } from "./weather"
 /**
  * types.ts — shared plain-data types. No three.js imports here so pure logic modules and unit tests stay light.
  * Coordinates: world XZ is the ground plane, Y is up. Yaw 0 looks toward -Z; positive yaw turns left (counter-clockwise from above).
@@ -123,6 +124,8 @@ export interface LootStack { id: ItemId; qty: number }
 export interface RaidPlan {
   insertion: string
   time: TimeOfDay
+  /** Weather in the zone (clear when missing). */
+  weather?: WeatherId
   /** Active contract ids tracked in this raid. */
   contracts: string[]
 }

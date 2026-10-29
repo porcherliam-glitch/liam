@@ -20,6 +20,8 @@
  * 4 (high) / 1 (low) real point lights are re-assigned to the working lamps nearest to the camera.
  */
 import * as THREE from "three"
+import { Obscurants } from "./obscurants"
+import { Rain, WEATHER, nextLightning, type WeatherId } from "./weather"
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js"
 import { STRUCTURES, TIMES, type StructureId, type TimeOfDay } from "./baseData"
 import { baseMap, structureModel, wallsModel, type BaseMap } from "./basemap"
@@ -56,6 +58,17 @@ export interface World {
   lightLevel: number
   visionScale: number
   night: boolean
+  /** Smoke clouds that block sight (smoke grenades); filled and updated by the raid. */
+  obscurants: Obscurants
+  /** Current weather and its multiplier on how far hostiles see (both set by setWeather). */
+  weather: WeatherId
+  weatherVision: number
+  /** Changes light, fog, sky and rain; "clear" restores the time-of-day look. */
+  setWeather(id: WeatherId): void
+  /** Called on every lightning strike during a storm (distance in metres, for the thunder delay). */
+  onLightning: ((distance: number) => void) | null
+  /** True when rain falls on the camera right now (outdoors in rain or storm). */
+  raining: boolean
   surfaceAt(x: number, z: number): Surface
   districtAt(x: number, z: number): District | null
   indoor(x: number, z: number): boolean
@@ -424,9 +437,43 @@ export function createWorld(kind: WorldKind, scene: THREE.Scene, quality: "high"
   const best: number[] = [], bestD: number[] = []
   let lightClock = 0, lastLX = Infinity, lastLZ = Infinity
 
+  // --- weather: everything it changes is kept so "clear" restores the time-of-day look exactly ------------
+  const rain = new Rain(high ? 4200 : 1800, time === "night" ? 0x6f7a86 : 0xb8c2cc)
+  own(rain); group.add(rain.mesh)
+  const skyU = (sky.material as THREE.ShaderMaterial).uniforms
+  const baseLook = {
+    hemi: hemi.intensity, sun: sun.intensity, fogColor: new THREE.Color(look.sky.fog),
+    zenith: skyU.zenith.value.clone(), mid: skyU.mid.value.clone(), horizon: skyU.horizon.value.clone(), skyFog: skyU.fogColor.value.clone(),
+    clouds: skyU.clouds.value as number, sunVisible: skyU.sunVisible.value as number, glow: skyU.glowStrength.value as number,
+  }
+  const greyHex = time === "night" ? 0x1b1e23 : time === "dusk" || time === "dawn" ? 0x5d6066 : 0x8e9397
+  const gl = raw(greyHex), greyLin = new THREE.Vector3(gl.r, gl.g, gl.b), greyFog = new THREE.Color(greyHex)
+  let wLight = 1, bolt = 0, boltNext = 12, boltRng = mulberry(4711)
+  const applyLight = () => {
+    const flash = bolt > 0 ? (bolt > 0.12 ? 1 : 0.35) * 3.2 : 0
+    hemi.intensity = baseLook.hemi * wLight + flash
+    sun.intensity = baseLook.sun * wLight * (world.weather === "clear" ? 1 : world.weather === "fog" ? 0.45 : 0.3)
+  }
+
   const world: World = {
+    weather: "clear", weatherVision: 1, onLightning: null, raining: false,
+    setWeather(id) {
+      const w = WEATHER[id], k = w.overcast
+      world.weather = id; world.weatherVision = w.vision; wLight = w.light; bolt = 0; boltRng = mulberry(4711); boltNext = 9
+      applyLight()
+      const fog = scene.fog as THREE.Fog | null
+      if (fog && fog.isFog) { fog.color.copy(baseLook.fogColor).lerp(greyFog, k); fog.near = look.fog[0] * w.fog; fog.far = look.fog[1] * w.fog; scene.background = fog.color }
+      skyU.zenith.value.copy(baseLook.zenith).lerp(greyLin, k)
+      skyU.mid.value.copy(baseLook.mid).lerp(greyLin, k)
+      skyU.horizon.value.copy(baseLook.horizon).lerp(greyLin, k)
+      skyU.fogColor.value.copy(baseLook.skyFog).lerp(greyLin, k)
+      skyU.clouds.value = k > 0 ? Math.max(baseLook.clouds, 0.9) : baseLook.clouds
+      skyU.sunVisible.value = baseLook.sunVisible * (1 - k)
+      skyU.glowStrength.value = baseLook.glow * (1 - k * 0.85)
+      rain.amount = w.rain
+    },
     kind, layout, time, theme: time === "night" ? "night" : "dusk", group, obstacles, collision, nav, coverPoints,
-    exposure: look.exposure, lightLevel: look.light, visionScale: TIMES[time].visionScale, night: time === "night",
+    exposure: look.exposure, lightLevel: look.light, visionScale: TIMES[time].visionScale, night: time === "night", obscurants: new Obscurants(),
     surfaceAt: (x, z) => ground.surface(x, z),
     districtAt,
     indoor: (x, z) => ground.indoor(x, z),
@@ -475,6 +522,13 @@ export function createWorld(kind: WorldKind, scene: THREE.Scene, quality: "high"
       }
       for (let i = 0; i < radars.length; i++) radars[i].rotation.y = t * 0.55 + i
       evac.update(dt, t)
+      // rain around the camera (not indoors); lightning: a double flash, the raid plays the thunder
+      if (rain.amount > 0) { const inside = ground.indoor(cp.x, cp.z); rain.update(t, cp, inside); world.raining = !inside } else world.raining = false
+      if (WEATHER[world.weather].lightning) {
+        boltNext -= dt
+        if (boltNext <= 0) { const n = nextLightning(boltRng); boltNext = n.wait; bolt = 0.32; world.onLightning?.(n.distance) }
+        if (bolt > 0) { bolt = Math.max(0, bolt - dt); applyLight() }
+      }
     },
     setExtraction(id, state, progress) { evac.set(id, state, progress) },
     setStructures,

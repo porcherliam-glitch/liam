@@ -18,6 +18,7 @@ import { MODE_NAMES, type ChatLine, type Online } from "./online"
 import type { LootSession } from "./raid"
 import type { Vitals } from "./survival"
 import type { Difficulty, GoreSetting, HudSnapshot, RaidPlan, RaidResult, Screen, Settings } from "./types"
+import { WEATHER, WEATHER_ORDER, type WeatherId } from "./weather"
 import { AMMO, AMMO_FOR, ATTACHMENTS, ATTACHMENT_ORDER, PRIMARY_WEAPONS, SECONDARY_WEAPONS, MELEE_WEAPONS, WEAPONS, canAttach, effectiveWeapon, type AmmoId, type AttachmentId, type AttachmentSlot, type WeaponId } from "./weaponData"
 import type { StationId, ZoneLayout } from "./zone"
 
@@ -92,7 +93,7 @@ export class GameUI {
   private traderTab: "supply" | "ammo" | "weapons" | "attachments" | "sell" = "supply"
   private armorySlot: "primary" | "secondary" = "primary"
   private craftStation: RecipeStation = "workbench"
-  private plan: { insertion: string; time: TimeOfDay } = { insertion: "", time: "day" }
+  private plan: { insertion: string; time: TimeOfDay; weather: WeatherId } = { insertion: "", time: "day", weather: "clear" }
   private buildFocus: StructureId | null = null
   private online: Online | null = null
   private boardSort: "earned" | "infectedKills" | "rescued" | "bestRaid" = "earned"
@@ -372,6 +373,7 @@ export class GameUI {
       return `<button class="choice ${this.plan.insertion === i.id ? "active" : ""}" data-action="plan-insertion" data-id="${i.id}" ${locked ? "disabled" : ""}><b>${esc(i.name)}</b><small>${locked ? `KOMMANDOZENTRALE ${i.hq}` : `${esc(d?.name ?? i.district)} · ${"☣".repeat(d?.danger ?? 1)}`}</small></button>`
     }).join("")
     const times = TIME_ORDER.map(t => `<button class="choice ${this.plan.time === t ? "active" : ""}" data-action="plan-time" data-id="${t}"><b>${TIMES[t].name}</b><small>${TIMES[t].clock} · Infizierte ×${TIMES[t].infected}${TIMES[t].loot ? ` · Beute +${Math.round(TIMES[t].loot * 100)} %` : ""}</small></button>`).join("")
+    const weathers = WEATHER_ORDER.map(w => `<button class="choice ${this.plan.weather === w ? "active" : ""}" data-action="plan-weather" data-id="${w}"><b>${WEATHER[w].name}</b><small>${WEATHER[w].note}</small></button>`).join("")
     const lo = p.loadout, warnings: string[] = []
     if (!lo.primary && !lo.secondary) warnings.push("Keine Schusswaffe ausgerüstet – nur das Messer.")
     const ammoFor = (id: WeaponId | null, ammo: AmmoId | null) => !id || !ammo || lo.bag.some(s => s.id === ammo)
@@ -383,7 +385,7 @@ export class GameUI {
     const kit = `${lo.primary ? esc(WEAPONS[lo.primary].short) : "—"} · ${lo.secondary ? esc(WEAPONS[lo.secondary].short) : "—"} · ${esc(WEAPONS[lo.melee].short)} · ${lo.armor ? `Weste ${lo.armor}` : "keine Weste"}${lo.helmet ? " · Helm" : ""} · Rucksack ${lo.bag.length}/${this.company.bagSlots()} · Sicher ${lo.secure.length}/${this.company.secureSlots()}`
     this.panel("radio", "EINSATZ & FUNK", `<div class="content-heading"><div><span class="eyebrow">FUNKSTATION · STUFE ${this.company.level("radio")}</span><h2>Einsatz planen.</h2></div><span class="risk-note">SCHWIERIGKEIT: ${DIFFICULTY[this.settings.difficulty].name.toUpperCase()} · TOD = AUSRÜSTUNG WEG</span></div>
       <div class="radio-layout"><section><div class="subheading"><h3>AUFTRÄGE</h3><span>${p.contracts.active.length} / ${this.company.contractSlots()} AKTIV · NEUE IN <b data-ends="${p.contracts.refreshAt}">${formatTime((p.contracts.refreshAt - Date.now()) / 1000)}</b></span></div>${active}${offers}</section>
-      <article class="briefing-card plan"><div class="briefing-body"><span class="eyebrow">EINSTIEGSPUNKT</span><div class="choices">${insertions}</div><span class="eyebrow">TAGESZEIT</span><div class="choices">${times}</div>
+      <article class="briefing-card plan"><div class="briefing-body"><span class="eyebrow">EINSTIEGSPUNKT</span><div class="choices">${insertions}</div><span class="eyebrow">TAGESZEIT</span><div class="choices">${times}</div><span class="eyebrow">WETTER</span><div class="choices">${weathers}</div>
       <div class="loadout-line"><span>MITNAHME</span><b>${kit}</b></div>${warnings.map(w => `<div class="briefing-warn">${esc(w)}</div>`).join("")}
       <div class="plan-actions"><button class="secondary" data-action="inventory">RUCKSACK PACKEN</button><button class="primary deploy" data-action="deploy"><span>IN DIE ZONE</span><b>→</b></button></div>
       <small class="deploy-note">Einsatzzeit ${formatTime(30 * 60)} · Extraktionen werden pro Einsatz zufällig geöffnet · ${zone.extractions.length} mögliche Ausgänge</small></div></article></div>`)
@@ -432,7 +434,7 @@ export class GameUI {
   showSettings(): void {
     this.panel("settings", "EINSTELLUNGEN", `<div class="content-heading"><div><span class="eyebrow">SYSTEMKONFIGURATION</span><h2>Einstellungen.</h2></div></div><div class="settings-list">${this.settingsRows()}</div>
       <div class="danger-zone"><div><h3>LOKALER SPIELSTAND</h3><p>Alles wird automatisch gespeichert. Browserdaten löschen entfernt den Fortschritt.</p></div><button class="secondary" data-action="save">JETZT SPEICHERN</button><button class="danger-button" data-action="reset">NEU ANFANGEN</button></div>
-      <div class="manual"><h3>STEUERUNG</h3><div><span><kbd>W A S D</kbd> Bewegen</span><span><kbd>SHIFT</kbd> Sprinten</span><span><kbd>C</kbd> Ducken</span><span><kbd>LINKS</kbd> Feuer / Schlag</span><span><kbd>RECHTS</kbd> Zielen</span><span><kbd>R</kbd> Nachladen</span><span><kbd>T</kbd> Munitionssorte</span><span><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> / <kbd>MAUSRAD</kbd> Waffe</span><span><kbd>V</kbd> Schnelles Messer</span><span><kbd>E</kbd> Benutzen / Durchsuchen</span><span><kbd>Q</kbd> Heilen</span><span><kbd>G</kbd> Werfen · <kbd>4</kbd> Granate/Brandflasche</span><span><kbd>F</kbd> Taschenlampe</span><span><kbd>M</kbd> Karte</span><span><kbd>TAB</kbd> Rucksack</span><span><kbd>ESC</kbd> Pause</span></div></div>`)
+      <div class="manual"><h3>STEUERUNG</h3><div><span><kbd>W A S D</kbd> Bewegen</span><span><kbd>SHIFT</kbd> Sprinten</span><span><kbd>C</kbd> Ducken</span><span><kbd>LINKS</kbd> Feuer / Schlag</span><span><kbd>RECHTS</kbd> Zielen</span><span><kbd>R</kbd> Nachladen</span><span><kbd>T</kbd> Munitionssorte</span><span><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> / <kbd>MAUSRAD</kbd> Waffe</span><span><kbd>V</kbd> Schnelles Messer</span><span><kbd>E</kbd> Benutzen / Durchsuchen</span><span><kbd>Q</kbd> Heilen</span><span><kbd>G</kbd> Werfen · <kbd>4</kbd> Wurfwaffe wählen</span><span><kbd>F</kbd> Taschenlampe</span><span><kbd>M</kbd> Karte</span><span><kbd>TAB</kbd> Rucksack</span><span><kbd>ESC</kbd> Pause</span></div></div>`)
   }
 
   // ───────────────────────────── in raid / base overlays ─────────────────────────────
@@ -555,6 +557,7 @@ export class GameUI {
       deliver: () => this.result(this.company.deliver(id), "ui_buy"),
       "plan-insertion": () => { this.plan.insertion = id; this.showRadio() },
       "plan-time": () => { this.plan.time = id as TimeOfDay; this.showRadio() },
+      "plan-weather": () => { this.plan.weather = id as WeatherId; this.showRadio() },
       deploy: () => this.deploy(),
       attack: () => this.showAttack(),
       defend: () => { this.showPlaying(); this.handlers.defend() },
@@ -582,7 +585,7 @@ export class GameUI {
   }
 
   private deploy(): void {
-    const plan: RaidPlan = { insertion: this.plan.insertion, time: this.plan.time, contracts: this.company.profile.contracts.active.map(c => c.id) }
+    const plan: RaidPlan = { insertion: this.plan.insertion, time: this.plan.time, weather: this.plan.weather, contracts: this.company.profile.contracts.active.map(c => c.id) }
     this.fromBase = false
     this.showPlaying()
     this.handlers.deploy(plan)

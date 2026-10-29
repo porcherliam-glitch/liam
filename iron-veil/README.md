@@ -31,8 +31,8 @@ Der Spielstand liegt im Browser (localStorage). Mit einem anderen Browser oder n
 | E (halten) | A | Benutzen, durchsuchen, Extraktion, Stationen in der Basis |
 | F | Steuerkreuz ↑ | Taschenlampe (im Beutefenster: alles nehmen) |
 | Q | RB | Passende Medizin benutzen (Blutung zuerst) |
-| G | LB | Granate oder Brandflasche werfen |
-| 4 | Steuerkreuz ← | Zwischen Granate und Brandflasche wechseln |
+| G | LB | Wurfwaffe werfen (Granate, Brandflasche, Rauch, Blendgranate, Lärmköder) |
+| 4 | Steuerkreuz ← | Nächste Wurfwaffe aus dem Rucksack wählen |
 | M | Steuerkreuz ↓ | Karte (ganze Zone oder Umgebung) |
 | Tab | Back | Rucksack (benutzen, ablegen, in den sicheren Behälter) |
 | Esc | Start | Pause |
@@ -69,8 +69,8 @@ Schreiben dürfen Personen, mit denen das Artefakt mindestens als „Contributor
 
 ## Inhalt
 
-- **Riesige Sperrzone** (~600 × 600 m) mit Stadtteilen: Altstadt, Industriegebiet, Hafen, Militäranlage, Forschungslabor mit Endgegner, Bauernhof, Bahnhof, Nordwald, Steinbruch. Vier Tageszeiten.
-- **Infizierte**: Schlurfer, Läufer, Brecher, Schreier, Spucker, Schleicher, Kriecher und der Koloss. Dazu **Söldnertrupps** mit Deckung, Flanken und Scharfschützen.
+- **Riesige Sperrzone** (~600 × 600 m) mit Stadtteilen: Altstadt, Industriegebiet, Hafen, Militäranlage, Forschungslabor mit Endgegner, Bauernhof, Bahnhof, Nordwald, Steinbruch. Vier Tageszeiten und vier Wetterlagen (klar, Regen, Nebel, Gewitter mit Blitz und Donner): Regen und Donner überdecken Geräusche, Nebel verkürzt die Sicht – auch für die Gegner.
+- **Infizierte**: Schlurfer, Läufer, Brecher, Schreier, Spucker, Schleicher, Kriecher, Gasbläher (bläht sich auf und platzt in eine Giftgaswolke – am besten aus der Ferne erledigen) und der Koloss. Dazu **Söldnertrupps** mit Deckung, Flanken und Scharfschützen.
 - **Gore**: Kopftreffer lassen Köpfe platzen, Klingen und Schrot trennen Arme und Beine ab, Explosionen zerreißen Körper; Blut an Wänden, auf dem Boden und auf dem Bildschirm.
 - **33 Waffen**:
   - Nahkampf: Messer, Brechstange, Nagelkeule, Klappspaten, Machete, Feueraxt, Spitzhacke, Katana, Vorschlaghammer.
@@ -81,6 +81,7 @@ Schreiben dürfen Personen, mit denen das Artefakt mindestens als „Contributor
   - Lautlos und präzise: Jagdarmbrust, K98 Karabiner, DR-7 Präzisionsgewehr, Falke .338 Repetierer; dazu das LM-60 MG.
 - **21 Aufsätze**: Mini-Rotpunkt, Rotpunkt, Holo-Visier, 2,5×-Prismenvisier, 4×- und 6×-Zielfernrohr, Schalldämpfer, schwerer Schalldämpfer, Mündungsfeuerdämpfer, Kompensator, Mündungsbremse, Vertikal- und Winkelgriff, Handstopp, Zweibein, erweitertes Magazin, Magazinkoppler, Trommelmagazin, Laser-Licht-Modul, IR-Laser, Waffenlicht. **11 Munitionssorten** inklusive .45 ACP, panzerbrechender Munition, Flintenlaufgeschossen und Armbrustbolzen.
 - **Modelle**: alles prozedural im Code gebaut, ohne fremde Dateien – Söldner mit geschnürten Stiefeln, Knieschützern und Panzerplatten; Bäume mit Wurzelansätzen; Fahrzeuge, Güterzüge, Kieswerk, Bunker und Kasernen; Straßenmöbel (Hydranten, Zapfsäulen, Laternen, Mülleimer, Parkbänke); Möbel in den Häusern (Stühle, Tische, Betten mit Decken, Schreibtische, Schränke).
+- **Wurfwaffen**: Splittergranate, Brandflasche, Rauchgranate (Söldner und Infizierte sehen nicht hindurch, Kugeln schon), Blendgranate (blendet Söldner, Infizierte taumeln – nicht hineinschauen) und Lärmköder (ein umgebauter Wecker, der 14 Sekunden piept und Gegner weglockt).
 - **Überleben**: Gesundheit, Blutungen, Hunger, Durst, Infektion, Schmerzmittel, Stimulanzien, Tragegewicht.
 - **Andere Überlebende**: Lager mit Händlerin, Sanitäterin und Wache; verirrte und verletzte Menschen zum Retten, die danach in der Basis wohnen.
 - **Online** (als claude.ai-Artefakt): andere Spieler als Echos, Funk, Bestenliste, Ausrüstung gefallener Spieler.

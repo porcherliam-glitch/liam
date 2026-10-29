@@ -1,8 +1,10 @@
+import * as THREE from "three"
 import { beforeEach, describe, expect, it } from "vitest"
 import { Bag } from "./bag"
 import { collides, depenetrate, moveCircle, raycastObstacles, rayCapsule, raySphere, segmentBlocked2D, segmentBlocked3D, type Obstacle } from "./collision"
 import { xpForLevel } from "./data"
-import { GRENADE_FUSE, stepGrenade } from "./grenades"
+import { DECOY_BEEP, DECOY_LIFE, GRENADE_FUSE, GrenadeSystem, SMOKE_BURN, stepGrenade, type ThrowableKind } from "./grenades"
+import { Obscurants, SMOKE_GROW, SMOKE_LIFE } from "./obscurants"
 import { ITEMS, ITEM_IDS, sellPrice } from "./items"
 import { bagValue, rollAirdrop, rollContainer, rollInfectedBody, rollMercBody } from "./loot"
 import { NavGrid } from "./nav"
@@ -119,6 +121,46 @@ describe("grenades", () => {
     const g = { p: { x: 0, y: 1, z: 0 }, v: { x: 12, y: 0, z: 0 }, fuse: GRENADE_FUSE, bounced: false }
     for (let i = 0; i < 60; i++) stepGrenade(g, 1 / 60, [box(2, 2.4, -5, 5, 3)])
     expect(g.p.x).toBeLessThan(2)
+  })
+  const run = (kind: ThrowableKind, seconds: number) => {
+    const ev = { bounce: 0, explode: 0, ignite: 0, smoke: 0, smoking: 0, flash: 0, beep: 0 }
+    const sys = new GrenadeSystem(new THREE.Group(), {
+      bounce: () => ev.bounce++, explode: () => ev.explode++, ignite: () => ev.ignite++,
+      smoke: () => ev.smoke++, smoking: () => ev.smoking++, flash: () => ev.flash++, beep: () => ev.beep++,
+    })
+    sys.throw({ x: 0, y: 1.5, z: 0 }, { x: 0, y: 0, z: -1 }, { x: 0, y: 0, z: 0 }, kind)
+    for (let t = 0; t < seconds; t += 1 / 30) sys.update(1 / 30, () => [])
+    return { ev, left: sys.count }
+  }
+  it("flashbang goes off once and is gone", () => {
+    const { ev, left } = run("flashbang", 3)
+    expect(ev.flash).toBe(1); expect(ev.explode).toBe(0); expect(left).toBe(0)
+  })
+  it("smoke canister starts once, hisses while it burns, then disappears", () => {
+    const mid = run("smoke", 6)
+    expect(mid.ev.smoke).toBe(1); expect(mid.ev.smoking).toBeGreaterThan(60); expect(mid.left).toBe(1)
+    expect(run("smoke", SMOKE_BURN + 3).left).toBe(0)
+  })
+  it("decoy beeps for its whole life", () => {
+    const { ev, left } = run("decoy", DECOY_LIFE + 3)
+    expect(ev.beep).toBeGreaterThanOrEqual(Math.floor(DECOY_LIFE / DECOY_BEEP) - 1)
+    expect(left).toBe(0)
+  })
+})
+
+describe("smoke", () => {
+  it("blocks sight through the cloud once it has grown, never before or after", () => {
+    const o = new Obscurants(), a = { x: -10, y: 1.6, z: 0 }, b = { x: 10, y: 1.6, z: 0 }
+    o.add(0, 0)
+    expect(o.blocks(a, b)).toBe(false)
+    o.update(SMOKE_GROW)
+    expect(o.blocks(a, b)).toBe(true)
+    expect(o.blocks({ x: -10, y: 1.6, z: 9 }, { x: 10, y: 1.6, z: 9 })).toBe(false)
+    expect(o.blocks({ x: -10, y: 8, z: 0 }, { x: 10, y: 8, z: 0 })).toBe(false)
+    expect(o.inside({ x: 1, y: 1.6, z: 1 })).toBe(true)
+    o.update(SMOKE_LIFE)
+    expect(o.blocks(a, b)).toBe(false)
+    expect(o.clouds.length).toBe(0)
   })
 })
 

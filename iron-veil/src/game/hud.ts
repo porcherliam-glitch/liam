@@ -24,7 +24,7 @@ export class Hud {
 
   constructor(private root: HTMLElement) {
     root.innerHTML = `
-      <div class="damage-overlay"></div><div class="lowhp-overlay"></div><div class="bleed-overlay"></div><div class="infect-overlay"></div><div class="death-overlay"></div>
+      <div class="damage-overlay"></div><div class="lowhp-overlay"></div><div class="bleed-overlay"></div><div class="infect-overlay"></div><div class="death-overlay"></div><div class="smoke-overlay"></div><div class="gas-overlay"></div><div class="flash-overlay"></div>
       <div class="scope-overlay"><i class="h"></i><i class="v"></i><b></b></div>
       <div class="hud-objective"><span class="hud-label" data-hud="area">SPERRZONE</span><b data-hud="objective"></b><small data-hud="objectiveProgress"></small><em data-hud="contract"></em></div>
       <div class="hud-compass"><canvas width="560" height="54"></canvas></div>
@@ -74,6 +74,21 @@ export class Hud {
     while (box.children.length > 6) box.firstElementChild!.remove()
     window.setTimeout(() => line.classList.add("old"), 9000)
     window.setTimeout(() => line.remove(), 10500)
+  }
+
+  /** Flashbang: the screen goes white (amount 0..1) and slowly clears again. */
+  flash(amount: number): void {
+    const el = this.root.querySelector<HTMLElement>(".flash-overlay"); if (!el || amount <= 0.02) return
+    el.style.transition = "none"; el.style.opacity = String(Math.min(1, amount))
+    void el.offsetWidth
+    el.style.transition = `opacity ${(1.2 + amount * 3.5).toFixed(2)}s cubic-bezier(.6,0,.9,.6)`; el.style.opacity = "0"
+  }
+  /** Standing in bloater gas: sickly green tint and a pulsing vignette (0 or 1). */
+  gas(amount: number): void { this.root.classList.toggle("in-gas", amount > 0) }
+  /** Standing inside smoke: grey haze over the view (0..1). */
+  haze(amount: number): void {
+    const el = this.root.querySelector<HTMLElement>(".smoke-overlay"); if (!el) return
+    const v = amount.toFixed(2); if (el.style.opacity !== v) el.style.opacity = v
   }
 
   /** Blood splatter on the "lens" (gore close to the camera, getting hit). amount 0..1. */

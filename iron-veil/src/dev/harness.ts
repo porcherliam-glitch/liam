@@ -15,6 +15,7 @@
  *   __dev.ready                                             true after the first rendered frame
  */
 import * as THREE from "three"
+import type { WeatherId } from "../game/weather"
 import { AudioSystem } from "../game/audio"
 import type { TimeOfDay } from "../game/baseData"
 import { EnemyManager, type PlayerState } from "../game/enemies"
@@ -54,6 +55,7 @@ function load(k: "zone" | "base" = kind, t: TimeOfDay = timeOfDay): void {
   enemies?.dispose(); infected?.dispose(); gore?.dispose(); world?.dispose()
   kind = k; timeOfDay = t
   world = createWorld(k, scene, quality, { time: t })
+  if (params.get("weather")) world.setWeather(params.get("weather") as WeatherId)
   renderer.toneMappingExposure = world.exposure
   gore = new GoreSystem(scene, world.collision, "brutal")
   const spawn = world.layout.kind === "zone" ? world.layout.insertions[0] : world.layout.spawn

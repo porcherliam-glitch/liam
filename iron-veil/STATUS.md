@@ -48,7 +48,11 @@ Stand: 29.10.2026, Version 0.5 (mehr Waffen, neue Modelle).
   - Straße: Müllsäcke mit Knoten und Falten, Leichensäcke mit Reißverschluss und Körperform, Hydrant mit Anschlüssen und Kette, Zapfsäule mit Anzeigen und Schlauch, Mülleimer mit Haube, Straßenlaterne mit geschwungenem Arm, Ölfässer mit Sicken und Spundlöchern, Reifenstapel aus echten Reifen.
   - Möbel: Stühle mit Sprossen- oder Lattenlehne, Tische mit gedrechselten Beinen, Parkbänke mit Holzlatten und Gussfüßen, Betten mit faltiger Decke, Umschlag und Kissen.
   - Bauten: Baucontainer mit Stahlrahmen, Kufen, Dachkante, Tür und Treppe; Wachhäuschen mit Theke; Schornsteine mit Ziegelband und Tonaufsätzen; Flutlichtmasten mit Fundament, Leiter und Bühne; Strommasten mit Streben und Glasisolatoren; Deckenleuchten mit Gehäuse und Lamellen.
-- **Tests**: 189 Logik-Tests grün (Speicher beim Schießen, Nachladen und Waffenwechsel geprüft: kein Leck); Browser-Prüfungen für Hauptablauf, Systeme, Sonderfälle, Controller und Online (mit simuliertem zweiten Spieler).
+- **Neue Inhalte** (29.10.2026):
+  - Wurfwaffen: Rauchgranate (Wolke für fast 30 s, blockiert die Sicht von Söldnern und Infizierten, nicht die Kugeln; drinnen wird das Bild grau), Blendgranate (blendet Söldner einige Sekunden, Infizierte taumeln; wer hineinschaut, sieht weiß und hört ein Pfeifen) und Lärmköder (Wecker mit Batteriepack und blinkender LED, piept 14 s und lockt Gegner an). Taste 4 wählt die nächste Wurfwaffe aus dem Rucksack. Mit Modellen, Geräuschen, Beute, Werkbank-Rezepten und Händlerware.
+  - Wetter im Funk wählbar: klar, Regen, Nebel, Gewitter. Regen fällt um die Kamera (nicht in Häusern), mit Spritzern am Boden und Regengeräusch; Nebel und Wolken verdecken den Himmel; bei Gewitter zucken Blitze und der Donner kommt je nach Entfernung später. Regen und Donner machen Geräusche leiser, Nebel verkürzt die Sicht der Gegner. Schlechtes Wetter bringt etwas mehr Beute.
+  - Neuer Infizierter „Gasbläher“: aufgedunsen, mit leuchtenden Gasbeulen; langsam, bläht sich neben dem Spieler sichtbar auf und platzt. Bei jedem Tod bleibt eine Giftgaswolke (Schaden, Infektion, Husten, grüner Bildrand). Auch in Aufträgen und ab der zweiten Welle bei Angriffen auf die Basis.
+- **Tests**: 198 Logik-Tests grün (Speicher beim Schießen, Nachladen und Waffenwechsel geprüft: kein Leck); Browser-Prüfungen für Hauptablauf, Systeme, Sonderfälle, Controller und Online (mit simuliertem zweiten Spieler).
 
 ## In Arbeit
 

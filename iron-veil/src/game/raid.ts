@@ -14,7 +14,8 @@ import { EnemyManager } from "./enemies"
 import { GameLoop } from "./engine"
 import { GhostPlayers } from "./ghosts"
 import { GoreSystem } from "./gore"
-import { GRENADE_DAMAGE, GRENADE_RADIUS, GrenadeSystem, type ThrowableKind } from "./grenades"
+import { WEATHER, type WeatherId } from "./weather"
+import { GRENADE_DAMAGE, GRENADE_RADIUS, GrenadeSystem, THROWABLES, THROW_INFO, type ThrowableKind } from "./grenades"
 import type { DamageInfo, DamageResult, Hostile, HostileHit, HostileManager, HitPart, PlayerState, ShotEvent, AttackEvent, HostileSound } from "./hostiles"
 import { INFECTED, type InfectedKind } from "./infectedData"
 import { Input } from "./input"
@@ -105,6 +106,8 @@ export class RaidGame {
   private survivors: SurvivorManager | null = null
   private ground: GroundLoot[] = []
   private fires: FireZone[] = []
+  /** Bloater gas clouds: poison the player (and mercs) standing in them. */
+  private gases: FireZone[] = []
   private fireLight = new THREE.PointLight(0xff8a3a, 0, 14, 2)
   private loop: GameLoop
   private flashlight = new THREE.SpotLight(0xfff2dc, 0, 40, 0.42, 0.55, 1.6)
@@ -228,6 +231,10 @@ export class RaidGame {
       bounce: p => this.sfx("grenade_bounce", { position: p }),
       explode: p => this.explode(p),
       ignite: p => this.ignite(p),
+      smoke: p => this.smokeOut(p),
+      smoking: (p, dt) => this.effects.smokeJet(p, dt),
+      flash: p => this.flashbang(p),
+      beep: p => { this.sfx("decoy_beep", { position: p }); this.noise(p, 34) },
     })
     this.precompile()
   }
@@ -241,6 +248,16 @@ export class RaidGame {
 
   /** Optional hook (set by the UI) for blood on the screen. */
   screenBlood: ((amount: number) => void) | null = null
+  /** Flashbang dazzle (0..1) and the grey haze while the camera is inside smoke (0..1). */
+  screenFlash: ((amount: number) => void) | null = null
+  screenHaze: ((amount: number) => void) | null = null
+  private haze = 0
+  private inGas = false
+  /** Green poison tint while the player stands in bloater gas (0/1). */
+  screenGas: ((amount: number) => void) | null = null
+  private weather: WeatherId = "clear"
+  private rainT = 0
+  private thunder: { at: number; volume: number }[] = []
   /** The shared world when the game runs as a claude.ai artifact (set by boot once connected). */
   online: Online | null = null
   private ghosts: GhostPlayers | null = null
@@ -253,10 +270,11 @@ export class RaidGame {
     this.survivors?.dispose(); this.survivors = null
     this.ghosts?.dispose(); this.ghosts = null
     for (const g of this.ground) if (g.mesh) g.mesh.parent?.remove(g.mesh)
-    this.ground = []; this.fires = []; this.fireLight.intensity = 0
+    this.ground = []; this.fires = []; this.gases = []; this.fireLight.intensity = 0
     if (this.airdrop?.mesh) this.airdrop.mesh.parent?.remove(this.airdrop.mesh)
     this.airdrop = null; this.defense = null; this.bossSpawned = false
-    this.effects?.clear(); this.gore?.clear(); this.grenades?.clear()
+    this.effects?.clear(); this.gore?.clear(); this.grenades?.clear(); this.world?.obscurants.clear()
+    this.haze = 0; this.screenHaze?.(0); this.inGas = false; this.screenGas?.(0)
   }
 
   private makeHostiles(seed: number): void {
@@ -267,6 +285,7 @@ export class RaidGame {
       spotted: (t: Hostile) => { if (this.isControlled) this.sfx(t.faction === "infected" ? "zombie_alert" : "alert", { position: t.position, volume: 0.6 }) },
       footstep: (t: Hostile) => { if (this.isControlled && t.position.distanceToSquared(this.player.pos) < 400) this.sfx(stepSound(this.world.surfaceAt(t.position.x, t.position.z)), { position: t.position, volume: 0.7 }) },
       sound: (t: Hostile, s: HostileSound) => this.onHostileSound(t, s),
+      gas: (p: Vec3, r: number) => { this.gases.push({ pos: new THREE.Vector3(p.x, 0.1, p.z), radius: r, life: 11, tick: 0.3 }); this.sfx("gas_burst", { position: p }); this.noise(p, 18) },
     }
     const opts = { difficulty: this.settings.difficulty, seed, events: hostileEvents, gore: this.gore }
     this.mercs = new EnemyManager(this.world.group, this.world, opts)
@@ -322,10 +341,14 @@ export class RaidGame {
     this.rng = mulberry32(seed)
     this.plan = plan
     this.useWorld("zone", `zone:${plan.time}`)
+    this.weather = plan.weather ?? "clear"
+    this.world.setWeather(this.weather)
+    this.world.onLightning = d => this.thunder.push({ at: this.time + d / 343, volume: Math.max(0.25, 1 - d / 2600) })
+    this.rainT = 0; this.thunder = []
     this.makeHostiles(seed)
     const layout = this.world.layout as ZoneLayout
     // containers on every loot spot (night and research add rolls)
-    const bonus = (this.company.has("scavenger") ? 1 : 0) + (TIMES[plan.time].loot > 0.2 && this.rng() < 0.5 ? 1 : 0)
+    const bonus = (this.company.has("scavenger") ? 1 : 0) + (TIMES[plan.time].loot + WEATHER[this.weather].loot > 0.2 && this.rng() < 0.5 ? 1 : 0)
     this.containers = new ContainerField(this.world.group, layout.lootSpots.map(spot => ({ spot, items: rollContainer(spot, this.rng, bonus) })))
     // mercenary camps
     for (const camp of layout.mercCamps) {
@@ -407,8 +430,7 @@ export class RaidGame {
     this.active = this.weapons.primary ? "primary" : this.weapons.secondary ? "secondary" : "melee"
     this.viewModel.setWeapon(this.weapon.id, this.weapon.mods)
     this.player.armor = kit.armor + (kit.armor > 0 && this.company.has("plating") ? 25 : 0); this.player.armorMax = kit.armorMax; this.player.helmet = kit.helmet
-    const g = this.bag.count("grenade"), m = this.bag.count("molotov")
-    this.throwKind = g > 0 || m === 0 ? "grenade" : "molotov"
+    this.throwKind = THROWABLES.find(k => this.bag.count(k) > 0) ?? "grenade"
   }
 
   private resetCombatState(): void {
@@ -503,6 +525,9 @@ export class RaidGame {
       this.updateHostiles(dt, true)
       this.grenades.update(dt, (x, z) => this.world.collision.near(x, z, 3))
       this.updateFires(dt)
+      this.updateSmoke(dt)
+      this.updateGas(dt)
+      this.updateWeather(dt)
       // survival
       const lost = stepVitals(this.player.vitals, dt, { metabolism: this.company.has("metabolism"), immunology: this.company.has("immunology"), sprinting: this.player.sprinting })
       if (lost > 0.5 * dt && this.player.vitals.bleed !== "none" && this.rng() < dt * 0.6) this.gore.wound({ x: this.player.pos.x, y: 0.9, z: this.player.pos.z }, { x: 0, y: -1, z: 0 }, 6)
@@ -543,7 +568,7 @@ export class RaidGame {
     if (i.consumeAction("Digit1")) this.switchTo("primary")
     if (i.consumeAction("Digit2")) this.switchTo("secondary")
     if (i.consumeAction("Digit3")) this.switchTo("melee")
-    if (i.consumeAction("Digit4")) { this.throwKind = this.throwKind === "grenade" ? "molotov" : "grenade"; this.say(this.throwKind === "grenade" ? "Wurfwaffe: Splittergranate" : "Wurfwaffe: Brandflasche", 1.4) }
+    if (i.consumeAction("Digit4")) { this.throwKind = this.nextThrowable(this.throwKind); this.say(`Wurfwaffe: ${THROW_INFO[this.throwKind].name} (${this.bag.count(this.throwKind)})`, 1.4) }
     if (i.consumeAction("WheelUp") || i.consumeAction("KeyX")) this.cycleWeapon(1)
     if (i.consumeAction("WheelDown")) this.cycleWeapon(-1)
   }
@@ -814,12 +839,43 @@ export class RaidGame {
   private startThrow(): void {
     if (this.useTime >= 0 || this.meleeTime >= 0) return
     let kind = this.throwKind
-    if (this.bag.count(kind) <= 0) kind = kind === "grenade" ? "molotov" : "grenade"
+    if (this.bag.count(kind) <= 0) kind = this.nextThrowable(kind)
     if (this.bag.count(kind) <= 0) { this.say("Keine Wurfwaffe im Rucksack", 1.2); this.sfx("ui_error"); return }
     this.weapon.cancelReload()
     this.bag.remove(kind, 1); this.throwKind = kind
     this.useTime = 0; this.useItem = kind; this.useKind = "throw"
-    this.sfx(kind === "grenade" ? "grenade_pin" : "flashlight")
+    this.sfx(kind === "molotov" ? "flashlight" : kind === "decoy" ? "decoy_wind" : "grenade_pin")
+  }
+
+  /** Next throwable after `from` in the cycle that is in the backpack (or simply the next one when none is). */
+  private nextThrowable(from: ThrowableKind): ThrowableKind {
+    const i = THROWABLES.indexOf(from)
+    for (let k = 1; k <= THROWABLES.length; k++) { const c = THROWABLES[(i + k) % THROWABLES.length]; if (this.bag.count(c) > 0) return c }
+    return THROWABLES[(i + 1) % THROWABLES.length]
+  }
+
+  /** Smoke canister starts: a cloud that hides everyone inside or behind it from sight. */
+  private smokeOut(p: Vec3): void {
+    this.world.obscurants.add(p.x, p.z)
+    this.sfx("smoke_hiss", { position: p })
+    this.noise(p, 10)
+  }
+
+  /** Flashbang: blinds mercs and staggers infected nearby; the player is dazzled too when looking toward it. */
+  private flashbang(p: Vec3): void {
+    this.effects.flash(p)
+    this.sfx("flashbang", { position: p })
+    const center = { x: p.x, y: p.y + 0.3, z: p.z }
+    for (const h of this.hostiles) h.stun(center, 12, 5.5)
+    this.noise(p, 55)
+    if (!this.isControlled) return
+    const dx = p.x - this.player.pos.x, dz = p.z - this.player.pos.z, dy = center.y - this.player.eye, d = Math.hypot(dx, dz)
+    if (d > 18 || this.world.collision.segmentBlocked3D(center, { x: this.player.pos.x, y: this.player.eye, z: this.player.pos.z })) return
+    this.camera.getWorldDirection(_flashDir)
+    const facing = (dx * _flashDir.x + dy * _flashDir.y + dz * _flashDir.z) / Math.max(0.01, Math.hypot(dx, dy, dz))
+    const amount = Math.min(1, (1 - d / 18) * (0.25 + 0.75 * Math.max(0, (facing + 0.35) / 1.35)) * 1.4)
+    if (amount > 0.05) { this.screenFlash?.(amount); this.sfx("tinnitus", { volume: Math.min(1, amount * 1.2) }) }
+    if (this.settings.screenShake) this.shake = Math.min(1.2, this.shake + Math.max(0, 1 - d / 15) * 0.6)
   }
 
   private updateUse(dt: number): void {
@@ -895,6 +951,49 @@ export class RaidGame {
       if (f.life <= 0) this.fires.splice(i, 1)
     }
     if (at) { this.fireLight.position.set(at.x, 1.2, at.z); this.fireLight.intensity = Math.min(1, brightest / 2) * (8 + Math.sin(this.time * 23) * 2) } else this.fireLight.intensity = 0
+  }
+
+  /** Rain on the roof or in the open, splashes around the player, thunder after each lightning strike. */
+  private updateWeather(dt: number): void {
+    const w = WEATHER[this.weather]
+    if (w.rain > 0) {
+      this.rainT -= dt
+      if (this.rainT <= 0) { this.rainT = 3.4; this.sfx(this.world.raining ? "rain" : "rain_roof", { volume: Math.min(1, 0.45 + w.rain * 0.3) }) }
+      if (this.world.raining) { const n = dt * 26 * w.rain, k = Math.floor(n) + (this.rng() < n % 1 ? 1 : 0); for (let i = 0; i < k; i++) { const a = this.rng() * Math.PI * 2, d = 1 + this.rng() * 9; this.effects.rainSplash(this.player.pos.x + Math.cos(a) * d, this.player.pos.z + Math.sin(a) * d) } }
+    }
+    for (let i = this.thunder.length - 1; i >= 0; i--) if (this.time >= this.thunder[i].at) { this.sfx("thunder", { volume: this.thunder[i].volume }); this.thunder.splice(i, 1) }
+  }
+
+  private updateGas(dt: number): void {
+    let inGas = false
+    for (let i = this.gases.length - 1; i >= 0; i--) {
+      const g = this.gases[i]
+      g.life -= dt; g.tick -= dt
+      const k = Math.min(1, g.life / 3), r = g.radius * (0.6 + 0.4 * Math.min(1, (11 - g.life) / 1.5))
+      this.effects.gasCloud(g.pos.x, g.pos.z, r, k, dt)
+      const d = Math.hypot(this.player.pos.x - g.pos.x, this.player.pos.z - g.pos.z)
+      if (d < r * 0.9) inGas = true
+      if (g.tick <= 0) {
+        g.tick = 0.5
+        if (d < r * 0.9 && !this.godMode) {
+          this.damagePlayer(4 * k, 0, g.pos, "none")
+          this.player.vitals.infection = Math.min(100, this.player.vitals.infection + 1.6 * k)
+          if (this.rng() < 0.45) this.sfx("cough")
+        }
+        if (this.mercs) for (const t of this.mercs.inRadius(g.pos, r * 0.9)) this.mercs.applyDamage({ target: t, distance: 1, part: "body", bodyPart: "torso", point: t.chestPosition(new THREE.Vector3()) }, { amount: 6 * k, from: g.pos, dir: _upWorld, penetration: 1, kind: "fire", sever: 0 })
+      }
+      if (g.life <= 0) this.gases.splice(i, 1)
+    }
+    if (inGas !== this.inGas) { this.inGas = inGas; this.screenGas?.(inGas ? 1 : 0); if (inGas) this.say("Giftgas! Raus aus der Wolke", 1.6) }
+  }
+
+  private updateSmoke(dt: number): void {
+    const obs = this.world.obscurants
+    obs.update(dt)
+    for (const c of obs.clouds) this.effects.smokeCloud(c.x, c.z, obs.radius(c), obs.density(c), dt)
+    const target = obs.clouds.length && obs.inside(this.camera.position) ? 0.78 : 0
+    const h = this.haze + (target - this.haze) * Math.min(1, dt * (target > this.haze ? 2.5 : 1.5))
+    if (Math.abs(h - this.haze) > 0.004 || (h === 0) !== (this.haze === 0)) { this.haze = h < 0.01 ? 0 : h; this.screenHaze?.(this.haze) }
   }
 
   // ───────────────────────────── damage to the player ─────────────────────────────
@@ -1251,6 +1350,7 @@ export class RaidGame {
         const count = Math.round((6 + d.wave * 5) * (0.6 + this.company.profile.base.threat / 100))
         for (const s of layout.attackSpawns) this.infected.spawnHorde(s, Math.ceil(count / layout.attackSpawns.length), layout.gate)
         if (d.wave === d.waves) this.infected.spawn("brute", layout.attackSpawns[0].x, layout.attackSpawns[0].z, { state: "hunt", target: layout.gate })
+        if (d.wave >= 2) { const s = layout.attackSpawns[layout.attackSpawns.length - 1]; this.infected.spawn("bloater", s.x, s.z, { state: "hunt", target: layout.gate }) }
         this.sfx("wave_start"); this.say(`Welle ${d.wave} von ${d.waves}!`, 3)
         d.nextWave = 15
       }
@@ -1367,7 +1467,8 @@ export class RaidGame {
 
   // ───────────────────────────── hints & helpers ─────────────────────────────
 
-  private noise(pos: Vec3, radius: number): void { for (const h of this.hostiles) h.hearNoise(pos, radius) }
+  /** Rain and thunder mask sounds: every noise radius shrinks with the weather. */
+  private noise(pos: Vec3, radius: number): void { const r = radius * (this.mode === "raid" ? WEATHER[this.weather].noise : 1); for (const h of this.hostiles) h.hearNoise(pos, r) }
   private sfx(id: string, opts: { position?: Vec3; volume?: number; rate?: number } = {}): void { this.audio.play(id as SfxId, opts) }
   private key(k: string): string { return this.input.device === "pad" ? PAD_LABEL[k] ?? k : k }
   private say(text: string, seconds: number): void { this.message = text; this.messageTime = seconds }
@@ -1485,8 +1586,7 @@ export class RaidGame {
     } else { objective = "Basis"; progress = ""; area = "Basis" }
     const contract = this.company.profile.contracts.active.map(c => `${c.title}: ${c.kind === "fetch" ? `${c.progress}/${c.target}` : c.kind === "recon" ? (this.stats.visited.includes(c.subject ?? "") ? "✓ erkundet" : c.subjectName) : c.kind === "activate" ? (this.stats.activated.includes(c.subject ?? "") ? "✓ aktiviert" : c.subjectName) : `${Math.min(c.target, c.progress + this.contractRaidProgress(c.kind, c.subject))}/${c.target}`}`).join("\n")
     const quickMeds = this.bag.count("bandage") + this.bag.count("medkit")
-    const other: ThrowableKind = this.throwKind === "grenade" ? "molotov" : "grenade"
-    const throwable = this.bag.count(this.throwKind) > 0 || this.bag.count(other) === 0 ? this.throwKind : other
+    const throwable = this.bag.count(this.throwKind) > 0 ? this.throwKind : THROWABLES.find(k => this.bag.count(k) > 0) ?? this.throwKind
     const fight = this.mode === "raid" || this.mode === "defense"
     this.callbacks.onHud({
       health: Math.max(0, Math.ceil(v.health)), armor: Math.max(0, Math.ceil(p.armor)), armorMax: Math.max(p.armorMax, Math.ceil(p.armor)), helmet: Math.ceil(p.helmet),
@@ -1494,7 +1594,7 @@ export class RaidGame {
       weight: this.load() * this.weightLimit(), weightLimit: this.weightLimit(),
       ammo: w.isMelee ? 0 : w.mag, reserve: w.isMelee ? 0 : w.reserve(this.ammoSource), ammoName: w.ammo ? AMMO[w.ammo].short : "", weaponName: w.def.name,
       fireMode: w.isMelee ? "NAHKAMPF" : w.def.auto ? "AUTO" : w.def.manualAction ? (w.def.cls === "shotgun" ? "PUMP" : "REPETIER") : "EINZEL", melee: w.isMelee,
-      quickMeds, grenades: this.bag.count(throwable), throwableName: throwable === "grenade" ? "Granate" : "Brandflasche",
+      quickMeds, grenades: this.bag.count(throwable), throwableName: THROW_INFO[throwable].name,
       reloading: w.reloadLeft, reloadTotal: w.reloadTotal,
       objective, objectiveProgress: progress, contract, lootValue: this.bag.value(id => ITEMS[id].cat === "valuable" ? ITEMS[id].value : 0),
       raidTime: Math.max(0, this.timeLeft), clock: this.plan ? TIMES[this.plan.time].clock : "", area,
@@ -1629,4 +1729,5 @@ const _aim = { fwd: new THREE.Vector3(), right: new THREE.Vector3(), up: new THR
 const _origin = new THREE.Vector3(), _dir = new THREE.Vector3(), _end = new THREE.Vector3(), _muzzle = new THREE.Vector3(), _head = new THREE.Vector3(), _tmp = new THREE.Vector3(), _eye = new THREE.Vector3()
 const _camPos = new THREE.Vector3()
 const _cone = { x: 0, y: 0 }
+const _flashDir = new THREE.Vector3()
 const _upWorld = { x: 0, y: 1, z: 0 }

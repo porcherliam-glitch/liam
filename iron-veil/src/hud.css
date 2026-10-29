@@ -205,3 +205,8 @@
 .hud-chat>div.old{opacity:0}
 .hud-chat b{color:#6fd3ff;margin-right:8px;font-weight:700}
 .hud-chat .news b{color:var(--amber)}
+.flash-overlay{position:absolute;inset:0;opacity:0;background:radial-gradient(circle,#fff 45%,#f2f6ff);pointer-events:none}
+.smoke-overlay{position:absolute;inset:0;opacity:0;background:radial-gradient(circle,rgba(176,178,176,.82) 0%,rgba(150,152,150,.96) 70%);pointer-events:none}
+.gas-overlay{position:absolute;inset:0;opacity:0;background:radial-gradient(circle,rgba(140,170,40,.12) 30%,rgba(90,120,10,.55));transition:opacity .5s;pointer-events:none}
+.in-gas .gas-overlay{opacity:1;animation:gaspulse 1.4s ease-in-out infinite}
+@keyframes gaspulse{50%{opacity:.65}}

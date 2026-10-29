@@ -30,7 +30,7 @@ export type SfxId =
   | "hit_body" | "hit_head" | "hit_armor" | "kill" | "impact_concrete" | "impact_metal" | "impact_dirt" | "whiz"
   | "hurt" | "armor_absorb" | "heal" | "pickup" | "crate_open" | "body_search"
   | "step_asphalt" | "step_concrete" | "step_metal" | "step_gravel" | "step_dirt" | "step_wood" | "land"
-  | "grenade_pin" | "grenade_bounce" | "explosion"
+  | "grenade_pin" | "grenade_bounce" | "explosion" | "smoke_hiss" | "flashbang" | "tinnitus" | "decoy_beep" | "decoy_wind" | "rain" | "rain_roof" | "thunder" | "gas_burst" | "cough"
   | "extract_call" | "extract_tick" | "helicopter" | "alert" | "radio"
   | "ui_click" | "ui_hover" | "ui_buy" | "ui_error" | "build" | "win" | "lose" | "level_up" | "flashlight"
   | "shot_r44" | "shot_k5" | "shot_sr74" | "shot_br10" | "shot_sg8" | "shot_falke" | "shot_lm60"
@@ -686,6 +686,45 @@ const DEFS: Record<SfxId, Def> = {
       v.noise({ c: "p", ft: "bandpass", f: 650, q: 0.6, a: 0.002, d: 0.7, g: 1, drive: 3 })
       v.crackle({ ft: "bandpass", f: 2600, q: 1.1, n: 16, at: 0.2, span: 1.5, gl: 0.03, g: 0.35 })
       v.noise({ c: "b", ft: "lowpass", f: 380, at: 0.08, a: 0.25, d: 3.4, g: 0.5 }) } },
+  smoke_hiss: { bus: "sfx", g: 0.55, pri: 2, ref: 4, max: 60, gap: 0.5, send: 0.2, make: v => {
+    v.noise({ ft: "highpass", f: 1200, a: 0.0008, d: 0.05, g: 0.8, drive: 1 }); v.tone({ f: 120, f2: 70, d: 0.08, g: 0.4, rv: false })
+    v.noise({ ft: "bandpass", f: 3200, f2: 2400, sw: 3, q: 0.7, at: 0.05, a: 0.15, h: 2.6, d: 1.4, g: 0.7, am: 9, amd: 0.15 })
+    v.noise({ c: "p", ft: "lowpass", f: 900, at: 0.05, a: 0.3, h: 2.4, d: 1.2, g: 0.35 }) } },
+  flashbang: { bus: "sfx", g: 1, pri: 3, ref: 14, roll: 0.7, max: 700, gap: 0.05, cap: 3, send: 0.9, gun: true, vary: 0.03,
+    fx: (e, t, d) => { if (d < 0 || d > 20) return; const k = 1 - d / 20; e.dull(t, 220 + d * 50, 2.6); e.duck(t, 0.8 * k, 2.4) },
+    make: v => {
+      v.noise({ ft: "highpass", f: 2400, a: 0.0003, d: 0.06, g: 1.2, drive: 3 })
+      v.noise({ c: "b", ft: "lowpass", f: 2400, f2: 260, sw: 0.5, q: 0.7, a: 0.001, h: 0.03, d: 0.9, g: 1.2, drive: 3 })
+      v.tone({ f: 95, f2: 34, gl: 0.5, a: 0.001, h: 0.03, d: 1.1, g: 1, rv: false })
+      v.crackle({ ft: "highpass", f: 3800, n: 10, at: 0.01, span: 0.25, gl: 0.01, g: 0.4 }) } },
+  tinnitus: { bus: "ui", g: 0.12, pri: 3, gap: 0.8, make: v => {
+    v.tone({ f: 3900, a: 0.02, h: 1.2, d: 4.5, g: 1, rv: false }); v.tone({ f: 3947, a: 0.02, h: 1, d: 4, g: 0.45, rv: false })
+    v.noise({ ft: "bandpass", f: 4200, q: 6, a: 0.05, h: 0.8, d: 3, g: 0.15, rv: false }) } },
+  decoy_beep: { bus: "sfx", g: 0.5, pri: 2, ref: 6, roll: 0.6, max: 140, gap: 0.2, cap: 2, send: 0.3, make: v => {
+    v.tone({ w: "square", f: 2650, a: 0.002, h: 0.07, d: 0.03, g: 0.3, ft: "bandpass", ff: 2700, q: 2 })
+    v.tone({ w: "square", f: 2650, at: 0.14, a: 0.002, h: 0.07, d: 0.03, g: 0.3, ft: "bandpass", ff: 2700, q: 2 })
+    v.metal({ f: 1900, p: [1, 2.3, 3.1], at: 0.01, d: 0.3, g: 0.08 }) } },
+  decoy_wind: { bus: "sfx", g: 0.45, pri: 2, gap: 0.3, make: v => {
+    v.crackle({ ft: "bandpass", f: 3000, q: 1.6, n: 14, span: 0.35, gl: 0.008, g: 0.6 }); v.metal({ f: 2400, p: [1, 1.7, 2.6], at: 0.38, d: 0.25, g: 0.1 }) } },
+  gas_burst: { bus: "sfx", g: 0.8, pri: 3, ref: 6, max: 120, gap: 0.1, send: 0.4, make: v => {
+    v.noise({ c: "b", ft: "lowpass", f: 700, f2: 180, sw: 0.4, q: 1, a: 0.002, h: 0.05, d: 0.6, g: 1.2, drive: 2 })
+    v.tone({ f: 70, f2: 38, gl: 0.3, a: 0.002, d: 0.5, g: 0.8, rv: false })
+    v.crackle({ c: "p", ft: "bandpass", f: 900, q: 1, n: 18, at: 0.02, span: 0.5, gl: 0.03, g: 0.7 })
+    v.noise({ ft: "bandpass", f: 2400, f2: 1400, sw: 2, q: 0.6, at: 0.1, a: 0.2, h: 0.6, d: 1.4, g: 0.35 }) } },
+  cough: { bus: "ui", g: 0.5, pri: 2, gap: 0.9, make: v => {
+    for (const at of [0, 0.32, 0.6]) { v.noise({ c: "p", ft: "bandpass", f: 900 * v.j(0.1), q: 1.2, at, a: 0.005, h: 0.05, d: 0.12, g: 0.9, drive: 1 }); v.tone({ w: "sawtooth", f: 140 * v.j(0.08), f2: 110, at, a: 0.005, d: 0.14, g: 0.25, ft: "lowpass", ff: 900, q: 1 }) } } },
+  // ---- weather (non-positional beds, re-triggered every 3.4 s with overlapping fades)
+  rain: { bus: "sfx", g: 0.42, pri: 1, gap: 2, cap: 2, make: v => {
+    v.noise({ c: "p", ft: "bandpass", f: 2600, q: 0.5, a: 0.9, h: 2.2, d: 1.2, g: 0.8, rv: false })
+    v.noise({ c: "b", ft: "lowpass", f: 900, a: 0.9, h: 2.2, d: 1.2, g: 0.5, rv: false })
+    v.crackle({ ft: "highpass", f: 4200, n: 70, span: 4, gl: 0.004, g: 0.25 }) } },
+  rain_roof: { bus: "sfx", g: 0.4, pri: 1, gap: 2, cap: 2, make: v => {
+    v.noise({ c: "b", ft: "lowpass", f: 520, a: 0.9, h: 2.2, d: 1.2, g: 0.9, rv: false })
+    v.crackle({ c: "p", ft: "bandpass", f: 1500, q: 1.2, n: 45, span: 4, gl: 0.01, g: 0.35 }) } },
+  thunder: { bus: "sfx", g: 0.9, pri: 2, gap: 1, cap: 2, send: 0.9, make: v => {
+    v.noise({ c: "b", ft: "lowpass", f: 420, f2: 120, sw: 3, q: 0.7, a: 0.08, h: 0.4, d: 3.6, g: 1.2, drive: 1, am: 3.2, amd: 0.5 })
+    v.crackle({ c: "p", ft: "lowpass", f: 900, n: 14, span: 1.4, gl: 0.08, g: 0.6 })
+    v.tone({ f: 48, f2: 30, gl: 2, a: 0.15, h: 0.6, d: 3, g: 0.6, rv: false }) } },
   // ---- extraction / world cues
   extract_call: { bus: "ui", g: 0.47, pri: 2, gap: 0.5, make: v => {
     squelch(v, 0)

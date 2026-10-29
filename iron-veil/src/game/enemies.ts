@@ -58,6 +58,8 @@ export class EnemyBrain {
   knownT = -999
   /** Awareness never decays below this (raised after a search). */
   floor = 0
+  /** Blinded by a flashbang until this time (sees nothing, does not fire). */
+  blindT = -1
   urgent = false
   // movement
   hasGoal = false
@@ -397,10 +399,10 @@ export class EnemyManager implements HostileManager {
   private look(e: Merc, player: PlayerState): void {
     const b = e.brain, def = ENEMIES[e.kind], m = e.model!
     b.sees = false; b.partial = false
-    if (!player.alive || !player.active || e.state === "flee" || e.gore.severed.has("head")) return
+    if (!player.alive || !player.active || e.state === "flee" || e.gore.severed.has("head") || this.time < b.blindT) return
     const dx = player.position.x - e.position.x, dz = player.position.z - e.position.z, dist = b.playerDist
     const v = _vision
-    v.vision = def.vision; v.visionScale = this.world.visionScale; v.night = this.world.night; v.flashlight = player.flashlight; v.crouched = player.crouched; v.shooting = this.playerShooting()
+    v.vision = def.vision; v.visionScale = this.world.visionScale * this.world.weatherVision; v.night = this.world.night; v.flashlight = player.flashlight; v.crouched = player.crouched; v.shooting = this.playerShooting()
     const range = visionRange(v)
     b.range = range
     if (dist > range) return
@@ -409,6 +411,8 @@ export class EnemyManager implements HostileManager {
     if (!close && !inFieldOfView(viewYaw, dx, dz, def.fov)) return
     const eye = m.head, col = this.world.collision
     _t.set(player.position.x, player.eyeY - 0.08, player.position.z)
+    // smoke hides the player completely (bullets still fly through it)
+    if (this.world.obscurants.blocks(eye, _t)) return
     const headVis = !col.segmentBlocked3D(eye, _t)
     _t.y = player.eyeY - 0.45
     const chestVis = !col.segmentBlocked3D(eye, _t)
@@ -1213,6 +1217,24 @@ export class EnemyManager implements HostileManager {
 
   inRadius(center: Vec3, radius: number): Hostile[] {
     return this.enemies.filter(e => e.alive && hyp(e.position.x - center.x, e.position.z - center.z) <= radius)
+  }
+
+  stun(center: Vec3, radius: number, seconds: number): number {
+    let n = 0
+    for (const e of this.enemies) {
+      if (!e.alive || !e.model) continue
+      const d = hyp(e.position.x - center.x, e.position.z - center.z)
+      if (d > radius || this.world.collision.segmentBlocked3D(center, e.model.head)) continue
+      const b = e.brain, k = 1 - d / radius
+      b.blindT = Math.max(b.blindT, this.time + seconds * (0.45 + 0.55 * k))
+      b.sees = false; b.burstLeft = 0; b.telegraph = 0; b.reaction = Math.max(b.reaction, 0.8)
+      // they know roughly where it came from and stay alarmed
+      b.known.x = center.x; b.known.z = center.z; b.knownT = this.time
+      e.awareness = Math.max(e.awareness, 0.7)
+      e.model.hit(center.x - e.position.x, center.z - e.position.z, 0.8)
+      n++
+    }
+    return n
   }
 
   applyDamage(hit: HostileHit, dmg: DamageInfo): DamageResult {

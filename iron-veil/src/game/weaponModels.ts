@@ -1881,6 +1881,45 @@ export function buildHandItem(id: string, look: "vm" | "world" = "vm"): HandItem
     cone.setAttribute("color", new THREE.BufferAttribute(new Float32Array(cone.attributes.position.count * 3).fill(1), 3))
     const fl = new THREE.Mesh(cone, mats.flame); fl.name = "flame"; fl.position.y = 0.12; group.add(fl); flame = fl
     r = 0.036; style = "throw"
+  } else if (id === "smoke") {
+    // smoke canister: olive drum with a white marking band, crimped rims, fuse head, spoon and pin ring
+    k.at(up, () => {
+      k.cyl("od", 0.03, 0.112, 0, 0, 0, 22); k.cyl("white", 0.0305, 0.016, 0, 0, 0.026, 22)
+      k.cyl("steel", 0.0308, 0.007, 0, 0, -0.053, 22); k.cyl("steel", 0.0308, 0.006, 0, 0, 0.054, 22)
+      k.cyl("steel", 0.024, 0.01, 0, 0, 0.062, 18); k.cyl("steelLight", 0.009, 0.016, 0, 0, 0.074, 12)
+      for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2 + 0.4; k.cyl("polymer", 0.003, 0.002, Math.cos(a) * 0.016, Math.sin(a) * 0.016, 0.0675, 8) }
+    })
+    k.box("steel", 0.012, 0.085, 0.004, 0, 0.03, 0.033, 0.12, 0, 0, 0.001); k.ring("steelLight", 0.009, 0.0015, 0.016, 0.074, 0.0)
+    r = 0.03; style = "throw"
+  } else if (id === "flashbang") {
+    // stun grenade: hexagonal perforated steel body, black end caps, fuse head, spoon and pin ring
+    k.at(up, () => {
+      k.cyl("steel", 0.024, 0.1, 0, 0, 0, 6); k.cyl("polymer", 0.0248, 0.012, 0, 0, -0.046, 6); k.cyl("polymer", 0.0248, 0.008, 0, 0, 0.047, 6)
+      k.cyl("steelLight", 0.019, 0.014, 0, 0, 0.057, 16); k.cyl("steel", 0.008, 0.014, 0, 0, 0.07, 12)
+    })
+    for (const y of [-0.026, -0.002, 0.022]) for (let i = 0; i < 6; i++) {
+      const t = (i + 0.5) * Math.PI / 3, ap = 0.0213
+      k.box("polymer", 0.007, 0.0075, 0.0016, Math.sin(t) * ap, y, Math.cos(t) * ap, 0, t, 0, 0)
+    }
+    k.box("steel", 0.012, 0.075, 0.004, 0, 0.025, 0.028, 0.1, 0, 0, 0.001); k.ring("steelLight", 0.009, 0.0015, 0.016, 0.07, 0.0)
+    r = 0.024; style = "throw"
+  } else if (id === "decoy") {
+    // noise decoy: an old twin-bell alarm clock with a battery pack taped to its back and a red LED
+    k.cyl("shellRed", 0.038, 0.03, 0, 0, 0, 24); k.cyl("steelLight", 0.0392, 0.005, 0, 0, 0.0145, 24)
+    k.cyl("white", 0.033, 0.002, 0, 0, 0.016, 24)
+    k.box("polymer", 0.0022, 0.022, 0.0012, 0, 0.009, 0.0175, 0, 0, 0, 0); k.box("polymer", 0.0022, 0.016, 0.0012, 0.006, -0.004, 0.0175, 0, 0, 1.9, 0)
+    for (let i = 0; i < 12; i++) { const a = i / 12 * Math.PI * 2; k.box("polymer", 0.0014, 0.004, 0.001, Math.sin(a) * 0.028, Math.cos(a) * 0.028, 0.0172, 0, 0, -a, 0) }
+    for (const sd of [-1, 1]) {
+      k.sphere("steelLight", 0.017, sd * 0.024, 0.04, 0, 1, 0.75, 1, 14)
+      k.box("steel", 0.004, 0.012, 0.004, sd * 0.02, 0.034, 0, 0, 0, sd * 0.5, 0)
+      k.sphere("steel", 0.006, sd * 0.026, -0.038, 0, 1, 0.7, 1, 8)
+    }
+    k.box("steel", 0.003, 0.02, 0.003, 0, 0.05, 0, 0, 0, 0, 0); k.sphere("steel", 0.004, 0, 0.061, 0, 1, 1, 1, 8)
+    k.box("tan", 0.05, 0.032, 0.018, 0, -0.004, -0.026, 0, 0, 0, 0.003); k.box("polymer", 0.07, 0.009, 0.044, 0, -0.004, -0.012, 0, 0, 0, 0.002)
+    k.box("paintRed", 0.002, 0.03, 0.002, 0.022, 0.006, -0.036, 0.5, 0, 0, 0)
+    const lk = new Kit(); lk.sphere("glowRed", 0.0042, 0.016, 0.012, -0.0358, 1, 1, 0.6, 8)
+    const lg = new THREE.Group(); lg.name = "led"; lk.merge(mats, lg); group.add(lg)
+    r = 0.038; style = "throw"
   } else {
     // frag grenade: body, fuse, spoon and pin ring
     k.at(up, () => { k.lathe("od", [0, -0.042, 0.018, -0.04, 0.03, -0.022, 0.031, 0.0, 0.028, 0.02, 0.016, 0.034, 0, 0.036], 0, 0, 0, 18); k.cyl("steel", 0.009, 0.018, 0, 0, 0.042, 12) })

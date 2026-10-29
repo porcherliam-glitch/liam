@@ -1,5 +1,6 @@
 /**
- * grenades.ts — thrown frag grenades: ballistic flight with bounces off the ground and boxes, 2.2 s fuse.
+ * grenades.ts — throwables: frag grenade (2.2 s fuse), molotov (bursts on impact), smoke canister, flashbang and noise
+ * decoy; ballistic flight with bounces off the ground and boxes.
  * The physics step (stepGrenade) is pure and unit-tested; GrenadeSystem owns the meshes.
  */
 import * as THREE from "three"
@@ -16,7 +17,21 @@ const FRICTION = 0.72
 const SIZE = 0.07
 
 export interface GrenadeBody { p: Vec3; v: Vec3; fuse: number; bounced: boolean }
-export type ThrowableKind = "grenade" | "molotov"
+export type ThrowableKind = "grenade" | "molotov" | "smoke" | "flashbang" | "decoy"
+/** Cycle order of the throwables (key 4 / HUD). */
+export const THROWABLES: readonly ThrowableKind[] = ["grenade", "molotov", "smoke", "flashbang", "decoy"]
+/** Name, fuse (s, the molotov bursts on impact instead) and throw speed (m/s) per throwable. */
+export const THROW_INFO: Record<ThrowableKind, { name: string; fuse: number; speed: number }> = {
+  grenade: { name: "Splittergranate", fuse: GRENADE_FUSE, speed: 15 },
+  molotov: { name: "Brandflasche", fuse: 4, speed: 13 },
+  smoke: { name: "Rauchgranate", fuse: 1.6, speed: 14 },
+  flashbang: { name: "Blendgranate", fuse: 1.5, speed: 15 },
+  decoy: { name: "Lärmköder", fuse: 1.2, speed: 12 },
+}
+/** How long a smoke canister keeps hissing and how long a decoy beeps (they stay on the ground meanwhile). */
+export const SMOKE_BURN = 22
+export const DECOY_LIFE = 14
+export const DECOY_BEEP = 0.55
 
 /** Advances one grenade by dt; returns true when it bounced this step (for a sound). */
 export function stepGrenade(g: GrenadeBody, dt: number, obstacles: readonly Obstacle[]): boolean {
@@ -79,17 +94,26 @@ function throwModel(kind: ThrowableKind): THREE.Group {
   return m.clone()
 }
 
-export interface GrenadeEvents { bounce(p: Vec3): void; explode(p: Vec3): void; ignite(p: Vec3): void }
+export interface GrenadeEvents {
+  bounce(p: Vec3): void; explode(p: Vec3): void; ignite(p: Vec3): void
+  /** Smoke canister starts hissing (once) / keeps hissing (every frame while it burns, for the particles). */
+  smoke?(p: Vec3): void; smoking?(p: Vec3, dt: number): void
+  flash?(p: Vec3): void
+  /** Decoy beeps (every DECOY_BEEP seconds while it is active). */
+  beep?(p: Vec3): void
+}
+
+interface Live { body: GrenadeBody; mesh: THREE.Group; kind: ThrowableKind; armed: boolean; life: number; tick: number }
 
 export class GrenadeSystem {
-  private live: { body: GrenadeBody; mesh: THREE.Group; kind: ThrowableKind }[] = []
+  private live: Live[] = []
   constructor(private parent: THREE.Object3D, private events: GrenadeEvents) {}
 
   throw(origin: Vec3, dir: Vec3, inherit: Vec3, kind: ThrowableKind = "grenade"): void {
     const mesh = new THREE.Group(); mesh.add(throwModel(kind))
     mesh.position.set(origin.x, origin.y, origin.z); this.parent.add(mesh)
-    const speed = kind === "molotov" ? 13 : 15
-    this.live.push({ body: { p: { ...origin }, v: { x: dir.x * speed + inherit.x, y: dir.y * speed + 3.2 + inherit.y, z: dir.z * speed + inherit.z }, fuse: kind === "molotov" ? 4 : GRENADE_FUSE, bounced: false }, mesh, kind })
+    const { speed, fuse } = THROW_INFO[kind]
+    this.live.push({ body: { p: { ...origin }, v: { x: dir.x * speed + inherit.x, y: dir.y * speed + 3.2 + inherit.y, z: dir.z * speed + inherit.z }, fuse, bounced: false }, mesh, kind, armed: false, life: 0, tick: 0 })
   }
 
   /** obstacles: candidates near the throwables (the raid passes a spatial query). */
@@ -97,18 +121,37 @@ export class GrenadeSystem {
     for (let i = this.live.length - 1; i >= 0; i--) {
       const g = this.live[i]
       const bounced = stepGrenade(g.body, dt, obstaclesNear(g.body.p.x, g.body.p.z))
-      if (bounced && g.kind === "grenade") this.events.bounce(g.body.p)
+      if (bounced && g.kind !== "molotov") this.events.bounce(g.body.p)
       g.mesh.position.set(g.body.p.x, g.body.p.y, g.body.p.z)
-      g.mesh.rotation.x += dt * Math.hypot(g.body.v.x, g.body.v.z) * 3
+      const roll = Math.hypot(g.body.v.x, g.body.v.z)
+      g.mesh.rotation.x += dt * roll * 3
       if (g.kind === "molotov") { const f = g.mesh.getObjectByName("flame"); if (f) f.scale.set(1.6, 1.4 + Math.random() * 1.2, 1.6) }
       // a molotov bursts on the first hard impact
-      if (g.kind === "molotov" && (g.body.bounced || g.body.fuse <= 0)) { this.parent.remove(g.mesh); this.live.splice(i, 1); this.events.ignite(g.body.p); continue }
-      if (g.kind === "grenade" && g.body.fuse <= 0) { this.parent.remove(g.mesh); this.live.splice(i, 1); this.events.explode(g.body.p) }
+      if (g.kind === "molotov" && (g.body.bounced || g.body.fuse <= 0)) { this.remove(i); this.events.ignite(g.body.p); continue }
+      if (g.kind === "grenade" && g.body.fuse <= 0) { this.remove(i); this.events.explode(g.body.p); continue }
+      if (g.kind === "flashbang" && g.body.fuse <= 0) { this.remove(i); this.events.flash?.(g.body.p); continue }
+      // smoke canisters and decoys stay where they land and work for a while
+      if ((g.kind === "smoke" || g.kind === "decoy") && g.body.fuse <= 0) {
+        if (!g.armed) { g.armed = true; g.life = g.kind === "smoke" ? SMOKE_BURN : DECOY_LIFE; if (g.kind === "smoke") this.events.smoke?.(g.body.p) }
+        g.life -= dt
+        if (g.kind === "smoke") this.events.smoking?.(g.body.p, dt)
+        else {
+          g.tick -= dt
+          if (g.tick <= 0) { g.tick += DECOY_BEEP; this.events.beep?.(g.body.p) }
+          const led = g.mesh.getObjectByName("led"); if (led) led.visible = g.tick > DECOY_BEEP * 0.5
+        }
+        if (g.life <= 0) { this.remove(i); continue }
+      }
     }
   }
 
+  private remove(i: number): void { this.parent.remove(this.live[i].mesh); this.live.splice(i, 1) }
+
+  /** Positions of the active decoys (the raid's AI tests use them). */
+  decoys(): Vec3[] { return this.live.filter(g => g.kind === "decoy" && g.armed).map(g => g.body.p) }
+
   /** One model of every throwable, for shader pre-compilation (add to the scene before renderer.compile, remove after). */
-  prewarmGroup(): THREE.Group { const g = new THREE.Group(); for (const k of ["grenade", "molotov"] as const) g.add(throwModel(k)); return g }
+  prewarmGroup(): THREE.Group { const g = new THREE.Group(); for (const k of THROWABLES) g.add(throwModel(k)); return g }
 
   get count(): number { return this.live.length }
   clear(): void { for (const g of this.live) this.parent.remove(g.mesh); this.live = [] }

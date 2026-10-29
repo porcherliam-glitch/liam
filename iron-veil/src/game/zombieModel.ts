@@ -39,6 +39,8 @@ export interface BodySpec {
   hunch: number
   legs: boolean
   belly?: number; throat?: number; plates?: boolean; spikes?: boolean; weakSpot?: boolean; club?: boolean; spine?: boolean
+  /** Gas-bloated body: stretched bruised skin, glowing gas pustules (Gasbläher). */
+  bloat?: boolean
   /** Movement collision radius. */
   radius: number
   /** Lying offset (half body depth) and total standing height. */
@@ -63,6 +65,8 @@ export const SPECS: Record<InfectedKind, BodySpec> = {
     upperArm: 0.33, foreArm: 0.31, armR: 0.043, foreR: 0.036, thighR: 0.066, shinR: 0.049, claw: 0.06, jawMax: 1.25, hunch: -0.08, radius: 0.3 }),
   spitter: spec({ ...HUMAN, hipH: 0.86, thigh: 0.42, shin: 0.39, waistW: 0.33, waistD: 0.24, chestW: 0.38, chestD: 0.24, torsoLen: 0.54, belly: 0.26, throat: 0.1,
     armR: 0.05, foreR: 0.042, thighR: 0.08, shinR: 0.058, jawMax: 0.9, hunch: -0.02, radius: 0.42 }),
+  bloater: spec({ ...HUMAN, hipH: 0.82, thigh: 0.4, shin: 0.37, pelvisW: 0.42, waistW: 0.44, waistD: 0.4, chestW: 0.48, chestD: 0.36, torsoLen: 0.55, belly: 0.4, throat: 0.13,
+    neck: 0.03, headR: 0.112, upperArm: 0.29, foreArm: 0.26, armR: 0.072, foreR: 0.062, thighR: 0.115, shinR: 0.078, jawMax: 0.75, hunch: -0.02, bloat: true, radius: 0.52 }),
   stalker: spec({ ...HUMAN, hipH: 0.9, thigh: 0.44, shin: 0.41, chestW: 0.35, chestD: 0.2, waistW: 0.22, upperArm: 0.37, foreArm: 0.36, hand: 0.12, armR: 0.047, foreR: 0.039,
     thighR: 0.07, shinR: 0.05, claw: 0.09, jawMax: 0.8, hunch: -0.35, spine: true, radius: 0.34 }),
   crawler: spec({ ...HUMAN, legs: false, upperArm: 0.32, foreArm: 0.29, claw: 0.05, jawMax: 0.75, hunch: 0, radius: 0.36 }),
@@ -75,10 +79,10 @@ export const SPECS: Record<InfectedKind, BodySpec> = {
 }
 
 /** Number of cached look variants per kind (instances pick one at random). */
-export const VARIANTS: Record<InfectedKind, number> = { walker: 10, runner: 5, brute: 3, screamer: 3, spitter: 3, stalker: 3, crawler: 4, boss: 1 }
+export const VARIANTS: Record<InfectedKind, number> = { walker: 10, runner: 5, brute: 3, screamer: 3, spitter: 3, stalker: 3, crawler: 4, bloater: 3, boss: 1 }
 
 /** Blood colour per kind (spitters bleed bile). */
-export const BLOOD: Record<InfectedKind, number> = { walker: 0x4a0b07, runner: 0x520c08, brute: 0x3e0906, screamer: 0x4a0b07, spitter: 0x4a4a0c, stalker: 0x350806, crawler: 0x4a0b07, boss: 0x3a0705 }
+export const BLOOD: Record<InfectedKind, number> = { walker: 0x4a0b07, runner: 0x520c08, brute: 0x3e0906, screamer: 0x4a0b07, spitter: 0x4a4a0c, bloater: 0x56601a, stalker: 0x350806, crawler: 0x4a0b07, boss: 0x3a0705 }
 
 // ------------------------------------------------------------------ looks
 
@@ -98,7 +102,7 @@ const C = {
   plate: 0xb8a988, muscle: 0x8a3027, bile: 0x9aa457, sac: 0xa9b35e, acid: 0x9cff52, weak: 0xffa236,
 }
 const SKINS = [0x8e9a80, 0x84926e, 0x969880, 0x7a866a, 0x8c8e8c, 0x86806c, 0x8a8c78, 0x7e8a84]
-const EYES: Record<InfectedKind, number> = { walker: 0xf2e7a6, runner: 0xff7a3a, screamer: 0xe6f0ff, spitter: 0xbdff6a, stalker: 0x9fd8ff, crawler: 0xf2e7a6, brute: 0xffb24a, boss: 0xff8a1e }
+const EYES: Record<InfectedKind, number> = { walker: 0xf2e7a6, runner: 0xff7a3a, screamer: 0xe6f0ff, spitter: 0xbdff6a, bloater: 0xe2ff4a, stalker: 0x9fd8ff, crawler: 0xf2e7a6, brute: 0xffb24a, boss: 0xff8a1e }
 const CIV_TOPS = [0x6b4a3a, 0x3d4f66, 0x7a7466, 0x5e2b2b, 0x4a5a3a, 0x8a7a5a, 0x2e3440, 0x6a6a72, 0x7c5a2e]
 const CIV_PANTS = [0x3d4b66, 0x4b4236, 0x3a3a3c, 0x5a5444, 0x48505a, 0x5b4a3a]
 const SHOES = [0x2a2420, 0x4a4a4a, 0x5e554c, 0x1c1a18]
@@ -142,6 +146,10 @@ function makeLook(kind: InfectedKind, r: () => number): Look {
     look.pants = "rags"; look.pantsColor = look.topColor; look.shoes = null; look.hair = r() < 0.3 ? 0x2a2a2a : null; look.ribs = r() < 0.5 ? 1 : -1
   } else if (kind === "spitter") {
     look.top = "tank"; look.sleeves = "none"; look.topColor = pick([0x6a6a5a, 0x5a4a3a, 0x7a7466], r); look.pants = "torn"; look.skin = pick([0x8a8f6a, 0x9a9a72, 0x7f8a5c], r); look.hair = null
+  } else if (kind === "bloater") {
+    // clothes burst open over the swollen body; bruised, purple-green skin
+    look.top = arche < 0.5 ? "tank" : "none"; look.sleeves = "none"; look.topColor = pick([0x7a7466, 0x6a5a4a, 0x8a8a7a], r); look.pants = "torn"; look.pantsColor = pick([0x3d4b66, 0x4b4236, 0x5a5444], r)
+    look.skin = pick([0x8a8090, 0x7f8a6a, 0x8c7c84], r); look.hair = r() < 0.3 ? 0x2a2a2a : null; look.ribs = 0
   } else if (kind === "stalker") {
     look.top = "none"; look.sleeves = "none"; look.pants = "rags"; look.pantsColor = pick([0x2a2a26, 0x3a332a], r); look.shoes = null; look.hair = null
     look.skin = pick([0x4e524a, 0x5a5850, 0x45493f], r); look.ribs = 2
@@ -582,11 +590,23 @@ function torsoSeg(kind: InfectedKind, S: BodySpec, L: Look, r: () => number): TH
   if (S.spine) for (let k = 0; k < 8; k++) g.lump(0, 0.08 + k * T * 0.12, cd * 0.98, 0.026, C.bone)
   // spitter: bloated bile sac + swollen throat
   if (S.belly) {
-    const b = S.belly, bz = F * (wd * 0.4 + b * 0.42)
-    g.ball(0, 0.21, bz, b, b * 0.9, b * 0.86, C.bile, 0.05).ball(b * 0.35, 0.3, bz - b * 0.15, b * 0.62, b * 0.55, b * 0.6, 0x8c9a4a, 0.04).ball(-b * 0.3, 0.12, bz - b * 0.2, b * 0.55, b * 0.5, b * 0.55, 0xa0a45a, 0.04)
+    const b = S.belly, bz = F * (wd * 0.4 + b * 0.42), bile = S.bloat ? 0x8a7c88 : C.bile
+    g.ball(0, 0.21, bz, b, b * 0.9, b * 0.86, bile, 0.05).ball(b * 0.35, 0.3, bz - b * 0.15, b * 0.62, b * 0.55, b * 0.6, S.bloat ? 0x7e8a64 : 0x8c9a4a, 0.04).ball(-b * 0.3, 0.12, bz - b * 0.2, b * 0.55, b * 0.5, b * 0.55, S.bloat ? 0x947a8a : 0xa0a45a, 0.04)
     for (let i = 0; i < 9; i++) { const a = r() * Math.PI * 2, y = 0.21 + (r() - 0.5) * b * 1.2; g.tube(Math.cos(a) * b * 0.5, y, bz - b * 0.6, Math.cos(a + 0.6) * b * 0.8, y + (r() - 0.5) * 0.1, bz - b * 0.35, 0.008, 0.006, 0x3b2f3e, 3) }
     g.ball(b * 0.35, 0.25, bz - b * 0.78, 0.055, 0.055, 0.035, C.acid, 1.4, true).ball(-b * 0.3, 0.13, bz - b * 0.72, 0.04, 0.04, 0.03, C.acid, 1.2, true).ball(-b * 0.05, 0.36, bz - b * 0.62, 0.03, 0.03, 0.02, C.acid, 1.2, true)
     g.ball(0, T + S.neck * 0.2, F * 0.055, S.throat! * 0.8, S.throat! * 0.6, S.throat! * 0.62, C.sac, 0.15)
+  }
+  // bloater: gas pustules all over the back, shoulders and flanks, stretch marks, a split seam leaking gas
+  if (S.bloat) {
+    for (let i = 0; i < 16; i++) {
+      const a = (r() - 0.5) * Math.PI * 1.4, y = T * (0.15 + r() * 0.8), rad = 0.025 + r() * 0.04
+      const x = Math.sin(a) * cw * 0.5, z = -F * Math.cos(a) * cd * 0.52
+      g.ball(x, y, z, rad, rad * 0.9, rad, i % 3 ? 0xc8d85a : 0xa8b84a, i % 3 ? 1.1 : 0.6, true)
+      g.ball(x, y, z, rad * 1.35, rad * 1.1, rad * 1.35, 0x7a6a5a, 0, true)
+    }
+    for (let i = 0; i < 7; i++) { const y = T * (0.2 + i * 0.09), x = (r() - 0.5) * cw * 0.7; g.tube(x - 0.05, y, F * cd * 0.55, x + 0.05, y + 0.012, F * cd * 0.56, 0.004, 0.004, 0x6a3a4a, 3) }
+    const b = S.belly ?? 0.3, bz = F * (wd * 0.4 + b * 0.42)
+    g.tube(-b * 0.4, 0.15, bz - b * 0.7, b * 0.35, 0.32, bz - b * 0.72, 0.012, 0.01, C.wound, 6).ball(0, 0.24, bz - b * 0.78, 0.07, 0.02, 0.02, 0xd8ff5a, 1.6, true, 0, -0.5)
   }
   // brute/boss: muscle mass, bone plates, tumours
   if (big) {

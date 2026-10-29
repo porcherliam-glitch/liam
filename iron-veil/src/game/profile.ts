@@ -310,7 +310,7 @@ export class Company {
     const ammoFor = (id: WeaponId | null, ammo: AmmoId | null, mags: number) => { if (id && ammo) want.push([ammo, WEAPONS[id].magazine * mags]) }
     ammoFor(lo.primary, lo.primaryAmmo, lo.primary === "lm60" ? 2 : 5)
     ammoFor(lo.secondary, lo.secondaryAmmo, 3)
-    want.push(["medkit", 1], ["bandage", 3], ["painkiller", 1], ["antiviral", 1], ["water", 1], ["canned", 1], ["grenade", 2], ["molotov", 1], ["stim", 1])
+    want.push(["medkit", 1], ["bandage", 3], ["painkiller", 1], ["antiviral", 1], ["water", 1], ["canned", 1], ["grenade", 2], ["molotov", 1], ["smoke", 1], ["flashbang", 1], ["decoy", 1], ["stim", 1])
     let packed = 0
     for (const [id, qty] of want) { const n = Math.min(qty, this.count(id)); if (n > 0 && this.pack(id, n).ok) packed++ }
     this.save()
@@ -410,7 +410,7 @@ export class Company {
     const p = this.profile, hq = this.level("hq"), out: ContractOffer[] = []
     const fetchItems: ItemId[] = ["medical", "electronics", "intel", "parts", "gold", "sample", "fuel", "dogtag", "tools", "chem"]
     const killKinds: { id: string; name: string; min: number }[] = [
-      { id: "runner", name: INFECTED.runner.name, min: 1 }, { id: "screamer", name: INFECTED.screamer.name, min: 2 }, { id: "spitter", name: INFECTED.spitter.name, min: 2 },
+      { id: "runner", name: INFECTED.runner.name, min: 1 }, { id: "screamer", name: INFECTED.screamer.name, min: 2 }, { id: "spitter", name: INFECTED.spitter.name, min: 2 }, { id: "bloater", name: INFECTED.bloater.name, min: 1 },
       { id: "brute", name: INFECTED.brute.name, min: 2 }, { id: "stalker", name: INFECTED.stalker.name, min: 3 }, { id: "heavy", name: "Schwere Söldner", min: 2 }, { id: "marksman", name: "Scharfschützen", min: 3 },
     ]
     const places = [["town", "die Altstadt"], ["industry", "das Industriegebiet"], ["harbor", "den Hafen"], ["military", "die Militäranlage"], ["lab", "das Forschungslabor"], ["farm", "den Bauernhof"], ["station", "den Bahnhof"]]

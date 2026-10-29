@@ -13,6 +13,7 @@ import { EnemyManager, SLEEP_DIST, type Merc } from "./enemies"
 import { GoreSystem, type GoreLevel } from "./gore"
 import type { BodyPartId, DamageInfo, HostileHit, HostileSound, PlayerState, ShotEvent } from "./hostiles"
 import { NavGrid, type Bounds } from "./nav"
+import { Obscurants } from "./obscurants"
 import { acquireSoldierAssets, makeDrive, releaseSoldierAssets, SoldierModel } from "./soldier"
 import type { EnemyKind, Vec2 } from "./types"
 import type { CoverPoint, World } from "./world"
@@ -42,7 +43,7 @@ function mockWorld(o: { solids?: Obstacle[]; time?: "day" | "dusk" | "night"; bo
   }
   return {
     kind: "zone", layout, time, theme: time === "night" ? "night" : "dusk", group: new THREE.Group(), obstacles, collision: new CollisionWorld(obstacles),
-    nav, coverPoints, exposure: 1, lightLevel: 1, visionScale: TIMES[time].visionScale, night: time === "night",
+    nav, coverPoints, exposure: 1, lightLevel: 1, visionScale: TIMES[time].visionScale, night: time === "night", obscurants: new Obscurants(), weather: "clear", weatherVision: 1, setWeather() {}, onLightning: null, raining: false,
     surfaceAt: () => "asphalt", districtAt: () => null, indoor: () => false, update() {}, setExtraction() {}, setStructures() {}, dispose() {},
   }
 }
@@ -119,6 +120,26 @@ describe("perception and shooting", () => {
     expect(m.combatCount()).toBe(1)
   })
 
+  it("does not see the player through a smoke cloud", () => {
+    const world = mockWorld()
+    world.obscurants.add(0, 10); world.obscurants.update(3)
+    const { log, run } = setup(world, [one("rifleman", guard(0, 0, 0, 10))])
+    run(player(0, 20), 4)
+    expect(log.spotted.length).toBe(0)
+    expect(log.shots.length).toBe(0)
+  })
+  it("a flashbang blinds a merc in combat: no shots for a few seconds", () => {
+    const { m, log, run } = setup(mockWorld(), [one("rifleman", guard(0, 0, 0, 10))])
+    const p = player(0, 20)
+    run(p, 4)
+    expect(log.shots.length).toBeGreaterThan(0)
+    expect(m.stun({ x: 0, y: 0.4, z: 3 }, 12, 5)).toBe(1)
+    const before = log.shots.length
+    run(p, 2.5)
+    expect(log.shots.length).toBe(before)
+    run(p, 6)
+    expect(log.shots.length).toBeGreaterThan(before)
+  })
   it("does not see a crouched player behind low cover, but sees him standing", () => {
     const solids = [box(0, 15, 6, 0.4, 1.1)]
     const hidden = setup(mockWorld({ solids }), [one("rifleman", guard(0, 0, 0, 10))])

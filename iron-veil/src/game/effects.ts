@@ -198,6 +198,7 @@ export class Effects {
 
   explosion(p: Vec3): void {
     const r = this.rand
+    this.explosionLight.color.setHex(0xffa04a); this.flashColorT = 0
     this.explosionLight.position.set(p.x, p.y + 1, p.z); this.explosionLight.intensity = 60; this.explosionLightTime = 0.35
     for (let i = 0; i < 40; i++) { const a = r() * Math.PI * 2, s = 2 + r() * 7; this.additive.emit(p.x, p.y + 0.3, p.z, Math.cos(a) * s, 1 + r() * 6, Math.sin(a) * s, 0.25 + r() * 0.35, 0.5 + r() * 0.6, 1.5, 1, 0.55 + r() * 0.3, 0.2, 1, 3.5, -1) }
     for (let i = 0; i < 46; i++) { const a = r() * Math.PI * 2, s = 1 + r() * 4; this.alpha.emit(p.x, p.y + 0.4, p.z, Math.cos(a) * s, 0.8 + r() * 3, Math.sin(a) * s, 1.6 + r() * 1.6, 0.8 + r() * 0.9, 3.2, 0.2, 0.19, 0.18, 0.75, 1.4, -0.4) }
@@ -211,6 +212,52 @@ export class Effects {
     const r = this.rand
     this.alpha.emit(p.x + (r() - 0.5) * 0.2, p.y + 0.2, p.z + (r() - 0.5) * 0.2, (r() - 0.5) * 0.6 + 0.4, 1.4 + r() * 0.8, (r() - 0.5) * 0.6, 3 + r() * 2, 0.6 + r() * 0.4, 4, 0.75, 0.16, 0.12, 0.5, 0.4, -0.15)
   }
+
+  /** Smoke grenade cloud (call each frame): big slow grey puffs filling a cylinder of radius r around (x, z). */
+  smokeCloud(x: number, z: number, r: number, density: number, dt: number): void {
+    if (r <= 0.1 || density <= 0.02) return
+    const rnd = this.rand, n = dt * (10 + r * 5) * density
+    let k = Math.floor(n) + (rnd() < n - Math.floor(n) ? 1 : 0)
+    while (k-- > 0) {
+      const a = rnd() * Math.PI * 2, d = Math.sqrt(rnd()) * r * 0.85, sh = 0.62 + rnd() * 0.12
+      this.alpha.emit(x + Math.cos(a) * d, 0.4 + rnd() * 2.6, z + Math.sin(a) * d, (rnd() - 0.5) * 0.35, 0.05 + rnd() * 0.15, (rnd() - 0.5) * 0.35, 3.5 + rnd() * 2.5, 1.6 + rnd() * 1.3, 0.9, sh, sh, sh * 0.98, 0.32 * density, 0.2, -0.02)
+    }
+  }
+
+  /** Bloater gas: low, sickly yellow-green billows hugging the ground. */
+  gasCloud(x: number, z: number, r: number, density: number, dt: number): void {
+    if (r <= 0.1 || density <= 0.02) return
+    const rnd = this.rand, n = dt * (8 + r * 5) * density
+    let k = Math.floor(n) + (rnd() < n - Math.floor(n) ? 1 : 0)
+    while (k-- > 0) {
+      const a = rnd() * Math.PI * 2, d = Math.sqrt(rnd()) * r * 0.85
+      this.alpha.emit(x + Math.cos(a) * d, 0.2 + rnd() * 1.3, z + Math.sin(a) * d, (rnd() - 0.5) * 0.3, 0.03 + rnd() * 0.08, (rnd() - 0.5) * 0.3, 2.5 + rnd() * 2, 1.1 + rnd() * 0.9, 0.8, 0.55 + rnd() * 0.08, 0.66 + rnd() * 0.06, 0.22, 0.3 * density, 0.3, -0.01)
+    }
+  }
+
+  /** Jet of smoke from a canister on the ground (call each frame while it hisses). */
+  smokeJet(p: Vec3, dt: number): void {
+    const rnd = this.rand
+    if (rnd() > dt * 22) return
+    this.alpha.emit(p.x, p.y + 0.05, p.z, (rnd() - 0.5) * 1.2, 0.8 + rnd() * 0.8, (rnd() - 0.5) * 1.2, 1.4 + rnd(), 0.35 + rnd() * 0.3, 4, 0.74, 0.74, 0.72, 0.6, 0.8, -0.1)
+  }
+
+  /** A raindrop hitting the ground: a tiny pale crown of droplets. */
+  rainSplash(x: number, z: number): void {
+    const r = this.rand
+    for (let i = 0; i < 2; i++) this.alpha.emit(x, 0.03, z, (r() - 0.5) * 0.9, 0.7 + r() * 0.6, (r() - 0.5) * 0.9, 0.16 + r() * 0.08, 0.025 + r() * 0.015, 0.5, 0.78, 0.82, 0.86, 0.5, 0, 9)
+  }
+
+  /** Flashbang: blinding white light and a burst of sparks. */
+  flash(p: Vec3): void {
+    const r = this.rand
+    this.explosionLight.position.set(p.x, p.y + 0.5, p.z); this.explosionLight.color.setHex(0xe8f0ff); this.explosionLight.intensity = 140; this.explosionLightTime = 0.35
+    this.flashColorT = 0.5
+    for (let i = 0; i < 26; i++) { const a = r() * Math.PI * 2, s = 3 + r() * 8; this.additive.emit(p.x, p.y + 0.2, p.z, Math.cos(a) * s, 1 + r() * 5, Math.sin(a) * s, 0.15 + r() * 0.2, 0.05, 0, 1, 0.95, 0.85, 1, 1, 6) }
+    for (let i = 0; i < 4; i++) this.additive.emit(p.x, p.y + 0.3, p.z, 0, 0, 0, 0.12, 2.5 + r() * 1.5, 2, 1, 1, 1, 1, 0, 0)
+    for (let i = 0; i < 14; i++) { const a = r() * Math.PI * 2, s = 0.5 + r() * 1.5; this.alpha.emit(p.x, p.y + 0.3, p.z, Math.cos(a) * s, 0.4 + r(), Math.sin(a) * s, 1.8 + r(), 0.5 + r() * 0.4, 3, 0.7, 0.7, 0.7, 0.45, 1.2, -0.2) }
+  }
+  private flashColorT = 0
 
   /** Burning ground (molotov) — call each fixed step while it burns: flames, embers and dark smoke over the radius. */
   fire(p: Vec3, radius: number, dt: number): void {
@@ -251,7 +298,8 @@ export class Effects {
       t.mesh.scale.set(t.width, t.width, len)
     }
     if (this.muzzleTime > 0) { this.muzzleTime -= dt; if (this.muzzleTime <= 0) this.muzzleLight.intensity = 0 }
-    if (this.explosionLightTime > 0) { this.explosionLightTime -= dt; this.explosionLight.intensity = Math.max(0, this.explosionLightTime / 0.35) * 60 }
+    if (this.explosionLightTime > 0) { this.explosionLightTime -= dt; this.explosionLight.intensity = Math.max(0, this.explosionLightTime / 0.35) * (this.flashColorT > 0 ? 140 : 60) }
+    if (this.flashColorT > 0) { this.flashColorT -= dt; if (this.flashColorT <= 0) this.explosionLight.color.setHex(0xffa04a) }
   }
 
   /** Removes decals and active particles (new raid). */

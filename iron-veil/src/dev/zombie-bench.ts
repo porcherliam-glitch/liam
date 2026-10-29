@@ -227,7 +227,7 @@ if (params.get("ui") !== "0") {
   panel.style.cssText = "position:fixed;left:8px;top:8px;max-width:560px;display:flex;flex-wrap:wrap;gap:4px;background:rgba(8,10,12,.72);color:#dde;padding:8px;border-radius:6px"
   const btn = (label: string, fn: () => void) => { const b = document.createElement("button"); b.textContent = label; b.style.cssText = "background:#2a3036;color:#eee;border:1px solid #556;border-radius:4px;padding:3px 7px;cursor:pointer"; b.onclick = fn; panel.appendChild(b) }
   const ahead = (d = 12) => { const f = forward(player.yaw, 0); return { x: player.position.x + f.x * d, z: player.position.z + f.z * d } }
-  const names: Record<InfectedKind, string> = { walker: "Infizierter", runner: "Läufer", brute: "Brut", screamer: "Schreier", spitter: "Speier", stalker: "Pirscher", crawler: "Kriecher", boss: "Koloss" }
+  const names: Record<InfectedKind, string> = { walker: "Infizierter", runner: "Läufer", brute: "Brut", screamer: "Schreier", spitter: "Speier", bloater: "Gasbläher", stalker: "Pirscher", crawler: "Kriecher", boss: "Koloss" }
   for (const k of Object.keys(names) as InfectedKind[]) btn(names[k], () => { const p = ahead(k === "boss" ? 18 : 12); bench.spawn(k, p.x, p.z, { state: "wander" }) })
   btn("Horde 30", () => { const p = ahead(30); bench.horde(p.x, p.z, 30, player.position.x, player.position.z) })
   btn("Bevölkern an/aus", () => { populateOn = !populateOn })

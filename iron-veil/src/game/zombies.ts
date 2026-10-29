@@ -56,14 +56,14 @@ const LOD_DIST = 45
 const SHADOW_DIST = 26
 const PART_INDEX: Record<BodyPartId, number> = { head: 0, torso: 1, armL: 2, armR: 3, legL: 4, legR: 5 }
 /** Extra head damage on top of the weapon's head multiplier: the head is the infected's weak point. */
-const HEAD_BONUS: Record<InfectedKind, number> = { walker: 1.5, runner: 1.5, screamer: 1.5, spitter: 1.4, stalker: 1.3, crawler: 1.5, brute: 1, boss: 0.8 }
-const HEAD_ARMOR: Record<InfectedKind, number> = { walker: 0, runner: 0, screamer: 0, spitter: 0, stalker: 0, crawler: 0, brute: 0.2, boss: 0.15 }
+const HEAD_BONUS: Record<InfectedKind, number> = { walker: 1.5, runner: 1.5, screamer: 1.5, spitter: 1.4, stalker: 1.3, crawler: 1.5, bloater: 1.3, brute: 1, boss: 0.8 }
+const HEAD_ARMOR: Record<InfectedKind, number> = { walker: 0, runner: 0, screamer: 0, spitter: 0, stalker: 0, crawler: 0, bloater: 0, brute: 0.2, boss: 0.15 }
 /** Attack wind-up (telegraph) in seconds. */
-const WIND: Record<InfectedKind, number> = { walker: 0.45, runner: 0.28, brute: 0.62, screamer: 0.4, spitter: 0.4, stalker: 0.3, crawler: 0.42, boss: 0.75 }
-const TURN: Record<InfectedKind, number> = { walker: 3.5, runner: 8, brute: 2.4, screamer: 4, spitter: 3, stalker: 7, crawler: 2.5, boss: 1.7 }
-const FOV_COS: Record<InfectedKind, number> = { walker: 0.34, runner: 0.34, brute: 0.34, screamer: 0.26, spitter: 0.5, stalker: 0.08, crawler: 0.34, boss: 0.2 }
+const WIND: Record<InfectedKind, number> = { walker: 0.45, runner: 0.28, brute: 0.62, screamer: 0.4, spitter: 0.4, stalker: 0.3, crawler: 0.42, bloater: 0.55, boss: 0.75 }
+const TURN: Record<InfectedKind, number> = { walker: 3.5, runner: 8, brute: 2.4, screamer: 4, spitter: 3, stalker: 7, crawler: 2.5, bloater: 2.4, boss: 1.7 }
+const FOV_COS: Record<InfectedKind, number> = { walker: 0.34, runner: 0.34, brute: 0.34, screamer: 0.26, spitter: 0.5, stalker: 0.08, crawler: 0.34, bloater: 0.4, boss: 0.2 }
 /** Damage (fraction of max health) that staggers / interrupts a wind-up. */
-const STAGGER: Record<InfectedKind, number> = { walker: 0.12, runner: 0.14, screamer: 0.1, spitter: 0.15, stalker: 0.2, crawler: 0.2, brute: 0.22, boss: 9 }
+const STAGGER: Record<InfectedKind, number> = { walker: 0.12, runner: 0.14, screamer: 0.1, spitter: 0.15, stalker: 0.2, crawler: 0.2, bloater: 0.1, brute: 0.22, boss: 9 }
 
 const WALKERS: readonly InfectedKind[] = ["walker", "walker", "walker", "runner"]
 
@@ -219,7 +219,7 @@ export class InfectedManager implements HostileManager {
    * Builds the cached geometry of every look variant up front (~200 ms for all kinds). Call it while the raid
    * loads; otherwise each variant is built on first spawn (~6 ms each, spawns happen out of sight).
    */
-  prewarm(kinds: readonly InfectedKind[] = ["walker", "runner", "brute", "screamer", "spitter", "stalker", "crawler", "boss"]): number {
+  prewarm(kinds: readonly InfectedKind[] = ["walker", "runner", "brute", "screamer", "spitter", "stalker", "crawler", "bloater", "boss"]): number {
     let n = 0
     for (const k of kinds) for (let v = 0; v < VARIANTS[k]; v++) { this.assets.get(k, v); n++ }
     return n
@@ -442,7 +442,7 @@ export class InfectedManager implements HostileManager {
 
   private sense(e: Infected, pl: PlayerState, d: number): void {
     const def = e.def
-    const range = sightRange(def.sight, this.visionScale, pl.flashlight, pl.crouched)
+    const range = sightRange(def.sight, this.visionScale * this.world.weatherVision, pl.flashlight, pl.crouched)
     const dx = pl.position.x - e.position.x, dz = pl.position.z - e.position.z
     const cos = d > 1e-4 ? (dx * -Math.sin(e.yaw) + dz * -Math.cos(e.yaw)) / d : 1
     const noise = movementNoise(pl.speed, pl.sprinting, pl.crouched)
@@ -466,6 +466,7 @@ export class InfectedManager implements HostileManager {
   private sightBlocked(e: Infected, pl: PlayerState): boolean {
     _a.x = e.position.x; _a.y = e.position.y + e.eyeY(); _a.z = e.position.z
     _b.x = pl.position.x; _b.y = pl.eyeY - 0.12; _b.z = pl.position.z
+    if (this.world.obscurants.blocks(_a, _b)) return true
     if (!this.world.collision.segmentBlocked3D(_a, _b)) return false
     _b.y = Math.max(0.5, pl.eyeY - 0.6)
     return this.world.collision.segmentBlocked3D(_a, _b)
@@ -597,6 +598,12 @@ export class InfectedManager implements HostileManager {
         }
         return
       }
+      case "bloater": {
+        // waddles up and bursts itself next to the player (a long, visible swell gives time to back off or shoot)
+        if (fresh && !e.legless && d < 2.6 && e.special <= 0 && this.lineClear(e, pl)) { this.startAction(e, "burst", 1.5, 1.25); return }
+        if (canMelee && this.lineClear(e, pl)) { this.startMelee(e); return }
+        return
+      }
       case "boss": this.bossChase(e, pl, d, fresh, canMelee); return
       default:
         if (canMelee && this.lineClear(e, pl)) { this.startMelee(e); return }
@@ -628,6 +635,7 @@ export class InfectedManager implements HostileManager {
     if (a === "spit") { e.special = e.def.attackTime + this.rng() * 1.5; this.voice(e, "spit", 1.5, true) }
     if (a === "leap") { e.special = 6 + this.rng() * 4; e.leapDur = 0; this.voice(e, "attack", 1, true) }
     if (a === "charge") this.voice(e, "roar", 2, true)
+    if (a === "burst") { e.special = 99; this.voice(e, "scream", 0, true) }
   }
 
   private startMelee(e: Infected): void {
@@ -660,6 +668,10 @@ export class InfectedManager implements HostileManager {
         break
       case "roar":
         if (!e.struck && t >= e.wind) { e.struck = true; this.voice(e, "roar", 1, true); if (e.kind === "boss" && e.bossPhase >= 3) this.summon(e, pl) }
+        break
+      case "burst":
+        e.facePlayer = active
+        if (!e.struck && t >= e.wind) { e.struck = true; this.burst(e, pl, active) }
         break
       case "leap": this.leap(e, dt, pl, active); break
       case "charge": this.charge(e, dt, pl, active); break
@@ -961,6 +973,11 @@ export class InfectedManager implements HostileManager {
     if (e.poseRate < 14) e.poseRate = Math.min(14, e.poseRate + dt * 6)
     for (let i = 0; i < POSE_N; i++) e.pose[i] += (e.target[i] - e.pose[i]) * k
     applyPose(r, e.pose)
+    // a bloater about to burst swells up and quivers
+    if (e.kind === "bloater") {
+      const k2 = e.action === "burst" ? Math.min(1, e.actionT / e.wind) : 0, q = k2 * 0.03 * Math.sin(e.actionT * 41)
+      r.body.scale.set(e.scale * (1 + 0.16 * k2 + q), e.scale * (1 + 0.07 * k2), e.scale * (1 + 0.16 * k2 - q))
+    }
     const sh = dv < SHADOW_DIST
     if (sh !== e.shadowOn) { for (const m of r.meshes) m.castShadow = sh; e.shadowOn = sh }
   }
@@ -1184,7 +1201,24 @@ export class InfectedManager implements HostileManager {
     } else this.gore.gib(e.group, from, force, { color: e.gore.bloodColor, heavy: true })
   }
 
+  /** A bloater bursts (on its own next to the player or when killed): splash, gibs and a lingering gas cloud. */
+  private burst(e: Infected, pl: PlayerState, active: boolean): void {
+    if (active) {
+      const d = Math.hypot(pl.position.x - e.position.x, pl.position.z - e.position.z)
+      if (d < 3.2 && this.lineClear(e, pl)) this.opts.events.attack?.({ source: e, damage: 18 * DIFFICULTY[this.opts.difficulty].enemyDamage * (1 - d / 4.5), bleed: "none", infection: 14, kind: "acid" })
+    }
+    e.health = 0
+    this.kill(e, "explosion", "body", 0, 0)
+  }
+
   private kill(e: Infected, cause: DamageInfo["kind"], part: HitPart, dx: number, dz: number): void {
+    if (e.kind === "bloater" && !e.gibbed) {
+      this.gibBody(e, e.position, 3.5)
+      e.group.updateMatrixWorld(true)
+      const c = e.chestPosition(_v)
+      this.opts.events.gas?.({ x: c.x, y: 0.1, z: c.z }, 4.6)
+      this.fx.dust(c.x, 0.4, c.z, 1.4, 26)
+    }
     e.alive = false; e.state = "dead"; e.health = Math.min(0, e.health)
     e.action = "none"; e.stagger = 0; e.stun = 0; e.arc = 0; e.vx = 0; e.vz = 0; e.deathT = 0; e.ringR = -1
     e.from.set(e.pose); e.clipT = 0; e.clip = null
@@ -1282,6 +1316,24 @@ export class InfectedManager implements HostileManager {
     const out: Hostile[] = []
     for (const e of this.list) if (e.alive && Math.hypot(e.position.x - center.x, e.position.z - center.z, (e.position.y - center.y) * 0.5) <= radius) out.push(e)
     return out
+  }
+
+  stun(center: Vec3, radius: number, seconds: number): number {
+    let n = 0
+    for (const e of this.list) {
+      if (!e.alive || e.kind === "boss") continue
+      const d = Math.hypot(e.position.x - center.x, e.position.z - center.z)
+      if (d > radius) continue
+      _a.x = e.position.x; _a.y = e.position.y + e.eyeY(); _a.z = e.position.z
+      if (this.world.collision.segmentBlocked3D(center, _a)) continue
+      // brutes shrug it off faster; a telegraphed attack is cancelled
+      const k = (1 - d / radius) * (e.kind === "brute" ? 0.4 : 1)
+      e.stun = Math.max(e.stun, seconds * (0.4 + 0.6 * k)); e.stagger = 1
+      if (e.action !== "none" && e.action !== "charge" && e.action !== "leap") e.action = "none"
+      this.localDir(e, e.position.x - center.x, e.position.z - center.z)
+      n++
+    }
+    return n
   }
 
   aliveCount(): number { let n = 0; for (const e of this.list) if (e.alive) n++; return n }

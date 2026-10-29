@@ -98,6 +98,9 @@ export function startGame(canvas: HTMLCanvasElement, uiHost: HTMLElement): void 
   })
   const game = raid
   game.screenBlood = amount => ui.hud.splatter(amount)
+  game.screenFlash = amount => ui.hud.flash(amount)
+  game.screenHaze = amount => ui.hud.haze(amount)
+  game.screenGas = amount => ui.hud.gas(amount)
   // the first raid stutters on high quality: drop to low once and remember it
   game.onSlow = () => { if (settings.quality !== "high") return; settings.quality = "low"; saveSettings(settings); game.applySettings(settings) }
   if (recovered) ui.notify(recovered)
@@ -135,7 +138,7 @@ export function startGame(canvas: HTMLCanvasElement, uiHost: HTMLElement): void 
   window.__ironVeil = {
     snapshot: () => ({ ...game.getSnapshot(), screen: ui.currentScreen, hud: ui.hud.snapshot }),
     enterBase: () => { ui.showPlaying(); game.enterBase() },
-    deploy: (plan = {}) => { ui.showPlaying(); game.startRaid({ insertion: plan.insertion ?? zoneLayout().insertions[0].id, time: plan.time ?? "day", contracts: plan.contracts ?? company.profile.contracts.active.map(c => c.id) }) },
+    deploy: (plan = {}) => { ui.showPlaying(); game.startRaid({ insertion: plan.insertion ?? zoneLayout().insertions[0].id, time: plan.time ?? "day", weather: plan.weather, contracts: plan.contracts ?? company.profile.contracts.active.map(c => c.id) }) },
     defend: () => { ui.showPlaying(); game.startDefense() },
     teleport: (x, z) => game.debug.teleport(x, z), damage: amount => game.debug.damage(amount),
     aimAt: (x, y, z) => game.debug.aimAt(x, y, z), lookAt: (x, z, y) => game.debug.lookAt(x, z, y),

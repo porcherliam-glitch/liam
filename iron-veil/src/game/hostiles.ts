@@ -90,6 +90,8 @@ export interface HostileEvents {
   spotted?(target: Hostile): void
   footstep?(target: Hostile): void
   sound?(target: Hostile, sound: HostileSound): void
+  /** A bloater burst: toxic gas over radius at pos (the raid applies the damage). */
+  gas?(pos: Vec3, radius: number): void
 }
 
 export interface HostileManager {
@@ -105,6 +107,8 @@ export interface HostileManager {
   meleeTest(origin: THREE.Vector3, dir: THREE.Vector3, range: number, arcDeg: number, maxTargets: number): HostileHit[]
   /** Living targets within radius of center (fire, gas). */
   inRadius(center: Vec3, radius: number): Hostile[]
+  /** Flashbang: blinds/stuns every target within radius that has a clear line to center; returns how many. */
+  stun(center: Vec3, radius: number, seconds: number): number
   aliveCount(): number
   combatCount(): number
   dispose(): void

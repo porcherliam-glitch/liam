@@ -111,7 +111,7 @@ export function goreOutcome(rules: GoreRules, g: GoreInput): GoreOutcome {
 /** `density` is infected per square metre (0.005 → 14 in a 30 m zone). */
 export function zoneTarget(radius: number, density: number): number { return Math.max(0, Math.round(density * Math.PI * radius * radius)) }
 
-export const DEFAULT_KINDS: readonly InfectedKind[] = ["walker", "runner", "brute", "screamer", "spitter", "stalker", "crawler"]
+export const DEFAULT_KINDS: readonly InfectedKind[] = ["walker", "runner", "brute", "screamer", "spitter", "stalker", "crawler", "bloater"]
 
 function kindWeight(k: InfectedKind, night: boolean): number {
   const w = INFECTED[k].weight

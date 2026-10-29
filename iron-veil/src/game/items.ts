@@ -5,7 +5,7 @@
  */
 import { AMMO, ATTACHMENTS, WEAPONS, WEAPON_ORDER, type AmmoId, type AttachmentId, type WeaponId } from "./weaponData"
 
-export type SupplyId = "bandage" | "medkit" | "painkiller" | "antiviral" | "stim" | "canned" | "mre" | "water" | "soda" | "grenade" | "molotov"
+export type SupplyId = "bandage" | "medkit" | "painkiller" | "antiviral" | "stim" | "canned" | "mre" | "water" | "soda" | "grenade" | "molotov" | "smoke" | "flashbang" | "decoy"
 export type GearId = "armor" | "plate" | "helmet" | "pack_small" | "pack_large"
 export type MaterialId = "scrap" | "wood" | "cloth" | "chem" | "parts" | "electronics" | "fuel" | "tools"
 export type ValuableId = "intel" | "medical" | "relic" | "gold" | "watch" | "sample" | "dogtag"
@@ -79,6 +79,9 @@ const BASE: ItemDef[] = [
   // throwables
   item("grenade", "throwable", "Splittergranate", "GRN", "Wurf mit G. Explodiert nach 2,2 Sekunden.", 220, 0.45, 3, 1, 2),
   item("molotov", "throwable", "Brandflasche", "MOLO", "Setzt eine Fläche für 8 Sekunden in Brand. Infizierte hassen Feuer.", 160, 0.7, 2, 1, 3),
+  item("smoke", "throwable", "Rauchgranate", "RAUCH", "Dichter Rauch für fast 30 Sekunden: Söldner und Infizierte sehen nicht hindurch, Kugeln schon.", 140, 0.4, 3, 1, 2),
+  item("flashbang", "throwable", "Blendgranate", "BLEND", "Knall und Lichtblitz nach 1,5 Sekunden: blendet Söldner und lässt Infizierte taumeln. Nicht hineinschauen!", 200, 0.35, 3, 2, 3),
+  item("decoy", "throwable", "Lärmköder", "KÖDER", "Umgebauter Wecker: piept 14 Sekunden lang laut und lockt Infizierte und Söldner an.", 90, 0.3, 3, 0, 1),
   // gear
   item("armor", "gear", "Schutzweste", "WST", "Leichte Weste mit 55 Rüstung.", 400, 3.5, 1, 1, 1),
   item("plate", "gear", "Plattenträger", "PLT", "Schwere Platten mit 85 Rüstung.", 950, 7.5, 1, 2, 3),

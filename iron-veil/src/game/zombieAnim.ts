@@ -9,7 +9,7 @@
 import { P, POSE_N, type BodySpec, type PoseKey } from "./zombieModel"
 
 export type Gait = "shamble" | "run" | "lumber" | "quad" | "drag" | "hobble"
-export type Action = "none" | "claw" | "bite" | "slam" | "scream" | "spit" | "leap" | "roar" | "charge" | "stunned"
+export type Action = "none" | "claw" | "bite" | "slam" | "scream" | "spit" | "leap" | "roar" | "charge" | "stunned" | "burst"
 
 export interface AnimDriver {
   gait: Gait
@@ -332,6 +332,15 @@ function overlay(o: Float32Array, d: AnimDriver, S: BodySpec): void {
     case "charge": {
       _ov[P.torsoPitch] = o[P.torsoPitch] - 0.45; _ov[P.headPitch] = 0.55; _ov[P.armLPitch] = -0.35 + 0.3 * Math.sin(d.phase); _ov[P.armRPitch] = -0.35 - 0.3 * Math.sin(d.phase)
       _ov[P.armLSpread] = 0.45; _ov[P.armRSpread] = 0.45; _ov[P.jaw] = 1
+      break
+    }
+    case "burst": {
+      // swelling up: arms out, head thrown back, shaking harder and harder
+      const e = smooth(0, 0.4, t), shake = Math.sin(t * 38) * 0.06 * (0.3 + t)
+      _ov[P.armLPitch] = 0.7 + shake; _ov[P.armRPitch] = 0.75 - shake; _ov[P.armLSpread] = 0.95; _ov[P.armRSpread] = 1.0; _ov[P.elbowL] = 0.4; _ov[P.elbowR] = 0.45
+      _ov[P.torsoPitch] = 0.28 - S.hunch * 0.5 + shake; _ov[P.headPitch] = 0.6 + shake * 2; _ov[P.headRoll] = shake * 3; _ov[P.jaw] = 1
+      _ov[P.hipsDrop] = 0.04; _ov[P.kneeL] = 0.2; _ov[P.kneeR] = 0.25
+      for (let i = 0; i < POSE_N; i++) _ov[i] = lerp(o[i], _ov[i], e)
       break
     }
     case "stunned": {

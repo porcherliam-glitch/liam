@@ -39,7 +39,7 @@ for (let i = 0; i < 30; i++) field.update(0.05)
 const dropAir = airdropModel(); dropAir.position.set(9, 2.2, -0.2); scene.add(dropAir)
 const dropLanded = airdropModel(); dropLanded.position.set(9, 0.45, 2.6); dropLanded.children[1].visible = false; dropLanded.rotation.y = 0.4; scene.add(dropLanded)
 const bag = groundBagModel(); bag.position.set(6.6, 0, 1.6); bag.rotation.set(-0.12, 0.5, 0, "YXZ"); scene.add(bag)
-for (const [i, id] of (["grenade", "molotov"] as const).entries()) { const m = buildHandItem(id, "world").group; m.scale.setScalar(1.5); m.position.set(6.3 + i * 0.35, 0.15, 2.6); scene.add(m) }
+for (const [i, id] of (["grenade", "molotov", "smoke", "flashbang", "decoy"] as const).entries()) { const m = buildHandItem(id, "world").group; m.scale.setScalar(1.5); m.position.set(6.3 + i * 0.35, 0.15, 2.6); scene.add(m) }
 
 const views: Record<string, number[]> = {
   drop: [12.5, 3.2, 8.5, 8.6, 2.4, 0.8, 50],

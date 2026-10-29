@@ -206,6 +206,46 @@ describe("InfectedManager behaviour", () => {
     expect(best).toBeLessThan(3)
   })
 
+  it("a bloater swells and bursts next to the player: acid splash, gas cloud, gibbed", () => {
+    const w = testWorld([])
+    const gas: { r: number }[] = []
+    const log = { attacks: [] as AttackEvent[] }
+    const gore = new GoreSystem(new THREE.Scene(), w.collision, "brutal")
+    const mgr = new InfectedManager(w.group, w, { difficulty: "normal", seed: 3, gore, events: { attack: a => log.attacks.push(a), died: () => {}, gas: (_p, r) => gas.push({ r }) } })
+    const e = mgr.spawn("bloater", 0, 5, { state: "idle" })
+    const pl = player(0, 0)
+    e.mode = "chase"; e.lastContact = 0; e.lastKnownX = 0; e.lastKnownZ = 0
+    let swelled = false
+    for (let i = 0; i < 60 * 20 && e.alive; i++) { mgr.update(1 / 60, pl); if (e.action === "burst") swelled = true }
+    expect(swelled).toBe(true)
+    expect(e.alive).toBe(false)
+    expect(gas.length).toBe(1)
+    expect(log.attacks.some(a => a.kind === "acid" && a.infection > 0)).toBe(true)
+  })
+  it("a bloater shot dead from range still leaves its gas", () => {
+    const w = testWorld([])
+    let gas = 0
+    const gore = new GoreSystem(new THREE.Scene(), w.collision, "normal")
+    const mgr = new InfectedManager(w.group, w, { difficulty: "normal", seed: 4, gore, events: { died: () => {}, gas: () => { gas++ } } })
+    const e = mgr.spawn("bloater", 0, 15, { state: "idle" })
+    mgr.update(1 / 60, player(0, 0))
+    mgr.applyDamage(limbHit(e, "head"), shot(400))
+    expect(e.alive).toBe(false)
+    expect(gas).toBe(1)
+  })
+  it("a flashbang stops a charging runner for a few seconds", () => {
+    const w = testWorld([]), { mgr, run, log } = setup(w)
+    const e = mgr.spawn("runner", 0, 9, { state: "idle" })
+    const pl = player(0, -4)
+    e.mode = "chase"; e.lastContact = 0; e.lastKnownX = 0; e.lastKnownZ = -4
+    run(pl, 0.3)
+    expect(mgr.stun({ x: 0, y: 0.3, z: 6 }, 12, 5)).toBe(1)
+    const z0 = e.position.z
+    run(pl, 1.5)
+    expect(Math.abs(e.position.z - z0)).toBeLessThan(1.2)
+    expect(log.attacks.length).toBe(0)
+  })
+
   it("chasers path around walls to reach the player", () => {
     const wall: Obstacle = { minX: -6, maxX: 6, minZ: -0.5, maxZ: 0.5, height: 3 }
     const w = testWorld([wall]), { mgr, run } = setup(w)

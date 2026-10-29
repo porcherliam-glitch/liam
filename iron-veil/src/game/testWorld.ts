@@ -7,6 +7,7 @@ import { TIMES, type TimeOfDay } from "./baseData"
 import { CollisionWorld, type Obstacle } from "./collision"
 import { NavGrid } from "./nav"
 import type { World } from "./world"
+import { Obscurants } from "./obscurants"
 import type { ZoneLayout } from "./zone"
 
 export function headlessWorld(obstacles: Obstacle[], bounds: { minX: number; maxX: number; minZ: number; maxZ: number }, time: TimeOfDay = "dusk"): World {
@@ -16,7 +17,7 @@ export function headlessWorld(obstacles: Obstacle[], bounds: { minX: number; max
   }
   return {
     kind: "zone", layout, time, theme: time === "night" ? "night" : "dusk", group: new THREE.Group(), obstacles, collision: new CollisionWorld(obstacles),
-    nav: new NavGrid(bounds, obstacles, 0.45, 1), coverPoints: [], exposure: 1, lightLevel: 1, visionScale: TIMES[time].visionScale, night: time === "night",
+    nav: new NavGrid(bounds, obstacles, 0.45, 1), coverPoints: [], exposure: 1, lightLevel: 1, visionScale: TIMES[time].visionScale, night: time === "night", obscurants: new Obscurants(), weather: "clear", weatherVision: 1, setWeather() {}, onLightning: null, raining: false,
     surfaceAt: () => "asphalt", districtAt: () => null, indoor: () => false, update() {}, setExtraction() {}, setStructures() {}, dispose() {},
   }
 }
