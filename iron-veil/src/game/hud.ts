@@ -36,7 +36,7 @@ export class Hud {
         <div class="vital hp"><span>GESUNDHEIT</span><b data-hud="health">100</b><div><i data-bar="health"></i></div></div>
         <div class="vital ar"><span>RÜSTUNG</span><b data-hud="armor">0</b><div><i data-bar="armor"></i></div></div>
         <div class="vital st"><div><i data-bar="stamina"></i></div></div>
-        <div class="kit"><span><kbd>Q</kbd> <b data-hud="medkits">0</b> Trauma-Set</span><span><kbd>G</kbd> <b data-hud="grenades">0</b> Granate</span><span class="stance" data-hud="stance"></span></div>
+        <div class="kit"><span><kbd data-hud="keyQ">Q</kbd> <b data-hud="medkits">0</b> Trauma-Set</span><span><kbd data-hud="keyG">G</kbd> <b data-hud="grenades">0</b> Granate</span><span class="stance" data-hud="stance"></span></div>
       </div>
       <div class="hud-value"><small>RAID-WERT</small><b data-hud="loot">0 $</b><span>NICHT GESICHERT</span></div>
       <div class="hud-weapon"><small data-hud="weapon">MK-4</small><div><b data-hud="ammo">30</b><span>/ <b data-hud="reserve">0</b></span></div><em data-hud="reload"></em><div class="bar reload"><i data-bar="reload"></i></div></div>`
@@ -61,7 +61,8 @@ export class Hud {
     this.text("weapon", `${h.weaponName.toUpperCase()} · ${h.fireMode}`)
     this.text("ammo", String(h.ammo).padStart(2, "0"))
     this.text("reserve", h.reserveInfinite ? "∞" : String(h.reserve))
-    this.text("reload", h.reloading > 0 ? "NACHLADEN" : h.ammo === 0 ? "R · NACHLADEN" : "")
+    this.text("reload", h.reloading > 0 ? "NACHLADEN" : h.ammo === 0 ? `${h.device === "pad" ? "Ⓧ" : "R"} · NACHLADEN` : "")
+    this.text("keyQ", h.device === "pad" ? "RB" : "Q"); this.text("keyG", h.device === "pad" ? "LB" : "G")
     this.text("interaction", h.interaction)
     this.text("message", h.messageTime > 0 ? h.message : "")
     this.text("hint", h.hint)

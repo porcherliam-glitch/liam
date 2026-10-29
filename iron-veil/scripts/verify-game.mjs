@@ -19,10 +19,10 @@ try {
   await g.action("intro-close")
   await page.keyboard.press("Space"); await page.waitForTimeout(600)
   check((await g.snapshot()).screen === "playing", "Leertaste startet einen Einsatz")
-  await page.evaluate(() => window.__ironVeil.godMode(true))
+  await page.evaluate(() => window.__ironVeil.godMode(true)); await g.frames(4)
   const move = async key => {
     const before = await g.snapshot()
-    await page.keyboard.down(key); await page.waitForTimeout(700); await page.keyboard.up(key); await page.waitForTimeout(150)
+    await page.keyboard.down(key); await g.frames(3); await page.waitForTimeout(500); await page.keyboard.up(key); await page.waitForTimeout(150)
     const after = await g.snapshot()
     const dx = after.player.x - before.player.x, dz = after.player.z - before.player.z, yaw = before.yaw
     return { forward: dx * -Math.sin(yaw) + dz * -Math.cos(yaw), right: dx * Math.cos(yaw) + dz * -Math.sin(yaw) }

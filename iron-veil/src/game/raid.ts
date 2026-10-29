@@ -34,6 +34,7 @@ type Interactable = { kind: "crate"; crate: Crate } | { kind: "body"; body: Body
 const EYE_STAND = 1.62, EYE_CROUCH = 1.05, RADIUS = 0.38
 const WALK = 4.5, SPRINT = 7.0, CROUCH_SPEED = 2.4
 const LIGHT_LEVEL = { dusk: 0.85, harbor: 0.6, night: 0.22 } as const
+const PAD_LABEL: Record<string, string> = { E: "Ⓐ", Q: "RB", G: "LB", R: "Ⓧ", F: "Steuerkreuz ↑", M: "Steuerkreuz ↓", C: "Ⓑ" }
 
 export function mulberry32(seed: number): () => number {
   let s = seed >>> 0
@@ -299,6 +300,7 @@ export class RaidGame {
       return
     }
     if (this.paused) { this.input.consumeLook(); return }
+    this.input.poll(dt)
 
     this.elapsed += dt; this.timeLeft -= dt
     this.hitMarker = Math.max(0, this.hitMarker - dt); this.killMarker = Math.max(0, this.killMarker - dt)
@@ -366,8 +368,9 @@ export class RaidGame {
     else { this.staminaDelay -= dt; if (this.staminaDelay <= 0) this.stamina = Math.min(100, this.stamina + (crouch || !hasInput ? 24 : 16) * dt) }
     if (this.exhausted && this.stamina > 30) this.exhausted = false
     // acceleration toward target velocity (in world space)
-    const len = Math.hypot(inX, inZ) || 1
-    const mx = inX / len, mz = inZ / len
+    // keyboard diagonals are normalised, analog stick magnitude is kept
+    const len = Math.hypot(inX, inZ), k = len > 1 ? 1 / len : 1
+    const mx = inX * k, mz = inZ * k
     const sin = Math.sin(this.yaw), cos = Math.cos(this.yaw)
     const tx = hasInput ? (mx * cos - mz * sin) * speed : 0, tz = hasInput ? (-mx * sin - mz * cos) * speed : 0
     const accel = hasInput ? 14 : 18
@@ -606,7 +609,7 @@ export class RaidGame {
     this.input.consumeAction("KeyE")
     if (target) {
       const time = target.kind === "crate" ? 1.1 : 1.4
-      this.interactText = target.kind === "crate" ? "E halten · Kiste durchsuchen" : "E halten · Ausrüstung durchsuchen"
+      this.interactText = `${this.key("E")} halten · ${target.kind === "crate" ? "Kiste durchsuchen" : "Ausrüstung durchsuchen"}`
       if (holding) {
         if (this.interactHold === 0) this.audio.play(target.kind === "crate" ? "crate_open" : "body_search", { volume: 0.7 })
         this.interactHold += dt / time
@@ -618,7 +621,7 @@ export class RaidGame {
     const required = MISSIONS[this.mission].lootRequired
     if (inZone && !this.extractCalled) {
       if (this.collected < required) { this.interactText = `Noch ${required - this.collected} ${required - this.collected === 1 ? "Kiste" : "Kisten"} erforderlich`; return }
-      this.interactText = "E halten · Evakuierung anfordern"
+      this.interactText = `${this.key("E")} halten · Evakuierung anfordern`
       if (holding) { this.extractProgress += dt / 0.8; if (this.extractProgress >= 1) this.callExtraction() } else this.extractProgress = 0
       return
     }
@@ -635,7 +638,7 @@ export class RaidGame {
         this.say(`Bergungsziel erreicht · Extraktion ${this.extraction.name} freigegeben`, 4)
         this.world.setExtraction(this.extraction.id, "ready", 0)
         this.audio.play("radio")
-        if (!this.company.profile.tutorialDone) this.showHint("extract", "Folgen Sie dem grünen Pfeil auf dem Kompass zur Extraktion · M öffnet die Karte", 8)
+        if (!this.company.profile.tutorialDone) this.showHint("extract", `Folgen Sie dem grünen Pfeil auf dem Kompass zur Extraktion · ${this.key("M")} öffnet die Karte`, 8)
       } else if (this.collected < required) this.say(`Kiste gesichert · ${this.collected}/${required}`, 2)
     } else {
       target.body.searched = true
@@ -721,15 +724,17 @@ export class RaidGame {
 
   // ───────────────────────────── hints & messages ─────────────────────────────
 
+  /** Button name for prompts on the device in use. */
+  private key(k: string): string { return this.input.device === "pad" ? PAD_LABEL[k] ?? k : k }
   private say(text: string, seconds: number): void { this.message = text; this.messageTime = seconds }
   private showHint(key: string, text: string, seconds: number): void { if (this.hintsShown.has(key)) return; this.hintsShown.add(key); this.hint = text; this.hintTime = seconds }
   private updateHints(): void {
     if (this.company.profile.tutorialDone) return
     if (this.elapsed > 9 && !this.hintsShown.has("crate")) {
       const near = this.crates.some(c => !c.searched && c.position.distanceTo(this.pos) < this.crateRange())
-      if (near) this.showHint("crate", "Rauten auf dem Kompass zeigen Kisten · E gedrückt halten zum Durchsuchen", 8)
+      if (near) this.showHint("crate", `Rauten auf dem Kompass zeigen Kisten · ${this.key("E")} gedrückt halten zum Durchsuchen`, 8)
     }
-    if (this.collected >= 1 && !this.hintsShown.has("combat")) this.showHint("combat", "Rechte Maustaste zielen · Linke Maustaste feuern · R nachladen · Q heilen · G Granate", 8)
+    if (this.collected >= 1 && !this.hintsShown.has("combat")) this.showHint("combat", this.input.device === "pad" ? "LT zielen · RT feuern · Ⓧ nachladen · RB heilen · LB Granate · Ⓨ Waffe wechseln" : "Rechte Maustaste zielen · Linke Maustaste feuern · R nachladen · Q heilen · G Granate", 8)
   }
   private crateRange(): number { return this.company.has("recon") ? 45 : 18 }
 
@@ -827,7 +832,7 @@ export class RaidGame {
       damageDirections: this.damageDirs.map(d => ({ angle: wrapDegrees(d.heading - heading), life: d.life })),
       compass: heading, markers, spread: w.spread(this.ads, this.vel.length() / WALK, this.crouched) / (this.camera.fov * Math.PI / 180) * 2,
       crouched: this.crouched || this.input.isHeld("ControlLeft"), ads: this.ads > 0.6, scoped: this.viewModel.isScoped && this.ads > 0.92,
-      message: this.message, messageTime: this.messageTime, hint: this.hintTime > 0 ? this.hint : "", fps: this.fps, dead: this.mode === "dying",
+      message: this.message, messageTime: this.messageTime, hint: this.hintTime > 0 ? this.hint : "", fps: this.fps, dead: this.mode === "dying", device: this.input.device,
     })
   }
 

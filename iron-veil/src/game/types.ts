@@ -130,6 +130,8 @@ export interface HudSnapshot {
   scoped: boolean
   /** Player is dying (death camera). */
   dead: boolean
+  /** Input device in use, for button prompts. */
+  device: "kb" | "pad"
   message: string
   messageTime: number
   hint: string

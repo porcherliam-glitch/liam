@@ -5,6 +5,7 @@
  */
 import { AudioSystem } from "./audio"
 import { ARMOR_VALUES, BUILDINGS, CONTRACTS, DIFFICULTY, ENEMIES, ITEMS, MAX_GRENADES, MAX_MEDKITS, MISSIONS, MISSION_ORDER, PRIMARY_WEAPONS, RESEARCH, WEAPONS, buildingCost, productionInterval, staffCap, xpForLevel } from "./data"
+import { MenuNavigator } from "./gamepad"
 import { Hud, drawTacticalMap, formatTime, type TacticalMapData } from "./hud"
 import { AMMO_CARRY, type Company } from "./profile"
 import type { BuildingId, ContractId, Difficulty, EnemyKind, HudSnapshot, ItemId, LootStack, MissionId, RaidResult, ResearchId, Screen, Settings, WeaponId } from "./types"
@@ -37,6 +38,8 @@ export class GameUI {
   private timer: number
   private toastTimer = 0
   private introSeen = false
+  private raf = 0
+  private pad: MenuNavigator
   readonly hud: Hud
 
   constructor(host: HTMLElement, private company: Company, private settings: Settings, private audio: AudioSystem, private handlers: UiHandlers) {
@@ -46,12 +49,26 @@ export class GameUI {
     host.addEventListener("click", e => this.onClick(e)); host.addEventListener("input", e => this.onInput(e))
     host.addEventListener("pointerover", e => { const b = (e.target as HTMLElement).closest?.("button:not(:disabled)"); if (b && !b.contains(e.relatedTarget as Node)) this.audio.play("ui_hover", { volume: 0.25 }) })
     this.timer = window.setInterval(() => this.tick(), 1000)
+    this.pad = new MenuNavigator(host, () => this.back(), () => { if (this.screen === "paused" || this.screen === "raidInventory") this.resumeRaid() })
+    const loop = (t: number) => { if (this.screen !== "playing") this.pad.update(t); this.raf = requestAnimationFrame(loop) }
+    this.raf = requestAnimationFrame(loop)
     for (const id of MISSION_ORDER) this.contracts.set(id, handlers.pickContract(id))
     this.showMenu()
   }
 
   get currentScreen(): Screen { return this.screen }
-  dispose(): void { window.clearInterval(this.timer); window.clearTimeout(this.toastTimer) }
+  dispose(): void { window.clearInterval(this.timer); window.clearTimeout(this.toastTimer); cancelAnimationFrame(this.raf) }
+
+  /** Gamepad B: one level back. */
+  private back(): void {
+    const intro = this.root.querySelector(".intro-backdrop")
+    if (intro) { this.introSeen = true; intro.remove(); return }
+    if (this.screen === "paused" || this.screen === "raidInventory") this.resumeRaid()
+    else if (this.screen === "result") { this.handlers.returnToMenu(); this.showMenu() }
+    else if (this.screen !== "menu" && this.screen !== "playing") this.showMenu()
+  }
+
+  private resumeRaid(): void { this.showPlaying(); this.handlers.resume() }
 
   private tick(): void {
     const notes = this.company.tick()
@@ -230,24 +247,28 @@ export class GameUI {
   showPlaying(): void { this.screen = "playing"; this.root.className = "screen hidden"; this.root.innerHTML = ""; this.hudRoot.classList.remove("hidden") }
 
   showPause(): void {
+    this.pad.reset()
     this.screen = "paused"; this.hudRoot.classList.add("hidden"); this.root.className = "screen modal-screen"
     const st = this.handlers.getRaidStatus()
     this.root.innerHTML = `<div class="modal-card pause-card"><span class="eyebrow">OPERATION UNTERBROCHEN</span><h2>PAUSE</h2>${st.contract ? `<p class="pause-contract">${st.contract}</p>` : ""}<button class="primary" data-action="resume"><span>FORTSETZEN</span><b>→</b></button><div class="pause-row"><button class="secondary" data-action="raid-inventory">INVENTAR</button><button class="secondary" data-action="raid-map">KARTE</button></div><details class="pause-settings"><summary>Schnelleinstellungen</summary><div class="settings-list compact">${this.settingsRows(true)}</div></details><button class="text-button danger-text" data-action="abort">EINSATZ ABBRECHEN</button><small>Beim Abbrechen gehen Raid-Beute und mitgeführte Ausrüstung verloren.</small></div>`
   }
 
   showRaidInventory(): void {
+    this.pad.reset()
     this.screen = "raidInventory"; this.hudRoot.classList.add("hidden"); this.root.className = "screen modal-screen"
     const loot = this.handlers.getRaidLoot(), st = this.handlers.getRaidStatus()
     this.root.innerHTML = `<div class="modal-card raid-bag"><span class="eyebrow">NICHT GESICHERTES BERGUNGSGUT</span><h2>RAID-INVENTAR</h2><p>Nur eine erfolgreiche Extraktion bringt diese Gegenstände ins Lager.</p><div class="raid-loot-list">${loot.length ? loot.map(s => `<div><span>${ITEMS[s.id].name}</span><b>${s.qty} ×</b><small>${ITEMS[s.id].kind === "loot" ? money(ITEMS[s.id].value * s.qty) : "Versorgung"}</small></div>`).join("") : `<div class="empty">Noch keine Beute geborgen.</div>`}</div><div class="raid-kit"><span>${st.primary}: <b>${st.primaryRounds}</b> Schuss</span><span>Trauma-Sets: <b>${st.medkits}</b></span><span>Granaten: <b>${st.grenades}</b></span><span>Wert: <b>${money(st.value)}</b></span></div><button class="primary" data-action="resume"><span>ZURÜCK ZUM EINSATZ</span><b>→</b></button></div>`
   }
 
   showMap(): void {
+    this.pad.reset()
     this.screen = "raidInventory"; this.hudRoot.classList.add("hidden"); this.root.className = "screen modal-screen"
     this.root.innerHTML = `<div class="modal-card map-card"><span class="eyebrow">TAKTISCHE KARTE · NORDEN OBEN</span><canvas class="tac-map" width="640" height="640"></canvas><div class="map-legend"><span><i class="you"></i>Sie</span><span><i class="crate"></i>Kiste in Reichweite</span><span><i class="exfil"></i>Extraktion</span><span><i class="done"></i>durchsucht</span></div><button class="primary" data-action="resume"><span>ZURÜCK ZUM EINSATZ</span><b>→</b></button></div>`
     drawTacticalMap(this.root.querySelector("canvas")!, this.handlers.getMapData())
   }
 
   showResult(result: RaidResult): void {
+    this.pad.reset()
     this.lastResult = result; this.screen = "result"; this.hudRoot.classList.add("hidden"); this.root.className = `screen modal-screen result-${result.success ? "success" : "failure"}`
     this.contracts.set(result.mission, this.handlers.pickContract(result.mission))
     const c = result.contract
@@ -275,7 +296,7 @@ export class GameUI {
       "intro-close": () => { this.introSeen = true; this.root.querySelector(".intro-backdrop")?.remove() },
       "select-mission": () => { this.selectedMission = id as MissionId; this.handlers.previewMission(this.selectedMission); this.showMissions() },
       deploy: () => this.deploy(this.selectedMission),
-      resume: () => { this.showPlaying(); this.handlers.resume() },
+      resume: () => this.resumeRaid(),
       "raid-inventory": () => this.showRaidInventory(), "raid-map": () => this.showMap(), abort: () => this.handlers.abort(),
       buy: () => this.result(this.company.buy(id as ItemId, 1), "ui_buy"),
       "buy-weapon": () => this.result(this.company.buyWeapon(id as WeaponId), "ui_buy"),
