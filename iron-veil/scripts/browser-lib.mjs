@@ -31,6 +31,8 @@ export async function openGame({ settings, profile, viewport = { width: 1280, he
     args: ["--no-sandbox", "--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--autoplay-policy=no-user-gesture-required"],
   })
   const page = await browser.newPage({ viewport })
+  // software rendering of the big zone can take seconds per frame: give clicks and waits room
+  page.setDefaultTimeout(90000)
   await page.addInitScript(([s, p]) => {
     if (s && !sessionStorage.getItem("iv-init")) localStorage.setItem("ironVeil.settings.v1", JSON.stringify(s))
     if (p && !sessionStorage.getItem("iv-init")) localStorage.setItem(p.key, JSON.stringify(p.value))
@@ -49,7 +51,7 @@ export async function openGame({ settings, profile, viewport = { width: 1280, he
     snapshot: () => page.evaluate(() => window.__ironVeil.snapshot()),
     profile: () => page.evaluate(() => window.__ironVeil.profile()),
     async action(name, id) { await page.locator(id ? `button[data-action="${name}"][data-id="${id}"]` : `button[data-action="${name}"]`).first().click(); await page.waitForTimeout(80) },
-    async shot(name) { await page.screenshot({ path: join(SHOTS, name) }) },
+    async shot(name) { await page.screenshot({ path: join(SHOTS, name), timeout: 120000 }) },
     async reload() { await page.reload({ waitUntil: "load" }); await page.waitForFunction(() => window.__GAME_READY__ === true, null, { timeout: 60000 }) },
     /** Waits for n rendered frames (the first frames of a raid can stall while shaders compile). */
     frames: (n = 3) => page.evaluate(n => new Promise(r => { let k = 0; const f = () => (++k >= n ? r() : requestAnimationFrame(f)); requestAnimationFrame(f) }), n),
