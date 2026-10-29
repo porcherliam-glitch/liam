@@ -438,7 +438,7 @@ export function createWorld(kind: WorldKind, scene: THREE.Scene, quality: "high"
   let lightClock = 0, lastLX = Infinity, lastLZ = Infinity
 
   // --- weather: everything it changes is kept so "clear" restores the time-of-day look exactly ------------
-  const rain = new Rain(high ? 4200 : 1800, time === "night" ? 0x6f7a86 : 0xb8c2cc)
+  const rain = new Rain(high ? 6000 : 2400, time === "night" ? 0x7c8794 : 0xc8d0d8)
   own(rain); group.add(rain.mesh)
   const skyU = (sky.material as THREE.ShaderMaterial).uniforms
   const baseLook = {
@@ -446,13 +446,15 @@ export function createWorld(kind: WorldKind, scene: THREE.Scene, quality: "high"
     zenith: skyU.zenith.value.clone(), mid: skyU.mid.value.clone(), horizon: skyU.horizon.value.clone(), skyFog: skyU.fogColor.value.clone(),
     clouds: skyU.clouds.value as number, sunVisible: skyU.sunVisible.value as number, glow: skyU.glowStrength.value as number,
   }
-  const greyHex = time === "night" ? 0x1b1e23 : time === "dusk" || time === "dawn" ? 0x5d6066 : 0x8e9397
-  const gl = raw(greyHex), greyLin = new THREE.Vector3(gl.r, gl.g, gl.b), greyFog = new THREE.Color(greyHex)
+  const greyOf = (fogLike: boolean) => time === "night" ? (fogLike ? 0x23272c : 0x1b1e23) : time === "dusk" || time === "dawn" ? (fogLike ? 0x7a7d82 : 0x5d6066) : fogLike ? 0xaeb2b5 : 0x878c90
+  const greyLin = new THREE.Vector3(), greyFog = new THREE.Color()
   let wLight = 1, bolt = 0, boltNext = 12, boltRng = mulberry(4711)
   const applyLight = () => {
     const flash = bolt > 0 ? (bolt > 0.12 ? 1 : 0.35) * 3.2 : 0
-    hemi.intensity = baseLook.hemi * wLight + flash
-    sun.intensity = baseLook.sun * wLight * (world.weather === "clear" ? 1 : world.weather === "fog" ? 0.45 : 0.3)
+    // overcast: hardly any direct sun (soft or no shadows), the sky light carries the scene
+    const w = world.weather
+    hemi.intensity = baseLook.hemi * (w === "clear" ? 1 : wLight * 1.25) + flash
+    sun.intensity = baseLook.sun * (w === "clear" ? 1 : w === "fog" ? 0.22 : w === "rain" ? 0.16 : 0.1)
   }
 
   const world: World = {
@@ -460,6 +462,7 @@ export function createWorld(kind: WorldKind, scene: THREE.Scene, quality: "high"
     setWeather(id) {
       const w = WEATHER[id], k = w.overcast
       world.weather = id; world.weatherVision = w.vision; wLight = w.light; bolt = 0; boltRng = mulberry(4711); boltNext = 9
+      const gh = greyOf(id === "fog"), gl = raw(gh); greyLin.set(gl.r, gl.g, gl.b); greyFog.set(gh)
       applyLight()
       const fog = scene.fog as THREE.Fog | null
       if (fog && fog.isFog) { fog.color.copy(baseLook.fogColor).lerp(greyFog, k); fog.near = look.fog[0] * w.fog; fog.far = look.fog[1] * w.fog; scene.background = fog.color }

@@ -1894,7 +1894,7 @@ export function buildHandItem(id: string, look: "vm" | "world" = "vm"): HandItem
   } else if (id === "flashbang") {
     // stun grenade: hexagonal perforated steel body, black end caps, fuse head, spoon and pin ring
     k.at(up, () => {
-      k.cyl("steel", 0.024, 0.1, 0, 0, 0, 6); k.cyl("polymer", 0.0248, 0.012, 0, 0, -0.046, 6); k.cyl("polymer", 0.0248, 0.008, 0, 0, 0.047, 6)
+      k.cyl("steelLight", 0.024, 0.1, 0, 0, 0, 6); k.cyl("polymer", 0.0248, 0.012, 0, 0, -0.046, 6); k.cyl("polymer", 0.0248, 0.008, 0, 0, 0.047, 6)
       k.cyl("steelLight", 0.019, 0.014, 0, 0, 0.057, 16); k.cyl("steel", 0.008, 0.014, 0, 0, 0.07, 12)
     })
     for (const y of [-0.026, -0.002, 0.022]) for (let i = 0; i < 6; i++) {

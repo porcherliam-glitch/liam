@@ -32,11 +32,11 @@ export interface WeatherDef {
 export const WEATHER: Record<WeatherId, WeatherDef> = {
   clear: { name: "Klar", note: "Normale Sicht", vision: 1, noise: 1, fog: 1, light: 1, overcast: 0, rain: 0, lightning: false, loot: 0 },
   rain: { name: "Regen", note: "Sicht −15 % · Schritte leiser", vision: 0.85, noise: 0.75, fog: 0.72, light: 0.72, overcast: 0.55, rain: 1, lightning: false, loot: 0.05 },
-  fog: { name: "Nebel", note: "Sicht stark eingeschränkt · Beute +10 %", vision: 0.55, noise: 1, fog: 0.3, light: 0.82, overcast: 0.75, rain: 0, lightning: false, loot: 0.1 },
+  fog: { name: "Nebel", note: "Sicht stark eingeschränkt · Beute +10 %", vision: 0.55, noise: 1, fog: 0.2, light: 0.82, overcast: 0.85, rain: 0, lightning: false, loot: 0.1 },
   storm: { name: "Gewitter", note: "Starkregen, Blitze · Donner übertönt Schüsse · Beute +15 %", vision: 0.72, noise: 0.55, fog: 0.55, light: 0.55, overcast: 0.7, rain: 1.9, lightning: true, loot: 0.15 },
 }
 
-const BOX = new THREE.Vector3(34, 20, 34)
+const BOX = new THREE.Vector3(26, 16, 26)
 
 /** Rain streaks around the camera; set `amount` (0..2) and call update(time, camera position) every frame. */
 export class Rain {
@@ -72,7 +72,7 @@ export class Rain {
           vec2 drift = uWind * (BOX.y - y) / fall;
           float x = mod(seed.x * BOX.x - uCam.x + drift.x, BOX.x) - BOX.x * 0.5;
           float z = mod(seed.z * BOX.z - uCam.z + drift.y, BOX.z) - BOX.z * 0.5;
-          float len = 0.35 + 0.25 * seed.w;
+          float len = 0.55 + 0.45 * seed.w;
           vec3 p = vec3(uCam.x + x, uCam.y - BOX.y * 0.35 + y, uCam.z + z);
           p += end * vec3(uWind.x / fall, 1.0, uWind.y / fall) * len;
           p.y -= (1.0 - on) * 1000.0;
@@ -86,7 +86,7 @@ export class Rain {
         uniform vec3 uColor; varying float vA;
         #include <fog_pars_fragment>
         void main() {
-          gl_FragColor = vec4(uColor, 0.32 * vA);
+          gl_FragColor = vec4(uColor, 0.6 * vA);
           #include <fog_fragment>
         }`,
       transparent: true, depthWrite: false, fog: true,

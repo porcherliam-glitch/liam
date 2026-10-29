@@ -187,6 +187,8 @@ export interface HudSnapshot {
   lootValue: number
   raidTime: number
   clock: string
+  /** Weather name shown next to the clock ("" when clear). */
+  weather?: string
   area: string
   extraction: number
   extractionName: string

@@ -65,7 +65,7 @@ export const SPECS: Record<InfectedKind, BodySpec> = {
     upperArm: 0.33, foreArm: 0.31, armR: 0.043, foreR: 0.036, thighR: 0.066, shinR: 0.049, claw: 0.06, jawMax: 1.25, hunch: -0.08, radius: 0.3 }),
   spitter: spec({ ...HUMAN, hipH: 0.86, thigh: 0.42, shin: 0.39, waistW: 0.33, waistD: 0.24, chestW: 0.38, chestD: 0.24, torsoLen: 0.54, belly: 0.26, throat: 0.1,
     armR: 0.05, foreR: 0.042, thighR: 0.08, shinR: 0.058, jawMax: 0.9, hunch: -0.02, radius: 0.42 }),
-  bloater: spec({ ...HUMAN, hipH: 0.82, thigh: 0.4, shin: 0.37, pelvisW: 0.42, waistW: 0.44, waistD: 0.4, chestW: 0.48, chestD: 0.36, torsoLen: 0.55, belly: 0.4, throat: 0.13,
+  bloater: spec({ ...HUMAN, hipH: 0.82, thigh: 0.4, shin: 0.37, pelvisW: 0.44, waistW: 0.5, waistD: 0.46, chestW: 0.52, chestD: 0.42, torsoLen: 0.55, belly: 0.3, throat: 0.13,
     neck: 0.03, headR: 0.112, upperArm: 0.29, foreArm: 0.26, armR: 0.072, foreR: 0.062, thighR: 0.115, shinR: 0.078, jawMax: 0.75, hunch: -0.02, bloat: true, radius: 0.52 }),
   stalker: spec({ ...HUMAN, hipH: 0.9, thigh: 0.44, shin: 0.41, chestW: 0.35, chestD: 0.2, waistW: 0.22, upperArm: 0.37, foreArm: 0.36, hand: 0.12, armR: 0.047, foreR: 0.039,
     thighR: 0.07, shinR: 0.05, claw: 0.09, jawMax: 0.8, hunch: -0.35, spine: true, radius: 0.34 }),
@@ -149,7 +149,7 @@ function makeLook(kind: InfectedKind, r: () => number): Look {
   } else if (kind === "bloater") {
     // clothes burst open over the swollen body; bruised, purple-green skin
     look.top = arche < 0.5 ? "tank" : "none"; look.sleeves = "none"; look.topColor = pick([0x7a7466, 0x6a5a4a, 0x8a8a7a], r); look.pants = "torn"; look.pantsColor = pick([0x3d4b66, 0x4b4236, 0x5a5444], r)
-    look.skin = pick([0x8a8090, 0x7f8a6a, 0x8c7c84], r); look.hair = r() < 0.3 ? 0x2a2a2a : null; look.ribs = 0
+    look.skin = pick([0x8a9078, 0x7f8a6a, 0x8a867a], r); look.hair = r() < 0.3 ? 0x2a2a2a : null; look.ribs = 0
   } else if (kind === "stalker") {
     look.top = "none"; look.sleeves = "none"; look.pants = "rags"; look.pantsColor = pick([0x2a2a26, 0x3a332a], r); look.shoes = null; look.hair = null
     look.skin = pick([0x4e524a, 0x5a5850, 0x45493f], r); look.ribs = 2
@@ -590,8 +590,12 @@ function torsoSeg(kind: InfectedKind, S: BodySpec, L: Look, r: () => number): TH
   if (S.spine) for (let k = 0; k < 8; k++) g.lump(0, 0.08 + k * T * 0.12, cd * 0.98, 0.026, C.bone)
   // spitter: bloated bile sac + swollen throat
   if (S.belly) {
-    const b = S.belly, bz = F * (wd * 0.4 + b * 0.42), bile = S.bloat ? 0x8a7c88 : C.bile
-    g.ball(0, 0.21, bz, b, b * 0.9, b * 0.86, bile, 0.05).ball(b * 0.35, 0.3, bz - b * 0.15, b * 0.62, b * 0.55, b * 0.6, S.bloat ? 0x7e8a64 : 0x8c9a4a, 0.04).ball(-b * 0.3, 0.12, bz - b * 0.2, b * 0.55, b * 0.5, b * 0.55, S.bloat ? 0x947a8a : 0xa0a45a, 0.04)
+    // the bloater's belly is its own stretched skin (bruised), the spitter's a separate bile sac
+    const b = S.bloat ? S.belly * 0.85 : S.belly, bz = F * (wd * (S.bloat ? 0.25 : 0.4) + b * 0.42)
+    const tone = (k: number) => _c.setHex(L.skin).multiplyScalar(k).getHex()
+    const bile = S.bloat ? tone(0.92) : C.bile, sideA = S.bloat ? tone(0.86) : 0x8c9a4a, sideB = S.bloat ? 0x8a6a78 : 0xa0a45a
+    if (S.bloat) for (const c of [bile, sideA, sideB]) SURF_OF.set(c, SURF.skin)
+    g.ball(0, 0.21, bz, b, b * 0.9, b * 0.86, bile, 0.05).ball(b * 0.35, 0.3, bz - b * 0.15, b * 0.62, b * 0.55, b * 0.6, sideA, 0.04).ball(-b * 0.3, 0.12, bz - b * 0.2, b * 0.55, b * 0.5, b * 0.55, sideB, 0.04)
     for (let i = 0; i < 9; i++) { const a = r() * Math.PI * 2, y = 0.21 + (r() - 0.5) * b * 1.2; g.tube(Math.cos(a) * b * 0.5, y, bz - b * 0.6, Math.cos(a + 0.6) * b * 0.8, y + (r() - 0.5) * 0.1, bz - b * 0.35, 0.008, 0.006, 0x3b2f3e, 3) }
     g.ball(b * 0.35, 0.25, bz - b * 0.78, 0.055, 0.055, 0.035, C.acid, 1.4, true).ball(-b * 0.3, 0.13, bz - b * 0.72, 0.04, 0.04, 0.03, C.acid, 1.2, true).ball(-b * 0.05, 0.36, bz - b * 0.62, 0.03, 0.03, 0.02, C.acid, 1.2, true)
     g.ball(0, T + S.neck * 0.2, F * 0.055, S.throat! * 0.8, S.throat! * 0.6, S.throat! * 0.62, C.sac, 0.15)

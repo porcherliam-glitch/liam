@@ -1597,7 +1597,7 @@ export class RaidGame {
       quickMeds, grenades: this.bag.count(throwable), throwableName: THROW_INFO[throwable].name,
       reloading: w.reloadLeft, reloadTotal: w.reloadTotal,
       objective, objectiveProgress: progress, contract, lootValue: this.bag.value(id => ITEMS[id].cat === "valuable" ? ITEMS[id].value : 0),
-      raidTime: Math.max(0, this.timeLeft), clock: this.plan ? TIMES[this.plan.time].clock : "", area,
+      raidTime: Math.max(0, this.timeLeft), clock: this.plan ? TIMES[this.plan.time].clock : "", weather: this.mode === "raid" && this.weather !== "clear" ? WEATHER[this.weather].name : "", area,
       extraction: this.activeExit ? this.exitState.get(this.activeExit.id)!.progress : 0, extractionName: this.activeExit?.name ?? "",
       interaction: this.interactText, interactionProgress: this.interactHold,
       enemies: this.hostiles.reduce((n, h) => n + h.combatCount(), 0), hitMarker: this.hitMarker, killMarker: this.killMarker, damageFlash: this.damageFlash,

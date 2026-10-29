@@ -114,7 +114,7 @@ export class Hud {
     this.lastSnapshot = h
     const r = this.root, pad = h.device === "pad"
     this.text("area", h.area.toUpperCase()); this.text("objective", h.objective); this.text("objectiveProgress", h.objectiveProgress); this.text("contract", h.contract)
-    this.text("clockLabel", h.clock ? `${h.clock.toUpperCase()} · REST` : "ZEIT")
+    this.text("clockLabel", h.clock ? `${h.clock.toUpperCase()}${h.weather ? ` · ${h.weather.toUpperCase()}` : ""} · REST` : "ZEIT")
     this.text("time", h.safe ? "--:--" : formatTime(h.raidTime)); this.text("enemies", String(h.enemies))
     this.text("health", String(h.health)); this.text("armor", String(h.armor))
     this.text("helmet", h.helmet > 0 ? `· HELM ${h.helmet}` : "")
