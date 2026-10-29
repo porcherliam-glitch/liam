@@ -5,7 +5,8 @@ import { openGame, richProfile } from "./browser-lib.mjs"
 const g = await openGame({ profile: richProfile() })
 const { page, check } = g
 const pad = (patch) => page.evaluate(p => { const s = window.__padState; if (p.axes) s.axes = p.axes; if (p.buttons) for (const [i, v] of Object.entries(p.buttons)) s.buttons[i] = v }, patch)
-const tap = async (i) => { await pad({ buttons: { [i]: 1 } }); await page.waitForTimeout(250); await pad({ buttons: { [i]: 0 } }); await page.waitForTimeout(250) }
+// buttons are polled once per frame, so a press must last a few rendered frames
+const tap = async (i) => { await pad({ buttons: { [i]: 1 } }); await g.frames(3); await page.waitForTimeout(100); await pad({ buttons: { [i]: 0 } }); await g.frames(3); await page.waitForTimeout(100) }
 try {
   await page.evaluate(() => {
     window.__padState = { axes: [0, 0, 0, 0], buttons: Array(17).fill(0) }
@@ -31,9 +32,10 @@ try {
   const s2 = await g.snapshot()
   check(s2.yaw < s1.yaw - 0.1, "Rechter Stick nach rechts dreht nach rechts")
   const ammo = s2.ammo
-  await pad({ buttons: { 7: 1 } }); await page.waitForTimeout(400); await pad({ buttons: { 7: 0 } }); await page.waitForTimeout(150)
+  await pad({ buttons: { 7: 1 } }); await g.frames(3); await page.waitForTimeout(300); await pad({ buttons: { 7: 0 } }); await g.frames(2)
   check((await g.snapshot()).ammo < ammo, "RT feuert")
-  check((await g.snapshot()).hud.device === "pad", "Tastenhinweise wechseln auf Controller")
+  const dev = (await g.snapshot()).hud
+  check(dev.device === "pad", `Tastenhinweise wechseln auf Controller (${dev.device}, ${dev.ammo})`)
   await tap(9)
   check((await g.snapshot()).screen === "paused", "Start pausiert")
   await tap(1)

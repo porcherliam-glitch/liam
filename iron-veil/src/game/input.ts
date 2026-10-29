@@ -71,7 +71,8 @@ export class Input {
       if (document.pointerLockElement !== this.target) return
       // browsers occasionally report a huge spike right after locking; ignore it
       if (Math.abs(e.movementX) > 400 || Math.abs(e.movementY) > 400) return
-      this.device = "kb"
+      // browsers also send zero-movement events (e.g. when the lock engages); they say nothing about the device
+      if (Math.abs(e.movementX) + Math.abs(e.movementY) > 2) this.device = "kb"
       const scale = this.sensitivity / 0.75
       this.yawDelta -= e.movementX * INPUT_CONFIG.MOUSE_SENS_X * scale
       this.pitchDelta += -e.movementY * INPUT_CONFIG.MOUSE_SENS_Y * scale * (this.invertY ? -1 : 1)
