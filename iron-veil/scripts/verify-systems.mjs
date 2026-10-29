@@ -49,13 +49,16 @@ try {
   check((await profile()).raidStarted > 0 && (await profile()).loadout.primary === null, "Ausrüstung ist im Einsatz (nicht mehr im Lager)")
   await api(() => window.__ironVeil.godMode(true))
   await api(() => window.__ironVeil.spawnInfected("walker", 9)); await g.frames(3)
-  for (let i = 0; i < 8; i++) {
-    const t = await api(() => window.__ironVeil.nearest("infected"))
+  // only the spawned walker counts: the zone may hold other infected far away
+  const nearInfected = () => api(() => { const t = window.__ironVeil.nearest("infected"), p = window.__ironVeil.snapshot().player; return t && Math.hypot(t.x - p.x, t.z - p.z) < 25 ? t : null })
+  for (let i = 0; i < 12; i++) {
+    const t = await nearInfected()
     if (!t) break
     await api(t => window.__ironVeil.aimAt(t.chest.x, t.chest.y, t.chest.z), t)
     await page.mouse.move(640, 360); await page.mouse.down(); await g.frames(4); await page.mouse.up(); await g.frames(3)
   }
-  check(!(await api(() => window.__ironVeil.nearest("infected"))), "Infizierter erledigt")
+  const left = await nearInfected()
+  check(!left, `Infizierter erledigt${left ? ` (noch ${left.kind} mit ${left.health} LP)` : ""}`)
   await g.shot("sys-02-kill.png")
   // container: teleport next to the nearest one, look at it, hold E
   const box = await api(() => { const p = window.__ironVeil.snapshot().player; return window.__ironVeil.containers().sort((a, b) => Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z))[0] })
