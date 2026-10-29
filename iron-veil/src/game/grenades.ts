@@ -4,6 +4,7 @@
  */
 import * as THREE from "three"
 import { rayBox, type Obstacle } from "./collision"
+import { buildHandItem } from "./weaponModels"
 import type { Vec3 } from "./types"
 
 export const GRENADE_FUSE = 2.2
@@ -66,13 +67,17 @@ export function stepGrenade(g: GrenadeBody, dt: number, obstacles: readonly Obst
   return bounced
 }
 
-const geo = new THREE.SphereGeometry(SIZE, 10, 8)
-const capGeo = new THREE.CylinderGeometry(0.025, 0.03, 0.05, 8)
-const mat = new THREE.MeshStandardMaterial({ color: 0x3d4a32, roughness: 0.7, metalness: 0.3 })
-const capMat = new THREE.MeshStandardMaterial({ color: 0x8b9095, roughness: 0.4, metalness: 0.8 })
-const bottleGeo = new THREE.CylinderGeometry(0.035, 0.045, 0.22, 8)
-const bottleMat = new THREE.MeshStandardMaterial({ color: 0x5a7a3a, roughness: 0.15, metalness: 0.1, transparent: true, opacity: 0.8 })
-const ragMat = new THREE.MeshBasicMaterial({ color: 0xffa040 })
+/** Thrown models: the same frag grenade and molotov as in the hands (world look), enlarged a little for readability. */
+const models: Partial<Record<ThrowableKind, THREE.Group>> = {}
+function throwModel(kind: ThrowableKind): THREE.Group {
+  let m = models[kind]
+  if (!m) {
+    m = buildHandItem(kind, "world").group; m.scale.setScalar(1.5)
+    m.traverse(o => { if (o instanceof THREE.Mesh && o.name !== "flame") o.castShadow = true })
+    models[kind] = m
+  }
+  return m.clone()
+}
 
 export interface GrenadeEvents { bounce(p: Vec3): void; explode(p: Vec3): void; ignite(p: Vec3): void }
 
@@ -81,14 +86,7 @@ export class GrenadeSystem {
   constructor(private parent: THREE.Object3D, private events: GrenadeEvents) {}
 
   throw(origin: Vec3, dir: Vec3, inherit: Vec3, kind: ThrowableKind = "grenade"): void {
-    const mesh = new THREE.Group()
-    if (kind === "grenade") {
-      const ball = new THREE.Mesh(geo, mat); ball.castShadow = true; mesh.add(ball)
-      const cap = new THREE.Mesh(capGeo, capMat); cap.position.y = SIZE; mesh.add(cap)
-    } else {
-      const bottle = new THREE.Mesh(bottleGeo, bottleMat); mesh.add(bottle)
-      const rag = new THREE.Mesh(capGeo, ragMat); rag.position.y = 0.13; mesh.add(rag)
-    }
+    const mesh = new THREE.Group(); mesh.add(throwModel(kind))
     mesh.position.set(origin.x, origin.y, origin.z); this.parent.add(mesh)
     const speed = kind === "molotov" ? 13 : 15
     this.live.push({ body: { p: { ...origin }, v: { x: dir.x * speed + inherit.x, y: dir.y * speed + 3.2 + inherit.y, z: dir.z * speed + inherit.z }, fuse: kind === "molotov" ? 4 : GRENADE_FUSE, bounced: false }, mesh, kind })
@@ -102,6 +100,7 @@ export class GrenadeSystem {
       if (bounced && g.kind === "grenade") this.events.bounce(g.body.p)
       g.mesh.position.set(g.body.p.x, g.body.p.y, g.body.p.z)
       g.mesh.rotation.x += dt * Math.hypot(g.body.v.x, g.body.v.z) * 3
+      if (g.kind === "molotov") { const f = g.mesh.getObjectByName("flame"); if (f) f.scale.set(1.6, 1.4 + Math.random() * 1.2, 1.6) }
       // a molotov bursts on the first hard impact
       if (g.kind === "molotov" && (g.body.bounced || g.body.fuse <= 0)) { this.parent.remove(g.mesh); this.live.splice(i, 1); this.events.ignite(g.body.p); continue }
       if (g.kind === "grenade" && g.body.fuse <= 0) { this.parent.remove(g.mesh); this.live.splice(i, 1); this.events.explode(g.body.p) }

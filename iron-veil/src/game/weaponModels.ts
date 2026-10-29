@@ -1095,8 +1095,8 @@ export interface HandItem {
 }
 
 /** Item models for the item-use animation (origin = where the hand holds it, long axis = +Y). */
-export function buildHandItem(id: string): HandItem {
-  const group = new THREE.Group(), k = new Kit(), mats = weaponMaterials("vm")
+export function buildHandItem(id: string, look: "vm" | "world" = "vm"): HandItem {
+  const group = new THREE.Group(), k = new Kit(), mats = weaponMaterials(look)
   let r = 0.02, style: HandItem["style"] = "eat", plunger: THREE.Object3D | undefined, flame: THREE.Object3D | undefined
   const up = new THREE.Matrix4().makeRotationX(-Math.PI / 2) // lathe axis Z → Y
   seed = 99
@@ -1136,7 +1136,9 @@ export function buildHandItem(id: string): HandItem {
     r = 0.0265; style = "drink"
   } else if (id === "molotov") {
     k.at(up, () => { k.lathe("glassBrown", [0, -0.1, 0.034, -0.1, 0.036, -0.094, 0.036, 0.02, 0.016, 0.06, 0.012, 0.09, 0, 0.09], 0, 0, 0, 18); k.lathe("cloth", [0.01, 0.07, 0.016, 0.075, 0.014, 0.1, 0.008, 0.125], 0, 0, 0, 10) })
-    const fl = new THREE.Mesh(new THREE.ConeGeometry(0.014, 0.06, 10, 1, true).translate(0, 0.03, 0), mats.flame); fl.position.y = 0.12; group.add(fl); flame = fl
+    const cone = new THREE.ConeGeometry(0.014, 0.06, 10, 1, true).translate(0, 0.03, 0)
+    cone.setAttribute("color", new THREE.BufferAttribute(new Float32Array(cone.attributes.position.count * 3).fill(1), 3))
+    const fl = new THREE.Mesh(cone, mats.flame); fl.name = "flame"; fl.position.y = 0.12; group.add(fl); flame = fl
     r = 0.036; style = "throw"
   } else {
     // frag grenade: body, fuse, spoon and pin ring

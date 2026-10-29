@@ -18,7 +18,7 @@ import type { DamageInfo, DamageResult, Hostile, HostileHit, HostileManager, Hit
 import { INFECTED, type InfectedKind } from "./infectedData"
 import { Input } from "./input"
 import { ITEMS, type ItemId } from "./items"
-import { ContainerField, rollAirdrop, rollContainer, rollInfectedBody, rollMercBody, SEARCH_TIME, type ContainerRef, type GroundLoot } from "./loot"
+import { airdropModel, ContainerField, groundBagModel, rollAirdrop, rollContainer, rollInfectedBody, rollMercBody, SEARCH_TIME, type ContainerRef, type GroundLoot } from "./loot"
 import { Player, RADIUS, WALK } from "./player"
 import type { Company, RaidKit, RaidStats } from "./profile"
 import { addBleed, applyUse, stepVitals } from "./survival"
@@ -992,9 +992,9 @@ export class RaidGame {
     if (!slots.length) return
     const near = this.ground.find(g => g.kind === "bag" && g.position.distanceTo(this.player.pos) < 1.5)
     if (near) { const b = new Bag(64, near.items); for (const s of slots) b.add(s.id, s.qty); near.items.splice(0, near.items.length, ...b.items); return }
-    const mesh = new THREE.Mesh(_bagGeo, _bagMat)
+    const mesh = groundBagModel()
     const pos = new THREE.Vector3(this.player.pos.x - Math.sin(this.player.yaw) * 0.8, 0, this.player.pos.z - Math.cos(this.player.yaw) * 0.8)
-    mesh.position.set(pos.x, 0.18, pos.z); mesh.rotation.z = Math.PI / 2; this.world.group.add(mesh)
+    mesh.position.set(pos.x, this.player.pos.y, pos.z); mesh.rotation.set(-0.12, this.player.yaw, 0, "YXZ"); this.world.group.add(mesh)
     this.ground.push({ position: pos, items: slots.map(s => ({ ...s })), name: "Abgelegte Tasche", kind: "bag", searched: true, mesh })
     this.sfx("item_drop")
   }
@@ -1059,9 +1059,7 @@ export class RaidGame {
     if (!a.landed && a.fall === 0 && this.elapsed >= a.at) {
       a.fall = 1
       this.sfx("airdrop_plane"); this.say(`Versorgungsabwurf über ${this.world.districtAt(a.spot.x, a.spot.z)?.name ?? "der Sperrzone"}!`, 5)
-      const g = new THREE.Group()
-      const crate = new THREE.Mesh(_dropGeo, _dropMat); crate.castShadow = true; g.add(crate)
-      const chute = new THREE.Mesh(_chuteGeo, _chuteMat); chute.position.y = 3.2; g.add(chute)
+      const g = airdropModel()
       g.position.set(a.spot.x, 80, a.spot.z); this.world.group.add(g); a.mesh = g
     }
     if (a.mesh && !a.landed) {
@@ -1410,9 +1408,3 @@ const _origin = new THREE.Vector3(), _dir = new THREE.Vector3(), _end = new THRE
 const _camPos = new THREE.Vector3()
 const _cone = { x: 0, y: 0 }
 const _upWorld = { x: 0, y: 1, z: 0 }
-const _bagGeo = new THREE.CapsuleGeometry(0.2, 0.55, 4, 8)
-const _bagMat = new THREE.MeshStandardMaterial({ color: 0x3f4a35, roughness: 0.95 })
-const _dropGeo = new THREE.BoxGeometry(1.2, 0.9, 1.2)
-const _dropMat = new THREE.MeshStandardMaterial({ color: 0x4b5a3a, roughness: 0.7 })
-const _chuteGeo = new THREE.SphereGeometry(2.4, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2)
-const _chuteMat = new THREE.MeshStandardMaterial({ color: 0xd8d0b8, roughness: 0.9, side: THREE.DoubleSide })
