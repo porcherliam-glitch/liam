@@ -12,12 +12,14 @@ import { ENEMIES } from "./data"
 import { Effects, type ImpactKind } from "./effects"
 import { EnemyManager } from "./enemies"
 import { GameLoop } from "./engine"
+import { GhostPlayers } from "./ghosts"
 import { GoreSystem } from "./gore"
 import { GRENADE_DAMAGE, GRENADE_RADIUS, GrenadeSystem, type ThrowableKind } from "./grenades"
 import type { DamageInfo, DamageResult, Hostile, HostileHit, HostileManager, HitPart, PlayerState, ShotEvent, AttackEvent, HostileSound } from "./hostiles"
 import { INFECTED, type InfectedKind } from "./infectedData"
 import { Input } from "./input"
 import { ITEMS, type ItemId } from "./items"
+import type { Online, OnlineMode } from "./online"
 import { ROLE_NAMES, SurvivorManager, survivorSpots, type Survivor } from "./survivors"
 import { airdropModel, ContainerField, groundBagModel, rollAirdrop, rollContainer, rollInfectedBody, rollMercBody, SEARCH_TIME, type ContainerRef, type GroundLoot } from "./loot"
 import { Player, RADIUS, WALK } from "./player"
@@ -53,6 +55,8 @@ export interface RaidCallbacks {
   onLoot: (session: LootSession) => void
   onStation: (id: StationId | "plot", structure?: string) => void
   onDefenseEnd: (won: boolean, kills: number) => void
+  /** Enter in the raid or the base: type a radio message (online only). */
+  onChat?: () => void
 }
 
 type Mode = "menu" | "base" | "raid" | "defense" | "dying" | "ended"
@@ -237,12 +241,17 @@ export class RaidGame {
 
   /** Optional hook (set by the UI) for blood on the screen. */
   screenBlood: ((amount: number) => void) | null = null
+  /** The shared world when the game runs as a claude.ai artifact (set by boot once connected). */
+  online: Online | null = null
+  private ghosts: GhostPlayers | null = null
+  private raidSerial = 0
 
   private clearDynamic(): void {
     this.mercs?.dispose(); this.mercs = null
     this.infected?.dispose(); this.infected = null
     this.containers?.dispose(); this.containers = null
     this.survivors?.dispose(); this.survivors = null
+    this.ghosts?.dispose(); this.ghosts = null
     for (const g of this.ground) if (g.mesh) g.mesh.parent?.remove(g.mesh)
     this.ground = []; this.fires = []; this.fireLight.intensity = 0
     if (this.airdrop?.mesh) this.airdrop.mesh.parent?.remove(this.airdrop.mesh)
@@ -325,6 +334,9 @@ export class RaidGame {
       const stock = [...rollContainer({ category: "military", tier: 1, container: "weaponcase" }, this.rng), ...rollContainer({ category: "medical", tier: 1, container: "medcab" }, this.rng), ...rollContainer({ category: "food", tier: 1, container: "fridge" }, this.rng)]
       s.stock.push(...stock, { id: "ammo_556", qty: 60 }, { id: "ammo_9mm", qty: 45 }, { id: "bandage", qty: 3 })
     }
+    // online: other players in this zone (echoes) and the bags of players who fell here
+    if (this.online?.available) this.ghosts = new GhostPlayers(this.world.group, this.world.night)
+    this.placeFallenBags()
     // containers, mercenaries and survivors exist now: compile their shaders too
     this.precompile()
     // exits: roll which are open; at least two (the cheapest first)
@@ -434,6 +446,7 @@ export class RaidGame {
 
   private update(dt: number): void {
     this.time += dt
+    this.reportOnline(dt)
     this.fpsTime += dt
     if (this.mode === "menu" || this.mode === "ended") {
       this.input.consumeLook(); this.input.clearActions()
@@ -461,6 +474,7 @@ export class RaidGame {
       if (this.input.consumeAction("Escape")) { this.pause(); this.callbacks.onPause(); return }
       if (this.input.consumeAction("Tab")) { this.openOverlay(); this.callbacks.onInventory(); return }
       if (this.mode !== "base" && this.input.consumeAction("KeyM")) { this.openOverlay(); this.callbacks.onMap(); return }
+      if (this.online?.canChat && this.callbacks.onChat && this.input.consumeAction("Enter")) { this.openOverlay(); this.callbacks.onChat(); return }
       if (fight) this.handleCombatKeys()
     }
 
@@ -1001,7 +1015,7 @@ export class RaidGame {
 
   private complete(t: Interactable): void {
     if (t.kind === "container") { const c = t.ref; c.searched = true; this.containers?.open(c); this.openLoot(c.name, c.items) }
-    else if (t.kind === "ground") { t.loot.searched = true; this.openLoot(t.loot.name, t.loot.items, t.loot) }
+    else if (t.kind === "ground") { t.loot.searched = true; if (t.loot.fallen) this.online?.claimFallen(t.loot.fallen); this.openLoot(t.loot.name, t.loot.items, t.loot) }
     else if (t.kind === "objective") { this.stats.activated.push(t.obj.id); this.sfx("radio"); this.say(`${t.obj.name} aktiviert`, 3); this.noise(this.player.pos, 40) }
     else if (t.kind === "extract") this.activateExit(t.ex)
     else if (t.kind === "survivor") this.bandageSurvivor(t.s)
@@ -1270,6 +1284,7 @@ export class RaidGame {
 
   private finishRaid(success: boolean, reason: string): void {
     if (this.mode === "ended" || this.mode === "menu" || !this.kit || this.defense) return
+    const died = this.mode === "dying"
     this.mode = "ended"; this.paused = false; this.overlay = false; this.input.capture = false; this.viewModel.visible = false
     if (document.pointerLockElement) document.exitPointerLock()
     // an item being used or thrown when the raid ends goes back into the bag
@@ -1290,7 +1305,48 @@ export class RaidGame {
       loot: settlement.returned.map(s => ({ id: s.id, qty: s.qty })), lost: settlement.lost.map(s => ({ id: s.id, qty: s.qty })), value: settlement.value,
       duration: this.elapsed, xp: settlement.xp, levelUp: settlement.levelUp, contractUpdates: settlement.contractUpdates, rescued,
     }
+    this.reportRaid(result, died)
     this.callbacks.onEnd(result)
+  }
+
+  // ───────────────────────────── online ─────────────────────────────
+
+  /** Tells the other players where this one is and moves their echoes (online only; throttled in Online). */
+  private reportOnline(dt: number): void {
+    const online = this.online
+    if (!online?.available) return
+    const p = this.company.profile
+    const mode: OnlineMode = this.mode === "raid" ? "raid" : this.mode === "dying" ? "dead" : this.mode === "base" ? "base" : this.mode === "defense" ? "defense" : "menu"
+    const pos = this.player.pos
+    if (mode === "raid") online.setPresence({ mode, callsign: p.callsign, level: p.level, x: pos.x, z: pos.z, yaw: this.player.yaw, crouch: this.player.crouched, hp: Math.max(0, Math.min(1, this.player.health / 100)) })
+    else online.setPresence({ mode, callsign: p.callsign, level: p.level })
+    this.ghosts?.update(dt, mode === "raid" ? online.others() : [], pos)
+  }
+
+  /** Other players' last deaths in the zone: their gear lies where they fell (online only). */
+  private placeFallenBags(): void {
+    const online = this.online, serial = ++this.raidSerial
+    if (!online?.canStore) return
+    void online.fallenBags().then(bags => {
+      if (serial !== this.raidSerial || this.mode !== "raid" || !bags.length) return
+      for (const b of bags) {
+        const p = this.world.nav.nearestWalkable(b.x, b.z, 6) ?? { x: b.x, z: b.z }
+        const mesh = groundBagModel()
+        mesh.position.set(p.x, 0, p.z); mesh.rotation.set(-0.12, (b.at % 628) / 100, 0, "YXZ"); this.world.group.add(mesh)
+        this.ground.push({ position: new THREE.Vector3(p.x, 0, p.z), items: b.items.map(i => ({ ...i })), name: `Ausrüstung von ${b.callsign}`, kind: "bag", searched: false, mesh, fallen: b.key })
+      }
+      this.say(bags.length === 1 ? "Funk: Ein gefallener Spieler hat Ausrüstung in der Zone hinterlassen (Karte M)" : `Funk: ${bags.length} gefallene Spieler haben Ausrüstung in der Zone hinterlassen (Karte M)`, 6)
+    })
+  }
+
+  /** Online: news for everyone, the gear left where this player died, the leaderboard entry. */
+  private reportRaid(result: RaidResult, died: boolean): void {
+    const online = this.online, p = this.company.profile
+    if (!online?.available) return
+    if (result.success) online.announce("extract", p.callsign, result.value)
+    if (result.rescued) online.announce("rescue", p.callsign, result.rescued)
+    if (died) { online.announce("death", p.callsign); online.recordDeath(this.player.pos.x, this.player.pos.z, result.lost, p.callsign) }
+    online.submitScore(p)
   }
 
   // ───────────────────────────── hints & helpers ─────────────────────────────
@@ -1449,6 +1505,7 @@ export class RaidGame {
       objectives: zone ? zone.objectives.filter(o => this.company.profile.contracts.active.some(c => c.subject === o.id)).map(o => ({ x: o.x, z: o.z, name: o.name, done: this.stats.activated.includes(o.id) })) : [],
       drop: this.airdrop?.mesh ? { x: this.airdrop.spot!.x, z: this.airdrop.spot!.z } : null,
       crates: this.containers ? this.containers.list.filter(c => !c.searched && c.position.distanceTo(this.player.pos) < this.crateRange()).map(c => ({ x: c.position.x, z: c.position.z })) : [],
+      others: this.mode === "raid" ? this.online?.inZone().map(o => ({ x: o.x!, z: o.z!, name: o.callsign })) ?? [] : [],
     }
   }
 
@@ -1481,6 +1538,8 @@ export class RaidGame {
     spawnMerc: (kind: EnemyKind, distance: number) => { const p = this.player; this.mercs?.spawnSquad([kind], p.pos.x - Math.sin(p.yaw) * distance, p.pos.z - Math.cos(p.yaw) * distance, []) },
     setGodMode: (on: boolean) => { this.godMode = on },
     containers: () => this.containers?.list.filter(c => !c.searched).map(c => ({ x: c.position.x, z: c.position.z, kind: c.kind })) ?? [],
+    ground: () => this.ground.map(g => ({ x: g.position.x, z: g.position.z, name: g.name, items: g.items.length, fallen: !!g.fallen })),
+    echoes: () => this.ghosts?.count ?? 0,
     exits: () => this.openExits.map(e => ({ id: e.id, x: e.x, z: e.z, r: e.radius, kind: e.kind, requirement: e.requirement })),
     lookAt: (x: number, z: number, y = 0.4) => { const dx = x - this.player.pos.x, dz = z - this.player.pos.z; this.player.yaw = Math.atan2(-dx, -dz); this.player.pitch = Math.atan2(y - this.player.eye, Math.hypot(dx, dz)) },
     give: (id: ItemId, qty: number) => this.bag.add(id, qty),

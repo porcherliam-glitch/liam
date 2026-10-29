@@ -14,6 +14,7 @@ import { Hud, drawTacticalMap, formatTime, type TacticalMapData } from "./hud"
 import { itemIcon } from "./icons"
 import { BACKPACKS, ITEMS, ITEM_IDS, RARITY_COLORS, RARITY_NAMES, weaponOfItem, type ItemCategory, type ItemId } from "./items"
 import type { ActionResult, Company } from "./profile"
+import { MODE_NAMES, type ChatLine, type Online } from "./online"
 import type { LootSession } from "./raid"
 import type { Vitals } from "./survival"
 import type { Difficulty, GoreSetting, HudSnapshot, RaidPlan, RaidResult, Screen, Settings } from "./types"
@@ -93,6 +94,8 @@ export class GameUI {
   private craftStation: RecipeStation = "workbench"
   private plan: { insertion: string; time: TimeOfDay } = { insertion: "", time: "day" }
   private buildFocus: StructureId | null = null
+  private online: Online | null = null
+  private boardSort: "earned" | "infectedKills" | "rescued" | "bestRaid" = "earned"
   readonly hud: Hud
 
   constructor(host: HTMLElement, private company: Company, private settings: Settings, private audio: AudioSystem, private handlers: UiHandlers) {
@@ -100,6 +103,8 @@ export class GameUI {
     this.root = host.querySelector("#screen")!; this.hudRoot = host.querySelector("#hud")!; this.toast = host.querySelector("#toast")!
     this.hud = new Hud(this.hudRoot); this.hud.showFps = settings.showFps
     host.addEventListener("click", e => this.onClick(e)); host.addEventListener("input", e => this.onInput(e))
+    host.addEventListener("submit", e => this.onSubmit(e))
+    host.addEventListener("keydown", e => { if (e.key === "Escape" && this.screen === "chat") { e.preventDefault(); this.closeOverlay() } })
     host.addEventListener("pointerover", e => { const b = (e.target as HTMLElement).closest?.("button:not(:disabled)"); if (b && !b.contains(e.relatedTarget as Node)) this.audio.play("ui_hover", { volume: 0.25 }) })
     this.timer = window.setInterval(() => this.tick(), 1000)
     this.pad = new MenuNavigator(host, () => this.back(), () => { if (this.screen === "paused" || this.screen === "raidInventory" || this.screen === "loot") this.closeOverlay() }, () => this.lootAll())
@@ -115,7 +120,7 @@ export class GameUI {
   back(): void {
     const intro = this.root.querySelector(".intro-backdrop")
     if (intro) { intro.remove(); return }
-    if (this.screen === "paused" || this.screen === "raidInventory" || this.screen === "loot") this.closeOverlay()
+    if (this.screen === "paused" || this.screen === "raidInventory" || this.screen === "loot" || this.screen === "chat") this.closeOverlay()
     else if (this.screen === "result" || this.screen === "attack") this.showMenu()
     else if (this.screen !== "menu" && this.screen !== "playing") this.closePanel()
   }
@@ -144,7 +149,7 @@ export class GameUI {
     const map: Partial<Record<Screen, () => void>> = {
       menu: () => this.showMenu(), trader: () => this.showTrader(), inventory: () => this.showInventory(), armory: () => this.showArmory(), crafting: () => this.showCrafting(),
       build: () => this.showBuild(), research: () => this.showResearch(), radio: () => this.showRadio(), settings: () => this.showSettings(), raidInventory: () => this.showRaidInventory(),
-      loot: () => this.loot && this.showLoot(this.loot), attack: () => this.showAttack(),
+      loot: () => this.loot && this.showLoot(this.loot), attack: () => this.showAttack(), online: () => this.showOnline(),
     }
     map[this.screen]?.()
     const content = this.root.querySelector(".content"); if (content) content.scrollTop = keepScroll
@@ -158,8 +163,9 @@ export class GameUI {
   }
 
   private nav(active: string): string {
-    const items: [string, string, string][] = [["radio", "EINSATZ & FUNK", "01"], ["inventory", "LAGER & RUCKSACK", "02"], ["armory", "WAFFENWERKSTATT", "03"], ["trader", "HÄNDLER", "04"], ["crafting", "HERSTELLUNG", "05"], ["build", "BASIS & PERSONAL", "06"], ["research", "FORSCHUNG", "07"]]
-    return `<nav class="main-nav">${items.map(([id, label, n]) => `<button class="nav-item ${active === id ? "active" : ""}" data-action="${id}"><small>${n}</small>${label}<span>↗</span></button>`).join("")}<button class="nav-item settings-link ${active === "settings" ? "active" : ""}" data-action="settings"><small>08</small>EINSTELLUNGEN<span>⌁</span></button></nav>`
+    const n = this.online?.available ? this.online.others().length : -1
+    const items: [string, string, string, string][] = [["radio", "EINSATZ & FUNK", "01", "↗"], ["inventory", "LAGER & RUCKSACK", "02", "↗"], ["armory", "WAFFENWERKSTATT", "03", "↗"], ["trader", "HÄNDLER", "04", "↗"], ["crafting", "HERSTELLUNG", "05", "↗"], ["build", "BASIS & PERSONAL", "06", "↗"], ["research", "FORSCHUNG", "07", "↗"], ["online", "ONLINE", "08", n > 0 ? `<b class="online-count">${n}</b>` : "◌"]]
+    return `<nav class="main-nav">${items.map(([id, label, num, mark]) => `<button class="nav-item ${active === id ? "active" : ""}" data-action="${id}"><small>${num}</small>${label}<span>${mark}</span></button>`).join("")}<button class="nav-item settings-link ${active === "settings" ? "active" : ""}" data-action="settings"><small>09</small>EINSTELLUNGEN<span>⌁</span></button></nav>`
   }
 
   private panel(screen: Screen, section: string, body: string): void {
@@ -178,7 +184,7 @@ export class GameUI {
     const p = this.company.profile, rate = p.stats.raids ? Math.round(p.stats.extracts / p.stats.raids * 100) : 0
     const attack = p.base.attackPending ? `<div class="attack-banner"><b>☣ ANGRIFF AUF DIE BASIS</b><span>Infizierte sammeln sich vor dem Tor (Bedrohung ${Math.round(p.base.threat)} %).</span><button class="secondary" data-action="attack">REAGIEREN</button></div>` : ""
     const active = p.contracts.active.length ? p.contracts.active.map(c => `<div><span>${esc(c.title)}</span><b>${c.progress}/${c.target}</b></div>`).join("") : `<div><span>Keine aktiven Aufträge</span><b>Funk</b></div>`
-    this.root.innerHTML = `${this.topbar("BASIS")}<div class="menu-layout"><section class="hero"><div class="eyebrow"><span class="status-dot"></span>SPERRZONE 7 · TAG ${p.stats.raids + 1}</div><h1>OPERATION<br><em>IRON VEIL</em></h1><p class="hero-copy">Die Zone ist gefallen. Plündern, überleben, rauskommen.<br>Bauen Sie die Basis aus, bevor die Toten an Ihr Tor klopfen.</p>${attack}<div class="hero-actions"><button class="primary large" data-action="enter-base"><span>BASIS BETRETEN</span><b>→</b></button><button class="secondary large-secondary" data-action="radio">EINSATZ PLANEN</button><button class="text-button" data-action="intro">Kurzeinweisung</button></div><div class="controls-hint"><span>WASD</span> BEWEGEN <span>E</span> BENUTZEN <span>TAB</span> RUCKSACK <span>M</span> KARTE <span>V</span> MESSER</div></section>${this.nav("menu")}<aside class="company-card"><div class="card-kicker">TRUPPE</div><div class="company-name">${esc(p.callsign)}<span>LEVEL ${p.level}</span></div><div class="level-row"><span>ERFAHRUNG</span><span>${p.xp} / ${xpForLevel(p.level)} EP</span></div><div class="thin-bar"><i style="width:${Math.min(100, p.xp / xpForLevel(p.level) * 100)}%"></i></div><div class="stat-grid"><div><b>${p.stats.raids}</b><small>EINSÄTZE</small></div><div><b>${rate}%</b><small>ÜBERLEBT</small></div><div><b>${p.stats.infectedKills}</b><small>INFIZIERTE</small></div></div><div class="base-readout"><span>PERSONAL</span><b>${this.company.staffTotal()} / ${this.company.staffCap()}</b><span>VERTEIDIGUNG</span><b>${this.company.defense()}</b><span>ZERSTÜCKELT</span><b>${p.stats.dismembered}</b><span>BEWOHNER</span><b>${p.residents}</b><span>SCHWIERIGKEIT</span><b>${DIFFICULTY[this.settings.difficulty].name.toUpperCase()}</b></div><div class="menu-contracts"><small>AUFTRÄGE</small>${active}</div></aside></div><footer class="menu-footer"><span>FORTSCHRITT WIRD IN DIESEM BROWSER GESPEICHERT</span><span>GORE: ${GORE_NAMES[this.settings.gore]}</span></footer>${p.stats.raids === 0 && !p.tutorialDone && !sessionStorage.getItem("iv.intro") ? this.introCard() : ""}`
+    this.root.innerHTML = `${this.topbar("BASIS")}<div class="menu-layout"><section class="hero"><div class="eyebrow"><span class="status-dot"></span>SPERRZONE 7 · TAG ${p.stats.raids + 1}</div><h1>OPERATION<br><em>IRON VEIL</em></h1><p class="hero-copy">Die Zone ist gefallen. Plündern, überleben, rauskommen.<br>Bauen Sie die Basis aus, bevor die Toten an Ihr Tor klopfen.</p>${attack}<div class="hero-actions"><button class="primary large" data-action="enter-base"><span>BASIS BETRETEN</span><b>→</b></button><button class="secondary large-secondary" data-action="radio">EINSATZ PLANEN</button><button class="text-button" data-action="intro">Kurzeinweisung</button></div><div class="controls-hint"><span>WASD</span> BEWEGEN <span>E</span> BENUTZEN <span>TAB</span> RUCKSACK <span>M</span> KARTE <span>V</span> MESSER</div></section>${this.nav("menu")}<aside class="company-card"><div class="card-kicker">TRUPPE</div><div class="company-name">${esc(p.callsign)}<span>LEVEL ${p.level}</span></div><div class="level-row"><span>ERFAHRUNG</span><span>${p.xp} / ${xpForLevel(p.level)} EP</span></div><div class="thin-bar"><i style="width:${Math.min(100, p.xp / xpForLevel(p.level) * 100)}%"></i></div><div class="stat-grid"><div><b>${p.stats.raids}</b><small>EINSÄTZE</small></div><div><b>${rate}%</b><small>ÜBERLEBT</small></div><div><b>${p.stats.infectedKills}</b><small>INFIZIERTE</small></div></div><div class="base-readout"><span>PERSONAL</span><b>${this.company.staffTotal()} / ${this.company.staffCap()}</b><span>VERTEIDIGUNG</span><b>${this.company.defense()}</b><span>ZERSTÜCKELT</span><b>${p.stats.dismembered}</b><span>BEWOHNER</span><b>${p.residents}</b><span>SCHWIERIGKEIT</span><b>${DIFFICULTY[this.settings.difficulty].name.toUpperCase()}</b></div><div class="menu-contracts"><small>AUFTRÄGE</small>${active}</div></aside></div><footer class="menu-footer"><span>FORTSCHRITT WIRD IN DIESEM BROWSER GESPEICHERT</span><span class="footer-online">${this.onlineStatus()}</span><span>GORE: ${GORE_NAMES[this.settings.gore]}</span></footer>${p.stats.raids === 0 && !p.tutorialDone && !sessionStorage.getItem("iv.intro") ? this.introCard() : ""}`
   }
 
   private introCard(): string {
@@ -204,7 +210,7 @@ export class GameUI {
   }
 
   private show(screen: Screen): void {
-    const map: Partial<Record<Screen, () => void>> = { menu: () => this.showMenu(), trader: () => this.showTrader(), inventory: () => this.showInventory(), armory: () => this.showArmory(), crafting: () => this.showCrafting(), build: () => this.showBuild(), research: () => this.showResearch(), radio: () => this.showRadio(), settings: () => this.showSettings() }
+    const map: Partial<Record<Screen, () => void>> = { menu: () => this.showMenu(), trader: () => this.showTrader(), inventory: () => this.showInventory(), armory: () => this.showArmory(), crafting: () => this.showCrafting(), build: () => this.showBuild(), research: () => this.showResearch(), radio: () => this.showRadio(), settings: () => this.showSettings(), online: () => this.showOnline() }
     this.pad.reset(); map[screen]?.()
   }
 
@@ -514,6 +520,8 @@ export class GameUI {
       "build-structure": () => this.result(this.company.build(id as StructureId), "build_complete", () => this.handlers.structuresChanged()),
       research: () => id ? this.result(this.company.startResearch(id as ResearchId)) : this.show("research"),
       settings: () => this.show("settings"),
+      online: () => this.show("online"),
+      "board-sort": () => { this.boardSort = id as typeof this.boardSort; for (const b of this.root.querySelectorAll<HTMLElement>(".board-tabs .tab")) b.classList.toggle("active", b.dataset.id === id); this.renderOnline() },
       intro: () => this.root.insertAdjacentHTML("beforeend", this.introCard()),
       "intro-close": () => this.root.querySelector(".intro-backdrop")?.remove(),
       resume: () => this.closeOverlay(),
@@ -586,6 +594,100 @@ export class GameUI {
   closeActiveOverlay(): void { if (this.screen === "loot" || this.screen === "raidInventory") this.closeOverlay() }
   /** Escape on a station screen opened from the base. */
   closeStation(): void { if (this.fromBase && this.screen !== "playing" && this.screen !== "paused") this.closePanel() }
+
+  // ───────────────────────────── online ─────────────────────────────
+
+  /** Connected to the shared world (boot calls this once the artifact runtime answered). */
+  setOnline(online: Online): void {
+    this.online = online
+    online.onChange(() => {
+      if (this.screen === "online") this.renderOnline()
+      else if (this.screen === "menu" || this.root.querySelector(".main-nav")) {
+        const f = this.root.querySelector(".footer-online"); if (f) f.innerHTML = this.onlineStatus()
+        const badge = this.root.querySelector<HTMLElement>('.nav-item[data-action="online"] span'); const n = online.others().length
+        if (badge) badge.innerHTML = n > 0 ? `<b class="online-count">${n}</b>` : "◌"
+      }
+    })
+    online.onChat(line => this.hearChat(line))
+    if (this.screen === "menu") this.showMenu()
+  }
+
+  private onlineStatus(): string {
+    const o = this.online
+    if (!o?.available) return "OFFLINE · ONLINE NUR IN DER CLAUDE.AI-VERSION"
+    const n = o.others().length, zone = o.inZone().length
+    return `<b class="online-dot"></b>ONLINE · ${n === 1 ? "1 WEITERER SPIELER" : `${n} WEITERE SPIELER`}${zone ? ` · ${zone} IN DER ZONE` : ""}`
+  }
+
+  private hearChat(line: ChatLine): void {
+    if (this.screen === "playing" || this.screen === "chat") this.hud.chat(line.from, line.text, line.news)
+    else if (line.news && !line.me && this.screen !== "online") this.notify(line.text)
+  }
+
+  showOnline(): void {
+    const o = this.online, on = !!o?.available
+    const intro = on
+      ? `Alle, die dieses Spiel gerade geöffnet haben, sehen sich hier. In der Zone erscheinen andere Spieler als <b>Echos</b> mit Namensschild und als blaue Punkte auf der Karte (<kbd>M</kbd>). Jeder spielt seine eigene Zone: Echos kann man nicht treffen. Wer in der Zone fällt, hinterlässt seine Ausrüstung – andere Spieler finden sie in ihren nächsten Einsätzen. <kbd>Enter</kbd> öffnet im Einsatz den Funk.`
+      : `Die Online-Funktionen gibt es nur, wenn das Spiel als claude.ai-Artefakt läuft und Sie angemeldet sind. Hier läuft es offline: Ihr Fortschritt bleibt in diesem Browser, nur andere Spieler fehlen.`
+    this.panel("online", "ONLINE", `<div class="content-heading"><div><span class="eyebrow">SPERRZONE 7 · ANDERE SPIELER</span><h2>Online</h2></div><span class="online-state ${on ? "on" : ""}" data-online="state"></span></div>
+      <p class="trader-note online-note">${intro}</p>
+      <div class="online-grid">
+        <section class="online-col"><div class="subheading"><h3>JETZT DA</h3><span data-online="count"></span></div><div class="online-peers" data-online="peers"></div></section>
+        <section class="online-col"><div class="subheading"><h3>BESTENLISTE</h3><span>TOP 25</span></div><div class="tabs board-tabs">${([["earned", "VERDIENT"], ["infectedKills", "INFIZIERTE"], ["rescued", "GERETTET"], ["bestRaid", "BESTER EINSATZ"]] as const).map(([id, label]) => `<button class="tab ${this.boardSort === id ? "active" : ""}" data-action="board-sort" data-id="${id}">${label}</button>`).join("")}</div><div class="online-board" data-online="board"></div></section>
+        <section class="online-col chat-col"><div class="subheading"><h3>FUNK</h3><span>AN ALLE</span></div><div class="online-chat" data-online="chat"></div>
+          <form class="chat-form" data-chat-form><input type="text" maxlength="160" autocomplete="off" placeholder="${on ? "Nachricht an alle …" : "Offline"}" aria-label="Funknachricht" ${on && o?.canChat ? "" : "disabled"}><button class="secondary" ${on && o?.canChat ? "" : "disabled"}>SENDEN</button></form></section>
+      </div>`)
+    this.renderOnline()
+  }
+
+  private renderOnline(): void {
+    const o = this.online, on = !!o?.available
+    const q = (k: string) => this.root.querySelector<HTMLElement>(`[data-online="${k}"]`)
+    const state = q("state"); if (state) state.innerHTML = on ? `<b class="online-dot"></b>${o!.others().length + 1} ONLINE` : "OFFLINE"
+    const peers = q("peers")
+    if (peers) {
+      const me = this.company.profile
+      const rows = [`<div class="peer me"><i style="--c:#80e0bc"></i><div><b>${esc(me.callsign)}</b><small>Sie · Level ${me.level}</small></div><em>${MODE_NAMES[this.handlers.mode() === "raid" ? "raid" : this.handlers.mode() === "base" ? "base" : "menu"]}</em></div>`]
+      for (const p of o?.others() ?? []) rows.push(`<div class="peer"><i style="--c:${esc(p.color)}"></i><div><b>${esc(p.callsign)}</b><small>${p.name ? `${esc(p.name)} · ` : ""}Level ${p.level}</small></div><em class="${p.mode}">${MODE_NAMES[p.mode]}</em></div>`)
+      peers.innerHTML = rows.join("") + (on && !o!.others().length ? `<p class="empty-note">Gerade ist niemand sonst da. Teilen Sie das Spiel mit Freunden – wer es öffnet, erscheint hier.</p>` : "")
+      const count = q("count"); if (count) count.textContent = on ? `${o!.others().length + 1} SPIELER` : ""
+    }
+    const board = q("board")
+    if (board) {
+      const key = this.boardSort
+      const list = [...(o?.scores ?? [])].sort((a, b) => b[key] - a[key]).slice(0, 25)
+      const fmt = (v: number) => key === "earned" || key === "bestRaid" ? money(v) : String(v)
+      board.innerHTML = list.length ? list.map((r, i) => `<div class="board-row ${r.isMe ? "me" : ""}"><span>${i + 1}</span><div><b>${esc(r.callsign)}</b><small>${r.name ? `${esc(r.name)} · ` : ""}Lvl ${r.level} · ${r.raids} Einsätze · ${r.raids ? Math.round(r.extracts / r.raids * 100) : 0} % überlebt</small></div><em>${fmt(r[key])}</em></div>`).join("")
+        : `<p class="empty-note">${on ? "Noch keine Einträge. Nach dem ersten Einsatz stehen Sie hier." : "Offline – keine Bestenliste."}</p>`
+    }
+    const chat = q("chat")
+    if (chat) {
+      const near = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 40
+      chat.innerHTML = (o?.chat ?? []).map(l => `<div class="${l.news ? "news" : ""} ${l.me ? "me" : ""}"><b>${esc(l.from)}</b><span>${esc(l.text)}</span><time>${new Date(l.at).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}</time></div>`).join("") || `<p class="empty-note">${on ? "Noch keine Funksprüche." : "Offline."}</p>`
+      if (near) chat.scrollTop = chat.scrollHeight
+    }
+  }
+
+  /** Enter in the raid or base: a radio line over the running game. */
+  showChat(): void {
+    if (!this.online?.canChat) { this.showPlaying(); this.handlers.resume(); return }
+    this.screen = "chat"; this.hudRoot.classList.remove("hidden")
+    this.root.className = "screen chat-screen"
+    this.root.innerHTML = `<form class="chat-form chat-raid" data-chat-form><b>FUNK</b><input type="text" maxlength="160" autocomplete="off" placeholder="Nachricht an alle …" aria-label="Funknachricht"><small>ENTER senden · ESC zurück</small></form>`
+    this.root.querySelector<HTMLInputElement>("input")?.focus()
+  }
+
+  private onSubmit(event: Event): void {
+    const form = (event.target as HTMLElement).closest?.("form[data-chat-form]")
+    if (!form) return
+    event.preventDefault()
+    const input = form.querySelector("input"), text = input?.value.trim() ?? ""
+    if (text && this.online) {
+      if (this.online.say(text, this.company.profile.callsign)) { if (input) input.value = "" }
+      else { this.notify("Kurz warten …"); return }
+    }
+    if (this.screen === "chat") this.closeOverlay()
+  }
 
   private onInput(event: Event): void {
     const input = event.target as HTMLInputElement, key = input.dataset.setting as "sensitivity" | "adsSensitivity" | "volume" | "fov" | undefined

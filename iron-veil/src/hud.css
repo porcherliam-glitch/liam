@@ -199,3 +199,9 @@
 .level-up{margin-top:12px;padding:12px 14px;background:linear-gradient(90deg,rgba(228,180,97,.25),transparent);border-left:3px solid var(--amber);font:13px ui-monospace,monospace;letter-spacing:2px;color:#ffe2a8}
 .toast{z-index:30}
 @media(max-width:1100px){.loadout-panel.v2{grid-template-columns:1fr}.loadout-panel.v2 .operator-silhouette{display:none}}
+.hud-chat{position:absolute;left:28px;top:38%;width:min(440px,36vw);display:flex;flex-direction:column;gap:4px;font-family:Inter,"Segoe UI",Arial,sans-serif;font-size:13px;line-height:1.35}
+.hud-chat>div{background:rgba(6,16,20,.62);border-left:2px solid #6fd3ff;padding:5px 10px;transition:opacity 1.4s;overflow-wrap:anywhere}
+.hud-chat>div.news{border-left-color:var(--amber);color:#f1dcb2}
+.hud-chat>div.old{opacity:0}
+.hud-chat b{color:#6fd3ff;margin-right:8px;font-weight:700}
+.hud-chat .news b{color:var(--amber)}

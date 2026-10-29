@@ -13,7 +13,8 @@
     "verify:systems": "node scripts/verify-systems.mjs",
     "verify:edge": "node scripts/verify-edge.mjs",
     "verify:gamepad": "node scripts/verify-gamepad.mjs",
-    "verify:all": "npm run verify && npm run verify:systems && npm run verify:edge && npm run verify:gamepad"
+    "verify:online": "node scripts/verify-online.mjs",
+    "verify:all": "npm run verify && npm run verify:systems && npm run verify:edge && npm run verify:gamepad && npm run verify:online"
   },
   "dependencies": {
     "three": "^0.180.0"

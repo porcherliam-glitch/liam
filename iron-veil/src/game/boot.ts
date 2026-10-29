@@ -7,6 +7,7 @@ import { AudioSystem } from "./audio"
 import type { InfectedKind } from "./infectedData"
 import { ITEM_IDS, type ItemId } from "./items"
 import { warmIcons } from "./icons"
+import { connectOnline, Online } from "./online"
 import { Company, createProfile } from "./profile"
 import { RaidGame } from "./raid"
 import { clearProfile, loadProfile, loadSettings, saveSettings } from "./storage"
@@ -43,6 +44,7 @@ declare global {
       stations: () => { id: string; x: number; z: number }[]
       toMenu: () => void
       splatter: (amount: number) => void
+      online: () => { available: boolean; others: number; inZone: number; scores: number; chat: string[]; echoes: number; ground: { x: number; z: number; name: string; items: number; fallen: boolean }[] }
     }
   }
 }
@@ -84,13 +86,28 @@ export function startGame(canvas: HTMLCanvasElement, uiHost: HTMLElement): void 
     onMap: () => ui.showMap(),
     onLoot: session => ui.showLoot(session),
     onStation: (id, structure) => ui.openStation(id, structure),
-    onDefenseEnd: (won, kills) => { const r = company.finishDefense(won, kills); raid?.showMenu(); ui.showMenu(); ui.notify(r.message) },
+    onDefenseEnd: (won, kills) => {
+      const r = company.finishDefense(won, kills); raid?.showMenu(); ui.showMenu(); ui.notify(r.message)
+      if (won) online?.announce("defense", company.profile.callsign, kills)
+      online?.submitScore(company.profile)
+    },
+    onChat: () => ui.showChat(),
   })
   const game = raid
   game.screenBlood = amount => ui.hud.splatter(amount)
   // the first raid stutters on high quality: drop to low once and remember it
   game.onSlow = () => { if (settings.quality !== "high") return; settings.quality = "low"; saveSettings(settings); game.applySettings(settings) }
   if (recovered) ui.notify(recovered)
+  // the shared world (only inside a claude.ai viewer): other players, radio, leaderboard, fallen players' gear
+  let online: Online | null = null, stopped = false
+  void connectOnline().then(async apis => {
+    if (!apis || stopped) return
+    const o = new Online(apis)
+    await o.start()
+    if (stopped) { o.dispose(); return }
+    online = o; game.online = o; ui.setOnline(o)
+    if (company.profile.stats.raids > 0) o.submitScore(company.profile)
+  })
   // icons are rendered from the 3D models; prepare them while the player looks at the menu
   window.setTimeout(() => warmIcons(ITEM_IDS), 1500)
 
@@ -134,8 +151,9 @@ export function startGame(canvas: HTMLCanvasElement, uiHost: HTMLElement): void 
     toMenu: () => { game.leaveToMenu(); ui.showMenu() },
     splatter: amount => game.debug.splatter(amount),
     setThreat: (threat, pending) => { company.profile.base.threat = threat; company.profile.base.attackPending = pending; company.save() },
+    online: () => ({ available: !!online?.available, others: online?.others().length ?? 0, inZone: online?.inZone().length ?? 0, scores: online?.scores.length ?? 0, chat: online?.chat.map(l => `${l.from}: ${l.text}`) ?? [], echoes: game.debug.echoes(), ground: game.debug.ground() }),
   }
-  session = { dispose: () => { window.removeEventListener("keydown", onGlobalKey); game.dispose(); ui.dispose(); audio.dispose(); delete window.__gameProbe; delete window.__ironVeil; window.__GAME_READY__ = false } }
+  session = { dispose: () => { stopped = true; online?.dispose(); window.removeEventListener("keydown", onGlobalKey); game.dispose(); ui.dispose(); audio.dispose(); delete window.__gameProbe; delete window.__ironVeil; window.__GAME_READY__ = false } }
 }
 
 export function stopGame(): void { session?.dispose(); session = null }

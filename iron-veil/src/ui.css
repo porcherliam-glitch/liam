@@ -240,3 +240,45 @@ button.bag-slot:hover{border-color:var(--mint)}
 .modal-screen{overflow-y:auto;padding:16px 0}
 .modal-card{max-width:calc(100vw - 24px)}
 @media(max-height:620px){.modal-card{padding:20px 24px}.modal-card h2{font-size:30px;margin:6px}.raid-bag-head h2{margin:2px 0 8px}.bag-grid{grid-template-columns:repeat(auto-fill,minmax(50px,1fr))}}
+.online-count{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:#6fd3ff;color:#06202c;font:700 9px ui-monospace,monospace}
+.online-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:#6fd3ff;box-shadow:0 0 10px #6fd3ff;margin-right:8px;vertical-align:middle}
+.footer-online{color:#8fb7c6}
+.online-state{font:10px ui-monospace,monospace;letter-spacing:1.6px;color:var(--muted);border:1px solid var(--line);padding:8px 12px}
+.online-state.on{color:#bfe9f8;border-color:rgba(111,211,255,.4)}
+.online-note{max-width:1400px;margin:0 0 24px}
+.online-note b{color:#bfe9f8}
+.online-grid{display:grid;grid-template-columns:minmax(240px,.8fr) minmax(320px,1.15fr) minmax(300px,1.05fr);gap:28px;max-width:1400px;align-items:start}
+.online-col{min-width:0}
+.online-col .subheading{margin-bottom:12px}
+.online-peers,.online-board{display:flex;flex-direction:column}
+.peer,.board-row{display:grid;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);min-width:0}
+.peer{grid-template-columns:10px 1fr auto}
+.peer>i{width:10px;height:10px;border-radius:50%;background:var(--c,#7fb4c9)}
+.peer b,.board-row b{display:block;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.peer small,.board-row small{display:block;font:9px ui-monospace,monospace;color:var(--muted);margin-top:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.peer em{font:9px ui-monospace,monospace;font-style:normal;color:var(--muted);letter-spacing:.5px;text-align:right}
+.peer em.raid{color:#6fd3ff}.peer em.dead{color:var(--red)}.peer em.defense{color:var(--amber)}
+.peer.me b{color:var(--mint)}
+.board-tabs{margin-bottom:6px}
+.board-row{grid-template-columns:28px 1fr auto}
+.board-row>span{font:12px ui-monospace,monospace;color:var(--muted);text-align:right}
+.board-row:nth-child(1)>span{color:#f3cf72}.board-row:nth-child(2)>span{color:#d6e1e6}.board-row:nth-child(3)>span{color:#d49a6a}
+.board-row em{font:12px ui-monospace,monospace;font-style:normal;color:var(--amber)}
+.board-row.me{background:rgba(71,113,96,.16);box-shadow:inset 2px 0 var(--mint)}
+.board-row.me b{color:var(--mint)}
+.online-chat{height:min(420px,46vh);overflow-y:auto;display:flex;flex-direction:column;gap:6px;padding:4px 4px 8px 0;scrollbar-color:#3f5c50 #14211f}
+.online-chat>div{display:grid;grid-template-columns:auto 1fr auto;gap:8px;align-items:baseline;font-size:12px;line-height:1.4;padding:6px 8px;background:rgba(17,30,32,.5);border-left:2px solid #6fd3ff;min-width:0}
+.online-chat>div span{overflow-wrap:anywhere;color:#dfe9e4}
+.online-chat>div b{color:#6fd3ff;font-size:11px}
+.online-chat>div time{font:9px ui-monospace,monospace;color:var(--muted)}
+.online-chat>div.news{border-left-color:var(--amber)}.online-chat>div.news b{color:var(--amber)}
+.online-chat>div.me{border-left-color:var(--mint)}.online-chat>div.me b{color:var(--mint)}
+.empty-note{font-size:11px;color:var(--muted);line-height:1.6}
+.chat-form{display:flex;gap:8px;margin-top:12px}
+.chat-form input{flex:1;min-width:0;height:40px;padding:0 12px;background:#0f1c1f;border:1px solid #4d6a5f;color:#e8f3ec;font-size:13px}
+.chat-form input:focus{border-color:#6fd3ff;outline:none}
+.chat-screen{background:none;pointer-events:none}
+.chat-screen .chat-raid{pointer-events:auto;position:absolute;left:28px;top:calc(38% - 64px);width:min(480px,40vw);margin:0;align-items:center;background:rgba(6,16,20,.86);border:1px solid rgba(111,211,255,.45);padding:8px 10px}
+.chat-raid b{font:700 10px ui-monospace,monospace;letter-spacing:1.6px;color:#6fd3ff}
+.chat-raid small{font:9px ui-monospace,monospace;color:var(--muted);white-space:nowrap}
+@media (max-width:1100px){.online-grid{grid-template-columns:1fr}.chat-screen .chat-raid{width:calc(100vw - 56px)}}

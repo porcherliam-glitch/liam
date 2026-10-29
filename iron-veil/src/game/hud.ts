@@ -31,6 +31,7 @@ export class Hud {
       <div class="hud-hint" data-hud="hint"></div>
       <div class="hud-status"><div><small data-hud="clockLabel">ZEIT</small><b data-hud="time">00:00</b></div><div><small>KONTAKTE</small><b data-hud="enemies">0</b></div></div>
       <div class="hud-fps" data-hud="fps"></div>
+      <div class="hud-chat" aria-live="polite"></div>
       <div class="xhair"><i class="t"></i><i class="b"></i><i class="l"></i><i class="r"></i><b></b></div>
       <div class="hitmark"><i></i><i></i><i></i><i></i></div>
       <div class="dmg-arcs">${"<i></i>".repeat(6)}</div>
@@ -61,6 +62,19 @@ export class Hud {
 
   private text(key: string, value: string): void { const el = this.els.get(`h:${key}`); if (el && el.textContent !== value) el.textContent = value }
   private bar(key: string, fraction: number): void { const el = this.els.get(`b:${key}`); if (el) el.style.width = `${Math.max(0, Math.min(1, fraction)) * 100}%` }
+
+  /** A radio/chat line from another player (left edge, fades out after ten seconds). Text is set as plain text. */
+  chat(from: string, text: string, news: boolean): void {
+    const box = this.root.querySelector(".hud-chat")
+    if (!box) return
+    const line = document.createElement("div"); if (news) line.className = "news"
+    const who = document.createElement("b"); who.textContent = from
+    const what = document.createElement("span"); what.textContent = text
+    line.append(who, what); box.append(line)
+    while (box.children.length > 6) box.firstElementChild!.remove()
+    window.setTimeout(() => line.classList.add("old"), 9000)
+    window.setTimeout(() => line.remove(), 10500)
+  }
 
   /** Blood splatter on the "lens" (gore close to the camera, getting hit). amount 0..1. */
   splatter(amount: number): void {
@@ -210,6 +224,8 @@ export interface TacticalMapData {
   objectives: { x: number; z: number; name: string; done: boolean }[]
   drop: { x: number; z: number } | null
   crates: { x: number; z: number }[]
+  /** Other online players in the zone (echoes). */
+  others?: { x: number; z: number; name: string }[]
 }
 
 const DANGER_FILL = ["", "rgba(102,224,180,.05)", "rgba(228,180,97,.07)", "rgba(239,92,80,.09)"]
@@ -284,6 +300,12 @@ export function drawTacticalMap(canvas: HTMLCanvasElement, d: TacticalMapData, v
     const y = Z(e.z) - Math.max(10, e.r * scale) - 6
     c.fillText(`${EXIT_NAMES[e.kind]} · ${e.name.toUpperCase()}`, X(e.x), y)
     if (e.requirement) { c.font = "10px ui-monospace,monospace"; c.fillText(e.requirement.money ? `${e.requirement.money} $ Bestechung` : e.requirement.item && e.requirement.item in ITEMS ? `${ITEMS[e.requirement.item as ItemId].name} nötig` : "Gegenstand nötig", X(e.x), y + 12 + Math.max(10, e.r * scale) * 2) }
+  }
+  // other online players (echoes)
+  for (const o of d.others ?? []) {
+    c.fillStyle = "#6fd3ff"; c.strokeStyle = "#04121a"; c.lineWidth = 2
+    c.beginPath(); c.arc(X(o.x), Z(o.z), 5, 0, Math.PI * 2); c.fill(); c.stroke()
+    c.font = "bold 11px ui-monospace,monospace"; c.textAlign = "center"; c.fillText(o.name, X(o.x), Z(o.z) - 11)
   }
   // player arrow (yaw 0 = north/up)
   const px = X(d.player.x), pz = Z(d.player.z), a = -d.player.yaw

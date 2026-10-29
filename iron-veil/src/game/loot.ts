@@ -482,7 +482,11 @@ export class ContainerField {
 }
 
 /** Items lying in the world: dropped bags, bodies, supply drops (bodies have no mesh — the corpse is visible). */
-export interface GroundLoot { position: THREE.Vector3; items: BagSlot[]; name: string; kind: "body" | "bag" | "airdrop"; searched: boolean; mesh: THREE.Object3D | null }
+export interface GroundLoot {
+  position: THREE.Vector3; items: BagSlot[]; name: string; kind: "body" | "bag" | "airdrop"; searched: boolean; mesh: THREE.Object3D | null
+  /** Another online player's gear where they fell (Online.claimFallen key). */
+  fallen?: string
+}
 
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _q2 = new THREE.Quaternion(), _v = new THREE.Vector3(), _one = new THREE.Vector3(1, 1, 1)
 const _xAxis = new THREE.Vector3(1, 0, 0), _yAxis = new THREE.Vector3(0, 1, 0)
