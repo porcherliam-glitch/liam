@@ -304,15 +304,37 @@ export function buildSolid(ctx: BuildCtx, s: MapSolid): void {
       return
     }
     case "kiosk": case "portakabin": {
-      const cab = s.style === "portakabin"
-      ctx.B(cab ? "cladding" : "plaster").box(x0, y0, z0, x1, y1 - 0.15, z1, { color: tint(s.tint ?? 0xd2cfc4, 1, k) })
-      metal.box(x0, y1 - 0.15, z0, x1, y1, z1, { color: tint(0x5a5e62), ao: 0 })
+      const cab = s.style === "portakabin", steel = tint(0x5a5e62), dark = tint(0x2e3134)
+      ctx.B(cab ? "cladding" : "plaster").box(x0, y0 + 0.12, z0, x1, y1 - 0.15, z1, { color: tint(s.tint ?? 0xd2cfc4, 1, k) })
+      // steel base frame (skids under a site cabin), corner posts, roof with an overhanging drip edge
+      metal.box(x0 + 0.04, y0, z0 + 0.04, x1 - 0.04, y0 + 0.12, z1 - 0.04, { color: dark, ao: 0.3 })
+      if (cab) for (const o of [0.25, 0.75]) { if (alongX) metal.box(x0 - 0.05, y0, z0 + s.d * o - 0.08, x1 + 0.05, y0 + 0.14, z0 + s.d * o + 0.08, { color: dark }); else metal.box(x0 + s.w * o - 0.08, y0, z0 - 0.05, x0 + s.w * o + 0.08, y0 + 0.14, z1 + 0.05, { color: dark }) }
+      for (const [cx, cz] of [[x0, z0], [x1, z0], [x0, z1], [x1, z1]]) metal.box(cx - 0.06, y0, cz - 0.06, cx + 0.06, y1 - 0.15, cz + 0.06, { color: steel, ao: 0 })
+      metal.box(x0 - 0.08, y1 - 0.15, z0 - 0.08, x1 + 0.08, y1 - 0.03, z1 + 0.08, { color: steel, ao: 0 })
+      metal.box(x0 - 0.1, y1 - 0.06, z0 - 0.1, x1 + 0.1, y1, z1 + 0.1, { color: tint(0x484c50), ao: 0 })
+      if (cab) {
+        // door at one end of the long side, with a two-step steel stair in front
+        // in the first window slot of the long side (the other long side keeps its vent panel there)
+        const len = alongX ? s.w : s.d, along = (alongX ? x0 : z0) + len * 0.5 / Math.max(1, Math.floor(len / 2.4))
+        if (alongX) { metal.box(along - 0.45, y0 + 0.14, z1, along + 0.45, y0 + 2.15, z1 + 0.03, { color: tint(0x6a6e72), ao: 0 }); metal.box(along + 0.28, y0 + 1.05, z1 + 0.03, along + 0.36, y0 + 1.1, z1 + 0.07, { color: dark }) }
+        else { metal.box(x1, y0 + 0.14, along - 0.45, x1 + 0.03, y0 + 2.15, along + 0.45, { color: tint(0x6a6e72), ao: 0 }); metal.box(x1 + 0.03, y0 + 1.05, along + 0.28, x1 + 0.07, y0 + 1.1, along + 0.36, { color: dark }) }
+        for (let i = 0; i < 2; i++) {
+          const d0 = 0.06 + (1 - i) * 0.28, y = y0 + 0.1 + i * 0.12
+          if (alongX) metal.box(along - 0.5, y0, z1 + 0.04, along + 0.5, y + 0.04, z1 + d0 + 0.28, { color: steel, ao: 0.2 })
+          else metal.box(x1 + 0.04, y0, along - 0.5, x1 + d0 + 0.28, y + 0.04, along + 0.5, { color: steel, ao: 0.2 })
+        }
+      } else {
+        // serving counter under the front window
+        metal.box(x0 + s.w * 0.2, y0 + 1.0, z1, x1 - s.w * 0.2, y0 + 1.04, z1 + 0.28, { color: steel, ao: 0 })
+        metal.box(x0 + s.w * 0.25, y0 + 0.82, z1, x0 + s.w * 0.25 + 0.04, y0 + 1.0, z1 + 0.22, { color: steel, ao: 0 })
+        metal.box(x1 - s.w * 0.25 - 0.04, y0 + 0.82, z1, x1 - s.w * 0.25, y0 + 1.0, z1 + 0.22, { color: steel, ao: 0 })
+      }
       const faces: Side[] = cab ? (alongX ? ["n", "s"] : ["e", "w"]) : ["n", "s", "e", "w"]
       for (const f of faces) {
         const len = f === "n" || f === "s" ? s.w : s.d, n = Math.max(1, Math.floor(len / 2.4))
         for (let i = 0; i < n; i++) {
           const t = (i + 0.5) / n, wx = f === "n" || f === "s" ? x0 + t * s.w : f === "e" ? x1 : x0, wz = f === "e" || f === "w" ? z0 + t * s.d : f === "n" ? z0 : z1
-          if (cab && i === 0) { decal(ctx, "vent", wx, 0.1, wz, 0.9, 2.0, f, 0x9a9a96); continue }
+          if (cab && i === 0) { if (f !== (alongX ? "s" : "e")) decal(ctx, "vent", wx, 0.1, wz, 0.9, 2.0, f, 0x9a9a96); continue }
           ctx.windows.push({ x: wx, y: 1.0, z: wz, w: Math.min(1.2, len * 0.4), h: 1.0, face: f, cell: ctx.rng() < 0.4 + ctx.look.night * 0.4 ? 4 : windowCell(ctx) })
         }
       }
@@ -620,6 +642,11 @@ export function buildProp(ctx: BuildCtx, p: MapProp): void {
     case "panel": {
       const on = ctx.lit(p.x, p.z) > 0
       ctx.B("lamp").box(p.x - 0.7, (p.y ?? 3) - 0.06, p.z - 0.18, p.x + 0.7, p.y ?? 3, p.z + 0.18, { color: on ? tint(0xf2f6ff, 1, 1.6) : tint(0x8a8e92), ao: 0 })
+      // fitting: steel housing with a louvred rim around the diffuser
+      metal.box(p.x - 0.75, (p.y ?? 3) - 0.07, p.z - 0.23, p.x + 0.75, (p.y ?? 3) + 0.04, p.z - 0.18, { color: tint(0xc8ccd0), ao: 0 })
+      metal.box(p.x - 0.75, (p.y ?? 3) - 0.07, p.z + 0.18, p.x + 0.75, (p.y ?? 3) + 0.04, p.z + 0.23, { color: tint(0xc8ccd0), ao: 0 })
+      for (const sx of [-1, 1]) metal.box(p.x + sx * 0.7 - 0.05 * (sx > 0 ? 0 : 1), (p.y ?? 3) - 0.07, p.z - 0.18, p.x + sx * 0.7 + 0.05 * (sx > 0 ? 1 : 0), (p.y ?? 3) + 0.04, p.z + 0.18, { color: tint(0xc8ccd0), ao: 0 })
+      for (const dx of [-0.35, 0, 0.35]) metal.box(p.x + dx - 0.015, (p.y ?? 3) - 0.075, p.z - 0.18, p.x + dx + 0.015, (p.y ?? 3) - 0.06, p.z + 0.18, { color: tint(0xb8bcc0), ao: 0 })
       if (on) {
         ctx.glow.add(p.x, (p.y ?? 3) - 0.2, p.z, 1.1, 0xd8e4ff, 0.25 + 0.3 * L.night, [0.05, 30, p.x])
         ctx.pool.add(p.x, p.z, 4.2, 3.8, 0xc8d8ff, 0.16 + 0.22 * L.night, 0.03)
@@ -663,6 +690,10 @@ export function buildProp(ctx: BuildCtx, p: MapProp): void {
       for (const [x, z] of pts) {
         place(ctx.B("plank"), t.cyl8, x, h / 2, z, 0, 0, 0, 0.13, h, 0.13, 0x6a5038, [1, h])
         place(ctx.B("plank"), t.box, x, h - 0.6, z, 0, Math.atan2(dx, dz), 0, 1.8, 0.12, 0.12, 0x5a4430)
+        // diagonal braces under the cross-arm, glass insulators where the wires sit, a cap on the pole top
+        for (const sd of [-1, 1]) place(metal, t.box, x + dz * sd * 0.3, h - 0.85, z - dx * sd * 0.3, 0, Math.atan2(dx, dz), -sd * 0.9, 0.04, 0.6, 0.04, 0x4a4c4e)
+        for (const off of [-0.8, 0, 0.8]) place(ctx.B("glass"), t.cone, x + dz * off, h - 0.48, z - dx * off, 0, 0, 0, 0.055, 0.12, 0.055, 0x5f8a78)
+        place(metal, t.cyl8, x, h + 0.02, z, 0, 0, 0, 0.14, 0.04, 0.14, 0x3a3c3e)
       }
       for (let i = 0; i < n; i++) for (const off of [-0.8, 0, 0.8]) {
         const [ax, az] = pts[i], [bx, bz] = pts[i + 1], ox = dz * off, oz = -dx * off
@@ -793,8 +824,16 @@ function tank(ctx: BuildCtx, p: MapProp): void {
 
 function mast(ctx: BuildCtx, p: MapProp): void {
   const t = tpl(), metal = ctx.B("metal"), L = ctx.look, h = p.h ?? 12, rot = p.rot ?? 0, heads = p.v ?? 2
-  place(metal, t.cyl8, p.x, h / 2, p.z, 0, 0, 0, 0.16, h, 0.16, 0x7a7e82, [1, h])
   const fx = -Math.sin(rot), fz = -Math.cos(rot), sx = -fz, sz = fx
+  // concrete footing, bolted base plate, tapered shaft, rung ladder on the back up to a service platform under the heads
+  ctx.B("concrete").box(p.x - 0.45, 0, p.z - 0.45, p.x + 0.45, 0.25, p.z + 0.45, { color: tint(0x9a968c) })
+  metal.box(p.x - 0.3, 0.25, p.z - 0.3, p.x + 0.3, 0.29, p.z + 0.3, { color: tint(0x5a5e62), ao: 0 })
+  for (const [bx, bz] of [[-0.22, -0.22], [0.22, -0.22], [-0.22, 0.22], [0.22, 0.22]]) metal.box(p.x + bx - 0.025, 0.29, p.z + bz - 0.025, p.x + bx + 0.025, 0.33, p.z + bz + 0.025, { color: tint(0x3a3c3e), ao: 0 })
+  place(metal, t.taper, p.x, 0.29, p.z, 0, 0, 0, 0.21, h - 0.29, 0.21, 0x7a7e82, [1, h])
+  for (const sd of [-1, 1]) place(metal, t.box, p.x - fx * 0.24 + sx * sd * 0.18, (h + 2.2) / 2, p.z - fz * 0.24 + sz * sd * 0.18, 0, rot, 0, 0.04, h - 2.2, 0.04, 0x6a6e72)
+  for (let y = 2.4; y < h - 0.9; y += 0.35) place(metal, t.box, p.x - fx * 0.24, y, p.z - fz * 0.24, 0, rot, 0, 0.36, 0.03, 0.03, 0x6a6e72)
+  place(metal, t.box, p.x + fx * 0.2, h - 0.95, p.z + fz * 0.2, 0, rot, 0, heads * 0.75 + 0.4, 0.05, 0.9, 0x4a4e52)
+  place(metal, t.box, p.x + fx * 0.63, h - 0.7, p.z + fz * 0.63, 0, rot, 0, heads * 0.75 + 0.4, 0.04, 0.04, 0xc8a020)
   place(metal, t.box, p.x + fx * 0.25, h - 0.1, p.z + fz * 0.25, 0, rot, 0, heads * 0.75 + 0.2, 0.12, 0.12, 0x4a4e52)
   for (let i = 0; i < heads; i++) {
     const off = (i - (heads - 1) / 2) * 0.75, hx = p.x + fx * 0.45 + sx * off, hz = p.z + fz * 0.45 + sz * off

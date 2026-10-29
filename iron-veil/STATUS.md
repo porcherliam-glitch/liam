@@ -42,7 +42,13 @@ Stand: 29.10.2026, Version 0.5 (mehr Waffen, neue Modelle).
   - Gabelstapler mit Schutzdach, Hubmast und Gabeln; Pumpen mit Motor und Schaltkasten; Brecheranlage im Steinbruch mit Bühne, Schwungrädern und offenem Trichter.
   - Infizierte: kräftigere Arme und Beine, breitere Schultern, größere Köpfe; fleckige, kränkliche Haut; Brute und Koloss mit spitzen Knochendornen statt runder Platten.
   - Weniger Speicher: Fahrzeugmodelle teilen sich Eckpunkte; die Zone braucht nur noch halb so viele Punkte wie vorher.
-- **Tests**: 189 Logik-Tests grün; Browser-Prüfungen für Hauptablauf, Systeme, Sonderfälle, Controller und Online (mit simuliertem zweiten Spieler).
+- **Dritte Modellrunde** (29.10.2026):
+  - Söldner und Überlebende: geschnürte Stiefel mit Profilsohle, Zunge und Haken; Hosen in die Stiefel gesteckt (Überlebende tragen sie darüber); Knieschützer mit Riemen; die schwere Panzerung besteht aus gewölbten Platten statt Kästen.
+  - Bäume: runde, leicht gebogene Stämme mit Wurzelansätzen und feinerer Rinde.
+  - Straße: Müllsäcke mit Knoten und Falten, Leichensäcke mit Reißverschluss und Körperform, Hydrant mit Anschlüssen und Kette, Zapfsäule mit Anzeigen und Schlauch, Mülleimer mit Haube, Straßenlaterne mit geschwungenem Arm, Ölfässer mit Sicken und Spundlöchern, Reifenstapel aus echten Reifen.
+  - Möbel: Stühle mit Sprossen- oder Lattenlehne, Tische mit gedrechselten Beinen, Parkbänke mit Holzlatten und Gussfüßen, Betten mit faltiger Decke, Umschlag und Kissen.
+  - Bauten: Baucontainer mit Stahlrahmen, Kufen, Dachkante, Tür und Treppe; Wachhäuschen mit Theke; Schornsteine mit Ziegelband und Tonaufsätzen; Flutlichtmasten mit Fundament, Leiter und Bühne; Strommasten mit Streben und Glasisolatoren; Deckenleuchten mit Gehäuse und Lamellen.
+- **Tests**: 189 Logik-Tests grün (Speicher beim Schießen, Nachladen und Waffenwechsel geprüft: kein Leck); Browser-Prüfungen für Hauptablauf, Systeme, Sonderfälle, Controller und Online (mit simuliertem zweiten Spieler).
 
 ## In Arbeit
 

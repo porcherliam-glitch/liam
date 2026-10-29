@@ -80,6 +80,7 @@ Schreiben dürfen Personen, mit denen das Artefakt mindestens als „Contributor
   - Schrotflinten: DB-12 Doppelflinte, KV-12 Pump-, SG-8 Selbstlade- und AS-12 Sturmflinte.
   - Lautlos und präzise: Jagdarmbrust, K98 Karabiner, DR-7 Präzisionsgewehr, Falke .338 Repetierer; dazu das LM-60 MG.
 - **21 Aufsätze**: Mini-Rotpunkt, Rotpunkt, Holo-Visier, 2,5×-Prismenvisier, 4×- und 6×-Zielfernrohr, Schalldämpfer, schwerer Schalldämpfer, Mündungsfeuerdämpfer, Kompensator, Mündungsbremse, Vertikal- und Winkelgriff, Handstopp, Zweibein, erweitertes Magazin, Magazinkoppler, Trommelmagazin, Laser-Licht-Modul, IR-Laser, Waffenlicht. **11 Munitionssorten** inklusive .45 ACP, panzerbrechender Munition, Flintenlaufgeschossen und Armbrustbolzen.
+- **Modelle**: alles prozedural im Code gebaut, ohne fremde Dateien – Söldner mit geschnürten Stiefeln, Knieschützern und Panzerplatten; Bäume mit Wurzelansätzen; Fahrzeuge, Güterzüge, Kieswerk, Bunker und Kasernen; Straßenmöbel (Hydranten, Zapfsäulen, Laternen, Mülleimer, Parkbänke); Möbel in den Häusern (Stühle, Tische, Betten mit Decken, Schreibtische, Schränke).
 - **Überleben**: Gesundheit, Blutungen, Hunger, Durst, Infektion, Schmerzmittel, Stimulanzien, Tragegewicht.
 - **Andere Überlebende**: Lager mit Händlerin, Sanitäterin und Wache; verirrte und verletzte Menschen zum Retten, die danach in der Basis wohnen.
 - **Online** (als claude.ai-Artefakt): andere Spieler als Echos, Funk, Bestenliste, Ausrüstung gefallener Spieler.

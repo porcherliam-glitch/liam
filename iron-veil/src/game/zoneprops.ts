@@ -939,7 +939,13 @@ function extraProp(ctx: BuildCtx, p: MapProp): void {
     case "chimney": {
       const y = p.y ?? 6, h = p.h ?? 2.5, c = tint(0xa06a50, 0.6, jit(p))
       ctx.B("brick").box(p.x - 0.35, y - 0.4, p.z - 0.35, p.x + 0.35, y + h, p.z + 0.35, { color: c, ao: 0 })
+      // corbelled brick band, capping slab and two clay pots (one sooted)
+      ctx.B("brick").box(p.x - 0.4, y + h - 0.32, p.z - 0.4, p.x + 0.4, y + h - 0.2, p.z + 0.4, { color: c.clone().multiplyScalar(0.92), ao: 0 })
       ctx.B("concrete").box(p.x - 0.42, y + h, p.z - 0.42, p.x + 0.42, y + h + 0.1, p.z + 0.42, { color: tint(0x8a8680), ao: 0 })
+      for (const [o, pc] of [[-0.16, 0xa8603e], [0.16, 0x4a3a32]] as const) {
+        place(ctx.B("brick"), t.taper, p.x + o, y + h + 0.1, p.z, 0, 0, 0, 0.11, 0.38, 0.11, tint(pc), [0.7, 0.4])
+        place(ctx.B("concrete"), t.cyl8, p.x + o, y + h + 0.5, p.z, 0, 0, 0, 0.085, 0.05, 0.085, tint(pc, 0.8))
+      }
       return
     }
     case "steeple": {
