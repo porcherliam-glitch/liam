@@ -867,6 +867,71 @@ export function trestleGeometry(h: number): VehicleGeo {
   })
 }
 
+// ───────────────────────────── street clutter ─────────────────────────────
+
+/**
+ * Tied refuse sack (about 0.5 m wide, 0.6 m tall, origin on the ground): slumped body that bulges at the bottom,
+ * lumpy contents, creases gathered into the neck, knot and two tie ears. `v` picks one of three slump shapes.
+ */
+export function trashBagGeometry(v: number): VehicleGeo {
+  const k = ((v % 3) + 3) % 3
+  return cached(`trashbag:${k}`, () => {
+    const p = new Parts(), rnd = mulberry32(31 + k * 7), lean = (rnd() - 0.5) * 0.12, squat = 0.85 + rnd() * 0.25
+    const lumps = Array.from({ length: 5 }, () => [rnd() * Math.PI * 2, rnd() * 1.4 - 0.9, 0.05 + rnd() * 0.05] as const)
+    const g = new THREE.SphereGeometry(1, 22, 16), q = g.attributes.position as THREE.BufferAttribute
+    for (let i = 0; i < q.count; i++) {
+      const x = q.getX(i), y = q.getY(i), z = q.getZ(i), a = Math.atan2(z, x)
+      // radius profile: wide sagging belly low down, tapering into a gathered neck at the top
+      const t = (y + 1) / 2, prof = t < 0.55 ? 1 - 0.25 * ((0.4 - t) / 0.4) ** 2 * (t < 0.4 ? 1 : 0) : 1 - 0.82 * ((t - 0.55) / 0.45) ** 1.5
+      let r = prof
+      for (const [la, ly, lr] of lumps) r += lr * Math.exp(-(((a - la + 9.42) % 6.283 - 3.14) ** 2) * 2.5 - ((y - ly) / 0.35) ** 2)
+      r += t > 0.6 ? 0.07 * (t - 0.6) / 0.4 * Math.sin(a * 9 + y * 4) : 0.015 * Math.sin(a * 5 + y * 7)
+      const h = Math.max(-0.92, y) // flattened where it rests on the ground
+      q.setXYZ(i, x * r * 0.27 + lean * (t * 0.27), (h + 0.92) * 0.3 * squat, z * r * 0.25)
+    }
+    g.computeVertexNormals(); p.add("paint", g)
+    const top = 1.92 * 0.3 * squat
+    const knot = new THREE.SphereGeometry(0.045, 10, 8); knot.scale(1, 0.8, 1); knot.translate(lean * 0.27, top + 0.01, 0); p.add("paint", knot)
+    for (const sd of [-1, 1]) {
+      const ear = new THREE.ConeGeometry(0.035, 0.14, 6); ear.scale(1, 1, 0.35); ear.rotateZ(-sd * (0.7 + rnd() * 0.4)); ear.translate(lean * 0.27 + sd * 0.05, top + 0.06, 0); p.add("paint", ear)
+    }
+    return p.build(["paint"])
+  })
+}
+
+/** Zipped body bag lying flat (1.9 × 0.62 m, origin on the ground, length along x): head, shoulders and feet show through. */
+export function bodyBagGeometry(): VehicleGeo {
+  return cached("bodybag", () => {
+    const p = new Parts(), L = 1.9, W = 0.62, H = 0.26
+    // body contour under the vinyl along the bag (u = 0 feet … 1 head): feet, shins, hips, chest, neck, head
+    const lift = (u: number) => 0.42 + 0.3 * Math.exp(-(((u - 0.9) / 0.055) ** 2)) + 0.55 * Math.exp(-(((u - 0.66) / 0.12) ** 2)) + 0.3 * Math.exp(-(((u - 0.42) / 0.1) ** 2))
+      - 0.15 * Math.exp(-(((u - 0.81) / 0.025) ** 2)) + 0.22 * Math.exp(-(((u - 0.05) / 0.04) ** 2))
+    // superellipsoid pillow: boxy along the length, rounded ends, flat underside, sides slumping toward the ground
+    const g = new THREE.SphereGeometry(1, 56, 22), q = g.attributes.position as THREE.BufferAttribute
+    for (let i = 0; i < q.count; i++) {
+      const x = q.getX(i), y = q.getY(i), z = q.getZ(i)
+      const xs = Math.sign(x) * Math.abs(x) ** 0.28, zs = Math.sign(z) * Math.abs(z) ** 0.55, u = xs / 2 + 0.5
+      const yy = y >= 0 ? H * y ** 0.55 * lift(u) * (1 - 0.55 * zs * zs) * (1 - 0.6 * Math.abs(xs) ** 12) : 0.015 * y
+      q.setXYZ(i, xs * L / 2, yy + 0.015, zs * W / 2 * (1 - 0.1 * Math.exp(-(((u - 0.9) / 0.07) ** 2))))
+    }
+    g.computeVertexNormals(); p.add("paint", g)
+    // zipper along the ridge, pull tab near the head, side carry straps
+    for (let i = 0; i < 26; i++) {
+      const u = 0.04 + i * 0.036, x = (u - 0.5) * L, top = H * lift(u) + 0.015
+      p.box("trim", 0.075, 0.012, 0.024, x, top + 0.002, 0)
+    }
+    p.box("trim", 0.05, 0.01, 0.026, 0.4 * L, H * lift(0.9) + 0.02, 0.035)
+    for (const sd of [-1, 1]) for (const u of [0.25, 0.5, 0.75]) p.box("trim", 0.13, 0.035, 0.012, (u - 0.5) * L, 0.07, sd * (W / 2 - 0.02))
+    return p.build(["paint"])
+  })
+}
+
+/** Deterministic small PRNG for template variation. */
+function mulberry32(seed: number): () => number {
+  let a = seed >>> 0
+  return () => { a = (a + 0x6d2b79f5) >>> 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296 }
+}
+
 export function disposeHeavyTemplates(): void {
   for (const g of heavyCache.values()) for (const x of Object.values(g)) x?.dispose()
   heavyCache.clear()

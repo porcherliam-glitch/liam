@@ -660,6 +660,17 @@ function treeTemplates(env: Env, look: Look): { hi: THREE.BufferGeometry[]; lo: 
     g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(UP, d.normalize())); g.translate(a.x, a.y, a.z)
     return part(g, bark, bi, 0.4, 1.5, trunkC)
   }
+  /** Trunk (unit tree height): tapered, gently bent, with lobed root buttresses flaring into the ground. */
+  const trunk = (r0: number, r1: number, h: number, seg: number, rows: number, lobes: number, flare: number, bend: number, c: THREE.Color) => {
+    const g = new THREE.CylinderGeometry(r1, r0, h, seg, rows, true).translate(0, h / 2, 0), p = g.attributes.position as THREE.BufferAttribute
+    for (let i = 0; i < p.count; i++) {
+      const x = p.getX(i), y = p.getY(i), z = p.getZ(i), a = Math.atan2(z, x), f = y / h
+      const k = 1 + flare * Math.exp(-f * 9) * (0.55 + 0.45 * Math.cos(a * lobes)) + 0.06 * Math.sin(a * 3 + f * 11) * (1 - f)
+      p.setXYZ(i, x * k + bend * Math.sin(f * 2.6) * f, y, z * k + bend * 0.6 * Math.sin(f * 3.4 + 1) * f)
+    }
+    g.computeVertexNormals()
+    return part(g, bark, bi, 1.6, 3, c)
+  }
   /** Cut-out card centred at c spanning u (left → right) and v (bottom → top); every vertex gets normal n. */
   const card = (c: THREE.Vector3, u: THREE.Vector3, v: THREE.Vector3, n: THREE.Vector3, layer: number, info: KeyInfo, color: THREE.Color) => {
     const p = [c.clone().addScaledVector(u, -0.5).addScaledVector(v, -0.5), c.clone().addScaledVector(u, 0.5).addScaledVector(v, -0.5), c.clone().addScaledVector(u, 0.5).addScaledVector(v, 0.5), c.clone().addScaledVector(u, -0.5).addScaledVector(v, 0.5)]
@@ -700,7 +711,7 @@ function treeTemplates(env: Env, look: Look): { hi: THREE.BufferGeometry[]; lo: 
   }
 
   // spruce: trunk, dark inner cone, ten tiers of drooping needle sprays, top shoot
-  const spO = [part(new THREE.CylinderGeometry(0.005, 0.028, 0.98, 7).translate(0, 0.49, 0), bark, bi, 0.6, 4, trunkC),
+  const spO = [trunk(0.028, 0.005, 0.98, 10, 6, 6, 0.5, 0.008, trunkC),
     part(new THREE.ConeGeometry(0.12, 0.66, 9, 1, true).translate(0, 0.6, 0), canopy, ci, 4, 4, needle.clone().multiplyScalar(0.7))]
   const spC: THREE.BufferGeometry[] = []
   for (let t = 0; t < 10; t++) {
@@ -717,8 +728,8 @@ function treeTemplates(env: Env, look: Look): { hi: THREE.BufferGeometry[]; lo: 
   spO.push(part(new THREE.ConeGeometry(0.03, 0.12, 6).translate(0, 0.94, 0), canopy, ci, 4, 4, needle.clone().multiplyScalar(1.05)))
 
   // broadleaf: trunk with root flare, five limbs with twigs, shade volumes, 44 leaf cards
-  const brO = [part(new THREE.CylinderGeometry(0.02, 0.046, 0.62, 8).translate(0, 0.31, 0), bark, bi, 0.6, 3, trunkC)]
-  for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2 + 0.4; brO.push(limb(V(0, 0.06, 0), V(Math.cos(a) * 0.075, -0.004, Math.sin(a) * 0.075), 0.026, 0.008)) }
+  const brO = [trunk(0.046, 0.02, 0.62, 14, 8, 5, 0.6, 0.02, trunkC)]
+  for (let i = 0; i < 5; i++) { const a = i * 1.2566 + 0.3; brO.push(limb(V(0, 0.05, 0), V(Math.cos(a) * 0.085, -0.006, Math.sin(a) * 0.085), 0.022, 0.006)) }
   for (let i = 0; i < 5; i++) {
     const a = i * 1.257 + rng() * 0.4, y = 0.4 + i * 0.045, end = V(Math.cos(a) * 0.24, y + 0.2 + rng() * 0.08, Math.sin(a) * 0.24)
     brO.push(limb(V(0, y, 0), end, 0.017, 0.006))
@@ -733,7 +744,7 @@ function treeTemplates(env: Env, look: Look): { hi: THREE.BufferGeometry[]; lo: 
 
   // dead tree: bare trunk, broken top, limbs with forks
   const dc = trunkC.clone().multiplyScalar(0.78)
-  const deO = [part(new THREE.CylinderGeometry(0.012, 0.042, 0.9, 7).translate(0, 0.45, 0), bark, bi, 0.6, 4, dc)]
+  const deO = [trunk(0.042, 0.012, 0.9, 10, 7, 4, 0.45, 0.025, dc)]
   for (let i = 0; i < 6; i++) {
     const a = i * 1.05 + rng() * 0.5, y = 0.36 + i * 0.08, l = 0.26 - i * 0.025, end = V(Math.cos(a) * l, y + l * 0.7, Math.sin(a) * l)
     deO.push(limb(V(0, y, 0), end, 0.013, 0.004))
@@ -750,13 +761,13 @@ function treeTemplates(env: Env, look: Look): { hi: THREE.BufferGeometry[]; lo: 
   }
 
   // low detail: same silhouettes from a handful of pieces
-  const spLo = [part(new THREE.CylinderGeometry(0.016, 0.032, 0.5, 4).translate(0, 0.25, 0), bark, bi, 0.6, 4, trunkC),
+  const spLo = [part(new THREE.CylinderGeometry(0.016, 0.032, 0.5, 6).translate(0, 0.25, 0), bark, bi, 0.6, 4, trunkC),
     part(new THREE.ConeGeometry(0.28, 0.52, 7, 1, true).translate(0, 0.46, 0), canopy, ci, 4, 4, needle.clone().multiplyScalar(0.9)),
     part(new THREE.ConeGeometry(0.16, 0.46, 7, 1, true).translate(0, 0.76, 0), canopy, ci, 4, 4, needle.clone().multiplyScalar(1.05))]
-  const brLoO = [part(new THREE.CylinderGeometry(0.022, 0.045, 0.6, 4).translate(0, 0.3, 0), bark, bi, 0.6, 3, trunkC), blob(0, 0.72, 0, 0.27, 1.1, 0.85, 1.1, leaf.clone().multiplyScalar(0.62), 0)]
+  const brLoO = [part(new THREE.CylinderGeometry(0.022, 0.045, 0.6, 6).translate(0, 0.3, 0), bark, bi, 0.6, 3, trunkC), blob(0, 0.72, 0, 0.27, 1.1, 0.85, 1.1, leaf.clone().multiplyScalar(0.62), 0)]
   const brLoC: THREE.BufferGeometry[] = []
   for (const [x, y, z, r] of clumps.slice(0, 4)) crown(brLoC, V(x, y, z), V(r * 1.2, r, r * 1.2), 4, 0.2 + r * 0.9, -0.4, leaf.clone().multiplyScalar(0.9))
-  const deLo = [part(new THREE.CylinderGeometry(0.014, 0.04, 0.9, 4).translate(0, 0.45, 0), bark, bi, 0.6, 4, dc)]
+  const deLo = [part(new THREE.CylinderGeometry(0.014, 0.04, 0.9, 6).translate(0, 0.45, 0), bark, bi, 0.6, 4, dc)]
   const buLoO = [blob(0, 0.3, 0, 0.4, 1.2, 0.72, 1.1, leaf.clone().multiplyScalar(0.5), 0)]
   const buLoC: THREE.BufferGeometry[] = []
   for (const [x, y, z, r] of buClumps.slice(0, 3)) crown(buLoC, V(x, y, z), V(r * 1.2, r, r * 1.15), 6, 0.28 + r * 0.6, -0.15, leaf.clone().multiplyScalar(0.9))

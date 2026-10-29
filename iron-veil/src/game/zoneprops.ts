@@ -10,7 +10,7 @@ import * as THREE from "three"
 import type { BuildingInfo, MapProp, MapSolid, Side } from "./maps"
 import { NY, PY, type GeoBatch } from "./meshkit"
 import { buildSolid, decal, fenceRun, jit, lampAt, place, registerExtras, sag, textKey, tint, tpl, type BuildCtx, type WindowReq } from "./props"
-import { CAR_LENGTH, CAR_WIDTH, apcGeometry, boatGeometry, boxcarGeometry, busGeometry, carGeometry, conveyorGeometry, forkliftGeometry, excavatorGeometry, hopperWagonGeometry, tankWagonGeometry, tractorGeometry, trestleGeometry, truckCabGeometry, type CarStyle, type VehicleGeo, type VehiclePart } from "./vehicleModels"
+import { CAR_LENGTH, CAR_WIDTH, apcGeometry, boatGeometry, bodyBagGeometry, boxcarGeometry, busGeometry, carGeometry, conveyorGeometry, forkliftGeometry, excavatorGeometry, hopperWagonGeometry, tankWagonGeometry, tractorGeometry, trashBagGeometry, trestleGeometry, truckCabGeometry, type CarStyle, type VehicleGeo, type VehiclePart } from "./vehicleModels"
 
 const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), V = new THREE.Vector3(), S = new THREE.Vector3(), E = new THREE.Euler()
 
@@ -1137,19 +1137,22 @@ function extraProp(ctx: BuildCtx, p: MapProp): void {
       return
     }
     case "bodybag": {
-      const n = p.v ?? 1, rot = p.rot ?? 0, b = ctx.B("burlap")
+      const n = p.v ?? 1, rot = p.rot ?? 0
       for (let i = 0; i < n; i++) {
         const o = (i - (n - 1) / 2) * 0.75, x = p.x + Math.cos(rot) * o, z = p.z - Math.sin(rot) * o
-        place(b, t.sphere, x, 0.13, z, 0, rot + Math.PI / 2 + (ctx.rng() - 0.5) * 0.15, 0, 0.95, 0.16, 0.3, tint(ctx.rng() < 0.5 ? 0x2a3024 : 0x1e2022, 1, 0.9 + ctx.rng() * 0.2), [2, 1])
+        // glossy vinyl (olive or black): the sheen shows the body underneath
+        const c = tint(ctx.rng() < 0.5 ? 0x3b4432 : 0x2b2e31, 1, 0.9 + ctx.rng() * 0.2), bb = bodyBagGeometry()
+        addVehicle(ctx, bb, placeAt(x, 0, z, rot + Math.PI / 2 + (ctx.rng() - 0.5) * 0.15), { paint: ["carpaint", c], trim: ["metal", tint(0x1a1b1c)] })
         if (ctx.rng() < 0.3) decal(ctx, "blood", x, 0.005, z, 1.4, 1.2, "up", 0xffffff, ctx.rng() * 6)
       }
       return
     }
     case "trash": {
-      const n = p.v ?? 4, b = ctx.B("rubber")
+      const n = p.v ?? 4
       for (let i = 0; i < n; i++) {
-        const x = p.x + (ctx.rng() - 0.5) * 1.6, z = p.z + (ctx.rng() - 0.5) * 1.6, r = 0.28 + ctx.rng() * 0.14
-        place(b, t.sphere, x, r * 0.75, z, 0, ctx.rng() * 6, 0, r, r * 0.85, r * 0.9, tint(ctx.rng() < 0.7 ? 0x141618 : 0x3a5a3a))
+        const x = p.x + (ctx.rng() - 0.5) * 1.6, z = p.z + (ctx.rng() - 0.5) * 1.6, s = 0.95 + ctx.rng() * 0.45
+        const m = placeAt(x, 0, z, ctx.rng() * 6).multiply(new THREE.Matrix4().makeScale(s, s * (0.85 + ctx.rng() * 0.3), s))
+        addVehicle(ctx, trashBagGeometry(Math.floor(ctx.rng() * 3)), m, { paint: ["carpaint", tint(ctx.rng() < 0.7 ? 0x2c2f33 : 0x46663f, 1, 0.85 + ctx.rng() * 0.3)] })
       }
       if (ctx.rng() < 0.6) place(ctx.B("crate"), t.box, p.x + 0.6, 0.2, p.z - 0.4, 0, ctx.rng() * 3, 0.2, 0.5, 0.4, 0.4, tint(0xc8a878))
       decal(ctx, "paper", p.x, 0.005, p.z, 2.2, 2.2, "up", 0xffffff, ctx.rng() * 6)
