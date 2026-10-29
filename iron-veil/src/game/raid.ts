@@ -627,7 +627,7 @@ export class RaidGame {
     const spread = w.spread(this.ads, p.speed / WALK, p.crouched)
     const bonus = this.company.has("ballistics") ? 1.15 : 1
     const muzzle = _muzzle.copy(origin).addScaledVector(_aim.fwd, 0.75).addScaledVector(_aim.right, 0.13 * (1 - this.ads)).addScaledVector(_aim.up, -0.1 + this.ads * 0.05)
-    const suppressed = !!w.mods.muzzle && w.mods.muzzle === "att_suppressor"
+    const suppressed = w.mods.muzzle === "att_suppressor" || w.mods.muzzle === "att_bigsup", silent = suppressed || !!def.bow
     let hitAny = false, killed = false, head = false
     for (let i = 0; i < def.pellets; i++) {
       coneOffset(spread, this.rng, _cone)
@@ -659,7 +659,7 @@ export class RaidGame {
         const s = this.world.surfaceAt(end.x, end.z)
         this.effects.impact(end, _upWorld, s === "metal" ? "metal" : s === "dirt" || s === "gravel" || s === "grass" ? "dirt" : "concrete")
       } else end = _end.copy(origin).addScaledVector(_dir, maxDist)
-      if (!suppressed && (i === 0 || i % 3 === 0)) this.effects.tracer(muzzle, end)
+      if (!silent && (i === 0 || i % 3 === 0)) this.effects.tracer(muzzle, end)
     }
     if (hitAny) { this.hitMarker = 0.14; this.sfx(head ? "hit_head" : "hit_body", { volume: 0.8 }) }
     if (killed) { this.killMarker = 0.4; this.sfx("kill", { volume: 0.7 }) }
@@ -670,9 +670,9 @@ export class RaidGame {
     p.look(kickY * 0.65, kickP * 0.65)
     p.punch.x += kickP * 0.35; p.punch.y += kickY * 0.35
     this.viewModel.fire()
-    if (!suppressed) this.effects.muzzleFlash(muzzle, def.cls === "shotgun" ? 1.6 : def.cls === "pistol" ? 0.7 : 1)
+    if (!silent) this.effects.muzzleFlash(muzzle, (def.cls === "shotgun" ? 1.6 : def.cls === "pistol" ? 0.7 : 1) * (w.mods.muzzle === "att_flash" ? 0.45 : 1))
     this.audio.play(`shot_${def.id}` as SfxId, { suppressed })
-    if (def.manualAction) window.setTimeout(() => this.sfx(def.cls === "shotgun" ? "pump" : "bolt_cycle"), 280)
+    if (def.manualAction) window.setTimeout(() => this.sfx(def.cls === "shotgun" ? "pump" : def.id === "uh44" ? "lever_cycle" : "bolt_cycle"), def.id === "uh44" ? 120 : 280)
     if (this.settings.screenShake) this.shake = Math.min(0.6, this.shake + (def.cls === "shotgun" || def.cls === "sniper" ? 0.25 : def.cls === "dmr" || def.cls === "battle" ? 0.15 : 0.05))
     this.noise(_origin, def.noise)
   }

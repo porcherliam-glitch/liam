@@ -226,7 +226,7 @@ export const overFrame = () => frame([0, -1, 0], [0, 0, 1])
 export type SightKind = "iron" | "reddot" | "holo" | "prism" | "scope"
 export type CasingKind = "9mm" | "44" | "556" | "762" | "338" | "shell" | "none"
 /** How the gun cycles: drives fire and reload animations in the viewmodel. */
-export type ActionKind = "slide" | "revolver" | "auto" | "semi" | "pump" | "bolt" | "belt" | "melee"
+export type ActionKind = "slide" | "revolver" | "auto" | "semi" | "pump" | "bolt" | "belt" | "melee" | "lever" | "break" | "bow"
 /** Which control the support hand works when a reload starts from empty. */
 export type ChargeKind = "slide" | "rear" | "left" | "right" | "front" | "none"
 
@@ -281,6 +281,8 @@ export interface WeaponRig {
   suppressed: boolean
   /** Muzzle brake / compensator: flash vents sideways. */
   brake: boolean
+  /** Flash hider: much smaller muzzle flash. */
+  hider: boolean
   /** LMG belt: re-lays the rounds along the feed path (phase in links). */
   belt: ((phase: number, visible: boolean) => void) | null
   /** Points that must sit on the sight line at full ADS (front post tip, rear sight, reticle centre) — for checks. */
@@ -322,6 +324,7 @@ class Build {
   lamp: THREE.Mesh | null = null
   suppressed = false
   brake = false
+  hider = false
   belt: WeaponRig["belt"] = null
   /** Iron sights: fold (flip-up sights) or hide (fixed rear sight) when an optic is mounted. */
   irons: "fold" | "hide" | "none" = "hide"
@@ -436,6 +439,17 @@ function buttPad(k: Kit, z: number, y0: number, y1: number, w: number): void {
 }
 
 const holdGrip = (rx: number, rz: number, extra: Partial<Hold> = {}): Hold => ({ rx, rz, index: "trigger", thumb: "wrap", ...extra })
+/**
+ * Wrist for a hand on a straight (steeply tilted) stock wrist: below and behind the hand in gun space. The default wrist
+ * sits behind the hand along the anchor's +Z, which on a grip tilted by ~1 rad points up — the forearm would then rise
+ * across the sight line when aiming.
+ */
+/** Hand on a straight stock wrist: handle axis tilted forward by tilt, palm rolled down-right by roll (knuckles low). */
+const wristFrame = (tilt: number, roll = 0.6) => frame([Math.cos(roll), -Math.sin(roll), 0], [0, Math.cos(tilt), -Math.sin(tilt)])
+const wristBelow = (tilt: number): [number, number, number] => {
+  const c = Math.cos(tilt), s = Math.sin(tilt), dy = -0.045, dz = 0.07
+  return [0.025, dy * c - dz * s, dy * s + dz * c]
+}
 
 // ───────────────────────────── weapons ─────────────────────────────
 
@@ -773,7 +787,7 @@ function buildBr10(b: Build): void {
   b.ironY = 0.075; b.ironZ = 0.108; b.irons = "fold"
   b.mark("front", "ironFront", 0, 0.075, -0.345); b.mark("rear", "ironRear", 0, 0.075, 0.108)
   const m = b.part("mag", "body", [0, -0.046, -0.044], { local: true })
-  const ext = !!b.has("mag")
+  const ext = b.has("mag") === "att_extmag"
   boxMag(m, "polymer", 0.026, 0.064, 0.062, ext ? 0.21 : 0.14, 0.04, ext ? 0.2 : 0.14, "762")
   b.magRest.set(0, -0.046, -0.044); b.magAxis.set(0, -Math.cos(0.04), -Math.sin(0.04))
   b.anchor("magHold", "mag", [0, -0.085, -0.004], gripFrame(-0.1), { rx: 0.013, rz: 0.032, thumb: "wrap" }, true)
@@ -801,8 +815,8 @@ function buildKv12(b: Build): void {
   // trigger group, straight-wrist wooden stock
   k.side("steel", "M .0 -.042 L .1 -.04 L .1 -.05 L .0 -.052 Z", 0.03, 0, 0.001)
   triggerGuard(k, "steel", 0.004, 0.06, -0.05, 0.024, 0.01)
-  k.side("wood", "M .12 .012 L .2 .004 L .47 -.016 Q .48 -.016 .48 -.026 L .48 -.135 Q .48 -.142 .47 -.142 L .44 -.14 Q .3 -.094 .21 -.07 Q .16 -.062 .14 -.054 L .12 -.042 Z", 0.042, 0, 0.004)
-  buttPad(k, 0.48, -0.014, -0.14, 0.042)
+  k.side("wood", "M .12 .01 L .2 -.012 L .47 -.03 Q .48 -.03 .48 -.04 L .48 -.145 Q .48 -.152 .47 -.152 L .44 -.15 Q .3 -.104 .21 -.08 Q .16 -.07 .14 -.062 L .12 -.046 Z", 0.042, 0, 0.004)
+  buttPad(k, 0.48, -0.028, -0.15, 0.042)
   // corncob pump with action bars
   const pu = b.part("pump")
   const pts: number[] = [0.0175, -0.12, 0.022, -0.125]
@@ -811,13 +825,13 @@ function buildKv12(b: Build): void {
   pu.lathe("wood", pts, 0, -0.026, 0, 20)
   for (const sx of [-1, 1]) pu.box("steel", 0.003, 0.006, 0.12, sx * 0.0135, -0.02, -0.075, 0, 0, 0, 0)
   b.setEject(0.02, -0.004, -0.03); b.setMuzzle(-0.56)
-  b.anchor("grip", "body", [0, -0.032, 0.168], gripFrame(1.0), holdGrip(0.018, 0.02))
+  b.anchor("grip", "body", [0, -0.046, 0.172], wristFrame(1.0), holdGrip(0.018, 0.02, { wrist: wristBelow(1.0) }))
   b.anchor("support", "pump", [0, -0.026, -0.235], underFrame(), { rx: 0.0235, rz: 0.0235, thumb: "along" })
   b.anchor("load", "body", [0, -0.054, 0.012], underFrame(), { rx: 0.0105, rz: 0.0105, thumb: "wrap" })
   b.loadDir.set(0, 1, 0.25).normalize()
   if (b.has("optic")) rail(k, -0.05, 0.09, 0, 0.0135)
   b.mount = { optic: { z: 0.02, y: 0.022 }, muzzle: { z: -0.56, r: 0.0105 }, tac: { z: -0.42, y: -0.013, x: 0.016, rail: true } }
-  b.spec = { cls: "shotgun", action: "pump", casing: "shell", kick: 1.9, flash: 1.6, charge: "none", hip: [0.11, -0.07, -0.33, 0.02, 0.05, -0.03], eyeIron: 0.17 }
+  b.spec = { cls: "shotgun", action: "pump", casing: "shell", kick: 1.9, flash: 1.6, charge: "none", hip: [0.11, -0.07, -0.33, 0.02, 0.05, -0.03], eyeIron: 0.25 }
 }
 
 function buildSg8(b: Build): void {
@@ -903,7 +917,7 @@ function buildDr7(b: Build): void {
   ch.box("alu", 0.012, 0.006, 0.05, 0, 0.022, 0.1, 0, 0, 0, 0.0015); ch.box("alu", 0.036, 0.007, 0.012, 0, 0.022, 0.124, 0, 0, 0, 0.002)
   riflescope(b, k, 0.0355, 0.13, -0.19, 0.0128, 0.0225, [0.045, -0.07])
   const m = b.part("mag", "body", [0, -0.04, -0.061], { local: true })
-  const ext = !!b.has("mag")
+  const ext = b.has("mag") === "att_extmag"
   boxMag(m, "polymer", 0.027, 0.066, 0.064, ext ? 0.155 : 0.1, 0.05, 0.12, "762")
   b.magRest.set(0, -0.04, -0.061); b.magAxis.set(0, -Math.cos(0.05), -Math.sin(0.05))
   b.anchor("magHold", "mag", [0, -0.07, -0.004], gripFrame(-0.1), { rx: 0.0135, rz: 0.033, thumb: "wrap" }, true)
@@ -1094,7 +1108,7 @@ function buildAxe(b: Build): void {
 // ───────────────────────────── more weapons ─────────────────────────────
 
 /** Which magazine a builder draws for the mag slot: standard, extended or drum. */
-const magKind = (b: Build): "std" | "ext" | "drum" => { const a = b.has("mag"); return a === "att_drum" ? "drum" : a ? "ext" : "std" }
+const magKind = (b: Build): "std" | "ext" | "drum" => { const a = b.has("mag"); return a === "att_drum" ? "drum" : a === "att_extmag" ? "ext" : "std" }
 
 /** Drum magazine (local to the mag part, top centre at 0,0): feed tower into the well, drum body with rims, hub
  *  and winding key, the top round in the feed lips. Returns the drum centre (magHold anchor). */
@@ -1450,6 +1464,366 @@ function buildSledge(b: Build): void {
   b.spec = MELEE_SPEC; b.irons = "none"
 }
 
+// ───────────────────────────── weapons, third batch ─────────────────────────────
+
+/** Round rod from a to b (gun space) on a kit. */
+function stick(k: Kit, mat: MatName, a: [number, number, number], c: [number, number, number], r: number, seg = 8): void {
+  const d = new THREE.Vector3(c[0] - a[0], c[1] - a[1], c[2] - a[2]), len = d.length()
+  const g = new THREE.CylinderGeometry(r, r, len, seg)
+  g.applyQuaternion(new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize()))
+  k.add(g, mat, (a[0] + c[0]) / 2, (a[1] + c[1]) / 2, (a[2] + c[2]) / 2, 0, 0, 0, 0)
+}
+
+/** KM-45: all-steel single-stack .45 with an exposed hammer, grip safety, thumb safety and wooden grip panels. */
+function buildKm45(b: Build): void {
+  const k = b.body, ang = 0.31
+  k.side("steel", "M -.118 -.0105 L .05 -.0105 L .05 -.024 L -.06 -.024 L -.066 -.03 L -.118 -.03 Z", 0.0235, 0, 0.0014)
+  if (b.has("tactical")) rail(k, -0.115, -0.072, 0, -0.03, "steel", "down", 0.02)
+  triggerGuard(k, "steel", -0.064, 0.004, -0.024, 0.032, 0.0115)
+  const g = pistolGrip(k, "steel", 0.036, -0.022, ang, 0.104, 0.042, 0.0245)
+  k.at(new THREE.Matrix4().makeRotationX(-ang), () => {
+    for (const sx of [-1, 1]) {
+      k.box("wood", 0.0035, 0.07, 0.036, sx * 0.0136, -0.068, 0.046, 0, 0, 0, 0.0012)
+      for (let i = 0; i < 5; i++) k.box("dark", 0.0012, 0.0016, 0.03, sx * 0.0154, -0.045 - i * 0.011, 0.046, 0, 0, 0, 0)
+      k.peg("steelLight", 0.0028, 0.002, sx * 0.0156, -0.052, 0.046, "x")
+    }
+  })
+  k.side("steel", "M .046 -.0105 L .064 -.012 Q .074 -.017 .068 -.03 L .05 -.034 Z", 0.021, 0, 0.0014) // grip safety
+  k.box("steel", 0.004, 0.006, 0.016, -0.0135, -0.006, 0.032, 0, 0, 0, 0.001)                     // thumb safety
+  k.box("steel", 0.026, 0.004, 0.012, 0, -0.026, -0.008, 0, 0, 0, 0.001)                          // slide stop
+  k.side("steel", "M .054 -.004 L .06 -.002 Q .07 .004 .072 .014 L .066 .016 Q .062 .006 .054 .004 Z", 0.006, 0, 0.0005) // hammer
+  const threaded = !!b.has("muzzle")
+  barrel(k, -0.11, threaded ? -0.142 : -0.128, 0.0076)
+  const s = b.part("slide")
+  s.side("steel", "M -.124 -.0105 L .056 -.0105 L .056 .0158 Q .056 .0185 .053 .0185 L -.118 .0185 Q -.124 .0185 -.124 .012 Z", 0.0235, 0, 0.0016)
+  s.cyl("steel", 0.0098, 0.006, 0, 0, -0.1255, 18)
+  for (let i = 0; i < 8; i++) s.box("steelDark", 0.0242, 0.017, 0.0014, 0, 0.004, 0.026 + i * 0.0036, 0, 0, 0, 0)
+  s.box("steelDark", 0.01, 0.002, 0.03, 0.0032, 0.0184, 0.0, 0, 0, 0, 0)
+  s.box("steel", 0.003, 0.007, 0.006, 0, 0.022, -0.113, 0, 0, 0, 0.0008)
+  const rs = b.part("ironRear", "slide", [0, 0.0185, 0.05])
+  for (const x of [-1, 1]) rs.box("steel", 0.008, 0.007, 0.008, x * 0.0055, 0.022, 0.05, 0, 0, 0, 0.0008)
+  b.ironY = 0.0255; b.ironZ = 0.054; b.irons = "hide"
+  b.mark("front", "slide", 0, 0.0255, -0.113); b.mark("rear", "ironRear", 0, 0.0255, 0.054)
+  const m = b.part("mag", "body", [0, -0.024, 0.036], { local: true, rx: -ang })
+  const ext = b.has("mag") === "att_extmag", len = ext ? 0.14 : 0.105
+  m.box("steel", 0.0185, len, 0.03, 0, -len / 2, 0, 0, 0, 0, 0.002)
+  m.cyl("brass", 0.0058, 0.012, 0, 0.002, -0.004, 10); m.cyl("copper", 0.0056, 0.006, 0, 0.002, -0.013, 10, 0.0034)
+  if (ext) m.box("polymer", 0.024, 0.04, 0.038, 0, -len + 0.015, 0.001, 0, 0, 0, 0.004)
+  m.box("steel", 0.022, 0.006, 0.034, 0, -len - 0.001, 0.001, 0, 0, 0, 0.002)
+  b.magRest.set(0, -0.024, 0.036); b.magAxis.set(0, -Math.cos(ang), Math.sin(ang))
+  b.anchor("magHold", "mag", [0, -len * 0.62, 0.002], gripFrame(0), { rx: 0.01, rz: 0.016, thumb: "wrap" }, true)
+  b.setEject(0.012, 0.016, 0.0, "slide")
+  b.setMuzzle(threaded ? -0.142 : -0.128)
+  b.anchor("grip", "body", g, gripFrame(ang), holdGrip(0.0135, 0.022))
+  b.anchor("support", "body", [-0.004, g[1] - 0.008, g[2] - 0.004], gripFrame(ang), { rx: 0.031, rz: 0.033, thumb: "along" })
+  b.anchor("charge", "slide", [0, 0.004, 0.04], overFrame(), { rx: 0.016, rz: 0.014, thumb: "wrap" })
+  b.mount = { optic: { z: 0.026, y: 0.0185, part: "slide" }, muzzle: { z: -0.142, r: 0.0076 }, tac: { z: -0.094, y: -0.0385, x: 0, under: true } }
+  b.spec = { cls: "pistol", action: "slide", casing: "9mm", kick: 1.35, flash: 0.8, charge: "slide", hip: [0.1, -0.085, -0.36, 0.03, 0.06, 0], eyeIron: 0.4, shoulders: PISTOL_SHOULDERS }
+}
+
+/** U-45: boxy polymer SMG with a straight .45 magazine, lower rail, folding stock and a left-side charging handle. */
+function buildU45(b: Build): void {
+  const k = b.body
+  k.side("polymer", "M -.16 .03 L .1 .03 L .112 .02 L .112 -.022 L -.16 -.022 Z", 0.042, 0, 0.003)
+  rail(k, -0.155, 0.098, 0, 0.03, "polymer")
+  k.side("polymer", "M -.16 -.022 L -.048 -.022 L -.056 -.058 Q -.06 -.07 -.074 -.07 L -.148 -.07 Q -.16 -.068 -.163 -.056 Z", 0.04, 0, 0.004)
+  for (const zz of [-0.08, -0.1, -0.12, -0.14]) for (const sx of [-1, 1]) k.box("dark", 0.002, 0.026, 0.009, sx * 0.0202, -0.04, zz, 0, 0, 0, 0)
+  for (const sx of [-1, 1]) k.box("polymer", 0.003, 0.014, 0.17, sx * 0.0212, 0.012, -0.03, 0, 0, 0, 0.001)
+  k.box("steelDark", 0.002, 0.013, 0.04, 0.0212, 0.006, -0.01, 0, 0, 0, 0)
+  k.box("polymer", 0.034, 0.024, 0.04, 0, -0.032, -0.02, 0, 0, 0, 0.003)
+  triggerGuard(k, "polymer", 0.012, 0.056, -0.022, 0.028, 0.012)
+  const g = pistolGrip(k, "polymer", 0.068, -0.02, 0.25, 0.1, 0.038, 0.03)
+  const dev = b.has("muzzle")
+  barrel(k, -0.16, -0.236, 0.0085)
+  if (!dev) birdcage(k, -0.236, 0.0108, 0.03)
+  // side-folding skeleton stock (extended), hinge block
+  k.box("polymer", 0.03, 0.04, 0.03, 0, 0.004, 0.124, 0, 0, 0, 0.004)
+  k.side("polymer", "M .14 .024 L .3 .026 Q .31 .026 .31 .014 L .31 -.076 Q .31 -.086 .3 -.086 L .284 -.086 L .27 -.034 L .15 -.02 L .14 -.016 Z", 0.028, 0, 0.003,
+    ["M .158 .012 L .262 .012 L .262 -.016 L .158 -.006 Z"])
+  buttPad(k, 0.31, 0.024, -0.084, 0.028)
+  const ch = b.part("charger")
+  ch.box("polymer", 0.006, 0.01, 0.03, -0.024, 0.014, -0.12, 0, 0, 0, 0.002); ch.box("polymer", 0.016, 0.012, 0.01, -0.031, 0.014, -0.108, 0, 0, 0, 0.003)
+  const fs = b.part("ironFront", "body", [0, 0.0385, -0.145])
+  fs.box("polymer", 0.02, 0.007, 0.016, 0, 0.042, -0.145, 0, 0, 0, 0.0015)
+  for (const sx of [-1, 1]) fs.box("polymer", 0.0035, 0.022, 0.01, sx * 0.0075, 0.054, -0.145, 0, 0, 0, 0.001)
+  fs.box("steel", 0.0028, 0.02, 0.003, 0, 0.0505, -0.145, 0, 0, 0, 0)
+  const rs = b.part("ironRear", "body", [0, 0.0385, 0.08])
+  rs.box("polymer", 0.02, 0.007, 0.016, 0, 0.042, 0.08, 0, 0, 0, 0.0015); rs.box("polymer", 0.005, 0.012, 0.005, 0, 0.05, 0.08, 0, 0, 0, 0.001)
+  rs.ring("polymer", 0.0068, 0.002, 0, 0.0605, 0.08, 22)
+  b.ironY = 0.0605; b.ironZ = 0.08; b.irons = "fold"
+  b.mark("front", "ironFront", 0, 0.0605, -0.145); b.mark("rear", "ironRear", 0, 0.0605, 0.08)
+  const m = b.part("mag", "body", [0, -0.044, -0.02], { local: true })
+  const kind = magKind(b)
+  if (kind === "drum") {
+    const c = drumMag(m, "polymer", 0.03, 0.024, 0.052, 0.046, "9mm")
+    b.anchor("magHold", "mag", [-0.002, c[1], c[2]], gripFrame(0), { rx: 0.024, rz: 0.05, thumb: "wrap" }, true)
+  } else {
+    boxMag(m, "polymer", 0.025, 0.036, 0.036, kind === "ext" ? 0.2 : 0.14, 0.03, 0.05, "9mm")
+    b.anchor("magHold", "mag", [0, -0.075, -0.002], gripFrame(-0.04), { rx: 0.0125, rz: 0.018, thumb: "wrap" }, true)
+  }
+  b.magRest.set(0, -0.044, -0.02); b.magAxis.set(0, -Math.cos(0.03), -Math.sin(0.03))
+  b.setEject(0.022, 0.006, -0.01); b.setMuzzle(dev ? -0.236 : -0.266)
+  b.anchor("grip", "body", g, gripFrame(0.25), holdGrip(0.015, 0.019))
+  b.anchor("support", "body", [0, -0.068, -0.112], underFrame(), { rx: 0.022, rz: 0.03, thumb: "along" })
+  b.anchor("charge", "charger", [-0.031, 0.018, -0.108], overFrame(), { rx: 0.008, rz: 0.012, thumb: "wrap" })
+  b.mount = { optic: { z: -0.035, y: 0.0385 }, muzzle: { z: -0.236, r: 0.0085 }, grip: { z: -0.112, y: -0.07, rail: true }, tac: { z: -0.11, y: 0.004, x: 0.021, rail: true } }
+  b.spec = { cls: "smg", action: "auto", casing: "9mm", kick: 0.6, flash: 0.8, charge: "front", hip: [0.1, -0.08, -0.27, 0.02, 0.05, -0.02], eyeIron: 0.13 }
+}
+
+/** AR-36: tall polymer receiver with a flat-top rail, vented handguard, translucent magazine, skeleton folding stock. */
+function buildAr36(b: Build): void {
+  const k = b.body
+  k.side("polymer", "M -.125 .032 L .118 .032 L .13 .02 L .13 -.032 L -.125 -.032 Z", 0.044, 0, 0.003)
+  rail(k, -0.12, 0.116, 0, 0.032, "polymer")
+  for (const sx of [-1, 1]) { k.box("polymer", 0.003, 0.012, 0.2, sx * 0.0228, 0.016, 0.0, 0, 0, 0, 0.001); k.peg("steel", 0.0028, 0.003, sx * 0.0228, -0.018, 0.09, "x"); k.peg("steel", 0.0028, 0.003, sx * 0.0228, -0.018, -0.1, "x") }
+  k.box("steelDark", 0.002, 0.016, 0.05, 0.0232, 0.008, 0.02, 0, 0, 0, 0)
+  // handguard with long vents
+  k.box("polymer", 0.046, 0.058, 0.24, 0, -0.002, -0.245, 0, 0, 0, 0.012)
+  for (const zz of [-0.17, -0.21, -0.25, -0.29, -0.33]) { for (const sx of [-1, 1]) k.box("dark", 0.002, 0.03, 0.022, sx * 0.0232, -0.004, zz, 0, 0, 0, 0); k.box("dark", 0.026, 0.002, 0.022, 0, -0.0312, zz, 0, 0, 0, 0) }
+  const dev = b.has("muzzle")
+  barrel(k, -0.365, -0.5, 0.0088)
+  k.cyl("steel", 0.012, 0.03, 0, 0, -0.38, 16)
+  if (!dev) birdcage(k, -0.5, 0.0112, 0.045)
+  // trigger group, grip, mag well, stock hinge and skeleton stock
+  k.side("polymer", "M -.08 -.032 L .1 -.032 L .1 -.044 Q .08 -.05 .06 -.05 L -.03 -.05 L -.034 -.064 L -.078 -.064 Z", 0.036, 0, 0.003)
+  triggerGuard(k, "polymer", -0.024, 0.036, -0.05, 0.026, 0.013)
+  const g = pistolGrip(k, "polymer", 0.058, -0.044, 0.3, 0.1, 0.036, 0.028)
+  k.box("polymer", 0.034, 0.05, 0.02, 0, 0.0, 0.138, 0, 0, 0, 0.004)
+  k.side("polymer", "M .145 .028 L .36 .034 Q .372 .034 .372 .022 L .372 -.076 Q .372 -.088 .36 -.088 L .336 -.086 L .3 -.04 L .16 -.03 L .145 -.028 Z", 0.032, 0, 0.003,
+    ["M .165 .016 L .33 .02 L .33 -.006 L .165 -.012 Z", "M .3 -.02 L .344 -.02 L .344 -.066 L .33 -.066 Z"])
+  buttPad(k, 0.372, 0.032, -0.086, 0.032)
+  const ch = b.part("charger")
+  ch.box("polymer", 0.012, 0.012, 0.03, 0, 0.034, -0.07, 0, 0, 0, 0.002); ch.box("polymer", 0.03, 0.01, 0.01, 0, 0.034, -0.058, 0, 0, 0, 0.002)
+  const fs = b.part("ironFront", "body", [0, 0.0405, -0.112])
+  fs.box("polymer", 0.024, 0.009, 0.026, 0, 0.045, -0.112, 0, 0, 0, 0.002)
+  for (const sx of [-1, 1]) fs.box("polymer", 0.004, 0.032, 0.012, sx * 0.0085, 0.064, -0.112, 0, 0, 0, 0.001)
+  fs.box("steel", 0.003, 0.028, 0.003, 0, 0.062, -0.112, 0, 0, 0, 0)
+  const rs = b.part("ironRear", "body", [0, 0.0405, 0.098])
+  rs.box("polymer", 0.024, 0.009, 0.024, 0, 0.045, 0.098, 0, 0, 0, 0.002); rs.box("polymer", 0.012, 0.022, 0.006, 0, 0.057, 0.098, 0, 0, 0, 0.001)
+  rs.ring("polymer", 0.008, 0.0022, 0, 0.076, 0.098, 24)
+  b.ironY = 0.076; b.ironZ = 0.098; b.irons = "fold"
+  b.mark("front", "ironFront", 0, 0.076, -0.112); b.mark("rear", "ironRear", 0, 0.076, 0.098)
+  // translucent magazine with the rounds showing through, coupling studs
+  const m = b.part("mag", "body", [0, -0.05, -0.058], { local: true })
+  const kind = magKind(b)
+  if (kind === "drum") { const c = drumMag(m, "polymer", 0.058, 0.023, 0.062, 0.05, "556"); b.anchor("magHold", "mag", [-0.002, c[1], c[2]], gripFrame(0), { rx: 0.026, rz: 0.06, thumb: "wrap" }, true) }
+  else {
+    const len = kind === "ext" ? 0.25 : 0.18
+    boxMag(m, "orangeClear", 0.024, 0.058, 0.054, len, 0.06, kind === "ext" ? 0.38 : 0.3, "556", false)
+    const inner = magOutline(0, -0.006, 0.036, 0.034, len * 0.86, 0.06, kind === "ext" ? 0.38 : 0.3)
+    m.side("brass", inner.pts, 0.012, 0, 0.0006)
+    for (const sx of [-1, 1]) for (const yy of [-0.03, -0.09]) m.box("polymer", 0.004, 0.008, 0.008, sx * 0.0135, yy, 0.012, 0, 0, 0, 0.001)
+    b.anchor("magHold", "mag", [0, -0.1, -0.012], gripFrame(-0.2), { rx: 0.012, rz: 0.03, thumb: "wrap" }, true)
+  }
+  b.magRest.set(0, -0.05, -0.058); b.magAxis.set(0, -Math.cos(0.06), -Math.sin(0.06))
+  b.setEject(0.024, 0.008, 0.02); b.setMuzzle(dev ? -0.5 : -0.545)
+  b.anchor("grip", "body", g, gripFrame(0.3), holdGrip(0.0135, 0.018))
+  b.anchor("support", "body", [0, -0.004, -0.27], underFrame(), { rx: 0.03, rz: 0.026, thumb: "along" })
+  b.anchor("charge", "charger", [0, 0.038, -0.058], overFrame(), { rx: 0.008, rz: 0.016, thumb: "wrap", open: true })
+  b.mount = { optic: { z: 0.0, y: 0.0405 }, muzzle: { z: -0.5, r: 0.0088 }, grip: { z: -0.27, y: -0.031, rail: true }, tac: { z: -0.3, y: -0.004, x: 0.023, rail: true } }
+  b.spec = { cls: "rifle", action: "auto", casing: "556", kick: 0.9, flash: 1, charge: "front", hip: [0.105, -0.088, -0.29, 0.02, 0.05, -0.02], eyeIron: 0.14 }
+}
+
+/** UH-44: lever-action carbine — round barrel over a tube magazine, side loading gate, wooden furniture, the finger
+ *  lever (with the right hand on it) swings down to cycle. */
+function buildUh44(b: Build): void {
+  const k = b.body
+  k.side("steel", "M -.072 .014 Q -.072 .019 -.066 .019 L .046 .019 Q .062 .019 .066 .006 L .068 -.022 L .052 -.034 L -.072 -.034 Z", 0.03, 0, 0.002)
+  k.box("steelDark", 0.002, 0.012, 0.026, 0.0152, -0.014, -0.032, 0, 0, 0, 0)          // loading gate
+  for (const z of [-0.05, 0.03]) k.peg("steelLight", 0.0026, 0.032, 0, -0.012, z, "x")
+  k.side("steel", "M .048 .006 L .056 .008 Q .066 .012 .07 .019 L .065 .021 Q .06 .014 .048 .013 Z", 0.006, 0, 0.0005) // hammer (below the sight line)
+  barrel(k, -0.072, -0.52, 0.0095)
+  k.cyl("steel", 0.0085, 0.39, 0, -0.0195, -0.27, 14); k.cyl("steel", 0.0095, 0.01, 0, -0.0195, -0.462, 14)
+  for (const z of [-0.29, -0.455]) k.lathe("steelLight", [0.011, z + 0.005, 0.0122, z + 0.004, 0.0122, z - 0.004, 0.011, z - 0.005], 0, -0.008, 0, 16)
+  k.side("wood", "M -.074 .002 L -.27 .002 Q -.282 .0 -.282 -.012 L -.28 -.03 Q -.276 -.036 -.266 -.036 L -.074 -.036 Z", 0.034, 0, 0.003)
+  // sights: blade with a brass bead, buckhorn rear on the barrel
+  k.side("steel", "M -.508 .009 L -.508 .024 L -.498 .024 L -.49 .009 Z", 0.003, 0, 0.0004); k.sphere("brass", 0.0016, 0, 0.0255, -0.503, 1, 1, 1, 8)
+  const rs = b.part("ironRear", "body", [0, 0.0095, -0.17])
+  rs.box("steel", 0.016, 0.004, 0.01, 0, 0.0105, -0.17, 0, 0, 0, 0.001)
+  rs.front("steel", "M -.014 .012 L -.006 .012 L -.003 .0255 L .003 .0255 L .006 .012 L .014 .012 L .014 .03 Q .006 .024 .003 .0265 L -.003 .0265 Q -.006 .024 -.014 .03 Z", 0.0025, -0.17, 0.0003)
+  b.ironY = 0.0255; b.ironZ = -0.17; b.irons = "hide"
+  b.mark("front", "body", 0, 0.0255, -0.503); b.mark("rear", "ironRear", 0, 0.0255, -0.17)
+  if (b.has("optic")) rail(k, -0.06, 0.044, 0, 0.019, "steel")
+  // straight wooden stock with a steel crescent butt plate
+  k.side("wood", "M .062 .004 L .12 -.02 L .4 -.034 Q .41 -.034 .412 -.044 L .414 -.142 Q .41 -.152 .4 -.152 L .37 -.148 Q .26 -.108 .16 -.08 Q .12 -.07 .1 -.062 L .068 -.036 Z", 0.04, 0, 0.004)
+  k.side("steel", "M .41 -.032 Q .424 -.08 .414 -.152 L .404 -.152 Q .412 -.08 .4 -.034 Z", 0.042, 0, 0.001)
+  k.side("steel", "M -.02 -.034 L .004 -.034 L .002 -.046 L -.012 -.046 Z", 0.004, 0, 0.0004)   // trigger
+  // finger lever around the trigger, pivoting under the front of the receiver
+  const lv = b.part("lever", "body", [0, -0.032, -0.05])
+  lv.side("steel", "M -.058 -.03 L .05 -.034 Q .066 -.036 .07 -.044 L .1 -.05 Q .112 -.058 .104 -.07 Q .09 -.082 .06 -.074 L .04 -.062 Q .02 -.044 -.058 -.04 Z", 0.009, 0, 0.0008,
+    ["M .052 -.048 Q .068 -.044 .092 -.054 Q .098 -.062 .088 -.068 Q .068 -.072 .052 -.062 Z"])
+  const g: [number, number, number] = [0, -0.066, 0.108]
+  b.anchor("grip", "lever", g, wristFrame(1.05), holdGrip(0.016, 0.021, { wrist: wristBelow(1.05) }))
+  b.anchor("support", "body", [0, -0.016, -0.2], underFrame(), { rx: 0.019, rz: 0.022, thumb: "along" })
+  b.anchor("load", "body", [0.017, -0.014, -0.03], underFrame(), { rx: 0.009, rz: 0.009, thumb: "wrap" })
+  b.loadDir.set(-0.35, 0.1, -1).normalize()
+  const dev = b.has("muzzle")
+  b.setEject(0.0, 0.022, -0.01); b.setMuzzle(-0.52)
+  b.mount = { optic: { z: -0.008, y: 0.0275 }, muzzle: { z: -0.52, r: 0.0095 }, tac: { z: -0.235, y: -0.016, x: 0.019, rail: true } }
+  void dev
+  b.spec = { cls: "rifle", action: "lever", casing: "44", kick: 1.5, flash: 1.1, charge: "none", hip: [0.11, -0.082, -0.31, 0.02, 0.05, -0.02], eyeIron: 0.47 }
+}
+
+/** K98: long wooden stock with a top handguard, barrel bands, hooded front post, tangent rear sight, turned-down bolt. */
+function buildK98(b: Build): void {
+  const k = b.body
+  k.cyl("steel", 0.0158, 0.17, 0, 0.003, 0.015, 20)
+  k.box("steelDark", 0.003, 0.014, 0.05, 0.0152, 0.008, 0.03, 0, 0, 0, 0)
+  barrel(k, -0.07, -0.6, 0.0098)
+  // stock: fore-end to the upper band, semi-pistol wrist, butt with a steel plate; handguard on top of the barrel
+  k.side("wood", "M -.44 -.004 L -.07 -.006 L .1 -.008 L .14 -.014 L .4 -.026 Q .41 -.026 .41 -.036 L .41 -.134 Q .408 -.142 .398 -.142 L .37 -.14 Q .28 -.104 .2 -.084 Q .16 -.09 .13 -.074 Q .11 -.06 .08 -.05 L -.02 -.048 L -.044 -.06 L -.08 -.06 L -.09 -.042 L -.44 -.03 Q -.452 -.028 -.452 -.018 Z", 0.042, 0, 0.004)
+  k.side("steel", "M .408 -.024 L .414 -.03 L .414 -.14 L .408 -.144 Z", 0.044, 0, 0.0008)
+  k.side("wood", "M -.07 .006 L -.3 .006 Q -.304 .014 -.296 .016 L -.07 .016 Z", 0.022, 0, 0.003)
+  for (const z of [-0.31, -0.43]) k.lathe("steel", [0.0225, z + 0.007, 0.024, z + 0.006, 0.024, z - 0.006, 0.0225, z - 0.007], 0, -0.012, 0, 16)
+  k.lathe("steel", [0.0112, -0.445, 0.0125, -0.448, 0.0125, -0.47, 0.0112, -0.472], 0, 0, 0, 14)
+  for (let i = 0; i < 2; i++) k.peg("steel", 0.0016, 0.05, 0, -0.04, -0.43 + i * 0.0, "x")
+  // front sight hood + post, tangent rear sight on the barrel
+  k.lathe("steel", [0.0085, -0.578, 0.0095, -0.578, 0.0095, -0.598, 0.0085, -0.598], 0, 0.02, 0, 16)
+  k.box("steel", 0.012, 0.01, 0.018, 0, 0.0135, -0.588, 0, 0, 0, 0.002)
+  k.box("steel", 0.0025, 0.012, 0.003, 0, 0.025, -0.588, 0, 0, 0, 0)
+  const rs = b.part("ironRear", "body", [0, 0.013, -0.04])
+  rs.box("steel", 0.022, 0.008, 0.05, 0, 0.016, -0.05, 0, 0, 0, 0.002)
+  rs.front("steel", "M -.012 .021 L -.002 .021 L .0 .031 L .002 .021 L .012 .021 L .012 .034 L -.012 .034 Z", 0.003, -0.025, 0.0003)
+  b.ironY = 0.031; b.ironZ = -0.025; b.irons = "hide"
+  b.mark("front", "body", 0, 0.031, -0.588); b.mark("rear", "ironRear", 0, 0.031, -0.025)
+  if (b.has("optic")) { rail(k, -0.07, -0.0, 0, 0.0185, "steel"); rail(k, 0.06, 0.1, 0, 0.0185, "steel"); k.box("steel", 0.02, 0.012, 0.18, 0, 0.022, 0.015, 0, 0, 0, 0.002) }
+  // trigger guard + floor plate (internal 5-round magazine)
+  triggerGuard(k, "steel", -0.016, 0.05, -0.048, 0.026, 0.011)
+  k.box("steel", 0.022, 0.004, 0.09, 0, -0.062, -0.04, 0, 0, 0, 0.001)
+  // bolt with a turned-down handle (rotates up and slides back)
+  const bo = b.part("bolt", "body", [0, 0, 0])
+  bo.cyl("steelLight", 0.0118, 0.15, 0, 0.003, 0.03, 18); bo.cyl("steel", 0.0148, 0.026, 0, 0.003, 0.118, 18)
+  bo.box("steel", 0.004, 0.012, 0.016, 0, 0.018, 0.122, 0, 0, 0, 0.001)
+  bo.box("steelLight", 0.046, 0.007, 0.007, 0.028, -0.012, 0.094, 0, 0, -0.6, 0.002)
+  bo.sphere("steelLight", 0.0105, 0.05, -0.028, 0.094, 1, 1, 1, 14)
+  const g: [number, number, number] = [0, -0.072, 0.135]
+  b.anchor("grip", "body", g, wristFrame(0.8), holdGrip(0.016, 0.021, { wrist: wristBelow(0.8) }))
+  b.anchor("support", "body", [0, -0.02, -0.26], underFrame(), { rx: 0.022, rz: 0.024, thumb: "along" })
+  b.anchor("boltKnob", "bolt", [0.05, -0.026, 0.094], frame([0, 1, 0], [-1, 0, 0]), { rx: 0.0105, rz: 0.0105, thumb: "wrap" })
+  b.anchor("load", "body", [0, 0.032, 0.035], overFrame(), { rx: 0.0075, rz: 0.0075, thumb: "wrap" })
+  b.loadDir.set(0, -1, 0)
+  b.setEject(0.02, 0.008, 0.02); b.setMuzzle(-0.6)
+  b.mount = { optic: { z: 0.015, y: 0.028 }, muzzle: { z: -0.6, r: 0.0098 }, tac: { z: -0.37, y: -0.018, x: 0.022, rail: true } }
+  b.spec = { cls: "sniper", action: "bolt", casing: "762", kick: 1.9, flash: 1.3, charge: "none", hip: [0.11, -0.095, -0.31, 0.02, 0.05, -0.02], eyeIron: 0.3 }
+}
+
+/** DB-12: shortened side-by-side — barrels with rib and bead tip down on the hinge to open, two triggers, wooden stock. */
+function buildDb12(b: Build): void {
+  const k = b.body
+  // action body with engraved side lines, top lever, tang safety
+  k.side("steelLight", "M -.08 .012 L .03 .014 Q .046 .014 .05 .004 L .052 -.03 L .036 -.04 L -.08 -.04 Z", 0.044, 0, 0.003)
+  for (const sx of [-1, 1]) { k.box("steelDark", 0.001, 0.0015, 0.06, sx * 0.0222, -0.006, -0.03, 0, 0, 0, 0); k.box("steelDark", 0.001, 0.0015, 0.05, sx * 0.0222, -0.022, -0.035, 0, 0, 0, 0) }
+  k.box("steel", 0.012, 0.005, 0.03, 0.004, 0.0115, 0.035, 0, -0.35, 0, 0.002)
+  k.box("steel", 0.008, 0.004, 0.012, 0, 0.011, 0.052, 0, 0, 0, 0.001)
+  triggerGuard(k, "steel", -0.012, 0.05, -0.04, 0.028, 0.011)
+  k.side("steel", "M .014 -.04 L .018 -.04 Q .02 -.052 .012 -.062 L .009 -.06 Q .014 -.05 .014 -.04 Z", 0.004, 0, 0.0004)
+  // straight-hand stock
+  k.side("wood", "M .05 .006 L .13 -.022 L .36 -.036 Q .372 -.036 .372 -.048 L .372 -.142 Q .37 -.15 .36 -.15 L .33 -.146 Q .24 -.112 .15 -.086 Q .11 -.072 .086 -.06 L .052 -.036 Z", 0.042, 0, 0.004)
+  buttPad(k, 0.372, -0.034, -0.148, 0.042)
+  // barrels (part, opens around the hinge pin under the breech)
+  const br = b.part("barrels", "body", [0, -0.026, -0.078])
+  for (const sx of [-1, 1]) { br.cyl("steel", 0.0118, 0.33, sx * 0.0118, 0, -0.243, 18); br.disc("dark", 0.0092, sx * 0.0118, 0, -0.4085); br.disc("brass", 0.0098, sx * 0.0118, 0, -0.0785, false) }
+  br.box("steel", 0.014, 0.006, 0.33, 0, 0.0122, -0.243, 0, 0, 0, 0.001)
+  br.box("steel", 0.008, 0.006, 0.31, 0, -0.012, -0.25, 0, 0, 0, 0.001)
+  br.sphere("brass", 0.0022, 0, 0.0165, -0.4, 1, 1, 1, 8)
+  br.box("steel", 0.044, 0.022, 0.03, 0, -0.008, -0.092, 0, 0, 0, 0.003)
+  br.peg("steelDark", 0.005, 0.046, 0, -0.026, -0.078, "x")
+  br.side("wood", "M -.11 -.018 L -.26 -.018 Q -.27 -.02 -.27 -.03 L -.266 -.04 Q -.26 -.044 -.25 -.044 L -.11 -.044 Q -.102 -.04 -.104 -.03 Z", 0.042, 0, 0.004)
+  b.ironY = 0.0165; b.ironZ = -0.085; b.irons = "none"
+  b.mark("front", "barrels", 0, 0.0165, -0.4); b.mark("rear", "barrels", 0, 0.0165, -0.085)
+  b.anchor("grip", "body", [0, -0.066, 0.118], wristFrame(0.9), holdGrip(0.016, 0.021, { wrist: wristBelow(0.9) }))
+  b.anchor("support", "barrels", [0, -0.044, -0.18], underFrame(), { rx: 0.021, rz: 0.024, thumb: "along" })
+  b.anchor("load", "barrels", [0.0118, 0, -0.07], underFrame(), { rx: 0.0118, rz: 0.0118, thumb: "wrap" })
+  b.loadDir.set(0, 0, -1)
+  b.setEject(0, 0.004, -0.07, "barrels"); b.setMuzzle(-0.41, "barrels")
+  b.mount = { tac: { z: -0.02, y: -0.014, x: 0.022, rail: true } }
+  b.spec = { cls: "shotgun", action: "break", casing: "shell", kick: 2.1, flash: 1.7, charge: "none", hip: [0.11, -0.075, -0.32, 0.02, 0.05, -0.03], eyeIron: 0.3 }
+}
+
+/** Crossbow: polymer stock with a flight rail, recurve limbs with cams, string (cocked or loosed), the bolt on the rail. */
+function buildXbow(b: Build): void {
+  const k = b.body
+  k.side("polymer", "M -.36 .004 L -.02 .006 L .04 .02 L .14 .02 L .16 .014 L .4 -.006 Q .41 -.006 .41 -.016 L .41 -.11 Q .408 -.12 .398 -.12 L .37 -.118 Q .27 -.08 .17 -.07 L .12 -.07 L .1 -.04 L .02 -.034 L -.36 -.022 Q -.368 -.02 -.368 -.01 Z", 0.04, 0, 0.004,
+    ["M .15 -.012 L .2 -.012 L .19 -.048 L .16 -.052 Z"])
+  buttPad(k, 0.41, -0.006, -0.118, 0.04)
+  k.box("alu", 0.022, 0.01, 0.4, 0, 0.011, -0.2, 0, 0, 0, 0.002)               // flight rail
+  k.box("dark", 0.004, 0.002, 0.38, 0, 0.0162, -0.2, 0, 0, 0, 0)
+  // riser, foot stirrup, limbs with cams
+  k.box("alu", 0.07, 0.03, 0.04, 0, 0.004, -0.39, 0, 0, 0, 0.006)
+  k.side("alu", "M -.41 -.01 L -.47 -.02 Q -.5 -.03 -.5 -.06 Q -.49 -.08 -.47 -.07 L -.43 -.04 L -.41 -.03 Z", 0.06, 0, 0.003, ["M -.43 -.035 L -.465 -.03 Q -.482 -.042 -.476 -.055 Z"])
+  const tips: [number, number, number][] = []
+  for (const sx of [-1, 1]) {
+    let px = sx * 0.034, pz = -0.395
+    for (let i = 0; i < 5; i++) {
+      const a = 0.25 + i * 0.13, nx = px + sx * 0.052 * Math.cos(a), nz = pz + 0.052 * Math.sin(a) * 0.55
+      k.box("polymer", Math.hypot(nx - px, nz - pz) + 0.004, 0.012 - i * 0.0012, 0.022 - i * 0.002, (px + nx) / 2, 0.004, (pz + nz) / 2, 0, -Math.atan2(nz - pz, nx - px), 0, 0.002)
+      px = nx; pz = nz
+    }
+    k.peg("alu", 0.011, 0.012, px, 0.004, pz, "y", 14); k.peg("steelDark", 0.004, 0.016, px, 0.004, pz, "y", 8)
+    tips.push([px, 0.004, pz])
+  }
+  // string: cocked (drawn back to the latch) and loosed (straight between the cams)
+  const sc = b.part("stringSet"), sl = b.part("stringRest")
+  for (const t of tips) stick(sc, "rubber", t, [0, 0.016, -0.02], 0.0016, 5)
+  stick(sl, "rubber", tips[0], tips[1], 0.0016, 5)
+  k.box("polymer", 0.026, 0.016, 0.04, 0, 0.022, 0.0, 0, 0, 0, 0.003)            // latch housing
+  // the bolt on the rail: shaft, broadhead, three vanes, nock
+  const ar = b.part("arrow")
+  ar.cyl("polymer", 0.0042, 0.4, 0, 0.0205, -0.22, 10)
+  ar.lathe("steelLight", [0.0045, -0.42, 0.009, -0.43, 0.0, -0.46], 0, 0.0205, 0, 10)
+  for (const a of [Math.PI / 2, Math.PI / 2 + 2.1, Math.PI / 2 - 2.1]) ar.box("paintRed", 0.0008, 0.012, 0.06, Math.cos(a) * 0.009, 0.0205 + Math.sin(a) * 0.009, -0.06, 0, 0, a - Math.PI / 2, 0)
+  ar.cyl("yellow", 0.0045, 0.012, 0, 0.0205, -0.026, 10)
+  // trigger group, sights (tall front post on the riser, peep on the latch), optic rail
+  triggerGuard(k, "polymer", 0.07, 0.12, -0.03, 0.028, 0.012)
+  const g = pistolGrip(k, "polymer", 0.15, -0.03, 0.3, 0.09, 0.034, 0.028)
+  k.box("polymer", 0.008, 0.04, 0.008, 0, 0.034, -0.385, 0, 0, 0, 0.002); k.sphere("glowGreen", 0.0016, 0, 0.0545, -0.385, 1, 1, 0.5, 8)
+  const rs = b.part("ironRear", "body", [0, 0.03, 0.06])
+  rs.box("polymer", 0.02, 0.016, 0.02, 0, 0.038, 0.06, 0, 0, 0, 0.002); rs.ring("polymer", 0.006, 0.0018, 0, 0.0545, 0.06, 20)
+  b.ironY = 0.0545; b.ironZ = 0.06; b.irons = "hide"
+  b.mark("front", "body", 0, 0.0545, -0.385); b.mark("rear", "ironRear", 0, 0.0545, 0.06)
+  if (b.has("optic")) { k.box("polymer", 0.024, 0.014, 0.12, 0, 0.033, 0.075, 0, 0, 0, 0.003); rail(k, 0.02, 0.13, 0, 0.04, "alu") }
+  b.anchor("grip", "body", g, gripFrame(0.3), holdGrip(0.015, 0.018))
+  b.anchor("support", "body", [0, -0.03, -0.24], underFrame(), { rx: 0.024, rz: 0.03, thumb: "along" })
+  b.anchor("load", "body", [0, 0.034, -0.16], overFrame(), { rx: 0.006, rz: 0.006, thumb: "wrap" })
+  b.loadDir.set(0, -1, 0)
+  b.setEject(0, 0.02, 0); b.setMuzzle(-0.46)
+  b.mount = { optic: { z: 0.075, y: 0.0485 }, tac: { z: -0.3, y: -0.014, x: 0.02, rail: true } }
+  b.spec = { cls: "rifle", action: "bow", casing: "none", kick: 0.5, flash: 0, charge: "none", hip: [0.105, -0.085, -0.3, 0.02, 0.05, -0.02], eyeIron: 0.13 }
+}
+
+/** Folding spade: pointed steel blade with a centre ridge (edge leads in a chop), socket and straps, wooden shaft, D-grip. */
+function buildSpade(b: Build): void {
+  const k = b.body
+  k.at(scale(0.8, 1, 1), () => k.lathe("woodLight", [0, 0.115, 0.016, 0.115, 0.0165, 0.06, 0.0155, -0.2, 0.0165, -0.4, 0.014, -0.405], 0, 0, 0, 14))
+  k.side("steelDark", "M .11 .012 L .2 .03 Q .22 .034 .222 .014 L .222 -.014 Q .22 -.034 .2 -.03 L .11 -.012 Z", 0.016, 0, 0.002, ["M .13 .006 L .198 .02 L .204 .016 L .204 -.016 L .198 -.02 L .13 -.006 Z"])
+  k.cyl("steel", 0.019, 0.07, 0, 0, -0.43, 12, 0.017)
+  for (const sy of [-1, 1]) k.box("steel", 0.006, 0.004, 0.14, 0, sy * 0.016, -0.35, 0, 0, 0, 0.001)
+  k.peg("steelDark", 0.007, 0.042, 0, 0, -0.44, "x")
+  k.side("steel", "M -.46 .07 L -.6 .074 Q -.64 .06 -.665 .0 Q -.64 -.06 -.6 -.074 L -.46 -.07 Q -.452 -.06 -.452 0 Q -.452 .06 -.46 .07 Z", 0.003, 0, 0.0006)
+  k.side("bladeEdge", "M -.6 .074 Q -.64 .06 -.665 .0 Q -.64 -.06 -.6 -.074 L -.598 -.066 Q -.632 -.054 -.654 0 Q -.632 .054 -.598 .066 Z", 0.0034, 0, 0.0003)
+  k.side("steel", "M -.46 .006 L -.62 .004 L -.63 0 L -.62 -.004 L -.46 -.006 Z", 0.009, 0, 0.001)
+  k.sphere("shellRed", 0.02, 0.002, 0.03, -0.6, 0.2, 1.2, 1.6, 10)
+  b.anchor("grip", "body", [0, 0, 0.045], bladeGrip(), { rx: 0.0132, rz: 0.0165, wrist: [0.022, -0.04, 0.06] })
+  b.anchor("tip", "body", [0, 0, -0.66], new THREE.Quaternion(), { rx: 0.01, rz: 0.01 })
+  b.spec = MELEE_SPEC; b.irons = "none"
+}
+
+/** Pickaxe: long hickory haft, curved steel head — the spike strikes (down), a chisel end up, eye boss with a wedge. */
+function buildPickaxe(b: Build): void {
+  const k = b.body
+  k.at(scale(0.74, 1, 1), () => k.lathe("woodLight", [0, 0.11, 0.019, 0.11, 0.021, 0.094, 0.0175, 0.06, 0.0162, -0.3, 0.0176, -0.62, 0.0195, -0.7, 0.017, -0.74], 0, 0, 0, 14))
+  k.box("steel", 0.03, 0.06, 0.05, 0, 0.0, -0.705, 0, 0, 0, 0.006)
+  k.side("steel", "M -.69 -.025 Q -.68 -.12 -.7 -.24 L -.706 -.252 L -.712 -.24 Q -.728 -.12 -.722 -.025 Z", 0.022, 0, 0.0018)
+  k.side("steel", "M -.69 .025 Q -.684 .1 -.672 .18 L -.738 .182 Q -.726 .1 -.72 .025 Z", 0.024, 0, 0.0018)
+  k.side("bladeEdge", "M -.672 .18 L -.738 .182 L -.737 .175 L -.673 .173 Z", 0.025, 0, 0.0004)
+  k.box("woodLight", 0.012, 0.012, 0.01, 0, 0.0, -0.705, 0, 0, 0, 0.001)
+  k.box("steelDark", 0.003, 0.016, 0.03, 0, 0.032, -0.705, 0, 0, 0, 0)
+  k.sphere("shellRed", 0.016, 0.006, -0.2, -0.706, 0.8, 1.6, 0.8, 10)
+  b.anchor("grip", "body", [0, 0, 0.05], bladeGrip(), { rx: 0.0125, rz: 0.017, wrist: [0.022, -0.04, 0.06] })
+  b.anchor("tip", "body", [0, -0.25, -0.706], new THREE.Quaternion(), { rx: 0.01, rz: 0.01 })
+  b.spec = MELEE_SPEC; b.irons = "none"
+}
+
 // ───────────────────────────── hand-held items ─────────────────────────────
 
 export interface HandItem {
@@ -1523,6 +1897,7 @@ const BUILDERS: Partial<Record<WeaponId, (b: Build) => void>> = {
   knife: buildKnife, machete: buildMachete, axe: buildAxe, p9: buildP9, r44: buildR44, vx9: buildVx9, k5: buildK5, mk4: buildMk4, sr74: buildSr74, br10: buildBr10,
   kv12: buildKv12, sg8: buildSg8, dr7: buildDr7, falke: buildFalke, lm60: buildLm60,
   crowbar: buildCrowbar, bat: buildBat, katana: buildKatana, sledge: buildSledge, p18: buildP18, de50: buildDe50, v45: buildV45, stg77: buildStg77, as12: buildAs12,
+  spade: buildSpade, pickaxe: buildPickaxe, km45: buildKm45, u45: buildU45, ar36: buildAr36, uh44: buildUh44, k98: buildK98, db12: buildDb12, xbow: buildXbow,
 }
 
 // ───────────────────────────── attachments ─────────────────────────────
@@ -1572,6 +1947,30 @@ function mountOptic(b: Build, att: AttachmentId): void {
     reticlePrism(ret, 0, cy, z + 0.0505)
     b.mark("reticle", "optic", 0, cy, z + 0.0505); b.mark("objective", "optic", 0, cy, z - 0.0705)
     b.sightY = cy; b.sightZ = z + 0.052; b.eye = 0.08; b.sight = "prism"
+  } else if (att === "att_minired") {
+    // slim open reflex sight (pistol/SMG): low base, angled hood around the window, one button
+    const cy = y + (pistol ? 0.0145 : 0.024)
+    k.box("alu", 0.02, 0.006, 0.03, 0, y + 0.003, z, 0, 0, 0, 0.0015)
+    if (!pistol) k.box("alu", 0.016, cy - y - 0.016, 0.026, 0, (y + cy - 0.01) / 2 + 0.003, z, 0, 0, 0, 0.002)
+    const hood = "M -.0115 -.0085 L .0115 -.0085 L .0115 .006 Q .01 .0115 .006 .0115 L -.006 .0115 Q -.01 .0115 -.0115 .006 Z", win = "M -.0092 -.006 L .0092 -.006 L .0092 .0085 L -.0092 .0085 Z"
+    k.at(new THREE.Matrix4().makeTranslation(0, cy, 0), () => { k.front("alu", hood, 0.03, z, 0.0008, [win]); k.front("glass", win, 0.0006, z - 0.012, 0) })
+    k.box("rubber", 0.004, 0.004, 0.006, 0.012, cy - 0.004, z + 0.006, 0, 0, 0, 0.001)
+    reticleDot(ret, 0, cy, z - 0.011, 0.0008)
+    b.mark("reticle", "optic", 0, cy, z - 0.011); b.mark("opticRear", "optic", 0, cy, z + 0.015)
+    b.sightY = cy; b.sightZ = z + 0.015; b.eye = pistol ? 0.32 : 0.2; b.sight = "reddot"
+  } else if (att === "att_scope6x") {
+    // long riflescope on a one-piece cantilever mount: big objective bell, turrets, side parallax knob
+    const cy = y + 0.014 + 0.0215
+    k.box("alu", 0.026, 0.012, 0.11, 0, y + 0.006, z, 0, 0, 0, 0.002)
+    for (const dz of [0.035, -0.04]) { k.box("alu", 0.018, cy - y - 0.012, 0.016, 0, (y + 0.012 + cy) / 2 - 0.004, z + dz, 0, 0, 0, 0.002); k.lathe("alu", [0.016, z + dz + 0.008, 0.0195, z + dz + 0.008, 0.0195, z + dz - 0.008, 0.016, z + dz - 0.008], 0, cy, 0, 20); k.peg("alu", 0.0045, 0.012, 0.016, y + 0.005, z + dz, "x") }
+    k.lathe("alu", [0.0155, z + 0.11, 0.019, z + 0.11, 0.0195, z + 0.104, 0.0186, z + 0.07, 0.0158, z + 0.055, 0.0158, z - 0.06, 0.0265, z - 0.1, 0.0265, z - 0.13, 0.0236, z - 0.13, 0.0158, z - 0.09, 0.0155, z + 0.104, 0.0155, z + 0.11], 0, cy, 0, 26)
+    for (let i = 0; i < 4; i++) k.cyl("steelDark", 0.0196, 0.0018, 0, cy, z + 0.085 + i * 0.004, 24)
+    k.peg("alu", 0.012, 0.016, 0, cy + 0.022, z - 0.005, "y", 18); k.peg("steelDark", 0.0125, 0.004, 0, cy + 0.029, z - 0.005, "y", 18)
+    k.peg("alu", 0.012, 0.016, 0.022, cy, z - 0.005, "x", 18); k.peg("alu", 0.0085, 0.014, -0.02, cy, z - 0.005, "x", 16)
+    k.disc("lens", 0.0236, 0, cy, z - 0.1295); k.disc("glass", 0.0152, 0, cy, z + 0.1095, false)
+    reticleScope(ret, 0, cy, z + 0.108)
+    b.mark("reticle", "optic", 0, cy, z + 0.108); b.mark("objective", "optic", 0, cy, z - 0.1295)
+    b.sightY = cy; b.sightZ = z + 0.11; b.eye = 0.075; b.sight = "scope"
   } else if (att === "att_scope4x") {
     const cy = y + 0.012 + 0.0185
     k.box("alu", 0.026, 0.012, 0.072, 0, y + 0.006, z, 0, 0, 0, 0.002)
@@ -1645,6 +2044,22 @@ function mountMuzzle(b: Build, att: AttachmentId): void {
     for (let i = 0; i < 3; i++) for (const a of [Math.PI / 2, Math.PI / 4, 3 * Math.PI / 4]) k.box("steelDark", 0.0035, 0.004, 0.0062, Math.cos(a) * r * 0.96, Math.sin(a) * r * 0.96, z - len * 0.25 - i * len * 0.24, 0, 0, a - Math.PI / 2, 0)
     k.disc("dark", r * 0.5, 0, 0, z - len - 0.0012)
     b.setMuzzle(z - len, mm.part ?? "body"); b.brake = true
+  } else if (att === "att_bigsup") {
+    // heavy can: thick tube with a front cap, wrench flats, heat sleeve rings
+    const r = cls === "sniper" ? 0.026 : cls === "lmg" ? 0.024 : 0.0225, len = cls === "sniper" ? 0.27 : 0.23
+    k.cyl("steel", mm.r * 1.2, 0.012, 0, 0, z - 0.006, 12)
+    k.lathe("steelDark", [r * 0.8, z - 0.01, r + 0.0015, z - 0.018, r + 0.0015, z - len + 0.022, r * 0.92, z - len + 0.004, r * 0.45, z - len - 0.0006], 0, 0, 0, 24)
+    for (let i = 0; i < 9; i++) k.cyl("polymer", r + 0.0022, 0.004, 0, 0, z - 0.04 - i * 0.017, 24)
+    for (const sx of [-1, 1]) k.box("steelDark", 0.002, r * 0.9, 0.012, sx * (r + 0.0006), 0, z - 0.024, 0, 0, 0, 0)
+    k.disc("dark", Math.max(0.0045, mm.r * 0.62), 0, 0, z - len - 0.0009)
+    b.setMuzzle(z - len, mm.part ?? "body"); b.suppressed = true
+  } else if (att === "att_flash") {
+    // three-prong flash hider
+    const r = cls === "smg" ? 0.0102 : 0.0118, len = cls === "smg" ? 0.038 : 0.05
+    k.lathe("steel", [mm.r * 1.02, z, r, z - 0.004, r, z - len * 0.35, r * 0.94, z - len * 0.4], 0, 0, 0, 16)
+    for (let i = 0; i < 3; i++) { const a = i * 2 * Math.PI / 3 + Math.PI / 2; k.box("steel", 0.006, 0.0042, len * 0.62, Math.cos(a) * r * 0.82, Math.sin(a) * r * 0.82, z - len * 0.69, 0, 0, a - Math.PI / 2, 0.001) }
+    k.disc("dark", r * 0.55, 0, 0, z - len * 0.4 - 0.0005)
+    b.setMuzzle(z - len, mm.part ?? "body"); b.hider = true
   } else if (att === "att_brake") {
     // two-chamber brake with large side ports and a top vent
     const r = cls === "shotgun" ? 0.0172 : cls === "sniper" ? 0.0165 : cls === "lmg" ? 0.0158 : 0.0138, len = cls === "sniper" ? 0.088 : 0.068
@@ -1668,6 +2083,10 @@ function mountGrip(b: Build, att: AttachmentId): void {
   } else if (att === "att_agrip") {
     k.side("polymer", `M ${z + 0.03} ${yb} L ${z - 0.048} ${yb} L ${z - 0.05} ${yb - 0.012} Q ${z - 0.048} ${yb - 0.02} ${z - 0.038} ${yb - 0.021} L ${z + 0.018} ${yb - 0.034} Q ${z + 0.032} ${yb - 0.036} ${z + 0.034} ${yb - 0.026} Z`, 0.03, 0, 0.003)
     b.anchor("support", "body", [0, yb - 0.004, z + 0.044], underFrame(0.15), { rx: 0.036, rz: 0.026, thumb: "along" })
+  } else if (att === "att_hstop") {
+    // low hand stop: a short ramp at the front of the support hand
+    k.side("polymer", `M ${z + 0.012} ${yb} L ${z - 0.03} ${yb} L ${z - 0.032} ${yb - 0.004} Q ${z - 0.03} ${yb - 0.018} ${z - 0.022} ${yb - 0.019} L ${z - 0.014} ${yb - 0.012} Q ${z} ${yb - 0.006} ${z + 0.012} ${yb - 0.004} Z`, 0.024, 0, 0.002)
+    b.anchor("support", "body", [0, yb - 0.002, z + 0.04], underFrame(0.08), { rx: 0.028, rz: 0.026, thumb: "along" })
   } else if (att === "att_bipod") {
     // clamp under the front of the rail, legs folded forward along the barrel (the hand stays on the handguard)
     const zc = z - 0.03
@@ -1702,6 +2121,22 @@ function mountTac(b: Build, att: AttachmentId): void {
       lx = x0 + 0.017; ly = t.y; lz = t.z - 0.0555
     }
     const lamp = new THREE.Mesh(new THREE.CircleGeometry(0.0098, 18).rotateY(Math.PI), lampMat); lamp.position.set(lx, ly, lz); b.root.add(lamp); b.lamp = lamp
+    void mats
+    return
+  }
+  if (att === "att_irlaser") {
+    // compact IR aiming laser: tan box with a dark emitter and an armoured activation cap, nothing visible to the eye
+    if (t.under) {
+      k.box("tan", 0.024, 0.018, 0.044, t.x, t.y - 0.011, t.z, 0, 0, 0, 0.003)
+      k.cyl("dark", 0.0055, 0.006, t.x + 0.005, t.y - 0.012, t.z - 0.024, 12); k.cyl("lens", 0.0045, 0.002, t.x - 0.006, t.y - 0.012, t.z - 0.024, 12)
+    } else {
+      if (t.rail) rail(k, t.z + 0.026, t.z - 0.026, t.x, t.y, "alu", "right")
+      const x0 = t.x + (t.rail ? 0.0085 : 0)
+      k.box("alu", 0.008, 0.016, 0.022, x0 + 0.004, t.y, t.z, 0, 0, 0, 0.002)
+      k.box("tan", 0.02, 0.022, 0.05, x0 + 0.018, t.y, t.z - 0.004, 0, 0, 0, 0.003)
+      k.cyl("dark", 0.0055, 0.008, x0 + 0.018, t.y + 0.004, t.z - 0.032, 12); k.cyl("lens", 0.0042, 0.002, x0 + 0.018, t.y - 0.006, t.z - 0.031, 12)
+      k.box("polymer", 0.01, 0.006, 0.012, x0 + 0.018, t.y + 0.013, t.z + 0.012, 0, 0, 0, 0.002)
+    }
     void mats
     return
   }
@@ -1743,11 +2178,34 @@ export function buildWeaponRig(id: WeaponId, mods: WeaponMods = {}, kind: "vm" |
     else if (b.irons === "hide" && b.parts.ironRear) b.parts.ironRear.visible = false
   }
   const meshCount = b.finish()
+  if (b.has("mag") === "att_fastmag" && b.parts.mag) coupleMags(b.parts.mag, b.mats)
   return {
     id, mods: { ...mods }, group: b.root, spec: b.spec, parts: b.parts, anchors: b.anchors, sightY: b.sightY, sightZ: b.sightZ, ironY: b.ironY, ironZ: b.ironZ, loadDir: b.loadDir, eye: b.eye, sight: b.sight,
-    muzzle: b.muzzle, eject: b.eject, reticle: b.reticle, laser: b.laser, lamp: b.lamp, magRest: b.magRest, magAxis: b.magAxis, suppressed: b.suppressed, brake: b.brake,
+    muzzle: b.muzzle, eject: b.eject, reticle: b.reticle, laser: b.laser, lamp: b.lamp, magRest: b.magRest, magAxis: b.magAxis, suppressed: b.suppressed, brake: b.brake, hider: b.hider,
     belt: b.belt, marks: b.marks, meshCount,
   }
+}
+
+/** Magazine coupler: a second magazine clamped beside the one in the gun (merged into the same meshes, so it rides
+ *  along during reloads without adding draw calls). */
+function coupleMags(mag: THREE.Object3D, mats: WeaponMaterials): void {
+  const box = new THREE.Box3(), meshes = mag.children.filter((c): c is THREE.Mesh => c instanceof THREE.Mesh)
+  for (const m of meshes) { m.geometry.computeBoundingBox(); box.union(m.geometry.boundingBox!.clone().applyMatrix4(m.matrix)) }
+  if (box.isEmpty()) return
+  const w = box.max.x - box.min.x, dx = w + 0.004, h = box.max.y - box.min.y, d = box.max.z - box.min.z
+  const clamps: THREE.BufferGeometry[] = []
+  for (const f of [0.3, 0.7]) {
+    const g = new THREE.BoxGeometry(w * 2 + 0.01, 0.018, d * 0.7).toNonIndexed(); g.setAttribute("uv", new THREE.BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2))
+    g.translate(box.min.x + dx / 2 + w / 2, box.max.y - h * f, (box.min.z + box.max.z) / 2); paint(g, 1, 0, 0); clamps.push(g)
+  }
+  for (const m of meshes) {
+    const twin = m.geometry.clone().translate(dx, 0, 0), parts = [m.geometry, twin]
+    if (m.material === mats.polymer) parts.push(...clamps.splice(0))
+    const merged = mergeGeometries(parts, false)
+    if (merged) { merged.computeBoundingSphere(); m.geometry.dispose(); m.geometry = merged }
+    twin.dispose()
+  }
+  if (clamps.length) { const g = mergeGeometries(clamps, false)!; g.computeBoundingSphere(); mag.add(new THREE.Mesh(g, mats.polymer)) }
 }
 
 /** World/loot model: real size, origin at the grip, forward -Z (no hands, reticles hidden). */

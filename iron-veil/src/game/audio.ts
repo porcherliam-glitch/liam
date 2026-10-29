@@ -35,6 +35,7 @@ export type SfxId =
   | "ui_click" | "ui_hover" | "ui_buy" | "ui_error" | "build" | "win" | "lose" | "level_up" | "flashlight"
   | "shot_r44" | "shot_k5" | "shot_sr74" | "shot_br10" | "shot_sg8" | "shot_falke" | "shot_lm60"
   | "shot_p18" | "shot_de50" | "shot_v45" | "shot_stg77" | "shot_as12"
+  | "shot_km45" | "shot_u45" | "shot_ar36" | "shot_uh44" | "shot_k98" | "shot_db12" | "shot_xbow" | "lever_cycle"
   | "bolt_cycle" | "revolver_open" | "revolver_close" | "shell_insert" | "lmg_belt"
   | "melee_swing" | "melee_hit_flesh" | "melee_hit_wall"
   | "gore_splat" | "gore_burst" | "bone_crack" | "gib_land" | "blood_drip"
@@ -779,7 +780,37 @@ const DEFS: Record<SfxId, Def> = {
   shot_as12: { ...PGUN, g: 0.92, sup: 0.7, send: 0.55, vary: 0.035, cap: 5, gap: 0.06, make: G({
     crack: [2500, 0.05, 0.9], body: [850, 0.62, 0.42, 1.3], low: [410, 0.48, 1.1], thump: [120, 30, 0.19, 0.48, 1.15],
     sub: [58, 27, 0.6, 0.6], mech: [[0.045, 2000, 0.04, 0.32]], tail: [560, 1.2, 0.58] }) },
+  // ---- phase 4: lever gun, carbine, double barrel, crossbow
+  shot_km45: { ...PGUN, g: 1.35, sup: 0.58, send: 0.4, vary: 0.035, cap: 4, make: G({
+    crack: [3100, 0.035, 0.95], body: [1600, 1.0, 0.2, 1.1], low: [700, 0.18, 0.65], thump: [180, 55, 0.06, 0.18, 0.95],
+    mech: [[0.035, 3300, 0.025, 0.32], [0.07, 2400, 0.03, 0.2]], tail: [1050, 0.5, 0.35] }) },
+  shot_u45: { ...PGUN, g: 1.75, sup: 0.5, send: 0.3, vary: 0.05, cap: 6, gap: 0.04, make: G({
+    crack: [3700, 0.028, 0.72], body: [1600, 1.05, 0.13, 1], low: [680, 0.13, 0.6], thump: [190, 66, 0.045, 0.13, 0.85],
+    mech: [[0.022, 4200, 0.016, 0.3]], tail: [1250, 0.34, 0.3] }) },
+  shot_ar36: { ...PGUN, g: 1.0, sup: 0.63, send: 0.45, vary: 0.03, cap: 6, make: G({
+    crack: [3700, 0.04, 0.85], body: [1200, 0.85, 0.29, 1.12], low: [530, 0.25, 0.8], thump: [158, 46, 0.085, 0.25, 1],
+    mech: [[0.032, 2800, 0.032, 0.3]], tail: [810, 0.72, 0.45] }) },
+  shot_uh44: { ...PGUN, g: 1.08, sup: 0.64, send: 0.6, vary: 0.03, cap: 3, gap: 0.12, make: G({
+    crack: [2900, 0.055, 1], body: [1150, 0.8, 0.34, 1.25], low: [500, 0.34, 1.05], thump: [150, 38, 0.12, 0.36, 1.2],
+    sub: [64, 30, 0.42, 0.5], tail: [820, 1.2, 0.52], echo: [[0.26, 0.15], [0.55, 0.08]] }) },
+  shot_k98: { ...PGUN, g: 1.08, sup: 0.66, send: 0.75, vary: 0.02, cap: 3, gap: 0.2, max: 500, make: G({
+    crack: [2800, 0.075, 1.1], body: [880, 0.72, 0.45, 1.3], low: [400, 0.4, 1.08], thump: [125, 32, 0.15, 0.48, 1.22],
+    sub: [58, 27, 0.65, 0.6], tail: [600, 1.9, 0.58], echo: [[0.3, 0.22], [0.6, 0.14], [0.95, 0.08]] }) },
+  shot_db12: { ...PGUN, g: 0.98, sup: 0.72, send: 0.6, vary: 0.035, cap: 3, gap: 0.05, make: G({
+    crack: [2500, 0.055, 0.95], body: [820, 0.6, 0.45, 1.35], low: [390, 0.5, 1.15], thump: [115, 28, 0.2, 0.5, 1.2],
+    sub: [56, 26, 0.65, 0.65], tail: [540, 1.25, 0.6], echo: [[0.28, 0.14]] }) },
+  shot_xbow: { bus: "sfx", g: 0.95, pri: 3, gap: 0.1, send: 0.1, make: v => {
+    v.noise({ ft: "bandpass", f: 2200, q: 3, a: 0.0005, d: 0.022, g: 0.9, drive: 1 })
+    v.tone({ w: "triangle", f: 196, f2: 150, gl: 0.2, a: 0.001, h: 0.02, d: 0.22, g: 0.45 })
+    v.tone({ w: "sawtooth", f: 98, f2: 76, a: 0.002, d: 0.14, g: 0.16, ft: "lowpass", ff: 700, ff2: 300, q: 1 })
+    v.noise({ ft: "bandpass", f: 900, f2: 350, q: 1.3, at: 0.012, a: 0.015, d: 0.28, g: 0.32 })
+    v.metal({ f: 1700, p: [1, 1.5, 2.3], at: 0.004, d: 0.08, g: 0.05 }) } },
   // ---- weapon mechanics
+  lever_cycle: { bus: "sfx", g: 0.4, pri: 2, gap: 0.15, send: 0.12, make: v => {
+    v.noise({ ft: "bandpass", f: 2400, q: 3, a: 0.0006, d: 0.03, g: 0.85, drive: 1 }); v.metal({ f: 2600, p: [1, 1.6], at: 0.005, d: 0.08, g: 0.05 })
+    v.noise({ ft: "bandpass", f: 1400, f2: 2200, q: 1.8, at: 0.04, a: 0.012, d: 0.07, g: 0.45 })
+    v.noise({ ft: "bandpass", f: 1900, q: 2.6, at: 0.17, a: 0.0006, d: 0.04, g: 1, drive: 1 }); v.tone({ f: 210, f2: 110, at: 0.17, d: 0.07, g: 0.35, rv: false })
+    v.metal({ f: 2900, p: [1, 1.7], at: 0.19, d: 0.1, g: 0.04 }) } },
   bolt_cycle: { bus: "sfx", g: 0.35, pri: 2, gap: 0.2, send: 0.12, make: v => {
     v.noise({ ft: "bandpass", f: 2800, q: 4, a: 0.0006, d: 0.025, g: 0.8 })
     v.noise({ ft: "bandpass", f: 1500, f2: 2600, q: 1.8, at: 0.07, a: 0.015, d: 0.1, g: 0.5 })

@@ -64,6 +64,7 @@ const BASE: ItemDef[] = [
   item("ammo_12buck", "ammo", AMMO.ammo_12buck.name, "SCHROT", AMMO.ammo_12buck.description, 4, 0.04, 30, 0, 2),
   item("ammo_12slug", "ammo", AMMO.ammo_12slug.name, "SLUG", AMMO.ammo_12slug.description, 6, 0.04, 30, 1, 3),
   item("ammo_338", "ammo", AMMO.ammo_338.name, ".338", AMMO.ammo_338.description, 14, 0.05, 30, 3, 5),
+  item("ammo_bolt", "ammo", AMMO.ammo_bolt.name, "BOLZEN", AMMO.ammo_bolt.description, 12, 0.03, 20, 1, 2),
   // medicine
   item("bandage", "medical", "Verband", "VERB", "Stoppt leichte Blutungen, +8 Gesundheit.", 60, 0.1, 5, 0, 1, { time: 2.2, heal: 8, stopBleed: "light" }),
   item("medkit", "medical", "Trauma-Set", "MED", "+45 Gesundheit, stoppt alle Blutungen.", 180, 0.6, 2, 1, 1, { time: 3.2, heal: 45, stopBleed: "heavy" }),
@@ -108,9 +109,10 @@ const BASE: ItemDef[] = [
 
 const attachmentItems: ItemDef[] = (Object.keys(ATTACHMENTS) as AttachmentId[]).map(id => {
   const a = ATTACHMENTS[id]
-  const value: Record<AttachmentId, number> = { att_reddot: 650, att_holo: 900, att_acog: 1300, att_scope4x: 1500, att_suppressor: 1200, att_comp: 500, att_brake: 650, att_vgrip: 450, att_agrip: 550, att_bipod: 700, att_extmag: 700, att_drum: 1100, att_laser: 600, att_light: 450 }
-  const rare = id === "att_scope4x" || id === "att_suppressor" || id === "att_acog" || id === "att_drum"
-  return item(id, "attachment", a.name, a.name.slice(0, 5).toUpperCase(), a.description, value[id], id === "att_drum" ? 0.9 : id === "att_bipod" ? 0.5 : 0.4, 1, rare ? 2 : 1, rare ? 3 : 2)
+  const value: Record<AttachmentId, number> = { att_reddot: 650, att_holo: 900, att_acog: 1300, att_scope4x: 1500, att_suppressor: 1200, att_comp: 500, att_brake: 650, att_vgrip: 450, att_agrip: 550, att_bipod: 700, att_extmag: 700, att_drum: 1100, att_laser: 600, att_light: 450,
+    att_minired: 500, att_scope6x: 2100, att_flash: 400, att_bigsup: 1800, att_hstop: 380, att_fastmag: 650, att_irlaser: 900 }
+  const rare = id === "att_scope4x" || id === "att_suppressor" || id === "att_acog" || id === "att_drum" || id === "att_scope6x" || id === "att_bigsup" || id === "att_irlaser"
+  return item(id, "attachment", a.name, a.name.slice(0, 5).toUpperCase(), a.description, value[id], id === "att_drum" ? 0.9 : id === "att_bipod" || id === "att_bigsup" || id === "att_scope6x" ? 0.6 : id === "att_fastmag" ? 0.5 : 0.4, 1, rare ? 2 : 1, rare ? 3 : 2)
 })
 const weaponItems: ItemDef[] = WEAPON_ORDER.map(id => {
   const w = WEAPONS[id]

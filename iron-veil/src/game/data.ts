@@ -40,7 +40,7 @@ export const ENEMIES: Record<EnemyKind, EnemyDef> = {
   marksman: { name: "Scharfschütze", health: 80, armor: 0.05, walkSpeed: 1.6, runSpeed: 3.4, vision: 55, fov: 70, damage: 32, burstMin: 1, burstMax: 1, burstInterval: 0.2, burstPause: 2.6, range: 60, accuracy: 0.75, weapon: "sniper", xp: 70 },
 }
 /** Weapon a merc drops (as loot item) by its weapon type. */
-export const ENEMY_DROPS: Record<EnemyWeapon, import("./weaponData").WeaponId[]> = { rifle: ["mk4", "sr74", "stg77"], smg: ["vx9", "k5", "p18"], shotgun: ["kv12"], sniper: ["dr7"] }
+export const ENEMY_DROPS: Record<EnemyWeapon, import("./weaponData").WeaponId[]> = { rifle: ["mk4", "sr74", "stg77", "ar36"], smg: ["vx9", "k5", "p18", "u45", "km45"], shotgun: ["kv12", "db12"], sniper: ["dr7", "k98"] }
 
 /** Hit-zone damage multiplier for limbs (the weapon's headMultiplier applies to heads). */
 export const LIMB_MULTIPLIER = 0.75

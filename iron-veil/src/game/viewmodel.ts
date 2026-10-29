@@ -519,7 +519,9 @@ export class ViewModel {
     this.recoil = 0; this.recoilVel = 0; this.actionT = -1; this.shotT = 9; this.shake = 0; this.openBlend = 0; this.cylAnim = 0
     // single-round loading: the round the left hand carries
     this.loadRound.clear()
-    const round = new THREE.Mesh(rig.spec.casing === "shell" ? this.casingGeo.shell[0] : this.casingGeo[rig.spec.casing === "none" ? "556" : rig.spec.casing as CasingType][0], rig.spec.casing === "shell" ? this.casingMats.red : this.casingMats.brass)
+    const bow = rig.spec.action === "bow"
+    const round = bow ? new THREE.Mesh(this.boltGeo(), this.casingMats.red)
+      : new THREE.Mesh(rig.spec.casing === "shell" ? this.casingGeo.shell[0] : this.casingGeo[rig.spec.casing === "none" ? "556" : rig.spec.casing as CasingType][0], rig.spec.casing === "shell" ? this.casingMats.red : this.casingMats.brass)
     if (rig.spec.casing === "shell") { const head = new THREE.Mesh(this.casingGeo.shell[1], this.casingMats.brass); round.add(head) }
     round.rotation.x = -Math.PI / 2; this.loadRound.add(round)
     this.loadPoint.removeFromParent()
@@ -541,14 +543,14 @@ export class ViewModel {
     this.recoilVel += 1.1 * sp.kick * (r.brake && sp.cls !== "sniper" ? 0.8 : 1)
     this.flashTime = sp.cls === "sniper" ? 0.07 : 0.05
     this.flashRoll = Math.random() * Math.PI
-    const s = (0.8 + Math.random() * 0.45) * sp.flash * (r.suppressed ? 0.28 : 1)
-    this.flash.scale.setScalar(s)
-    this.flashSide.visible = r.brake || (sp.cls === "sniper" && !r.suppressed)
-    this.flashLight.intensity = r.suppressed ? 0.4 : 2.5
+    const s = (0.8 + Math.random() * 0.45) * sp.flash * (r.suppressed ? 0.28 : r.hider ? 0.45 : 1)
+    this.flash.scale.setScalar(Math.max(1e-4, s))
+    this.flashSide.visible = sp.flash > 0 && (r.brake || (sp.cls === "sniper" && !r.suppressed && !r.hider))
+    this.flashLight.intensity = sp.flash === 0 ? 0 : r.suppressed ? 0.4 : r.hider ? 1.2 : 2.5
     this.shotT = 0
-    if (sp.action === "pump" || sp.action === "bolt") { this.actionT = 0; this.ejectedThisAction = false }
+    if (sp.action === "pump" || sp.action === "bolt" || sp.action === "lever") { this.actionT = 0; this.ejectedThisAction = false }
     else if (sp.action === "revolver") { this.cylIndex++; this.cylAnim = 0; this.revShots = Math.min(6, this.revShots + 1) }
-    else this.ejectCasing(sp.casing === "none" ? "556" : sp.casing as CasingType)
+    else if (sp.action !== "break" && sp.action !== "bow") this.ejectCasing(sp.casing === "none" ? "556" : sp.casing as CasingType)
     if (sp.action === "belt") { this.beltPhase++; this.shake = Math.min(1.6, this.shake + 0.45); this.ejectCasing("link") }
   }
 
@@ -635,6 +637,9 @@ export class ViewModel {
     if (rig.belt) rig.belt(this.beltPhase - 1 + seg(this.shotT, 0, 0.05), true)
     // slide / bolt locked open on an empty magazine until the reload's charge step releases it
     if (s.empty && !s.singleLoad && !(s.reload > 0.77)) { if (P.slide) P.slide.position.z = 0.027; if (P.carrier) P.carrier.position.z = 0.03 }
+    // crossbow: string loosed and no bolt on the rail once it has been shot
+    if (P.stringSet && P.stringRest) { P.stringSet.visible = !s.empty; P.stringRest.visible = s.empty }
+    if (P.arrow) P.arrow.visible = !s.empty
     // manual action after a shot: pump racks, bolt cycles
     if (this.actionT >= 0) {
       this.actionT += dt
@@ -653,6 +658,13 @@ export class ViewModel {
         rz -= 0.14 * w; rx += 0.05 * w; py -= 0.012 * w; px -= 0.01 * w
         if (w > 0) rightJob = () => this.handBlend(rig.anchors.grip, rig.anchors.boltKnob, w, this.tR)
         if (t > 1.0) this.actionT = -1
+      } else if (action === "lever") {
+        // the hand on the lever throws it down and back up; the gun dips with it
+        const down = seg(t, 0.08, 0.2) - seg(t, 0.28, 0.42)
+        if (P.lever) P.lever.rotation.x = 0.85 * down
+        if (!this.ejectedThisAction && t > 0.2) { this.ejectedThisAction = true; this.queueEject = "44" }
+        rx += 0.05 * down; py -= 0.01 * down
+        if (t > 0.5) this.actionT = -1
       } else this.actionT = -1
     }
 
@@ -674,6 +686,17 @@ export class ViewModel {
         rz -= 0.2 * o; rx += 0.06 * o; py += 0.01 * o
         const changing = Math.abs(o - (r >= 0 ? 1 : 0)) > 0.04
         if (changing) { const w = seg(Math.min(o, 1 - o) * 3, 0, 1); rightJob = () => this.handBlend(rig.anchors.grip, rig.anchors.boltKnob, w, this.tR) }
+      } else if (action === "break") {
+        // barrels tip down on the hinge, the spent shells pop out, fresh ones go in
+        if (P.barrels) P.barrels.rotation.x = -0.62 * seg(o, 0, 0.6)
+        rx -= 0.2 * o; rz += 0.3 * o; py += 0.02 * o; px -= 0.02 * o
+        if (!this.dumped && o > 0.55 && r >= 0) { this.dumped = true; this.queueEject = "shell" }
+      } else if (action === "bow") {
+        // span the string (it snaps back to the latch), then lay the next bolt on the rail
+        const draw = seg(step, 0.05, 0.32)
+        if (P.stringSet && P.stringRest) { const cocked = !s.empty || draw > 0.98; P.stringSet.visible = cocked; P.stringRest.visible = !cocked }
+        if (P.arrow) P.arrow.visible = !s.empty || step > 0.6
+        rx += 0.3 * o; rz += 0.2 * o; py -= 0.02 * o
       } else { rz += 0.55 * o; rx += 0.12 * o; px -= 0.02 * o; py += 0.01 * o }
       const anc = rig.anchors.load
       if (anc && r >= 0) {
@@ -794,6 +817,18 @@ export class ViewModel {
 
   // ───────────────────────────── internals ─────────────────────────────
 
+  private boltMesh: THREE.BufferGeometry | null = null
+  /** Crossbow bolt carried by the left hand while loading (shaft along +Y, tip at the far end). */
+  private boltGeo(): THREE.BufferGeometry {
+    if (!this.boltMesh) {
+      const shaft = new THREE.CylinderGeometry(0.0042, 0.0042, 0.36, 8).translate(0, 0.18, 0)
+      const tip = new THREE.ConeGeometry(0.009, 0.03, 6).translate(0, 0.375, 0)
+      this.boltMesh = mergeGeometries([shaft.toNonIndexed(), tip.toNonIndexed()], false)!
+      shaft.dispose(); tip.dispose()
+    }
+    return this.boltMesh
+  }
+
   private resetParts(): void {
     const P = this.rig.parts
     if (P.slide) P.slide.position.z = 0
@@ -803,6 +838,8 @@ export class ViewModel {
     if (P.mag) { P.mag.position.copy(this.rig.magRest); P.mag.visible = true }
     if (P.crane) P.crane.rotation.z = 0
     if (P.cover) P.cover.rotation.x = 0
+    if (P.lever && this.actionT < 0) P.lever.rotation.x = 0
+    if (P.barrels) P.barrels.rotation.x = 0
     if (P.bolt && this.actionT < 0 && this.openBlend === 0) { P.bolt.rotation.z = 0; P.bolt.position.z = 0 }
     this.dropMag.visible = false
     this.dropT = -1
@@ -891,7 +928,7 @@ export class ViewModel {
   /** Swings for knife, machete and axe (right hand). Offsets relative to the idle pose. */
   private meleePose(m: number, pos: THREE.Vector3, quat: THREE.Quaternion): void {
     const id = this.current
-    const heavy = id === "axe" || id === "sledge" || id === "bat", long = id === "machete" || id === "katana"
+    const heavy = id === "axe" || id === "sledge" || id === "bat" || id === "pickaxe" || id === "spade", long = id === "machete" || id === "katana"
     const idle: Key = heavy ? [0, 0.2, -0.24, -0.42, 0.55, 0.25, -0.15] : long ? [0, 0.21, -0.22, -0.4, 0.75, 0.32, -0.25] : [0, 0.19, -0.2, -0.36, 0.85, 0.35, -0.3]
     if (m < 0) { pos.set(idle[1], idle[2], idle[3]); quat.setFromEuler(_e.set(idle[4], idle[5], idle[6])); return }
     const keys: Key[] = heavy ? [
