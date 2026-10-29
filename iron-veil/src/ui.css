@@ -222,10 +222,21 @@ button.bag-slot:hover{border-color:var(--mint)}
 .attack-card .eyebrow{color:var(--red)}
 .attack-card p b{color:#fff}
 
-@media(max-width:1150px){.inv-layout{grid-template-columns:1fr 1fr}.stash-col{grid-column:1/-1}.armory-layout,.radio-layout{grid-template-columns:1fr}.raid-bag-body,.loot-cols{grid-template-columns:1fr}}
-@media(max-width:760px){.inv-layout{grid-template-columns:1fr}.choices{grid-template-columns:1fr}.plan-actions{grid-template-columns:1fr}.trade-row.v3,.trade-row.v3.sell{grid-template-columns:44px 1fr 110px}.trade-row.v3 .stock{display:none}.recipe{grid-template-columns:44px 1fr 100px}.recipe>small{display:none}}
+@media(max-width:1150px){.inv-layout{grid-template-columns:1fr 1fr}.stash-col{grid-column:1/-1}.armory-layout,.radio-layout{grid-template-columns:1fr}.raid-bag-body{grid-template-columns:1fr 200px}}
+@media(max-width:760px){.raid-bag-body,.loot-cols{grid-template-columns:1fr}.inv-layout{grid-template-columns:1fr}.choices{grid-template-columns:1fr}.plan-actions{grid-template-columns:1fr}.trade-row.v3,.trade-row.v3.sell{grid-template-columns:44px 1fr 110px}.trade-row.v3 .stock{display:none}.recipe{grid-template-columns:44px 1fr 100px}.recipe>small{display:none}}
 
 /* side navigation: long German labels must not run into the arrow */
 .side-nav .nav-item{grid-template-columns:24px 1fr 12px;letter-spacing:1px;padding:0 12px}
 /* in the safe base the HUD only shows vitals, compass and prompts */
 .hud.safe .hud-weapon,.hud.safe .hud-value,.hud.safe .hud-status,.hud.safe .hud-vitals .kit,.hud.safe .hud-vitals .st,.hud.safe .xhair i{display:none}
+/* the side navigation scrolls on short screens instead of pushing buttons out of reach */
+.side-nav{overflow-y:auto;scrollbar-width:thin}
+.side-nav .main-nav{position:static}
+.side-nav .nav-item{height:50px}
+.side-nav .settings-link{margin-top:14px}
+@media(max-height:720px){.side-nav{padding-top:16px}.side-nav .nav-item{height:42px}.side-nav .settings-link{margin-top:8px}.menu-layout>.main-nav .nav-item{height:46px}}
+.side-nav .nav-item{font-size:10px;letter-spacing:.8px}
+/* modal dialogs taller than the window scroll instead of being cut off */
+.modal-screen{overflow-y:auto;padding:16px 0}
+.modal-card{max-width:calc(100vw - 24px)}
+@media(max-height:620px){.modal-card{padding:20px 24px}.modal-card h2{font-size:30px;margin:6px}.raid-bag-head h2{margin:2px 0 8px}.bag-grid{grid-template-columns:repeat(auto-fill,minmax(50px,1fr))}}

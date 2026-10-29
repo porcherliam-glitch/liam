@@ -47,7 +47,7 @@ export const STRUCTURES: Record<StructureId, StructureDef> = {
   lab: { name: "Forschungslabor", short: "F&E", description: "Analysten erforschen dauerhafte Boni.", max: 3,
     perks: ["Grundlagenforschung", "Fortgeschrittene Programme", "Spitzenforschung"], costs: [c(1000, { scrap: 10, electronics: 1 }), c(2600, { electronics: 3, parts: 2, chem: 4 }), c(5500, { electronics: 6, sample: 1, tools: 2 })], needsHq: [1, 2, 3], needsPower: [0, 1, 1] },
   radio: { name: "Funkstation", short: "FUNK", description: "Empfängt Aufträge und Lageberichte aus der Sperrzone.", max: 3,
-    perks: ["3 Auftragsangebote", "5 Angebote, Tageszeit wählbar", "7 Angebote, Extraktionen vorab bekannt, Versorgungsabwürfe"], costs: [c(700, { scrap: 10, electronics: 1 }), c(1800, { scrap: 15, electronics: 2 }), c(4000, { electronics: 5, parts: 3 })], needsHq: [1, 2, 3], needsPower: [0, 1, 1] },
+    perks: ["3 Auftragsangebote", "5 Auftragsangebote", "7 Angebote, in jedem Einsatz ein Versorgungsabwurf"], costs: [c(700, { scrap: 10, electronics: 1 }), c(1800, { scrap: 15, electronics: 2 }), c(4000, { electronics: 5, parts: 3 })], needsHq: [1, 2, 3], needsPower: [0, 1, 1] },
   walls: { name: "Schutzwall", short: "WALL", description: "Mauern und Barrikaden gegen Angriffe der Infizierten.", max: 3,
     perks: ["Holzpalisade (+20 Verteidigung)", "Betonmauer (+20)", "Stahltore und Stacheldraht (+20)"], costs: [c(400, { wood: 25 }), c(1500, { scrap: 30, wood: 10 }), c(3600, { scrap: 45, parts: 4 })], needsHq: [1, 2, 3] },
   tower: { name: "Wachturm", short: "TURM", description: "Wachen schießen bei Angriffen auf Infizierte.", max: 3,

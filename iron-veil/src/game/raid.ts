@@ -7,7 +7,7 @@
 import * as THREE from "three"
 import { AudioSystem, stepSound, type SfxId } from "./audio"
 import { Bag, type BagSlot } from "./bag"
-import { TIMES } from "./baseData"
+import { STRUCTURES, TIMES } from "./baseData"
 import { ENEMIES } from "./data"
 import { Effects, type ImpactKind } from "./effects"
 import { EnemyManager } from "./enemies"
@@ -213,7 +213,7 @@ export class RaidGame {
     this.renderer.toneMappingExposure = this.world.exposure
     this.effects = new Effects(this.scene); this.effects.setViewportHeight(window.innerHeight * this.renderer.getPixelRatio())
     this.gore = new GoreSystem(this.scene, this.world.collision, this.settings.gore)
-    this.gore.onScreenSplatter = amount => this.screenBlood?.(amount)
+    this.gore.onScreenSplatter = amount => { if (this.settings.gore !== "off") this.screenBlood?.(amount) }
     this.grenades = new GrenadeSystem(this.scene, {
       bounce: p => this.sfx("grenade_bounce", { position: p }),
       explode: p => this.explode(p),
@@ -266,8 +266,10 @@ export class RaidGame {
     if (this.mode === "raid" || this.mode === "dying" || this.mode === "defense") return
     this.plan = null
     this.useWorld("base", "base")
-    const s = (this.world.layout as BaseLayout).spawn
+    const s = (this.world.layout as BaseLayout).spawn, lo = this.company.profile.loadout
     this.player.reset(s.x, s.z, s.yaw)
+    this.player.armor = lo.armor; this.player.armorMax = lo.armorMax; this.player.helmet = lo.helmet
+    this.player.vitals.infection = this.company.profile.infection
     this.mode = "base"; this.paused = false; this.overlay = false
     this.viewModel.visible = false
     this.input.capture = true; this.input.clearActions(); this.input.resetAll()
@@ -864,7 +866,7 @@ export class RaidGame {
       if (v.infection >= 30 && !this.hintsShown.has("infection")) this.showHint("infection", "Infektion steigt! Antivirales Serum senkt sie. Bei 100 % verlieren Sie Gesundheit.", 7)
     }
     if (a.kind !== "acid") this.gore.wound({ x: this.player.pos.x, y: this.player.eye - 0.5, z: this.player.pos.z }, { x: this.player.pos.x - a.source.position.x, y: 0, z: this.player.pos.z - a.source.position.z }, a.damage)
-    this.screenBlood?.(Math.min(1, a.damage / 30))
+    if (this.settings.gore !== "off") this.screenBlood?.(Math.min(1, a.damage / 30))
   }
 
   private damagePlayer(dmg: number, armorShare: number, from: Vec3, bleed: "none" | "light" | "heavy"): void {
@@ -874,6 +876,7 @@ export class RaidGame {
     p.armor -= absorbed; p.health = Math.max(0, p.health - (dmg - absorbed))
     if (bleed !== "none" && absorbed < dmg * 0.5) { const before = p.vitals.bleed; addBleed(p.vitals, bleed); if (p.vitals.bleed !== before) this.say(p.vitals.bleed === "heavy" ? "Starke Blutung! Trauma-Set benutzen (Q)" : "Blutung! Verband benutzen (Q)", 2.5) }
     this.damageFlash = 0.35
+    if (this.settings.gore !== "off" && dmg - absorbed > 12) this.screenBlood?.(Math.min(0.8, (dmg - absorbed) / 45))
     if (this.settings.screenShake) this.shake = Math.min(0.8, this.shake + 0.22)
     p.punch.x += (this.rng() - 0.3) * 0.02; p.punch.y += (this.rng() - 0.5) * 0.03
     this.sfx(absorbed > dmg * 0.4 ? "armor_absorb" : "hurt", { volume: 0.9 })
@@ -901,7 +904,7 @@ export class RaidGame {
     if (this.mode === "base") {
       const layout = this.world.layout as BaseLayout
       for (const s of layout.stations) consider(s.x, s.z, { kind: "station", id: s.id, name: s.name }, 2.6)
-      for (const plot of layout.plots) consider(plot.x, plot.z + plot.d / 2 + 1, { kind: "plot", structure: plot.structure, name: plot.structure }, 3)
+      for (const plot of layout.plots) consider(plot.x, plot.z + plot.d / 2 + 1, { kind: "plot", structure: plot.structure, name: `${STRUCTURES[plot.structure].name} · Stufe ${this.company.level(plot.structure)}` }, 3)
     } else if (this.mode === "raid") {
       if (this.containers) for (const c of this.containers.list) if (Math.abs(c.position.x - p.pos.x) < 3 && Math.abs(c.position.z - p.pos.z) < 3) consider(c.position.x, c.position.z, { kind: "container", ref: c }, 2.3)
       for (const g of this.ground) if (g.items.length || !g.searched) consider(g.position.x, g.position.z, { kind: "ground", loot: g }, 2.1)
@@ -917,7 +920,7 @@ export class RaidGame {
     if (!target) { this.interactHold = 0; return }
     const E = this.key("E")
     if (target.kind === "station" || target.kind === "plot") {
-      this.interactText = target.kind === "station" ? `${E} · ${target.name}` : `${E} · Bauplatz`
+      this.interactText = target.kind === "station" ? `${E} · ${target.name}` : `${E} · Bauplatz: ${target.name}`
       if (tapped) { this.openOverlay(); this.callbacks.onStation(target.kind === "station" ? target.id : "plot", target.kind === "plot" ? target.structure : undefined) }
       return
     }
@@ -1106,8 +1109,9 @@ export class RaidGame {
         if (t) {
           const to = t.chestPosition(new THREE.Vector3())
           this.effects.tracer(from, to); this.sfx("shot_mk4", { position: from, volume: 0.6 } as never)
-          const r = this.infected.applyDamage({ target: t, distance: from.distanceTo(to), part: this.rng() < 0.2 ? "head" : "body", bodyPart: "torso", point: to }, { amount: 30 + this.company.level("tower") * 8, from, dir: to.clone().sub(from).normalize(), penetration: 0.3, kind: "bullet", sever: 0.1 })
-          if (r.killed) d.kills++
+          const head = this.rng() < 0.2
+          if (head) t.headPosition(to)
+          this.infected.applyDamage({ target: t, distance: from.distanceTo(to), part: head ? "head" : "body", bodyPart: head ? "head" : "torso", point: to }, { amount: 30 + this.company.level("tower") * 8, from, dir: to.clone().sub(from).normalize(), penetration: 0.3, kind: "bullet", sever: 0.1 })
         }
       }
     }
@@ -1250,7 +1254,8 @@ export class RaidGame {
     } else { objective = "Basis"; progress = ""; area = "Basis" }
     const contract = this.company.profile.contracts.active.map(c => `${c.title}: ${c.kind === "fetch" ? `${c.progress}/${c.target}` : c.kind === "recon" ? (this.stats.visited.includes(c.subject ?? "") ? "✓ erkundet" : c.subjectName) : c.kind === "activate" ? (this.stats.activated.includes(c.subject ?? "") ? "✓ aktiviert" : c.subjectName) : `${Math.min(c.target, c.progress + this.contractRaidProgress(c.kind, c.subject))}/${c.target}`}`).join("\n")
     const quickMeds = this.bag.count("bandage") + this.bag.count("medkit")
-    const throwable = this.bag.count(this.throwKind) > 0 ? this.throwKind : this.throwKind === "grenade" ? "molotov" : "grenade"
+    const other: ThrowableKind = this.throwKind === "grenade" ? "molotov" : "grenade"
+    const throwable = this.bag.count(this.throwKind) > 0 || this.bag.count(other) === 0 ? this.throwKind : other
     const fight = this.mode === "raid" || this.mode === "defense"
     this.callbacks.onHud({
       health: Math.max(0, Math.ceil(v.health)), armor: Math.max(0, Math.ceil(p.armor)), armorMax: Math.max(p.armorMax, Math.ceil(p.armor)), helmet: Math.ceil(p.helmet),

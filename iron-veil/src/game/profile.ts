@@ -427,6 +427,7 @@ export class Company {
       else if (t.kind === "activate") { const tg = targets[Math.floor(rng() * targets.length)]; subject = tg[0]; subjectName = tg[1]; money = 1100; xp = 350; text = text.replace("{target}", tg[1]) }
       else if (t.kind === "boss") { money = 6000; xp = 2500 }
       const bonusItems: Partial<Record<ItemId, number>> | undefined = rng() < 0.4 ? { [(["scrap", "parts", "chem", "electronics", "tools"] as ItemId[])[Math.floor(rng() * 5)]]: 2 + Math.floor(rng() * 4) } : undefined
+      text = text.replace("{qty}", String(target))
       // no two offers with the same task (e.g. two recon contracts for the same place)
       const key = `${t.kind}:${item ?? subject ?? ""}`
       if (seen.has(key)) continue

@@ -5,6 +5,7 @@
  * overlay, screen blood, hints — plus the tactical map renderer used by the map screen.
  */
 import type { Obstacle } from "./collision"
+import { ITEMS, type ItemId } from "./items"
 import type { HudSnapshot } from "./types"
 import type { District, ExtractKind } from "./zone"
 
@@ -279,7 +280,7 @@ export function drawTacticalMap(canvas: HTMLCanvasElement, d: TacticalMapData, v
     c.font = "bold 11px ui-monospace,monospace"
     const y = Z(e.z) - Math.max(10, e.r * scale) - 6
     c.fillText(`${EXIT_NAMES[e.kind]} · ${e.name.toUpperCase()}`, X(e.x), y)
-    if (e.requirement) { c.font = "10px ui-monospace,monospace"; c.fillText(e.requirement.money ? `${e.requirement.money} $` : "Gegenstand nötig", X(e.x), y + 12 + Math.max(10, e.r * scale) * 2) }
+    if (e.requirement) { c.font = "10px ui-monospace,monospace"; c.fillText(e.requirement.money ? `${e.requirement.money} $ Bestechung` : e.requirement.item && e.requirement.item in ITEMS ? `${ITEMS[e.requirement.item as ItemId].name} nötig` : "Gegenstand nötig", X(e.x), y + 12 + Math.max(10, e.r * scale) * 2) }
   }
   // player arrow (yaw 0 = north/up)
   const px = X(d.player.x), pz = Z(d.player.z), a = -d.player.yaw
