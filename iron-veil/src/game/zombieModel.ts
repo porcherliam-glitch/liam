@@ -435,7 +435,18 @@ function torsoSeg(kind: InfectedKind, S: BodySpec, L: Look, r: () => number): TH
   const mid = ww + (cw - ww) * 0.35
   const k = S.chestW / 0.35, bare = !clothed(L) || L.top === "tank", thin = kind === "runner" || kind === "stalker" || kind === "screamer" || kind === "crawler"
   const angd = (a: number, b: number) => { let d = a - b; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2; return d }
-  const torsoFx: LoftFx | undefined = big ? undefined : {
+  // brute/boss: muscle relief on the base torso (abdominal grid, serratus, lats, spine trench)
+  const bigFx: LoftFx = {
+    deform: (a, y) => {
+      const front = angd(a, -Math.PI / 2), back = angd(a, Math.PI / 2), s2 = S.chestW
+      let o = 0
+      if (Math.abs(front) < 0.6 && y > T * 0.12 && y < T * 0.6) o += 0.022 * s2 * Math.abs(Math.sin(y / T * Math.PI * 4.5)) * Math.abs(Math.cos(front * 2.6)) - 0.01 * s2 * Math.exp(-(front * front) / 0.006)
+      if (Math.abs(Math.abs(front) - 1.15) < 0.35 && y > T * 0.4 && y < T * 0.8) o += 0.014 * s2 * Math.max(0, Math.sin(y / T * Math.PI * 9))
+      if (Math.abs(back) < 1.2 && y > T * 0.3) o += 0.03 * s2 * Math.exp(-((Math.abs(back) - 0.6) ** 2) / 0.08) * Math.min(1, (y - T * 0.3) / (T * 0.3)) - 0.02 * s2 * Math.exp(-(back * back) / 0.02)
+      return o
+    },
+  }
+  const torsoFx: LoftFx | undefined = big ? bigFx : {
     deform: (a, y) => {
       let o = 0
       const back = angd(a, Math.PI / 2), front = angd(a, -Math.PI / 2)
@@ -650,7 +661,11 @@ function headSeg(kind: InfectedKind, S: BodySpec, L: Look, r: () => number): THR
     const e = eyeDirs[i], k = 1 - 0.19 * lean + 0.06
     const x = cx + e.x * rx * k, y = cy + e.y * ry * k, z = cz + e.z * rz * k
     if (L.missingEye && i === 1) g.ball(x, y, z, h * 0.1, h * 0.08, h * 0.05, C.wound, 0, true)
-    else g.ball(x, y, z, h * 0.105, h * 0.09, h * 0.07, L.eye, 1, true)
+    else {
+      g.ball(x, y, z, h * 0.105, h * 0.09, h * 0.07, L.eye, 1, true)
+      // clouded pupil, slightly off-centre (dead, unfocused stare)
+      g.ball(x + e.x * h * 0.05 + (i ? 0.004 : -0.002), y + e.y * h * 0.05 - 0.003, z + e.z * h * 0.05, h * 0.042, h * 0.04, h * 0.02, kind === "walker" || kind === "crawler" ? 0x6a6a5e : 0x1a1210, 0, true)
+    }
   }
   // upper teeth along the gum line
   for (let i = 0; i < 7; i++) {
@@ -670,11 +685,12 @@ function headSeg(kind: InfectedKind, S: BodySpec, L: Look, r: () => number): THR
     g.box(0, h * 1.16 * sy, h * 0.06, h * sx * 2.0, h * 0.1, h * sz * 2.05, 0x353a28)
   } else if (L.hair !== null) {
     // matted, stringy strands hanging from the scalp
-    for (let i = 0; i < 16; i++) {
+    for (let i = 0; i < 22; i++) {
+      // matted clumps: flattened, bending outward then hanging down
       const a = -0.35 + r() * (Math.PI + 0.7), x = Math.cos(a) * rx * 0.86, z = Math.sin(a) * rz * 0.9 + h * 0.1
-      const len = h * (0.4 + r() * 1.3)
-      const y0 = cy + ry * 0.55, dx = Math.cos(a) * h * 0.22, dz = Math.sin(a) * h * 0.22
-      g.tube(x * 0.85, y0, z * 0.85, x + dx, y0 - len, z + dz, h * 0.06, h * 0.015, L.hair, 4)
+      const len = h * (0.35 + r() * 1.2), y0 = cy + ry * (0.45 + r() * 0.2), ox = Math.cos(a) * h * 0.16, oz = Math.sin(a) * h * 0.16
+      const mx = x + ox, my = y0 - len * 0.35, mz = z + oz
+      g.tube(x * 0.86, y0, z * 0.86, mx, my, mz, h * 0.07, h * 0.05, L.hair, 4, 0.55).tube(mx, my, mz, mx + ox * 0.3, y0 - len, mz + oz * 0.3, h * 0.05, h * 0.01, dim(L.hair, 0.85), 4, 0.55)
     }
   }
   if (big) {
