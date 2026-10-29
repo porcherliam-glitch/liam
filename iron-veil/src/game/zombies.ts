@@ -209,7 +209,7 @@ export class InfectedManager implements HostileManager {
     const theme = THEMES[world.theme]
     this.night = theme.night
     this.visionScale = theme.visionScale
-    this.assets.glow.value = this.night ? 2.4 : 0.7
+    this.assets.glow.value = this.night ? 2.4 : 0.4
     this.fx = new InfectedFx(parent)
   }
 

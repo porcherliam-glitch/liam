@@ -10,6 +10,7 @@
  * cached per (kind, variant) and shared by all instances: 11 meshes (draw calls) per rig, 1 for the LOD and corpse bakes.
  */
 import * as THREE from "three"
+import { SURF, withSurface } from "./surface"
 import type { BodyPartId } from "./hostiles"
 import type { InfectedKind } from "./infectedData"
 import { makeRng } from "./zombieAi"
@@ -103,6 +104,21 @@ const CIV_PANTS = [0x3d4b66, 0x4b4236, 0x3a3a3c, 0x5a5444, 0x48505a, 0x5b4a3a]
 const SHOES = [0x2a2420, 0x4a4a4a, 0x5e554c, 0x1c1a18]
 const HAIR = [0x1c1612, 0x3a2a1c, 0x5a4a32, 0x2a2a2a, 0x6c6560]
 
+/** Surface type (surface.ts) of each colour of the variant being built: skin, clothes, wet gore, bone … */
+const SURF_OF = new Map<number, number>()
+const surfOf = (c: number) => SURF_OF.get(c) ?? SURF.paint
+const WET = [C.wound, C.flesh, C.blood, C.gore, C.muscle, C.gut, C.dark, 0x6e1e14, 0x4a0c08, 0x5c1810, 0x4a0b07, 0x6a1a10, 0x5e2b2b]
+function classify(L: Look): void {
+  SURF_OF.clear()
+  for (const c of WET) SURF_OF.set(c, SURF.wet)
+  for (const c of [C.bile, C.sac]) SURF_OF.set(c, SURF.wet)
+  for (const c of [...CIV_TOPS, ...CIV_PANTS, L.topColor, L.vestColor, L.pantsColor, 0x8fa7a0, 0x9fb0b6, 0xa49c8c, 0xc4c2b6, 0x55595e, 0x4b5235, 0x454a35, 0x2e3640, 0x50545a, 0x3a3d2c, 0x6a6a5a, 0x2a2a26, 0x3a332a]) if (c !== L.skin) SURF_OF.set(c, SURF.fabric)
+  for (const c of [...SHOES, ...HAIR, 0x1e1e18, 0x1a1a1a, 0x2a2018]) SURF_OF.set(c, SURF.polymer)
+  if (L.hair !== null) SURF_OF.set(L.hair, SURF.polymer)
+  if (L.shoes !== null) SURF_OF.set(L.shoes, SURF.polymer)
+  for (const c of [...SKINS, L.skin]) SURF_OF.set(c, SURF.skin)
+}
+
 function pick<T>(a: readonly T[], r: () => number): T { return a[Math.floor(r() * a.length) % a.length] }
 
 function makeLook(kind: InfectedKind, r: () => number): Look {
@@ -147,25 +163,32 @@ const TPL = {
 /** Geometry detail while building (1 = close-up rig, ~0.45 = distant LOD bake). */
 let DETAIL = 1
 const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _s = new THREE.Vector3(), _p = new THREE.Vector3()
-const _v = new THREE.Vector3(), _n = new THREE.Vector3(), _nm = new THREE.Matrix3(), _c = new THREE.Color(), _up = new THREE.Vector3(0, 1, 0)
+const _v = new THREE.Vector3(), _n = new THREE.Vector3(), _nm = new THREE.Matrix3(), _c = new THREE.Color(), _cP = new THREE.Color(), _cW = new THREE.Color(), _up = new THREE.Vector3(0, 1, 0)
 
 function hash3(x: number, y: number, z: number): number { const h = Math.sin(x * 127.1 + y * 311.7 + z * 74.7) * 43758.5453; return h - Math.floor(h) }
 
 export interface Ring { y: number; w: number; d: number; x?: number; z?: number; c: number; jag?: number }
+/** Loft modifiers: radial offset per vertex (angle a: 0 = +X, π/2 = +Z / back; v: 0..1 along the loft) and recolouring (return a surface type to override it). */
+export interface LoftFx { deform?: (a: number, y: number, v: number, x: number, z: number) => number; paint?: (a: number, y: number, v: number, c: THREE.Color, x: number, z: number) => number | void }
 
 /** Accumulates transformed primitives into one indexed geometry (position, normal, color, glow). */
 export class GeoBuilder {
-  pos: number[] = []; nor: number[] = []; col: number[] = []; glow: number[] = []; idx: number[] = []
+  pos: number[] = []; nor: number[] = []; col: number[] = []; glow: number[] = []; surf: number[] = []; idx: number[] = []
+  /** 1 = loft vertex whose normal is recomputed from the mesh at build; primitives keep their own (no seams). */
+  private lofted: number[] = []
+  /** Recompute normals from the mesh at build (true for close-up segments: smooth lofts, carved wounds). */
+  smooth = DETAIL >= 1
 
   add(g: THREE.BufferGeometry, m: THREE.Matrix4, color: number, glow = 0, jitter = 0.09): this {
     const p = g.attributes.position, n = g.attributes.normal, base = this.pos.length / 3
     _nm.getNormalMatrix(m); _c.setHex(color)
+    const st = surfOf(color)
     for (let i = 0; i < p.count; i++) {
       _v.fromBufferAttribute(p, i).applyMatrix4(m); this.pos.push(_v.x, _v.y, _v.z)
       _n.fromBufferAttribute(n, i).applyMatrix3(_nm).normalize(); this.nor.push(_n.x, _n.y, _n.z)
       // grime: per-vertex jitter + darker toward the bottom of each piece
       const k = 1 + (hash3(_v.x, _v.y, _v.z) - 0.5) * 2 * jitter
-      this.col.push(_c.r * k, _c.g * k, _c.b * k); this.glow.push(glow)
+      this.col.push(_c.r * k, _c.g * k, _c.b * k); this.glow.push(glow); this.surf.push(st); this.lofted.push(0)
     }
     if (g.index) for (let i = 0; i < g.index.count; i++) this.idx.push(base + g.index.getX(i))
     else for (let i = 0; i < p.count; i++) this.idx.push(base + i)
@@ -174,12 +197,12 @@ export class GeoBuilder {
 
   /** Appends another baked geometry (same attribute layout) transformed by m. */
   addBaked(g: THREE.BufferGeometry, m: THREE.Matrix4): void {
-    const p = g.attributes.position, n = g.attributes.normal, c = g.attributes.color, gl = g.attributes.glow, base = this.pos.length / 3
+    const p = g.attributes.position, n = g.attributes.normal, c = g.attributes.color, gl = g.attributes.glow, sf = g.attributes.surf, base = this.pos.length / 3
     _nm.getNormalMatrix(m)
     for (let i = 0; i < p.count; i++) {
       _v.fromBufferAttribute(p, i).applyMatrix4(m); this.pos.push(_v.x, _v.y, _v.z)
       _n.fromBufferAttribute(n, i).applyMatrix3(_nm).normalize(); this.nor.push(_n.x, _n.y, _n.z)
-      this.col.push(c.getX(i), c.getY(i), c.getZ(i)); this.glow.push(gl.getX(i))
+      this.col.push(c.getX(i), c.getY(i), c.getZ(i)); this.glow.push(gl.getX(i)); this.surf.push(sf ? sf.getX(i) : 0); this.lofted.push(0)
     }
     for (let i = 0; i < g.index!.count; i++) this.idx.push(base + g.index!.getX(i))
   }
@@ -192,7 +215,13 @@ export class GeoBuilder {
     g.setAttribute("normal", new THREE.Float32BufferAttribute(this.nor, 3))
     g.setAttribute("color", new THREE.Float32BufferAttribute(this.col, 3))
     g.setAttribute("glow", new THREE.Float32BufferAttribute(this.glow, 1))
+    g.setAttribute("surf", new THREE.Float32BufferAttribute(this.surf, 1))
     g.setIndex(this.pos.length / 3 > 65535 ? new THREE.Uint32BufferAttribute(this.idx, 1) : new THREE.Uint16BufferAttribute(this.idx, 1))
+    if (this.smooth) {
+      g.computeVertexNormals()
+      const nn = g.attributes.normal as THREE.BufferAttribute
+      for (let i = 0; i < this.lofted.length; i++) if (!this.lofted[i]) nn.setXYZ(i, this.nor[i * 3], this.nor[i * 3 + 1], this.nor[i * 3 + 2])
+    }
     g.computeBoundingSphere(); g.computeBoundingBox()
     return g
   }
@@ -221,22 +250,46 @@ export class GeoBuilder {
   /**
    * Lofted tube through elliptical rings (each ring: centre y/x/z, half width w, half depth d, colour c, optional jagged
    * edge `jag`). Works bottom→top or top→bottom; caps: 1 = first ring, 2 = last ring, 3 = both, 0 = open shell.
+   * Close-up builds insert Catmull-Rom sub-rings between the given rings (smooth silhouettes); `fx.deform` pushes each
+   * vertex along its radial direction (muscles, ribs, folds) and `fx.paint` may recolour it.
    */
-  loft(rings: Ring[], segs = 8, caps = 3, glow = 0, jitter = 0.08): this {
-    segs = Math.max(5, Math.round(segs * 1.5 * DETAIL)) // rounder limbs and torsos (smooth shading)
-    const base = this.pos.length / 3, n = rings.length
-    const down = rings[n - 1].y < rings[0].y
-    for (const ring of rings) {
-      _c.setHex(ring.c)
+  loft(rings: Ring[], segs = 8, caps = 3, glow = 0, jitter = 0.08, fx?: LoftFx): this {
+    const hi = DETAIL >= 1
+    segs = Math.max(5, Math.round(segs * (hi ? 2.1 : 1.5) * DETAIL))
+    const sub = hi ? 3 : 1, base = this.pos.length / 3, n0 = rings.length
+    const down = rings[n0 - 1].y < rings[0].y
+    // expanded ring list (interpolated parameters, colour and the jag weight of the nearest given rings)
+    const cr = (a: number, b: number, c: number, d: number, t: number) => 0.5 * (2 * b + (c - a) * t + (2 * a - 5 * b + 4 * c - d) * t * t + (3 * b - a - 3 * c + d) * t * t * t)
+    const R: { y: number; w: number; d: number; x: number; z: number; jag: number; c0: number; c1: number; t: number; v: number }[] = []
+    for (let k = 0; k < n0 - 1; k++) {
+      const A = rings[Math.max(0, k - 1)], B = rings[k], Cn = rings[k + 1], D = rings[Math.min(n0 - 1, k + 2)]
+      for (let s = 0; s < sub; s++) {
+        const t = s / sub
+        R.push({
+          y: cr(A.y, B.y, Cn.y, D.y, t), w: Math.max(0.002, cr(A.w, B.w, Cn.w, D.w, t)), d: Math.max(0.002, cr(A.d, B.d, Cn.d, D.d, t)),
+          x: cr(A.x ?? 0, B.x ?? 0, Cn.x ?? 0, D.x ?? 0, t), z: cr(A.z ?? 0, B.z ?? 0, Cn.z ?? 0, D.z ?? 0, t),
+          jag: (B.jag ?? 0) * (1 - t) + (Cn.jag ?? 0) * t, c0: B.c, c1: Cn.c, t, v: (k + t) / (n0 - 1),
+        })
+      }
+    }
+    const L = rings[n0 - 1]
+    R.push({ y: L.y, w: L.w, d: L.d, x: L.x ?? 0, z: L.z ?? 0, jag: L.jag ?? 0, c0: L.c, c1: L.c, t: 0, v: 1 })
+    const n = R.length, cA = new THREE.Color(), cB = new THREE.Color()
+    for (const ring of R) {
+      cA.setHex(ring.c0); cB.setHex(ring.c1); _c.copy(cA).lerp(cB, ring.t)
+      const st = surfOf(ring.t < 0.5 ? ring.c0 : ring.c1)
       for (let i = 0; i < segs; i++) {
         const a = (i + 0.5) / segs * Math.PI * 2, ca = Math.cos(a), sa = Math.sin(a)
-        const jag = ring.jag ? (hash3(i * 1.7, ring.y * 13.1, segs) - 0.5) * ring.jag * 2 : 0
-        const x = (ring.x ?? 0) + ca * ring.w, y = ring.y + jag, z = (ring.z ?? 0) + sa * ring.d
-        this.pos.push(x, y, z)
-        const nl = Math.hypot(ca * ring.d, sa * ring.w) || 1
-        this.nor.push(ca * ring.d / nl, 0, sa * ring.w / nl)
+        const jag = ring.jag ? (hash3(i * 1.7, 3.3, segs) - 0.5) * ring.jag * 2 : 0
+        const nl = Math.hypot(ca * ring.d, sa * ring.w) || 1, rx = ca * ring.d / nl, rz = sa * ring.w / nl
+        let x = ring.x + ca * ring.w, y = ring.y + jag, z = ring.z + sa * ring.d
+        if (fx?.deform) { const off = fx.deform(a, y, ring.v, x, z); x += rx * off; z += rz * off }
+        this.pos.push(x, y, z); this.nor.push(rx, 0, rz)
         const k = 1 + (hash3(x, y, z) - 0.5) * 2 * jitter
-        this.col.push(_c.r * k, _c.g * k, _c.b * k); this.glow.push(glow)
+        _cP.setRGB(_c.r * k, _c.g * k, _c.b * k)
+        let stv = st
+        if (fx?.paint) { const ps = fx.paint(a, y, ring.v, _cP, x, z); if (ps !== undefined) stv = ps }
+        this.col.push(_cP.r, _cP.g, _cP.b); this.glow.push(glow); this.surf.push(stv); this.lofted.push(1)
       }
     }
     for (let r = 0; r < n - 1; r++) for (let i = 0; i < segs; i++) {
@@ -244,9 +297,9 @@ export class GeoBuilder {
       if (down) this.idx.push(v00, v01, v10, v01, v11, v10); else this.idx.push(v00, v10, v01, v01, v10, v11)
     }
     const cap = (ri: number, bottom: boolean) => {
-      const ring = rings[ri], c = this.pos.length / 3
-      _c.setHex(ring.c)
-      this.pos.push(ring.x ?? 0, ring.y, ring.z ?? 0); this.nor.push(0, bottom !== down ? -1 : 1, 0); this.col.push(_c.r, _c.g, _c.b); this.glow.push(glow)
+      const ring = R[ri], c = this.pos.length / 3
+      _c.setHex(ring.c0)
+      this.pos.push(ring.x, ring.y, ring.z); this.nor.push(0, bottom !== down ? -1 : 1, 0); this.col.push(_c.r, _c.g, _c.b); this.glow.push(glow); this.surf.push(surfOf(ring.c0)); this.lofted.push(0)
       const flip = bottom !== down
       for (let i = 0; i < segs; i++) {
         const a = base + ri * segs + i, b = base + ri * segs + (i + 1) % segs
@@ -255,6 +308,84 @@ export class GeoBuilder {
     }
     if (caps & 1) cap(0, true)
     if (caps & 2) cap(n - 1, false)
+    return this
+  }
+  /** Paints a stain (blood, dirt, a hole showing skin) onto everything built so far, with a ragged edge and optional drips running down (local -Y). */
+  stain(x: number, y: number, z: number, radius: number, color: number, strength = 0.85, drip = 0, st?: number): this {
+    const n = this.pos.length / 3
+    _cW.setHex(color)
+    for (let i = 0; i < n; i++) {
+      const px = this.pos[i * 3], py = this.pos[i * 3 + 1], pz = this.pos[i * 3 + 2]
+      const d = Math.hypot(px - x, py - y, pz - z) / (radius * (0.8 + hash3(px * 23, py * 23, pz * 23) * 0.45))
+      let m = d < 1 ? Math.min(1, (1 - d) * 3) * strength : 0
+      if (drip > 0 && py < y && y - py < drip) {
+        const lane = Math.sin((px + pz) * 90 + x * 50) * 0.5 + 0.5, hd = Math.hypot(px - x, pz - z)
+        if (hd < radius * 0.9 && lane > 0.55) m = Math.max(m, strength * 0.8 * (1 - (y - py) / drip) * (lane - 0.55) / 0.45)
+      }
+      if (m <= 0) continue
+      this.col[i * 3] += (_cW.r - this.col[i * 3]) * m; this.col[i * 3 + 1] += (_cW.g - this.col[i * 3 + 1]) * m; this.col[i * 3 + 2] += (_cW.b - this.col[i * 3 + 2]) * m
+      if (m > 0.45) this.surf[i] = st ?? surfOf(color)
+    }
+    return this
+  }
+  /**
+   * Cuts a wound into everything built so far: vertices within `size` of the point sink along their normal (crater
+   * with a raised raw rim), turn raw red → dark clotted in the middle and wet; blood runs down below it (local -Y).
+   */
+  carve(x: number, y: number, z: number, size: number, depth = 0.35, trail = 1): this {
+    if (DETAIL < 1) { this.blob(x, y, z, size * 0.5, size * 0.42, size * 0.06, 0x6e1e14); return this }
+    const n = this.pos.length / 3
+    for (let i = 0; i < n; i++) {
+      const px = this.pos[i * 3], py = this.pos[i * 3 + 1], pz = this.pos[i * 3 + 2]
+      const dx = px - x, dy = py - y, dz = pz - z, d = Math.hypot(dx, dy, dz)
+      const wob = 1 + (hash3(px * 9, py * 9, pz * 9) - 0.5) * 0.5
+      const k = 1 - d / (size * wob)
+      if (k > 0) {
+        // displacement: deep centre, slightly raised torn rim
+        const off = (-depth * k * k + 0.18 * Math.sin(Math.min(1, k * 3) * Math.PI) * (k < 0.33 ? 1 : 0)) * size
+        const nx = this.nor[i * 3], ny = this.nor[i * 3 + 1], nz = this.nor[i * 3 + 2]
+        this.pos[i * 3] += nx * off; this.pos[i * 3 + 1] += ny * off; this.pos[i * 3 + 2] += nz * off
+        const col = k > 0.55 ? _cW.setHex(C.gore) : k > 0.22 ? _cW.setHex(k > 0.4 ? 0x6e1e14 : C.flesh) : _cW.setRGB(this.col[i * 3] * 0.7 + 0.12, this.col[i * 3 + 1] * 0.55, this.col[i * 3 + 2] * 0.5)
+        const m = Math.min(1, k * 4)
+        this.col[i * 3] += (col.r - this.col[i * 3]) * m; this.col[i * 3 + 1] += (col.g - this.col[i * 3 + 1]) * m; this.col[i * 3 + 2] += (col.b - this.col[i * 3 + 2]) * m
+        if (k > 0.22) this.surf[i] = SURF.wet
+      } else if (trail > 0 && py < y && y - py < size * 3.2 * trail) {
+        // dried blood trail running down from the wound
+        const hd = Math.hypot(dx, dz), wdt = size * (0.32 + 0.25 * Math.sin(py * 60 + x * 40)) * (1 - (y - py) / (size * 3.2 * trail))
+        if (hd < wdt) {
+          const m = 0.75 * (1 - hd / wdt)
+          _cW.setHex(0x4a0c08)
+          this.col[i * 3] += (_cW.r - this.col[i * 3]) * m; this.col[i * 3 + 1] += (_cW.g - this.col[i * 3 + 1]) * m; this.col[i * 3 + 2] += (_cW.b - this.col[i * 3 + 2]) * m
+          if (m > 0.4) this.surf[i] = SURF.wet
+        }
+      }
+    }
+    return this
+  }
+  /**
+   * Sculpted ellipsoid (centre, radii): a seamless lat-long grid where `fn(u, out)` returns the radial displacement in
+   * radius units for unit direction u and may recolour `out` (return a surface type to override). Normals come from
+   * the mesh, so carved sockets and ridges shade correctly.
+   */
+  sculpt(cx: number, cy: number, cz: number, rx: number, ry: number, rz: number, color: number, fn: (u: THREE.Vector3, out: THREE.Color) => [number, number?], wSeg = 30, hSeg = 22): this {
+    wSeg = Math.max(10, Math.round(wSeg * DETAIL)); hSeg = Math.max(8, Math.round(hSeg * DETAIL))
+    const base = this.pos.length / 3, u = new THREE.Vector3(), st0 = surfOf(color)
+    const vert = (theta: number, phi: number) => {
+      u.set(Math.sin(theta) * Math.cos(phi), Math.cos(theta), Math.sin(theta) * Math.sin(phi))
+      _cP.setHex(color)
+      const [d, st] = fn(u, _cP), k = 1 + d
+      const x = cx + u.x * rx * k, y = cy + u.y * ry * k, z = cz + u.z * rz * k
+      this.pos.push(x, y, z); this.nor.push(u.x, u.y, u.z)
+      const j = 1 + (hash3(x, y, z) - 0.5) * 0.12
+      this.col.push(_cP.r * j, _cP.g * j, _cP.b * j); this.glow.push(0); this.surf.push(st ?? st0); this.lofted.push(1)
+    }
+    vert(0, 0)
+    for (let i = 1; i < hSeg; i++) for (let j = 0; j < wSeg; j++) vert(i / hSeg * Math.PI, j / wSeg * Math.PI * 2)
+    vert(Math.PI, 0)
+    const ring = (i: number, j: number) => base + 1 + (i - 1) * wSeg + (j % wSeg), last = base + 1 + (hSeg - 1) * wSeg
+    for (let j = 0; j < wSeg; j++) this.idx.push(base, ring(1, j + 1), ring(1, j))
+    for (let i = 1; i < hSeg - 1; i++) for (let j = 0; j < wSeg; j++) this.idx.push(ring(i, j), ring(i, j + 1), ring(i + 1, j), ring(i, j + 1), ring(i + 1, j + 1), ring(i + 1, j))
+    for (let j = 0; j < wSeg; j++) this.idx.push(last, ring(hSeg - 1, j), ring(hSeg - 1, j + 1))
     return this
   }
   /** Ellipsoid with a full rotation (flattened ones make organic wounds, scabs and bony plates). */
@@ -290,7 +421,7 @@ export class GeoBuilder {
 
 export type SegName = "torso" | "head" | "jaw" | "upperArmL" | "foreArmL" | "upperArmR" | "foreArmR" | "thighL" | "shinL" | "thighR" | "shinR"
 
-const dim = (c: number, k: number) => { _c.setHex(c); _c.multiplyScalar(k); return _c.getHex() }
+const dim = (c: number, k: number) => { _c.setHex(c); _c.multiplyScalar(k); const h = _c.getHex(); if (!SURF_OF.has(h) && SURF_OF.has(c)) SURF_OF.set(h, SURF_OF.get(c)!); return h }
 const clothed = (L: Look) => L.top !== "none"
 
 function torsoSeg(kind: InfectedKind, S: BodySpec, L: Look, r: () => number): THREE.BufferGeometry {
@@ -302,6 +433,20 @@ function torsoSeg(kind: InfectedKind, S: BodySpec, L: Look, r: () => number): TH
   const belly = L.top === "tank" && r() < 0.5 ? L.skin : top
   const pants = L.pantsColor
   const mid = ww + (cw - ww) * 0.35
+  const k = S.chestW / 0.35, bare = !clothed(L) || L.top === "tank", thin = kind === "runner" || kind === "stalker" || kind === "screamer" || kind === "crawler"
+  const angd = (a: number, b: number) => { let d = a - b; while (d > Math.PI) d -= Math.PI * 2; while (d < -Math.PI) d += Math.PI * 2; return d }
+  const torsoFx: LoftFx | undefined = big ? undefined : {
+    deform: (a, y) => {
+      let o = 0
+      const back = angd(a, Math.PI / 2), front = angd(a, -Math.PI / 2)
+      if (y > 0.15 && y < T) o -= 0.006 * k * Math.exp(-(back * back) / 0.03)
+      if (y > T * 0.6) for (const sd of [-0.65, 0.65]) o += 0.01 * k * Math.exp(-((back - sd) ** 2) / 0.05) * Math.exp(-((y - T * 0.78) ** 2) / 0.006)
+      if (y > T * 0.62 && y < T * 0.92) for (const sd of [-0.5, 0.5]) o += (bare ? 0.012 : 0.006) * k * Math.exp(-((front - sd) ** 2) / 0.09) * Math.exp(-((y - T * 0.77) ** 2) / 0.004)
+      if ((bare || L.top === "gown") && thin && y > T * 0.4 && y < T * 0.8 && Math.abs(front) < 1.9) o -= 0.0055 * k * (0.5 + 0.5 * Math.cos(y * Math.PI * 2 / 0.042)) * Math.min(1, (1.9 - Math.abs(front)) * 2)
+      if (!bare && y > 0.1) o += 0.0032 * k * Math.sin(a * 7 + y * 38 + hash3(a, 1, 2) * 2)
+      return o
+    },
+  }
   if (S.legs) {
     g.loft([
       { y: -0.11, w: pw * 0.7, d: wd * 0.85, c: dim(pants, 0.8) },
@@ -314,7 +459,7 @@ function torsoSeg(kind: InfectedKind, S: BodySpec, L: Look, r: () => number): TH
       { y: T * 0.84, w: cw * 1.0, d: cd * 1.02, c: top },
       { y: T - 0.03, w: cw * 0.9, d: cd * 0.84, z: 0.01, c: top },
       { y: T + 0.03, w: cw * 0.4, d: cd * 0.5, z: 0.012, c: top },
-    ], 9)
+    ], 9, 3, 0, 0.08, torsoFx)
   } else {
     // crawler: torn off at the waist, guts and spine dragging behind
     g.loft([
@@ -327,7 +472,7 @@ function torsoSeg(kind: InfectedKind, S: BodySpec, L: Look, r: () => number): TH
       { y: T * 0.84, w: cw, d: cd * 1.02, c: top },
       { y: T - 0.03, w: cw * 0.9, d: cd * 0.84, z: 0.01, c: top },
       { y: T + 0.03, w: cw * 0.4, d: cd * 0.5, z: 0.012, c: top },
-    ], 9)
+    ], 9, 3, 0, 0.08, torsoFx)
     for (let i = 0; i < 5; i++) {
       const x = (i - 2) * 0.045, len = 0.25 + r() * 0.4, ex = x + (r() - 0.5) * 0.25, ey = -0.04 - len
       g.tube(x, -0.02, 0, (x + ex) / 2, ey * 0.5, -wd * 0.5, 0.026, 0.024, i % 2 ? C.gut : C.wound, 5).tube((x + ex) / 2, ey * 0.5, -wd * 0.5, ex, ey, -wd * 0.75, 0.024, 0.018, i % 2 ? C.gut : C.flesh, 5)
@@ -365,21 +510,27 @@ function torsoSeg(kind: InfectedKind, S: BodySpec, L: Look, r: () => number): TH
     const a = r() * Math.PI * 2, y = 0.15 + r() * (T - 0.3), hw = y > 0.34 ? cw : ww, hd = y > 0.34 ? cd : wd
     const x = Math.cos(a) * hw * 1.0, z = Math.sin(a) * hd * 1.0, s = 0.05 + r() * 0.07
     const ry = Math.atan2(Math.cos(a) * hd, Math.sin(a) * hw)
-    if (clothed(L) && r() < 0.5) g.blob(x, y, z, s * 0.55, s * 0.4 * (0.6 + r() * 0.8), s * 0.12, L.skin, 0, ry, r() * 0.8)
-    g.wound(x * 1.01, y - s * 0.1, z * 1.01, s * (0.7 + r() * 0.4), ry, r())
+    void ry
+    if (clothed(L) && r() < 0.5) g.stain(x, y, z, s * 0.75, L.skin, 1, 0, SURF.skin)
+    g.carve(x, y - s * 0.1, z, s * (0.55 + r() * 0.35), 0.35, 1 + r())
   }
   if (!big && kind !== "stalker") {
     // blood from feeding: a soaked bib under the chin and streaks running down the front
-    g.blob(0.01, T * 0.86, F * cd * 0.99, cw * 0.38, T * 0.1, 0.012, C.blood, 0.05, 0, 0.08)
-    g.blob(-0.02, T * 0.7, F * cd * 1.0, cw * 0.17, T * 0.13, 0.012, C.blood, 0.04, 0, -0.2)
-    g.blob(0.04, T * 0.55, F * cd * 0.99, cw * 0.07, T * 0.14, 0.01, C.gore, 0.02, 0, 0.1)
+    if (DETAIL >= 1) g.stain(0.01, T * 0.9, F * cd, cw * 0.55, C.blood, 0.9, T * 0.55, SURF.wet).stain(-0.03, T * 0.72, F * cd, cw * 0.25, 0x3a0705, 0.6, T * 0.3)
+    else g.blob(0.01, T * 0.86, F * cd * 0.99, cw * 0.38, T * 0.1, 0.012, C.blood, 0.05, 0, 0.08)
   }
   // exposed ribs (one side, both for the stalker)
   const ribSides = L.ribs === 2 ? [-1, 1] : L.ribs ? [L.ribs] : []
   for (const side of ribSides) {
-    const x = side * cw * 0.42, y = T * 0.64
-    g.blob(x, y, F * cd * 0.97, cw * 0.36, T * 0.2, 0.025, C.gore, 0, side * 0.25)
-    for (let k = 0; k < 4; k++) g.blob(x, y - T * 0.13 + k * T * 0.085, F * cd * 1.01, cw * 0.32, 0.009, 0.012, C.bone, 0, side * 0.25, side * -0.18)
+    const x = side * cw * 0.45, y = T * 0.64, fz = F * cd * 0.92
+    if (DETAIL >= 1) {
+      // flesh torn away over the ribs: a deep crater with bare rib bars across it
+      g.carve(x, y, fz, cw * 0.42, 0.55, 1.4)
+      for (let k = 0; k < 4; k++) { const ry2 = y - T * 0.14 + k * T * 0.09; g.tube(x - side * cw * 0.36, ry2 + 0.012, F * cd * 0.8, x + side * cw * 0.3, ry2 - 0.006, F * cd * 0.78, 0.0085, 0.0075, C.bone, 5) }
+    } else {
+      g.blob(x, y, F * cd * 0.97, cw * 0.36, T * 0.2, 0.025, C.gore, 0, side * 0.25)
+      for (let k = 0; k < 4; k++) g.blob(x, y - T * 0.13 + k * T * 0.085, F * cd * 1.01, cw * 0.32, 0.009, 0.012, C.bone, 0, side * 0.25, side * -0.18)
+    }
   }
   if (S.spine) for (let k = 0; k < 8; k++) g.lump(0, 0.08 + k * T * 0.12, cd * 0.98, 0.026, C.bone)
   // spitter: bloated bile sac + swollen throat
@@ -426,76 +577,142 @@ export const WEAK_SPOT = { y: 0.66, radius: 0.42 }
 /** Jaw hinge in head-local coordinates. */
 export function jawHinge(S: BodySpec): [number, number, number] { return [0, S.headR * 0.55 * S.headS[1], -S.headR * 0.08] }
 
+/** Smooth bump of `amount` within angular `radius` around unit direction (x, y, z). */
+function bumpAt(u: THREE.Vector3, x: number, y: number, z: number, radius: number, amount: number): number {
+  const l = Math.hypot(x, y, z), c = (u.x * x + u.y * y + u.z * z) / l, ang = Math.acos(Math.max(-1, Math.min(1, c)))
+  const k = 1 - ang / radius
+  return k > 0 ? amount * k * k * (3 - 2 * k) : 0
+}
+
+/** Cranium centre and radii (head-local) — shared by the sculpt, the eyes and the teeth placement. */
+function cranium(S: BodySpec): { c: [number, number, number]; r: [number, number, number] } {
+  const h = S.headR, [sx, sy, sz] = S.headS
+  return { c: [0, h * 1.18 * sy, h * 0.02], r: [h * 0.88 * sx, h * 0.82 * sy, h * 0.98 * sz] }
+}
+
 function headSeg(kind: InfectedKind, S: BodySpec, L: Look, r: () => number): THREE.BufferGeometry {
   const g = new GeoBuilder()
   const h = S.headR, [sx, sy, sz] = S.headS, F = -1
   const big = !!S.plates
   const scalp = L.hair !== null && !L.helmet ? L.hair : L.skin
+  const { c: [cx, cy, cz], r: [rx, ry, rz] } = cranium(S)
+  // neck and the back of the jaw (the cranium sculpt sits on top)
   g.loft([
     { y: -0.01, w: h * 0.42 * sx, d: h * 0.45 * sz, z: h * 0.14, c: L.skin },
-    { y: h * 0.5 * sy, w: h * 0.78 * sx, d: h * 0.86 * sz, z: -h * 0.04, c: L.skin },
-    { y: h * 0.95 * sy, w: h * 0.9 * sx, d: h * 1.0 * sz, z: -h * 0.02, c: L.skin },
-    { y: h * 1.35 * sy, w: h * 0.9 * sx, d: h * 1.02 * sz, z: h * 0.02, c: L.skin },
-    { y: h * 1.72 * sy, w: h * 0.72 * sx, d: h * 0.88 * sz, z: h * 0.07, c: scalp },
-    { y: h * 1.98 * sy, w: h * 0.3 * sx, d: h * 0.4 * sz, z: h * 0.08, c: scalp },
-  ], 9)
-  const fz = F * h * 0.98 * sz
-  // brow ridge, cheekbones, sunken sockets with glowing eyes
-  for (const bx of [-1, 1]) g.blob(bx * h * 0.36 * sx, h * 1.27 * sy, fz * 0.9, h * 0.36 * sx, h * 0.11, h * 0.16, dim(L.skin, 0.88), -0.25, 0, bx * -0.18)
-  for (const ex of [-1, 1]) {
-    const x = ex * h * 0.36 * sx, y = h * 1.07 * sy
-    g.blob(ex * h * 0.58 * sx, h * 0.86 * sy, fz * 0.8, h * 0.17, h * 0.1, h * 0.13, dim(L.skin, 0.95), 0, ex * 0.3)
-    g.ball(x, y, fz * 0.9, h * 0.18, h * 0.14, h * 0.12, dim(L.skin, 0.35), 0, true)
-    if (L.missingEye && ex === 1) g.ball(x, y - h * 0.02, fz * 0.97, h * 0.12, h * 0.1, h * 0.05, C.wound, 0, true)
-    else g.ball(x, y, fz * 0.97, h * 0.11, h * 0.09, h * 0.06, L.eye, 1, true)
+    { y: h * 0.32 * sy, w: h * 0.6 * sx, d: h * 0.66 * sz, z: h * 0.04, c: L.skin },
+    { y: h * 0.62 * sy, w: h * 0.76 * sx, d: h * 0.82 * sz, z: -h * 0.02, c: L.skin },
+  ], 9, 1)
+  const eyeDirs = [-1, 1].map(ex => new THREE.Vector3(ex * 0.4, -0.13, -0.905).normalize())
+  const scar = new THREE.Vector3((r() - 0.5) * 1.4, 0.55 + r() * 0.35, (r() - 0.6) * 1.2).normalize()
+  const lean = kind === "screamer" ? 1.4 : big ? 0.7 : 1
+  const skinDark = new THREE.Color(dim(L.skin, 0.32)), gum = new THREE.Color(C.gore), bruise = new THREE.Color(0x5a4a5e), scalpC = new THREE.Color(scalp), hairLine = L.hair !== null && !L.helmet
+  g.sculpt(cx, cy, cz, rx, ry, rz, L.skin, (u, out) => {
+    const front = -u.z
+    let d = 0, st: number | undefined
+    // eye sockets: deep, dark and bruised around the rim
+    for (const e of eyeDirs) {
+      const a = Math.acos(Math.max(-1, Math.min(1, u.dot(e)))), k = 1 - a / 0.3
+      if (k > 0) { d -= 0.27 * k * (2 - k) * lean; out.lerp(skinDark, Math.min(1, k * 1.7)) } else if (k > -0.4) out.lerp(bruise, (1 + k / 0.4) * 0.45)
+    }
+    // brow ridge, cheekbones and hollow cheeks, temples
+    if (front > 0.45) d += 0.11 * Math.exp(-((u.y - 0.12) ** 2) / 0.005) * Math.max(0, 1 - Math.abs(u.x) / 0.72) * Math.min(1, (front - 0.45) * 4)
+    // flatter face plane, narrow lower face
+    d -= 0.07 * Math.max(0, front - 0.6) * 2.5 * (u.y < 0.2 ? 1 : 0.4) + 0.08 * Math.max(0, -u.y - 0.3) * Math.abs(u.x) * 2
+    for (const sxn of [-1, 1]) {
+      d += bumpAt(u, sxn * 0.6, -0.3, -0.74, 0.28, 0.09) - bumpAt(u, sxn * 0.52, -0.6, -0.6, 0.3, 0.13 * lean) - bumpAt(u, sxn * 0.86, 0.14, -0.46, 0.32, 0.07)
+      // cheek hollows darken, cheekbones catch the light
+      const hk = bumpAt(u, sxn * 0.52, -0.6, -0.6, 0.3, 1); if (hk > 0) out.lerp(skinDark, hk * 0.35)
+    }
+    // nose: rotted bridge and tip, dark nostril holes
+    if (front > 0.7 && Math.abs(u.x) < 0.16) {
+      const t = Math.max(0, Math.min(1, -u.y / 0.48)), wdt = 1 - Math.abs(u.x) / (0.07 + 0.11 * t)
+      if (wdt > 0) d += (0.05 + 0.17 * t) * wdt * Math.min(1, wdt * 2) * (u.y > -0.52 ? 1 : 0)
+    }
+    for (const nx of [-1, 1]) { const k = bumpAt(u, nx * 0.075, -0.5, -0.99, 0.085, 1); if (k > 0) { d -= 0.12 * k; out.lerp(_cW.setHex(C.dark), Math.min(1, k * 1.6)) } }
+    // lipless mouth: recessed gums above the jaw
+    if (u.y < -0.56 && front > 0.5 && Math.abs(u.x) < 0.52) {
+      const k = Math.min(1, (-0.56 - u.y) / 0.1) * Math.min(1, (0.52 - Math.abs(u.x)) / 0.12)
+      d -= 0.13 * k; out.lerp(gum, Math.min(1, k * 1.3)); if (k > 0.5) st = SURF.wet
+    }
+    // occipital bulge, flat top for big heads
+    d += bumpAt(u, 0, 0.25, 1, 0.8, 0.04)
+    // scalp wound
+    const sk = bumpAt(u, scar.x, scar.y, scar.z, 0.32, 1)
+    if (sk > 0) { d -= 0.06 * sk; out.lerp(gum, Math.min(1, sk * 1.6)); if (sk > 0.4) st = SURF.wet }
+    // hairline
+    if (hairLine && u.y > 0.42 - (u.z > 0 ? 0.5 : 0) && sk <= 0) { out.lerp(scalpC, Math.min(1, (u.y - 0.42 + (u.z > 0 ? 0.5 : 0)) * 6)); st = SURF.polymer }
+    // decay: lumpy skin
+    d += (hash3(u.x * 13, u.y * 11, u.z * 9) - 0.5) * 0.022
+    return [d, st]
+  }, 32, 24)
+  // eyes inside the sockets
+  for (let i = 0; i < 2; i++) {
+    const e = eyeDirs[i], k = 1 - 0.19 * lean + 0.06
+    const x = cx + e.x * rx * k, y = cy + e.y * ry * k, z = cz + e.z * rz * k
+    if (L.missingEye && i === 1) g.ball(x, y, z, h * 0.1, h * 0.08, h * 0.05, C.wound, 0, true)
+    else g.ball(x, y, z, h * 0.105, h * 0.09, h * 0.07, L.eye, 1, true)
   }
-  // rotted nose: bridge, tip and dark nostrils
-  g.blob(0, h * 0.92 * sy, fz * 1.0, h * 0.1, h * 0.2, h * 0.1, dim(L.skin, 0.9), -0.35)
-  g.blob(0, h * 0.78 * sy, fz * 1.04, h * 0.13, h * 0.09, h * 0.08, dim(L.skin, 0.8))
-  for (const nx of [-1, 1]) g.ball(nx * h * 0.06, h * 0.74 * sy, fz * 1.06, h * 0.04, h * 0.03, h * 0.03, C.dark, 0, true)
-  // lipless upper jaw: gums and teeth
-  g.blob(0, h * 0.55 * sy, fz * 0.88, h * 0.48 * sx, h * 0.08, h * 0.13, C.gore)
-  for (let i = 0; i < 7; i++) { const a = (i - 3) * 0.24; g.box(Math.sin(a) * h * 0.42 * sx, h * 0.46 * sy, fz * (0.88 + Math.cos(a) * 0.06), h * 0.1, h * 0.15 + r() * h * 0.07, h * 0.07, C.teeth, 0, a, (r() - 0.5) * 0.3) }
+  // upper teeth along the gum line
+  for (let i = 0; i < 7; i++) {
+    const a = (i - 3) * 0.17, u = new THREE.Vector3(Math.sin(a) * 0.62, -0.7, -Math.cos(a) * 0.79).normalize(), k = 0.93
+    g.box(cx + u.x * rx * k, cy + u.y * ry * k - h * 0.04, cz + u.z * rz * k, h * 0.085, h * 0.15 + r() * h * 0.07, h * 0.06, C.teeth, 0, a, (r() - 0.5) * 0.3)
+  }
   if (L.cheek) {
-    g.blob(L.cheek * h * 0.62 * sx, h * 0.62 * sy, fz * 0.62, h * 0.07, h * 0.22, h * 0.26, C.gore, 0, L.cheek * 0.5)
-    for (let i = 0; i < 3; i++) g.box(L.cheek * h * 0.66 * sx, h * 0.5 * sy, fz * (0.45 + i * 0.12), h * 0.07, h * 0.12, h * 0.08, C.teeth)
+    // torn cheek: the side of the gums and molars show
+    g.blob(L.cheek * h * 0.62 * sx, h * 0.66 * sy, F * h * 0.6, h * 0.07, h * 0.2, h * 0.24, C.gore, 0, L.cheek * 0.5)
+    for (let i = 0; i < 3; i++) g.box(L.cheek * h * 0.66 * sx, h * 0.56 * sy, F * h * (0.42 + i * 0.12), h * 0.07, h * 0.11, h * 0.08, C.teeth)
   }
   // ears (one torn)
-  g.blob(-h * 0.9 * sx, h * 1.0 * sy, h * 0.05, h * 0.05, h * 0.2, h * 0.14, dim(L.skin, 0.92), 0, 0, 0.15)
-  if (r() < 0.6) g.blob(h * 0.9 * sx, h * 1.0 * sy, h * 0.05, h * 0.05, h * 0.2, h * 0.14, dim(L.skin, 0.92), 0, 0, -0.15); else g.blob(h * 0.88 * sx, h * 1.0 * sy, h * 0.05, h * 0.045, h * 0.11, h * 0.1, C.gore)
-  // scalp: wounds, stringy hair or a helmet
-  g.blob((r() - 0.5) * h * 0.6, h * 1.82 * sy, (r() - 0.3) * h * 0.4, h * 0.28, h * 0.05, h * 0.22, C.gore, 0.4, r(), 0.2)
+  g.blob(-h * 0.88 * sx, h * 1.08 * sy, h * 0.05, h * 0.05, h * 0.2, h * 0.14, dim(L.skin, 0.92), 0, 0, 0.15)
+  if (r() < 0.6) g.blob(h * 0.88 * sx, h * 1.08 * sy, h * 0.05, h * 0.05, h * 0.2, h * 0.14, dim(L.skin, 0.92), 0, 0, -0.15); else g.blob(h * 0.86 * sx, h * 1.08 * sy, h * 0.05, h * 0.045, h * 0.11, h * 0.1, C.gore)
   if (L.helmet) {
-    g.ball(0, h * 1.38 * sy, h * 0.06, h * sx * 1.08, h * sy * 0.82, h * sz * 1.12, 0x3f4430)
-    g.box(0, h * 1.12 * sy, h * 0.06, h * sx * 2.1, h * 0.1, h * sz * 2.05, 0x353a28)
+    g.ball(0, h * 1.42 * sy, h * 0.06, h * sx * 1.02, h * sy * 0.8, h * sz * 1.1, 0x3f4430)
+    g.box(0, h * 1.16 * sy, h * 0.06, h * sx * 2.0, h * 0.1, h * sz * 2.05, 0x353a28)
   } else if (L.hair !== null) {
-    for (let i = 0; i < 12; i++) {
-      const a = r() * Math.PI * 1.5 - 0.25 + Math.PI * 0.25, x = Math.cos(a) * h * sx * 0.78, z = Math.sin(a) * h * sz * 0.86 + h * 0.12
-      const len = h * (0.5 + r() * 1.4)
-      const y0 = h * 1.72 * sy, dx = Math.cos(a) * h * 0.25, dz = Math.sin(a) * h * 0.25
-      g.tube(x * 0.8, y0, z * 0.8, x + dx, y0 - len, z + dz, h * 0.07, h * 0.02, L.hair, 4)
+    // matted, stringy strands hanging from the scalp
+    for (let i = 0; i < 16; i++) {
+      const a = -0.35 + r() * (Math.PI + 0.7), x = Math.cos(a) * rx * 0.86, z = Math.sin(a) * rz * 0.9 + h * 0.1
+      const len = h * (0.4 + r() * 1.3)
+      const y0 = cy + ry * 0.55, dx = Math.cos(a) * h * 0.22, dz = Math.sin(a) * h * 0.22
+      g.tube(x * 0.85, y0, z * 0.85, x + dx, y0 - len, z + dz, h * 0.06, h * 0.015, L.hair, 4)
     }
   }
   if (big) {
-    g.plate(0, h * 1.62 * sy, h * 0.05, h * 0.82 * sx, h * 0.2, h * 0.85 * sz, 0.15)
-    for (const ex of [-1, 1]) g.spike(ex * h * 0.6, h * 1.5, h * 0.2, ex * h * 1.05, h * 2.1, h * 0.5, h * 0.18, C.bone)
+    g.plate(0, h * 1.66 * sy, h * 0.05, h * 0.8 * sx, h * 0.2, h * 0.83 * sz, 0.15)
+    for (const ex of [-1, 1]) g.spike(ex * h * 0.6, h * 1.55, h * 0.2, ex * h * 1.05, h * 2.15, h * 0.5, h * 0.18, C.bone)
   }
-  if (kind === "screamer") g.box(0, h * 0.42 * sy, fz * 0.45, h * 0.95, h * 0.55, h * 0.8, C.dark) // huge throat opening
-  if (kind === "stalker") for (const ex of [-1, 1]) g.box(ex * h * 0.36 * sx, h * 1.07 * sy, fz * 1.0, h * 0.2, h * 0.04, h * 0.02, C.dark) // slit lids
+  if (kind === "screamer") g.ball(0, h * 0.5 * sy, F * h * 0.55, h * 0.42, h * 0.36, h * 0.3, C.dark).ball(0, h * 0.5 * sy, F * h * 0.6, h * 0.48, h * 0.4, h * 0.22, C.gore) // gaping throat
+  if (kind === "stalker") for (let i = 0; i < 2; i++) { const e = eyeDirs[i]; g.box(cx + e.x * rx * 0.92, cy + e.y * ry * 0.92, cz + e.z * rz * 0.92, h * 0.22, h * 0.04, h * 0.03, C.dark) } // slit lids
   return g.build()
 }
 
 function jawSeg(kind: InfectedKind, S: BodySpec, L: Look, r: () => number): THREE.BufferGeometry {
   const g = new GeoBuilder()
   const h = S.headR, [sx, , sz] = S.headS, F = -1, len = h * (kind === "screamer" ? 1.2 : 0.95) * sz, w = h * (S.plates ? 1.4 : 1.15) * sx
-  g.loft([
-    { y: -h * 0.36, w: w * 0.32, d: len * 0.18, z: F * len * 0.78, c: L.skin },
-    { y: -h * 0.24, w: w * 0.5, d: len * 0.42, z: F * len * 0.55, c: L.skin },
-    { y: -h * 0.04, w: w * 0.55, d: len * 0.5, z: F * len * 0.48, c: dim(L.skin, 0.9) },
-  ], 8)
-  g.box(0, -h * 0.03, F * len * 0.5, w * 0.78, h * 0.05, len * 0.8, C.gore) // tongue / inside
-  for (let i = 0; i < 6; i++) { const a = (i - 2.5) * 0.26; g.box(Math.sin(a) * w * 0.34, h * 0.03, F * (len * 0.84 + Math.cos(a) * h * 0.04), h * 0.09, h * 0.13 + r() * h * 0.05, h * 0.07, C.teeth, 0, a) }
-  g.blob(0, -h * 0.26, F * len * 0.9, w * 0.32, h * 0.1, h * 0.05, C.blood).blob(0.01, -h * 0.44, F * len * 0.84, w * 0.13, h * 0.13, h * 0.04, C.blood)
+  if (DETAIL < 1) {
+    g.loft([
+      { y: -h * 0.36, w: w * 0.32, d: len * 0.18, z: F * len * 0.78, c: L.skin },
+      { y: -h * 0.24, w: w * 0.5, d: len * 0.42, z: F * len * 0.55, c: L.skin },
+      { y: -h * 0.04, w: w * 0.55, d: len * 0.5, z: F * len * 0.48, c: dim(L.skin, 0.9) },
+    ], 8)
+  } else {
+    // lower face sculpt: jaw line, pointed chin, dark open mouth on top, a gash along one side
+    const inner = new THREE.Color(C.dark), gum = new THREE.Color(C.gore), blood = new THREE.Color(C.blood)
+    const gash = r() < 0.5 ? 1 : -1
+    g.sculpt(0, -h * 0.17, F * len * 0.52, w * 0.4, h * 0.2, len * 0.46, L.skin, (u, out) => {
+      let d = 0, st: number | undefined
+      const front = -u.z
+      d += bumpAt(u, 0, -0.55, -0.85, 0.35, 0.12) - bumpAt(u, 0, -0.1, -0.99, 0.35, 0.05)
+      if (u.y > 0.55) { const k = Math.min(1, (u.y - 0.55) * 5); out.lerp(u.y > 0.8 ? inner : gum, k); d -= 0.25 * k; st = SURF.wet }
+      if (front > 0.6 && u.y < 0.1 && u.y > -0.75) { const k = 1 - Math.abs(u.x) / 0.28; if (k > 0) out.lerp(blood, k * (0.6 + 0.4 * Math.sin(u.y * 22))) }
+      const gk = bumpAt(u, gash * 0.75, 0.05, -0.55, 0.22, 1); if (gk > 0) { d -= 0.08 * gk; out.lerp(gum, Math.min(1, gk * 1.6)); st = SURF.wet }
+      d += (hash3(u.x * 13, u.y * 11, u.z * 9) - 0.5) * 0.02
+      return [d, st]
+    }, 22, 14)
+  }
+  g.box(0, -h * 0.03, F * len * 0.5, w * 0.7, h * 0.05, len * 0.75, C.gore) // tongue / inside
+  for (let i = 0; i < 6; i++) { const a = (i - 2.5) * 0.26; g.box(Math.sin(a) * w * 0.34, h * 0.03, F * (len * 0.82 + Math.cos(a) * h * 0.04), h * 0.085, h * 0.13 + r() * h * 0.05, h * 0.065, C.teeth, 0, a, (r() - 0.5) * 0.3) }
+  if (DETAIL < 1) g.blob(0, -h * 0.26, F * len * 0.9, w * 0.32, h * 0.1, h * 0.05, C.blood).blob(0.01, -h * 0.44, F * len * 0.84, w * 0.13, h * 0.13, h * 0.04, C.blood)
   return g.build()
 }
 
@@ -509,10 +726,11 @@ function armSegs(S: BodySpec, L: Look, side: number, r: () => number, kind: Infe
     { y: -0.05, w: R * (big ? 1.35 : 1.22), d: R * 1.12, c: L.skin },
     { y: -A * 0.55, w: R * 0.95, d: R * 0.9, c: L.skin },
     { y: -A - 0.012, w: R * 0.8, d: R * 0.8, c: dim(L.skin, 0.92) },
-  ], 7)
+  ], 7, 3, 0, 0.08, { deform: (a, y) => R * 0.14 * Math.exp(-((a + Math.PI / 2) ** 2) / 0.5) * Math.exp(-((y + A * 0.45) ** 2) / (A * A * 0.04)) - R * 0.06 * Math.exp(-((a - Math.PI / 2) ** 2) / 0.2) })
   if (sleeveLen > 0) up.loft([{ y: 0.05, w: R * 1.18, d: R * 1.15, c: sleeve }, { y: -0.05, w: R * 1.4, d: R * 1.3, c: sleeve }, { y: -A * sleeveLen * 0.98, w: R * 1.15, d: R * 1.1, c: sleeve, jag: 0.05 }], 7, sleeveLen === 1 ? 0 : 0)
-  up.wound(side * R * 0.95, -A * (0.3 + r() * 0.45), F * R * 0.2, R * 1.6, side * 1.25 + Math.PI / 2)
+  up.carve(side * R * 0.95, -A * (0.3 + r() * 0.45), F * R * 0.2, R * 1.1, 0.3)
   if (big) up.plate(side * R * 1.0, -A * 0.3, 0, R * 0.32, A * 0.3, R * 0.8, 0, 0, side * 0.1)
+  if (!big && DETAIL >= 1) up.ball(0, -A + 0.004, R * 0.45, R * 0.62, R * 0.55, R * 0.5, dim(L.skin, 0.9))
   // forearm
   const club = S.club && side > 0
   fo.loft([
@@ -520,7 +738,7 @@ function armSegs(S: BodySpec, L: Look, side: number, r: () => number, kind: Infe
     { y: -Fa * 0.28, w: Q * (big ? 1.35 : 1.18), d: Q * 1.05, c: L.skin },
     { y: -Fa * 0.82, w: Q * 0.74, d: Q * 0.62, c: dim(L.skin, 0.9) },
     { y: -Fa, w: Q * 0.7, d: Q * 0.56, c: C.blood },
-  ], 7)
+  ], 7, 3, 0, 0.08, { deform: (a, y) => Q * 0.07 * Math.max(0, Math.sin(a * 4)) * Math.min(1, -y / (Fa * 0.4)) })
   if (sleeveLen === 1) fo.loft([{ y: 0.05, w: Q * 1.2, d: Q * 1.15, c: sleeve }, { y: -Fa * (0.35 + r() * 0.3), w: Q * 1.28, d: Q * 1.2, c: sleeve, jag: 0.06 }], 7, 0)
   else if (r() < 0.45) {
     // flesh torn open down to the bone
@@ -540,16 +758,23 @@ function armSegs(S: BodySpec, L: Look, side: number, r: () => number, kind: Infe
       else fo.box(x, hy - S.hand * 0.92, F * Q * 0.35, Q * 0.38, S.hand * 0.32, Q * 0.45, C.nail)
     }
   } else {
-    // bloody hand, long fingers with claws
-    const hw = Q * 1.25
-    fo.loft([{ y: hy + 0.01, w: Q * 0.85, d: Q * 0.5, c: C.blood }, { y: hy - S.hand * 0.55, w: hw, d: Q * 0.42, z: F * 0.008, c: dim(L.skin, 0.75) }], 6)
+    // bloody hand: palm, four jointed curled fingers with knuckles and claws, thumb
+    const hw = Q * 1.2, sk = dim(L.skin, 0.8)
+    fo.loft([{ y: hy + 0.012, w: Q * 0.8, d: Q * 0.55, c: C.blood }, { y: hy - S.hand * 0.22, w: hw * 0.92, d: Q * 0.42, z: F * 0.004, c: sk }, { y: hy - S.hand * 0.46, w: hw, d: Q * 0.36, z: F * 0.008, c: dim(L.skin, 0.72) }], 6)
+    const dir = (t: number, x: number) => new THREE.Vector3(x, -Math.cos(t), F * Math.sin(t))
     for (let i = 0; i < 4; i++) {
-      const x = (i - 1.5) * hw * 0.55, fl = S.hand * 0.62, by = hy - S.hand * 0.5
-      fo.tube(x, by, F * 0.008, x * 1.1, by - fl * 0.7, F * fl * 0.3, 0.009, 0.007, i % 2 ? C.blood : L.skin, 4)
-      fo.tube(x * 1.1, by - fl * 0.7, F * fl * 0.3, x * 1.12, by - fl, F * fl * 0.62, 0.007, 0.006, L.skin, 4)
-      fo.spike(x * 1.12, by - fl, F * fl * 0.62, x * 1.14, by - fl - S.claw * 0.5, F * (fl * 0.62 + S.claw), 0.007, C.nail)
+      const x = (i - 1.5) * hw * 0.5, fl = S.hand * (0.6 + [0, 0.09, 0.05, -0.1][i]) + S.claw * 0.3, curl = 0.25 + r() * 0.35
+      const p0 = new THREE.Vector3(x, hy - S.hand * 0.46, F * 0.008)
+      const p1 = p0.clone().addScaledVector(dir(curl, x * 0.4), fl * 0.45), p2 = p1.clone().addScaledVector(dir(curl * 2.2, x * 0.3), fl * 0.32), p3 = p2.clone().addScaledVector(dir(curl * 3.4, x * 0.2), fl * 0.24)
+      const tip = i % 2 ? C.blood : sk
+      fo.ball(p0.x, p0.y, p0.z, 0.0105, 0.0095, 0.0105, sk, 0, true).ball(p1.x, p1.y, p1.z, 0.0085, 0.008, 0.0085, sk, 0, true).ball(p2.x, p2.y, p2.z, 0.0072, 0.007, 0.0072, tip, 0, true)
+      fo.tube(p0.x, p0.y, p0.z, p1.x, p1.y, p1.z, 0.0088, 0.0076, sk, 4).tube(p1.x, p1.y, p1.z, p2.x, p2.y, p2.z, 0.0074, 0.0066, sk, 4).tube(p2.x, p2.y, p2.z, p3.x, p3.y, p3.z, 0.0064, 0.0052, tip, 4)
+      const cd = dir(curl * 4.2 + 0.3, x * 0.2)
+      fo.spike(p3.x, p3.y, p3.z, p3.x + cd.x * S.claw * 0.6, p3.y + cd.y * S.claw * 0.6, p3.z + cd.z * S.claw * 0.6, 0.0058, C.nail)
     }
-    fo.tube(-side * hw * 0.8, hy - S.hand * 0.1, F * 0.01, -side * hw * 1.1, hy - S.hand * 0.5, F * 0.04, 0.009, 0.007, L.skin, 4) // thumb
+    const t0 = new THREE.Vector3(-side * hw * 0.78, hy - S.hand * 0.12, F * 0.012), t1 = new THREE.Vector3(-side * hw * 1.05, hy - S.hand * 0.32, F * 0.03), t2 = new THREE.Vector3(-side * hw * 1.0, hy - S.hand * 0.52, F * 0.045)
+    fo.tube(t0.x, t0.y, t0.z, t1.x, t1.y, t1.z, 0.01, 0.0085, L.skin, 4).tube(t1.x, t1.y, t1.z, t2.x, t2.y, t2.z, 0.0082, 0.0065, sk, 4).ball(t1.x, t1.y, t1.z, 0.0092, 0.0088, 0.0092, L.skin, 0, true)
+    fo.spike(t2.x, t2.y, t2.z, t2.x, t2.y - S.claw * 0.4, t2.z + F * S.claw * 0.25, 0.006, C.nail)
   }
   return [up.build(), fo.build()]
 }
@@ -565,8 +790,9 @@ function legSegs(S: BodySpec, L: Look, side: number, r: () => number): [THREE.Bu
     { y: -Th - 0.012, w: R * 0.75, d: R * 0.75, c: fullPants ? dim(pants, 0.9) : L.skin },
   ], 7)
   if (!fullPants) th.loft([{ y: 0.05, w: R * 1.15, d: R * 1.15, c: pants }, { y: -0.06, w: R * 1.32, d: R * 1.28, c: pants }, { y: -Th * (L.pants === "shorts" ? 0.45 : 0.25), w: R * 1.2, d: R * 1.15, c: pants, jag: 0.06 }], 7, 0)
-  for (let i = 0; i < 2; i++) { const a = r() * Math.PI * 2; th.wound(Math.cos(a) * R * 0.95, -Th * (0.25 + r() * 0.5), Math.sin(a) * R * 0.95, R * 1.3, Math.atan2(Math.cos(a), Math.sin(a))) }
+  for (let i = 0; i < 2; i++) { const a = r() * Math.PI * 2; th.carve(Math.cos(a) * R * 0.95, -Th * (0.25 + r() * 0.5), Math.sin(a) * R * 0.95, R * 0.95, 0.3) }
   if (S.plates) th.plate(side * R * 0.95, -Th * 0.4, 0, R * 0.32, Th * 0.3, R * 0.85, 0, 0, side * 0.08)
+  if (!S.plates && DETAIL >= 1 && !fullPants) th.ball(0, -Th + 0.006, F * R * 0.42, R * 0.66, R * 0.6, R * 0.5, dim(L.skin, 0.92))
   // shin + foot
   const torn = L.pants === "torn" ? 0.35 + r() * 0.35 : L.pants === "long" ? 1 : 0
   sh.loft([
@@ -601,6 +827,7 @@ export function buildVariant(kind: InfectedKind, variant: number, detail = 1): V
 function buildVariantAt(kind: InfectedKind, variant: number): VariantGeo {
   const r = makeRng(kindSeed(kind) + variant * 7919)
   const S = SPECS[kind], L = makeLook(kind, r)
+  classify(L)
   const [ual, fal] = armSegs(S, L, -1, r, kind), [uar, far] = armSegs(S, L, 1, r, kind)
   const legs = S.legs ? [...legSegs(S, L, -1, r), ...legSegs(S, L, 1, r)] : [null, null, null, null]
   return {
@@ -624,7 +851,7 @@ export function createInfectedMaterial(glow: { value: number }): THREE.MeshStand
       .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\ntotalEmissiveRadiance += vColor.rgb * vGlow * uGlow;")
   }
   m.customProgramCacheKey = () => "iv-infected-glow"
-  return m
+  return withSurface(m, { scale: 22, bump: 0.0022, grime: 0.45, mottle: 0.38, rough: 0.22, weave: 0.6, type: SURF.skin })
 }
 
 export class InfectedAssets {
