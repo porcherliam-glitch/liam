@@ -1235,7 +1235,7 @@ export class RaidGame {
         switching: this.switchTime, using: this.useTime, usingKind: this.useKind,
         melee: this.meleeTime, meleeQuick: this.meleeQuick,
         light: this.world.lightLevel, flashlight: this.flashlightOn, laser: w.mods.tactical === "att_laser" && !p.sprinting,
-      } as never)
+      })
       this.lookFrame.yaw = 0; this.lookFrame.pitch = 0
       this.audio.setListener(cam.position, p.yaw)
     }
