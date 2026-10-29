@@ -1335,6 +1335,8 @@ export class RaidGame {
     vitals: () => ({ ...this.player.vitals }),
     weapon: () => ({ id: this.weapon.id, mag: this.weapon.mag, reserve: this.weapon.reserve(this.ammoSource), reloading: this.weapon.reloading, ammo: this.weapon.ammo }),
     defense: () => this.defense ? { ...this.defense, alive: this.infected?.aliveCount() ?? 0 } : null,
+    /** Screen blood as from a close kill (respects the gore setting). */
+    splatter: (amount: number) => { if (this.settings.gore !== "off") this.screenBlood?.(amount) },
     killAllInfected: () => { if (!this.infected) return; for (const t of this.infected.inRadius(this.player.pos, 1e4)) this.infected.applyDamage({ target: t, distance: 1, part: "body", bodyPart: "torso", point: t.chestPosition(new THREE.Vector3()) }, { amount: 1e5, from: this.player.pos, dir: _upWorld, penetration: 1, kind: "bullet", sever: 0 }) },
   }
 

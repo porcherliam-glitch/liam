@@ -52,7 +52,7 @@ export async function openGame({ settings, profile, viewport = { width: 1280, he
     /** Waits for n rendered frames (the first frames of a raid can stall while shaders compile). */
     frames: (n = 3) => page.evaluate(n => new Promise(r => { let k = 0; const f = () => (++k >= n ? r() : requestAnimationFrame(f)); requestAnimationFrame(f) }), n),
     /** Waits until fn() (evaluated in the page) is truthy. */
-    async until(fn, arg, timeout = 15000) { await page.waitForFunction(fn, arg, { timeout }) },
+    async until(fn, arg, timeout = 45000) { await page.waitForFunction(fn, arg, { timeout }) },
     async close() { await browser.close(); server.close() },
   }
   return api

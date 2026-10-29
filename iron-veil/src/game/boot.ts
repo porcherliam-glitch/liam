@@ -11,7 +11,7 @@ import { RaidGame } from "./raid"
 import { clearProfile, loadProfile, loadSettings, saveSettings } from "./storage"
 import type { EnemyKind, GameSnapshot, Profile, RaidPlan } from "./types"
 import { GameUI } from "./ui"
-import { zoneLayout } from "./world"
+import { baseLayout, zoneLayout } from "./world"
 
 declare global {
   interface Window {
@@ -38,6 +38,10 @@ declare global {
       defense: () => unknown
       profile: () => Profile
       screen: () => string
+      setThreat: (threat: number, pending: boolean) => void
+      stations: () => { id: string; x: number; z: number }[]
+      toMenu: () => void
+      splatter: (amount: number) => void
     }
   }
 }
@@ -121,6 +125,10 @@ export function startGame(canvas: HTMLCanvasElement, uiHost: HTMLElement): void 
     vitals: () => game.debug.vitals(), weapon: () => game.debug.weapon(), defense: () => game.debug.defense(),
     profile: () => JSON.parse(JSON.stringify(company.profile)),
     screen: () => ui.currentScreen,
+    stations: () => baseLayout().stations.map(s => ({ id: s.id, x: s.x, z: s.z })),
+    toMenu: () => { game.leaveToMenu(); ui.showMenu() },
+    splatter: amount => game.debug.splatter(amount),
+    setThreat: (threat, pending) => { company.profile.base.threat = threat; company.profile.base.attackPending = pending; company.save() },
   }
   session = { dispose: () => { window.removeEventListener("keydown", onGlobalKey); game.dispose(); ui.dispose(); audio.dispose(); delete window.__gameProbe; delete window.__ironVeil; window.__GAME_READY__ = false } }
 }
