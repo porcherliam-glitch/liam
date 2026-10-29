@@ -214,13 +214,19 @@ export class RaidGame {
     this.effects = new Effects(this.scene); this.effects.setViewportHeight(window.innerHeight * this.renderer.getPixelRatio())
     this.gore = new GoreSystem(this.scene, this.world.collision, this.settings.gore)
     this.gore.onScreenSplatter = amount => { if (this.settings.gore !== "off") this.screenBlood?.(amount) }
-    // compile every shader of the new world now instead of stuttering on the first look at each area
-    try { this.renderer.compile(this.scene, this.camera) } catch { /* compile is an optimisation only */ }
     this.grenades = new GrenadeSystem(this.scene, {
       bounce: p => this.sfx("grenade_bounce", { position: p }),
       explode: p => this.explode(p),
       ignite: p => this.ignite(p),
     })
+    this.precompile()
+  }
+
+  /** Compiles every shader of the scene now (plus the throwables) instead of stuttering on the first look at each area or throw. */
+  private precompile(): void {
+    const warm = this.grenades.prewarmGroup(); this.scene.add(warm)
+    try { this.renderer.compile(this.scene, this.camera) } catch { /* compile is an optimisation only */ }
+    this.scene.remove(warm)
   }
 
   /** Optional hook (set by the UI) for blood on the screen. */
@@ -303,6 +309,8 @@ export class RaidGame {
       const kinds = camp.kinds ?? Array.from({ length: camp.squad }, (_, i) => pool[(i + Math.floor(this.rng() * pool.length)) % pool.length])
       this.mercs!.spawnSquad(kinds, camp.x, camp.z, camp.patrol)
     }
+    // containers and mercenaries exist now: compile their shaders too
+    this.precompile()
     // exits: roll which are open; at least two (the cheapest first)
     this.openExits = layout.extractions.filter(e => this.rng() < e.chance)
     for (const e of layout.extractions) if (this.openExits.length < 2 && !this.openExits.includes(e)) this.openExits.push(e)

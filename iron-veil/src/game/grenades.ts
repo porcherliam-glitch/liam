@@ -107,6 +107,9 @@ export class GrenadeSystem {
     }
   }
 
+  /** One model of every throwable, for shader pre-compilation (add to the scene before renderer.compile, remove after). */
+  prewarmGroup(): THREE.Group { const g = new THREE.Group(); for (const k of ["grenade", "molotov"] as const) g.add(throwModel(k)); return g }
+
   get count(): number { return this.live.length }
   clear(): void { for (const g of this.live) this.parent.remove(g.mesh); this.live = [] }
 }
