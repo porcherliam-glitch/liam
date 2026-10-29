@@ -10,6 +10,7 @@ import * as THREE from "three"
 import type { BuildingInfo, Doorway, MapProp, MapSolid, Side } from "./maps"
 import { ConeBatch, GeoBatch, GlowBatch, NY, PoolBatch, PY } from "./meshkit"
 import { mulberry } from "./textures"
+import { mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js"
 
 export type InstKind = "barrel" | "sandbag" | "post" | "bollard" | "chainpost"
 export interface Searchlight { x: number; y: number; z: number; rot: number; amp: number; dist: number; phase: number }
@@ -86,10 +87,24 @@ export function tpl(): Record<string, THREE.BufferGeometry> {
     taper: new THREE.CylinderGeometry(0.62, 1, 1, 16, 1, true).translate(0, 0.5, 0),
     dome: new THREE.SphereGeometry(1, 16, 6, 0, Math.PI * 2, 0, Math.PI / 2),
     disc: new THREE.CircleGeometry(1, 20),
+    // weathered rock: smooth lumpy mass (layered waves) broken by a few flat fracture planes, smooth normals
     chunk: (() => {
-      const g = new THREE.IcosahedronGeometry(1, 1), p = g.attributes.position as THREE.BufferAttribute
-      for (let i = 0; i < p.count; i++) { const x = p.getX(i), y = p.getY(i), z = p.getZ(i), k = 0.78 + 0.22 * Math.abs(Math.sin(x * 5.1 + y * 3.7) * Math.cos(z * 4.3 - x * 2.2)) + 0.08 * Math.sin(y * 9 + z * 7); p.setXYZ(i, x * k, y * k, z * k) }
-      g.computeVertexNormals(); return g
+      let g: THREE.BufferGeometry = new THREE.IcosahedronGeometry(1, 3)
+      g.deleteAttribute("normal"); g.deleteAttribute("uv"); g = mergeVertices(g)
+      const p = g.attributes.position as THREE.BufferAttribute, v = new THREE.Vector3()
+      const wave = (x: number, y: number, z: number) => Math.sin(x * 2.1 + y * 1.3) * Math.cos(z * 1.7 - x * 0.9) * 0.16 + Math.sin(x * 4.7 - z * 3.9 + y * 2.3) * 0.06 + Math.sin(y * 8.3 + x * 6.1) * Math.cos(z * 7.7) * 0.025
+      const cuts = [[0.62, 0.55, 0.56, 0.66], [-0.7, 0.2, 0.68, 0.7], [0.1, -0.95, 0.3, 0.6], [-0.3, 0.7, -0.65, 0.68], [0.85, -0.2, -0.5, 0.64], [0, 1, 0.1, 0.62], [-0.6, -0.5, -0.6, 0.66], [0.3, 0.1, -0.95, 0.7]].map(([x, y, z, d]) => [new THREE.Vector3(x, y, z).normalize(), d] as const)
+      for (let i = 0; i < p.count; i++) {
+        v.fromBufferAttribute(p, i)
+        v.multiplyScalar(0.9 + wave(v.x, v.y, v.z))
+        for (const [n, d] of cuts) { const k = v.dot(n); if (k > d) v.addScaledVector(n, (d - k) * 0.97) }
+        p.setXYZ(i, v.x, v.y, v.z)
+      }
+      g.computeVertexNormals()
+      // planar UVs (metres on the unit rock; place() scales them)
+      const uv = new Float32Array(p.count * 2); for (let i = 0; i < p.count; i++) { uv[i * 2] = p.getX(i) + p.getZ(i) * 0.6; uv[i * 2 + 1] = p.getY(i) }
+      g.setAttribute("uv", new THREE.BufferAttribute(uv, 2))
+      return g
     })(),
   }
   return T
