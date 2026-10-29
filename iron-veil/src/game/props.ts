@@ -11,6 +11,7 @@ import type { BuildingInfo, Doorway, MapProp, MapSolid, Side } from "./maps"
 import { ConeBatch, GeoBatch, GlowBatch, NY, PoolBatch, PY } from "./meshkit"
 import { mulberry } from "./textures"
 import { mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js"
+import { hydrantGeometry, streetLampGeometry, type VehicleGeo, type VehiclePart } from "./vehicleModels"
 
 export type InstKind = "barrel" | "sandbag" | "post" | "bollard" | "chainpost"
 export interface Searchlight { x: number; y: number; z: number; rot: number; amp: number; dist: number; phase: number }
@@ -66,6 +67,12 @@ export function jit(s: { x: number; z: number }, amount = 0.07): number { const 
 export function place(b: GeoBatch, geo: THREE.BufferGeometry, x: number, y: number, z: number, rx: number, ry: number, rz: number, sx: number, sy: number, sz: number, color: number | THREE.Color, uv: [number, number] = [1, 1]): void {
   M.compose(P.set(x, y, z), Q.setFromEuler(E.set(rx, ry, rz, "YXZ")), S.set(sx, sy, sz)); b.add(geo, M, color, uv)
 }
+
+/** Adds a prefab template (vehicleModels) at matrix m: part → [batch key, colour]; parts without an entry are skipped. */
+export function addTemplate(ctx: BuildCtx, geo: VehicleGeo, m: THREE.Matrix4, look: Partial<Record<VehiclePart, [string, THREE.Color]>>): void {
+  for (const [part, kc] of Object.entries(look) as [VehiclePart, [string, THREE.Color]][]) { const g = geo[part]; if (g && kc) ctx.B(kc[0]).add(g, m, kc[1]) }
+}
+const poseY = (x: number, y: number, z: number, ry: number) => new THREE.Matrix4().makeRotationY(ry).setPosition(x, y, z)
 
 // shared template geometries (disposed by disposeTemplates)
 let T: Record<string, THREE.BufferGeometry> | null = null
@@ -630,10 +637,8 @@ export function buildProp(ctx: BuildCtx, p: MapProp): void {
     case "mast": return mast(ctx, p)
     case "streetlamp": {
       const h = p.h ?? 7, rot = p.rot ?? 0, ax = -Math.sin(rot), az = -Math.cos(rot)
-      place(metal, t.cyl8, p.x, h / 2, p.z, 0, 0, 0, 0.08, h, 0.08, 0x5a5e62)
-      place(metal, t.box, p.x + ax * 0.8, h - 0.05, p.z + az * 0.8, 0, rot, 0, 0.08, 0.08, 1.6, 0x5a5e62)
+      addTemplate(ctx, streetLampGeometry(h), poseY(p.x, 0, p.z, rot), { paint: ["metal", tint(0x4e5357)], trim: ["metal", tint(0x34383c)] })
       const hx = p.x + ax * 1.5, hz = p.z + az * 1.5
-      place(metal, t.box, hx, h - 0.12, hz, 0, rot, 0, 0.35, 0.14, 0.6, 0x3a3e42)
       const k = lampAt(ctx, hx, h - 0.3, hz, L.lampColor)
       ctx.B("lamp").box(hx - 0.14, h - 0.21, hz - 0.14, hx + 0.14, h - 0.18, hz + 0.14, { color: k > 0 ? tint(L.lampColor, 1, 2.2) : tint(0x3a3c3e), ao: 0 })
       if (k > 0) {
@@ -658,7 +663,7 @@ export function buildProp(ctx: BuildCtx, p: MapProp): void {
       }
       return
     }
-    case "hydrant": { place(metal, t.cyl8, p.x, 0.4, p.z, 0, 0, 0, 0.12, 0.8, 0.12, 0xb02820); place(metal, t.sphere, p.x, 0.8, p.z, 0, 0, 0, 0.13, 0.1, 0.13, 0xb02820); return }
+    case "hydrant": { addTemplate(ctx, hydrantGeometry(), poseY(p.x, 0, p.z, p.rot ?? 0), { paint: ["carpaint", tint(0xb02820)], trim: ["metal", tint(0x5a5248)] }); return }
     case "weeds": {
       const n = Math.round((p.v ?? 20) * (ctx.high ? 1 : 0.4))
       for (let i = 0; i < n; i++) ctx.weeds.push([p.x + ctx.rng() * (p.w ?? 4), p.z + ctx.rng() * (p.d ?? 4), 0.7 + ctx.rng() * 0.8])

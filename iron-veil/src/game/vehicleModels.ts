@@ -926,6 +926,102 @@ export function bodyBagGeometry(): VehicleGeo {
   })
 }
 
+const lathe = (pts: [number, number][], seg: number) => new THREE.LatheGeometry(pts.map(([r, y]) => new THREE.Vector2(r, y)), seg)
+
+/** Pillar fire hydrant (origin on the ground): flanged barrel, bonnet with pentagon nut, two hose outlets and a pumper nozzle with caps. */
+export function hydrantGeometry(): VehicleGeo {
+  return cached("hydrant", () => {
+    const p = new Parts()
+    p.add("paint", lathe([[0, 0], [0.17, 0], [0.17, 0.045], [0.13, 0.06], [0.118, 0.075], [0.112, 0.3], [0.115, 0.54], [0.145, 0.555], [0.145, 0.6], [0.122, 0.615], [0.118, 0.64], [0.1, 0.7], [0.065, 0.738], [0.04, 0.748], [0, 0.75]], 18))
+    p.add("trim", new THREE.CylinderGeometry(0.032, 0.036, 0.045, 5).translate(0, 0.77, 0))
+    for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; p.box("trim", 0.022, 0.03, 0.022, Math.cos(a) * 0.135, 0.585, Math.sin(a) * 0.135) }
+    for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2 + 0.3; p.box("trim", 0.026, 0.022, 0.026, Math.cos(a) * 0.15, 0.052, Math.sin(a) * 0.15) }
+    // side hose outlets (x) and the bigger pumper nozzle facing the street (-z), each with a nut-headed cap
+    for (const sd of [-1, 1]) {
+      p.add("paint", new THREE.CylinderGeometry(0.042, 0.048, 0.08, 12).rotateZ(Math.PI / 2).translate(sd * 0.15, 0.43, 0))
+      p.add("paint", new THREE.CylinderGeometry(0.052, 0.052, 0.035, 12).rotateZ(Math.PI / 2).translate(sd * 0.205, 0.43, 0))
+      p.add("trim", new THREE.CylinderGeometry(0.018, 0.018, 0.022, 5).rotateZ(Math.PI / 2).translate(sd * 0.232, 0.43, 0))
+    }
+    p.add("paint", new THREE.CylinderGeometry(0.06, 0.068, 0.09, 14).rotateX(Math.PI / 2).translate(0, 0.36, -0.155))
+    p.add("paint", new THREE.CylinderGeometry(0.072, 0.072, 0.04, 14).rotateX(Math.PI / 2).translate(0, 0.36, -0.215))
+    p.add("trim", new THREE.CylinderGeometry(0.024, 0.024, 0.024, 5).rotateX(Math.PI / 2).translate(0, 0.36, -0.245))
+    // cap chain hanging from the pumper cap to the barrel
+    for (let i = 0; i < 4; i++) p.add("trim", new THREE.TorusGeometry(0.012, 0.003, 4, 8).rotateY(i % 2 ? Math.PI / 2 : 0).translate(0.04 + i * 0.014, 0.33 - i * 0.022, -0.17 + i * 0.012))
+    return p.build()
+  })
+}
+
+/**
+ * Petrol dispenser (1.0 × 0.8 × 1.6 m footprint, origin on the ground, displays on the ±z faces): plinth, rounded
+ * cabinet with door seams, head with price/volume displays, lit brand band on top, nozzle holster and a hanging hose.
+ */
+export function fuelPumpGeometry(): VehicleGeo {
+  return cached("fuelpump", () => {
+    const p = new Parts(), W = 1.0, D = 0.8
+    p.box("frame", W, 0.08, D, 0, 0.04, 0, 0.02)
+    p.box("paint", W - 0.12, 0.92, D - 0.24, 0, 0.54, 0, 0.05)
+    for (const sd of [-1, 1]) {
+      // cabinet doors: two seams, a lock and a vent grille on each face
+      p.box("trim", 0.008, 0.78, 0.006, 0, 0.53, sd * (D / 2 - 0.118))
+      p.box("trim", 0.05, 0.02, 0.006, 0.12, 0.62, sd * (D / 2 - 0.118))
+      for (let i = 0; i < 4; i++) p.box("trim", 0.28, 0.012, 0.006, -0.22, 0.2 + i * 0.03, sd * (D / 2 - 0.118))
+      // displays: total, volume, price per litre; nozzle grade buttons below
+      p.box("trim", 0.62, 0.36, 0.012, 0, 1.2, sd * (D / 2 - 0.06), 0.02)
+      for (const [y, h] of [[1.3, 0.09], [1.19, 0.07], [1.1, 0.05]] as const) p.box("glass", 0.42, h, 0.006, 0.04, y, sd * (D / 2 - 0.052))
+      for (let i = 0; i < 3; i++) p.box("roof", 0.07, 0.04, 0.012, -0.2 + i * 0.1, 1.04, sd * (D / 2 - 0.058), 0.01)
+    }
+    p.box("paint", W - 0.04, 0.5, D - 0.12, 0, 1.24, 0, 0.06)
+    p.box("roof", W, 0.14, D - 0.08, 0, 1.53, 0, 0.04)
+    p.box("trim", W + 0.02, 0.02, D - 0.06, 0, 1.46, 0)
+    // holster and nozzle on the +x end, hose arcing down from the head
+    p.box("trim", 0.06, 0.16, 0.14, W / 2 - 0.02, 0.98, 0.1, 0.02)
+    p.box("rubber", 0.05, 0.05, 0.2, W / 2 + 0.01, 0.95, 0.1, 0.02)
+    p.add("trim", new THREE.CylinderGeometry(0.012, 0.014, 0.16, 8).rotateX(-1.1).translate(W / 2 + 0.01, 0.88, -0.02))
+    const hose = new THREE.CatmullRomCurve3([new THREE.Vector3(W / 2 - 0.05, 1.3, -0.15), new THREE.Vector3(W / 2 + 0.06, 1.05, -0.24), new THREE.Vector3(W / 2 + 0.08, 0.55, -0.2), new THREE.Vector3(W / 2 + 0.06, 0.6, 0.05), new THREE.Vector3(W / 2 + 0.02, 0.92, 0.18)])
+    p.add("rubber", new THREE.TubeGeometry(hose, 24, 0.017, 6))
+    return p.build(["paint", "roof"])
+  })
+}
+
+/** Street litter bin (0.6 m Ø, 0.95 m, origin on the ground): ribbed tapered drum, foot ring, rim band, hooded lid with a throw slot. */
+export function litterBinGeometry(): VehicleGeo {
+  return cached("litterbin", () => {
+    const p = new Parts(), g = new THREE.CylinderGeometry(0.3, 0.27, 0.8, 40, 1, true), q = g.attributes.position as THREE.BufferAttribute
+    for (let i = 0; i < q.count; i++) { const x = q.getX(i), z = q.getZ(i), a = Math.atan2(z, x), k = 1 + 0.03 * Math.max(0, Math.cos(a * 12)) ** 6; q.setXYZ(i, x * k, q.getY(i), z * k) }
+    g.translate(0, 0.48, 0); g.computeVertexNormals(); p.add("paint", g)
+    p.add("trim", lathe([[0, 0], [0.29, 0], [0.29, 0.05], [0.27, 0.08], [0, 0.08]], 20))
+    p.add("trim", new THREE.TorusGeometry(0.305, 0.022, 6, 28).rotateX(Math.PI / 2).translate(0, 0.86, 0))
+    p.add("trim", new THREE.TorusGeometry(0.29, 0.012, 4, 28).rotateX(Math.PI / 2).translate(0, 0.3, 0))
+    // lid: flat collar, dark throw opening in front, hood dome over the back half
+    p.add("trim", lathe([[0.32, 0.875], [0.31, 0.895], [0.2, 0.9], [0.2, 0.89]], 24))
+    p.add("interior", new THREE.CircleGeometry(0.2, 20).rotateX(-Math.PI / 2).translate(0, 0.885, 0))
+    const hood = new THREE.SphereGeometry(0.3, 20, 8, Math.PI, Math.PI, 0, Math.PI / 2); hood.scale(1, 0.55, 1); hood.translate(0, 0.885, 0); p.add("trim", hood)
+    p.add("trim", new THREE.CircleGeometry(0.3, 16, 0, Math.PI).scale(1, 0.55, 1).translate(0, 0.885, 0))
+    return p.build(["paint"])
+  })
+}
+
+/**
+ * Street lamp of height h (origin at the foot, arm toward -z): cast foot with service door, tapered shaft with a
+ * collar, curved outreach arm and an elongated luminaire housing whose underside (y = h - 0.18) takes the lens.
+ */
+export function streetLampGeometry(h: number): VehicleGeo {
+  return cached(`streetlamp:${h.toFixed(1)}`, () => {
+    const p = new Parts()
+    p.add("paint", lathe([[0, 0], [0.2, 0], [0.2, 0.06], [0.16, 0.1], [0.14, 0.5], [0.12, 0.62], [0.1, 0.66], [0, 0.66]], 14))
+    p.box("trim", 0.1, 0.24, 0.02, 0, 0.3, -0.142)
+    p.add("paint", new THREE.CylinderGeometry(0.06, 0.095, h - 0.9, 12).translate(0, 0.66 + (h - 0.9) / 2, 0))
+    p.add("paint", new THREE.CylinderGeometry(0.08, 0.08, 0.06, 12).translate(0, 2.6, 0))
+    const top = h - 0.24
+    const arm = new THREE.QuadraticBezierCurve3(new THREE.Vector3(0, top - 0.6, 0), new THREE.Vector3(0, top + 0.12, -0.05), new THREE.Vector3(0, top, -1.1))
+    p.add("paint", new THREE.TubeGeometry(arm, 14, 0.045, 8))
+    p.add("paint", new THREE.CylinderGeometry(0.05, 0.05, 0.4, 8).rotateX(Math.PI / 2).translate(0, top, -1.25))
+    const head = new THREE.SphereGeometry(1, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2); head.scale(0.2, 0.11, 0.38); head.translate(0, h - 0.18, -1.5); p.add("trim", head)
+    p.add("trim", lathe([[0.2, 0], [0.21, 0.02], [0.2, 0.035]], 16).scale(1, 1, 1.9).translate(0, h - 0.2, -1.5))
+    return p.build()
+  })
+}
+
 /** Deterministic small PRNG for template variation. */
 function mulberry32(seed: number): () => number {
   let a = seed >>> 0

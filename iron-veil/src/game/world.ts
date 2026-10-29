@@ -209,10 +209,14 @@ class Builder {
 }
 
 const INST_GEO: Record<InstKind, (high: boolean) => THREE.BufferGeometry> = {
+  // 200 l steel drum: rolled chimes at both ends, two rolling hoops, recessed lid with two bungs
   barrel: high => {
-    const body = new THREE.CylinderGeometry(0.3, 0.3, 0.9, high ? 14 : 8); scaleUv(body, 1.9, 0.9)
-    const rings = [-0.22, 0.22].map(y => new THREE.CylinderGeometry(0.312, 0.312, 0.04, high ? 14 : 8).translate(0, y, 0))
-    const g = mergeGeometries([body, ...rings].map(x => x.toNonIndexed()), false)!; return g
+    const prof: [number, number][] = [[0, 0.425], [0.27, 0.425], [0.285, 0.44], [0.3, 0.452], [0.306, 0.44], [0.3, 0.42], [0.297, 0.25], [0.31, 0.235], [0.31, 0.205], [0.297, 0.19],
+      [0.297, -0.19], [0.31, -0.205], [0.31, -0.235], [0.297, -0.25], [0.3, -0.42], [0.306, -0.44], [0.3, -0.452], [0, -0.452]]
+    const body = new THREE.LatheGeometry(prof.reverse().map(([r, y]) => new THREE.Vector2(r, y)), high ? 16 : 9); scaleUv(body, 1.9, 0.9)
+    const parts: THREE.BufferGeometry[] = [body]
+    if (high) for (const [x, r] of [[0.17, 0.035], [-0.19, 0.022]] as const) parts.push(new THREE.CylinderGeometry(r, r, 0.02, 8).translate(x, 0.43, 0.04))
+    const g = mergeGeometries(parts.map(x => x.index ? x.toNonIndexed() : x), false)!; return g
   },
   sandbag: () => pillow(),
   post: () => new THREE.CylinderGeometry(0.035, 0.035, 1, 5).translate(0, 0.5, 0),

@@ -9,8 +9,8 @@
 import * as THREE from "three"
 import type { BuildingInfo, MapProp, MapSolid, Side } from "./maps"
 import { NY, PY, type GeoBatch } from "./meshkit"
-import { buildSolid, decal, fenceRun, jit, lampAt, place, registerExtras, sag, textKey, tint, tpl, type BuildCtx, type WindowReq } from "./props"
-import { CAR_LENGTH, CAR_WIDTH, apcGeometry, boatGeometry, bodyBagGeometry, boxcarGeometry, busGeometry, carGeometry, conveyorGeometry, forkliftGeometry, excavatorGeometry, hopperWagonGeometry, tankWagonGeometry, tractorGeometry, trashBagGeometry, trestleGeometry, truckCabGeometry, type CarStyle, type VehicleGeo, type VehiclePart } from "./vehicleModels"
+import { addTemplate, buildSolid, decal, fenceRun, jit, lampAt, place, registerExtras, sag, textKey, tint, tpl, type BuildCtx, type WindowReq } from "./props"
+import { CAR_LENGTH, CAR_WIDTH, apcGeometry, boatGeometry, bodyBagGeometry, boxcarGeometry, busGeometry, carGeometry, conveyorGeometry, forkliftGeometry, excavatorGeometry, fuelPumpGeometry, hopperWagonGeometry, litterBinGeometry, tankWagonGeometry, tractorGeometry, trashBagGeometry, trestleGeometry, truckCabGeometry, type CarStyle, type VehicleGeo, type VehiclePart } from "./vehicleModels"
 
 const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), V = new THREE.Vector3(), S = new THREE.Vector3(), E = new THREE.Euler()
 
@@ -244,10 +244,9 @@ function extraSolid(ctx: BuildCtx, s: MapSolid): boolean {
       return true
     }
     case "fuelpump": {
-      metal.box(x0, y0, z0, x1, y1 - 0.35, z1, { color: tint(0xe0ded6, 1, k) })
-      metal.box(x0 - 0.02, y1 - 0.35, z0 - 0.02, x1 + 0.02, y1, z1 + 0.02, { color: tint(0xb02820, 1, k), ao: 0 })
-      decal(ctx, "vent", s.x, y1 - 0.75, alongX ? z1 : s.z, 0.5, 0.3, alongX ? "s" : "e", 0x9ad0ff)
-      place(ctx.B("rubber"), t.cyl8, alongX ? x1 + 0.05 : s.x + 0.2, y0 + 0.8, alongX ? s.z : z1 + 0.05, 0.15, 0, 0, 0.025, 1.0, 0.025, 0x1a1a1a)
+      // template is 1.0 × 0.8 × 1.6 with its displays on ±z: turn it so they face along the island
+      const m = placeAt(s.x, y0, s.z, alongX ? 0 : Math.PI / 2).multiply(new THREE.Matrix4().makeScale((alongX ? s.w : s.d) / 1.0, s.h / 1.6, (alongX ? s.d : s.w) / 0.8))
+      addTemplate(ctx, fuelPumpGeometry(), m, { paint: ["carpaint", tint(0xe0ded6, 1, k)], roof: ["carpaint", tint(0xb02820, 1, k)], frame: ["concrete", tint(0x9a968c)], trim: ["metal", tint(0x3a3e42)], glass: ["glass", tint(0x1a2a20)], rubber: ["rubber", tint(0x1a1a1a)] })
       return true
     }
     case "bale": {
@@ -388,8 +387,8 @@ function extraSolid(ctx: BuildCtx, s: MapSolid): boolean {
       return true
     }
     case "bin": {
-      place(metal, t.cyl12, s.x, y0 + s.h / 2, s.z, 0, 0, 0, Math.min(s.w, s.d) / 2, s.h, Math.min(s.w, s.d) / 2, tint(0x3a5a3a, 1, k))
-      place(metal, t.cyl12, s.x, y0 + s.h, s.z, 0, 0, 0, Math.min(s.w, s.d) / 2 + 0.03, 0.05, Math.min(s.w, s.d) / 2 + 0.03, tint(0x2a2c2e))
+      const r = Math.min(s.w, s.d) / 0.64
+      addTemplate(ctx, litterBinGeometry(), placeAt(s.x, y0, s.z, s.x * 1.7).multiply(new THREE.Matrix4().makeScale(r, s.h / 0.95, r)), { paint: ["carpaint", tint(0x3a5a3a, 1, k)], trim: ["metal", tint(0x2a2c2e)], interior: ["rubber", tint(0x0a0a0a)] })
       return true
     }
     case "tentbox": {
