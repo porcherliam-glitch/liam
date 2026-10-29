@@ -23,6 +23,7 @@
 import type { Obstacle } from "./collision"
 import type { Bounds, NavGrid } from "./nav"
 import type { MissionId, Surface, Vec2 } from "./types"
+import { CAR_CABIN_REAR, CAR_LENGTH, CAR_WIDTH, type CarStyle } from "./vehicleModels"
 
 export type Side = "n" | "s" | "e" | "w"
 
@@ -307,10 +308,12 @@ export class Draft {
 
   /** Car (body + glass cabin as two solids so the obstacle matches the silhouette). */
   car(x: number, z: number, along: "x" | "z", tint: number, v = 0): void {
-    const L = 4.4, W = 1.84
-    const cab = along === "x" ? [x - 0.25, z] : [x, z + 0.25]
+    const L = CAR_LENGTH, W = CAR_WIDTH
+    // the glasshouse runs from 0.9 m ahead of the centre back to the style's tailgate (vehicleModels.ts)
+    const rear = CAR_CABIN_REAR[(v % 3) as CarStyle], cl = 0.9 + rear, co = (0.9 - rear) / 2
+    const cab = along === "x" ? [x + co, z] : [x, z - co]
     this.solid(x, z, along === "x" ? L : W, along === "x" ? W : L, 0.95, "car", { tint, v })
-    this.solid(cab[0], cab[1], along === "x" ? 2.3 : 1.56, along === "x" ? 1.56 : 2.3, 0.5, "cabin", { y: 0.95, tint, v })
+    this.solid(cab[0], cab[1], along === "x" ? cl : 1.56, along === "x" ? 1.56 : cl, 0.5, "cabin", { y: 0.95, tint, v })
   }
 
   /** Box truck: cab + raised cargo box (open underneath visually, but blocks walking). dir = direction the cab faces. */

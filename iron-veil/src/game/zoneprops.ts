@@ -10,6 +10,7 @@ import * as THREE from "three"
 import type { BuildingInfo, MapProp, MapSolid, Side } from "./maps"
 import { NY, PY, type GeoBatch } from "./meshkit"
 import { decal, fenceRun, jit, lampAt, place, registerExtras, sag, textKey, tint, tpl, type BuildCtx, type WindowReq } from "./props"
+import { CAR_LENGTH, CAR_WIDTH, apcGeometry, boatGeometry, busGeometry, carGeometry, excavatorGeometry, tractorGeometry, truckCabGeometry, type CarStyle, type VehicleGeo, type VehiclePart } from "./vehicleModels"
 
 const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), V = new THREE.Vector3(), S = new THREE.Vector3(), E = new THREE.Euler()
 
@@ -130,9 +131,9 @@ function extraSolid(ctx: BuildCtx, s: MapSolid): boolean {
       ctx.B("burlap").box(x0, y0, z0, x1, y1, z1, { color: tint(0xd8c27a, 1, k), top: tint(0xe2cc88, 1, k), local: true })
       return true
     }
-    case "tractor": tractor(ctx, s, x0, z0, x1, z1, k); return true
+    case "tractor": tractor(ctx, s, k); return true
     case "wagon": wagon(ctx, s, x0, y0, z0, x1, y1, z1, alongX, k); return true
-    case "apc": apc(ctx, s, x0, z0, x1, z1, alongX); return true
+    case "apc": apc(ctx, s, alongX); return true
     case "logs": {
       const bark = ctx.B("bark"), ends = ctx.B("plank"), L = alongX ? s.w : s.d, W = alongX ? s.d : s.w
       const r = Math.min(0.32, s.h / 4), rows = Math.max(1, Math.floor(s.h / (r * 1.75)))
@@ -148,30 +149,21 @@ function extraSolid(ctx: BuildCtx, s: MapSolid): boolean {
     }
     case "rock": rock(ctx, s, x0, y0, z0, x1, y1, z1); return true
     case "boat": {
-      const c = tint(s.tint ?? 0xd8d4c8, 1, k), along = !alongX, L = along ? s.d : s.w, W = along ? s.w : s.d
-      const cradle = 0.7, hullTop = Math.min(y1 - 0.9, cradle + 1.3)
-      for (const f of [0.25, 0.75]) { const p = (along ? z0 : x0) + L * f; if (along) metal.box(x0 + 0.2, y0, p - 0.12, x1 - 0.2, cradle, p + 0.12, { color: tint(0x4a4e52) }); else metal.box(p - 0.12, y0, z0 + 0.2, p + 0.12, cradle, z1 - 0.2, { color: tint(0x4a4e52) }) }
-      const bow = Math.min(L * 0.25, 3)
-      if (along) {
-        metal.box(x0 + 0.1, cradle, z0 + bow, x1 - 0.1, hullTop, z1, { color: c, ao: 0 })
-        place(metal, t.cone, s.x, (cradle + hullTop) / 2, z0 + bow / 2, -Math.PI / 2, 0, 0, W / 2 - 0.1, bow, (hullTop - cradle) / 2, c)
-        metal.box(x0 + 0.08, cradle + 0.15, z0 + bow, x1 - 0.08, cradle + 0.45, z1, { color: tint(0x2d557f), ao: 0, skip: PY | NY })
-        ctx.B("glass").box(s.x - W * 0.3, hullTop, s.z, s.x + W * 0.3, y1, s.z + L * 0.25, { color: tint(0xd0ccc0), ao: 0, local: true })
-      } else {
-        metal.box(x0 + bow, cradle, z0 + 0.1, x1, hullTop, z1 - 0.1, { color: c, ao: 0 })
-        place(metal, t.cone, x0 + bow / 2, (cradle + hullTop) / 2, s.z, 0, 0, Math.PI / 2, (hullTop - cradle) / 2, bow, W / 2 - 0.1, c)
-        ctx.B("glass").box(s.x, hullTop, s.z - W * 0.3, s.x + L * 0.25, y1, s.z + W * 0.3, { color: tint(0xd0ccc0), ao: 0, local: true })
-      }
+      const along = !alongX, L = along ? s.d : s.w, W = along ? s.w : s.d, cradle = 0.7
+      for (const fr of [0.25, 0.75]) { const p = (along ? z0 : x0) + L * fr; if (along) metal.box(x0 + 0.6, y0, p - 0.12, x1 - 0.6, cradle + 0.1, p + 0.12, { color: tint(0x4a4e52) }); else metal.box(p - 0.12, y0, z0 + 0.6, p + 0.12, cradle + 0.1, z1 - 0.6, { color: tint(0x4a4e52) }) }
+      const f = along ? frameOf(s.x, s.z, 0, -1) : frameOf(s.x, s.z, -1, 0)
+      addVehicle(ctx, boatGeometry(L, W, cradle), placeAt(s.x, 0, s.z, f.ry), {
+        paint: ["carpaint", tint(s.tint ?? 0xd8d4c8, 1, k)], trim: ["carpaint", tint(0x8a2a22, 1, k)], chrome: ["carpaint", tint(0x2d557f, 1, k)],
+        interior: ["plank", tint(0xb09a78)], glass: ["glass", tint(0x2c353d)], lampF: ["lamp", tint(0xfff2d0, 1, 0.7)],
+      })
       return true
     }
     case "excavator": {
-      const c = tint(s.tint ?? 0xc69c2c, 1, k), dark = tint(0x26282a)
-      if (alongX) for (const z of [z0, z1 - 0.7]) metal.box(x0, y0, z, x1, 0.9, z + 0.7, { color: dark })
-      else for (const x of [x0, x1 - 0.7]) metal.box(x, y0, z0, x + 0.7, 0.9, z1, { color: dark })
-      metal.box(x0 + 0.4, 0.9, z0 + 0.4, x1 - 0.4, 1.25, z1 - 0.4, { color: dark, ao: 0 })
-      metal.box(x0 + 0.3, 1.25, z0 + 0.3, x1 - 0.3, y1 - 1.1, z1 - 0.3, { color: c, ao: 0 })
-      ctx.B("glass").box(s.x - 0.8, y1 - 1.1, z0 + 0.4, s.x + 0.6, y1, z0 + 2, { color: tint(0x9aa4a8), local: true, ao: 0 })
-      metal.box(s.x - 0.85, y1 - 0.05, z0 + 0.35, s.x + 0.65, y1, z0 + 2.05, { color: c, ao: 0 })
+      const f = alongX ? frameOf(s.x, s.z, 1, 0) : frameOf(s.x, s.z, 0, -1)
+      addVehicle(ctx, excavatorGeometry(), placeAt(s.x - (alongX ? 0.4 : 0), 0, s.z + (alongX ? 0 : 0.4), f.ry), {
+        paint: ["carpaint", tint(s.tint ?? 0xc69c2c, 1, k)], glass: ["glass", tint(0x3a4650)], trim: ["metal", tint(0x2a2c2e)], chrome: ["chrome", tint(0xb4b8bc)],
+        rubber: ["rubber", tint(0x1c1d1e)], interior: ["rubber", tint(0x1a1612)],
+      })
       return true
     }
     case "palisade": {
@@ -300,6 +292,12 @@ function frameOf(cx: number, cz: number, fx: number, fz: number): Frame {
     },
   }
 }
+/** Adds a vehicle template to the batches: part → [batch key, colour] (parts without an entry are skipped). */
+function addVehicle(ctx: BuildCtx, geo: VehicleGeo, m: THREE.Matrix4, look: Partial<Record<VehiclePart, [string, THREE.Color]>>): void {
+  for (const [part, kc] of Object.entries(look) as [VehiclePart, [string, THREE.Color]][]) { const g = geo[part]; if (g && kc) ctx.B(kc[0]).add(g, m, kc[1]) }
+}
+const placeAt = (x: number, y: number, z: number, ry: number) => new THREE.Matrix4().makeTranslation(x, y, z).multiply(new THREE.Matrix4().makeRotationY(ry))
+
 /** Charred / rusted paint: dark base with brown-orange patches (per call variation). */
 function wreckPaint(ctx: BuildCtx, burnt: boolean, base?: number): THREE.Color {
   const c = burnt ? new THREE.Color(0x2a2522).lerp(new THREE.Color(0x6a3a22), ctx.rng() * 0.5) : new THREE.Color(base ?? 0x6a4a34).lerp(new THREE.Color(0x7a4426), 0.4 + ctx.rng() * 0.4)
@@ -307,102 +305,54 @@ function wreckPaint(ctx: BuildCtx, burnt: boolean, base?: number): THREE.Color {
 }
 
 function carModel(ctx: BuildCtx, s: MapSolid, alongX: boolean): void {
-  const v = s.v ?? 0, burnt = v === 9, rust = v === 4 || v === 8, wreck = burnt || rust, mil = v === 5, shape = v % 3
+  const v = s.v ?? 0, burnt = v === 9, rust = v === 4 || v === 8, wreck = burnt || rust, mil = v === 5, style = (v % 3) as CarStyle
   const L = alongX ? s.w : s.d, W = alongX ? s.d : s.w, f = alongX ? frameOf(s.x, s.z, 1, 0) : frameOf(s.x, s.z, 0, -1)
-  const metal = ctx.B("metal"), glass = ctx.B("glass"), lamp = ctx.B("lamp"), rub = ctx.B("rubber"), t = tpl()
-  const paint = wreck ? wreckPaint(ctx, burnt, s.tint) : tint(s.tint, 1, jit(s, 0.04)), dark = tint(burnt ? 0x141210 : 0x1e2022), chrome = tint(burnt ? 0x2a2622 : 0x9a9ea2)
-  const sink = wreck ? 0.07 : 0, hw = W / 2, hl = L / 2
-  f.box(metal, -hl + 0.2, hl - 0.2, 0.13 - sink, 0.3 - sink, -hw + 0.12, hw - 0.12, dark)
-  f.box(metal, -hl + 0.06, hl - 0.05, 0.3 - sink, 0.74 - sink, -hw, hw, paint)
-  f.box(metal, -hl + 0.95, hl - 0.95, 0.26 - sink, 0.36 - sink, -hw - 0.01, hw + 0.01, dark)
-  // hood, shoulders, boot
-  f.box(metal, 0.62, hl - 0.06, 0.74 - sink, 0.86 - sink, -hw + 0.03, hw - 0.03, paint, -0.04)
-  const rearEnd = shape === 1 ? -hl + 0.35 : shape === 2 ? -hl + 0.2 : -1.48
-  f.box(metal, -hl + 0.06, 0.62, 0.74 - sink, 0.9 - sink, -hw + 0.02, hw - 0.02, paint)
-  // greenhouse: glass band, roof, pillars, windscreen and rear window
-  const roof0 = shape === 2 ? -hl + 0.3 : rearEnd + 0.3, roof1 = 0.45, top = 1.44 - sink
-  if (!burnt) f.box(glass, roof0, roof1 + 0.05, 0.9 - sink, top - 0.05, -hw + 0.16, hw - 0.16, tint(rust ? 0x3a3a34 : 0x8a96a0), 0)
-  f.box(metal, roof0 - 0.05, roof1 + 0.1, top - 0.06, top, -hw + 0.13, hw - 0.13, paint)
-  for (const u of [roof1 + 0.05, (roof0 + roof1) / 2, roof0]) for (const sd of [-1, 1]) f.box(metal, u - 0.05, u + 0.05, 0.88 - sink, top - 0.04, sd * (hw - 0.16) - 0.04, sd * (hw - 0.16) + 0.04, paint)
-  const ws = Math.hypot(0.5, top - 0.9), wa = Math.atan2(top - 0.9 + sink, 0.5)
-  if (!burnt) f.box(glass, roof1 + 0.05, roof1 + 0.05 + ws, top - 0.32, top - 0.28, -hw + 0.2, hw - 0.2, tint(rust ? 0x3a3a34 : 0x7a8a96), -wa)
-  if (shape !== 2 && !burnt) f.box(glass, roof0 - ws * 0.9, roof0, top - 0.32, top - 0.28, -hw + 0.22, hw - 0.22, tint(0x6a7a86), wa)
-  if (shape === 2) f.box(metal, -hl + 0.06, -hl + 0.3, 0.9 - sink, top - 0.05, -hw + 0.14, hw - 0.14, paint)
-  // bumpers, grille, lights, plates, mirrors
-  for (const e of [-1, 1]) f.box(metal, e > 0 ? hl - 0.1 : -hl - 0.02, e > 0 ? hl + 0.02 : -hl + 0.1, 0.28 - sink, 0.46 - sink, -hw + 0.04, hw - 0.04, wreck ? dark : tint(0x2a2c2e))
-  f.box(metal, hl - 0.04, hl + 0.01, 0.5 - sink, 0.68 - sink, -0.42, 0.42, dark)
-  for (const sd of [-1, 1]) {
-    f.box(burnt ? metal : lamp, hl - 0.05, hl + 0.01, 0.56 - sink, 0.68 - sink, sd > 0 ? hw - 0.42 : -hw + 0.12, sd > 0 ? hw - 0.12 : -hw + 0.42, burnt ? dark : tint(0xfff2d0, 1, 0.9))
-    f.box(burnt ? metal : lamp, -hl - 0.01, -hl + 0.05, 0.58 - sink, 0.72 - sink, sd > 0 ? hw - 0.4 : -hw + 0.1, sd > 0 ? hw - 0.1 : -hw + 0.4, burnt ? dark : tint(0xb01810, 1, 0.8))
-    f.box(metal, 0.5, 0.62, 0.95 - sink, 1.06 - sink, sd * (hw + 0.07) - 0.05, sd * (hw + 0.07) + 0.05, paint)
-  }
-  for (const e of [-1, 1]) f.box(metal, e > 0 ? hl - 0.01 : -hl - 0.02, e > 0 ? hl + 0.02 : -hl + 0.01, 0.34 - sink, 0.45 - sink, -0.26, 0.26, burnt ? dark : tint(0xe8e8e0))
-  // wheels (burnt: rims only, sunk)
-  for (const a of [-1, 1]) for (const b of [-1, 1]) {
-    const [x, z] = f.at(a * (hl - 0.82), b * (hw - 0.13)), r = burnt ? 0.24 : rust ? 0.3 : 0.33
-    if (!burnt) place(rub, t.wheel, x, r - (rust ? 0.03 : 0), z, 0, f.ry + Math.PI / 2, 0, 0.21, r, r, 0x222224)
-    place(metal, t.wheel, x, (burnt ? 0.24 : r) - (rust ? 0.03 : 0), z, 0, f.ry + Math.PI / 2, 0, 0.23, r * (burnt ? 1 : 0.55), r * (burnt ? 1 : 0.55), burnt ? 0x3a3028 : 0xa0a4a8)
-  }
-  if (!burnt) f.box(metal, -0.35, -0.3, 0.62 - sink, 0.65 - sink, -hw - 0.015, hw + 0.015, chrome)
+  const paint = wreck ? wreckPaint(ctx, burnt, s.tint) : tint(s.tint, 1, jit(s, 0.04))
+  const sink = rust ? 0.06 : burnt ? 0.02 : 0, hw = W / 2, hl = L / 2
+  const geo = carGeometry(style, !burnt)
+  const m = new THREE.Matrix4().makeTranslation(s.x, -sink, s.z).multiply(new THREE.Matrix4().makeRotationY(f.ry))
+  if (Math.abs(L - CAR_LENGTH) > 0.05 || Math.abs(W - CAR_WIDTH) > 0.05) m.multiply(new THREE.Matrix4().makeScale(L / CAR_LENGTH, 1, W / CAR_WIDTH))
+  const parts: [VehiclePart, string, THREE.Color][] = [
+    ["paint", "carpaint", paint], ["glass", "glass", tint(rust ? 0x3a3c36 : 0x2a333b)], ["trim", "rubber", tint(burnt ? 0x161412 : 0x262829)],
+    ["chrome", burnt ? "metal" : "chrome", tint(burnt ? 0x2e2824 : rust ? 0x7a6a5a : 0xb4b8bc)], ["rubber", "rubber", tint(0x1c1d1e)],
+    ["interior", "rubber", tint(0x1a1612)], ["plate", "metal", tint(burnt ? 0x2a2622 : 0xe6e4dc)],
+  ]
+  for (const [part, key, color] of parts) { const g = geo[part]; if (g) ctx.B(key).add(g, m, color) }
+  if (!burnt) {
+    if (geo.lampF) ctx.B("lamp").add(geo.lampF, m, tint(0xfff2d0, 1, 0.9))
+    if (geo.lampR) ctx.B("lamp").add(geo.lampR, m, tint(0xb01810, 1, 0.8))
+  } else for (const g of [geo.lampF, geo.lampR]) if (g) ctx.B("rubber").add(g, m, tint(0x141210))
   if (wreck) {
     decal(ctx, burnt ? "oil" : "puddle", s.x, 0, s.z, L + 1.6, W + 1.4, "up", burnt ? 0x202020 : 0xffffff, alongX ? 0 : Math.PI / 2)
     if (burnt) for (let i = 0; i < 3; i++) { const [x, z] = f.at((ctx.rng() - 0.5) * L, (ctx.rng() - 0.5) * W); decal(ctx, "paper", x, 0.92, z, 0.6, 0.6, "up", 0x302822, ctx.rng() * 6) }
   }
-  if (mil) decal(ctx, textKey(ctx, 7, "Y-" + Math.floor(jit(s, 0.5) * 900)), alongX ? s.x + hl : s.x, 0.5, alongX ? s.z : s.z - hl, 0.8, 0.3, alongX ? "e" : "n", 0xffffff)
+  if (mil) decal(ctx, textKey(ctx, 7, "Y-" + Math.floor(jit(s, 0.5) * 900)), alongX ? s.x + hl + 0.04 : s.x, 0.37, alongX ? s.z : s.z - hl - 0.04, 0.48, 0.1, alongX ? "e" : "n", 0xffffff)
+  void hw
 }
 
 function busModel(ctx: BuildCtx, s: MapSolid, alongX: boolean): void {
   const v = s.v ?? 0, burnt = v === 9, rev = (v & 1) === 1 && !burnt
-  const L = alongX ? s.w : s.d, W = alongX ? s.d : s.w, hl = L / 2, hw = W / 2, h = s.h
+  const L = alongX ? s.w : s.d, W = alongX ? s.d : s.w, hl = L / 2
   const f = alongX ? frameOf(s.x, s.z, rev ? -1 : 1, 0) : frameOf(s.x, s.z, 0, rev ? 1 : -1)
-  const metal = ctx.B("metal"), glass = ctx.B("glass"), t = tpl(), lamp = ctx.B("lamp")
-  const paint = burnt ? wreckPaint(ctx, true) : tint(s.tint ?? 0xd8c040, 1, jit(s, 0.04)), upper = burnt ? paint : tint(0xe8e6de), dark = tint(burnt ? 0x141210 : 0x1e2022)
-  const sink = burnt ? 0.12 : 0
-  f.box(metal, -hl + 0.1, hl - 0.1, 0.2 - sink, 0.45 - sink, -hw + 0.1, hw - 0.1, dark)
-  f.box(metal, -hl, hl, 0.45 - sink, 1.2 - sink, -hw, hw, paint)
-  if (!burnt) f.box(glass, -hl + 0.15, hl - 0.15, 1.2 - sink, 2.4 - sink, -hw + 0.06, hw - 0.06, tint(0x6a7a84))
-  f.box(metal, -hl, hl, 2.4 - sink, h - 0.2 - sink, -hw, hw, upper)
-  f.box(metal, -1.8, 1.2, h - 0.2 - sink, h - sink, -0.7, 0.7, tint(burnt ? 0x2a2622 : 0xc8c8c4))
-  for (let u = -hl + 0.15; u <= hl - 0.1; u += 1.38) for (const sd of [-1, 1]) f.box(metal, u - 0.06, u + 0.06, 1.2 - sink, 2.4 - sink, sd * hw - 0.05, sd * hw + 0.05, upper)
-  for (const sd of [-1, 1]) f.box(metal, -hl, hl, 1.18 - sink, 1.26 - sink, sd * hw - 0.02, sd * hw + 0.02, tint(0x2a2c2e))
-  if (!burnt) f.box(glass, hl - 0.06, hl + 0.01, 1.0 - sink, 2.5 - sink, -hw + 0.12, hw - 0.12, tint(0x7a8a96))
-  f.box(lamp, hl - 0.04, hl + 0.02, 2.55 - sink, 2.85 - sink, -hw + 0.3, hw - 0.3, burnt ? dark : tint(0xffa020, 1, 0.9))
-  for (const u of [hl - 1.6, 0.2]) f.box(metal, u - 0.55, u + 0.55, 0.45 - sink, 2.3 - sink, hw - 0.02, hw + 0.02, tint(burnt ? 0x1a1816 : 0x3a4048))
-  for (const e of [-1, 1]) f.box(metal, e > 0 ? hl - 0.05 : -hl - 0.05, e > 0 ? hl + 0.05 : -hl + 0.05, 0.3 - sink, 0.6 - sink, -hw + 0.05, hw - 0.05, dark)
-  for (const sd of [-1, 1]) f.box(burnt ? metal : lamp, hl - 0.02, hl + 0.03, 0.75 - sink, 0.95 - sink, sd * (hw - 0.45) - 0.18, sd * (hw - 0.45) + 0.18, burnt ? dark : tint(0xfff2d0, 1, 0.9))
-  for (const u of [hl - 2.3, -hl + 3.0]) for (const sd of [-1, 1]) {
-    const [x, z] = f.at(u, sd * (hw - 0.2))
-    if (!burnt) place(ctx.B("rubber"), t.wheel, x, 0.5, z, 0, f.ry + Math.PI / 2, 0, 0.3, 0.5, 0.5, 0x202022)
-    place(metal, t.wheel, x, burnt ? 0.38 : 0.5, z, 0, f.ry + Math.PI / 2, 0, 0.32, burnt ? 0.38 : 0.26, burnt ? 0.38 : 0.26, burnt ? 0x3a3028 : 0x9a9ea2)
-  }
-  const [dx, dz] = f.at(hl, 0)
-  if (!burnt) decal(ctx, textKey(ctx, 4, "SONDERFAHRT"), dx + (alongX ? (rev ? -0.04 : 0.04) : 0), 2.58, dz + (alongX ? 0 : rev ? 0.04 : -0.04), 1.8, 0.24, alongX ? (rev ? "w" : "e") : (rev ? "s" : "n"))
+  const paint = burnt ? wreckPaint(ctx, true) : tint(s.tint ?? 0xd8c040, 1, jit(s, 0.04)), sink = burnt ? 0.1 : 0
+  addVehicle(ctx, busGeometry(L, W, s.h, !burnt), placeAt(s.x, -sink, s.z, f.ry), {
+    paint: ["carpaint", paint], glass: ["glass", tint(0x2c353d)], trim: ["rubber", tint(burnt ? 0x161412 : 0x232526)], chrome: ["chrome", tint(burnt ? 0x2e2824 : 0xa8acb0)],
+    rubber: ["rubber", tint(0x1c1d1e)], interior: ["rubber", tint(0x14110e)],
+    lampF: burnt ? ["rubber", tint(0x141210)] : ["lamp", tint(0xffa020, 1, 0.9)], lampR: burnt ? ["rubber", tint(0x141210)] : ["lamp", tint(0xb01810, 1, 0.8)],
+  })
+  const [dx, dz] = f.at(hl + 0.03, 0)
+  if (!burnt) decal(ctx, textKey(ctx, 4, "SONDERFAHRT"), dx, s.h - 0.45, dz, 1.8, 0.24, alongX ? (rev ? "w" : "e") : (rev ? "s" : "n"))
   if (burnt) decal(ctx, "oil", s.x, 0, s.z, L + 2, W + 2, "up", 0x202020, alongX ? 0 : Math.PI / 2)
 }
 
 function truckCabModel(ctx: BuildCtx, s: MapSolid): void {
   const v = s.v ?? 0, face: Side = v === 0 ? "e" : v === 1 ? "w" : v === 2 ? "s" : "n"
   const fx = face === "e" ? 1 : face === "w" ? -1 : 0, fz = face === "s" ? 1 : face === "n" ? -1 : 0
-  const alongX = fx !== 0, L = alongX ? s.w : s.d, W = alongX ? s.d : s.w, hl = L / 2, hw = W / 2, h = (s.y ?? 0) + s.h
-  const f = frameOf(s.x, s.z, fx, fz), metal = ctx.B("metal"), glass = ctx.B("glass"), lamp = ctx.B("lamp"), t = tpl()
-  const paint = tint(s.tint, 1, jit(s, 0.04)), dark = tint(0x1c1d1e), chrome = tint(0xa8acb0)
-  f.box(metal, -hl, hl - 0.05, 0.15, 0.6, -hw + 0.1, hw - 0.1, dark)
-  f.box(metal, -hl + 0.05, hl - 0.05, 0.6, h - 0.15, -hw, hw, paint)
-  f.box(metal, -hl + 0.15, hl - 0.2, h - 0.15, h, -hw + 0.1, hw - 0.1, paint)
-  f.box(glass, hl - 0.06, hl, 1.75, h - 0.35, -hw + 0.15, hw - 0.15, tint(0x7a8a96))
-  for (const sd of [-1, 1]) f.box(glass, hl - 1.15, hl - 0.15, 1.8, h - 0.4, sd * hw - 0.02, sd * hw + 0.02, tint(0x7a8a96))
-  f.box(metal, hl - 0.04, hl + 0.02, 0.75, 1.5, -hw + 0.35, hw - 0.35, dark)
-  for (let y = 0.85; y < 1.5; y += 0.13) f.box(metal, hl - 0.01, hl + 0.03, y, y + 0.04, -hw + 0.38, hw - 0.38, chrome)
-  f.box(metal, hl - 0.12, hl + 0.04, 0.3, 0.62, -hw + 0.02, hw - 0.02, tint(0x2a2c2e))
-  f.box(metal, hl - 0.25, hl + 0.04, h - 0.38, h - 0.3, -hw + 0.1, hw - 0.1, paint)
-  for (const sd of [-1, 1]) {
-    f.box(lamp, hl - 0.02, hl + 0.03, 0.68, 0.84, sd * (hw - 0.4) - 0.2, sd * (hw - 0.4) + 0.2, tint(0xfff2d0, 1, 0.9))
-    f.box(metal, hl - 0.5, hl - 0.4, 1.9, 2.5, sd * (hw + 0.05) - 0.05, sd * (hw + 0.05) + 0.05, dark)
-    f.box(metal, hl - 1.3, hl - 0.5, 0.35, 0.5, sd > 0 ? hw - 0.08 : -hw - 0.02, sd > 0 ? hw + 0.02 : -hw + 0.08, dark)
-  }
-  f.box(metal, -hl + 0.3, -hl + 1.1, 0.5, 0.9, hw - 0.45, hw - 0.05, chrome)
-  const [ex, ez] = f.at(-hl + 0.12, -hw + 0.25); place(metal, t.cyl8, ex, h * 0.55, ez, 0, 0, 0, 0.07, h * 0.9, 0.07, 0x3a3c3e)
-  for (const sd of [-1, 1]) { const [x, z] = f.at(0.25, sd * (hw - 0.16)); place(ctx.B("rubber"), t.wheel, x, 0.5, z, 0, f.ry + Math.PI / 2, 0, 0.3, 0.5, 0.5, 0x222224); place(metal, t.wheel, x, 0.5, z, 0, f.ry + Math.PI / 2, 0, 0.32, 0.26, 0.26, 0x9a9ea2) }
+  const f = frameOf(s.x, s.z, fx, fz)
+  addVehicle(ctx, truckCabGeometry(), placeAt(s.x, 0, s.z, f.ry), {
+    paint: ["carpaint", tint(s.tint, 1, jit(s, 0.04))], glass: ["glass", tint(0x2c353d)], trim: ["rubber", tint(0x232526)], chrome: ["chrome", tint(0xa8acb0)],
+    rubber: ["rubber", tint(0x1c1d1e)], lampF: ["lamp", tint(0xfff2d0, 1, 0.9)], lampR: ["lamp", tint(0xffa020, 1, 0.9)],
+  })
 }
 
 /** Junk wall: pallets on edge, corrugated sheets, a door, tyres, planks, sandbags at the foot (inside the box). */
@@ -423,28 +373,12 @@ function barricade(ctx: BuildCtx, s: MapSolid, alongX: boolean): void {
   for (let a = -L / 2 + 0.35; a < L / 2 - 0.3; a += 0.62) for (const sd of [-1, 1]) { const [x, z] = f.at(a, sd * (W / 2 - 0.2)); if (rng() < 0.6) ctx.inst("sandbag", x, 0.13, z, f.ry, [0.6, 0.26, 0.36], 0x8a7a5a) }
 }
 
-function tractor(ctx: BuildCtx, s: MapSolid, x0: number, z0: number, x1: number, z1: number, k: number): void {
-  const metal = ctx.B("metal"), t = tpl(), c = tint(s.tint ?? 0x3f7a3a, 1, k), alongX = s.w > s.d
-  const L = alongX ? x1 - x0 : z1 - z0, W = alongX ? z1 - z0 : x1 - x0, h = s.h
-  const P = (u: number, v: number): [number, number] => alongX ? [x0 + u, s.z + v] : [s.x + v, z0 + u]
-  const bx = (u0: number, u1: number, y0: number, y1: number, w: number, col: THREE.Color, b: GeoBatch = metal) => {
-    const [ax, az] = P(u0, -w / 2), [cx, cz] = P(u1, w / 2)
-    b.box(Math.min(ax, cx), y0, Math.min(az, cz), Math.max(ax, cx), y1, Math.max(az, cz), { color: col, ao: 0 })
-  }
-  bx(0.2, L * 0.55, 0.6, 1.5, W * 0.45, c)
-  bx(L * 0.5, L - 0.2, 0.55, 1.15, W * 0.5, tint(0x2a2c2e))
-  ctx.B("glass").box(...cabBox(P, L * 0.55, L - 0.3, W * 0.6), { color: tint(0x9aa4a8), local: true, ao: 0 })
-  bx(L * 0.52, L - 0.25, h - 0.08, h, W * 0.66, c)
-  for (const [u, r, w] of [[L * 0.78, 0.78, 0.45], [L * 0.2, 0.45, 0.3]] as const) for (const sd of [-1, 1]) {
-    const [wx, wz] = P(u, sd * (W / 2 - w / 2))
-    place(ctx.B("rubber"), t.wheel, wx, r, wz, 0, alongX ? Math.PI / 2 : 0, 0, w, r, r, 0x222222)
-    place(metal, t.wheel, wx, r, wz, 0, alongX ? Math.PI / 2 : 0, 0, w + 0.02, r * 0.55, r * 0.55, 0xc8a030)
-  }
-  const [ex, ez] = P(L * 0.35, W * 0.12); place(metal, t.cyl8, ex, 1.9, ez, 0, 0, 0, 0.06, 0.8, 0.06, 0x2a2a2a)
-  function cabBox(Pf: typeof P, u0: number, u1: number, w: number): [number, number, number, number, number, number] {
-    const [ax, az] = Pf(u0, -w / 2), [cx, cz] = Pf(u1, w / 2)
-    return [Math.min(ax, cx), 1.15, Math.min(az, cz), Math.max(ax, cx), h - 0.08, Math.max(az, cz)]
-  }
+function tractor(ctx: BuildCtx, s: MapSolid, k: number): void {
+  const alongX = s.w > s.d, f = alongX ? frameOf(s.x, s.z, -1, 0) : frameOf(s.x, s.z, 0, -1), paint = tint(s.tint ?? 0x3f7a3a, 1, k)
+  addVehicle(ctx, tractorGeometry(), placeAt(s.x, 0, s.z, f.ry).multiply(new THREE.Matrix4().makeTranslation(-0.3, 0, 0)), {
+    paint: ["carpaint", paint], glass: ["glass", tint(0x3a4650)], trim: ["rubber", tint(0x262829)], chrome: ["carpaint", tint(0xd8b030)],
+    rubber: ["rubber", tint(0x1c1d1e)], interior: ["rubber", tint(0x1a1612)], lampF: ["lamp", tint(0xfff2d0, 1, 0.8)],
+  })
 }
 
 function wagon(ctx: BuildCtx, s: MapSolid, x0: number, y0: number, z0: number, x1: number, y1: number, z1: number, alongX: boolean, k: number): void {
@@ -476,20 +410,14 @@ function wagon(ctx: BuildCtx, s: MapSolid, x0: number, y0: number, z0: number, x
   }
 }
 
-function apc(ctx: BuildCtx, s: MapSolid, x0: number, z0: number, x1: number, z1: number, alongX: boolean): void {
-  const metal = ctx.B("metal"), t = tpl(), c = tint(s.tint ?? 0x4d5536, 1, jit(s)), h = s.h
-  const L = alongX ? x1 - x0 : z1 - z0, W = alongX ? z1 - z0 : x1 - x0
-  metal.box(x0 + 0.1, 0.55, z0 + 0.1, x1 - 0.1, h - 0.55, z1 - 0.1, { color: c })
-  const inset = 0.35
-  metal.box(alongX ? x0 + 0.6 : x0 + inset, h - 0.55, alongX ? z0 + inset : z0 + 0.6, alongX ? x1 - 0.3 : x1 - inset, h - 0.3, alongX ? z1 - inset : z1 - 0.3, { color: c, ao: 0 })
-  const tx = alongX ? x0 + L * 0.45 : s.x, tz = alongX ? s.z : z0 + L * 0.45
-  place(metal, t.cyl12, tx, h - 0.15, tz, 0, 0, 0, W * 0.28, 0.3, W * 0.28, c)
-  place(metal, t.cyl8, alongX ? tx - 1.6 : tx, h - 0.1, alongX ? tz : tz - 1.6, Math.PI / 2, alongX ? Math.PI / 2 : 0, 0, 0.06, 3, 0.06, 0x2a2c2a)
-  for (let i = 0; i < 4; i++) for (const sd of [-1, 1]) {
-    const u = L * (0.15 + i * 0.23), wx = alongX ? x0 + u : s.x + sd * (W / 2 - 0.25), wz = alongX ? s.z + sd * (W / 2 - 0.25) : z0 + u
-    place(ctx.B("rubber"), t.wheel, wx, 0.55, wz, 0, alongX ? Math.PI / 2 : 0, 0, 0.4, 0.55, 0.55, 0x1e1e1e)
-  }
-  decal(ctx, "numbers", alongX ? x1 - 1.5 : (alongX ? s.x : x1), 1.0, alongX ? z1 : z0 + 1.5, 1.2, 0.5, alongX ? "s" : "e", 0xffffff)
+function apc(ctx: BuildCtx, s: MapSolid, alongX: boolean): void {
+  const f = alongX ? frameOf(s.x, s.z, 1, 0) : frameOf(s.x, s.z, 0, -1), paint = tint(s.tint ?? 0x4d5536, 1, jit(s)), burnt = (s.tint ?? 0) === 0x2a2622
+  addVehicle(ctx, apcGeometry(), placeAt(s.x, 0, s.z, f.ry), {
+    paint: ["metal", paint], glass: ["glass", tint(burnt ? 0x1a1816 : 0x2a3a40)], trim: ["metal", tint(burnt ? 0x1c1a18 : 0x2a2c2a)], chrome: ["metal", tint(burnt ? 0x2a2420 : 0x3a3c3a)],
+    rubber: ["rubber", tint(burnt ? 0x141210 : 0x1c1d1e)], lampF: burnt ? ["rubber", tint(0x141210)] : ["lamp", tint(0xfff2d0, 1, 0.7)],
+  })
+  const [nx, nz] = f.at(-1.4, 1.46)
+  decal(ctx, "numbers", nx, 1.45, nz, 1.0, 0.4, alongX ? "s" : "e", 0xffffff)
 }
 
 function rock(ctx: BuildCtx, s: MapSolid, x0: number, y0: number, z0: number, x1: number, y1: number, z1: number): void {

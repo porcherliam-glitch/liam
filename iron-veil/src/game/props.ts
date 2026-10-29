@@ -74,7 +74,8 @@ export function tpl(): Record<string, THREE.BufferGeometry> {
     cyl8: new THREE.CylinderGeometry(1, 1, 1, 8),
     cyl12: new THREE.CylinderGeometry(1, 1, 1, 12),
     cyl24: new THREE.CylinderGeometry(1, 1, 1, 24, 1),
-    wheel: new THREE.CylinderGeometry(1, 1, 1, 12).rotateZ(Math.PI / 2),
+    // tyre with rounded shoulders and closed faces (unit radius and width, axle along x)
+    wheel: new THREE.LatheGeometry([[0, -0.5], [0.62, -0.5], [0.88, -0.47], [0.97, -0.38], [1, -0.22], [1, 0.22], [0.97, 0.38], [0.88, 0.47], [0.62, 0.5], [0, 0.5]].map(([r, y]) => new THREE.Vector2(r, y)), 20).rotateZ(Math.PI / 2),
     box: new THREE.BoxGeometry(1, 1, 1),
     cone: new THREE.ConeGeometry(1, 1, 12),
     torus: new THREE.TorusGeometry(1, 0.32, 6, 14).rotateX(Math.PI / 2),

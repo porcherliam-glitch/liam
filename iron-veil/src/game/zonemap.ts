@@ -589,7 +589,7 @@ function buildZone(): ZoneMap {
     lootAt(range, "n", 166, "military", "weaponcase")
     // vehicle depot east of the compound
     m.area(268, -255, 306, -150, "concrete", "pad")
-    for (let i = 0; i < 4; i++) m.rect(274, -246 + i * 22, 281, -240 + i * 22, 2.4, "apc", { tint: 0x4d5536, v: i })
+    for (let i = 0; i < 4; i++) m.rect(274, -244.5 + i * 22, 281, -241.5 + i * 22, 2.4, "apc", { tint: 0x4d5536, v: i })
     for (let i = 0; i < 3; i++) m.truck(296, -236 + i * 28, "n", 0x4d5536, 0x5d5a44)
     m.container(288, -160, "z", 6.1, [0x4d5536])
     outdoorLoot(284.5, -160, Math.PI / 2, "military", "crate"); outdoorLoot(277.5, -194, 0, "military", "duffel")
@@ -975,7 +975,7 @@ function buildZone(): ZoneMap {
     m.prop("powerline", -190, -126, { x2: -12, z2: -126, h: 9 }); m.prop("powerline", 12, -126, { x2: 110, z2: -126, h: 9 })
     // lab: wrecked convoy, burnt APC, quarantine fences, floodlights, body bags, containment pods
     m.truck(-32, -186, "n", 0x4d5536, 0x5d5a44)
-    m.rect(28, -196, 35, -190, 2.4, "apc", { tint: 0x2a2622, v: 1 }); m.prop("stain", 31.5, -193, { w: 9, d: 7, v: 0 })
+    m.rect(28, -194.5, 35, -191.5, 2.4, "apc", { tint: 0x2a2622, v: 1 }); m.prop("stain", 31.5, -193, { w: 9, d: 7, v: 0 })
     m.fence(-30, -198, -30, -146, [[-172, 6]], true); m.fence(30, -184, 30, -146, [[-166, 5]], true)
     m.mast(-26, -150, 12, Math.PI * 0.75, 2); m.mast(24, -150, 12, -Math.PI * 0.75, 2)
     m.prop("bodybag", 60, -224.5, { v: 5, rot: 0 }); m.prop("bodybag", 44, -224.5, { v: 3, rot: 0 })

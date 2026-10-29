@@ -14,7 +14,7 @@ import { TEX, textureCanvas, type TexName } from "./textures"
 
 export interface KeyInfo { tex: TexName; rough: number; metal: number; cut?: boolean }
 export const KEY_INFO: Record<string, KeyInfo> = {
-  metal: { tex: "metal", rough: 0.55, metal: 0.2 }, container: { tex: "container", rough: 0.62, metal: 0.15 }, glass: { tex: "glass", rough: 0.12, metal: 0.3 },
+  metal: { tex: "metal", rough: 0.55, metal: 0.2 }, carpaint: { tex: "metal", rough: 0.36, metal: 0.12 }, chrome: { tex: "metal", rough: 0.24, metal: 0.5 }, container: { tex: "container", rough: 0.62, metal: 0.15 }, glass: { tex: "glass", rough: 0.12, metal: 0.3 },
   rubber: { tex: "rubber", rough: 0.95, metal: 0 }, burlap: { tex: "burlap", rough: 1, metal: 0 }, plank: { tex: "plank", rough: 0.9, metal: 0 },
   plaster: { tex: "plaster", rough: 0.92, metal: 0 }, brick: { tex: "brick", rough: 0.9, metal: 0 }, cladding: { tex: "cladding", rough: 0.6, metal: 0.25 },
   concrete: { tex: "concrete", rough: 0.92, metal: 0 }, rollup: { tex: "rollup", rough: 0.6, metal: 0.25 }, roof: { tex: "roof", rough: 0.9, metal: 0 },
