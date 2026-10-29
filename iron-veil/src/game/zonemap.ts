@@ -228,10 +228,28 @@ function buildZone(): ZoneMap {
       lootAt(roomA, sides[0], centre(roomA), cat)
       if (n > 1) lootAt(roomB, sides[1], centre(roomB), R() < 0.5 ? "food" : cat, R() < 0.5 ? "fridge" : undefined)
       if (n > 2) lootAt(roomB, sides[0], centre(roomB), cat)
-      if (R() < 0.6) { // furniture: table / shelf against the back wall of room B
-        const q = roomB, w0 = alongX ? q.x0 + 1.2 : q.z0 + 1.2
-        if (alongX) m.rect(w0, s.face === "n" ? q.z1 - 0.6 : q.z0, w0 + 1.6, s.face === "n" ? q.z1 : q.z0 + 0.6, 0.8, "desk")
-        else m.rect(s.face === "w" ? q.x1 - 0.6 : q.x0, w0, s.face === "w" ? q.x1 : q.x0 + 0.6, w0 + 1.6, 0.8, "desk")
+      // furniture, kept clear of every door (front, partition, back): sideboard on the back wall, table with chairs
+      // against the free side wall of the front room, a bed in the back room
+      const far = (a: number, ...doors: Array<number | null>) => doors.every(d => d === null || Math.abs(d - a) > 2.9)
+      const back = s.face === "n" || s.face === "w"   // back wall at the max side
+      if (R() < 0.7) {
+        const q = roomB, w0 = (alongX ? q.x0 : q.z0) + 1.2
+        if ((backDoor === null || Math.abs(backDoor - (w0 + 0.8)) > 1.9) && Math.abs(pd - (w0 + 0.8)) > 1.4) {
+          if (alongX) m.rect(w0, back ? q.z1 - 0.55 : q.z0, w0 + 1.6, back ? q.z1 : q.z0 + 0.55, 0.85, "desk", { v: 3 })
+          else m.rect(back ? q.x1 - 0.55 : q.x0, w0, back ? q.x1 : q.x0 + 0.55, w0 + 1.6, 0.85, "desk", { v: 3 })
+        }
+      }
+      const wallB = alongX ? r.x1 - t : r.z1 - t   // side[1] wall coordinate (e or s)
+      if (far(wallB, doorAt, pd)) {
+        const q = roomA, mid = alongX ? (q.z0 + q.z1) / 2 : (q.x0 + q.x1) / 2
+        if (alongX) { m.rect(wallB - 0.95, mid - 0.7, wallB - 0.15, mid + 0.7, 0.76, "table"); for (const o of [-0.4, 0.4]) m.rect(wallB - 1.5, mid + o - 0.22, wallB - 1.06, mid + o + 0.22, 0.9, "chair", { v: 1 }) }
+        else { m.rect(mid - 0.7, wallB - 0.95, mid + 0.7, wallB - 0.15, 0.76, "table"); for (const o of [-0.4, 0.4]) m.rect(mid + o - 0.22, wallB - 1.5, mid + o + 0.22, wallB - 1.06, 0.9, "chair", { v: 2 }) }
+      }
+      const wallA = alongX ? r.x0 + t : r.z0 + t
+      if (n <= 2 && far(wallA, pd, backDoor)) {
+        const q = roomB, mid = alongX ? (q.z0 + q.z1) / 2 : (q.x0 + q.x1) / 2
+        if (alongX) m.rect(wallA + 0.05, mid - 1.0, wallA + 1.0, mid + 1.0, 0.55, "bed", { tint: pick([0x8a3a2a, 0x2d557f, 0x5a6340, 0xc8b070]) })
+        else m.rect(mid - 1.0, wallA + 0.05, mid + 1.0, wallA + 1.0, 0.55, "bed", { tint: pick([0x8a3a2a, 0x2d557f, 0x5a6340, 0xc8b070]) })
       }
       gable(r, upper ? h + upper : h + 0.5, alongX, roofTint, 0.42, false, style, tint)
     } else {
@@ -373,7 +391,7 @@ function buildZone(): ZoneMap {
     m.rect(-13.7, -7.7, -12.3, -6.3, 2.8, "litfass"); m.rect(12.3, 6.3, 13.7, 7.7, 2.8, "litfass")
     m.rect(12, -8.6, 13.1, -7.5, 2.4, "phonebox")
     m.rect(30, -7.6, 33.4, -6.2, 2.5, "shelter")
-    for (const [x, z] of [[-5.4, -30], [5.4, 30], [-5.4, 70], [5.4, -80], [-30, 5.4], [30, -5.4], [-70, -5.4], [70, 5.4], [-49.5, 20], [49.5, -20]]) m.rect(x - 0.3, z - 0.3, x + 0.3, z + 0.3, 0.95, "bin")
+
     lampsZ(0, -96, -20, 5.3, 26); lampsZ(0, 22, 96, 5.3, 26); lampsX(0, -96, -20, 5.3, 26); lampsX(0, 22, 96, 5.3, 26)
     for (const x of [-52, 52]) lampsZ(x, -90, 90, 3.6, 36)
     for (const z of [-52, 48]) lampsX(z, -90, 90, 3.6, 36)
@@ -484,6 +502,11 @@ function buildZone(): ZoneMap {
     m.truck(-24, -2.4, "w", PAINT.white, 0xc8c4b8)
     outdoorLoot(-24, 1.4, Math.PI, "civil", "duffel")
     m.rect(-4.5, 30, -3.6, 34, 1.05, "jersey"); m.rect(3.6, 36, 4.5, 40, 1.05, "jersey"); m.rect(-2, 45.6, 2, 46.4, 1.05, "jersey")
+    // litter bins on the pavements, never in front of a door
+    for (const [x, z] of [[-5.4, -30], [5.4, 30], [-5.4, 70], [5.4, -80], [-30, 5.4], [30, -5.4], [-70, -5.4], [70, 5.4], [-49.5, 20], [49.5, -20], [-5.4, 36], [5.4, -40]]) {
+      if (m.doorways.some(d => Math.hypot(d.x - x, d.z - z) < 3)) continue
+      m.rect(x - 0.3, z - 0.3, x + 0.3, z + 0.3, 0.95, "bin")
+    }
     // backyards: trees and sheds
     for (const [x, z] of [[-80, -80], [-28, -84], [28, -82], [80, -82], [-84, -32], [-84, 28], [-30, 26], [-95, 92], [-28, 82], [71, 70]]) {
       tree(x + (R() - 0.5) * 6, z + (R() - 0.5) * 6, 1, 7 + R() * 5)
@@ -918,7 +941,7 @@ function buildZone(): ZoneMap {
     m.rect(-17.2, -4, -16.2, -0.4, 1.5, "barricade"); m.rect(16.2, 0.4, 17.2, 4, 1.5, "barricade")
     m.prop("bodybag", 10, -12, { v: 3, rot: 0 }); m.prop("trash", -10, 10, { v: 5 })
     // burnt-out bus in the west street
-    m.solid(-52.6, -25, 2.55, 12, 3.1, "bus", { v: 9 })
+    m.solid(-52.6, -17, 2.55, 12, 3.1, "bus", { v: 9 })
     // quarantine checkpoint on R1 north of the town
     m.rect(-4, -107.4, 0.5, -106.6, 1.05, "jersey"); m.rect(-0.5, -111.4, 4, -110.6, 1.05, "jersey")
     m.rect(-9, -112, -6, -111, 1.1, "sandbag"); m.rect(6, -112, 9, -111, 1.1, "sandbag"); m.rect(-9, -111, -8, -108, 1.1, "sandbag")

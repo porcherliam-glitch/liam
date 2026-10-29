@@ -208,6 +208,33 @@ function extraSolid(ctx: BuildCtx, s: MapSolid): boolean {
       ctx.weeds.push([s.x, s.z, 1], [s.x + (alongX ? L * 0.3 : 0.6), s.z + (alongX ? 0.6 : L * 0.3), 0.9])
       return true
     }
+    case "table": {
+      const wood = ctx.B("plank"), c = tint(s.tint ?? 0x8a6a48, 1, k)
+      wood.box(x0, y1 - 0.05, z0, x1, y1, z1, { color: c, ao: 0 })
+      for (const [px, pz] of [[x0 + 0.06, z0 + 0.06], [x1 - 0.11, z0 + 0.06], [x0 + 0.06, z1 - 0.11], [x1 - 0.11, z1 - 0.11]]) wood.box(px, y0, pz, px + 0.05, y1 - 0.05, pz + 0.05, { color: c.clone().multiplyScalar(0.85), ao: 0, local: true })
+      if (ctx.rng() < 0.6) decal(ctx, "paper", s.x, y1 + 0.005, s.z, 0.6, 0.5, "up", 0xffffff, ctx.rng() * 6)
+      if (ctx.rng() < 0.5) place(metal, t.cyl8, s.x + (ctx.rng() - 0.5) * 0.4, y1 + 0.06, s.z + (ctx.rng() - 0.5) * 0.4, 0, 0, 0, 0.05, 0.12, 0.05, 0xd8d4c8)
+      return true
+    }
+    case "chair": {
+      const wood = ctx.B("plank"), c = tint(s.tint ?? 0x6e4b33, 1, k), v = s.v ?? 1, seat = 0.45
+      wood.box(x0 + 0.02, seat - 0.04, z0 + 0.02, x1 - 0.02, seat, z1 - 0.02, { color: c, ao: 0 })
+      for (const [px, pz] of [[x0 + 0.03, z0 + 0.03], [x1 - 0.07, z0 + 0.03], [x0 + 0.03, z1 - 0.07], [x1 - 0.07, z1 - 0.07]]) wood.box(px, y0, pz, px + 0.04, seat - 0.04, pz + 0.04, { color: c, ao: 0, local: true })
+      if (v === 1) wood.box(x0 + 0.02, seat, z0 + 0.02, x0 + 0.06, y1, z1 - 0.02, { color: c, ao: 0 })
+      else wood.box(x0 + 0.02, seat, z0 + 0.02, x1 - 0.02, y1, z0 + 0.06, { color: c, ao: 0 })
+      return true
+    }
+    case "bed": {
+      const wood = ctx.B("plank"), cloth = ctx.B("burlap"), c = tint(s.tint ?? 0x8a3a2a, 1, k)
+      wood.box(x0, y0 + 0.15, z0, x1, y0 + 0.3, z1, { color: tint(0x6e4b33), ao: 0 })
+      for (const [px, pz] of [[x0, z0], [x1 - 0.06, z0], [x0, z1 - 0.06], [x1 - 0.06, z1 - 0.06]]) wood.box(px, y0, pz, px + 0.06, y0 + 0.15, pz + 0.06, { color: tint(0x5a3e2a), ao: 0, local: true })
+      cloth.box(x0 + 0.03, y0 + 0.3, z0 + 0.03, x1 - 0.03, y0 + 0.45, z1 - 0.03, { color: tint(0xd8d4c8), ao: 0 })
+      const long = s.w > s.d
+      if (long) { cloth.box(x0 + 0.5, y0 + 0.45, z0 + 0.02, x1 - 0.02, y1, z1 - 0.02, { color: c, ao: 0 }); cloth.box(x0 + 0.06, y0 + 0.45, z0 + 0.15, x0 + 0.45, y0 + 0.58, z1 - 0.15, { color: tint(0xe8e4dc), ao: 0 }); wood.box(x0 - 0.02, y0, z0, x0 + 0.04, y0 + 0.9, z1, { color: tint(0x5a3e2a), ao: 0 }) }
+      else { cloth.box(x0 + 0.02, y0 + 0.45, z0 + 0.5, x1 - 0.02, y1, z1 - 0.02, { color: c, ao: 0 }); cloth.box(x0 + 0.15, y0 + 0.45, z0 + 0.06, x1 - 0.15, y0 + 0.58, z0 + 0.45, { color: tint(0xe8e4dc), ao: 0 }); wood.box(x0, y0, z0 - 0.02, x1, y0 + 0.9, z0 + 0.04, { color: tint(0x5a3e2a), ao: 0 }) }
+      if (ctx.rng() < 0.25) decal(ctx, "blood", s.x, y1 + 0.01, s.z, 0.9, 0.9, "up", 0xffffff, ctx.rng() * 6)
+      return true
+    }
     case "litfass": {
       const r = Math.min(s.w, s.d) / 2 - 0.05
       place(ctx.B("plaster"), t.cyl16, s.x, y0 + s.h * 0.45, s.z, 0, 0, 0, r, s.h * 0.9, r, tint(0xd8d2c0), [Math.PI * 2 * r, s.h])
