@@ -33,9 +33,30 @@ export class NavGrid {
     this.blocked = new Uint8Array(n)
     this.g = new Float32Array(n); this.f = new Float32Array(n); this.parent = new Int32Array(n)
     this.stamp = new Uint32Array(n); this.closed = new Uint32Array(n); this.heap = new Int32Array(n)
-    for (let r = 0; r < this.rows; r++) for (let c = 0; c < this.cols; c++) {
-      const x = bounds.minX + (c + 0.5) * cell, z = bounds.minZ + (r + 0.5) * cell
-      this.blocked[r * this.cols + c] = collides(x, z, agentRadius, obstacles) ? 1 : 0
+    for (const o of obstacles) this.rasterize(o)
+  }
+
+  /** Marks the cells whose centre circle (agentRadius) overlaps the box. Cost scales with the box area only. */
+  private rasterize(o: Obstacle): void {
+    if ((o.minY ?? 0) > 1.6) return
+    const r = this.agentRadius, b = this.bounds, cell = this.cell
+    const c0 = Math.max(0, Math.floor((o.minX - r - b.minX) / cell)), c1 = Math.min(this.cols - 1, Math.floor((o.maxX + r - b.minX) / cell))
+    const r0 = Math.max(0, Math.floor((o.minZ - r - b.minZ) / cell)), r1 = Math.min(this.rows - 1, Math.floor((o.maxZ + r - b.minZ) / cell))
+    for (let row = r0; row <= r1; row++) for (let col = c0; col <= c1; col++) {
+      const x = b.minX + (col + 0.5) * cell, z = b.minZ + (row + 0.5) * cell
+      const cx = Math.max(o.minX, Math.min(x, o.maxX)), cz = Math.max(o.minZ, Math.min(z, o.maxZ))
+      if ((x - cx) ** 2 + (z - cz) ** 2 < r * r) this.blocked[row * this.cols + col] = 1
+    }
+  }
+
+  /** Recomputes a rectangle after obstacles changed (base building, opened doors). */
+  rebuildRegion(minX: number, minZ: number, maxX: number, maxZ: number, obstacles: readonly Obstacle[]): void {
+    const b = this.bounds, cell = this.cell, r = this.agentRadius
+    const c0 = Math.max(0, Math.floor((minX - r - b.minX) / cell)), c1 = Math.min(this.cols - 1, Math.floor((maxX + r - b.minX) / cell))
+    const r0 = Math.max(0, Math.floor((minZ - r - b.minZ) / cell)), r1 = Math.min(this.rows - 1, Math.floor((maxZ + r - b.minZ) / cell))
+    for (let row = r0; row <= r1; row++) for (let col = c0; col <= c1; col++) {
+      const x = b.minX + (col + 0.5) * cell, z = b.minZ + (row + 0.5) * cell
+      this.blocked[row * this.cols + col] = collides(x, z, r, obstacles) ? 1 : 0
     }
   }
 
