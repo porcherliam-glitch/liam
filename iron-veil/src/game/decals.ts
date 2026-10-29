@@ -128,11 +128,13 @@ export class Decals {
     return this
   }
   /** Merged decal geometry, or null when nothing was added. */
-  build(): THREE.BufferGeometry | null {
+  /** Merged decal geometry moved by (-ox, -oy, -oz) (lid decals live in the lid's pivot space), or null when nothing was added. */
+  build(ox = 0, oy = 0, oz = 0): THREE.BufferGeometry | null {
     if (!this.quads.length) return null
     const g = mergeGeometries(this.quads, false)!
     for (const q of this.quads) q.dispose()
     this.quads = []
+    if (ox || oy || oz) g.translate(-ox, -oy, -oz)
     g.computeBoundingSphere()
     return g
   }

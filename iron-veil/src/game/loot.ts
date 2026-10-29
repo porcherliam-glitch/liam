@@ -106,7 +106,7 @@ export function bagValue(items: BagSlot[]): number { return items.reduce((s, x) 
 
 // ───────────────────────────── container visuals ─────────────────────────────
 
-interface KindParts { body: THREE.BufferGeometry; lid: THREE.BufferGeometry; low: THREE.BufferGeometry; decal: THREE.BufferGeometry | null; bodyMat: THREE.Material; lidMat: THREE.Material; size: [number, number, number]; lidPivot: [number, number, number]; openAxis: "x" | "y"; openAngle: number }
+interface KindParts { body: THREE.BufferGeometry; lid: THREE.BufferGeometry; low: THREE.BufferGeometry; decal: THREE.BufferGeometry | null; lidDecal: THREE.BufferGeometry | null; bodyMat: THREE.Material; lidMat: THREE.Material; size: [number, number, number]; lidPivot: [number, number, number]; openAxis: "x" | "y"; openAngle: number }
 
 /**
  * Detailed container models (front = +Z, origin on the floor). Each body and lid is one merged vertex-coloured
@@ -120,7 +120,7 @@ function kindParts(): Record<ContainerKind, KindParts> {
   const PI = Math.PI, half = PI / 2
   const out = {} as Record<ContainerKind, KindParts>
   const def = (kind: ContainerKind, body: Shape, lid: Shape, pivot: [number, number, number], size: [number, number, number], openAxis: "x" | "y", openAngle: number, bodyMat: THREE.Material, lidMat: THREE.Material) => {
-    out[kind] = { body: body.build(), lid: lid.build(pivot[0], pivot[1], pivot[2]), low: LOW[kind]().build(), decal: DECALS[kind]?.().build() ?? null, bodyMat, lidMat, size, lidPivot: pivot, openAxis, openAngle }
+    out[kind] = { body: body.build(), lid: lid.build(pivot[0], pivot[1], pivot[2]), low: LOW[kind]().build(), decal: DECALS[kind]?.().build() ?? null, lidDecal: LID_DECALS[kind]?.().build(pivot[0], pivot[1], pivot[2]) ?? null, bodyMat, lidMat, size, lidPivot: pivot, openAxis, openAngle }
   }
   // stencilled markings on the bodies (lids and doors stay clean)
   const DECALS: Partial<Record<ContainerKind, () => Decals>> = {
@@ -131,6 +131,14 @@ function kindParts(): Record<ContainerKind, KindParts> {
     medcab: () => new Decals().add("cross", 0.2, 0.2, 0.35, 1.45, 0, "+x").add("cross", 0.2, 0.2, -0.35, 1.45, 0, "-x"),
     safe: () => new Decals().add("serial", 0.36, 0.045, 0.35, 0.62, 0, "+x"),
     cabinet: () => new Decals().add("serial", 0.3, 0.038, 0.4, 1.72, 0, "+x"),
+  }
+  // markings on doors and lids, modelled in body space (shifted to the hinge like the lid)
+  const LID_DECALS: Partial<Record<ContainerKind, () => Decals>> = {
+    crate: () => new Decals().add("fragile", 0.46, 0.08, 0, 0.6825, -0.2, "+y").add("lot", 0.36, 0.045, 0, 0.6825, 0.2, "+y"),
+    cabinet: () => new Decals().add("name", 0.12, 0.045, 0, 1.38, 0.287, "+z").add("hazard", 0.3, 0.035, 0, 0.12, 0.284, "+z"),
+    fridge: () => new Decals().add("polar", 0.14, 0.04, -0.2, 1.62, 0.402, "+z"),
+    safe: () => new Decals().add("tresor", 0.18, 0.034, 0, 0.66, 0.378, "+z"),
+    weaponcase: () => new Decals().add("serial", 0.3, 0.04, -0.33, 0.3315, -0.12, "+y"),
   }
   // distant stand-ins (closed silhouette in the main colour, a few dozen triangles)
   const LOW: Record<ContainerKind, () => Shape> = {
@@ -179,7 +187,7 @@ function kindParts(): Record<ContainerKind, KindParts> {
     for (let i = 0; i < 5; i++) d.box(0.4, 0.012, 0.014, 0, 1.58 + i * 0.04, 0.283, DK, 0, 0.5)
     for (let i = 0; i < 4; i++) d.box(0.4, 0.012, 0.014, 0, 0.22 + i * 0.04, 0.283, DK, 0, 0.5)
     d.box(0.024, 0.15, 0.03, 0.3, 1.0, 0.293, STEEL, 0.008).box(0.06, 0.22, 0.006, 0.3, 1.0, 0.284, DK)
-      .box(0.13, 0.065, 0.004, 0, 1.38, 0.284, 0xd5d0bf).box(0.09, 0.012, 0.003, 0, 1.385, 0.287, 0x3a3a36)
+      .box(0.13, 0.065, 0.004, 0, 1.38, 0.284, 0xd5d0bf)
       .box(0.045, 0.05, 0.022, 0.3, 0.88, 0.3, 0xa08432, 0.006).torus(0.014, 0.0035, 0.3, 0.912, 0.3, 0x9aa0a4, PI)
     for (const y of [0.35, 1.55]) d.cyl(0.012, 0.012, 0.1, -0.385, y, 0.285, STEEL, 8)
     def("cabinet", b, d, [-0.39, 0.03, 0.27], [0.8, 1.9, 0.5], "y", -1.6, propMaterial(0.55, 0.35), propMaterial(0.5, 0.38))
@@ -284,7 +292,6 @@ function kindParts(): Record<ContainerKind, KindParts> {
       d.cyl(0.006, 0.006, 0.075, ex / 2, 0.29 + ey / 2, 0.4, CH, 6, 0, 0, a - half).ball(0.012, ex, 0.29 + ey, 0.4, 0x1e2020, 1, 1, 1, 8)
     }
     for (const y of [0.18, 0.62]) d.cyl(0.017, 0.017, 0.13, -0.31, y, 0.35, 0x252b29, 10)
-    d.box(0.1, 0.025, 0.003, 0, 0.7, 0.378, 0xb89a4a)
     def("safe", b, d, [-0.31, 0.04, 0.34], [0.7, 0.8, 0.65], "y", -1.4, propMaterial(0.42, 0.45), propMaterial(0.38, 0.5))
   }
 
@@ -383,7 +390,7 @@ const LOD_STEP = 2
 /** Stand-ins beyond this distance are not drawn at all (fog covers them). */
 const DRAW_FAR = 260
 
-interface KindMesh { refs: ContainerRef[]; body: THREE.InstancedMesh; lid: THREE.InstancedMesh; low: THREE.InstancedMesh; decal: THREE.InstancedMesh | null }
+interface KindMesh { refs: ContainerRef[]; body: THREE.InstancedMesh; lid: THREE.InstancedMesh; low: THREE.InstancedMesh; decal: THREE.InstancedMesh | null; lidDecal: THREE.InstancedMesh | null }
 
 /** All containers of a raid, drawn with instancing: per kind one detailed body + lid set for nearby containers and one stand-in set for the rest. */
 export class ContainerField {
@@ -407,9 +414,11 @@ export class ContainerField {
       body.castShadow = body.receiveShadow = lid.castShadow = low.castShadow = low.receiveShadow = true
       const dm = decalMaterial(), decal = p.decal && dm ? new THREE.InstancedMesh(p.decal, dm, n) : null
       if (decal) { decal.receiveShadow = true; this.group.add(decal) }
+      const lidDecal = p.lidDecal && dm ? new THREE.InstancedMesh(p.lidDecal, dm, n) : null
+      if (lidDecal) { lidDecal.receiveShadow = true; this.group.add(lidDecal) }
       const refs = list.map(({ spot, items }, i): ContainerRef => ({ index: i, kind, position: new THREE.Vector3(spot.x, spot.y ?? 0, spot.z), yaw: spot.yaw ?? 0, searched: false, opened: false, items, name: CONTAINER_NAMES[kind], tier: spot.tier }))
       this.list.push(...refs)
-      this.kinds.set(kind, { refs, body, lid, low, decal })
+      this.kinds.set(kind, { refs, body, lid, low, decal, lidDecal })
       this.group.add(body, lid, low)
     }
     this.relod(null)
@@ -423,23 +432,24 @@ export class ContainerField {
       for (const ref of k.refs) {
         const d = viewer ? Math.hypot(ref.position.x - viewer.x, ref.position.z - viewer.z) : 0
         _m.compose(ref.position, _q.setFromAxisAngle(_yAxis, ref.yaw), _one)
-        if (d < LOD_NEAR) { k.body.setMatrixAt(near, _m); k.decal?.setMatrixAt(near, _m); this.slot.set(ref, near); this.writeLid(k.lid, ref, near); near++ }
+        if (d < LOD_NEAR) { k.body.setMatrixAt(near, _m); k.decal?.setMatrixAt(near, _m); this.slot.set(ref, near); this.writeLid(k.lid, ref, near, k.lidDecal); near++ }
         else { this.slot.set(ref, -1); if (d < DRAW_FAR) k.low.setMatrixAt(far++, _m) }
       }
       k.body.count = k.lid.count = near; k.low.count = far
       k.body.visible = k.lid.visible = near > 0; k.low.visible = far > 0
-      if (k.decal) { k.decal.count = near; k.decal.visible = near > 0 }
-      for (const mesh of [k.body, k.lid, k.low, k.decal]) if (mesh) { mesh.instanceMatrix.needsUpdate = true; mesh.computeBoundingSphere() }
+      for (const dm of [k.decal, k.lidDecal]) if (dm) { dm.count = near; dm.visible = near > 0 }
+      for (const mesh of [k.body, k.lid, k.low, k.decal, k.lidDecal]) if (mesh) { mesh.instanceMatrix.needsUpdate = true; mesh.computeBoundingSphere() }
     }
   }
 
-  private writeLid(lid: THREE.InstancedMesh, ref: ContainerRef, slot: number): void {
+  private writeLid(lid: THREE.InstancedMesh, ref: ContainerRef, slot: number, lidDecal: THREE.InstancedMesh | null = null): void {
     const p = this.parts[ref.kind]
     _q.setFromAxisAngle(_yAxis, ref.yaw)
     _v.set(p.lidPivot[0], p.lidPivot[1], p.lidPivot[2]).applyQuaternion(_q).add(ref.position)
     _q2.setFromAxisAngle(p.openAxis === "x" ? _xAxis : _yAxis, p.openAngle * (this.openness.get(ref) ?? 0))
     _q.multiply(_q2)
     lid.setMatrixAt(slot, _m.compose(_v, _q, _one))
+    lidDecal?.setMatrixAt(slot, _m)
   }
 
   /** Marks as opened (lid/door animates open). */
@@ -455,15 +465,19 @@ export class ContainerField {
       const k = Math.min(1, t + dt * 3)
       this.openness.set(ref, 1 - (1 - k) ** 3)
       const s = this.slot.get(ref) ?? -1, km = this.kinds.get(ref.kind)!
-      if (s >= 0) { this.writeLid(km.lid, ref, s); km.lid.instanceMatrix.needsUpdate = true; if (k >= 1) km.lid.computeBoundingSphere() }
+      if (s >= 0) {
+        this.writeLid(km.lid, ref, s, km.lidDecal); km.lid.instanceMatrix.needsUpdate = true
+        if (km.lidDecal) km.lidDecal.instanceMatrix.needsUpdate = true
+        if (k >= 1) { km.lid.computeBoundingSphere(); km.lidDecal?.computeBoundingSphere() }
+      }
       if (k >= 1) this.openAnim.delete(ref); else this.openAnim.set(ref, k)
     }
   }
 
   dispose(): void {
     this.group.parent?.remove(this.group)
-    for (const m of this.kinds.values()) { m.body.dispose(); m.lid.dispose(); m.low.dispose(); m.decal?.dispose() }
-    for (const p of Object.values(this.parts)) { p.body.dispose(); p.lid.dispose(); p.low.dispose(); p.decal?.dispose(); p.bodyMat.dispose(); p.lidMat.dispose() }
+    for (const m of this.kinds.values()) { m.body.dispose(); m.lid.dispose(); m.low.dispose(); m.decal?.dispose(); m.lidDecal?.dispose() }
+    for (const p of Object.values(this.parts)) { p.body.dispose(); p.lid.dispose(); p.low.dispose(); p.decal?.dispose(); p.lidDecal?.dispose(); p.bodyMat.dispose(); p.lidMat.dispose() }
   }
 }
 
