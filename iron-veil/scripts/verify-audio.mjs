@@ -3,8 +3,11 @@
  * dev-audio.html. Starts the Vite dev server itself (`npx vite --port 5181 --strictPort`) and checks in Chromium:
  *  - no AudioContext before a user gesture; after a click it runs
  *  - every SfxId plays 2D and at the position presets (left/right/behind/far) without page/console errors
- *  - ambience: every theme, rapid switching, crossfade clean-up, events fire; intensity + heartbeat start/stop the clock
+ *  - ambience: every bed (menu/dawn/day/dusk/night/harbor/base, unknown ids tolerated), rapid switching, crossfade
+ *    clean-up, events fire; intensity + heartbeat start/stop the clock
  *  - 200 synchronous + 200 timed (15/s) shot_vx9 calls keep the voice count bounded (≤ 40, per-id cap)
+ *  - hordes: 40 zombie_groan at once (per-id cap), 300 mixed infected/gore calls (group budgets 10/8), nearest kept
+ *  - suppressed shots (≈ -10 dB, short tail), melee light/heavy via rate, far screams/roars, stepSound("grass")
  *  - OfflineAudioContext renders through the full chain: every sound non-silent with peak < 1.0, stereo side for
  *    sources right/left at several yaws, distance attenuation, speed-of-sound delay, rear muffling, reverb share,
  *    weapon character, rapid fire without clipping, ambience/heartbeat/tension levels
@@ -30,7 +33,16 @@ const CONTRACT_IDS = [
   "step_asphalt", "step_concrete", "step_metal", "step_gravel", "step_dirt", "step_wood", "land",
   "grenade_pin", "grenade_bounce", "explosion", "extract_call", "extract_tick", "helicopter", "alert", "radio",
   "ui_click", "ui_hover", "ui_buy", "ui_error", "build", "win", "lose", "level_up", "flashlight",
+  // phase 2: zombie extraction-survival
+  "shot_r44", "shot_k5", "shot_sr74", "shot_br10", "shot_sg8", "shot_falke", "shot_lm60",
+  "bolt_cycle", "revolver_open", "revolver_close", "shell_insert", "lmg_belt", "melee_swing", "melee_hit_flesh", "melee_hit_wall",
+  "gore_splat", "gore_burst", "bone_crack", "gib_land", "blood_drip",
+  "zombie_groan", "zombie_alert", "zombie_scream", "zombie_attack", "zombie_spit", "zombie_pain", "zombie_death", "zombie_crawl", "boss_roar", "acid_sizzle",
+  "molotov_break", "fire_burn", "eat", "drink", "bandage", "syringe", "zipper", "item_drop", "loot_take",
+  "airdrop_plane", "airdrop_land", "door", "base_alarm", "wave_start", "build_complete", "step_grass",
 ]
+const INFECTED_IDS = ["zombie_groan", "zombie_alert", "zombie_attack", "zombie_spit", "zombie_pain", "zombie_death", "zombie_crawl"]
+const GORE_IDS = ["gore_splat", "gore_burst", "bone_crack", "gib_land", "blood_drip"]
 let failed = 0
 const check = (ok, message, detail = "") => { console.log(`${ok ? "PASS" : "FAIL"} ${message}${detail ? ` — ${detail}` : ""}`); if (!ok) failed++ }
 const db = x => x > 0 ? 20 * Math.log10(x) : -Infinity
@@ -72,11 +84,13 @@ try {
   check(errors.length === 0, "Bench-Knöpfe lösen Klänge ohne Fehler aus")
 
   // ---------------------------------------------------------------- ambience
-  for (const t of ["menu", "dusk", "harbor", "night", null, "dusk"]) {
+  for (const t of ["menu", "dawn", "day", "dusk", "night", "harbor", "base", null, "dusk"]) {
     await page.click(`[data-ambience="${t ?? "off"}"]`); await page.waitForTimeout(600)
     const s = await stats(); check(s.ambience === t && s.beds <= 3, `Ambiente „${t ?? "aus"}“ aktiv`, `Betten ${s.beds}, Timer ${s.timers}`)
   }
-  const rapid = await page.evaluate(() => { const a = window.__audioBench.audio; for (let i = 0; i < 40; i++) a.setAmbience(["menu", "dusk", "harbor", "night"][i % 4]); return a.stats })
+  const unknown = await page.evaluate(async () => { const a = window.__audioBench.audio; a.setAmbience("zone"); await new Promise(r => setTimeout(r, 300)); return a.stats })
+  check(unknown.ambience === "zone" && unknown.beds >= 1, "Unbekannte Ambiente-ID wird toleriert (Dämmerungs-Bett als Ersatz)", `Betten ${unknown.beds}`)
+  const rapid = await page.evaluate(() => { const a = window.__audioBench.audio; for (let i = 0; i < 40; i++) a.setAmbience(["menu", "dawn", "day", "dusk", "night", "harbor", "base"][i % 7]); return a.stats })
   check(rapid.beds <= 3 && rapid.timers <= 10,"40 schnelle Ambiente-Wechsel bleiben begrenzt", `Betten ${rapid.beds}, Timer ${rapid.timers}`)
   await page.waitForTimeout(2200)
   const settled = await stats(); check(settled.beds === 1, "Ausgeblendete Betten werden nach dem Überblenden freigegeben", `Betten ${settled.beds}`)
@@ -104,14 +118,40 @@ try {
   })
   check(timed.max <= 8 && timed.s.peakVoices <= 40, "200 shot_vx9 mit 15 Schuss/s: Stimmenzahl begrenzt", `max. ${timed.max} Stimmen, Spitze gesamt ${timed.s.peakVoices}, gestohlen ${timed.s.stolen}`)
 
+  // ---------------------------------------------------------------- hordes, suppressor, step surfaces (live)
+  await page.waitForTimeout(400)
+  const horde = await page.evaluate(() => {
+    const a = window.__audioBench.audio
+    for (let i = 0; i < 40; i++) { const ang = i / 40 * Math.PI * 2, r = 3 + (i * 7.3) % 37; a.play("zombie_groan", { position: { x: Math.cos(ang) * r, y: 1.5, z: Math.sin(ang) * r }, rate: 0.8 + (i % 9) * 0.05 }) }
+    return a.stats
+  })
+  check((horde.perId.zombie_groan ?? 0) <= 4 && horde.voices <= 40, "40 zombie_groan gleichzeitig: Stimmenbudget hält", `zombie_groan ${horde.perId.zombie_groan ?? 0} Stimmen, gesamt ${horde.voices}, verworfen ${horde.dropped}`)
+  const mixed = await page.evaluate(async ([inf, gore]) => {
+    const a = window.__audioBench.audio, ids = [...inf, ...gore, "melee_hit_flesh", "zombie_scream"]; let maxInf = 0, maxGore = 0, maxAll = 0
+    for (let i = 0; i < 300; i++) {
+      const ang = i * 2.39, r = 2 + (i * 5.1) % 40
+      a.play(ids[i % ids.length], { position: { x: Math.cos(ang) * r, y: 1.5, z: Math.sin(ang) * r }, rate: 0.75 + (i % 11) * 0.05 })
+      const s = a.stats, sum = list => list.reduce((n, id) => n + (s.perId[id] ?? 0), 0)
+      maxInf = Math.max(maxInf, sum(inf)); maxGore = Math.max(maxGore, sum(gore)); maxAll = Math.max(maxAll, s.voices)
+      if (i % 10 === 9) await new Promise(r => setTimeout(r, 30))
+    }
+    return { maxInf, maxGore, maxAll }
+  }, [INFECTED_IDS, GORE_IDS])
+  check(mixed.maxInf <= 10 && mixed.maxGore <= 8 && mixed.maxAll <= 40, "Horde greift an (300 Rufe/Gore/Treffer in 1 s): Gruppenbudgets halten", `Infizierte max. ${mixed.maxInf}/10, Gore max. ${mixed.maxGore}/8, gesamt max. ${mixed.maxAll}/40`)
+  const supLive = await page.evaluate(async () => { const b = window.__audioBench; for (const id of b.ids.filter(i => i.startsWith("shot_"))) { b.play(id, "none", { suppressed: true }); await new Promise(r => setTimeout(r, 40)) } b.play("enemy_rifle", "front", { suppressed: true }); return b.audio.stats })
+  check(errors.length === 0 && supLive.voices <= 40, "Alle shot_* mit suppressed: true live abgespielt (enemy_* ignoriert die Option)")
+  const steps = await page.evaluate(() => [window.__audioBench.stepSound("grass"), window.__audioBench.stepSound("metal"), window.__audioBench.stepSound("snow")])
+  check(steps[0] === "step_grass" && steps[1] === "step_metal" && steps[2] === "step_dirt", "stepSound: grass → step_grass, unbekannter Untergrund → step_dirt", steps.join(", "))
+
   // ---------------------------------------------------------------- offline renders: every sound
   const rows = []
   let silent = [], hot = []
-  const positional = new Set(ids.filter(id => /^(enemy_|impact_|grenade_bounce|explosion|helicopter|whiz|step_)/.test(id)))
+  const positional = new Set(ids.filter(id => /^(enemy_|impact_|grenade_bounce|explosion|helicopter|whiz|step_|zombie_|boss_roar|acid_sizzle|molotov_break|fire_burn|airdrop_|gore_|bone_crack|gib_land|blood_drip|melee_hit_|door|item_drop)/.test(id)))
   for (const id of ids) {
     const sec = await page.evaluate(id => window.__audioBench.lengthFor(id), id)
     const m = await an([{ id }], { seconds: sec })
-    const mp = positional.has(id) ? await an([{ id, opts: { position: { x: 3, y: 1.6, z: -9 } } }], { seconds: sec + 0.4, listener: { position: { x: 0, y: 1.6, z: 0 }, yaw: 0 } }) : null
+    const where = id === "blood_drip" ? { x: 0.5, y: 1.6, z: -1.5 } : { x: 3, y: 1.6, z: -9 }   // drips are only audible up close
+    const mp = positional.has(id) ? await an([{ id, opts: { position: where } }], { seconds: sec + 0.4, listener: { position: { x: 0, y: 1.6, z: 0 }, yaw: 0 } }) : null
     rows.push([id, m, mp])
     if (!(m.peak > 0.003)) silent.push(id)
     if (mp && !(mp.peak > 0.001)) silent.push(`${id}@9.5m`)
@@ -120,7 +160,7 @@ try {
   console.log("\n  Ton               Spitze dBFS  Lautheit 100 ms  bis -40 dB  Helligkeit  Tiefen   | positional 9.5 m: Spitze  Lautheit")
   for (const [id, m, mp] of rows) console.log(`  ${id.padEnd(17)} ${f1(db(m.peak)).padStart(10)} ${f1(db(m.rms100)).padStart(16)} ${m.t40.toFixed(2).padStart(10)} s ${m.bright.toFixed(3).padStart(10)} ${m.low.toFixed(2).padStart(7)}   ${mp ? `| ${f1(db(mp.peak)).padStart(22)} ${f1(db(mp.rms100)).padStart(9)}` : ""}`)
   console.log("")
-  check(silent.length === 0, "Offline: jeder Klang ist hörbar (2D-Spitze > -50 dBFS, in 9,5 m > -60 dBFS)", silent.join(", "))
+  check(silent.length === 0, `Offline: alle ${ids.length} Klänge hörbar (2D-Spitze > -50 dBFS, positional in 9,5 m bzw. Tropfen in 1,6 m > -60 dBFS)`, silent.join(", "))
   check(hot.length === 0, "Offline: jede Spitze nach Kompressor < 1.0, keine geclippten Samples", hot.join(", ") || `höchste Spitze ${f1(db(Math.max(...rows.flatMap(([, m, mp]) => [m.peak, mp?.peak ?? 0]))))} dBFS`)
 
   // ---------------------------------------------------------------- offline: panning / yaw convention
@@ -166,6 +206,41 @@ try {
   const v1 = await an([{ id: "shot_vx9" }], { seconds: 0.6, seed: 1 }), v2 = await an([{ id: "shot_vx9" }], { seconds: 0.6, seed: 2 })
   check(Math.abs(v1.activeRms - v2.activeRms) > 1e-4 || Math.abs(v1.bright - v2.bright) > 1e-4, "Jeder Schuss variiert leicht (Tonhöhe/Pegel/Filter)", `RMS ${f1(db(v1.activeRms))} / ${f1(db(v2.activeRms))} dB, Helligkeit ${v1.bright.toFixed(3)} / ${v2.bright.toFixed(3)}`)
 
+  check(W.falke.t40 > W.dr7.t40 && W.falke.rms100 > W.mk4.rms100 && W.falke.t40 === Math.max(...Object.values(W).map(m => m.t40)), "Waffen: Falke .338 mit dem lautesten Knall-Nachhall (längstes Echo aller Waffen)", `falke ${W.falke.t40.toFixed(2)} s, Lautheit ${f1(db(W.falke.rms100))} dB`)
+  check(W.k5.bright > W.mk4.bright && W.k5.t40 < W.mk4.t40 && W.k5.rms100 < W.mk4.rms100, "Waffen: K5 klein, hell und kurz", `Helligkeit ${W.k5.bright.toFixed(3)}, ${W.k5.t40.toFixed(2)} s, ${f1(db(W.k5.rms100))} dB`)
+  check(W.sr74.rms100 > W.mk4.rms100 && W.sr74.bright < W.mk4.bright && W.br10.rms100 > W.sr74.rms100, "Waffen: SR-74 schwerer als MK-4, BR-10 noch lauter", `MK-4 ${f1(db(W.mk4.rms100))} · SR-74 ${f1(db(W.sr74.rms100))} · BR-10 ${f1(db(W.br10.rms100))} dB`)
+  check(W.r44.rms100 > W.p9.rms100 && W.r44.low > W.p9.low && W.sg8.low > W.mk4.low, "Waffen: R-44 wuchtiger als P9, SG-8 mit Schrot-Tiefton", `R-44 ${f1(db(W.r44.rms100))} / P9 ${f1(db(W.p9.rms100))} dB`)
+  const supRows = []
+  for (const id of ids.filter(i => i.startsWith("shot_"))) {
+    const sec = await page.evaluate(id => window.__audioBench.lengthFor(id), id)
+    const s = await an([{ id, opts: { suppressed: true } }], { seconds: sec }), m = rows.find(r => r[0] === id)[1]
+    supRows.push([id, db(s.rms100) - db(m.rms100), s.t40, m.t40, s.peak])
+  }
+  check(supRows.every(([, d, st, mt, pk]) => d > -13 && d < -7 && st < mt * 0.6 && pk < 1), "Schalldämpfer: jede Waffe ≈ 1/3 so laut (-7 … -13 dB) mit kurzem Nachhall",
+    supRows.map(([id, d, st]) => `${id.slice(5)} ${d.toFixed(1)} dB/${st.toFixed(2)} s`).join(" · "))
+  const light = await an([{ id: "melee_swing", opts: { rate: 1.35 } }], { seconds: 1, seed: 7 }), heavy = await an([{ id: "melee_swing", opts: { rate: 0.7 } }], { seconds: 1, seed: 7 })
+  check(heavy.t40 > light.t40 && heavy.bright < light.bright, "Nahkampf: schwerer Schwung (rate 0.7) länger und tiefer als leichter (1.35)", `${heavy.t40.toFixed(2)} s/${heavy.bright.toFixed(3)} vs. ${light.t40.toFixed(2)} s/${light.bright.toFixed(3)}`)
+  const scream150 = await at("zombie_scream", 0, -150, 3), roar200 = await at("boss_roar", 0, -200, 4), groan150 = await at("zombie_groan", 0, -150), groan30 = await at("zombie_groan", 0, -30)
+  check(scream150.peak > 0.003 && roar200.peak > 0.003 && groan150.peak === 0 && groan30.peak > 0, "Reichweite: Schreier (150 m) und Boss (200 m) weit hörbar, Stöhnen nur in der Nähe",
+    `Schrei 150 m ${f1(db(scream150.rms100))} dB (+${scream150.onset.toFixed(2)} s Schall) · Brüllen 200 m ${f1(db(roar200.rms100))} dB · Stöhnen 30 m ${f1(db(groan30.rms100))} dB, 150 m stumm`)
+  const g1 = await an([{ id: "zombie_groan", opts: { position: { x: 0, y: 1.6, z: -10 }, rate: 0.8 } }], { seconds: 2.5, seed: 3, listener: { position: { x: 0, y: 1.6, z: 0 }, yaw: 0 } })
+  const g2 = await an([{ id: "zombie_groan", opts: { position: { x: 0, y: 1.6, z: -10 }, rate: 1.25 } }], { seconds: 2.5, seed: 3, listener: { position: { x: 0, y: 1.6, z: 0 }, yaw: 0 } })
+  check(g1.bright < g2.bright, "Infizierte: rate verändert Stimme/Größe je Individuum", `Helligkeit rate 0.8 ${g1.bright.toFixed(3)} / rate 1.25 ${g2.bright.toFixed(3)}`)
+  const farHorde = Array.from({ length: 36 }, (_, i) => ({ id: "zombie_groan", opts: { position: { x: Math.cos(i) * 32, y: 1.5, z: Math.sin(i) * 32 }, rate: 0.8 + (i % 7) * 0.06 } }))
+  const nearFour = Array.from({ length: 4 }, (_, i) => ({ id: "zombie_groan", at: 0.01, opts: { position: { x: Math.cos(i * 1.6) * 3, y: 1.5, z: Math.sin(i * 1.6) * 3 }, rate: 0.9 + i * 0.05 } }))
+  const hFar = await an(farHorde, { seconds: 2.5 }), hNear = await an(nearFour, { seconds: 2.5 }), hAll = await an([...farHorde, ...nearFour], { seconds: 2.5 })
+  check(Math.abs(db(hAll.rms100) - db(hNear.rms100)) < 2 && hAll.rms100 > hFar.rms100 && hAll.peak < 1, "Horde: die nächsten Infizierten verdrängen ferne Stimmen (Budget hält die lautesten)",
+    `36 fern ${f1(db(hFar.rms100))} dB · 4 nah ${f1(db(hNear.rms100))} dB · alle 40 ${f1(db(hAll.rms100))} dB`)
+  const lmg = await an(Array.from({ length: 34 }, (_, i) => ({ id: "shot_lm60", at: i / 11.4 })), { seconds: 4 })
+  check(lmg.peak < 1 && lmg.clipped === 0, "34 LM-60-Schüsse mit 11,4/s: keine Übersteuerung", `Spitze ${f1(db(lmg.peak))} dBFS, Lautheit ${f1(db(lmg.rms100))} dB`)
+  const massacre = await an([
+    ...Array.from({ length: 40 }, (_, i) => ({ id: INFECTED_IDS[i % INFECTED_IDS.length], at: (i % 10) * 0.05, opts: { position: { x: Math.cos(i) * (2 + i % 9), y: 1.5, z: Math.sin(i) * (2 + i % 9) }, rate: 0.8 + (i % 5) * 0.1 } })),
+    ...Array.from({ length: 20 }, (_, i) => ({ id: GORE_IDS[i % GORE_IDS.length], at: i * 0.04, opts: { position: { x: 1 + i % 3, y: 0.5, z: -2 - i % 4 } } })),
+    { id: "boss_roar", opts: { position: { x: 0, y: 2, z: -6 } } }, { id: "shot_sg8" }, { id: "shot_sg8", at: 0.26 }, { id: "molotov_break", at: 0.1, opts: { position: { x: 2, y: 0, z: -5 } } },
+    { id: "melee_hit_flesh", at: 0.3 }, { id: "zombie_scream", at: 0.2, opts: { position: { x: -8, y: 1.5, z: -10 } } },
+  ], { seconds: 4, volume: 1 })
+  check(massacre.peak < 1 && massacre.clipped === 0, "Schlimmster Horden-Fall (40 Infizierte, Gore, Boss, Schrotflinte, Molotow, Lautstärke 1.0): Spitze < 1.0", `Spitze ${f1(db(massacre.peak))} dBFS`)
+
   // ---------------------------------------------------------------- offline: rapid fire and worst-case mixes
   const smg = await an(Array.from({ length: 45 }, (_, i) => ({ id: "shot_vx9", at: i / 15 })), { seconds: 3.8 })
   check(smg.peak < 1 && smg.clipped === 0, "45 VX-9-Schüsse mit 15/s: keine Übersteuerung", `Spitze ${f1(db(smg.peak))} dBFS, RMS ${f1(db(smg.activeRms))} dB`)
@@ -180,7 +255,7 @@ try {
 
   // ---------------------------------------------------------------- offline: ambience, tension, heartbeat levels
   const gun = W.mk4
-  for (const theme of ["menu", "dusk", "harbor", "night"]) {
+  for (const theme of ["menu", "dawn", "day", "dusk", "night", "harbor", "base"]) {
     const m = await an([], { seconds: 30, ambience: theme })
     check(m.rms > 2e-4 && db(m.rms) < db(gun.rms100) - 16 && db(m.peak) < db(gun.peak) - 6, `Ambiente „${theme}“ (30 s inkl. Zufallsereignisse) hörbar, aber deutlich leiser als Schüsse`,
       `RMS ${f1(db(m.rms))} dB, lauteste 100 ms ${f1(db(m.rms100))} dB, Spitze ${f1(db(m.peak))} dBFS · MK-4: Lautheit ${f1(db(gun.rms100))} dB, Spitze ${f1(db(gun.peak))} dBFS`)
