@@ -5,7 +5,11 @@
  */
 import type { Vec2, Vec3 } from "./types"
 
-export interface Obstacle { minX: number; maxX: number; minZ: number; maxZ: number; height: number; minY?: number }
+export interface Obstacle {
+  minX: number; maxX: number; minZ: number; maxZ: number; height: number; minY?: number
+  /** Material for bullet impacts (effects/sounds); defaults to concrete. */
+  surface?: "concrete" | "metal" | "wood" | "dirt"
+}
 export interface RayHit { distance: number; normal: Vec3; obstacle: Obstacle }
 
 /** True when a circle at (x, z) overlaps any obstacle. */

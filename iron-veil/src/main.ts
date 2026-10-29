@@ -1,4 +1,5 @@
 import "./index.css"
+import "./hud.css"
 import { startGame, stopGame } from "./game/boot"
 
 const root = document.getElementById("root")!

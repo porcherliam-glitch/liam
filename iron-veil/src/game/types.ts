@@ -126,6 +126,10 @@ export interface HudSnapshot {
   spread: number
   crouched: boolean
   ads: boolean
+  /** Scoped rifle at full zoom: show the scope overlay. */
+  scoped: boolean
+  /** Player is dying (death camera). */
+  dead: boolean
   message: string
   messageTime: number
   hint: string
@@ -154,4 +158,13 @@ export interface GameSnapshot {
   fps: number
   drawCalls: number
   triangles: number
+}
+
+declare global {
+  interface Window {
+    /** Player feet position — read by the smoke test's direction assertions. */
+    __gameProbe?: () => Vec3
+    /** Set on the first rendered frame. */
+    __GAME_READY__?: boolean
+  }
 }
