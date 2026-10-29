@@ -53,7 +53,9 @@ const SOLDIER_SURF = new Map<number, number>()
 function classifySoldier(P: Palette): void {
   SOLDIER_SURF.clear()
   for (const c of [P.fabric, P.pants, P.strap, P.pouch, P.gear]) SOLDIER_SURF.set(c, SURF.fabric)
-  for (const c of [P.helmet, P.boots, P.gloves, P.pads, P.accent, P.dark]) SOLDIER_SURF.set(c, SURF.polymer)
+  for (const c of [P.boots, P.gloves, P.pads, P.accent, P.dark]) SOLDIER_SURF.set(c, SURF.polymer)
+  // helmets wear a fabric cover (camouflage), except the heavy's ballistic shell
+  SOLDIER_SURF.set(P.helmet, P === PAL.heavy ? SURF.polymer : SURF.fabric)
   for (const c of [P.gunMetal, P.gunAccent, 0x111214, 0x050505]) SOLDIER_SURF.set(c, SURF.metal)
   SOLDIER_SURF.set(P.skin, SURF.skin)
 }
