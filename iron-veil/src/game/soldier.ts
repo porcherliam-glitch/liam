@@ -111,7 +111,7 @@ class Parts {
    * Smooth lofted tube through elliptical rings (y, half width w, half depth d, optional centre x/z) with Catmull-Rom
    * sub-rings; `deform(a, y)` pushes vertices radially (folds, muscles), `paint(a, y, c)` may recolour (returns a surface type).
    */
-  loft(rings: { y: number; w: number; d: number; x?: number; z?: number }[], color: number, segs = 16, fx: { deform?: (a: number, y: number) => number; paint?: (a: number, y: number, c: THREE.Color) => number | void } = {}, caps = 3): this {
+  loft(rings: { y: number; w: number; d: number; x?: number; z?: number }[], color: number, segs = 16, fx: { deform?: (a: number, y: number) => number; paint?: (a: number, y: number, c: THREE.Color) => number | void; rot?: V3 } = {}, caps = 3): this {
     const cr = (a: number, b: number, c: number, d: number, t: number) => 0.5 * (2 * b + (c - a) * t + (2 * a - 5 * b + 4 * c - d) * t * t + (3 * b - a - 3 * c + d) * t * t * t)
     const R: { y: number; w: number; d: number; x: number; z: number }[] = [], n0 = rings.length, sub = 3
     for (let k = 0; k < n0 - 1; k++) {
@@ -140,8 +140,16 @@ class Parts {
     if (caps & 2) cap(n - 1, false)
     const g = new THREE.BufferGeometry()
     g.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute("color", new THREE.Float32BufferAttribute(col, 3)); g.setAttribute("surf", new THREE.Float32BufferAttribute(sf, 1)); g.setIndex(idx)
+    if (fx.rot) g.applyMatrix4(this.m.makeRotationFromEuler(this.e.set(fx.rot[0], fx.rot[1], fx.rot[2], "YXZ")))
     g.computeVertexNormals()
     return this.raw(g)
+  }
+  /** Flat outline (x, forward) extruded upward by `h` from y0 with a small bevel: soles, insoles. */
+  slab(outline: [number, number][], h: number, color: number, pos: V3, bevel = 0.003): this {
+    const sh = new THREE.Shape(); sh.moveTo(outline[0][0], outline[0][1]); sh.splineThru(outline.slice(1).map(([x, f]) => new THREE.Vector2(x, f))); sh.closePath()
+    const geo = new THREE.ExtrudeGeometry(sh, { depth: h - bevel * 2, bevelEnabled: bevel > 0, bevelThickness: bevel, bevelSize: bevel, bevelSegments: 1, curveSegments: 3 })
+    geo.translate(0, 0, bevel)
+    return this.add(geo, color, pos, [-Math.PI / 2, 0, 0])
   }
   /** Seamless sculpted ellipsoid: fn(u, colour) returns the radial displacement (radius units) and may return a surface type. */
   sculpt(c: V3, r: V3, color: number, fn: (u: THREE.Vector3, col: THREE.Color) => [number, number?], wSeg = 28, hSeg = 20): this {
@@ -416,9 +424,11 @@ function buildUpperArm(kind: SoldierKind, side: -1 | 1): THREE.BufferGeometry {
   if (kind === "medic" && side < 0) b.cyl(0.059, 0.059, 0.05, 0xe8e6de, [0, -0.1, 0], undefined, 14).box(0.02, 0.03, 0.004, P.accent, [-0.059, -0.1, 0], [0, Math.PI / 2, 0])
   if (kind === "rifleman") b.box(0.012, 0.05, 0.07, side < 0 ? 0x6d6448 : P.accent, [side * 0.057, -0.08, 0])
   if (kind === "heavy") {
-    b.box(0.15, 0.09, 0.17, P.gear, [side * 0.03, -0.01, 0], [0, 0, side * 0.35])
-    if (side < 0) b.box(0.152, 0.022, 0.172, P.accent, [side * 0.037, 0.015, 0], [0, 0, side * 0.35])
-    b.box(0.13, 0.08, 0.14, P.gear, [side * 0.02, -0.09, 0], [0, 0, side * 0.2])
+    // layered pauldron shells (two lames) with a stripe on the left
+    b.sph(0.088, P.gear, [side * 0.012, -0.0, 0], [1, 0.75, 1.02], 14, 8, Math.PI / 2, [0, 0, side * 0.32])
+    if (side < 0) b.sph(0.0895, P.accent, [side * 0.012, 0.0, 0], [1, 0.76, 1.03], 14, 3, 0.32, [0, 0, side * 0.32])
+    b.sph(0.078, P.gear, [side * 0.01, -0.075, 0], [1, 0.62, 1.0], 14, 8, Math.PI / 2, [0, 0, side * 0.2])
+    for (const z of [-0.05, 0.05]) b.hard(0.008, 0.008, 0.008, 0x2b2b29, [side * 0.075, -0.035, z])
   }
   if (kind === "marksman") for (let i = 0; i < 4; i++) b.box(0.012, 0.15, 0.04, GHILLIE[i % 4], [side * 0.062, -0.06 - i * 0.02, -0.05 + i * 0.035], [0, 0, side * 0.1])
   return b.build()
@@ -430,7 +440,11 @@ function buildForearm(kind: SoldierKind, side: -1 | 1): THREE.BufferGeometry {
     P.fabric, 16, { deform: (a, y) => (y > -0.1 ? 0.004 * Math.sin(a * 5 + y * 120) : 0) })
   b.loft([{ y: -0.222, w: 0.044, d: 0.043 }, { y: -0.245, w: 0.043, d: 0.042 }, { y: -0.262, w: 0.038, d: 0.034 }], P.gloves, 14)
   b.glove(-0.26, P.gloves, side)
-  if (kind === "heavy") b.box(0.085, 0.16, 0.075, P.gear, [0, -0.12, 0])
+  if (kind === "heavy") {
+    // bracer: curved shell over the outside of the forearm, strapped twice
+    b.sph(0.05, P.gear, [side * 0.012, -0.12, 0], [0.9, 0.6, 1.9], 12, 8, Math.PI / 2, [0, 0, -side * Math.PI / 2])
+    for (const y of [-0.07, -0.18]) b.cyl(0.05, 0.05, 0.012, P.strap, [0, y, 0], undefined, 10)
+  }
   return b.build()
 }
 
@@ -444,32 +458,85 @@ function buildThigh(kind: SoldierKind, side: -1 | 1): THREE.BufferGeometry {
     b.box(0.03, 0.07, 0.035, P.dark, [0.092, -0.03, 0.012])
   }
   if (kind === "heavy") {
-    b.box(0.15, 0.17, 0.035, P.gear, [side * 0.01, -0.09, -0.085], [0.15, 0, 0])
-    b.box(0.035, 0.17, 0.12, P.gear, [side * 0.09, -0.1, 0])
+    // tasset (front) and thigh plate (outside), both curved shells
+    b.sph(0.085, P.gear, [side * 0.005, -0.1, -0.045], [0.95, 0.55, 1.15], 14, 8, Math.PI / 2, [-Math.PI / 2 + 0.12, 0, 0])
+    b.sph(0.07, P.gear, [side * 0.04, -0.12, 0], [1.0, 0.55, 1.3], 12, 8, Math.PI / 2, [0, 0, -side * Math.PI / 2])
+    b.hard(0.11, 0.01, 0.012, P.strap, [side * 0.005, -0.03, -0.083])
   }
   if (kind === "marksman") for (let i = 0; i < 3; i++) b.box(0.012, 0.16, 0.045, GHILLIE[(i + 1) % 4], [side * 0.08, -0.08 - i * 0.03, -0.04 + i * 0.04], [0, 0, side * 0.08])
   return b.build()
 }
 
 function buildShin(kind: SoldierKind, side: -1 | 1): THREE.BufferGeometry {
-  const P = PAL[kind], b = new Parts(), t = kind === "heavy" ? 1.1 : 1
-  b.loft([{ y: 0.0, w: 0.06 * t, d: 0.06 * t }, { y: -0.12, w: 0.058 * t, d: 0.062 * t, z: 0.006 }, { y: -0.26, w: 0.05 * t, d: 0.05 * t }, { y: -0.335, w: 0.05 * t, d: 0.05 * t }],
-    P.pants, 16, { deform: (a, y) => 0.0026 * Math.sin(a * 6 + y * 60) + (y < -0.27 ? 0.004 * Math.sin(a * 4 + y * 200) : 0) })
-  if (!isCivilian(kind)) b.box(kind === "scout" ? 0.075 : 0.09, 0.1, 0.035, P.pads, [0, -0.025, -0.066], [-0.1, 0, 0])
-  b.cyl(0.054 * t, 0.056 * t, 0.1, P.boots, [0, -0.37, 0])
-  if (kind === "heavy") b.box(0.09, 0.22, 0.03, P.gear, [0, -0.2, -0.058])
+  const P = PAL[kind], b = new Parts(), t = kind === "heavy" ? 1.1 : 1, civ = isCivilian(kind)
+  // calf bulges to the back; civilians wear the trousers over an ankle boot, soldiers blouse them into tall boots
+  const hem = civ ? -0.385 : -0.315
+  b.loft([{ y: 0.0, w: 0.061 * t, d: 0.061 * t }, { y: -0.1, w: 0.061 * t, d: 0.066 * t, z: 0.01 }, { y: -0.22, w: 0.053 * t, d: 0.055 * t, z: 0.004 },
+    civ ? { y: -0.33, w: 0.055, d: 0.056 } : { y: -0.285, w: 0.06 * t, d: 0.061 * t }, { y: hem, w: (civ ? 0.058 : 0.057) * t, d: (civ ? 0.06 : 0.058) * t }],
+    P.pants, 16, { deform: (a, y) => 0.0026 * Math.sin(a * 6 + y * 60) + (y < hem + 0.05 ? 0.0045 * Math.sin(a * 5 + y * 210) : 0) })
+  // boot shaft: padded collar, front lacing with hooks, pull tab at the back
+  const top = civ ? -0.37 : -0.3
+  b.loft([{ y: -0.43, w: 0.05 * t, d: 0.057 * t, z: -0.004 }, { y: (top - 0.43) / 2, w: 0.051 * t, d: 0.054 * t }, { y: top - 0.012, w: 0.056 * t, d: 0.058 * t }, { y: top, w: 0.053 * t, d: 0.055 * t }],
+    P.boots, 14, { paint: (a, y, c) => { if (y > top - 0.016) c.multiplyScalar(0.72) } }, 2)
+  const lace = civ ? 0x6b5e4a : 0x1a1a18, rungs = civ ? 2 : 5
+  for (let i = 0; i < rungs; i++) {
+    const y = -0.41 + i * 0.022
+    b.hard(0.052 * t, 0.0045, 0.006, lace, [0, y, -0.056 * t], [0, 0, (i % 2 ? 0.16 : -0.16)])
+    for (const x of [-0.026, 0.026]) b.hard(0.007, 0.007, 0.006, 0x2b2b29, [x * t, y, -0.054 * t])
+  }
+  b.box(0.022, 0.03, 0.008, P.dark, [0, top + 0.008, 0.055 * t])
+  if (!civ) {
+    // articulated knee pad (shell + two straps)
+    const kp = kind === "heavy" ? 1.2 : kind === "scout" ? 0.9 : 1
+    b.sph(0.05 * kp, P.pads, [0, -0.025, -0.045 * t], [1, 0.62, 1.25], 12, 8, Math.PI / 2, [-Math.PI / 2, 0, 0])
+    b.hard(0.07 * kp, 0.008, 0.012, P.strap, [0, -0.012, -0.073 * t * kp], [0.25, 0, 0])
+    b.cyl(0.0625 * t, 0.0625 * t, 0.016, P.strap, [0, 0.02, 0.002], undefined, 12)
+    b.cyl(0.063 * t, 0.063 * t, 0.016, P.strap, [0, -0.075, 0.004], undefined, 12)
+  }
+  if (kind === "heavy") {
+    b.sph(0.052, P.gear, [0, -0.2, -0.045], [0.95, 0.55, 2.2], 12, 8, Math.PI / 2, [-Math.PI / 2, 0, 0])
+    b.hard(0.02, 0.006, 0.006, P.accent, [0.02, -0.11, -0.073])
+  }
   void side
   return b.build()
 }
 
+/** Sole outline (half: x, forward) mirrored into a closed loop from the heel round to the toe. */
+const SOLE: [number, number][] = (() => {
+  const half: [number, number][] = [[0.038, -0.074], [0.047, -0.045], [0.044, -0.005], [0.049, 0.045], [0.056, 0.095], [0.054, 0.135], [0.041, 0.163], [0.018, 0.176]]
+  return [[0, -0.083], ...half, [0, 0.179], ...half.slice().reverse().map(([x, f]) => [-x, f] as [number, number])]
+})()
+
 function buildBoot(kind: SoldierKind): THREE.BufferGeometry {
-  const P = PAL[kind], b = new Parts(), t = kind === "heavy" ? 1.08 : 1
-  b.box(0.1 * t, 0.08, 0.2, P.boots, [0, -0.038, -0.03])
-  b.sph(0.05 * t, P.boots, [0, -0.045, -0.13], [1, 0.75, 1.15], 12, 8)
-  b.box(0.106 * t, 0.022, 0.255, P.dark, [0, -0.079, -0.052])
-  for (let i = 0; i < 6; i++) b.hard(0.104 * t, 0.006, 0.012, 0x0c0c0b, [0, -0.0905, -0.16 + i * 0.044])
-  for (let i = 0; i < 4; i++) b.hard(0.05, 0.006, 0.008, 0x3a3a34, [0, 0.0 - i * 0.014, -0.085 + i * 0.012], [0.5, 0, 0])
-  b.box(0.104 * t, 0.025, 0.07, P.dark, [0, -0.06, -0.165], [0.35, 0, 0])
+  const P = PAL[kind], b = new Parts(), t = kind === "heavy" ? 1.08 : 1, civ = isCivilian(kind)
+  // upper lofted heel → toe (rings run along Z): heel counter, high instep, flatter vamp and a rounded toe box
+  const up = [
+    { z: 0.074, w: 0.039, h: 0.029, cy: -0.042 }, { z: 0.062, w: 0.046, h: 0.052, cy: -0.02 }, { z: 0.02, w: 0.05, h: 0.062, cy: -0.01 },
+    { z: -0.03, w: 0.052, h: 0.055, cy: -0.018 }, { z: -0.075, w: 0.053, h: 0.039, cy: -0.034 }, { z: -0.115, w: 0.05, h: 0.029, cy: -0.043 },
+    { z: -0.145, w: 0.042, h: 0.023, cy: -0.048 }, { z: -0.162, w: 0.027, h: 0.017, cy: -0.05 }, { z: -0.168, w: 0.01, h: 0.008, cy: -0.051 },
+  ]
+  b.loft(up.map(r => ({ y: r.z, w: r.w * t, d: r.h, z: -r.cy })), P.boots, 18, {
+    rot: [Math.PI / 2, 0, 0],
+    // toe cap and heel counter a shade darker, scuffed rand along the welt
+    paint: (a, z, c) => { const s = Math.sin(a); if (s > 0.78) c.multiplyScalar(0.62); else if (z < -0.112 || z > 0.05) c.multiplyScalar(0.8) },
+    deform: (a, z) => (z > -0.1 && z < 0.04 ? 0.0012 * Math.sin(a * 9 + z * 80) : 0),
+  })
+  // tongue and lacing over the instep
+  b.box(0.046 * t, 0.006, 0.06, P.boots, [0, 0.028, -0.038], [0.66, 0, 0])
+  const lace = civ ? 0x6b5e4a : 0x1a1a18
+  for (let i = 0; i < 3; i++) {
+    const z = -0.066 + i * 0.02, y = 0.012 + i * 0.014
+    b.hard(0.07 * t, 0.0045, 0.006, lace, [0, y + 0.004, z], [0.62, 0, i % 2 ? 0.18 : -0.18])
+    for (const x of [-0.034, 0.034]) b.hard(0.007, 0.007, 0.007, 0x2b2b29, [x * t, y, z])
+  }
+  // sole: bevelled rubber slab with a raised heel block, chevron lugs underneath
+  b.slab(SOLE.map(([x, f]) => [x * t, f] as [number, number]), 0.022, P.dark, [0, -0.088, 0])
+  const lug = 0x0c0c0b
+  for (let i = 0; i < 7; i++) {
+    const z = 0.065 - i * 0.034
+    if (i === 2) continue // arch
+    for (const x of [-0.021, 0.021]) b.hard(0.04 * t, 0.006, 0.011, lug, [x * t, -0.0915, z], [0, x < 0 ? 0.42 : -0.42, 0])
+  }
   return b.build()
 }
 
