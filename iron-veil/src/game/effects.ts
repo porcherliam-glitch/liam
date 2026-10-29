@@ -6,7 +6,7 @@
 import * as THREE from "three"
 import type { Vec3 } from "./types"
 
-const MAX_PARTICLES = 900
+const MAX_PARTICLES = 1400
 const MAX_TRACERS = 40
 const MAX_DECALS = 96
 
@@ -215,10 +215,12 @@ export class Effects {
   /** Burning ground (molotov) — call each fixed step while it burns: flames, embers and dark smoke over the radius. */
   fire(p: Vec3, radius: number, dt: number): void {
     const r = this.rand
-    const flames = Math.round(dt * 70 * radius)
+    // flame tongues: big soft blobs rising fast and shrinking, plus a hot core near the ground
+    const flames = Math.max(1, Math.round(dt * 55 * radius))
     for (let i = 0; i < flames; i++) {
-      const a = r() * Math.PI * 2, d = Math.sqrt(r()) * radius
-      this.additive.emit(p.x + Math.cos(a) * d, p.y + 0.05, p.z + Math.sin(a) * d, (r() - 0.5) * 0.5, 1.2 + r() * 1.6, (r() - 0.5) * 0.5, 0.35 + r() * 0.35, 0.28 + r() * 0.3, -0.6, 1, 0.42 + r() * 0.3, 0.08, 0.9, 1.2, -1.5)
+      const a = r() * Math.PI * 2, d = Math.sqrt(r()) * radius * 0.9
+      this.additive.emit(p.x + Math.cos(a) * d, p.y + 0.1, p.z + Math.sin(a) * d, (r() - 0.5) * 0.4, 1.8 + r() * 2.2, (r() - 0.5) * 0.4, 0.45 + r() * 0.4, 0.6 + r() * 0.55, -0.55, 1, 0.38 + r() * 0.3, 0.06, 0.75, 1.4, -2.2)
+      if (r() < 0.5) this.additive.emit(p.x + Math.cos(a) * d * 0.8, p.y + 0.05, p.z + Math.sin(a) * d * 0.8, 0, 0.6 + r() * 0.6, 0, 0.3 + r() * 0.2, 0.5 + r() * 0.3, -0.3, 1, 0.78, 0.35, 0.8, 1, -0.5)
     }
     if (r() < dt * 14) { const a = r() * Math.PI * 2, d = Math.sqrt(r()) * radius; this.alpha.emit(p.x + Math.cos(a) * d, p.y + 0.6, p.z + Math.sin(a) * d, (r() - 0.5) * 0.4, 1 + r(), (r() - 0.5) * 0.4, 2.4 + r() * 1.5, 0.7 + r() * 0.5, 3, 0.08, 0.07, 0.06, 0.55, 0.5, -0.3) }
     if (r() < dt * 20) this.additive.emit(p.x + (r() - 0.5) * radius, p.y + 0.2, p.z + (r() - 0.5) * radius, (r() - 0.5) * 1.5, 2 + r() * 3, (r() - 0.5) * 1.5, 0.8 + r() * 0.6, 0.04, 0, 1, 0.6, 0.2, 1, 0.6, 1.5)

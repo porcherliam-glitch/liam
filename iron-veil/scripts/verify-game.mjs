@@ -60,7 +60,7 @@ try {
   check(raid.enemiesAlive > 0, `Söldner in der Zone (${raid.enemiesAlive})`)
   await page.evaluate(() => window.__ironVeil.godMode(true))
   await g.frames(5); await g.shot("04-raid.png")
-  await page.keyboard.press("Escape"); await page.waitForTimeout(300)
+  await page.keyboard.press("Escape"); await g.frames(3)
   check((await g.snapshot()).screen === "paused", "Escape pausiert")
   await g.shot("05-paused.png")
   check(g.errors.length === 0, `Keine Konsolenfehler (${g.errors.length})${g.errors.length ? ": " + g.errors[0] : ""}`)

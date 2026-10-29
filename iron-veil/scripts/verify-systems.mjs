@@ -49,13 +49,16 @@ try {
   check((await profile()).raidStarted > 0 && (await profile()).loadout.primary === null, "Ausrüstung ist im Einsatz (nicht mehr im Lager)")
   await api(() => window.__ironVeil.godMode(true))
   await api(() => window.__ironVeil.spawnInfected("walker", 9)); await g.frames(3)
-  for (let i = 0; i < 8; i++) {
-    const t = await api(() => window.__ironVeil.nearest("infected"))
+  // only the spawned walker counts: the zone may hold other infected far away
+  const nearInfected = () => api(() => { const t = window.__ironVeil.nearest("infected"), p = window.__ironVeil.snapshot().player; return t && Math.hypot(t.x - p.x, t.z - p.z) < 25 ? t : null })
+  for (let i = 0; i < 12; i++) {
+    const t = await nearInfected()
     if (!t) break
     await api(t => window.__ironVeil.aimAt(t.chest.x, t.chest.y, t.chest.z), t)
     await page.mouse.move(640, 360); await page.mouse.down(); await g.frames(4); await page.mouse.up(); await g.frames(3)
   }
-  check(!(await api(() => window.__ironVeil.nearest("infected"))), "Infizierter erledigt")
+  const left = await nearInfected()
+  check(!left, `Infizierter erledigt${left ? ` (noch ${left.kind} mit ${left.health} LP)` : ""}`)
   await g.shot("sys-02-kill.png")
   // container: teleport next to the nearest one, look at it, hold E
   const box = await api(() => { const p = window.__ironVeil.snapshot().player; return window.__ironVeil.containers().sort((a, b) => Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z))[0] })
@@ -88,12 +91,13 @@ try {
   await page.keyboard.up("KeyE")
   await g.until(() => window.__ironVeil.screen() === "result", null, 120000)
   const p1 = await profile()
-  check(p1.raidStarted === 0 && p1.loadout.primary === "mk4", `Extraktion über ${gate.name}: Ausrüstung zurück`)
+  check(p1.raidStarted === 0 && p1.loadout.primary === "mk4", `Extraktion über ${gate.id}: Ausrüstung zurück`)
   check((p1.stash.gold ?? 0) >= 2, "Sicherer Behälter ins Lager")
   check(p1.stats.infectedKills >= 1 && p1.stats.extracts === 3, "Statistik: Infizierte und Extraktionen")
   await g.shot("sys-04-result.png")
 
   // ── lost raid: only the secure container survives ──
+  await g.action("menu")
   await g.action("inventory")
   await g.action("stash-filter", "valuable")
   await api(() => window.__ironVeil.grant("watch", 1))
@@ -109,6 +113,7 @@ try {
   check((p2.stash.gold ?? 0) === (p1.stash.gold ?? 0) - 1, "Tod: Rucksack-Beute verloren")
 
   // ── reload during a raid counts as lost ──
+  await g.action("menu")
   await g.action("inventory")
   await g.action("stash-filter", "weapon")
   await g.action("equip-weapon", "kv12")

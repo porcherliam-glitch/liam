@@ -5,7 +5,8 @@
  */
 import { AudioSystem } from "./audio"
 import type { InfectedKind } from "./infectedData"
-import type { ItemId } from "./items"
+import { ITEM_IDS, type ItemId } from "./items"
+import { warmIcons } from "./icons"
 import { Company, createProfile } from "./profile"
 import { RaidGame } from "./raid"
 import { clearProfile, loadProfile, loadSettings, saveSettings } from "./storage"
@@ -88,6 +89,8 @@ export function startGame(canvas: HTMLCanvasElement, uiHost: HTMLElement): void 
   const game = raid
   game.screenBlood = amount => ui.hud.splatter(amount)
   if (recovered) ui.notify(recovered)
+  // icons are rendered from the 3D models; prepare them while the player looks at the menu
+  window.setTimeout(() => warmIcons(ITEM_IDS), 1500)
 
   const onGlobalKey = (event: KeyboardEvent) => {
     if (event.target instanceof HTMLInputElement) return

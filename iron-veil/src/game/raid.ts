@@ -14,11 +14,11 @@ import { EnemyManager } from "./enemies"
 import { GameLoop } from "./engine"
 import { GoreSystem } from "./gore"
 import { GRENADE_DAMAGE, GRENADE_RADIUS, GrenadeSystem, type ThrowableKind } from "./grenades"
-import type { DamageInfo, Hostile, HostileHit, HostileManager, HitPart, PlayerState, ShotEvent, AttackEvent, HostileSound } from "./hostiles"
+import type { DamageInfo, DamageResult, Hostile, HostileHit, HostileManager, HitPart, PlayerState, ShotEvent, AttackEvent, HostileSound } from "./hostiles"
 import { INFECTED, type InfectedKind } from "./infectedData"
 import { Input } from "./input"
 import { ITEMS, type ItemId } from "./items"
-import { ContainerField, rollAirdrop, rollContainer, rollInfectedBody, rollMercBody, SEARCH_TIME, type ContainerRef, type GroundLoot } from "./loot"
+import { airdropModel, ContainerField, groundBagModel, rollAirdrop, rollContainer, rollInfectedBody, rollMercBody, SEARCH_TIME, type ContainerRef, type GroundLoot } from "./loot"
 import { Player, RADIUS, WALK } from "./player"
 import type { Company, RaidKit, RaidStats } from "./profile"
 import { addBleed, applyUse, stepVitals } from "./survival"
@@ -27,7 +27,7 @@ import { ViewModel } from "./viewmodel"
 import { AMMO, WEAPONS, effectiveWeapon, type AmmoId, type WeaponId } from "./weaponData"
 import { WeaponRuntime, coneOffset, damageAt, type AmmoSource } from "./weapons"
 import { createWorld, type World } from "./world"
-import { InfectedManager } from "./zombies"
+import { GORE_RULES, InfectedManager } from "./zombies"
 import type { BaseLayout, ExtractionDef, ObjectiveAnchor, StationId, ZoneLayout } from "./zone"
 import { BACKPACKS, CARRY_LIMIT } from "./items"
 
@@ -219,6 +219,14 @@ export class RaidGame {
       explode: p => this.explode(p),
       ignite: p => this.ignite(p),
     })
+    this.precompile()
+  }
+
+  /** Compiles every shader of the scene now (plus the throwables) instead of stuttering on the first look at each area or throw. */
+  private precompile(): void {
+    const warm = this.grenades.prewarmGroup(); this.scene.add(warm)
+    try { this.renderer.compile(this.scene, this.camera) } catch { /* compile is an optimisation only */ }
+    this.scene.remove(warm)
   }
 
   /** Optional hook (set by the UI) for blood on the screen. */
@@ -301,6 +309,8 @@ export class RaidGame {
       const kinds = camp.kinds ?? Array.from({ length: camp.squad }, (_, i) => pool[(i + Math.floor(this.rng() * pool.length)) % pool.length])
       this.mercs!.spawnSquad(kinds, camp.x, camp.z, camp.patrol)
     }
+    // containers and mercenaries exist now: compile their shaders too
+    this.precompile()
     // exits: roll which are open; at least two (the cheapest first)
     this.openExits = layout.extractions.filter(e => this.rng() < e.chance)
     for (const e of layout.extractions) if (this.openExits.length < 2 && !this.openExits.includes(e)) this.openExits.push(e)
@@ -436,7 +446,6 @@ export class RaidGame {
       if (this.input.consumeAction("Tab")) { this.openOverlay(); this.callbacks.onInventory(); return }
       if (this.mode !== "base" && this.input.consumeAction("KeyM")) { this.openOverlay(); this.callbacks.onMap(); return }
       if (fight) this.handleCombatKeys()
-      else this.input.clearActions()
     }
 
     const step = this.player.update(dt, this.overlay ? NO_INPUT as unknown as Input : this.input, {
@@ -460,11 +469,13 @@ export class RaidGame {
       if (lost > 0.5 * dt && this.player.vitals.bleed !== "none" && this.rng() < dt * 0.6) this.gore.wound({ x: this.player.pos.x, y: 0.9, z: this.player.pos.z }, { x: 0, y: -1, z: 0 }, 6)
     }
     this.updateInteraction(dt)
+    // in the base only E (stations) is used; other key presses must not pile up for the next raid
+    if (!fight) this.input.clearActions()
     if (raid) { this.updateExtraction(dt); if (this.mode !== "raid") return; this.updateAirdrop(dt); this.updateBoss(); this.updateArea() }
     if (this.mode === "defense") { this.updateDefense(dt); if (this.mode !== "defense") return }
     this.effects.update(dt, _camPos.set(this.player.pos.x, this.player.eye, this.player.pos.z))
     this.gore.update(dt, this.camera)
-    this.containers?.update(dt)
+    this.containers?.update(dt, this.camera.position)
     this.updateHints()
     if (fight) {
       const combat = this.hostiles.reduce((n, h) => n + h.combatCount(), 0)
@@ -595,6 +606,7 @@ export class RaidGame {
         const sever = def.cls === "shotgun" && close ? 0.45 : def.cls === "sniper" ? 0.6 : def.cls === "dmr" || def.cls === "battle" ? 0.25 : def.damage >= 55 ? 0.2 : 0
         const r = owner.applyDamage(hit, { amount, from: p.pos, dir: _dir, penetration: def.penetration, kind: def.pellets > 1 ? "pellet" : "bullet", sever })
         hitAny = true; head = head || hit.part === "head"
+        this.goreSound(r, hit)
         if (r.severed) this.stats.dismembered++
         if (r.killed) killed = true
       } else if (wall && wall.distance <= groundT) {
@@ -619,7 +631,7 @@ export class RaidGame {
     p.punch.x += kickP * 0.35; p.punch.y += kickY * 0.35
     this.viewModel.fire()
     if (!suppressed) this.effects.muzzleFlash(muzzle, def.cls === "shotgun" ? 1.6 : def.cls === "pistol" ? 0.7 : 1)
-    this.audio.play(`shot_${def.id}` as SfxId, { suppressed } as never)
+    this.audio.play(`shot_${def.id}` as SfxId, { suppressed })
     if (def.manualAction) window.setTimeout(() => this.sfx(def.cls === "shotgun" ? "pump" : "bolt_cycle"), 280)
     if (this.settings.screenShake) this.shake = Math.min(0.6, this.shake + (def.cls === "shotgun" || def.cls === "sniper" ? 0.25 : def.cls === "dmr" || def.cls === "battle" ? 0.15 : 0.05))
     this.noise(_origin, def.noise)
@@ -651,6 +663,7 @@ export class RaidGame {
       const amount = def.damage * (hit.part === "head" ? 1.5 : 1) * (this.player.vitals.boost > 0 ? 1.2 : 1)
       const r = owner.applyDamage(hit, { amount, from: p.pos, dir: _aim.fwd, penetration: 0.3, kind: "melee", sever: def.sever })
       any = true
+      this.goreSound(r, hit)
       if (r.severed) this.stats.dismembered++
       if (r.killed) this.killMarker = 0.4
     }
@@ -660,6 +673,14 @@ export class RaidGame {
       if (wall) { this.sfx("melee_hit_wall", { position: _end.copy(origin).addScaledVector(_aim.fwd, wall.distance) }); this.effects.impact(_end, wall.normal, "concrete", false) }
     }
     this.noise(p.pos, 5)
+  }
+
+  /** Wet, crunchy feedback for severed limbs and burst heads (only with gore enabled). */
+  private goreSound(r: DamageResult, hit: HostileHit): void {
+    if (this.settings.gore === "off") return
+    if (this.settings.gore === "brutal" && r.headshotKill && r.dealt >= GORE_RULES.headBurst) this.sfx("gore_burst", { position: hit.point, volume: 0.9 })
+    else if (r.severed) { this.sfx("bone_crack", { position: hit.point }); this.sfx("gore_splat", { position: hit.point, volume: 0.8 }) }
+    else if (r.killed && this.rng() < 0.5) this.sfx("gore_splat", { position: hit.point, volume: 0.5 })
   }
 
   /** Every death of a hostile counts (bullets, melee, explosions, fire, bleeding out after losing a limb). */
@@ -795,7 +816,9 @@ export class RaidGame {
     this.effects.explosion(p)
     this.sfx("explosion", { position: p })
     const center = { x: p.x, y: p.y + 0.4, z: p.z }
-    for (const h of this.hostiles) h.applyExplosion(center, GRENADE_RADIUS, GRENADE_DAMAGE)
+    let close = 0
+    for (const h of this.hostiles) for (const t of h.applyExplosion(center, GRENADE_RADIUS, GRENADE_DAMAGE)) if (Math.hypot(t.position.x - p.x, t.position.z - p.z) < GORE_RULES.gibRadius) close++
+    if (close && this.settings.gore === "brutal") { this.sfx("gore_burst", { position: center, volume: 1 }); window.setTimeout(() => this.sfx("gib_land", { position: center }), 450) }
     this.noise(p, 70)
     const d = Math.hypot(this.player.pos.x - p.x, this.player.pos.z - p.z)
     if (this.isControlled) {
@@ -865,7 +888,10 @@ export class RaidGame {
       v.infection = Math.min(100, v.infection + a.infection * (this.company.has("immunology") ? 0.6 : 1))
       if (v.infection >= 30 && !this.hintsShown.has("infection")) this.showHint("infection", "Infektion steigt! Antivirales Serum senkt sie. Bei 100 % verlieren Sie Gesundheit.", 7)
     }
-    if (a.kind !== "acid") this.gore.wound({ x: this.player.pos.x, y: this.player.eye - 0.5, z: this.player.pos.z }, { x: this.player.pos.x - a.source.position.x, y: 0, z: this.player.pos.z - a.source.position.z }, a.damage)
+    if (a.kind !== "acid") {
+      const dx = this.player.pos.x - a.source.position.x, dz = this.player.pos.z - a.source.position.z, len = Math.hypot(dx, dz) || 1
+      this.gore.wound({ x: this.player.pos.x, y: this.player.eye - 0.5, z: this.player.pos.z }, { x: dx / len, y: 0, z: dz / len }, a.damage)
+    }
     if (this.settings.gore !== "off") this.screenBlood?.(Math.min(1, a.damage / 30))
   }
 
@@ -974,9 +1000,9 @@ export class RaidGame {
     if (!slots.length) return
     const near = this.ground.find(g => g.kind === "bag" && g.position.distanceTo(this.player.pos) < 1.5)
     if (near) { const b = new Bag(64, near.items); for (const s of slots) b.add(s.id, s.qty); near.items.splice(0, near.items.length, ...b.items); return }
-    const mesh = new THREE.Mesh(_bagGeo, _bagMat)
+    const mesh = groundBagModel()
     const pos = new THREE.Vector3(this.player.pos.x - Math.sin(this.player.yaw) * 0.8, 0, this.player.pos.z - Math.cos(this.player.yaw) * 0.8)
-    mesh.position.set(pos.x, 0.18, pos.z); mesh.rotation.z = Math.PI / 2; this.world.group.add(mesh)
+    mesh.position.set(pos.x, this.player.pos.y, pos.z); mesh.rotation.set(-0.12, this.player.yaw, 0, "YXZ"); this.world.group.add(mesh)
     this.ground.push({ position: pos, items: slots.map(s => ({ ...s })), name: "Abgelegte Tasche", kind: "bag", searched: true, mesh })
     this.sfx("item_drop")
   }
@@ -1041,9 +1067,7 @@ export class RaidGame {
     if (!a.landed && a.fall === 0 && this.elapsed >= a.at) {
       a.fall = 1
       this.sfx("airdrop_plane"); this.say(`Versorgungsabwurf über ${this.world.districtAt(a.spot.x, a.spot.z)?.name ?? "der Sperrzone"}!`, 5)
-      const g = new THREE.Group()
-      const crate = new THREE.Mesh(_dropGeo, _dropMat); crate.castShadow = true; g.add(crate)
-      const chute = new THREE.Mesh(_chuteGeo, _chuteMat); chute.position.y = 3.2; g.add(chute)
+      const g = airdropModel()
       g.position.set(a.spot.x, 80, a.spot.z); this.world.group.add(g); a.mesh = g
     }
     if (a.mesh && !a.landed) {
@@ -1217,7 +1241,7 @@ export class RaidGame {
         switching: this.switchTime, using: this.useTime, usingKind: this.useKind,
         melee: this.meleeTime, meleeQuick: this.meleeQuick,
         light: this.world.lightLevel, flashlight: this.flashlightOn, laser: w.mods.tactical === "att_laser" && !p.sprinting,
-      } as never)
+      })
       this.lookFrame.yaw = 0; this.lookFrame.pitch = 0
       this.audio.setListener(cam.position, p.yaw)
     }
@@ -1392,9 +1416,3 @@ const _origin = new THREE.Vector3(), _dir = new THREE.Vector3(), _end = new THRE
 const _camPos = new THREE.Vector3()
 const _cone = { x: 0, y: 0 }
 const _upWorld = { x: 0, y: 1, z: 0 }
-const _bagGeo = new THREE.CapsuleGeometry(0.2, 0.55, 4, 8)
-const _bagMat = new THREE.MeshStandardMaterial({ color: 0x3f4a35, roughness: 0.95 })
-const _dropGeo = new THREE.BoxGeometry(1.2, 0.9, 1.2)
-const _dropMat = new THREE.MeshStandardMaterial({ color: 0x4b5a3a, roughness: 0.7 })
-const _chuteGeo = new THREE.SphereGeometry(2.4, 12, 6, 0, Math.PI * 2, 0, Math.PI / 2)
-const _chuteMat = new THREE.MeshStandardMaterial({ color: 0xd8d0b8, roughness: 0.9, side: THREE.DoubleSide })
