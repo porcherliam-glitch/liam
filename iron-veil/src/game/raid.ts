@@ -214,6 +214,8 @@ export class RaidGame {
     this.effects = new Effects(this.scene); this.effects.setViewportHeight(window.innerHeight * this.renderer.getPixelRatio())
     this.gore = new GoreSystem(this.scene, this.world.collision, this.settings.gore)
     this.gore.onScreenSplatter = amount => { if (this.settings.gore !== "off") this.screenBlood?.(amount) }
+    // compile every shader of the new world now instead of stuttering on the first look at each area
+    try { this.renderer.compile(this.scene, this.camera) } catch { /* compile is an optimisation only */ }
     this.grenades = new GrenadeSystem(this.scene, {
       bounce: p => this.sfx("grenade_bounce", { position: p }),
       explode: p => this.explode(p),
