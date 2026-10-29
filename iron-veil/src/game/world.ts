@@ -13,7 +13,7 @@
  */
 import * as THREE from "three"
 import { MISSIONS } from "./data"
-import type { Obstacle } from "./collision"
+import { CollisionWorld, type Obstacle } from "./collision"
 import { getLayout, type MapLayout } from "./maps"
 import { NavGrid } from "./nav"
 import type { MissionId, Surface, ThemeId } from "./types"
@@ -26,6 +26,8 @@ export interface World {
   theme: ThemeId
   group: THREE.Group
   obstacles: Obstacle[]
+  /** Spatial index over obstacles — use this for all movement, ray and sight queries on large maps. */
+  collision: CollisionWorld
   nav: NavGrid
   coverPoints: CoverPoint[]
   /** Suggested renderer.toneMappingExposure for this theme. */
@@ -104,7 +106,7 @@ export function createWorld(missionId: MissionId, scene: THREE.Scene, quality: "
 
   scene.add(group)
   return {
-    layout, theme, group, obstacles, nav, coverPoints, exposure: night ? 1.25 : 1.05,
+    layout, theme, group, obstacles, collision: new CollisionWorld(obstacles), nav, coverPoints, exposure: night ? 1.25 : 1.05,
     surfaceAt: () => "asphalt",
     update: (_dt, time, camera) => {
       sky.position.copy(camera.position)
