@@ -1,48 +1,47 @@
 /**
- * weapons.ts — runtime state of one carried weapon: magazine, reserve, fire rate, semi/auto trigger, reload
- * (magazine or shell-by-shell for the shotgun), spread/bloom and damage falloff. Pure logic, unit-tested.
+ * weapons.ts — runtime state of a carried weapon: magazine, fire rate, semi/auto trigger, reloads that draw real
+ * rounds from the backpack (AmmoSource), ammo type switching, spread/bloom, damage falloff, and melee swings.
+ * Pure logic, unit-tested.
  */
-import { LIMB_MULTIPLIER, WEAPONS, type WeaponDef } from "./data"
-import type { WeaponId } from "./types"
+import { LIMB_MULTIPLIER } from "./data"
+import { AMMO_FOR, effectiveWeapon, type AmmoId, type WeaponDef, type WeaponId, type WeaponMods } from "./weaponData"
 
 export type FireResult = "fired" | "empty" | "blocked"
 
-export class WeaponRuntime {
-  readonly def: WeaponDef
-  mag: number
-  /** Reserve rounds (ignored when infinite). */
-  reserve: number
-  readonly infinite: boolean
-  cooldown = 0
-  /** Remaining reload time of the current reload step; 0 = not reloading. */
-  reloadLeft = 0
-  /** Duration of the current reload step (for HUD progress). */
-  reloadTotal = 0
-  /** Accumulated bloom (radians). */
-  bloom = 0
-  /** Shots fired in the current trigger pull (for auto weapons' recoil pattern). */
-  burst = 0
-  /** A semi-auto click that arrived during the cooldown is kept briefly so fast clicking feels responsive. */
-  private queuedShot = 0
-  private shellReload = false
+/** Where reloads take rounds from (the raid backpack) and unloaded rounds go back to. */
+export interface AmmoSource {
+  count(ammo: AmmoId): number
+  take(ammo: AmmoId, n: number): number
+  give(ammo: AmmoId, n: number): number
+}
 
-  constructor(id: WeaponId, reserveRounds: number) {
-    this.def = WEAPONS[id]
-    this.infinite = this.def.roundsPerPack === 0
-    this.mag = this.def.magazine
-    this.reserve = this.infinite ? 0 : Math.max(0, reserveRounds)
+export class WeaponRuntime {
+  def: WeaponDef
+  ammo: AmmoId | null
+  mag: number
+  cooldown = 0
+  reloadLeft = 0
+  reloadTotal = 0
+  bloom = 0
+  burst = 0
+  private queuedShot = 0
+
+  constructor(readonly id: WeaponId, readonly mods: WeaponMods, ammo: AmmoId | null, mag = 0) {
+    const base = effectiveWeapon(id, mods)
+    this.ammo = base.caliber ? ammo ?? AMMO_FOR[base.caliber][0] : null
+    this.def = effectiveWeapon(id, mods, this.ammo ?? undefined)
+    this.mag = Math.max(0, Math.min(this.def.magazine, mag))
   }
 
-  get id(): WeaponId { return this.def.id }
+  get isMelee(): boolean { return this.def.cls === "melee" }
   get reloading(): boolean { return this.reloadLeft > 0 }
-  /** Rounds in magazine plus reserve. */
-  get total(): number { return this.mag + this.reserve }
-  get canReload(): boolean { return !this.reloading && this.mag < this.def.magazine && (this.infinite || this.reserve > 0) }
+  reserve(src: AmmoSource): number { return this.ammo ? src.count(this.ammo) : 0 }
+  canReload(src: AmmoSource): boolean { return !this.isMelee && !this.reloading && this.mag < this.def.magazine && this.reserve(src) > 0 }
 
-  /**
-   * Advances timers. Returns "reloaded" when a magazine (or one shotgun shell) went in this step, otherwise null.
-   */
-  update(dt: number): "reloaded" | null {
+  /** Fills the magazine from the source (raid start). */
+  load(src: AmmoSource): void { if (this.ammo) this.mag += src.take(this.ammo, this.def.magazine - this.mag) }
+
+  update(dt: number, src: AmmoSource): "reloaded" | null {
     // may go slightly negative so automatic fire keeps its exact rate at a fixed 60 Hz step
     this.cooldown = Math.max(-0.02, this.cooldown - dt)
     this.queuedShot = Math.max(0, this.queuedShot - dt)
@@ -50,44 +49,57 @@ export class WeaponRuntime {
     if (this.reloadLeft <= 0) return null
     this.reloadLeft -= dt
     if (this.reloadLeft > 0) return null
-    if (this.shellReload) {
-      this.mag++; if (!this.infinite) this.reserve--
-      if (this.mag < this.def.magazine && (this.infinite || this.reserve > 0)) { this.reloadLeft = this.reloadTotal } else { this.reloadLeft = 0 }
+    if (!this.ammo) { this.reloadLeft = 0; return null }
+    if (this.def.singleLoad) {
+      this.mag += src.take(this.ammo, 1)
+      this.reloadLeft = this.mag < this.def.magazine && src.count(this.ammo) > 0 ? this.reloadTotal : 0
       return "reloaded"
     }
-    const needed = this.def.magazine - this.mag
-    const amount = this.infinite ? needed : Math.min(needed, this.reserve)
-    this.mag += amount; if (!this.infinite) this.reserve -= amount
+    this.mag += src.take(this.ammo, this.def.magazine - this.mag)
     this.reloadLeft = 0
     return "reloaded"
   }
 
-  startReload(): boolean {
-    if (!this.canReload) return false
-    this.shellReload = this.def.cls === "shotgun"
-    const time = this.shellReload ? this.def.reload / this.def.magazine : this.def.reload * (this.mag > 0 ? 0.85 : 1)
+  startReload(src: AmmoSource): boolean {
+    if (!this.canReload(src)) return false
+    const time = this.def.singleLoad ? this.def.reload : this.def.reload * (this.mag > 0 ? 0.85 : 1)
     this.reloadLeft = this.reloadTotal = time
     this.burst = 0
     return true
   }
 
-  /** Cancels a reload (weapon switch). Shotgun shells already loaded stay loaded. */
   cancelReload(): void { this.reloadLeft = 0 }
+
+  /** Unloads the magazine into the source and reloads with another ammo type of the same calibre. */
+  switchAmmo(next: AmmoId, src: AmmoSource): boolean {
+    if (!this.def.caliber || next === this.ammo || !AMMO_FOR[this.def.caliber].includes(next) || src.count(next) <= 0) return false
+    if (this.ammo && this.mag > 0) src.give(this.ammo, this.mag)
+    this.mag = 0; this.ammo = next; this.reloadLeft = 0
+    this.def = effectiveWeapon(this.id, this.mods, next)
+    return this.startReload(src)
+  }
+
+  /** Next ammo type of this calibre that the source holds, or null. */
+  nextAmmo(src: AmmoSource): AmmoId | null {
+    if (!this.def.caliber) return null
+    const list = AMMO_FOR[this.def.caliber], i = Math.max(0, list.indexOf(this.ammo ?? list[0]))
+    for (let k = 1; k <= list.length; k++) { const a = list[(i + k) % list.length]; if (a !== this.ammo && src.count(a) > 0) return a }
+    return null
+  }
 
   /**
    * Trigger handling. pressed = new click this step, held = button is down. Auto weapons fire while held; semi-auto
-   * weapons fire once per click (a click during the cooldown is buffered for 0.18 s). Returns "fired" when a shot
-   * left the barrel, "empty" when the trigger was pulled on an empty magazine, otherwise "blocked".
+   * weapons fire once per click (buffered 0.18 s). Melee weapons start a swing ("fired") at most once per swing time.
    */
   trigger(pressed: boolean, held: boolean): FireResult {
     if (pressed) this.queuedShot = 0.18
     if (!held) { this.burst = 0; if (this.cooldown < 0) this.cooldown = 0 }
     const wantsShot = this.queuedShot > 0 || (this.def.auto && held)
     if (!wantsShot) return "blocked"
-    // the shotgun may interrupt a shell-by-shell reload by firing
-    if (this.reloading) { if (this.shellReload && pressed && this.mag > 0) this.reloadLeft = 0; else return "blocked" }
+    if (this.reloading) { if (this.def.singleLoad && pressed && this.mag > 0) this.reloadLeft = 0; else return "blocked" }
     if (this.cooldown > 1e-6) return "blocked"
     this.queuedShot = 0
+    if (this.isMelee) { this.cooldown = this.def.fireInterval; return "fired" }
     if (this.mag <= 0) { this.cooldown = 0.25; return "empty" }
     this.mag--
     this.cooldown += this.def.fireInterval
@@ -96,10 +108,6 @@ export class WeaponRuntime {
     return "fired"
   }
 
-  /**
-   * Current cone half-angle in radians. ads 0..1 blends hip→ADS spread, move 0..1 is horizontal speed relative to
-   * walking speed (1 = walking, >1 sprinting), crouched tightens the cone by 20 %.
-   */
   spread(ads: number, move: number, crouched: boolean): number {
     const d = this.def
     const base = d.spreadHip + (d.spreadAds - d.spreadHip) * ads
@@ -108,7 +116,7 @@ export class WeaponRuntime {
   }
 }
 
-/** Damage of one bullet/pellet at a distance and hit zone (before enemy armour). */
+/** Damage of one bullet/pellet at a distance and hit zone (before the target's armour). */
 export function damageAt(def: WeaponDef, distance: number, part: "head" | "body" | "limb", bonus = 1): number {
   const t = Math.min(1, Math.max(0, (distance - def.rangeStart) / Math.max(1, def.rangeEnd - def.rangeStart)))
   const falloff = 1 - (1 - def.minDamageFactor) * t

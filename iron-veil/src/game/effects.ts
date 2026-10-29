@@ -99,6 +99,14 @@ class ParticlePool {
     this.geometry.attributes.aSize.needsUpdate = true
   }
 
+  /** Kills every live particle. */
+  clear(): void {
+    this.life.fill(0)
+    for (let i = 0; i < this.life.length; i++) { this.pos[i * 3 + 1] = -1000; this.col[i * 4 + 3] = 0 }
+    this.geometry.attributes.position.needsUpdate = true
+    this.geometry.attributes.aColor.needsUpdate = true
+  }
+
   dispose(): void { this.geometry.dispose(); this.material.dispose() }
 }
 
@@ -204,6 +212,18 @@ export class Effects {
     this.alpha.emit(p.x + (r() - 0.5) * 0.2, p.y + 0.2, p.z + (r() - 0.5) * 0.2, (r() - 0.5) * 0.6 + 0.4, 1.4 + r() * 0.8, (r() - 0.5) * 0.6, 3 + r() * 2, 0.6 + r() * 0.4, 4, 0.75, 0.16, 0.12, 0.5, 0.4, -0.15)
   }
 
+  /** Burning ground (molotov) — call each fixed step while it burns: flames, embers and dark smoke over the radius. */
+  fire(p: Vec3, radius: number, dt: number): void {
+    const r = this.rand
+    const flames = Math.round(dt * 70 * radius)
+    for (let i = 0; i < flames; i++) {
+      const a = r() * Math.PI * 2, d = Math.sqrt(r()) * radius
+      this.additive.emit(p.x + Math.cos(a) * d, p.y + 0.05, p.z + Math.sin(a) * d, (r() - 0.5) * 0.5, 1.2 + r() * 1.6, (r() - 0.5) * 0.5, 0.35 + r() * 0.35, 0.28 + r() * 0.3, -0.6, 1, 0.42 + r() * 0.3, 0.08, 0.9, 1.2, -1.5)
+    }
+    if (r() < dt * 14) { const a = r() * Math.PI * 2, d = Math.sqrt(r()) * radius; this.alpha.emit(p.x + Math.cos(a) * d, p.y + 0.6, p.z + Math.sin(a) * d, (r() - 0.5) * 0.4, 1 + r(), (r() - 0.5) * 0.4, 2.4 + r() * 1.5, 0.7 + r() * 0.5, 3, 0.08, 0.07, 0.06, 0.55, 0.5, -0.3) }
+    if (r() < dt * 20) this.additive.emit(p.x + (r() - 0.5) * radius, p.y + 0.2, p.z + (r() - 0.5) * radius, (r() - 0.5) * 1.5, 2 + r() * 3, (r() - 0.5) * 1.5, 0.8 + r() * 0.6, 0.04, 0, 1, 0.6, 0.2, 1, 0.6, 1.5)
+  }
+
   /** camera: tracers are clipped so they never pass closer than ~1.6 m to the viewer (no screen-filling streaks). */
   update(dt: number, camera?: Vec3): void {
     this.alpha.update(dt); this.additive.update(dt)
@@ -236,6 +256,8 @@ export class Effects {
   clear(): void {
     this.decals.count = 0; this.decalNext = 0
     for (const t of this.tracers) { t.active = false; t.mesh.visible = false }
+    this.alpha.clear(); this.additive.clear()
+    this.muzzleTime = 0; this.muzzleLight.intensity = 0; this.explosionLightTime = 0; this.explosionLight.intensity = 0
   }
 
   dispose(): void {
