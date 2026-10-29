@@ -26,6 +26,13 @@ import { raySegmentCapsule } from "./ai"
 import type { BodyPartId, HitPart } from "./hostiles"
 import type { EnemyKind, Vec3 } from "./types"
 
+/** Civilian survivors in the zone (same rig as the mercenaries, civilian clothes). */
+export type SurvivorLook = "survivor" | "drifter" | "medic"
+export const SURVIVOR_LOOKS: readonly SurvivorLook[] = ["survivor", "drifter", "medic"]
+/** Every look the soldier rig can wear. */
+export type SoldierKind = EnemyKind | SurvivorLook
+const isCivilian = (k: SoldierKind): k is SurvivorLook => k === "survivor" || k === "drifter" || k === "medic"
+
 type V3 = [number, number, number]
 const TAU = Math.PI * 2
 
@@ -182,16 +189,24 @@ interface Palette {
   fabric: number; pants: number; skin: number; gear: number; pouch: number; strap: number; helmet: number
   boots: number; gloves: number; pads: number; gunMetal: number; gunAccent: number; accent: number; dark: number
 }
-const PAL: Record<EnemyKind, Palette> = {
+const PAL: Record<SoldierKind, Palette> = {
+  survivor: { fabric: 0x5d4632, pants: 0x3a4a62, skin: 0xc29a7a, gear: 0x6b5b45, pouch: 0x5e5240, strap: 0x2e2a24, helmet: 0x394049, boots: 0x3b2e22, gloves: 0x2c2a26, pads: 0x3a3a34, gunMetal: 0x2a2b2d, gunAccent: 0x3d3a34, accent: 0x8a3a2a, dark: 0x1c1b1a },
+  drifter: { fabric: 0x4c5764, pants: 0x4d4b3f, skin: 0x8d6a52, gear: 0x5d5c3b, pouch: 0x55543a, strap: 0x2b2b26, helmet: 0x2b2b2b, boots: 0x2e2a26, gloves: 0x26292c, pads: 0x3a3a34, gunMetal: 0x262729, gunAccent: 0x5a3e28, accent: 0xc29a3a, dark: 0x1a1a1a },
+  medic: { fabric: 0xb9b7ae, pants: 0x3c4a5d, skin: 0xd2ae94, gear: 0x9e9b92, pouch: 0x7a2a26, strap: 0x2e2c2a, helmet: 0x3b2a1c, boots: 0x2c2a28, gloves: 0x9fb4c2, pads: 0x3a3a34, gunMetal: 0x2a2b2d, gunAccent: 0x3d3a34, accent: 0xb02a22, dark: 0x1c1b1a },
   scout: { fabric: 0x66743f, pants: 0x535d35, skin: 0xa77d5f, gear: 0x857e55, pouch: 0x736c49, strap: 0x3b3a2e, helmet: 0x5d6b3c, boots: 0x2f2a23, gloves: 0x2c2b27, pads: 0x3d4034, gunMetal: 0x2a2b2d, gunAccent: 0x3d4138, accent: 0x2e3029, dark: 0x1c1d1b },
   rifleman: { fabric: 0x80837a, pants: 0x676b62, skin: 0xb48b6c, gear: 0x93805e, pouch: 0x806e50, strap: 0x4a4334, helmet: 0x958866, boots: 0x3b3229, gloves: 0x302e2a, pads: 0x2d2e2b, gunMetal: 0x232426, gunAccent: 0x9e8a65, accent: 0x5c6059, dark: 0x1b1c1d },
   heavy: { fabric: 0x353a40, pants: 0x2d3136, skin: 0x9c7a62, gear: 0x50565e, pouch: 0x40454c, strap: 0x26292d, helmet: 0x484e56, boots: 0x1f2022, gloves: 0x1e1f21, pads: 0x63686f, gunMetal: 0x1e1f21, gunAccent: 0x2b2d30, accent: 0xd07a2a, dark: 0x111315 },
   marksman: { fabric: 0x625d45, pants: 0x514d39, skin: 0xa88265, gear: 0x6e674b, pouch: 0x5f5940, strap: 0x3e3a2c, helmet: 0x5b633d, boots: 0x362f26, gloves: 0x2f2c26, pads: 0x3a3a30, gunMetal: 0x3c3f36, gunAccent: 0x585b41, accent: 0x716645, dark: 0x1d1d18 },
 }
 const GHILLIE = [0x5a653b, 0x736845, 0x4b5531, 0x7e734c]
-const KIND_SCALE: Record<EnemyKind, number> = { scout: 0.98, rifleman: 1, heavy: 1.07, marksman: 1 }
+/** Weapons the armed survivors carry (the medic holsters hers). */
+const CIVILIAN_WEAPON: Record<SurvivorLook, EnemyWeapon> = { survivor: "smg", drifter: "shotgun", medic: "smg" }
+const KIND_SCALE: Record<SoldierKind, number> = { scout: 0.98, rifleman: 1, heavy: 1.07, marksman: 1, survivor: 0.99, drifter: 1.01, medic: 0.96 }
 /** Hit-zone radii (unscaled): head sphere, torso capsule, arm, thigh, shin. */
-const ZONES: Record<EnemyKind, { head: number; torso: number; arm: number; thigh: number; shin: number }> = {
+const ZONES: Record<SoldierKind, { head: number; torso: number; arm: number; thigh: number; shin: number }> = {
+  survivor: { head: 0.13, torso: 0.19, arm: 0.06, thigh: 0.085, shin: 0.07 },
+  drifter: { head: 0.13, torso: 0.2, arm: 0.06, thigh: 0.085, shin: 0.07 },
+  medic: { head: 0.125, torso: 0.185, arm: 0.058, thigh: 0.082, shin: 0.068 },
   scout: { head: 0.125, torso: 0.19, arm: 0.06, thigh: 0.085, shin: 0.07 },
   rifleman: { head: 0.135, torso: 0.2, arm: 0.06, thigh: 0.085, shin: 0.07 },
   heavy: { head: 0.15, torso: 0.235, arm: 0.075, thigh: 0.095, shin: 0.08 },
@@ -200,7 +215,7 @@ const ZONES: Record<EnemyKind, { head: number; torso: number; arm: number; thigh
 
 // ------------------------------------------------------------------ body parts (joint-local space, forward = -Z)
 
-function buildPelvis(kind: EnemyKind): THREE.BufferGeometry {
+function buildPelvis(kind: SoldierKind): THREE.BufferGeometry {
   const P = PAL[kind], b = new Parts(), heavy = kind === "heavy", hw = heavy ? 1.09 : 1
   b.loft([{ y: -0.135, w: 0.14 * hw, d: 0.088 }, { y: -0.06, w: 0.163 * hw, d: 0.101, z: 0.005 }, { y: 0.02, w: 0.162 * hw, d: 0.1, z: 0.005 }, { y: 0.07, w: 0.152 * hw, d: 0.095 }],
     P.pants, 20, { deform: (a, y) => 0.003 * Math.sin(a * 5 + y * 60) })
@@ -213,6 +228,7 @@ function buildPelvis(kind: EnemyKind): THREE.BufferGeometry {
     b.box(0.18, 0.17, 0.035, P.gear, [0, -0.1, -0.12], [0.12, 0, 0])
     b.box(0.3, 0.08, 0.03, P.gear, [0, 0.0, 0.125])
   }
+  if (kind === "medic") b.loft([{ y: 0.06, w: 0.172, d: 0.108 }, { y: -0.08, w: 0.185, d: 0.118 }, { y: -0.24, w: 0.2, d: 0.13 }], P.fabric, 20, { deform: (a, y) => 0.004 * Math.sin(a * 6 + y * 30) }, 0)
   if (kind === "marksman") for (let i = 0; i < 9; i++) {
     const a = -1.4 + i * 0.35, r = 0.15
     b.box(0.05, 0.22, 0.012, GHILLIE[i % 4], [Math.sin(a) * r, -0.07 - (i % 3) * 0.02, Math.cos(a) * 0.12 + 0.01], [0.15, a, (i % 2 ? 0.12 : -0.1)])
@@ -220,7 +236,7 @@ function buildPelvis(kind: EnemyKind): THREE.BufferGeometry {
   return b.build()
 }
 
-function buildChest(kind: EnemyKind): THREE.BufferGeometry {
+function buildChest(kind: SoldierKind): THREE.BufferGeometry {
   const P = PAL[kind], b = new Parts(), w = kind === "heavy" ? 1.08 : kind === "scout" ? 0.96 : 1
   b.loft([
     { y: -0.235, w: 0.138 * w, d: 0.09 }, { y: -0.12, w: 0.145 * w, d: 0.094 }, { y: 0.0, w: 0.168 * w, d: 0.102 }, { y: 0.1, w: 0.186 * w, d: 0.107 },
@@ -267,6 +283,28 @@ function buildChest(kind: EnemyKind): THREE.BufferGeometry {
     b.box(0.34, 0.04, 0.008, P.accent, [0, 0.17, 0.178])
     b.box(0.07, 0.045, 0.008, P.accent, [-0.11, 0.1, -0.178])
     b.box(0.24, 0.2, 0.06, P.pouch, [0, -0.02, 0.2])
+  } else if (kind === "survivor") {
+    // canvas jacket: collar, zip, chest pockets; small daypack with shoulder straps
+    b.loft([{ y: 0.2, w: 0.13, d: 0.09 }, { y: 0.255, w: 0.085, d: 0.07 }, { y: 0.285, w: 0.075, d: 0.066 }], P.fabric, 18, {}, 0)
+    b.hard(0.008, 0.36, 0.006, P.dark, [0, 0.02, -0.105])
+    for (const x of [-0.08, 0.08]) b.box(0.07, 0.06, 0.018, P.fabric, [x, 0.1, -0.106]).hard(0.072, 0.012, 0.02, P.dark, [x, 0.13, -0.108])
+    b.box(0.24, 0.27, 0.11, P.gear, [0, 0.05, 0.155]).box(0.2, 0.09, 0.03, P.pouch, [0, -0.02, 0.215])
+    for (const x of [-0.09, 0.09]) b.box(0.035, 0.32, 0.016, P.strap, [x, 0.08, -0.103]).box(0.035, 0.028, 0.22, P.strap, [x, 0.215, 0.02])
+  } else if (kind === "drifter") {
+    // hoodie with the hood bunched behind the neck, kangaroo pocket; tall hiking pack with a rolled mat
+    b.sph(0.085, P.fabric, [0, 0.25, 0.07], [1.25, 0.65, 0.9], 12, 8)
+    b.box(0.2, 0.09, 0.02, P.fabric, [0, -0.13, -0.102], [0.05, 0, 0])
+    for (const x of [-0.04, 0.04]) b.hard(0.006, 0.12, 0.006, 0xd8d4c8, [x, 0.17, -0.105])
+    b.box(0.3, 0.46, 0.17, P.gear, [0, 0.02, 0.19]).box(0.26, 0.12, 0.05, P.pouch, [0, -0.08, 0.29]).cyl(0.06, 0.06, 0.34, 0x6a7a4a, [0, 0.29, 0.19], [0, 0, Math.PI / 2], 10)
+    for (const x of [-0.1, 0.1]) b.box(0.04, 0.34, 0.018, P.strap, [x, 0.06, -0.104]).box(0.04, 0.03, 0.24, P.strap, [x, 0.215, 0.04])
+    b.hard(0.25, 0.03, 0.02, P.strap, [0, -0.15, -0.104])
+  } else if (kind === "medic") {
+    // open lab coat over a shirt, name badge, shoulder bag strap across the chest
+    b.loft([{ y: -0.235, w: 0.15, d: 0.097 }, { y: 0.0, w: 0.172, d: 0.106 }, { y: 0.17, w: 0.186, d: 0.102 }, { y: 0.24, w: 0.11, d: 0.075 }], P.fabric, 22, {}, 0)
+    b.box(0.09, 0.4, 0.012, 0x5a7a96, [0, -0.02, -0.1])
+    for (const x of [-0.07, 0.07]) b.box(0.05, 0.1, 0.012, P.fabric, [x, 0.17, -0.112], [0, 0, x > 0 ? -0.35 : 0.35])
+    b.box(0.045, 0.03, 0.006, 0xe8e6de, [0.085, 0.12, -0.113]).hard(0.03, 0.006, 0.006, P.accent, [0.085, 0.12, -0.117])
+    b.box(0.04, 0.5, 0.014, P.strap, [0.0, 0.03, -0.112], [0, 0, 0.62]).box(0.04, 0.5, 0.014, P.strap, [0.0, 0.03, 0.112], [0, 0, 0.62])
   } else {
     b.box(0.3, 0.25, 0.04, P.gear, [0, 0.03, -0.115])
     b.box(0.3, 0.25, 0.04, P.gear, [0, 0.03, 0.115])
@@ -285,7 +323,7 @@ function buildChest(kind: EnemyKind): THREE.BufferGeometry {
   return b.build()
 }
 
-function buildHead(kind: EnemyKind): THREE.BufferGeometry {
+function buildHead(kind: SoldierKind): THREE.BufferGeometry {
   const P = PAL[kind], b = new Parts()
   const face = kind === "scout" ? P.accent : P.skin
   b.cyl(kind === "heavy" ? 0.062 : 0.05, kind === "heavy" ? 0.07 : 0.056, 0.11, kind === "heavy" ? P.gear : P.skin, [0, 0.04, 0])
@@ -346,6 +384,20 @@ function buildHead(kind: EnemyKind): THREE.BufferGeometry {
     b.box(0.03, 0.035, 0.22, P.gear, [0, 0.335, 0])
     b.box(0.03, 0.03, 0.06, P.dark, [0.145, 0.22, -0.03])
     b.box(0.08, 0.02, 0.006, P.accent, [0, 0.27, 0.152], [0.35, 0, 0])
+  } else if (kind === "survivor") {
+    // worn baseball cap
+    b.sph(0.112, P.helmet, [0, 0.198, 0.004], [1, 0.9, 1.06], 14, 8, Math.PI * 0.5)
+    b.box(0.13, 0.012, 0.085, P.helmet, [0, 0.205, -0.135], [0.12, 0, 0]).hard(0.03, 0.022, 0.004, 0xb8a888, [0, 0.245, -0.11])
+  } else if (kind === "drifter") {
+    // knitted beanie with a folded band, stubbly jaw
+    b.sph(0.113, P.helmet, [0, 0.2, 0.005], [1, 1.02, 1.06], 14, 8, Math.PI * 0.52)
+    b.cyl(0.113, 0.115, 0.035, P.helmet, [0, 0.2, 0.005], undefined, 14)
+    b.sph(0.06, 0x2e2620, [0, 0.11, -0.06], [1.2, 0.6, 0.9], 10, 6)
+  } else if (kind === "medic") {
+    // hair tied back, surgical mask
+    b.sph(0.11, P.helmet, [0, 0.19, 0.012], [1.02, 1.0, 1.08], 14, 8, Math.PI * 0.56)
+    b.sph(0.045, P.helmet, [0, 0.17, 0.11], [0.8, 1.1, 0.8], 10, 6)
+    b.box(0.13, 0.065, 0.03, 0xc8dce4, [0, 0.12, -0.093], [0.08, 0, 0]).hard(0.205, 0.006, 0.006, 0xc8dce4, [0, 0.14, -0.02])
   } else {
     b.box(0.15, 0.06, 0.02, 0x3a3b2e, [0, 0.118, -0.104])
     b.sph(0.135, GHILLIE[0], [0, 0.204, 0.034], [1.06, 1.08, 1.12], 10, 7, Math.PI * 0.55)
@@ -355,12 +407,13 @@ function buildHead(kind: EnemyKind): THREE.BufferGeometry {
   return b.build()
 }
 
-function buildUpperArm(kind: EnemyKind, side: -1 | 1): THREE.BufferGeometry {
+function buildUpperArm(kind: SoldierKind, side: -1 | 1): THREE.BufferGeometry {
   const P = PAL[kind], b = new Parts(), t = kind === "heavy" ? 1.15 : 1
   b.sph(0.064 * t, P.fabric, [0, -0.015, 0])
   b.loft([{ y: 0.0, w: 0.059 * t, d: 0.058 * t }, { y: -0.06, w: 0.061 * t, d: 0.057 * t }, { y: -0.15, w: 0.054 * t, d: 0.052 * t, z: -0.003 }, { y: -0.25, w: 0.048 * t, d: 0.047 * t }, { y: -0.3, w: 0.046 * t, d: 0.046 * t }],
     P.fabric, 16, { deform: (a, y) => (y < -0.22 ? 0.004 * Math.sin(a * 4 + y * 140) : 0.0015 * Math.sin(a * 7 + y * 50)) })
-  if (kind !== "scout") b.box(0.06, 0.07, 0.025, P.pads, [0, -0.285, 0.05])
+  if (kind !== "scout" && !isCivilian(kind)) b.box(0.06, 0.07, 0.025, P.pads, [0, -0.285, 0.05])
+  if (kind === "medic" && side < 0) b.cyl(0.059, 0.059, 0.05, 0xe8e6de, [0, -0.1, 0], undefined, 14).box(0.02, 0.03, 0.004, P.accent, [-0.059, -0.1, 0], [0, Math.PI / 2, 0])
   if (kind === "rifleman") b.box(0.012, 0.05, 0.07, side < 0 ? 0x6d6448 : P.accent, [side * 0.057, -0.08, 0])
   if (kind === "heavy") {
     b.box(0.15, 0.09, 0.17, P.gear, [side * 0.03, -0.01, 0], [0, 0, side * 0.35])
@@ -371,7 +424,7 @@ function buildUpperArm(kind: EnemyKind, side: -1 | 1): THREE.BufferGeometry {
   return b.build()
 }
 
-function buildForearm(kind: EnemyKind, side: -1 | 1): THREE.BufferGeometry {
+function buildForearm(kind: SoldierKind, side: -1 | 1): THREE.BufferGeometry {
   const P = PAL[kind], b = new Parts(), t = kind === "heavy" ? 1.12 : 1
   b.loft([{ y: 0.01, w: 0.048 * t, d: 0.047 * t }, { y: -0.07, w: 0.05 * t, d: 0.048 * t }, { y: -0.17, w: 0.043 * t, d: 0.041 * t }, { y: -0.232, w: 0.041 * t, d: 0.04 * t }],
     P.fabric, 16, { deform: (a, y) => (y > -0.1 ? 0.004 * Math.sin(a * 5 + y * 120) : 0) })
@@ -381,7 +434,7 @@ function buildForearm(kind: EnemyKind, side: -1 | 1): THREE.BufferGeometry {
   return b.build()
 }
 
-function buildThigh(kind: EnemyKind, side: -1 | 1): THREE.BufferGeometry {
+function buildThigh(kind: SoldierKind, side: -1 | 1): THREE.BufferGeometry {
   const P = PAL[kind], b = new Parts(), t = kind === "heavy" ? 1.1 : 1
   b.loft([{ y: 0.0, w: 0.082 * t, d: 0.08 * t }, { y: -0.1, w: 0.08 * t, d: 0.079 * t, z: -0.004 }, { y: -0.25, w: 0.07 * t, d: 0.068 * t }, { y: -0.38, w: 0.063 * t, d: 0.062 * t }, { y: -0.435, w: 0.06 * t, d: 0.06 * t }],
     P.pants, 18, { deform: (a, y) => 0.003 * Math.sin(a * 5 + y * 52) + (y < -0.36 ? 0.004 * Math.sin(a * 3 + y * 150) : 0) })
@@ -398,18 +451,18 @@ function buildThigh(kind: EnemyKind, side: -1 | 1): THREE.BufferGeometry {
   return b.build()
 }
 
-function buildShin(kind: EnemyKind, side: -1 | 1): THREE.BufferGeometry {
+function buildShin(kind: SoldierKind, side: -1 | 1): THREE.BufferGeometry {
   const P = PAL[kind], b = new Parts(), t = kind === "heavy" ? 1.1 : 1
   b.loft([{ y: 0.0, w: 0.06 * t, d: 0.06 * t }, { y: -0.12, w: 0.058 * t, d: 0.062 * t, z: 0.006 }, { y: -0.26, w: 0.05 * t, d: 0.05 * t }, { y: -0.335, w: 0.05 * t, d: 0.05 * t }],
     P.pants, 16, { deform: (a, y) => 0.0026 * Math.sin(a * 6 + y * 60) + (y < -0.27 ? 0.004 * Math.sin(a * 4 + y * 200) : 0) })
-  b.box(kind === "scout" ? 0.075 : 0.09, 0.1, 0.035, P.pads, [0, -0.025, -0.066], [-0.1, 0, 0])
+  if (!isCivilian(kind)) b.box(kind === "scout" ? 0.075 : 0.09, 0.1, 0.035, P.pads, [0, -0.025, -0.066], [-0.1, 0, 0])
   b.cyl(0.054 * t, 0.056 * t, 0.1, P.boots, [0, -0.37, 0])
   if (kind === "heavy") b.box(0.09, 0.22, 0.03, P.gear, [0, -0.2, -0.058])
   void side
   return b.build()
 }
 
-function buildBoot(kind: EnemyKind): THREE.BufferGeometry {
+function buildBoot(kind: SoldierKind): THREE.BufferGeometry {
   const P = PAL[kind], b = new Parts(), t = kind === "heavy" ? 1.08 : 1
   b.box(0.1 * t, 0.08, 0.2, P.boots, [0, -0.038, -0.03])
   b.sph(0.05 * t, P.boots, [0, -0.045, -0.13], [1, 0.75, 1.15], 12, 8)
@@ -538,7 +591,7 @@ interface KindAssets {
 }
 
 export interface SoldierAssets {
-  kinds: Record<EnemyKind, KindAssets>
+  kinds: Record<SoldierKind, KindAssets>
   baseMaterial: THREE.MeshStandardMaterial
   flashGeo: THREE.BufferGeometry; flashMat: THREE.MeshBasicMaterial
   coneGeo: THREE.BufferGeometry; coneMat: THREE.ShaderMaterial
@@ -572,15 +625,15 @@ export function releaseSoldierAssets(): void {
 }
 
 function buildAssets(): SoldierAssets {
-  const kinds = {} as Record<EnemyKind, KindAssets>
-  for (const kind of ["scout", "rifleman", "heavy", "marksman"] as EnemyKind[]) {
+  const kinds = {} as Record<SoldierKind, KindAssets>
+  for (const kind of ["scout", "rifleman", "heavy", "marksman", ...SURVIVOR_LOOKS] as SoldierKind[]) {
     classifySoldier(PAL[kind])
     const chest = buildChest(kind), scale = KIND_SCALE[kind], bb = chest.boundingBox!
     kinds[kind] = {
       pelvis: buildPelvis(kind), chest, head: buildHead(kind),
       upperArm: [buildUpperArm(kind, -1), buildUpperArm(kind, 1)], forearm: [buildForearm(kind, -1), buildForearm(kind, 1)],
       thigh: [buildThigh(kind, -1), buildThigh(kind, 1)], shin: [buildShin(kind, -1), buildShin(kind, 1)], boot: buildBoot(kind),
-      gun: buildGun(ENEMIES[kind].weapon, PAL[kind]), scale,
+      gun: buildGun(isCivilian(kind) ? CIVILIAN_WEAPON[kind] : ENEMIES[kind].weapon, PAL[kind]), scale,
       liftBack: bb.max.z * scale, liftFront: -bb.min.z * scale,
     }
   }
@@ -832,7 +885,7 @@ export class SoldierModel {
   private pelvisStartY = 0
   private gunVel = new THREE.Vector3(); private gunRest = new THREE.Quaternion(); private gunDropped = false
 
-  constructor(readonly kind: EnemyKind, assets: SoldierAssets, private seed = 0) {
+  constructor(readonly kind: SoldierKind, assets: SoldierAssets, private seed = 0) {
     this.assets = assets
     const k = this.kindAssets = assets.kinds[kind]
     this.gunSpec = k.gun
@@ -850,7 +903,7 @@ export class SoldierModel {
         .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\ntotalEmissiveRadiance += diffuseColor.rgb * vGlow * uGlow + vec3(0.36, 0.06, 0.035) * uFlash * uFlash;")
     }
     this.material.customProgramCacheKey = () => "iv-soldier-1"
-    withSurface(this.material, { scale: 26, bump: 0.0016, grime: 0.4, mottle: 0.22, wear: 0.55, weave: 0.8, rough: 0.15, camo: kind === "heavy" ? 0 : 0.85, type: SURF.fabric })
+    withSurface(this.material, { scale: 26, bump: 0.0016, grime: 0.4, mottle: 0.22, wear: 0.55, weave: 0.8, rough: 0.15, camo: kind === "heavy" || isCivilian(kind) ? 0 : 0.85, type: SURF.fabric })
 
     const mesh = (geo: THREE.BufferGeometry, name: string) => {
       const m = new THREE.Mesh(geo, this.material); m.name = name; m.castShadow = true; m.receiveShadow = true; return m
@@ -1226,6 +1279,12 @@ export class SoldierModel {
 
   /** True once the weapon has left the hands (death or a severed arm). */
   get unarmed(): boolean { return this.gunDropped }
+
+  /** Starts without a weapon in the hands (arms swing free; nothing drops). */
+  holster(): void {
+    this.gunDropped = true; this.gun.visible = false
+    this.flash.visible = false; this.cone.visible = false; this.lens.visible = false; this.setLaser(false)
+  }
 
   /** The weapon leaves the hands (world direction it is flung) and falls to the ground beside the body. */
   dropWeapon(dirX: number, dirZ: number): void {

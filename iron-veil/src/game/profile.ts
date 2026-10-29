@@ -22,7 +22,7 @@ const fail = (message: string): ActionResult => ({ ok: false, message })
 export const STRUCTURE_IDS = Object.keys(STRUCTURES) as StructureId[]
 export const STAFF_IDS = Object.keys(STAFF_JOBS) as StaffJob[]
 
-export function emptyStats(): ProfileStats { return { raids: 0, extracts: 0, deaths: 0, kills: 0, infectedKills: 0, mercKills: 0, headshots: 0, dismembered: 0, earned: 0, bestRaid: 0, contracts: 0, defenses: 0 } }
+export function emptyStats(): ProfileStats { return { raids: 0, extracts: 0, deaths: 0, kills: 0, infectedKills: 0, mercKills: 0, headshots: 0, dismembered: 0, earned: 0, bestRaid: 0, contracts: 0, defenses: 0, rescued: 0 } }
 
 export function createProfile(now = Date.now()): Profile {
   const structures = Object.fromEntries(STRUCTURE_IDS.map(id => [id, 0])) as Record<StructureId, number>
@@ -40,7 +40,7 @@ export function createProfile(now = Date.now()): Profile {
     research: [], activeResearch: null,
     contracts: { offers: [], active: [], refreshAt: 0 },
     base: { threat: 10, attackPending: false, lastAttack: now },
-    infection: 0, raidStarted: 0, raidSecure: [], emergencyCooldown: 0,
+    infection: 0, raidStarted: 0, raidSecure: [], emergencyCooldown: 0, residents: 0,
     stats: emptyStats(), tutorialDone: false, lastTick: now,
   }
 }
@@ -331,7 +331,9 @@ export class Company {
 
   // ───────────── base ─────────────
   staffTotal(): number { return STAFF_IDS.reduce((n, j) => n + this.profile.staff[j], 0) }
-  staffCap(): number { return staffCap(this.level("hq"), this.level("bunks")) }
+  staffCap(): number { return staffCap(this.level("hq"), this.level("bunks")) + Math.min(6, this.profile.residents) }
+  /** Survivors brought out of a raid move into the base. */
+  addResidents(n: number): void { if (n <= 0) return; this.profile.residents = Math.min(30, this.profile.residents + n); this.profile.stats.rescued += n; this.save() }
   availableStaff(): number { return this.staffCap() - this.staffTotal() }
   defense(): number { return defenseRating(this.level("walls"), this.level("tower"), this.profile.staff.tower, this.level("generator")) }
 

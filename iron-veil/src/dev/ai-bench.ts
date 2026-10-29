@@ -23,7 +23,7 @@ import type { EnemyKind } from "../game/types"
 import type { BodyPartId, PlayerState } from "../game/hostiles"
 import { EnemyManager } from "../game/enemies"
 import { GoreSystem } from "../game/gore"
-import { acquireSoldierAssets, makeDrive, SoldierModel, type SoldierDrive } from "../game/soldier"
+import { acquireSoldierAssets, makeDrive, SoldierModel, type SoldierDrive, type SoldierKind } from "../game/soldier"
 import { createWorld, type World } from "../game/world"
 import type { ZoneLayout } from "../game/zone"
 
@@ -63,7 +63,7 @@ function load(t: TimeOfDay | string = initialTime()): void {
   renderer.toneMappingExposure = world.exposure
 }
 
-function add(kind: EnemyKind, x: number, z: number, yaw = 0): number {
+function add(kind: SoldierKind, x: number, z: number, yaw = 0): number {
   const group = new THREE.Group(); group.position.set(x, 0, z + OFFSET_Z); group.rotation.y = yaw
   const model = new SoldierModel(kind, assets, units.length + 1)
   group.add(model.root); world!.group.add(group)

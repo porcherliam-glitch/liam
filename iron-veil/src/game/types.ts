@@ -64,6 +64,8 @@ export interface ActiveContract extends ContractOffer { progress: number }
 export interface ProfileStats {
   raids: number; extracts: number; deaths: number; kills: number; infectedKills: number; mercKills: number
   headshots: number; dismembered: number; earned: number; bestRaid: number; contracts: number; defenses: number
+  /** Survivors brought out of the zone. */
+  rescued: number
 }
 
 export interface Profile {
@@ -94,6 +96,8 @@ export interface Profile {
   raidSecure: BagSlot[]
   /** Free emergency kit cooldown (raids until available again). */
   emergencyCooldown: number
+  /** Rescued survivors living at the base (each one raises the staff limit, up to 6). */
+  residents: number
   stats: ProfileStats
   tutorialDone: boolean
   lastTick: number
@@ -140,6 +144,8 @@ export interface RaidResult {
   xp: number
   levelUp: boolean
   contractUpdates: { title: string; progress: number; target: number; done: boolean }[]
+  /** Survivors brought out with the player. */
+  rescued: number
 }
 
 export type MarkerKind = "extract" | "crate" | "body" | "objective" | "drop" | "threat"

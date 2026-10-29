@@ -18,6 +18,7 @@ import type { DamageInfo, DamageResult, Hostile, HostileHit, HostileManager, Hit
 import { INFECTED, type InfectedKind } from "./infectedData"
 import { Input } from "./input"
 import { ITEMS, type ItemId } from "./items"
+import { ROLE_NAMES, SurvivorManager, survivorSpots, type Survivor } from "./survivors"
 import { airdropModel, ContainerField, groundBagModel, rollAirdrop, rollContainer, rollInfectedBody, rollMercBody, SEARCH_TIME, type ContainerRef, type GroundLoot } from "./loot"
 import { Player, RADIUS, WALK } from "./player"
 import type { Company, RaidKit, RaidStats } from "./profile"
@@ -62,12 +63,16 @@ type Interactable =
   | { kind: "objective"; obj: ObjectiveAnchor }
   | { kind: "station"; id: StationId; name: string }
   | { kind: "plot"; structure: string; name: string }
+  | { kind: "survivor"; s: Survivor }
 
 interface FireZone { pos: THREE.Vector3; radius: number; life: number; tick: number }
 type WeaponSlot = "primary" | "secondary" | "melee"
 
 const PAD_LABEL: Record<string, string> = { E: "Ⓐ", Q: "RB", G: "LB", R: "Ⓧ", F: "Steuerkreuz ↑", M: "Steuerkreuz ↓", C: "Ⓑ", V: "R3", T: "Steuerkreuz →" }
 const RAID_TIME = 30 * 60
+/** The camp medic's fee. */
+const HEAL_PRICE = 120
+const COMPASS = ["Norden", "Nordosten", "Osten", "Südosten", "Süden", "Südwesten", "Westen", "Nordwesten"]
 
 export function mulberry32(seed: number): () => number {
   let s = seed >>> 0
@@ -93,6 +98,7 @@ export class RaidGame {
   private mercs: EnemyManager | null = null
   private infected: InfectedManager | null = null
   private containers: ContainerField | null = null
+  private survivors: SurvivorManager | null = null
   private ground: GroundLoot[] = []
   private fires: FireZone[] = []
   private fireLight = new THREE.PointLight(0xff8a3a, 0, 14, 2)
@@ -236,6 +242,7 @@ export class RaidGame {
     this.mercs?.dispose(); this.mercs = null
     this.infected?.dispose(); this.infected = null
     this.containers?.dispose(); this.containers = null
+    this.survivors?.dispose(); this.survivors = null
     for (const g of this.ground) if (g.mesh) g.mesh.parent?.remove(g.mesh)
     this.ground = []; this.fires = []; this.fireLight.intensity = 0
     if (this.airdrop?.mesh) this.airdrop.mesh.parent?.remove(this.airdrop.mesh)
@@ -309,7 +316,16 @@ export class RaidGame {
       const kinds = camp.kinds ?? Array.from({ length: camp.squad }, (_, i) => pool[(i + Math.floor(this.rng() * pool.length)) % pool.length])
       this.mercs!.spawnSquad(kinds, camp.x, camp.z, camp.patrol)
     }
-    // containers and mercenaries exist now: compile their shaders too
+    // other survivors: the school-yard camp and lost or wounded people in calm districts
+    this.survivors = new SurvivorManager(this.world.group, {
+      world: this.world, infected: () => this.infected, tracer: (a, b) => this.effects.tracer(a, b),
+      sfx: (id, at, volume) => this.sfx(id, { position: at, volume }), noise: (at, r) => this.noise(at, r), say: (t, s) => this.say(t, s), rng: () => this.rng(),
+    }, survivorSpots(this.world, this.rng))
+    for (const s of this.survivors.list) if (s.role === "trader") {
+      const stock = [...rollContainer({ category: "military", tier: 1, container: "weaponcase" }, this.rng), ...rollContainer({ category: "medical", tier: 1, container: "medcab" }, this.rng), ...rollContainer({ category: "food", tier: 1, container: "fridge" }, this.rng)]
+      s.stock.push(...stock, { id: "ammo_556", qty: 60 }, { id: "ammo_9mm", qty: 45 }, { id: "bandage", qty: 3 })
+    }
+    // containers, mercenaries and survivors exist now: compile their shaders too
     this.precompile()
     // exits: roll which are open; at least two (the cheapest first)
     this.openExits = layout.extractions.filter(e => this.rng() < e.chance)
@@ -468,6 +484,7 @@ export class RaidGame {
       const lost = stepVitals(this.player.vitals, dt, { metabolism: this.company.has("metabolism"), immunology: this.company.has("immunology"), sprinting: this.player.sprinting })
       if (lost > 0.5 * dt && this.player.vitals.bleed !== "none" && this.rng() < dt * 0.6) this.gore.wound({ x: this.player.pos.x, y: 0.9, z: this.player.pos.z }, { x: 0, y: -1, z: 0 }, 6)
     }
+    if (this.mode === "raid") this.survivors?.update(dt, this.player.pos, true)
     this.updateInteraction(dt)
     // in the base only E (stations) is used; other key presses must not pile up for the next raid
     if (!fight) this.input.clearActions()
@@ -936,6 +953,8 @@ export class RaidGame {
       for (const g of this.ground) if (g.items.length || !g.searched) consider(g.position.x, g.position.z, { kind: "ground", loot: g }, 2.1)
       const layout = this.world.layout as ZoneLayout
       for (const o of layout.objectives) consider(o.x, o.z, { kind: "objective", obj: o }, 2.6)
+      const sv = this.survivors?.nearest(p.pos, 2.8)
+      if (sv) consider(sv.position.x, sv.position.z, { kind: "survivor", s: sv }, 2.8)
       for (const e of this.openExits) { const d = Math.hypot(e.x - p.pos.x, e.z - p.pos.z); if (d < e.radius && !this.activeExit) { best = { kind: "extract", ex: e }; bestScore = 0 } }
     }
     const target = best as Interactable | null
@@ -950,8 +969,17 @@ export class RaidGame {
       if (tapped) { this.openOverlay(); this.callbacks.onStation(target.kind === "station" ? target.id : "plot", target.kind === "plot" ? target.structure : undefined) }
       return
     }
+    if (target.kind === "survivor" && target.s.state !== "wounded") {
+      this.interactText = this.survivorPrompt(target.s, E)
+      if (tapped) this.talkTo(target.s)
+      return
+    }
     let time = 1, text = ""
-    if (target.kind === "container") { const c = target.ref; time = c.searched ? 0.15 : SEARCH_TIME[c.kind]; text = c.searched ? `${E} · ${c.name} öffnen` : `${E} halten · ${c.name} durchsuchen` }
+    if (target.kind === "survivor") {
+      const has = this.bag.count("bandage") > 0 || this.bag.count("medkit") > 0
+      time = 1.8; text = has ? `${E} halten · ${target.s.name} verbinden` : `${target.s.name} ist verletzt · Verband oder Medkit nötig`
+      if (!has) { this.interactText = text; return }
+    } else if (target.kind === "container") { const c = target.ref; time = c.searched ? 0.15 : SEARCH_TIME[c.kind]; text = c.searched ? `${E} · ${c.name} öffnen` : `${E} halten · ${c.name} durchsuchen` }
     else if (target.kind === "ground") { time = target.loot.searched ? 0.15 : target.loot.kind === "body" ? 1.4 : 0.6; text = `${E} halten · ${target.loot.name} durchsuchen` }
     else if (target.kind === "objective") {
       const done = this.stats.activated.includes(target.obj.id)
@@ -976,6 +1004,86 @@ export class RaidGame {
     else if (t.kind === "ground") { t.loot.searched = true; this.openLoot(t.loot.name, t.loot.items, t.loot) }
     else if (t.kind === "objective") { this.stats.activated.push(t.obj.id); this.sfx("radio"); this.say(`${t.obj.name} aktiviert`, 3); this.noise(this.player.pos, 40) }
     else if (t.kind === "extract") this.activateExit(t.ex)
+    else if (t.kind === "survivor") this.bandageSurvivor(t.s)
+  }
+
+  // ───────────────────────────── other survivors ─────────────────────────────
+
+  private survivorPrompt(s: Survivor, E: string): string {
+    if (s.role === "trader") return `${E} · Mit ${s.name} handeln (Händlerin)`
+    if (s.role === "medic") return `${E} · ${s.name}: behandeln lassen (${HEAL_PRICE} $)`
+    if (s.role === "guard") return `${E} · ${s.name} (Wache) nach der Lage fragen`
+    if (s.state === "follow") return `${E} · ${s.name}: hier warten`
+    if (s.state === "wait") return `${E} · ${s.name}: komm mit`
+    return `${E} · ${s.name} mitnehmen`
+  }
+
+  private talkTo(s: Survivor): void {
+    if (s.role === "trader") { this.openTrade(s); return }
+    if (s.role === "medic") {
+      const v = this.player.vitals, money = this.company.profile.money
+      if (v.health >= 99 && v.bleed === "none" && v.infection < 5) { this.say(`${s.name}: „Dir fehlt nichts. Pass auf dich auf.“`, 3); return }
+      if (money < HEAL_PRICE) { this.say(`${s.name}: „Medizin kostet. ${HEAL_PRICE} $, sonst geht's nicht.“`, 3); return }
+      this.company.profile.money -= HEAL_PRICE
+      v.health = 100; v.bleed = "none"; v.infection = Math.max(0, v.infection - 40)
+      this.sfx("heal"); this.say(`${s.name} verarztet dich · −${HEAL_PRICE} $`, 3)
+      return
+    }
+    if (s.role === "guard") {
+      const p = this.player.pos
+      const ex = [...this.openExits].sort((a, b) => Math.hypot(a.x - p.x, a.z - p.z) - Math.hypot(b.x - p.x, b.z - p.z))[0]
+      const crowd = this.infected ? this.infected.inRadius(p, 80).length : 0
+      const dir = ex ? COMPASS[Math.round(((Math.atan2(ex.x - p.x, -(ex.z - p.z)) + Math.PI * 2) % (Math.PI * 2)) / (Math.PI / 4)) % 8] : ""
+      this.say(`${s.name}: „${ex ? `${ex.name} ist offen, Richtung ${dir}, ${Math.round(Math.hypot(ex.x - p.x, ex.z - p.z))} m.` : "Keine Extraktion offen."} ${crowd > 12 ? "Hier wimmelt es von Infizierten." : crowd > 4 ? "Ein paar Infizierte treiben sich herum." : "Gerade ist es ruhig."}“`, 7)
+      this.sfx("radio", { volume: 0.4 })
+      return
+    }
+    const was = s.state
+    this.survivors?.follow(s)
+    this.say(s.state === "follow" ? (was === "wait" ? `${s.name} folgt dir wieder` : `${s.name} folgt dir · bring ${s.look === "medic" ? "sie" : "ihn"} zu einer Extraktion`) : `${s.name} wartet hier`, 3.5)
+  }
+
+  private bandageSurvivor(s: Survivor): void {
+    if (this.bag.count("bandage") > 0) this.bag.remove("bandage", 1); else if (this.bag.count("medkit") > 0) this.bag.remove("medkit", 1); else return
+    this.survivors?.patchUp(s)
+    this.sfx("bandage"); this.say(`${s.name} ist verbunden und folgt dir · bring ${s.look === "medic" ? "sie" : "ihn"} zu einer Extraktion`, 4)
+  }
+
+  /** Barter with the camp trader: taking costs money (value × 1.4), putting items down pays value × 0.55. */
+  private openTrade(s: Survivor): void {
+    this.sfx("zipper", { volume: 0.6 })
+    const bag = this.bag, self = this, profile = this.company.profile
+    const shop = new Bag(32, s.stock as BagSlot[])
+    const sync = () => { s.stock.length = 0; for (const it of shop.items) s.stock.push(it) }
+    const buy = (id: ItemId) => Math.max(1, Math.ceil(ITEMS[id].value * 1.4)), sell = (id: ItemId) => Math.max(1, Math.floor(ITEMS[id].value * 0.55))
+    const session: LootSession = {
+      get title() { return `${s.name} · ${ROLE_NAMES[s.role]} · Nehmen kostet, Ablegen bringt Geld · Kasse ${profile.money} $` },
+      get items() { return shop.items }, bag,
+      take(index) {
+        const slot = shop.items[index]; if (!slot) return 0
+        const price = buy(slot.id) * slot.qty
+        if (profile.money < price) { self.say(`Zu wenig Geld · ${ITEMS[slot.id].name} kostet ${price} $`, 2); return 0 }
+        const id = slot.id, moved = shop.moveSlotTo(index, bag); sync()
+        if (moved > 0) { profile.money -= buy(id) * moved; self.sfx("loot_take", { volume: 0.6 }) } else self.say("Rucksack voll", 1.2)
+        return moved
+      },
+      takeAll() { self.say("Einzeln kaufen: Gegenstand anklicken", 1.6); return 0 },
+      put(index) {
+        const slot = bag.items[index]; if (!slot) return 0
+        const id = slot.id, moved = bag.moveSlotTo(index, shop); sync()
+        if (moved > 0) { profile.money += sell(id) * moved; self.sfx("loot_take", { volume: 0.5 }) }
+        return moved
+      },
+      close() { self.company.save(); self.resume() },
+    }
+    this.openOverlay()
+    this.callbacks.onLoot(session)
+  }
+
+  /** Followers close to the player when the raid ends successfully. */
+  private rescueCount(): number {
+    const p = this.player.pos
+    return this.survivors?.followers().filter(s => Math.hypot(s.position.x - p.x, s.position.z - p.z) < 25).length ?? 0
   }
 
   private openLoot(title: string, items: BagSlot[], ground?: GroundLoot): void {
@@ -1170,6 +1278,8 @@ export class RaidGame {
     const loaded: Partial<Record<AmmoId, number>> = {}
     for (const slot of ["primary", "secondary"] as WeaponSlot[]) { const w = this.weapons[slot]; if (w?.ammo && w.mag > 0) loaded[w.ammo] = (loaded[w.ammo] ?? 0) + w.mag }
     const kitBag = this.kit
+    const rescued = success ? this.rescueCount() : 0
+    if (rescued) { this.company.addResidents(rescued); this.company.profile.money += rescued * 150 }
     const settlement = this.company.finishRaid(kitBag, { armor: this.player.armor, helmet: this.player.helmet, bag: this.bag.toJSON(), secure: this.secure.toJSON(), loaded, infection: this.player.vitals.infection }, this.stats, success, this.settings.difficulty, this.rng)
     this.kit = null
     this.audio.play(success ? "win" : "lose"); this.audio.setIntensity(0); this.audio.setHeartbeat(0)
@@ -1178,7 +1288,7 @@ export class RaidGame {
       success, reason, insertion: (this.world.layout.kind === "zone" ? (this.world.layout as ZoneLayout).insertions.find(i => i.id === this.plan?.insertion)?.name : undefined) ?? this.plan?.insertion ?? "", time: this.plan?.time ?? "dusk",
       kills: this.stats.kills, infectedKills: this.stats.infectedKills, mercKills: this.stats.mercKills, headshots: this.stats.headshots, dismembered: this.stats.dismembered,
       loot: settlement.returned.map(s => ({ id: s.id, qty: s.qty })), lost: settlement.lost.map(s => ({ id: s.id, qty: s.qty })), value: settlement.value,
-      duration: this.elapsed, xp: settlement.xp, levelUp: settlement.levelUp, contractUpdates: settlement.contractUpdates,
+      duration: this.elapsed, xp: settlement.xp, levelUp: settlement.levelUp, contractUpdates: settlement.contractUpdates, rescued,
     }
     this.callbacks.onEnd(result)
   }
@@ -1416,6 +1526,7 @@ function sameTarget(a: Interactable | null, b: Interactable | null): boolean {
     case "objective": return a.obj === (b as typeof a).obj
     case "station": return a.id === (b as typeof a).id
     case "plot": return a.structure === (b as typeof a).structure
+    case "survivor": return a.s === (b as typeof a).s
   }
 }
 /** Distance from p to segment ab; writes the closest point into out. */

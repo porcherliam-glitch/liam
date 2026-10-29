@@ -95,10 +95,11 @@ export function sanitizeProfile(raw: unknown, now = Date.now()): Profile | null 
     raidStarted: Number.isFinite(r.raidStarted) ? r.raidStarted : 0,
     raidSecure: sanitizeSlots(r.raidSecure, 12),
     emergencyCooldown: int(r.emergencyCooldown, 0, 10, 0),
+    residents: int(r.residents, 0, 30, 0),
     stats: {
       raids: int(s.raids, 0, 1e9, 0), extracts: int(s.extracts, 0, 1e9, 0), deaths: int(s.deaths, 0, 1e9, 0), kills: int(s.kills, 0, 1e9, 0),
       infectedKills: int(s.infectedKills, 0, 1e9, 0), mercKills: int(s.mercKills, 0, 1e9, 0), headshots: int(s.headshots, 0, 1e9, 0), dismembered: int(s.dismembered, 0, 1e9, 0),
-      earned: int(s.earned, 0, 1e12, 0), bestRaid: int(s.bestRaid, 0, 1e12, 0), contracts: int(s.contracts, 0, 1e9, 0), defenses: int(s.defenses, 0, 1e9, 0),
+      earned: int(s.earned, 0, 1e12, 0), bestRaid: int(s.bestRaid, 0, 1e12, 0), contracts: int(s.contracts, 0, 1e9, 0), defenses: int(s.defenses, 0, 1e9, 0), rescued: int(s.rescued, 0, 1e9, 0),
     },
     tutorialDone: r.tutorialDone === true,
     lastTick: Number.isFinite(r.lastTick) ? Math.min(r.lastTick, now) : now,
