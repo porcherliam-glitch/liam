@@ -494,6 +494,16 @@ function torsoSeg(kind: InfectedKind, S: BodySpec, L: Look, r: () => number): TH
   if (L.top === "shirt" || L.top === "uniform" || L.top === "tank") {
     g.loft([{ y: 0.33, w: mid * 1.08, d: wd * 1.08, c: top }, { y: 0.16, w: ww * 1.1, d: wd * 1.12, c: top, jag: 0.09 }], 10, 0)
   }
+  if (DETAIL >= 1 && S.legs && !big) {
+    // belt with a buckle, collar and buttons on shirts and uniforms
+    g.loft([{ y: 0.085, w: pw * 1.03, d: wd * 1.11, c: 0x2e241c }, { y: 0.12, w: pw * 1.01, d: wd * 1.09, c: 0x2e241c }], 10, 0)
+    g.box(0, 0.1, F * wd * 1.13, 0.05, 0.034, 0.012, 0x8a8576)
+    if (L.top === "shirt" || L.top === "uniform") {
+      g.loft([{ y: T - 0.045, w: cw * 0.52, d: cd * 0.62, z: 0.006, c: dim(top, 0.85) }, { y: T + 0.02, w: cw * 0.36, d: cd * 0.5, z: 0.01, c: dim(top, 0.85) }], 9, 0)
+      for (let i = 0; i < 4; i++) g.ball(0.003, T * (0.86 - i * 0.12), F * cd * (i < 2 ? 1.03 : 1.0), 0.0075, 0.0075, 0.004, 0xcfc8b4, 0, true)
+      if (L.top === "uniform") for (const sx of [-1, 1]) g.box(sx * cw * 0.45, T * 0.72, F * cd * 1.04, cw * 0.32, T * 0.16, 0.012, dim(top, 0.9))
+    }
+  }
   if (L.top === "coat" || L.top === "gown") {
     const len = L.top === "coat" ? 0.66 : 0.46
     g.loft([{ y: T * 0.66, w: cw * 1.04, d: cd * 1.08, c: top }, { y: 0.1, w: pw * 1.15, d: wd * 1.3, c: top }, { y: 0.1 - len * 0.5, w: pw * 1.3, d: wd * 1.45, c: dim(top, 0.85) },
