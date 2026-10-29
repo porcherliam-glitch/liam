@@ -1,6 +1,6 @@
 # Stand – Operation Iron Veil
 
-Stand: 29.10.2026, Version 0.3 (Zombie-Extraction-Umbau).
+Stand: 29.10.2026, Version 0.4 (Überlebende und Online).
 
 ## Erledigt
 
@@ -19,13 +19,15 @@ Stand: 29.10.2026, Version 0.3 (Zombie-Extraction-Umbau).
   - Hände in der Ich-Ansicht: zweifarbige Einsatzhandschuhe mit Knöchelschutz, Polstern, Klettverschluss und Armbanduhr.
   - Beute-Behälter: Versorgungskiste, Spind, Kühlschrank, Werkzeugkasten, Waffenkoffer, Medizinschrank, Tresor und Tasche mit Details; Türen und Deckel öffnen sich und zeigen den Inhalt.
   - Versorgungsabwurf mit Palette, Spanngurten, Leuchte und Fallschirm; abgelegter Rucksack; geworfene Granaten und Molotows sehen aus wie in der Hand.
-- **Tests**: 175 Logik-Tests grün; Browser-Prüfungen für Hauptablauf, Systeme, Sonderfälle und Controller.
 - **Große Sperrzone und Basis** (29.10.2026): 620 m mit 9 Stadtteilen (Stadt, Industrie, Hafen, Militär, Labor, Bauernhof, Bahnhof, Wald, Steinbruch), Fahrzeuge, Fassaden, Möbel, Barrikaden, Lager; begehbare Basis mit Gebäudestufen; Tag und sehr dunkle Nacht.
 - **Qualitätsschub für alle Modelle** (29.10.2026):
   - Feine Oberflächen ohne Texturdateien: Stoffgewebe, Haut mit Flecken und Poren, nasses Blut, Holzmaserung, Metall mit abgenutzten Kanten, Kunststoff; Schmutz in Mulden.
   - Infizierte: geformte Gesichter (Augenhöhlen, Brauen, Nase, Wangenknochen, Kiefer), Wunden als echte Krater mit Blutspuren, Muskeln, Rippen und Wirbelsäule, Hände mit Fingergelenken und Krallen.
   - Söldner: geformte Körper und Gesichter, Tarnmuster, Handschuhe mit Fingern, Stiefel mit Profil und Schnürung, Magazine, Gurtbänder, Granaten.
   - Schablonen-Schriften auf Kisten, Waffenkoffern, Medizinschränken und dem Versorgungsabwurf.
+- **Andere Überlebende** (29.10.2026): Lager auf dem Schulhof mit Händlerin, Sanitäterin und Wache; verirrte und verletzte Überlebende zum Mitnehmen, Verbinden und Retten; Gerettete ziehen in die Basis; Infizierte beißen Überlebende, Fliehende locken sie mit Schreien an. Neue zivile Figuren (Jacke, Kapuzenpulli, Kittel mit Mundschutz).
+- **Online** (29.10.2026, nur als claude.ai-Artefakt): wer gerade spielt, Echos anderer Spieler in der Zone und auf der Karte, Funk (Enter im Einsatz) mit automatischen Meldungen, Bestenliste, Ausrüstung gefallener Spieler in fremden Einsätzen. Fremde Daten werden bereinigt und nur als Text gezeigt. Ohne claude.ai läuft alles offline.
+- **Tests**: 188 Logik-Tests grün; Browser-Prüfungen für Hauptablauf, Systeme, Sonderfälle, Controller und Online (mit simuliertem zweiten Spieler).
 
 ## In Arbeit
 
@@ -35,3 +37,4 @@ Stand: 29.10.2026, Version 0.3 (Zombie-Extraction-Umbau).
 
 - Die Leistung wurde nur mit Software-Grafik gemessen; auf echten Grafikkarten ist das Spiel deutlich schneller.
 - Geräusche sind nach Messwerten abgestimmt, nicht nach Gehör.
+- Online ist kein gemeinsames Spiel in derselben Welt: Jeder spielt seine eigene Zone, andere Spieler sind nur als Echos zu sehen. Echtes Zusammenspielen (gleiche Infizierte, gemeinsame Kämpfe) bräuchte einen Spielserver.

@@ -12,6 +12,8 @@ Alles wird im Browser erzeugt: 3D-Grafik, Texturen und Geräusche. Es wird nicht
 
 Der Spielstand liegt im Browser (localStorage). Mit einem anderen Browser oder nach dem Löschen der Browserdaten beginnt eine neue Truppe. Alte Spielstände (v2/v3) werden automatisch übernommen.
 
+**Online mit anderen:** Als claude.ai-Artefakt geöffnet, sehen sich alle, die das Spiel gerade offen haben (siehe „Online“ unten). Die Datei auf dem eigenen Rechner läuft immer offline.
+
 ## Steuerung
 
 | Tastatur und Maus | Controller | Aktion |
@@ -34,6 +36,7 @@ Der Spielstand liegt im Browser (localStorage). Mit einem anderen Browser oder n
 | M | Steuerkreuz ↓ | Karte (ganze Zone oder Umgebung) |
 | Tab | Back | Rucksack (benutzen, ablegen, in den sicheren Behälter) |
 | Esc | Start | Pause |
+| Enter | – | Funk an alle (nur online) |
 
 In den Menüs funktionieren Maus, Tastatur und Controller (Steuerkreuz, A = auswählen, B = zurück).
 
@@ -49,6 +52,21 @@ In den Menüs funktionieren Maus, Tastatur und Controller (Steuerkreuz, A = ausw
 
 Wer stirbt, abbricht, die Seite neu lädt oder zu lange braucht, verliert alles Mitgenommene außer dem sicheren Behälter.
 
+### Andere Überlebende
+
+In der Zone leben noch Menschen. Im **Lager auf dem Schulhof** am Lagerfeuer gibt es eine **Händlerin** (kauft und verkauft mitten im Einsatz), eine **Sanitäterin** (heilt gegen Geld, auch Infektion) und eine **Wache**, die auf Infizierte schießt und verrät, welcher Ausgang am nächsten ist. Überall in ruhigeren Stadtteilen verstecken sich **verirrte** und **verletzte** Überlebende: Mit **E** nehmen Sie sie mit oder lassen sie warten, Verletzte brauchen erst einen Verband (E halten). Wer mit Ihnen eine Extraktion erreicht, zieht in Ihre Basis (mehr Personal, 150 $ pro Person). Infizierte beißen Überlebende; wer flieht, schreit – und lockt sie an.
+
+### Online
+
+Läuft das Spiel als claude.ai-Artefakt, ist die Zone nicht mehr leer:
+
+- **Menüpunkt ONLINE**: wer gerade da ist (im Menü, in der Basis, in der Zone), eine **Bestenliste** (verdient, Infizierte, Gerettete, bester Einsatz) und der **Funk** an alle.
+- **Echos**: Andere Spieler in der Zone erscheinen als Figur mit Namensschild und als blaue Punkte auf der Karte. Jeder spielt seine eigene Zone – Echos kann man nicht treffen und sie nehmen einem nichts weg.
+- **Funk**: Im Einsatz mit **Enter** eine Nachricht an alle schreiben. Extraktionen, Tode, Rettungen und gehaltene Basen werden automatisch gemeldet.
+- **Ausrüstung Gefallener**: Wer in der Zone stirbt, hinterlässt seine wertvollste Ausrüstung an der Stelle. Andere Spieler finden diese Tasche („Ausrüstung von …“) in ihren nächsten Einsätzen – jede Tasche einmal pro Browser.
+
+Schreiben dürfen Personen, mit denen das Artefakt mindestens als „Contributor“ geteilt ist; reine Betrachter sehen alles, senden aber nichts. Der eigene Spielstand bleibt im eigenen Browser.
+
 ## Inhalt
 
 - **Riesige Sperrzone** (~600 × 600 m) mit Stadtteilen: Altstadt, Industriegebiet, Hafen, Militäranlage, Forschungslabor mit Endgegner, Bauernhof, Bahnhof, Nordwald, Steinbruch. Vier Tageszeiten.
@@ -57,6 +75,8 @@ Wer stirbt, abbricht, die Seite neu lädt oder zu lange braucht, verliert alles 
 - **15 Waffen**: Messer, Machete, Feuerwehraxt, P9, R-44 Revolver, VX-9 und K5 Maschinenpistolen, MK-4, SR-74, BR-10, KV-12 Pump- und SG-8 Selbstladeflinte, DR-7 Präzisionsgewehr, Falke .338 Repetierer, LM-60 MG.
 - **9 Aufsätze**: Rotpunkt, Holo-Visier, 4×-Zielfernrohr, Schalldämpfer, Kompensator, zwei Griffe, erweitertes Magazin, Laser-Licht-Modul. **9 Munitionssorten** inklusive panzerbrechender Munition und Flintenlaufgeschossen.
 - **Überleben**: Gesundheit, Blutungen, Hunger, Durst, Infektion, Schmerzmittel, Stimulanzien, Tragegewicht.
+- **Andere Überlebende**: Lager mit Händlerin, Sanitäterin und Wache; verirrte und verletzte Menschen zum Retten, die danach in der Basis wohnen.
+- **Online** (als claude.ai-Artefakt): andere Spieler als Echos, Funk, Bestenliste, Ausrüstung gefallener Spieler.
 - **Basis**: 13 Gebäude mit je bis zu 3 Stufen, Personal, Herstellung (Medizin, Granaten, Westen, Rucksäcke, Munition, Aufsätze), 9 Forschungen, Aufträge über Funk, Angriffe auf die Basis.
 - **Einstellungen**: Maus- und Zielempfindlichkeit, Sichtfeld, Lautstärke, Gore, Schwierigkeit, Grafikqualität, Bildschirmwackeln, Bildrate.
 
@@ -69,7 +89,7 @@ npm install
 npm run dev          # Entwicklungsserver mit automatischem Neuladen
 npm run build        # Prüft Typen, baut dist/ und die Einzeldatei OperationIronVeil.html
 npm test             # Logik-Tests (Vitest)
-npm run verify:all   # Browser-Tests mit Playwright (vorher bauen)
+npm run verify:all   # Browser-Tests mit Playwright (vorher bauen), inkl. verify:online mit simuliertem zweiten Spieler
 ```
 
 Prüfstände (nur mit `npm run dev`): `dev.html` (Zone, Basis und Gegner ohne Spiel), `dev-ai.html` (Söldner), `dev-zombies.html` (Infizierte und Horden), `dev-gore.html` (Gore), `dev-weapons.html` (Waffen in der Hand, Symbole, Weltmodelle), `dev-props.html` (Beute-Behälter, Versorgungsabwurf, Rucksack, Wurfwaffen), `dev-models.html` (Infizierte in Ruhepose mit Nahansichten), `dev-audio.html` (alle Geräusche).
@@ -88,6 +108,8 @@ Prüfstände (nur mit `npm run dev`): `dev.html` (Zone, Basis und Gegner ohne Sp
 | `src/game/weapons.ts`, `viewmodel.ts`, `grenades.ts`, `effects.ts` | Waffenlogik, Waffen in der Hand, Wurfwaffen, Effekte |
 | `src/game/collision.ts`, `nav.ts` | Kollision mit Raster-Index, Sichtlinien, Wegfindung |
 | `src/game/audio.ts` | Erzeugte Geräusche, Raumklang, Hintergrund |
+| `src/game/survivors.ts` | Andere Überlebende: Lager, Verirrte, Verletzte, Folgen, Fliehen, Schießen |
+| `src/game/online.ts`, `ghosts.ts` | Online über die claude.ai-Laufzeit (Anwesenheit, Funk, Bestenliste, Gefallene) und die Echos in der Zone |
 | `src/game/ui.ts`, `hud.ts`, `gamepad.ts`, `input.ts` | Menüs, Einsatz-Anzeige, Controller, Eingabe |
 
 Der aktuelle Stand steht in [STATUS.md](STATUS.md).
