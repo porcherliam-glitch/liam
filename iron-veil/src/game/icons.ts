@@ -202,6 +202,48 @@ const ATT: Record<string, Painter> = {
     for (let k = 0; k < 6; k++) { g.fillStyle = "rgba(0,0,0,.35)"; g.fillRect(40 + k * 2.5, 34 + k * 9, 18, 1.5) }
     shape(g, () => rr(g, 36, 4, 20, 8, 2), BRASS(g, 36, 20), "rgba(0,0,0,.6)", 1, false)
   },
+  att_acog: g => {
+    shape(g, () => rr(g, 20, 66, 60, 9, 2), STEEL(g, 66, 75))
+    shape(g, () => rr(g, 30, 36, 40, 30, 6), lin(g, 0, 36, 0, 66, "#5b6369", "#2a3034", "#181b1d"))
+    shape(g, () => { g.moveTo(8, 40); g.lineTo(30, 42); g.lineTo(30, 62); g.lineTo(8, 64); g.closePath() }, lin(g, 0, 40, 0, 64, "#565e64", "#22272a"))
+    shape(g, () => { g.moveTo(70, 44); g.lineTo(88, 46); g.lineTo(88, 58); g.lineTo(70, 60); g.closePath() }, lin(g, 0, 44, 0, 60, "#565e64", "#22272a"))
+    shape(g, () => rr(g, 38, 28, 22, 9, 2), "#30363a", undefined, 1.2, false)
+    g.save(); g.shadowColor = "#ff8a20"; g.shadowBlur = 6; g.fillStyle = "#ffa040"; g.fillRect(40, 30, 18, 2.5); g.restore()
+    g.fillStyle = "rgba(120,160,255,.55)"; g.fillRect(8, 43, 3, 18)
+    g.fillStyle = "rgba(255,255,255,.2)"; g.fillRect(32, 39, 36, 2.5)
+  },
+  att_brake: g => {
+    shape(g, () => rr(g, 16, 36, 66, 28, 3), lin(g, 0, 36, 0, 64, "#6a7277", "#2f3539", "#1a1d1f"))
+    for (const x of [28, 52]) shape(g, () => rr(g, x, 40, 16, 20, 2), "#0e1012", "rgba(0,0,0,.6)", 1, false)
+    shape(g, () => rr(g, 10, 42, 8, 16, 2), STEEL(g, 42, 58))
+    g.fillStyle = "#0b0c0d"; g.beginPath(); g.ellipse(82, 50, 2.5, 8, 0, 0, Math.PI * 2); g.fill()
+    g.fillStyle = "rgba(255,255,255,.16)"; g.fillRect(18, 38, 62, 2.5)
+  },
+  att_bipod: g => {
+    shape(g, () => rr(g, 34, 14, 32, 14, 3), STEEL(g, 14, 28))
+    for (const [x0, x1] of [[44, 18], [56, 82]] as const) {
+      g.lineCap = "round"; line(g, [x0, 26, x1, 80], "#22272a", 9); line(g, [x0, 26, x1, 80], "#5a6268", 5)
+      line(g, [x0 + (x1 - x0) * 0.62, 26 + 54 * 0.62, x1, 80], "#8a9298", 3)
+      shape(g, () => { g.arc(x1, 84, 5.5, 0, Math.PI * 2) }, "#1a1c1e", undefined, 1, false)
+    }
+    g.lineCap = "butt"
+  },
+  att_drum: g => {
+    shape(g, () => rr(g, 40, 8, 22, 26, 3), lin(g, 40, 0, 62, 0, "#2a2f33", "#4c545a", "#1e2226"))
+    shape(g, () => { g.arc(51, 60, 32, 0, Math.PI * 2) }, rad(g, 51, 60, 32, "#5a6268", "#16191b"))
+    g.strokeStyle = "rgba(0,0,0,.45)"; g.lineWidth = 2; g.beginPath(); g.arc(51, 60, 24, 0, Math.PI * 2); g.stroke()
+    shape(g, () => { g.arc(51, 60, 9, 0, Math.PI * 2) }, STEEL(g, 51, 69), "rgba(0,0,0,.7)", 1.2, false)
+    shape(g, () => rr(g, 46, 56, 10, 8, 1), "#8a9298", "rgba(0,0,0,.6)", 1, false)
+    shape(g, () => rr(g, 44, 2, 14, 8, 2), BRASS(g, 44, 14), "rgba(0,0,0,.6)", 1, false)
+  },
+  att_light: g => {
+    g.fillStyle = "rgba(255,246,200,.22)"; g.beginPath(); g.moveTo(80, 42); g.lineTo(100, 26); g.lineTo(100, 74); g.lineTo(80, 58); g.closePath(); g.fill()
+    shape(g, () => rr(g, 14, 40, 56, 20, 6), lin(g, 0, 40, 0, 60, "#4e565c", "#1f2427"))
+    shape(g, () => rr(g, 66, 36, 16, 28, 4), lin(g, 0, 36, 0, 64, "#5a6268", "#22272a"))
+    shape(g, () => { g.ellipse(82, 50, 3, 11, 0, 0, Math.PI * 2) }, rad(g, 82, 50, 11, "#fffbe8", "#b8b090"), "rgba(0,0,0,.7)", 1, false)
+    shape(g, () => rr(g, 30, 30, 18, 10, 2), "#2a2f33", undefined, 1, false)
+    shape(g, () => rr(g, 8, 44, 8, 12, 2), "#141618", undefined, 1, false)
+  },
   att_laser: g => {
     line(g, [72, 50, 99, 50], "rgba(255,40,30,.9)", 2)
     shape(g, () => rr(g, 18, 34, 56, 32, 5), lin(g, 0, 34, 0, 66, "#4e565c", "#1f2427"))
@@ -354,6 +396,7 @@ const VAL: Record<string, Painter> = {
 
 const PAINTERS: Record<string, Painter> = {
   ammo_9mm: ammo(["#5a6a3a", "#344020"], "9 MM", "pistol", "#c87a3a"),
+  ammo_45: ammo(["#3a4a6a", "#1e283e"], ".45 ACP", "pistol", "#9ea4a8"),
   ammo_44: ammo(["#7a4a2a", "#4a2a14"], ".44", "magnum", "#c87a3a"),
   ammo_556: ammo(["#4a6a4a", "#283e28"], "5,56", "rifle", "#c87a3a"),
   ammo_556ap: ammo(["#4a6a4a", "#283e28"], "5,56 AP", "rifle", "#1a1a1a", "#c8302a"),

@@ -891,9 +891,9 @@ export class ViewModel {
   /** Swings for knife, machete and axe (right hand). Offsets relative to the idle pose. */
   private meleePose(m: number, pos: THREE.Vector3, quat: THREE.Quaternion): void {
     const id = this.current
-    const idle: Key = id === "axe" ? [0, 0.2, -0.24, -0.42, 0.55, 0.25, -0.15] : id === "machete" ? [0, 0.21, -0.22, -0.4, 0.75, 0.32, -0.25] : [0, 0.19, -0.2, -0.36, 0.85, 0.35, -0.3]
+    const heavy = id === "axe" || id === "sledge" || id === "bat", long = id === "machete" || id === "katana"
+    const idle: Key = heavy ? [0, 0.2, -0.24, -0.42, 0.55, 0.25, -0.15] : long ? [0, 0.21, -0.22, -0.4, 0.75, 0.32, -0.25] : [0, 0.19, -0.2, -0.36, 0.85, 0.35, -0.3]
     if (m < 0) { pos.set(idle[1], idle[2], idle[3]); quat.setFromEuler(_e.set(idle[4], idle[5], idle[6])); return }
-    const heavy = id === "axe"
     const keys: Key[] = heavy ? [
       idle, [0.26, 0.3, 0.02, -0.18, 1.85, -0.1, -0.75], [0.4, 0.02, -0.12, -0.55, 0.15, 0.45, 0.55], [0.56, -0.24, -0.4, -0.38, -0.65, 0.85, 1.0], [1, ...idle.slice(1)] as Key,
     ] : [

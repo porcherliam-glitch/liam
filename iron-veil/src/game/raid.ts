@@ -1433,7 +1433,10 @@ export class RaidGame {
       const zoom = 1 + (w.def.adsZoom - 1) * this.ads
       const targetFov = this.settings.fov * zoom * (p.sprinting ? 1.05 : 1)
       if (Math.abs(cam.fov - targetFov) > 0.01) { cam.fov += (targetFov - cam.fov) * Math.min(1, dt * 14); cam.updateProjectionMatrix() }
-      this.flashlight.intensity = this.flashlightOn && this.isControlled ? 26 : 0
+      // a weapon light throws a stronger, longer beam than the head torch
+      const weaponLight = w.mods.tactical === "att_light"
+      this.flashlight.intensity = this.flashlightOn && this.isControlled ? (weaponLight ? 48 : 26) : 0
+      this.flashlight.distance = weaponLight ? 80 : 40
       if (this.viewModel.visible) this.viewModel.update(dt, {
         weapon: w.id, mods: w.mods, ads: this.ads, move: moving / WALK, sprinting: p.sprinting, crouched: p.crouched,
         lookYaw: this.lookFrame.yaw, lookPitch: this.lookFrame.pitch,

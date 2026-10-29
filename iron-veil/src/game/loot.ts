@@ -17,21 +17,21 @@ export type Rng = () => number
 type Entry = [ItemId, number, [number, number]] // item, weight, quantity range
 
 const TABLES: Record<LootCategory, Entry[]> = {
-  civil: [["canned", 8, [1, 2]], ["water", 8, [1, 2]], ["soda", 5, [1, 2]], ["bandage", 6, [1, 3]], ["painkiller", 3, [1, 2]], ["cloth", 7, [2, 5]], ["scrap", 6, [2, 5]], ["wood", 4, [2, 4]], ["watch", 3, [1, 1]], ["gold", 2, [1, 1]], ["ammo_9mm", 5, [8, 24]], ["ammo_12buck", 3, [4, 10]], ["ammo_44", 1, [4, 10]], ["key_tunnel", 0.4, [1, 1]], ["molotov", 1, [1, 1]]],
+  civil: [["canned", 8, [1, 2]], ["water", 8, [1, 2]], ["soda", 5, [1, 2]], ["bandage", 6, [1, 3]], ["painkiller", 3, [1, 2]], ["cloth", 7, [2, 5]], ["scrap", 6, [2, 5]], ["wood", 4, [2, 4]], ["watch", 3, [1, 1]], ["gold", 2, [1, 1]], ["ammo_9mm", 5, [8, 24]], ["ammo_12buck", 3, [4, 10]], ["ammo_44", 1, [4, 10]], ["key_tunnel", 0.4, [1, 1]], ["molotov", 1, [1, 1]], ["w_bat", 0.6, [1, 1]], ["ammo_45", 1, [6, 18]]],
   food: [["canned", 10, [1, 3]], ["mre", 4, [1, 2]], ["water", 10, [1, 2]], ["soda", 5, [1, 2]], ["cloth", 3, [1, 3]], ["wood", 3, [2, 4]]],
   medical: [["bandage", 10, [1, 3]], ["medkit", 5, [1, 1]], ["painkiller", 5, [1, 2]], ["antiviral", 3, [1, 1]], ["stim", 2, [1, 1]], ["medical", 4, [1, 2]], ["chem", 3, [1, 2]]],
-  industrial: [["scrap", 10, [3, 7]], ["parts", 6, [1, 2]], ["tools", 2, [1, 1]], ["fuel", 2, [1, 1]], ["chem", 4, [1, 2]], ["wood", 5, [2, 5]], ["electronics", 1.5, [1, 1]], ["ammo_556", 3, [10, 30]], ["cloth", 3, [2, 4]]],
-  military: [["ammo_556", 9, [20, 45]], ["ammo_762", 7, [15, 35]], ["ammo_9mm", 6, [20, 40]], ["ammo_12buck", 4, [8, 16]], ["ammo_12slug", 2, [6, 12]], ["grenade", 4, [1, 2]], ["armor", 2, [1, 1]], ["helmet", 2, [1, 1]], ["intel", 3, [1, 1]], ["mre", 3, [1, 1]], ["medkit", 3, [1, 1]], ["att_reddot", 1, [1, 1]], ["att_vgrip", 1, [1, 1]], ["att_comp", 1, [1, 1]], ["dogtag", 2, [1, 3]]],
-  tech: [["electronics", 8, [1, 2]], ["parts", 6, [1, 2]], ["intel", 5, [1, 1]], ["tools", 3, [1, 1]], ["att_reddot", 1.5, [1, 1]], ["att_laser", 1.5, [1, 1]], ["att_holo", 0.8, [1, 1]], ["chem", 3, [1, 2]]],
+  industrial: [["scrap", 10, [3, 7]], ["parts", 6, [1, 2]], ["tools", 2, [1, 1]], ["fuel", 2, [1, 1]], ["chem", 4, [1, 2]], ["wood", 5, [2, 5]], ["electronics", 1.5, [1, 1]], ["ammo_556", 3, [10, 30]], ["cloth", 3, [2, 4]], ["w_crowbar", 0.8, [1, 1]]],
+  military: [["ammo_556", 9, [20, 45]], ["ammo_762", 7, [15, 35]], ["ammo_9mm", 6, [20, 40]], ["ammo_12buck", 4, [8, 16]], ["ammo_12slug", 2, [6, 12]], ["grenade", 4, [1, 2]], ["armor", 2, [1, 1]], ["helmet", 2, [1, 1]], ["intel", 3, [1, 1]], ["mre", 3, [1, 1]], ["medkit", 3, [1, 1]], ["att_reddot", 1, [1, 1]], ["att_vgrip", 1, [1, 1]], ["att_comp", 1, [1, 1]], ["att_bipod", 0.6, [1, 1]], ["att_light", 0.8, [1, 1]], ["ammo_45", 3, [15, 30]], ["dogtag", 2, [1, 3]]],
+  tech: [["electronics", 8, [1, 2]], ["parts", 6, [1, 2]], ["intel", 5, [1, 1]], ["tools", 3, [1, 1]], ["att_reddot", 1.5, [1, 1]], ["att_laser", 1.5, [1, 1]], ["att_holo", 0.8, [1, 1]], ["att_light", 1, [1, 1]], ["chem", 3, [1, 2]]],
   lab: [["sample", 5, [1, 1]], ["chem", 7, [1, 3]], ["medical", 6, [1, 2]], ["antiviral", 5, [1, 1]], ["electronics", 4, [1, 1]], ["stim", 3, [1, 1]], ["intel", 3, [1, 1]], ["relic", 0.7, [1, 1]], ["keycard_lab", 0.4, [1, 1]]],
 }
 /** Extra entries unlocked on tier 2 spots. */
 const TIER2: Partial<Record<LootCategory, Entry[]>> = {
-  military: [["ammo_556ap", 3, [15, 30]], ["ammo_762ap", 2, [10, 25]], ["plate", 1.2, [1, 1]], ["att_scope4x", 0.6, [1, 1]], ["att_suppressor", 0.7, [1, 1]], ["att_extmag", 1, [1, 1]], ["ammo_338", 1, [5, 10]], ["stim", 2, [1, 1]]],
-  tech: [["att_scope4x", 0.6, [1, 1]], ["relic", 0.6, [1, 1]], ["electronics", 3, [1, 2]]],
+  military: [["ammo_556ap", 3, [15, 30]], ["ammo_762ap", 2, [10, 25]], ["plate", 1.2, [1, 1]], ["att_scope4x", 0.6, [1, 1]], ["att_suppressor", 0.7, [1, 1]], ["att_extmag", 1, [1, 1]], ["att_acog", 0.5, [1, 1]], ["att_brake", 0.7, [1, 1]], ["att_drum", 0.4, [1, 1]], ["ammo_338", 1, [5, 10]], ["stim", 2, [1, 1]]],
+  tech: [["att_scope4x", 0.6, [1, 1]], ["att_acog", 0.6, [1, 1]], ["relic", 0.6, [1, 1]], ["electronics", 3, [1, 2]]],
   lab: [["relic", 1.5, [1, 1]], ["keycard_lab", 0.6, [1, 1]], ["sample", 3, [1, 2]]],
-  civil: [["gold", 3, [1, 2]], ["watch", 3, [1, 2]], ["pack_small", 0.8, [1, 1]]],
-  industrial: [["tools", 3, [1, 1]], ["fuel", 2, [1, 1]], ["pack_large", 0.4, [1, 1]]],
+  civil: [["gold", 3, [1, 2]], ["watch", 3, [1, 2]], ["pack_small", 0.8, [1, 1]], ["w_katana", 0.15, [1, 1]]],
+  industrial: [["tools", 3, [1, 1]], ["fuel", 2, [1, 1]], ["pack_large", 0.4, [1, 1]], ["w_sledge", 0.35, [1, 1]]],
 }
 /** Container kinds force a theme on top of the spot category. */
 const KIND_CATEGORY: Partial<Record<ContainerKind, LootCategory>> = { fridge: "food", medcab: "medical", toolbox: "industrial", weaponcase: "military" }
@@ -57,7 +57,7 @@ export function rollContainer(spot: Pick<LootSpot, "category" | "tier" | "contai
   const rolls = lo + Math.floor(rng() * (hi - lo + 1)) + (tier >= 1 && rng() < 0.5 ? 1 : 0) + bonus
   if (kind === "safe") { bag.add(rng() < 0.5 ? "gold" : "watch", 1 + Math.floor(rng() * 2)); if (rng() < 0.4) bag.add("intel", 1) }
   if (kind === "weaponcase" && rng() < 0.35 + tier * 0.2) {
-    const pool: ItemId[] = tier >= 2 ? ["w_br10", "w_sr74", "w_dr7", "w_sg8", "w_k5", "w_lm60"] : tier === 1 ? ["w_mk4", "w_vx9", "w_kv12", "w_r44", "w_sr74"] : ["w_p9", "w_mk4", "w_kv12", "w_vx9"]
+    const pool: ItemId[] = tier >= 2 ? ["w_br10", "w_sr74", "w_dr7", "w_sg8", "w_k5", "w_lm60", "w_v45", "w_stg77", "w_as12", "w_de50"] : tier === 1 ? ["w_mk4", "w_vx9", "w_kv12", "w_r44", "w_sr74", "w_p18", "w_stg77", "w_de50"] : ["w_p9", "w_mk4", "w_kv12", "w_vx9", "w_p18"]
     bag.add(pool[Math.floor(rng() * pool.length)], 1)
   }
   for (let i = 0; i < rolls; i++) { const e = pick(table, rng); bag.add(e[0], Math.max(1, qty(e[2], rng, tier))) }
@@ -76,7 +76,7 @@ export function rollMercBody(kind: EnemyKind, danger: number, rng: Rng): BagSlot
   if (rng() < 0.15 + danger * 0.05) bag.add("grenade", 1)
   if (kind === "heavy" && rng() < 0.4) bag.add("armor", 1)
   if (rng() < 0.12 * danger) bag.add(rng() < 0.5 ? "intel" : "electronics", 1)
-  if (rng() < 0.06) bag.add((["att_reddot", "att_vgrip", "att_comp", "att_laser"] as ItemId[])[Math.floor(rng() * 4)], 1)
+  if (rng() < 0.08) { const atts: ItemId[] = ["att_reddot", "att_vgrip", "att_comp", "att_laser", "att_light", "att_bipod", "att_brake"]; bag.add(atts[Math.floor(rng() * atts.length)], 1) }
   return bag.toJSON()
 }
 
@@ -94,10 +94,10 @@ export function rollInfectedBody(kind: InfectedKind, rng: Rng): BagSlot[] {
 export function rollAirdrop(rng: Rng): BagSlot[] {
   const bag = new Bag(10)
   for (const e of [["ammo_556ap", 60], ["ammo_762ap", 40], ["stim", 2], ["medkit", 2], ["grenade", 2], ["mre", 2]] as [ItemId, number][]) if (rng() < 0.7) bag.add(e[0], e[1])
-  const atts: ItemId[] = ["att_suppressor", "att_scope4x", "att_holo", "att_extmag"]
+  const atts: ItemId[] = ["att_suppressor", "att_scope4x", "att_holo", "att_extmag", "att_acog", "att_drum", "att_brake"]
   bag.add(atts[Math.floor(rng() * atts.length)], 1)
   if (rng() < 0.5) bag.add("plate", 1)
-  if (rng() < 0.35) bag.add((["w_br10", "w_lm60", "w_falke", "w_sg8"] as ItemId[])[Math.floor(rng() * 4)], 1)
+  if (rng() < 0.35) { const guns: ItemId[] = ["w_br10", "w_lm60", "w_falke", "w_sg8", "w_as12", "w_v45", "w_katana"]; bag.add(guns[Math.floor(rng() * guns.length)], 1) }
   return bag.toJSON()
 }
 

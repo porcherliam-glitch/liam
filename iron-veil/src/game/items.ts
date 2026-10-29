@@ -55,6 +55,7 @@ const item = (id: ItemId, cat: ItemCategory, name: string, short: string, descri
 const BASE: ItemDef[] = [
   // ammunition (value/weight per round)
   item("ammo_9mm", "ammo", AMMO.ammo_9mm.name, "9MM", AMMO.ammo_9mm.description, 2, 0.012, 60, 0, 1),
+  item("ammo_45", "ammo", AMMO.ammo_45.name, ".45", AMMO.ammo_45.description, 3, 0.015, 50, 1, 3),
   item("ammo_44", "ammo", AMMO.ammo_44.name, ".44", AMMO.ammo_44.description, 5, 0.02, 36, 1, 2),
   item("ammo_556", "ammo", AMMO.ammo_556.name, "5,56", AMMO.ammo_556.description, 3, 0.012, 60, 0, 1),
   item("ammo_556ap", "ammo", AMMO.ammo_556ap.name, "5,56AP", AMMO.ammo_556ap.description, 7, 0.012, 60, 2, 3),
@@ -107,8 +108,9 @@ const BASE: ItemDef[] = [
 
 const attachmentItems: ItemDef[] = (Object.keys(ATTACHMENTS) as AttachmentId[]).map(id => {
   const a = ATTACHMENTS[id]
-  const value: Record<AttachmentId, number> = { att_reddot: 650, att_holo: 900, att_scope4x: 1500, att_suppressor: 1200, att_comp: 500, att_vgrip: 450, att_agrip: 550, att_extmag: 700, att_laser: 600 }
-  return item(id, "attachment", a.name, a.name.slice(0, 5).toUpperCase(), a.description, value[id], 0.4, 1, id === "att_scope4x" || id === "att_suppressor" ? 2 : 1, id === "att_scope4x" ? 3 : 2)
+  const value: Record<AttachmentId, number> = { att_reddot: 650, att_holo: 900, att_acog: 1300, att_scope4x: 1500, att_suppressor: 1200, att_comp: 500, att_brake: 650, att_vgrip: 450, att_agrip: 550, att_bipod: 700, att_extmag: 700, att_drum: 1100, att_laser: 600, att_light: 450 }
+  const rare = id === "att_scope4x" || id === "att_suppressor" || id === "att_acog" || id === "att_drum"
+  return item(id, "attachment", a.name, a.name.slice(0, 5).toUpperCase(), a.description, value[id], id === "att_drum" ? 0.9 : id === "att_bipod" ? 0.5 : 0.4, 1, rare ? 2 : 1, rare ? 3 : 2)
 })
 const weaponItems: ItemDef[] = WEAPON_ORDER.map(id => {
   const w = WEAPONS[id]

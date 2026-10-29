@@ -34,6 +34,7 @@ export type SfxId =
   | "extract_call" | "extract_tick" | "helicopter" | "alert" | "radio"
   | "ui_click" | "ui_hover" | "ui_buy" | "ui_error" | "build" | "win" | "lose" | "level_up" | "flashlight"
   | "shot_r44" | "shot_k5" | "shot_sr74" | "shot_br10" | "shot_sg8" | "shot_falke" | "shot_lm60"
+  | "shot_p18" | "shot_de50" | "shot_v45" | "shot_stg77" | "shot_as12"
   | "bolt_cycle" | "revolver_open" | "revolver_close" | "shell_insert" | "lmg_belt"
   | "melee_swing" | "melee_hit_flesh" | "melee_hit_wall"
   | "gore_splat" | "gore_burst" | "bone_crack" | "gib_land" | "blood_drip"
@@ -762,6 +763,22 @@ const DEFS: Record<SfxId, Def> = {
   shot_lm60: { ...PGUN, g: 1.0, sup: 0.55, send: 0.45, vary: 0.025, cap: 6, make: G({
     crack: [3200, 0.04, 0.8], body: [950, 0.8, 0.26, 1.15], low: [420, 0.26, 1], thump: [128, 42, 0.08, 0.24, 1.15],
     mech: [[0.03, 2000, 0.03, 0.28], [0.05, 3600, 0.015, 0.12]], tail: [700, 0.7, 0.45] }) },
+  // ---- phase 3: more player weapons
+  shot_p18: { ...PGUN, g: 1.7, sup: 0.55, send: 0.3, vary: 0.05, cap: 6, gap: 0.03, make: G({
+    crack: [3600, 0.026, 0.85], body: [2100, 1.15, 0.13, 0.95], low: [850, 0.11, 0.45], thump: [215, 70, 0.04, 0.12, 0.75],
+    mech: [[0.02, 4200, 0.018, 0.3]], tail: [1300, 0.32, 0.28] }) },
+  shot_de50: { ...PGUN, g: 1.15, sup: 0.62, send: 0.55, vary: 0.03, cap: 3, make: G({
+    crack: [2900, 0.055, 1], body: [1200, 0.8, 0.32, 1.25], low: [520, 0.32, 1.05], thump: [160, 40, 0.11, 0.34, 1.2],
+    sub: [66, 30, 0.42, 0.5], mech: [[0.05, 3000, 0.03, 0.3], [0.09, 2200, 0.03, 0.18]], tail: [860, 1.05, 0.52], echo: [[0.26, 0.12]] }) },
+  shot_v45: { ...PGUN, g: 1.85, sup: 0.5, send: 0.3, vary: 0.05, cap: 6, gap: 0.03, make: G({
+    crack: [3900, 0.026, 0.7], body: [1700, 1.1, 0.12, 0.95], low: [700, 0.12, 0.55], thump: [200, 70, 0.04, 0.12, 0.8],
+    mech: [[0.018, 4600, 0.014, 0.3]], tail: [1300, 0.32, 0.28] }) },
+  shot_stg77: { ...PGUN, g: 1.0, sup: 0.62, send: 0.45, vary: 0.03, cap: 6, make: G({
+    crack: [3800, 0.038, 0.85], body: [1250, 0.85, 0.28, 1.12], low: [540, 0.24, 0.8], thump: [160, 48, 0.08, 0.24, 1],
+    mech: [[0.03, 2900, 0.03, 0.28]], tail: [820, 0.72, 0.45] }) },
+  shot_as12: { ...PGUN, g: 0.92, sup: 0.7, send: 0.55, vary: 0.035, cap: 5, gap: 0.06, make: G({
+    crack: [2500, 0.05, 0.9], body: [850, 0.62, 0.42, 1.3], low: [410, 0.48, 1.1], thump: [120, 30, 0.19, 0.48, 1.15],
+    sub: [58, 27, 0.6, 0.6], mech: [[0.045, 2000, 0.04, 0.32]], tail: [560, 1.2, 0.58] }) },
   // ---- weapon mechanics
   bolt_cycle: { bus: "sfx", g: 0.35, pri: 2, gap: 0.2, send: 0.12, make: v => {
     v.noise({ ft: "bandpass", f: 2800, q: 4, a: 0.0006, d: 0.025, g: 0.8 })
