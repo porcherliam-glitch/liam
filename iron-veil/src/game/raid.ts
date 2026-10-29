@@ -467,7 +467,7 @@ export class RaidGame {
     if (this.mode === "defense") { this.updateDefense(dt); if (this.mode !== "defense") return }
     this.effects.update(dt, _camPos.set(this.player.pos.x, this.player.eye, this.player.pos.z))
     this.gore.update(dt, this.camera)
-    this.containers?.update(dt)
+    this.containers?.update(dt, this.camera.position)
     this.updateHints()
     if (fight) {
       const combat = this.hostiles.reduce((n, h) => n + h.combatCount(), 0)

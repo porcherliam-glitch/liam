@@ -104,7 +104,7 @@ export function bagValue(items: BagSlot[]): number { return items.reduce((s, x) 
 
 // ───────────────────────────── container visuals ─────────────────────────────
 
-interface KindParts { body: THREE.BufferGeometry; lid: THREE.BufferGeometry; bodyMat: THREE.Material; lidMat: THREE.Material; size: [number, number, number]; lidPivot: [number, number, number]; openAxis: "x" | "y"; openAngle: number }
+interface KindParts { body: THREE.BufferGeometry; lid: THREE.BufferGeometry; low: THREE.BufferGeometry; bodyMat: THREE.Material; lidMat: THREE.Material; size: [number, number, number]; lidPivot: [number, number, number]; openAxis: "x" | "y"; openAngle: number }
 
 /**
  * Detailed container models (front = +Z, origin on the floor). Each body and lid is one merged vertex-coloured
@@ -115,7 +115,18 @@ function kindParts(): Record<ContainerKind, KindParts> {
   const PI = Math.PI, half = PI / 2
   const out = {} as Record<ContainerKind, KindParts>
   const def = (kind: ContainerKind, body: Shape, lid: Shape, pivot: [number, number, number], size: [number, number, number], openAxis: "x" | "y", openAngle: number, bodyMat: THREE.Material, lidMat: THREE.Material) => {
-    out[kind] = { body: body.build(), lid: lid.build(pivot[0], pivot[1], pivot[2]), bodyMat, lidMat, size, lidPivot: pivot, openAxis, openAngle }
+    out[kind] = { body: body.build(), lid: lid.build(pivot[0], pivot[1], pivot[2]), low: LOW[kind]().build(), bodyMat, lidMat, size, lidPivot: pivot, openAxis, openAngle }
+  }
+  // distant stand-ins (closed silhouette in the main colour, a few dozen triangles)
+  const LOW: Record<ContainerKind, () => Shape> = {
+    crate: () => new Shape().box(1.25, 0.66, 0.85, 0, 0.33, 0, 0x48573b).box(1.25, 0.05, 0.75, 0, 0.025, 0, 0x3a3328),
+    cabinet: () => new Shape().box(0.8, 1.92, 0.5, 0, 0.96, 0, 0x5f6a74),
+    fridge: () => new Shape().box(0.75, 1.8, 0.74, 0, 0.9, 0.02, 0xdcdcd4),
+    toolbox: () => new Shape().box(0.62, 0.36, 0.31, 0, 0.18, 0, 0xa02f29),
+    weaponcase: () => new Shape().box(1.32, 0.32, 0.46, 0, 0.16, 0, 0x262a2e),
+    medcab: () => { const l = new Shape().box(0.7, 0.8, 0.32, 0, 1.4, 0.01, 0xe3e6e3); for (const x of [-0.31, 0.31]) l.box(0.03, 1.0, 0.27, x, 0.5, 0, 0xb8bcbc); return l },
+    safe: () => new Shape().box(0.7, 0.8, 0.72, 0, 0.4, 0.03, 0x3e4945),
+    duffel: () => new Shape().add(new THREE.CapsuleGeometry(0.22, 0.6, 2, 6).rotateZ(half).scale(1, 0.9, 0.95), 0x3f4a35, 0, 0.2, 0),
   }
 
   // ── military supply crate: olive wood with skids, bands, steel corners, rope handles, stencil plate, latches
@@ -348,69 +359,91 @@ export function airdropModel(): THREE.Group {
   return g
 }
 
-/** Containers are instanced per kind and per map cell of this size, so cells outside the view are frustum culled. */
-const CELL = 48
+/** Containers closer than this to the viewer use the detailed model (with opening lids), the rest a simple stand-in. */
+const LOD_NEAR = 42
+/** Viewer movement that triggers re-sorting the containers into near and far. */
+const LOD_STEP = 2
+/** Stand-ins beyond this distance are not drawn at all (fog covers them). */
+const DRAW_FAR = 260
 
-/** All containers of a raid, drawn with instancing. */
+interface KindMesh { refs: ContainerRef[]; body: THREE.InstancedMesh; lid: THREE.InstancedMesh; low: THREE.InstancedMesh }
+
+/** All containers of a raid, drawn with instancing: per kind one detailed body + lid set for nearby containers and one stand-in set for the rest. */
 export class ContainerField {
   readonly group = new THREE.Group()
   readonly list: ContainerRef[] = []
   private parts = kindParts()
-  private meshes: { body: THREE.InstancedMesh; lid: THREE.InstancedMesh }[] = []
-  private meshOf = new Map<ContainerRef, { body: THREE.InstancedMesh; lid: THREE.InstancedMesh }>()
+  private kinds = new Map<ContainerKind, KindMesh>()
+  /** Instance slot of a container in its kind's detailed meshes (-1 = drawn as stand-in or not at all). */
+  private slot = new Map<ContainerRef, number>()
+  /** Eased lid/door opening 0..1 of opened containers. */
+  private openness = new Map<ContainerRef, number>()
   private openAnim = new Map<ContainerRef, number>()
+  private lastViewer: THREE.Vector3 | null = null
 
   constructor(parent: THREE.Object3D, spots: { spot: LootSpot; items: BagSlot[] }[]) {
-    const groups = new Map<string, { spot: LootSpot; items: BagSlot[] }[]>()
-    for (const s of spots) {
-      const key = `${s.spot.container}|${Math.floor(s.spot.x / CELL)}|${Math.floor(s.spot.z / CELL)}`
-      if (!groups.has(key)) groups.set(key, []); groups.get(key)!.push(s)
+    const byKind = new Map<ContainerKind, { spot: LootSpot; items: BagSlot[] }[]>()
+    for (const s of spots) { const k = s.spot.container; if (!byKind.has(k)) byKind.set(k, []); byKind.get(k)!.push(s) }
+    for (const [kind, list] of byKind) {
+      const p = this.parts[kind], n = list.length
+      const body = new THREE.InstancedMesh(p.body, p.bodyMat, n), lid = new THREE.InstancedMesh(p.lid, p.lidMat, n), low = new THREE.InstancedMesh(p.low, p.bodyMat, n)
+      body.castShadow = body.receiveShadow = lid.castShadow = low.castShadow = low.receiveShadow = true
+      const refs = list.map(({ spot, items }, i): ContainerRef => ({ index: i, kind, position: new THREE.Vector3(spot.x, spot.y ?? 0, spot.z), yaw: spot.yaw ?? 0, searched: false, opened: false, items, name: CONTAINER_NAMES[kind], tier: spot.tier }))
+      this.list.push(...refs)
+      this.kinds.set(kind, { refs, body, lid, low })
+      this.group.add(body, lid, low)
     }
-    for (const list of groups.values()) {
-      const kind = list[0].spot.container, p = this.parts[kind]
-      const body = new THREE.InstancedMesh(p.body, p.bodyMat, list.length), lid = new THREE.InstancedMesh(p.lid, p.lidMat, list.length)
-      body.castShadow = body.receiveShadow = lid.castShadow = true
-      const entry = { body, lid }
-      list.forEach(({ spot, items }, i) => {
-        const ref: ContainerRef = { index: i, kind, position: new THREE.Vector3(spot.x, spot.y ?? 0, spot.z), yaw: spot.yaw ?? 0, searched: false, opened: false, items, name: CONTAINER_NAMES[kind], tier: spot.tier }
-        this.list.push(ref); this.meshOf.set(ref, entry)
-        body.setMatrixAt(i, _m.compose(ref.position, _q.setFromAxisAngle(_yAxis, ref.yaw), _one))
-        this.writeLid(lid, ref, 0)
-      })
-      body.instanceMatrix.needsUpdate = lid.instanceMatrix.needsUpdate = true
-      body.computeBoundingSphere(); lid.computeBoundingSphere()
-      this.group.add(body, lid)
-      this.meshes.push(entry)
-    }
+    this.relod(null)
     parent.add(this.group)
   }
 
-  private writeLid(lid: THREE.InstancedMesh, ref: ContainerRef, open: number): void {
+  /** Sorts every container into the detailed (near the viewer) or stand-in instances; without a viewer all are detailed. */
+  private relod(viewer: THREE.Vector3 | null): void {
+    for (const k of this.kinds.values()) {
+      let near = 0, far = 0
+      for (const ref of k.refs) {
+        const d = viewer ? Math.hypot(ref.position.x - viewer.x, ref.position.z - viewer.z) : 0
+        _m.compose(ref.position, _q.setFromAxisAngle(_yAxis, ref.yaw), _one)
+        if (d < LOD_NEAR) { k.body.setMatrixAt(near, _m); this.slot.set(ref, near); this.writeLid(k.lid, ref, near); near++ }
+        else { this.slot.set(ref, -1); if (d < DRAW_FAR) k.low.setMatrixAt(far++, _m) }
+      }
+      k.body.count = k.lid.count = near; k.low.count = far
+      k.body.visible = k.lid.visible = near > 0; k.low.visible = far > 0
+      for (const mesh of [k.body, k.lid, k.low]) { mesh.instanceMatrix.needsUpdate = true; mesh.computeBoundingSphere() }
+    }
+  }
+
+  private writeLid(lid: THREE.InstancedMesh, ref: ContainerRef, slot: number): void {
     const p = this.parts[ref.kind]
     _q.setFromAxisAngle(_yAxis, ref.yaw)
     _v.set(p.lidPivot[0], p.lidPivot[1], p.lidPivot[2]).applyQuaternion(_q).add(ref.position)
-    _q2.setFromAxisAngle(p.openAxis === "x" ? _xAxis : _yAxis, p.openAngle * open)
+    _q2.setFromAxisAngle(p.openAxis === "x" ? _xAxis : _yAxis, p.openAngle * (this.openness.get(ref) ?? 0))
     _q.multiply(_q2)
-    lid.setMatrixAt(ref.index, _m.compose(_v, _q, _one))
+    lid.setMatrixAt(slot, _m.compose(_v, _q, _one))
   }
 
   /** Marks as opened (lid/door animates open). */
   open(ref: ContainerRef): void { if (!ref.opened) { ref.opened = true; this.openAnim.set(ref, 0) } }
 
-  update(dt: number): void {
+  /** Animates opening lids; with a viewer, keeps the near/far split up to date. */
+  update(dt: number, viewer?: THREE.Vector3): void {
+    if (viewer && (!this.lastViewer || this.lastViewer.distanceToSquared(viewer) > LOD_STEP * LOD_STEP)) {
+      this.lastViewer = (this.lastViewer ?? new THREE.Vector3()).copy(viewer)
+      this.relod(viewer)
+    }
     for (const [ref, t] of this.openAnim) {
       const k = Math.min(1, t + dt * 3)
-      const m = this.meshOf.get(ref)!
-      this.writeLid(m.lid, ref, 1 - (1 - k) ** 3)
-      m.lid.instanceMatrix.needsUpdate = true
-      if (k >= 1) { this.openAnim.delete(ref); m.lid.computeBoundingSphere() } else this.openAnim.set(ref, k)
+      this.openness.set(ref, 1 - (1 - k) ** 3)
+      const s = this.slot.get(ref) ?? -1, km = this.kinds.get(ref.kind)!
+      if (s >= 0) { this.writeLid(km.lid, ref, s); km.lid.instanceMatrix.needsUpdate = true; if (k >= 1) km.lid.computeBoundingSphere() }
+      if (k >= 1) this.openAnim.delete(ref); else this.openAnim.set(ref, k)
     }
   }
 
   dispose(): void {
     this.group.parent?.remove(this.group)
-    for (const m of this.meshes) { m.body.dispose(); m.lid.dispose() }
-    for (const p of Object.values(this.parts)) { p.body.dispose(); p.lid.dispose(); p.bodyMat.dispose(); p.lidMat.dispose() }
+    for (const m of this.kinds.values()) { m.body.dispose(); m.lid.dispose(); m.low.dispose() }
+    for (const p of Object.values(this.parts)) { p.body.dispose(); p.lid.dispose(); p.low.dispose(); p.bodyMat.dispose(); p.lidMat.dispose() }
   }
 }
 

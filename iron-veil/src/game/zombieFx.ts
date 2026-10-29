@@ -5,6 +5,7 @@
  * Visual randomness uses an internal LCG so runs stay deterministic.
  */
 import * as THREE from "three"
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js"
 import type { CollisionWorld } from "./collision"
 import type { Vec3 } from "./types"
 
@@ -93,7 +94,7 @@ export class InfectedFx {
   constructor(parent: THREE.Object3D) {
     this.group.name = "Infizierte-Effekte"
     this.group.add(this.dustP.points, this.glowP.points)
-    const blobGeo = new THREE.IcosahedronGeometry(0.12, 1), blobMat = new THREE.MeshBasicMaterial({ color: 0xb4ff5c })
+    const blobGeo = acidGlob(), blobMat = new THREE.MeshBasicMaterial({ vertexColors: true })
     const puddleGeo = jaggedDisc(), puddleMat = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.82, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 })
     const ringGeo = new THREE.RingGeometry(0.86, 1, 48)
     this.disposables.push(blobGeo, blobMat, puddleGeo, puddleMat, ringGeo)
@@ -196,8 +197,9 @@ export class InfectedFx {
         if (b.y <= 0.02) this.puddleAt(b.x, 0, b.z, b.source)
         continue
       }
-      b.mesh.position.set(b.x, b.y, b.z)
-      b.mesh.rotation.x += dt * 9; b.mesh.rotation.y += dt * 7
+      // the glob points along its flight (droplets trail behind) and wobbles
+      b.mesh.position.set(b.x, b.y, b.z); b.mesh.lookAt(_look.set(b.x + b.vx, b.y + b.vy, b.z + b.vz))
+      const w = 1 + Math.sin(b.age * 31) * 0.13; b.mesh.scale.set(w, 2 - w, 1.12)
     }
     for (const p of this.puddles) {
       if (!p.active) continue
@@ -243,6 +245,27 @@ export class InfectedFx {
 }
 
 /** Unit acid puddle: irregular edge, bright centre fading to a dark rim (vertex colours). */
+const _look = new THREE.Vector3()
+
+/** Spat acid: a lumpy glowing glob (bright core, darker bile patches) with three droplets trailing along -Z. */
+function acidGlob(): THREE.BufferGeometry {
+  const hot = new THREE.Color(0xd2ff72), bile = new THREE.Color(0x5e8a1a), c = new THREE.Color(), parts: THREE.BufferGeometry[] = []
+  const lump = (r: number, x: number, y: number, z: number, seed: number, detail: number) => {
+    const g = new THREE.IcosahedronGeometry(r, detail), p = g.attributes.position, col = new Float32Array(p.count * 3)
+    for (let i = 0; i < p.count; i++) {
+      const vx = p.getX(i) / r, vy = p.getY(i) / r, vz = p.getZ(i) / r
+      const n = Math.sin(vx * 4.1 + seed) * Math.cos(vy * 3.7 + seed * 2) * Math.sin(vz * 2.9 + seed * 3)
+      const k = 1 + 0.2 * n; p.setXYZ(i, p.getX(i) * k + x, p.getY(i) * k + y, p.getZ(i) * k + z)
+      c.copy(hot).lerp(bile, Math.min(1, Math.max(0, 0.45 - n * 1.4))); col[i * 3] = c.r; col[i * 3 + 1] = c.g; col[i * 3 + 2] = c.b
+    }
+    g.setAttribute("color", new THREE.BufferAttribute(col, 3)); g.deleteAttribute("uv"); parts.push(g)
+  }
+  lump(0.12, 0, 0, 0, 1, 2); lump(0.05, 0.04, 0.02, -0.13, 2, 1); lump(0.034, -0.03, -0.02, -0.21, 3, 1); lump(0.022, 0.012, 0.01, -0.28, 4, 0)
+  const g = mergeGeometries(parts, false)!; for (const p of parts) p.dispose()
+  g.computeVertexNormals(); g.computeBoundingSphere()
+  return g
+}
+
 function jaggedDisc(): THREE.BufferGeometry {
   const seg = 28, pos: number[] = [0, 0, 0], col: number[] = [0.62, 1, 0.22], idx: number[] = []
   let s = 777
