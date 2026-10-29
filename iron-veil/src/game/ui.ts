@@ -511,7 +511,7 @@ export class GameUI {
       "enter-base": () => { this.fromBase = false; this.showPlaying(); this.handlers.enterBase() },
       radio: () => this.show("radio"), trader: () => this.show("trader"), inventory: () => this.show("inventory"), armory: () => this.show("armory"), crafting: () => this.show("crafting"),
       build: () => this.show("build"),
-      "build-structure": () => this.result(this.company.build(id as StructureId), "build", () => this.handlers.structuresChanged()),
+      "build-structure": () => this.result(this.company.build(id as StructureId), "build_complete", () => this.handlers.structuresChanged()),
       research: () => id ? this.result(this.company.startResearch(id as ResearchId)) : this.show("research"),
       settings: () => this.show("settings"),
       intro: () => this.root.insertAdjacentHTML("beforeend", this.introCard()),
@@ -596,7 +596,7 @@ export class GameUI {
     this.handlers.settingsChanged(this.settings)
   }
 
-  private result(result: ActionResult, sound: "ui_buy" | "build" | null = null, after?: () => void): void {
+  private result(result: ActionResult, sound: "ui_buy" | "build" | "build_complete" | null = null, after?: () => void): void {
     this.notify(result.message)
     this.audio.play(result.ok ? sound ?? "ui_click" : "ui_error", { volume: 0.8 })
     if (result.ok) after?.()

@@ -14,7 +14,7 @@ import { EnemyManager } from "./enemies"
 import { GameLoop } from "./engine"
 import { GoreSystem } from "./gore"
 import { GRENADE_DAMAGE, GRENADE_RADIUS, GrenadeSystem, type ThrowableKind } from "./grenades"
-import type { DamageInfo, Hostile, HostileHit, HostileManager, HitPart, PlayerState, ShotEvent, AttackEvent, HostileSound } from "./hostiles"
+import type { DamageInfo, DamageResult, Hostile, HostileHit, HostileManager, HitPart, PlayerState, ShotEvent, AttackEvent, HostileSound } from "./hostiles"
 import { INFECTED, type InfectedKind } from "./infectedData"
 import { Input } from "./input"
 import { ITEMS, type ItemId } from "./items"
@@ -27,7 +27,7 @@ import { ViewModel } from "./viewmodel"
 import { AMMO, WEAPONS, effectiveWeapon, type AmmoId, type WeaponId } from "./weaponData"
 import { WeaponRuntime, coneOffset, damageAt, type AmmoSource } from "./weapons"
 import { createWorld, type World } from "./world"
-import { InfectedManager } from "./zombies"
+import { GORE_RULES, InfectedManager } from "./zombies"
 import type { BaseLayout, ExtractionDef, ObjectiveAnchor, StationId, ZoneLayout } from "./zone"
 import { BACKPACKS, CARRY_LIMIT } from "./items"
 
@@ -598,6 +598,7 @@ export class RaidGame {
         const sever = def.cls === "shotgun" && close ? 0.45 : def.cls === "sniper" ? 0.6 : def.cls === "dmr" || def.cls === "battle" ? 0.25 : def.damage >= 55 ? 0.2 : 0
         const r = owner.applyDamage(hit, { amount, from: p.pos, dir: _dir, penetration: def.penetration, kind: def.pellets > 1 ? "pellet" : "bullet", sever })
         hitAny = true; head = head || hit.part === "head"
+        this.goreSound(r, hit)
         if (r.severed) this.stats.dismembered++
         if (r.killed) killed = true
       } else if (wall && wall.distance <= groundT) {
@@ -654,6 +655,7 @@ export class RaidGame {
       const amount = def.damage * (hit.part === "head" ? 1.5 : 1) * (this.player.vitals.boost > 0 ? 1.2 : 1)
       const r = owner.applyDamage(hit, { amount, from: p.pos, dir: _aim.fwd, penetration: 0.3, kind: "melee", sever: def.sever })
       any = true
+      this.goreSound(r, hit)
       if (r.severed) this.stats.dismembered++
       if (r.killed) this.killMarker = 0.4
     }
@@ -663,6 +665,14 @@ export class RaidGame {
       if (wall) { this.sfx("melee_hit_wall", { position: _end.copy(origin).addScaledVector(_aim.fwd, wall.distance) }); this.effects.impact(_end, wall.normal, "concrete", false) }
     }
     this.noise(p.pos, 5)
+  }
+
+  /** Wet, crunchy feedback for severed limbs and burst heads (only with gore enabled). */
+  private goreSound(r: DamageResult, hit: HostileHit): void {
+    if (this.settings.gore === "off") return
+    if (this.settings.gore === "brutal" && r.headshotKill && r.dealt >= GORE_RULES.headBurst) this.sfx("gore_burst", { position: hit.point, volume: 0.9 })
+    else if (r.severed) { this.sfx("bone_crack", { position: hit.point }); this.sfx("gore_splat", { position: hit.point, volume: 0.8 }) }
+    else if (r.killed && this.rng() < 0.5) this.sfx("gore_splat", { position: hit.point, volume: 0.5 })
   }
 
   /** Every death of a hostile counts (bullets, melee, explosions, fire, bleeding out after losing a limb). */
@@ -798,7 +808,9 @@ export class RaidGame {
     this.effects.explosion(p)
     this.sfx("explosion", { position: p })
     const center = { x: p.x, y: p.y + 0.4, z: p.z }
-    for (const h of this.hostiles) h.applyExplosion(center, GRENADE_RADIUS, GRENADE_DAMAGE)
+    let close = 0
+    for (const h of this.hostiles) for (const t of h.applyExplosion(center, GRENADE_RADIUS, GRENADE_DAMAGE)) if (Math.hypot(t.position.x - p.x, t.position.z - p.z) < GORE_RULES.gibRadius) close++
+    if (close && this.settings.gore === "brutal") { this.sfx("gore_burst", { position: center, volume: 1 }); window.setTimeout(() => this.sfx("gib_land", { position: center }), 450) }
     this.noise(p, 70)
     const d = Math.hypot(this.player.pos.x - p.x, this.player.pos.z - p.z)
     if (this.isControlled) {
