@@ -436,7 +436,6 @@ export class RaidGame {
       if (this.input.consumeAction("Tab")) { this.openOverlay(); this.callbacks.onInventory(); return }
       if (this.mode !== "base" && this.input.consumeAction("KeyM")) { this.openOverlay(); this.callbacks.onMap(); return }
       if (fight) this.handleCombatKeys()
-      else this.input.clearActions()
     }
 
     const step = this.player.update(dt, this.overlay ? NO_INPUT as unknown as Input : this.input, {
@@ -460,6 +459,8 @@ export class RaidGame {
       if (lost > 0.5 * dt && this.player.vitals.bleed !== "none" && this.rng() < dt * 0.6) this.gore.wound({ x: this.player.pos.x, y: 0.9, z: this.player.pos.z }, { x: 0, y: -1, z: 0 }, 6)
     }
     this.updateInteraction(dt)
+    // in the base only E (stations) is used; other key presses must not pile up for the next raid
+    if (!fight) this.input.clearActions()
     if (raid) { this.updateExtraction(dt); if (this.mode !== "raid") return; this.updateAirdrop(dt); this.updateBoss(); this.updateArea() }
     if (this.mode === "defense") { this.updateDefense(dt); if (this.mode !== "defense") return }
     this.effects.update(dt, _camPos.set(this.player.pos.x, this.player.eye, this.player.pos.z))
@@ -619,7 +620,7 @@ export class RaidGame {
     p.punch.x += kickP * 0.35; p.punch.y += kickY * 0.35
     this.viewModel.fire()
     if (!suppressed) this.effects.muzzleFlash(muzzle, def.cls === "shotgun" ? 1.6 : def.cls === "pistol" ? 0.7 : 1)
-    this.audio.play(`shot_${def.id}` as SfxId, { suppressed } as never)
+    this.audio.play(`shot_${def.id}` as SfxId, { suppressed })
     if (def.manualAction) window.setTimeout(() => this.sfx(def.cls === "shotgun" ? "pump" : "bolt_cycle"), 280)
     if (this.settings.screenShake) this.shake = Math.min(0.6, this.shake + (def.cls === "shotgun" || def.cls === "sniper" ? 0.25 : def.cls === "dmr" || def.cls === "battle" ? 0.15 : 0.05))
     this.noise(_origin, def.noise)
@@ -865,7 +866,10 @@ export class RaidGame {
       v.infection = Math.min(100, v.infection + a.infection * (this.company.has("immunology") ? 0.6 : 1))
       if (v.infection >= 30 && !this.hintsShown.has("infection")) this.showHint("infection", "Infektion steigt! Antivirales Serum senkt sie. Bei 100 % verlieren Sie Gesundheit.", 7)
     }
-    if (a.kind !== "acid") this.gore.wound({ x: this.player.pos.x, y: this.player.eye - 0.5, z: this.player.pos.z }, { x: this.player.pos.x - a.source.position.x, y: 0, z: this.player.pos.z - a.source.position.z }, a.damage)
+    if (a.kind !== "acid") {
+      const dx = this.player.pos.x - a.source.position.x, dz = this.player.pos.z - a.source.position.z, len = Math.hypot(dx, dz) || 1
+      this.gore.wound({ x: this.player.pos.x, y: this.player.eye - 0.5, z: this.player.pos.z }, { x: dx / len, y: 0, z: dz / len }, a.damage)
+    }
     if (this.settings.gore !== "off") this.screenBlood?.(Math.min(1, a.damage / 30))
   }
 
