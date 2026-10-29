@@ -208,6 +208,48 @@ function extraSolid(ctx: BuildCtx, s: MapSolid): boolean {
       ctx.weeds.push([s.x, s.z, 1], [s.x + (alongX ? L * 0.3 : 0.6), s.z + (alongX ? 0.6 : L * 0.3), 0.9])
       return true
     }
+    case "litfass": {
+      const r = Math.min(s.w, s.d) / 2 - 0.05
+      place(ctx.B("plaster"), t.cyl16, s.x, y0 + s.h * 0.45, s.z, 0, 0, 0, r, s.h * 0.9, r, tint(0xd8d2c0), [Math.PI * 2 * r, s.h])
+      place(metal, t.cyl16, s.x, y0 + s.h * 0.92, s.z, 0, 0, 0, r + 0.08, 0.14, r + 0.08, tint(0x2a4a3a))
+      place(metal, t.dome, s.x, y0 + s.h * 0.92, s.z, 0, 0, 0, r * 0.9, r * 0.6, r * 0.9, tint(0x2a4a3a))
+      place(metal, t.cyl16, s.x, y0 + 0.1, s.z, 0, 0, 0, r + 0.06, 0.2, r + 0.06, tint(0x2a4a3a))
+      for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2 + 0.4, f: Side = (["s", "e", "n", "w"] as Side[])[i]; decal(ctx, `logo${i}`, s.x + Math.sin(a) * (r + 0.02), 0.6, s.z + Math.cos(a) * (r + 0.02), r * 1.2, 1.1, f, [0x8a3a2a, 0x2d557f, 0x3f6c48, 0xc69c2c][i]) }
+      return true
+    }
+    case "phonebox": {
+      const c = tint(0xd8b030), glass = ctx.B("glass")
+      metal.box(x0, y0, z0, x1, y0 + 0.12, z1, { color: tint(0x5a5e62) })
+      for (const [px, pz] of [[x0, z0], [x1 - 0.08, z0], [x0, z1 - 0.08], [x1 - 0.08, z1 - 0.08]]) metal.box(px, y0, pz, px + 0.08, y1 - 0.25, pz + 0.08, { color: c, ao: 0 })
+      glass.box(x0 + 0.04, y0 + 0.12, z0 + 0.04, x1 - 0.04, y1 - 0.25, z1 - 0.04, { color: tint(0x8a9aa4), local: true, ao: 0, skip: 4 | 8 })
+      metal.box(x0 - 0.03, y1 - 0.25, z0 - 0.03, x1 + 0.03, y1, z1 + 0.03, { color: tint(0x7a7e82), ao: 0 })
+      decal(ctx, textKey(ctx, 3, "TELEFON"), s.x, y1 - 0.22, z1 + 0.04, s.w - 0.1, 0.18, "s")
+      return true
+    }
+    case "shelter": {
+      const glass = ctx.B("glass"), steel = tint(0x4a4e52), back = alongX ? z0 : x0
+      if (alongX) {
+        glass.box(x0, 0.1, z0, x1, s.h - 0.15, z0 + 0.04, { color: tint(0x9aaab4), local: true, ao: 0 })
+        for (const x of [x0, x1 - 0.04]) glass.box(x, 0.1, z0, x + 0.04, s.h - 0.15, z1 - 0.3, { color: tint(0x9aaab4), local: true, ao: 0 })
+        metal.box(x0 - 0.1, s.h - 0.15, z0 - 0.1, x1 + 0.1, s.h, z1 + 0.05, { color: steel, ao: 0 })
+        for (const x of [x0, x1 - 0.06]) for (const z of [z0, z1 - 0.06]) metal.box(x, 0, z, x + 0.06, s.h - 0.15, z + 0.06, { color: steel, ao: 0 })
+        ctx.B("plank").box(x0 + 0.3, 0.45, z0 + 0.08, x1 - 0.3, 0.5, z0 + 0.45, { color: tint(0x6a5038), ao: 0 })
+        decal(ctx, "logo1", s.x, 0.6, z0 + 0.06, s.w * 0.4, 1.4, "s", 0x8a3a2a)
+      } else {
+        glass.box(x0, 0.1, z0, x0 + 0.04, s.h - 0.15, z1, { color: tint(0x9aaab4), local: true, ao: 0 })
+        metal.box(x0 - 0.1, s.h - 0.15, z0 - 0.1, x1 + 0.05, s.h, z1 + 0.1, { color: steel, ao: 0 })
+        ctx.B("plank").box(x0 + 0.08, 0.45, z0 + 0.3, x0 + 0.45, 0.5, z1 - 0.3, { color: tint(0x6a5038), ao: 0 })
+      }
+      void back
+      place(metal, t.cyl8, alongX ? x1 + 0.4 : s.x, 1.3, alongX ? z1 : z1 + 0.4, 0, 0, 0, 0.04, 2.6, 0.04, 0x8a8e92)
+      decal(ctx, textKey(ctx, 4, "H"), alongX ? x1 + 0.4 : s.x, 2.3, (alongX ? z1 : z1 + 0.4) + 0.05, 0.5, 0.5, "s")
+      return true
+    }
+    case "bin": {
+      place(metal, t.cyl12, s.x, y0 + s.h / 2, s.z, 0, 0, 0, Math.min(s.w, s.d) / 2, s.h, Math.min(s.w, s.d) / 2, tint(0x3a5a3a, 1, k))
+      place(metal, t.cyl12, s.x, y0 + s.h, s.z, 0, 0, 0, Math.min(s.w, s.d) / 2 + 0.03, 0.05, Math.min(s.w, s.d) / 2 + 0.03, tint(0x2a2c2e))
+      return true
+    }
     case "tentbox": {
       tent(ctx, s.x, s.z, s.w, s.d, s.h, s.tint ?? 0x5a6340, 0)
       return true
@@ -735,6 +777,16 @@ function extraProp(ctx: BuildCtx, p: MapProp): void {
       cb.quad([p.x, 0, p.z], [x2, 0, z2], [x2, 2 * r, z2], [p.x, 2 * r, p.z], [nx, 0, nz], [0, 0, len, 0, len, 1, 0, 1], c)
       cb.quad([p.x - nx * r, r, p.z - nz * r], [x2 - nx * r, r, z2 - nz * r], [x2 + nx * r, r, z2 + nz * r], [p.x + nx * r, r, p.z + nz * r], [0, 1, 0], [0, 0, len, 0, len, 1, 0, 1], c)
       for (let a = 0; a <= len; a += 3) ctx.inst("post", p.x + dx * a, 0, p.z + dz * a, 0, [1, 1.1, 1], 0x5a5e62)
+      return
+    }
+    case "berm": {
+      // earth mound over a rock/bunker box: grass top and sloped ends (visual)
+      const w = p.w ?? 8, d = p.d ?? 30, h = p.h ?? 6, x0 = p.x - w / 2, x1 = p.x + w / 2, z0 = p.z - d / 2, z1 = p.z + d / 2, sl = 3.5
+      const g = ctx.B("g:grass"), c = tint(0x9aa078, 1, 0.9)
+      g.quad([x0, h + 0.05, z1], [x1, h + 0.05, z1], [x1, h + 0.05, z0], [x0, h + 0.05, z0], [0, 1, 0], [x0, -z1, x1, -z1, x1, -z0, x0, -z0], c)
+      g.quad([x0, h + 0.05, z0], [x1, h + 0.05, z0], [x1, 0, z0 - sl], [x0, 0, z0 - sl], [0, 0.6, -0.8], [x0, 0, x1, 0, x1, 6, x0, 6], c)
+      g.quad([x1, h + 0.05, z1], [x0, h + 0.05, z1], [x0, 0, z1 + sl], [x1, 0, z1 + sl], [0, 0.6, 0.8], [x1, 0, x0, 0, x0, 6, x1, 6], c)
+      for (let i = 0; i < 18; i++) ctx.weeds.push([x0 + ctx.rng() * w, z0 + ctx.rng() * d, 1.2])
       return
     }
     case "sticker": { decal(ctx, p.text ?? "door", p.x, p.y ?? 0, p.z, p.w ?? 1, p.h ?? 1, p.face ?? "s"); return }

@@ -79,7 +79,7 @@ export type UberVariant = "opaque" | "cut" | "far" | "farcut"
 export function uberMaterial(layers: { value: THREE.Texture | null }, variant: UberVariant, high: boolean): THREE.MeshStandardMaterial {
   const cut = variant === "cut" || variant === "farcut", far = variant === "far" || variant === "farcut"
   const m = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0, side: cut ? THREE.DoubleSide : THREE.FrontSide })
-  if (cut) { m.alphaTest = 0.42; m.alphaToCoverage = high }
+  if (cut) m.alphaTest = 0.42
   m.onBeforeCompile = shader => {
     shader.uniforms.layers = layers
     shader.vertexShader = shader.vertexShader
@@ -92,8 +92,13 @@ export function uberMaterial(layers: { value: THREE.Texture | null }, variant: U
       .replace("#include <metalnessmap_fragment>", "float metalnessFactor = vSurf.z;")
     // cut-outs (foliage cards, fences, wire) keep their authored normal on both sides instead of flipping it
     if (cut) shader.fragmentShader = shader.fragmentShader.replace("#include <normal_fragment_begin>", "#include <normal_fragment_begin>\n#ifdef DOUBLE_SIDED\n normal *= faceDirection;\n#endif")
-    if (far) shader.fragmentShader = shader.fragmentShader.replace("#include <fog_fragment>",
-      "#ifdef USE_FOG\n float fogFactor = min(smoothstep(fogNear, fogFar * 2.6, vFogDepth), 0.9);\n gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, fogFactor);\n#endif")
+    // far variant: the higher a surface, the weaker the fog (hill crests, towers and cranes stay readable as
+    // silhouettes; their feet fog like everything else, so trees and ground nearby match)
+    if (far) {
+      shader.vertexShader = shader.vertexShader.replace("#include <common>", "#include <common>\nvarying float vWorldY;").replace("#include <fog_vertex>", "#include <fog_vertex>\nvWorldY = (modelMatrix * vec4(transformed, 1.0)).y;")
+      shader.fragmentShader = shader.fragmentShader.replace("#include <common>", "#include <common>\nvarying float vWorldY;").replace("#include <fog_fragment>",
+        "#ifdef USE_FOG\n float kH = clamp(vWorldY / 16.0, 0.0, 1.0);\n float fogFactor = min(smoothstep(fogNear, fogFar * mix(1.0, 2.6, kH), vFogDepth), mix(1.0, 0.9, kH));\n gl_FragColor.rgb = mix(gl_FragColor.rgb, fogColor, fogFactor);\n#endif")
+    }
   }
   m.customProgramCacheKey = () => `uber-${variant}`
   return m

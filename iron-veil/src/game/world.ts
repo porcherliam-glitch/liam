@@ -29,7 +29,7 @@ import { createExtractions } from "./extraction"
 import { computeCoverPoints, type BuildingInfo, type Doorway, type MapProp, type MapSolid } from "./maps"
 import { ConeBatch, GeoBatch, GlowBatch, PoolBatch, coneMaterial, raw, type FxUniforms } from "./meshkit"
 import { NavGrid } from "./nav"
-import { buildBuildingDetails, buildFences, buildProp, buildSolid, disposeTemplates, emitDecals, emitWindows, textKey, type BuildCtx, type InstKind, type PropLook } from "./props"
+import { buildBuildingDetails, buildFences, buildProp, buildSolid, disposeTemplates, emitDecals, emitWindows, place, textKey, type BuildCtx, type InstKind, type PropLook } from "./props"
 import { createSky, createWater, type SkySpec, type WaterSpec } from "./sky"
 import { TEX, decalAtlas, mulberry, textDecal, textureCanvas, windowCanvases, type TexName } from "./textures"
 import type { Surface, ThemeId } from "./types"
@@ -91,7 +91,7 @@ const LOOKS: Record<TimeOfDay, Look> = {
     sky: { zenith: 0x2a3550, mid: 0x7c7896, horizon: 0xdca07e, glow: 0xffb070, fog: 0xc98d72, sunDir: [0.86, 0.14, -0.3], sunColor: 0xffd8b0, sunSize: 0.026, sunVisible: 1, glowStrength: 0.9, moon: false, stars: 0.12, clouds: 0.45, cloudColor: 0x6a5a6e, cloudLit: 0xffa878 },
     fog: [40, 190], exposure: 1.1, light: 0.6,
     sun: { color: 0xffc7a0, intensity: 1.6 }, hemi: { sky: 0x9aa6c0, ground: 0x5a4a40, intensity: 1.2 },
-    props: { night: 0.35, lamps: 0.45, lampColor: 0xffc27a, windowLit: 0.02, shafts: 0.4 }, windowGlow: 0.9, lampI: 12, foliage: 0xcfc6a0,
+    props: { night: 0.35, lamps: 0.45, lampColor: 0xffc27a, windowLit: 0.02, shafts: 0 }, windowGlow: 0.9, lampI: 12, foliage: 0xcfc6a0,
     water: { deep: 0x1c2430, skyLow: 0xc99a80, skyHigh: 0x4a5878, glow: 0xffa060, glowDir: [0.9, -0.3], lampColor: 0xffb060 },
   },
   day: {
@@ -105,7 +105,7 @@ const LOOKS: Record<TimeOfDay, Look> = {
     sky: { zenith: 0x2a3d6e, mid: 0x8c7aa6, horizon: 0xf0a77c, glow: 0xffb45e, fog: 0xc9958a, sunDir: [-0.86, 0.2, 0.47], sunColor: 0xfff2c8, sunSize: 0.028, sunVisible: 1, glowStrength: 1, moon: false, stars: 0, clouds: 0.55, cloudColor: 0x6e5c7c, cloudLit: 0xffa070 },
     fog: [50, 210], exposure: 1.05, light: 0.8,
     sun: { color: 0xffb27a, intensity: 2.8 }, hemi: { sky: 0x9aa8d6, ground: 0x6a5446, intensity: 1.5 },
-    props: { night: 0.15, lamps: 0.75, lampColor: 0xffc27a, windowLit: 0.04, shafts: 0.3 }, windowGlow: 1.1, lampI: 16, foliage: 0xe6dca0,
+    props: { night: 0.15, lamps: 0.75, lampColor: 0xffc27a, windowLit: 0.04, shafts: 0 }, windowGlow: 1.1, lampI: 16, foliage: 0xe6dca0,
     water: { deep: 0x1a2030, skyLow: 0xd09a84, skyHigh: 0x3a4a78, glow: 0xffa060, glowDir: [-0.9, 0.45], lampColor: 0xffa040 },
   },
   night: {
@@ -139,16 +139,22 @@ interface Env {
 class Builder {
   near = new Map<string, GeoBatch>(); far = new Map<string, GeoBatch>(); farMode = false
   glow = new GlowBatch(); pool = new PoolBatch(); cone = new ConeBatch()
-  instances = new Map<InstKind, Array<{ m: THREE.Matrix4; c: number }>>()
+  private tpl = new Map<InstKind, THREE.BufferGeometry>()
   ctx: BuildCtx
   constructor(data: { props: readonly MapProp[]; buildings: readonly BuildingInfo[]; doorways: readonly Doorway[] }, look: PropLook, high: boolean, seed: number, lit: (x: number, z: number) => number) {
     this.ctx = {
       data, look, high, rng: mulberry(seed), lit, lampSpots: [],
       B: key => { const m = this.farMode && !GLOBAL_KEYS.has(key) ? this.far : this.near; let b = m.get(key); if (!b) { b = new GeoBatch(); m.set(key, b) } return b },
       glow: this.glow, pool: this.pool, cone: this.cone,
+      // small repeated props are merged into the chunk geometry (culled with their chunk, no extra draw calls)
       inst: (kind, x, y, z, ry, s, color, rx = 0) => {
-        let list = this.instances.get(kind); if (!list) { list = []; this.instances.set(kind, list) }
-        list.push({ m: new THREE.Matrix4().compose(new THREE.Vector3(x, y, z), new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, ry, 0)), new THREE.Vector3(...s)), c: color })
+        if (kind === "post" || kind === "chainpost") {
+          const r = kind === "post" ? 0.035 : 0.05
+          this.ctx.B("metal").box(x - r * s[0], y, z - r * s[2], x + r * s[0], y + s[1], z + r * s[2], { color, ao: 0, skip: 8 | 4, local: true })
+          return
+        }
+        let g = this.tpl.get(kind); if (!g) { g = INST_GEO[kind](high); this.tpl.set(kind, g) }
+        place(this.ctx.B(kind === "sandbag" ? "burlap" : "metal"), g, x, y, z, rx, ry, 0, s[0], s[1], s[2], color)
       },
       decals: [], texts: new Map(), windows: [], lines: [], searchlights: [], radars: [], weeds: [],
     }
@@ -156,6 +162,7 @@ class Builder {
   solids(list: readonly MapSolid[]): void { for (const s of list) { this.farMode = !!s.far; buildSolid(this.ctx, s) } this.farMode = false }
   props(list: readonly MapProp[]): void { for (const p of list) { this.farMode = !!p.far; buildProp(this.ctx, p) } this.farMode = false }
   details(): void { buildFences(this.ctx); buildBuildingDetails(this.ctx) }
+  disposeTemplates(): void { for (const g of this.tpl.values()) g.dispose(); this.tpl.clear() }
 
   /** Turns the batches into meshes: chunked opaque/cut-out, far landmark meshes and the global effect meshes. */
   meshes(env: Env, chunkSize: number): { chunks: Array<{ cx: number; cz: number; mesh: THREE.Mesh }>; globals: THREE.Object3D[] } {
@@ -190,19 +197,7 @@ class Builder {
       if (key === "decal") mesh.renderOrder = 1
       globals.push(mesh)
     }
-    // instanced small props
-    for (const [kind, list] of this.instances) {
-      const tex: TexName = kind === "sandbag" ? "burlap" : "metal", info = keyInfo(kind === "sandbag" ? "burlap" : "metal")
-      const g = env.own(uberize(INST_GEO[kind](env.high), env.layers.layer(tex), info, 1 / TEX[tex][0], 1 / TEX[tex][1]))
-      const mesh = new THREE.InstancedMesh(g, env.mats.opaque, list.length)
-      const c = new THREE.Color()
-      list.forEach((it, i) => { mesh.setMatrixAt(i, it.m); mesh.setColorAt(i, c.set(it.c)) })
-      mesh.instanceMatrix.needsUpdate = true
-      mesh.castShadow = env.high && kind !== "post"; mesh.receiveShadow = env.high
-      mesh.computeBoundingSphere()
-      env.own({ dispose: () => mesh.dispose() })
-      globals.push(mesh)
-    }
+    this.disposeTemplates()
     if (this.ctx.lines.length) {
       const g = env.own(new THREE.BufferGeometry()); g.setAttribute("position", new THREE.Float32BufferAttribute(this.ctx.lines, 3))
       globals.push(new THREE.LineSegments(g, env.own(new THREE.LineBasicMaterial({ color: 0x15171a }))))
@@ -291,11 +286,11 @@ export function createWorld(kind: WorldKind, scene: THREE.Scene, quality: "high"
   const built = B.meshes(env, CHUNK)
   const lampSpots = ctx.lampSpots
   // chunk records for distance culling
-  interface ChunkRec { minX: number; maxX: number; minZ: number; maxZ: number; objects: THREE.Object3D[] }
+  interface ChunkRec { minX: number; maxX: number; minZ: number; maxZ: number; objects: THREE.Object3D[]; lods: Array<{ mesh: THREE.Mesh; hi: THREE.BufferGeometry; lo: THREE.BufferGeometry }> }
   const chunkMap = new Map<number, ChunkRec>()
   const rec = (cx: number, cz: number): ChunkRec => {
     const k = (cx + 512) * 1024 + cz + 512
-    let r = chunkMap.get(k); if (!r) { r = { minX: cx * CHUNK, maxX: (cx + 1) * CHUNK, minZ: cz * CHUNK, maxZ: (cz + 1) * CHUNK, objects: [] }; chunkMap.set(k, r) }
+    let r = chunkMap.get(k); if (!r) { r = { minX: cx * CHUNK, maxX: (cx + 1) * CHUNK, minZ: cz * CHUNK, maxZ: (cz + 1) * CHUNK, objects: [], lods: [] }; chunkMap.set(k, r) }
     return r
   }
   for (const c of built.chunks) {
@@ -314,7 +309,7 @@ export function createWorld(kind: WorldKind, scene: THREE.Scene, quality: "high"
       const cx = Math.floor(k / 1024) - 512, cz = (k % 1024) - 512, r = rec(cx, cz)
       for (const v of [0, 1, 2, 3] as const) {
         const sub = list.filter(t => t.v === v); if (!sub.length) continue
-        const mesh = new THREE.InstancedMesh(tpl[v], env.mats.opaque, sub.length)
+        const mesh = new THREE.InstancedMesh(tpl.hi[v], env.mats.opaque, sub.length)
         sub.forEach((t, i) => {
           const w = 0.85 + rng() * 0.3
           mesh.setMatrixAt(i, m4.compose(p.set(t.x, 0, t.z), q.setFromAxisAngle(UP, t.r), s.set(t.h * w, t.h, t.h * w)))
@@ -324,7 +319,7 @@ export function createWorld(kind: WorldKind, scene: THREE.Scene, quality: "high"
         mesh.instanceMatrix.needsUpdate = true; mesh.computeBoundingSphere()
         mesh.castShadow = high; mesh.receiveShadow = high
         own({ dispose: () => mesh.dispose() })
-        r.objects.push(mesh); group.add(mesh)
+        r.objects.push(mesh); r.lods.push({ mesh, hi: tpl.hi[v], lo: tpl.lo[v] }); group.add(mesh)
       }
     }
   }
@@ -439,8 +434,10 @@ export function createWorld(kind: WorldKind, scene: THREE.Scene, quality: "high"
       for (let i = 0; i < chunkList.length; i++) {
         const r = chunkList[i]
         const dx = cp.x < r.minX ? r.minX - cp.x : cp.x > r.maxX ? cp.x - r.maxX : 0, dz = cp.z < r.minZ ? r.minZ - cp.z : cp.z > r.maxZ ? cp.z - r.maxZ : 0
-        const vis = dx * dx + dz * dz < c2
+        const d2 = dx * dx + dz * dz, vis = d2 < c2
         for (let j = 0; j < r.objects.length; j++) r.objects[j].visible = vis
+        // trees: simple templates beyond ~60 m
+        for (let j = 0; j < r.lods.length; j++) { const l = r.lods[j]; l.mesh.geometry = d2 > 3600 ? l.lo : l.hi }
       }
       if (sun.castShadow) {
         camera.getWorldDirection(fwd); fwd.y = 0
@@ -601,12 +598,13 @@ function scatterWeeds(ctx: BuildCtx, g: Ground, map: ZoneMap | BaseMap, look: Lo
 
 /** Hills around the playable area (sea to the south of the zone), drawn with the far-fog material as the horizon. */
 function outerTerrain(env: Env, map: ZoneMap | BaseMap, look: Look): THREE.Mesh {
-  const b = map.bounds, inner = 10, R = 1500, step = 30
+  // the base sits in a wide clearing ringed by woods; the zone's hills rise right behind its fence
+  const b = map.bounds, inner = 10, R = 1500, step = 30, flat = map.kind === "base" ? 190 : 0
   const sea = map.kind === "zone" ? b.maxZ : Infinity
   const n = Math.round(2 * R / step)
   const pos: number[] = [], nor: number[] = [], uv: number[] = [], col: number[] = [], idx: number[] = []
   const height = (x: number, z: number) => {
-    const dx = Math.max(b.minX - inner - x, x - b.maxX - inner, 0), dz = Math.max(b.minZ - inner - z, z - b.maxZ - inner, 0), d = Math.hypot(dx, dz)
+    const dx = Math.max(b.minX - inner - x, x - b.maxX - inner, 0), dz = Math.max(b.minZ - inner - z, z - b.maxZ - inner, 0), d = Math.max(0, Math.hypot(dx, dz) - flat)
     if (z > sea + 6) return -7
     if (d < 1) return -0.06
     const hill = 14 + 26 * (0.5 + 0.5 * Math.sin(x * 0.006 + Math.sin(z * 0.004) * 3)) * (0.6 + 0.4 * Math.sin(z * 0.009 + x * 0.002))
@@ -639,7 +637,7 @@ function outerTerrain(env: Env, map: ZoneMap | BaseMap, look: Look): THREE.Mesh 
 }
 
 /** Tree templates (unit height): spruce, broadleaf, dead tree — bark + canopy layers, merged per template. */
-function treeTemplates(env: Env, look: Look): THREE.BufferGeometry[] {
+function treeTemplates(env: Env, look: Look): { hi: THREE.BufferGeometry[]; lo: THREE.BufferGeometry[] } {
   const bark = env.layers.layer("bark"), canopy = env.layers.layer("canopy"), bi = keyInfo("bark"), ci = keyInfo("canopy")
   const leaf = new THREE.Color(raw(look.foliage)).lerp(new THREE.Color(0.42, 0.56, 0.3), 0.7)
   const needle = new THREE.Color(0.3, 0.42, 0.28)
@@ -655,7 +653,7 @@ function treeTemplates(env: Env, look: Look): THREE.BufferGeometry[] {
   }
   const broad: THREE.BufferGeometry[] = [part(new THREE.CylinderGeometry(0.022, 0.045, 0.6, 7).translate(0, 0.3, 0), bark, bi, 0.6, 3, trunkC)]
   for (const [a, l] of [[0.6, 0.25], [2.4, 0.22], [4.2, 0.2]]) broad.push(part(new THREE.CylinderGeometry(0.008, 0.016, l, 5).translate(0, l / 2, 0).rotateZ(0.7).rotateY(a).translate(0, 0.45, 0), bark, bi, 0.6, 2, trunkC))
-  for (const [x, y, z, r] of [[0, 0.66, 0, 0.27], [0.15, 0.74, 0.06, 0.2], [-0.13, 0.72, -0.08, 0.21], [0.03, 0.88, -0.02, 0.18], [-0.05, 0.6, 0.15, 0.17]]) {
+  for (const [x, y, z, r] of [[0, 0.66, 0, 0.28], [0.14, 0.76, 0.06, 0.21], [-0.12, 0.8, -0.07, 0.21], [0.02, 0.6, 0.16, 0.18]]) {
     const g = new THREE.IcosahedronGeometry(r, 1)
     const p = g.attributes.position as THREE.BufferAttribute
     for (let i = 0; i < p.count; i++) { const k = 1 + 0.18 * Math.sin(p.getX(i) * 40 + p.getZ(i) * 31) * Math.sin(p.getY(i) * 37); p.setXYZ(i, p.getX(i) * k, p.getY(i) * k * 0.82, p.getZ(i) * k) }
@@ -672,7 +670,17 @@ function treeTemplates(env: Env, look: Look): THREE.BufferGeometry[] {
     g.computeVertexNormals(); g.translate(x, y, z)
     bush.push(part(g, canopy, ci, 2, 2, leaf.clone().multiplyScalar(0.75 + y * 0.4)))
   }
-  return [spruce, broad, dead, bush].map(parts => { const g = mergeGeometries(parts, false)!; for (const p of parts) p.dispose(); g.computeBoundingSphere(); return env.own(g) })
+  // low detail: two cones, two blobs, bare trunk, one blob (same silhouette, a fraction of the triangles)
+  const spruceLo = [part(new THREE.CylinderGeometry(0.016, 0.032, 0.5, 4).translate(0, 0.25, 0), bark, bi, 0.6, 4, trunkC),
+    part(new THREE.ConeGeometry(0.26, 0.5, 7, 1, true).translate(0, 0.49, 0), canopy, ci, 4, 4, needle.clone().multiplyScalar(0.95)),
+    part(new THREE.ConeGeometry(0.15, 0.45, 7, 1, true).translate(0, 0.78, 0), canopy, ci, 4, 4, needle.clone().multiplyScalar(1.1))]
+  const broadLo = [part(new THREE.CylinderGeometry(0.022, 0.045, 0.6, 4).translate(0, 0.3, 0), bark, bi, 0.6, 3, trunkC),
+    part(new THREE.IcosahedronGeometry(0.3, 0).scale(1, 0.85, 1).translate(0, 0.68, 0), canopy, ci, 3, 3, leaf.clone().multiplyScalar(1.0)),
+    part(new THREE.IcosahedronGeometry(0.2, 0).scale(1, 0.85, 1).translate(0.05, 0.86, 0), canopy, ci, 3, 3, leaf.clone().multiplyScalar(1.1))]
+  const deadLo = [part(new THREE.CylinderGeometry(0.014, 0.04, 0.9, 4).translate(0, 0.45, 0), bark, bi, 0.6, 4, trunkC.clone().multiplyScalar(0.8))]
+  const bushLo = [part(new THREE.IcosahedronGeometry(0.5, 0).scale(1.2, 0.7, 1.1).translate(0, 0.38, 0), canopy, ci, 2, 2, leaf.clone().multiplyScalar(0.9))]
+  const merge = (parts: THREE.BufferGeometry[]) => { const g = mergeGeometries(parts, false)!; for (const p of parts) p.dispose(); g.computeBoundingSphere(); return env.own(g) }
+  return { hi: [spruce, broad, dead, bush].map(merge), lo: [spruceLo, broadLo, deadLo, bushLo].map(merge) }
 }
 
 function scaleUv(g: THREE.BufferGeometry, su: number, sv: number): void {

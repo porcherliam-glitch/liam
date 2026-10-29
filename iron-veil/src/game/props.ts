@@ -565,10 +565,12 @@ export function buildProp(ctx: BuildCtx, p: MapProp): void {
         metal.box(p.x - w / 2, y0, p.z - d / 2, p.x + w / 2, y0 + fb, p.z + d / 2, { color: c, ao: 0 })
         metal.box(p.x - w / 2, y0 + h - fb, p.z - d / 2, p.x + w / 2, y0 + h, p.z + d / 2, { color: c, ao: 0 })
         for (const x of [p.x - w / 2, p.x + w / 2 - fb, p.x - fb / 2]) metal.box(x, y0, p.z - 0.03, x + fb, y0 + h, p.z + 0.03, { color: c, ao: 0, local: true })
+        if (y0 > 0.3) ctx.B("concrete").box(p.x - w / 2 - 0.12, y0 - 0.08, p.z - d / 2 - 0.12, p.x + w / 2 + 0.12, y0, p.z + d / 2 + 0.12, { color: tint(0xc8c2b4), ao: 0 })
       } else {
         metal.box(p.x - d / 2, y0, p.z - w / 2, p.x + d / 2, y0 + fb, p.z + w / 2, { color: c, ao: 0 })
         metal.box(p.x - d / 2, y0 + h - fb, p.z - w / 2, p.x + d / 2, y0 + h, p.z + w / 2, { color: c, ao: 0 })
         for (const z of [p.z - w / 2, p.z + w / 2 - fb, p.z - fb / 2]) metal.box(p.x - 0.03, y0, z, p.x + 0.03, y0 + h, z + fb, { color: c, ao: 0, local: true })
+        if (y0 > 0.3) ctx.B("concrete").box(p.x - d / 2 - 0.12, y0 - 0.08, p.z - w / 2 - 0.12, p.x + d / 2 + 0.12, y0, p.z + w / 2 + 0.12, { color: tint(0xc8c2b4), ao: 0 })
       }
       return
     }
@@ -873,7 +875,16 @@ export function buildBuildingDetails(ctx: BuildCtx): void {
   const t = tpl(), metal = ctx.B("metal"), L = ctx.look
   const ids = new Map(ctx.data.buildings.map(b => [b.id, b]))
   for (const d of ctx.data.doorways) {
-    const b = ids.get(d.building); if (!b || b.doorLamps === false) continue
+    const b = ids.get(d.building)
+    if (b && d.w <= 1.6 && b.style !== "cladding") {
+      // door leaf swung open against the inside of the wall
+      const ax = -d.nz, az = d.nx, off = d.w, t = 0.3
+      const cx = d.x - d.nx * (t / 2 + 0.06) + ax * off, cz = d.z - d.nz * (t / 2 + 0.06) + az * off
+      const c = tint([0x6e4b33, 0x8a7a66, 0x5a6066, 0x7a3a2a][Math.floor(ctx.rng() * 4)], 1, 0.9 + ctx.rng() * 0.2)
+      if (Math.abs(ax) > 0.5) ctx.B("plank").box(cx - d.w / 2 + 0.05, 0.02, cz - 0.025, cx + d.w / 2 - 0.05, 2.3, cz + 0.025, { color: c, ao: 0 })
+      else ctx.B("plank").box(cx - 0.025, 0.02, cz - d.w / 2 + 0.05, cx + 0.025, 2.3, cz + d.w / 2 - 0.05, { color: c, ao: 0 })
+    }
+    if (!b || b.doorLamps === false) continue
     const top = Math.min(b.h - 0.25, d.w > 3 ? 4.9 : 2.85), lx = d.x + d.nx * 0.42, lz = d.z + d.nz * 0.42
     metal.box(lx - 0.18 - Math.abs(d.nx) * 0.1, top, lz - 0.18 - Math.abs(d.nz) * 0.1, lx + 0.18 + Math.abs(d.nx) * 0.1, top + 0.14, lz + 0.18 + Math.abs(d.nz) * 0.1, { color: tint(0x2c2e30), ao: 0 })
     ctx.B("lamp").box(lx - 0.12, top - 0.03, lz - 0.12, lx + 0.12, top, lz + 0.12, { color: tint(0xffe6b8, 1, 2), ao: 0 })

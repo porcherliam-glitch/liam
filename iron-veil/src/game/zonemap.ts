@@ -369,6 +369,11 @@ function buildZone(): ZoneMap {
     m.area(-4, -16, 4, 16, "asphalt", "asphalt"); m.area(-16, -4, 16, 4, "asphalt", "asphalt")
     for (const [x, z] of [[-11, -11], [11, -11], [-11, 11], [11, 11]]) { m.solid(x, z, 1.2, 1.2, 0.5, "concrete", { tint: 0xb0aca2 }); tree(x, z, 1, 9 + R() * 2) }
     m.rect(-9.5, -9.5, -6.5, -8.5, 0.45, "bench"); m.rect(6.5, 8.5, 9.5, 9.5, 0.45, "bench")
+    // street furniture: advertising pillars, phone box, bus stop, bins
+    m.rect(-13.7, -7.7, -12.3, -6.3, 2.8, "litfass"); m.rect(12.3, 6.3, 13.7, 7.7, 2.8, "litfass")
+    m.rect(12, -8.6, 13.1, -7.5, 2.4, "phonebox")
+    m.rect(30, -7.6, 33.4, -6.2, 2.5, "shelter")
+    for (const [x, z] of [[-5.4, -30], [5.4, 30], [-5.4, 70], [5.4, -80], [-30, 5.4], [30, -5.4], [-70, -5.4], [70, 5.4], [-49.5, 20], [49.5, -20]]) m.rect(x - 0.3, z - 0.3, x + 0.3, z + 0.3, 0.95, "bin")
     lampsZ(0, -96, -20, 5.3, 26); lampsZ(0, 22, 96, 5.3, 26); lampsX(0, -96, -20, 5.3, 26); lampsX(0, 22, 96, 5.3, 26)
     for (const x of [-52, 52]) lampsZ(x, -90, 90, 3.6, 36)
     for (const z of [-52, 48]) lampsX(z, -90, 90, 3.6, 36)
@@ -761,6 +766,7 @@ function buildZone(): ZoneMap {
     m.prop("watertower", -276, 161, { y: 9, r: 3.8, h: 6, far: true, tint: 0x5a4a3a })
     // service tunnel portal (tunnel exfil) in an embankment at the west edge
     m.rect(-310, 186, -302, 216, 7, "rock")
+    m.prop("berm", -306, 201, { w: 8, d: 30, h: 7 })
     m.rect(-302.6, 196, -302, 206, 5, "concrete", { tint: 0x9a968c })
     m.prop("portal", -302, 201, { w: 5, h: 4.2 })
     m.prop("decal", -301.9, 201, { y: 4.5, w: 4.6, h: 0.6, face: "e", v: 6, text: "VERSORGUNGSTUNNEL 2" })
