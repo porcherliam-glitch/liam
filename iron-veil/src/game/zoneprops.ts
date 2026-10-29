@@ -9,8 +9,8 @@
 import * as THREE from "three"
 import type { BuildingInfo, MapProp, MapSolid, Side } from "./maps"
 import { NY, PY, type GeoBatch } from "./meshkit"
-import { decal, fenceRun, jit, lampAt, place, registerExtras, sag, textKey, tint, tpl, type BuildCtx, type WindowReq } from "./props"
-import { CAR_LENGTH, CAR_WIDTH, apcGeometry, boatGeometry, busGeometry, carGeometry, excavatorGeometry, tractorGeometry, truckCabGeometry, type CarStyle, type VehicleGeo, type VehiclePart } from "./vehicleModels"
+import { buildSolid, decal, fenceRun, jit, lampAt, place, registerExtras, sag, textKey, tint, tpl, type BuildCtx, type WindowReq } from "./props"
+import { CAR_LENGTH, CAR_WIDTH, apcGeometry, boatGeometry, boxcarGeometry, busGeometry, carGeometry, conveyorGeometry, forkliftGeometry, excavatorGeometry, hopperWagonGeometry, tankWagonGeometry, tractorGeometry, trestleGeometry, truckCabGeometry, type CarStyle, type VehicleGeo, type VehiclePart } from "./vehicleModels"
 
 const M = new THREE.Matrix4(), Q = new THREE.Quaternion(), V = new THREE.Vector3(), S = new THREE.Vector3(), E = new THREE.Euler()
 
@@ -37,6 +37,8 @@ function ring(b: GeoBatch, bd: BuildingInfo, y0: number, y1: number, out: number
 function trimColor(bd: BuildingInfo): THREE.Color { return bd.style === "brick" ? tint(0xc8c0b0, 1, jit({ x: bd.x0, z: bd.z0 })) : bd.style === "block" ? tint(0xa8a49a) : tint(0xece6d8, 1, jit({ x: bd.x0, z: bd.z0 }, 0.04)) }
 
 function facade(ctx: BuildCtx, bd: BuildingInfo): void {
+  if (bd.style === "siding") return hutFacade(ctx, bd)
+  if (bd.style === "bunker") return bunkerFacade(ctx, bd)
   if (!TRIMMED.has(bd.style)) return
   const conc = ctx.B("concrete"), top = bd.h + bd.upper, c = trimColor(bd), rng = ctx.rng
   if (bd.roof === "gable" || bd.upper > 0) ring(conc, bd, top - 0.3, top, 0.12, c)
@@ -63,6 +65,115 @@ function facade(ctx: BuildCtx, bd: BuildingInfo): void {
     const x = nz !== 0 ? bd.x0 + (bd.x1 - bd.x0) * (0.2 + rng() * 0.6) : f === "e" ? bd.x1 + 0.01 : bd.x0 - 0.01, z = nx !== 0 ? bd.z0 + (bd.z1 - bd.z0) * (0.2 + rng() * 0.6) : f === "s" ? bd.z1 + 0.01 : bd.z0 - 0.01
     decal(ctx, `graffiti${Math.floor(rng() * 3)}`, x, 0.6, z, 2.6, 0.9, f)
   }
+}
+
+/** Doors of a building on its outer walls: centre on the outer wall plane, face and width. */
+function doorsOf(ctx: BuildCtx, bd: BuildingInfo): Array<{ x: number; z: number; f: Side; w: number }> {
+  const out: Array<{ x: number; z: number; f: Side; w: number }> = []
+  for (const d of ctx.data.doorways) {
+    if (d.building !== bd.id) continue
+    const f: Side = d.nz < 0 ? "n" : d.nz > 0 ? "s" : d.nx > 0 ? "e" : "w"
+    out.push({ x: f === "e" ? bd.x1 : f === "w" ? bd.x0 : d.x, z: f === "n" ? bd.z0 : f === "s" ? bd.z1 : d.z, f, w: d.w })
+  }
+  return out
+}
+
+/**
+ * Prefab barrack hut (siding): concrete plinth, low-pitched ribbed metal roof with overhang, gutters and ridge cap,
+ * steps and a small canopy at each door, wall-mounted air conditioners, cable duct.
+ */
+function hutFacade(ctx: BuildCtx, bd: BuildingInfo): void {
+  const conc = ctx.B("concrete"), metal = ctx.B("metal"), rng = ctx.rng, top = bd.h + (bd.upper || 0.5)
+  ring(conc, bd, 0, 0.32, 0.07, tint(0x8a8680, 1, 0.9 + rng() * 0.15))
+  // roof: ridge along the long side, 0.45 m overhang, gable ends in siding
+  const alongX = bd.x1 - bd.x0 >= bd.z1 - bd.z0, ov = 0.45, oe = 0.3, ye = top - 0.02, rise = Math.min(1.1, (alongX ? bd.z1 - bd.z0 : bd.x1 - bd.x0) * 0.11), yr = ye + rise
+  const rc = tint(0x6a705e, 1, 0.85 + rng() * 0.25), roof = ctx.B("cladding"), gc = tint(bd.tint ?? 0x5c6449, 1, 0.95), sid = ctx.B("siding")
+  if (alongX) {
+    const x0 = bd.x0 - oe, x1 = bd.x1 + oe, z0 = bd.z0 - ov, z1 = bd.z1 + ov, zc = (bd.z0 + bd.z1) / 2
+    quadN(roof, [x1, ye, z0], [x0, ye, z0], [x0, yr, zc], [x1, yr, zc], rc)
+    quadN(roof, [x0, ye, z1], [x1, ye, z1], [x1, yr, zc], [x0, yr, zc], rc)
+    quadN(sid, [bd.x0, ye, bd.z0], [bd.x0, ye, bd.z1], [bd.x0, yr - 0.02, zc], [bd.x0, yr - 0.02, zc], gc)
+    quadN(sid, [bd.x1, ye, bd.z1], [bd.x1, ye, bd.z0], [bd.x1, yr - 0.02, zc], [bd.x1, yr - 0.02, zc], gc)
+    for (const [za, zb] of [[z0, bd.z0], [bd.z1, z1]]) metal.box(x0, ye - 0.1, za, x1, ye - 0.02, zb, { color: tint(0x4a4e48), ao: 0 })
+    for (const zg of [z0 - 0.07, z1 + 0.07]) metal.box(x0, ye - 0.16, zg - 0.07, x1, ye - 0.04, zg + 0.07, { color: tint(0x7a7e82), ao: 0 })
+    metal.box(x0, yr - 0.04, zc - 0.16, x1, yr + 0.07, zc + 0.16, { color: rc.clone().multiplyScalar(0.8), ao: 0 })
+    for (const xb of [x0, x1]) metal.box(xb - 0.03, ye - 0.05, z0, xb + 0.03, yr, z1, { color: tint(0x4a4e48), ao: 0 })
+  } else {
+    const x0 = bd.x0 - ov, x1 = bd.x1 + ov, z0 = bd.z0 - oe, z1 = bd.z1 + oe, xc = (bd.x0 + bd.x1) / 2
+    quadN(roof, [x0, ye, z0], [x0, ye, z1], [xc, yr, z1], [xc, yr, z0], rc)
+    quadN(roof, [x1, ye, z1], [x1, ye, z0], [xc, yr, z0], [xc, yr, z1], rc)
+    quadN(sid, [bd.x1, ye, bd.z0], [bd.x0, ye, bd.z0], [xc, yr - 0.02, bd.z0], [xc, yr - 0.02, bd.z0], gc)
+    quadN(sid, [bd.x0, ye, bd.z1], [bd.x1, ye, bd.z1], [xc, yr - 0.02, bd.z1], [xc, yr - 0.02, bd.z1], gc)
+    for (const [xa, xb] of [[x0, bd.x0], [bd.x1, x1]]) metal.box(xa, ye - 0.1, z0, xb, ye - 0.02, z1, { color: tint(0x4a4e48), ao: 0 })
+    for (const xg of [x0 - 0.07, x1 + 0.07]) metal.box(xg - 0.07, ye - 0.16, z0, xg + 0.07, ye - 0.04, z1, { color: tint(0x7a7e82), ao: 0 })
+    metal.box(xc - 0.16, yr - 0.04, z0, xc + 0.16, yr + 0.07, z1, { color: rc.clone().multiplyScalar(0.8), ao: 0 })
+    for (const zb of [z0, z1]) metal.box(x0, ye - 0.05, zb - 0.03, x1, yr, zb + 0.03, { color: tint(0x4a4e48), ao: 0 })
+  }
+  // doors: two concrete steps and a canopy on brackets
+  for (const d of doorsOf(ctx, bd)) {
+    const [nx, nz] = N[d.f], w = d.w + 0.5
+    onWall(conc, d.f, d.x, d.z, w, 0, 0.16, 0, 0.9, tint(0x9a968c))
+    onWall(conc, d.f, d.x, d.z, w - 0.2, 0.16, 0.3, 0, 0.5, tint(0xa29e94))
+    onWall(metal, d.f, d.x, d.z, w + 0.3, 2.62, 2.7, 0, 1.0, tint(0x4a4e48))
+    for (const sd of [-1, 1]) {
+      const o = sd * (w / 2 + 0.05), bx = nz !== 0 ? d.x + o : d.x, bz = nz !== 0 ? d.z : d.z + o
+      strut(metal, bx, 2.05, bz, bx + nx * 0.9, 2.62, bz + nz * 0.9, 0.025, 0x3a3e40)
+    }
+  }
+  // air conditioners and a cable duct along one long wall
+  const f: Side = alongX ? (rng() < 0.5 ? "n" : "s") : (rng() < 0.5 ? "e" : "w"), [nx, nz] = N[f]
+  const len = alongX ? bd.x1 - bd.x0 : bd.z1 - bd.z0, wx = f === "e" ? bd.x1 : f === "w" ? bd.x0 : 0, wz = f === "s" ? bd.z1 : f === "n" ? bd.z0 : 0
+  const at = (u: number): [number, number] => alongX ? [bd.x0 + u, wz] : [wx, bd.z0 + u]
+  onWall(metal, f, ...at(len / 2), len - 0.6, bd.h - 0.55, bd.h - 0.43, 0, 0.1, tint(0x6a6e66))
+  for (const u of [len * 0.25 + rng() * 2, len * 0.7 + rng() * 2]) {
+    const [x, z] = at(u), open = ctx.data.doorways.some(d => Math.hypot(d.x - x, d.z - z) < 2.4)
+    if (open) continue
+    onWall(metal, f, x, z, 0.85, 1.75, 2.35, 0.02, 0.4, tint(0xc8c8c0, 1, 0.85 + rng() * 0.2))
+    decal(ctx, "vent", x + nx * 0.405, 1.8, z + nz * 0.405, 0.7, 0.5, f, 0x9a9a96)
+    for (const o of [-0.3, 0.3]) onWall(metal, f, nz !== 0 ? x + o : x, nz !== 0 ? z : z + o, 0.04, 1.6, 1.75, 0, 0.35, tint(0x3a3e40))
+  }
+}
+
+/**
+ * Concrete bunker: projecting roof slab, sandbag parapet and mushroom vents on the roof, whip antenna, thick blast-door
+ * surrounds with yellow-black edges and a heavy steel leaf open against the wall, cable conduit.
+ */
+function bunkerFacade(ctx: BuildCtx, bd: BuildingInfo): void {
+  const conc = ctx.B("concrete"), metal = ctx.B("metal"), rng = ctx.rng, cc = tint(bd.tint ?? 0x8e8b84, 0.95, 0.9 + rng() * 0.1), top = bd.h + 0.5
+  ring(conc, bd, bd.h - 0.35, top, 0.22, cc)
+  ring(conc, bd, 0, 0.4, 0.1, cc.clone().multiplyScalar(0.85))
+  // sandbag parapet round the roof (stacked bags like the ground positions), gaps at the corners
+  const cxb = (bd.x0 + bd.x1) / 2, czb = (bd.z0 + bd.z1) / 2, lx = bd.x1 - bd.x0 - 2, lz = bd.z1 - bd.z0 - 2
+  for (const [x, z, w, d] of [[cxb, bd.z0 + 0.45, lx, 0.6], [cxb, bd.z1 - 0.45, lx, 0.6], [bd.x0 + 0.45, czb, 0.6, lz], [bd.x1 - 0.45, czb, 0.6, lz]]) {
+    buildSolid(ctx, { x, z, w, d, h: 0.57, y: top, style: "sandbag" })
+  }
+  // mushroom vents and an antenna
+  const cx = (bd.x0 + bd.x1) / 2, cz = (bd.z0 + bd.z1) / 2, t = tpl()
+  for (const [vx, vz] of [[cx - (bd.x1 - bd.x0) * 0.25, cz], [cx + (bd.x1 - bd.x0) * 0.25, cz + (bd.z1 - bd.z0) * 0.15]]) {
+    place(metal, t.cyl12, vx, top + 0.45, vz, 0, 0, 0, 0.16, 0.9, 0.16, 0x5a5e5a)
+    place(metal, t.dome, vx, top + 0.85, vz, 0, 0, 0, 0.42, 0.22, 0.42, 0x4a4e4a)
+    place(conc, t.cyl12, vx, top + 0.08, vz, 0, 0, 0, 0.35, 0.16, 0.35, cc)
+  }
+  const ax = bd.x1 - 1.6, az = bd.z0 + 1.6
+  strut(metal, ax, top, az, ax, top + 5.5, az, 0.03, 0x3a3e40)
+  place(metal, t.box, ax, top + 0.3, az, 0, 0, 0, 0.3, 0.6, 0.3, 0x4a5240)
+  // blast-door surrounds and open steel leaves
+  for (const d of doorsOf(ctx, bd)) {
+    const [nx, nz] = N[d.f], yel = tint(0xd8b030), blk = tint(0x1e1e1e)
+    for (const sd of [-1, 1]) {
+      const o = sd * (d.w / 2 + 0.25), px = nz !== 0 ? d.x + o : d.x, pz = nz !== 0 ? d.z : d.z + o
+      onWall(conc, d.f, px, pz, 0.5, 0, 2.95, 0, 0.45, cc)
+      for (let y = 0.1; y < 2.8; y += 0.5) onWall(metal, d.f, nz !== 0 ? px - sd * 0.24 : px, nz !== 0 ? pz : pz - sd * 0.24, 0.03, y, y + 0.25, 0.05, 0.42, (y * 2) % 2 < 1 ? yel : blk)
+    }
+    onWall(conc, d.f, d.x, d.z, d.w + 1.0, 2.55, 3.15, 0, 0.45, cc)
+    const o = d.w / 2 + 0.5 + 0.7, lx = nz !== 0 ? d.x + o : d.x, lz = nz !== 0 ? d.z : d.z + o
+    onWall(metal, d.f, lx, lz, d.w + 0.2, 0.05, 2.5, 0.06, 0.2, tint(0x4a5240, 1, 0.85 + rng() * 0.2))
+    for (const y of [0.6, 1.9]) onWall(metal, d.f, lx, lz, 0.25, y, y + 0.14, 0.2, 0.28, tint(0x2a2c2e))
+    decal(ctx, "hazard", d.x + nx * 0.47, 2.7, d.z + nz * 0.47, d.w + 0.6, 0.3, d.f)
+  }
+  // cable conduit along the longest wall
+  const alongX = bd.x1 - bd.x0 >= bd.z1 - bd.z0, f: Side = alongX ? "n" : "e"
+  onWall(metal, f, alongX ? cx : bd.x1, alongX ? bd.z0 : cz, (alongX ? bd.x1 - bd.x0 : bd.z1 - bd.z0) - 1.5, bd.h - 0.8, bd.h - 0.68, 0, 0.12, tint(0x5a5e5a))
 }
 
 function facadeWindow(ctx: BuildCtx, bd: BuildingInfo, w: WindowReq): void {
@@ -109,6 +220,18 @@ function extraSolid(ctx: BuildCtx, s: MapSolid): boolean {
   const y0 = s.y ?? 0, y1 = y0 + s.h, x0 = s.x - s.w / 2, x1 = s.x + s.w / 2, z0 = s.z - s.d / 2, z1 = s.z + s.d / 2
   const alongX = s.w >= s.d, k = jit(s), t = tpl(), metal = ctx.B("metal")
   switch (s.style) {
+    case "cargo": cargoBody(ctx, s, k); return true
+    case "machine": {
+      if ((s.v ?? 0) !== 2) return false
+      if (s.h >= 1.9 && s.h <= 2.4 && Math.max(s.w, s.d) <= 3.2) forklift(ctx, s, k)
+      else if (s.h >= 3.5) crusher(ctx, s, k)
+      else machinery(ctx, s, k)
+      return true
+    }
+    case "desk": desk(ctx, s, k); return true
+    case "cabinet": cabinet(ctx, s, k); return true
+    case "console": consoleDesk(ctx, s, k); return true
+    case "bunk": bunk(ctx, s, k); return true
     case "bench": case "pew": {
       const wood = ctx.B("plank"), c = tint(s.tint ?? 0x8a6a48, 1, k), seat = Math.min(0.47, s.h)
       wood.box(x0, seat - 0.06, z0, x1, seat, z1, { color: c, ao: 0 })
@@ -381,33 +504,290 @@ function tractor(ctx: BuildCtx, s: MapSolid, k: number): void {
   })
 }
 
-function wagon(ctx: BuildCtx, s: MapSolid, x0: number, y0: number, z0: number, x1: number, y1: number, z1: number, alongX: boolean, k: number): void {
-  const metal = ctx.B("metal"), t = tpl(), c = tint(s.tint ?? 0x6a3a2a, 1, k), dark = tint(0x1e2022), v = s.v ?? 0
-  const L = alongX ? x1 - x0 : z1 - z0
-  const hopper = v >= 20
-  if (hopper) {
-    ctx.B("container").box(x0, y0, z0, x1, y1, z1, { color: c, ao: 0, skip: PY, local: true })
-    ctx.B("gravel").box(x0 + 0.1, y1 - 0.5, z0 + 0.1, x1 - 0.1, y1 - 0.45, z1 - 0.1, { color: tint(0xb0a898), ao: 0 })
-    if (alongX) for (let x = x0 + 1.5; x < x1 - 1; x += 2.2) metal.box(x, y0, z0 - 0.02, x + 0.12, y1, z1 + 0.02, { color: tint(s.tint, 1, k * 0.7), ao: 0 })
-  } else {
-    ctx.B("container").box(x0, y0, z0, x1, y1 - 0.12, z1, { color: c, ao: 0, local: true })
-    metal.box(x0 - 0.03, y1 - 0.12, z0 - 0.03, x1 + 0.03, y1, z1 + 0.03, { color: tint(0x5a5e62, 1, k), ao: 0 })
-    if (alongX) for (const f of ["n", "s"] as Side[]) decal(ctx, "cdoor", s.x, y0 + 0.2, f === "n" ? z0 : z1, 2.6, y1 - y0 - 0.5, f, 0xffffff)
-    else for (const f of ["e", "w"] as Side[]) decal(ctx, "cdoor", f === "w" ? x0 : x1, y0 + 0.2, s.z, 2.6, y1 - y0 - 0.5, f, 0xffffff)
-    if (ctx.rng() < 0.5) { const f: Side = alongX ? "s" : "e"; decal(ctx, `graffiti${Math.floor(ctx.rng() * 3)}`, alongX ? s.x - L * 0.25 : x1, y0 + 0.4, alongX ? z1 : s.z - L * 0.25, 3.2, 1.2, f) }
+// ---------------------------------------------------------------------------------------------------------------
+// Furniture: desks with drawer pedestals, steel cabinets with doors, operator consoles with screens, tube-frame bunks
+// ---------------------------------------------------------------------------------------------------------------
+
+/** Furniture frame: u points out of the front (the thin axis, towards the room centre), w along the long side. */
+function furnitureFrame(ctx: BuildCtx, s: MapSolid): { f: Frame; D: number; L: number } {
+  const thinX = s.w < s.d, b = ctx.data.buildings.find(q => s.x > q.x0 && s.x < q.x1 && s.z > q.z0 && s.z < q.z1)
+  const cx = b ? (b.x0 + b.x1) / 2 : 0, cz = b ? (b.z0 + b.z1) / 2 : 0
+  const fx = thinX ? (cx >= s.x ? 1 : -1) : 0, fz = thinX ? 0 : (cz >= s.z ? 1 : -1)
+  return { f: frameOf(s.x, s.z, fx, fz), D: thinX ? s.w : s.d, L: thinX ? s.d : s.w }
+}
+
+function desk(ctx: BuildCtx, s: MapSolid, k: number): void {
+  const { f, D, L } = furnitureFrame(ctx, s), v = s.v ?? 0, y0 = s.y ?? 0, y1 = y0 + s.h, metal = ctx.B("metal"), rng = ctx.rng
+  const body = tint(v === 2 ? 0x4a5236 : 0x6e7378, 1, k), topC = tint(v === 1 ? 0x4a4e52 : v === 2 ? 0x5a6248 : 0xb08a62, 1, k), dark = tint(0x2a2c2e)
+  const hd = D / 2, hl = L / 2, yt = y1 - 0.035
+  f.box(v === 1 ? metal : ctx.B("plank"), -hd - 0.01, hd + 0.01, yt, y1, -hl, hl, topC)
+  // drawer pedestal on one side, leg panel on the other, modesty panel at the back
+  const pw = Math.min(0.45, L * 0.3)
+  f.box(metal, -hd + 0.03, hd - 0.04, y0 + 0.03, yt, hl - pw, hl - 0.02, body)
+  const dh = (yt - y0 - 0.08) / 3
+  for (let i = 0; i < 3; i++) {
+    const ya = y0 + 0.06 + i * dh
+    f.box(metal, hd - 0.04, hd - 0.02, ya + 0.01, ya + dh - 0.01, hl - pw + 0.01, hl - 0.03, body.clone().multiplyScalar(1.08))
+    f.box(metal, hd - 0.02, hd + 0.005, ya + dh * 0.62, ya + dh * 0.7, hl - pw / 2 - 0.08, hl - pw / 2 + 0.08, dark)
   }
-  // underframe and bogies (below the box, inside the footprint)
-  if (alongX) metal.box(x0 + 0.3, y0 - 0.25, z0 + 0.3, x1 - 0.3, y0, z1 - 0.3, { color: dark, ao: 0 })
-  else metal.box(x0 + 0.3, y0 - 0.25, z0 + 0.3, x1 - 0.3, y0, z1 - 0.3, { color: dark, ao: 0 })
-  for (const f of [0.18, 0.82]) {
-    const p = (alongX ? x0 : z0) + L * f
-    if (alongX) metal.box(p - 1.2, 0.3, s.z - 0.85, p + 1.2, 0.75, s.z + 0.85, { color: dark, ao: 0 })
-    else metal.box(s.x - 0.85, 0.3, p - 1.2, s.x + 0.85, 0.75, p + 1.2, { color: dark, ao: 0 })
-    for (const o of [-0.85, 0.85]) for (const side of [-0.72, 0.72]) {
-      const wx = alongX ? p + o : s.x + side, wz = alongX ? s.z + side : p + o
-      place(metal, t.wheel, wx, 0.45, wz, 0, alongX ? 0 : Math.PI / 2, 0, 0.12, 0.45, 0.45, 0x2a2622)
+  f.box(metal, -hd + 0.03, hd - 0.04, y0, yt, -hl + 0.02, -hl + 0.06, body)
+  f.box(metal, -hd + 0.03, -hd + 0.05, y0 + 0.3, yt, -hl + 0.06, hl - pw, body.clone().multiplyScalar(0.9))
+  // on top: papers, sometimes a monitor and keyboard, a mug
+  const [px, pz] = f.at(0.05, -hl * 0.3)
+  if (v === 3 || rng() < 0.5) decal(ctx, "paper", px, y1 + 0.004, pz, Math.min(0.6, L * 0.3), Math.min(0.45, D * 0.5), "up", 0xffffff, rng() * 6)
+  if (v !== 2 && D >= 0.7 && rng() < 0.6) {
+    const w = -hl * 0.1 + (rng() - 0.5) * 0.3
+    f.box(metal, -hd + 0.12, -hd + 0.3, y1, y1 + 0.02, w - 0.12, w + 0.12, dark)
+    f.box(metal, -hd + 0.18, -hd + 0.22, y1, y1 + 0.18, w - 0.03, w + 0.03, dark)
+    f.box(metal, -hd + 0.2, -hd + 0.25, y1 + 0.12, y1 + 0.44, w - 0.27, w + 0.27, tint(0x1e2022))
+    f.box(ctx.B("glass"), -hd + 0.25, -hd + 0.255, y1 + 0.14, y1 + 0.42, w - 0.25, w + 0.25, tint(0x101418))
+    f.box(metal, hd - 0.35, hd - 0.18, y1, y1 + 0.02, w - 0.22, w + 0.22, tint(0x2e3032))
+  }
+  if (rng() < 0.4) { const [mx, mz] = f.at(hd * 0.2, hl * 0.55); place(metal, tpl().cyl12, mx, y1 + 0.05, mz, 0, 0, 0, 0.04, 0.1, 0.04, rng() < 0.5 ? 0xd8d4c8 : 0x3a5a7a) }
+}
+
+function cabinet(ctx: BuildCtx, s: MapSolid, k: number): void {
+  const { f, D, L } = furnitureFrame(ctx, s), v = s.v ?? 0, y0 = s.y ?? 0, y1 = y0 + s.h, metal = ctx.B("metal")
+  const c = tint(v === 2 ? 0x5c6448 : v === 1 ? 0x5a5f66 : 0x8a9096, 1, k), dark = tint(0x1e2022), hd = D / 2, hl = L / 2
+  f.box(metal, -hd, hd - 0.025, y0 + 0.07, y1 - 0.03, -hl, hl, c)
+  f.box(metal, -hd + 0.03, hd - 0.07, y0, y0 + 0.07, -hl + 0.03, hl - 0.03, dark)
+  f.box(metal, -hd - 0.005, hd + 0.005, y1 - 0.03, y1, -hl - 0.005, hl + 0.005, c.clone().multiplyScalar(0.92))
+  // doors of at most 0.9 m with seams, handles, vents and a label holder
+  const n = Math.max(1, Math.round(L / 0.9)), dw = L / n, dc = c.clone().multiplyScalar(1.06)
+  for (let i = 0; i < n; i++) {
+    const w0 = -hl + i * dw, wc = w0 + dw / 2
+    f.box(metal, hd - 0.025, hd - 0.005, y0 + 0.1, y1 - 0.06, w0 + 0.008, w0 + dw - 0.008, dc)
+    const hw = i % 2 === 0 ? w0 + dw - 0.09 : w0 + 0.09
+    f.box(metal, hd - 0.005, hd + 0.02, y0 + 0.95, y0 + 1.2, hw - 0.015, hw + 0.015, dark)
+    f.box(metal, hd - 0.005, hd + 0.0, y1 - 0.42, y1 - 0.34, wc - 0.07, wc + 0.07, tint(0xd8d4c8))
+    const [vx, vz] = f.at(hd - 0.003, wc)
+    for (const vy of [y1 - 0.3, y0 + 0.2]) decal(ctx, "vent", vx, vy, vz, Math.min(0.4, dw * 0.5), 0.12, sideOf(f, 1), 0x9a9a96)
+  }
+}
+
+function consoleDesk(ctx: BuildCtx, s: MapSolid, k: number): void {
+  const { f, D, L } = furnitureFrame(ctx, s), y0 = s.y ?? 0, metal = ctx.B("metal"), lamp = ctx.B("lamp"), hd = D / 2, hl = L / 2
+  const c = tint(0x3a3f45, 1, k), light = tint(0x5a6066, 1, k), dark = tint(0x16181a)
+  f.box(metal, -hd, hd - 0.22, y0 + 0.08, y0 + 0.72, -hl, hl, c)
+  f.box(metal, -hd + 0.03, hd - 0.26, y0, y0 + 0.08, -hl + 0.03, hl - 0.03, dark)
+  f.box(metal, -hd, hd, y0 + 0.72, y0 + 0.77, -hl, hl, light)
+  const back = Math.min(0.42, D * 0.45)
+  f.box(metal, -hd, -hd + back, y0 + 0.77, y0 + 1.3, -hl, hl, c)
+  f.box(metal, -hd - 0.01, -hd + back + 0.03, y0 + 1.27, y0 + 1.33, -hl - 0.01, hl + 0.01, light)
+  const n = Math.max(1, Math.floor(L / 0.8))
+  for (let i = 0; i < n; i++) {
+    const wc = -hl + (i + 0.5) * L / n, col = i % 3 === 0 ? 0x7dffb0 : 0x5aa8ff
+    f.box(metal, -hd + back, -hd + back + 0.012, y0 + 0.86, y0 + 1.22, wc - 0.3, wc + 0.3, dark)
+    f.box(lamp, -hd + back + 0.012, -hd + back + 0.018, y0 + 0.9, y0 + 1.18, wc - 0.26, wc + 0.26, tint(col, 1, 0.9))
+    f.box(metal, -hd + back + 0.12, -hd + back + 0.3, y0 + 0.77, y0 + 0.79, wc - 0.22, wc + 0.22, dark)
+    for (let j = 0; j < 4; j++) f.box(lamp, hd - 0.12, hd - 0.08, y0 + 0.77, y0 + 0.785, wc - 0.2 + j * 0.12, wc - 0.16 + j * 0.12, tint([0xff3020, 0xffc020, 0x30ff60, 0x30a0ff][j], 1, 0.8))
+    const [gx, gz] = f.at(-hd + back + 0.1, wc)
+    ctx.glow.add(gx, y0 + 1.04, gz, 0.35, col, 0.5 * ctx.look.lamps, [0.15, 9, i])
+  }
+}
+
+function bunk(ctx: BuildCtx, s: MapSolid, k: number): void {
+  const { f, D, L } = furnitureFrame(ctx, s), y0 = s.y ?? 0, y1 = y0 + s.h, metal = ctx.B("metal"), cloth = ctx.B("burlap"), rng = ctx.rng
+  const olive = tint(0x4f5a3c, 1, k), hd = D / 2, hl = L / 2, t = tpl()
+  for (const u of [-hd + 0.03, hd - 0.03]) for (const w of [-hl + 0.03, hl - 0.03]) { const [x, z] = f.at(u, w); place(metal, t.cyl8, x, y0 + s.h / 2, z, 0, 0, 0, 0.025, s.h, 0.025, olive) }
+  for (const y of [0.3, 1.35]) {
+    for (const u of [-hd + 0.03, hd - 0.03]) f.box(metal, u - 0.02, u + 0.02, y0 + y - 0.03, y0 + y + 0.02, -hl + 0.03, hl - 0.03, olive)
+    for (const w of [-hl + 0.03, hl - 0.03]) f.box(metal, -hd + 0.03, hd - 0.03, y0 + y - 0.03, y0 + y + 0.02, w - 0.02, w + 0.02, olive)
+    // mattress, pillow, folded blanket
+    f.box(cloth, -hd + 0.05, hd - 0.05, y0 + y + 0.02, y0 + y + 0.17, -hl + 0.05, hl - 0.05, tint(0x7a7a62, 1, k))
+    f.box(cloth, -hd + 0.12, hd - 0.12, y0 + y + 0.17, y0 + y + 0.27, -hl + 0.08, -hl + 0.42, tint(0xd8d4c4, 1, 0.9 + rng() * 0.1))
+    if (rng() < 0.7) f.box(cloth, -hd + 0.06, hd - 0.06, y0 + y + 0.17, y0 + y + 0.25, hl - 0.75 - rng() * 0.3, hl - 0.08, tint(0x46503a, 1, 0.85 + rng() * 0.3))
+  }
+  for (const w of [-hl + 0.03, hl - 0.03]) for (const y of [0.55, 0.75, 1.55, 1.7]) f.box(metal, -hd + 0.03, hd - 0.03, y0 + y - 0.012, y0 + y + 0.012, w - 0.012, w + 0.012, olive)
+  // upper guard rail and a ladder at the foot
+  f.box(metal, hd - 0.05, hd - 0.01, y0 + 1.68, y0 + 1.72, -hl + 0.03, hl * 0.2, olive)
+  for (const y of [0.85, 1.1]) f.box(metal, hd - 0.04, hd + 0.0, y0 + y - 0.012, y0 + y + 0.012, hl - 0.38, hl - 0.03, olive)
+  f.box(metal, hd - 0.04, hd, y0 + 0.3, y0 + 1.35, hl - 0.4, hl - 0.37, olive)
+  void y1
+}
+
+/** Wall side a frame's ±u axis faces (for decals on furniture fronts). */
+function sideOf(f: Frame, sgn: 1 | -1): Side {
+  const [x0, z0] = f.at(0, 0), [x1, z1] = f.at(sgn, 0), dx = x1 - x0, dz = z1 - z0
+  return Math.abs(dx) > Math.abs(dz) ? (dx > 0 ? "e" : "w") : (dz > 0 ? "s" : "n")
+}
+
+/**
+ * Truck box body / semi trailer: textured box with corner posts and rails, chassis, tandem wheels with side
+ * under-run guards, rear doors with lock rods and hinges, bumper with plate and tail lights (at the end away from
+ * the cab). v 1 container box, v 2 military tarpaulin with bows and straps, otherwise a plain steel box.
+ */
+function cargoBody(ctx: BuildCtx, s: MapSolid, k: number): void {
+  const v = s.v ?? 0, y0 = s.y ?? 1, y1 = y0 + s.h, alongX = s.w >= s.d, L = alongX ? s.w : s.d, W = alongX ? s.d : s.w
+  const cab = ctx.data.solids?.find(q => q.style === "truckcab" && Math.hypot(q.x - s.x, q.z - s.z) < L / 2 + 2.5)
+  const back = cab ? (alongX ? Math.sign(s.x - cab.x) : Math.sign(s.z - cab.z)) || 1 : 1
+  const f = frameOf(s.x, s.z, alongX ? back : 0, alongX ? 0 : back), hl = L / 2, hw = W / 2
+  const metal = ctx.B("metal"), lamp = ctx.B("lamp"), c = tint(s.tint, 1, k), dark = tint(0x1c1d1e), trim = tint(v === 2 ? 0x3c4030 : 0x6a6e72)
+  const x0 = s.x - s.w / 2, x1 = s.x + s.w / 2, z0 = s.z - s.d / 2, z1 = s.z + s.d / 2
+  ctx.B(v === 1 ? "container" : v === 2 ? "plaster" : "metal").box(x0, y0, z0, x1, y1, z1, { color: c, ao: 0.05, local: true })
+  // frame: corner posts, top and bottom rails, side ribs (steel box) or bows and straps (tarpaulin)
+  for (const u of [-hl, hl]) for (const w of [-hw, hw]) f.box(metal, u - 0.05, u + 0.05, y0, y1, w - 0.05, w + 0.05, trim)
+  for (const w of [-hw, hw]) { f.box(metal, -hl, hl, y1 - 0.08, y1 + 0.01, w - 0.04, w + 0.04, trim); f.box(metal, -hl, hl, y0, y0 + 0.14, w - 0.04, w + 0.04, trim) }
+  if (v === 2) {
+    for (let u = -hl + 0.6; u < hl - 0.3; u += 1.2) { f.box(metal, u - 0.03, u + 0.03, y1 - 0.06, y1 + 0.02, -hw - 0.02, hw + 0.02, tint(0x3c4030)); for (const w of [-hw, hw]) f.box(metal, u - 0.025, u + 0.025, y0 + 0.14, y1 - 0.06, w - 0.012, w + 0.012, tint(0x2a2c22)) }
+  } else if (v === 0) {
+    for (let u = -hl + 0.6; u < hl - 0.3; u += 0.6) for (const w of [-hw, hw]) f.box(metal, u - 0.02, u + 0.02, y0 + 0.14, y1 - 0.08, w - 0.015, w + 0.015, c.clone().multiplyScalar(0.92))
+  }
+  // chassis rails, tandem axle, side under-run guards
+  for (const w of [-0.5, 0.5]) f.box(metal, -hl + 0.3, hl - 0.3, y0 - 0.32, y0, w - 0.05, w + 0.05, dark)
+  for (const u of [hl - 1.2, hl - 2.3]) {
+    for (const sd of [-1, 1]) { const [wx, wz] = f.at(u, sd * (hw - 0.2)); wheelAtR(ctx, wx, wz, 0.5, 0.36, f.ry) }
+    f.box(metal, u - 0.06, u + 0.06, 0.44, 0.56, -hw + 0.3, hw - 0.3, dark)
+  }
+  for (const sd of [-1, 1]) {
+    for (const y of [0.42, 0.72]) f.box(metal, -hl + 0.5, hl - 2.95, y - 0.04, y + 0.04, sd * (hw - 0.08) - 0.03, sd * (hw - 0.08) + 0.03, trim)
+    for (const u of [-hl + 0.6, hl - 3.0]) f.box(metal, u - 0.03, u + 0.03, 0.38, y0, sd * (hw - 0.1) - 0.03, sd * (hw - 0.1) + 0.03, dark)
+    // mudguard over the tandem
+    f.box(metal, hl - 2.95, hl - 0.55, y0 - 0.06, y0 - 0.02, sd * (hw - 0.2) - 0.22, sd * (hw - 0.2) + 0.22, dark)
+  }
+  // rear: doors with seams, lock rods and hinges, bumper, plate, tail lights
+  const ur = hl + 0.012
+  if (v !== 2) {
+    f.box(metal, hl, ur, y0 + 0.08, y1 - 0.08, -0.012, 0.012, dark)
+    for (const w of [-0.75, -0.3, 0.3, 0.75]) {
+      f.box(metal, ur, ur + 0.035, y0 + 0.12, y1 - 0.12, w - 0.02, w + 0.02, tint(0x9a9a96))
+      f.box(metal, ur, ur + 0.05, y0 + 1.05, y0 + 1.13, w - 0.02, w + 0.12, dark)
     }
+    for (const w of [-hw + 0.06, hw - 0.06]) for (const y of [y0 + 0.4, (y0 + y1) / 2, y1 - 0.4]) f.box(metal, ur, ur + 0.04, y - 0.08, y + 0.08, w - 0.05, w + 0.05, dark)
+  } else {
+    f.box(ctx.B("plaster"), hl - 0.02, hl + 0.01, y1 - 0.9, y1 - 0.05, -hw + 0.1, hw - 0.1, c.clone().multiplyScalar(0.9))
   }
+  f.box(metal, hl - 0.1, hl + 0.08, 0.42, 0.58, -hw + 0.25, hw - 0.25, trim)
+  for (const w of [-hw + 0.45, hw - 0.45]) f.box(metal, hl - 0.12, hl - 0.04, 0.5, y0, w - 0.04, w + 0.04, dark)
+  f.box(metal, hl + 0.08, hl + 0.09, 0.62, 0.74, -0.26, 0.26, tint(0xe8e4d8))
+  for (const sd of [-1, 1]) f.box(lamp, hl - 0.04, hl + 0.03, y0 - 0.22, y0 - 0.08, sd * (hw - 0.25) - 0.14, sd * (hw - 0.25) + 0.14, tint(0xb01810, 1, 0.7))
+  if (v === 0 && ctx.rng() < 0.6) {
+    const [lx, lz] = f.at(0, back > 0 === alongX ? hw + 0.02 : -(hw + 0.02))
+    decal(ctx, `logo${Math.floor(ctx.rng() * 4)}`, alongX ? s.x : lx, y0 + 0.6, alongX ? (back > 0 ? z1 + 0.02 : z0 - 0.02) : s.z, Math.min(4.5, L * 0.6), 1.8, alongX ? (back > 0 ? "s" : "n") : (back > 0 ? "e" : "w"), 0x30353c)
+    void lz
+  }
+}
+
+/** Wheel (tyre and rim) with its axle across the frame's v axis (frame yaw ry). */
+function wheelAtR(ctx: BuildCtx, x: number, z: number, r: number, w: number, ry: number): void {
+  const t = tpl()
+  place(ctx.B("rubber"), t.wheel, x, r, z, 0, ry + Math.PI / 2, 0, w, r, r, 0x2a2a2c)
+  place(ctx.B("metal"), t.wheel, x, r, z, 0, ry + Math.PI / 2, 0, w + 0.02, r * 0.5, r * 0.5, 0x6a6e72)
+}
+
+/** Forklift on the footprint's long axis, forks towards -x / -z. */
+function forklift(ctx: BuildCtx, s: MapSolid, k: number): void {
+  const alongX = s.w >= s.d, L = Math.min(alongX ? s.w : s.d, 2.6), f = alongX ? frameOf(s.x, s.z, -1, 0) : frameOf(s.x, s.z, 0, -1)
+  addVehicle(ctx, forkliftGeometry(L), placeAt(s.x, 0, s.z, f.ry), {
+    paint: ["metal", tint(s.tint, 1, k)], trim: ["metal", tint(0x26282a)], chrome: ["metal", tint(0x8a8a84)], rubber: ["rubber", tint(0x1c1d1e)],
+    lampF: ["lamp", tint(0xfff2d0, 1, 0.7)], lampR: ["lamp", tint(0xffa020, 1, 0.8)],
+  })
+}
+
+/** Motor-pump skid filling the footprint: base frame, finned motor with fan cowl, coupling guard, pump, pipes, panel. */
+function machinery(ctx: BuildCtx, s: MapSolid, k: number): void {
+  const alongX = s.w >= s.d, f = frameOf(s.x, s.z, alongX ? 1 : 0, alongX ? 0 : 1), L = alongX ? s.w : s.d, W = alongX ? s.d : s.w, h = s.h
+  const metal = ctx.B("metal"), c = tint(s.tint, 1, k), dark = tint(0x2a2c2e), t = tpl(), hl = L / 2, hw = W / 2
+  f.box(metal, -hl, hl, 0, 0.16, -hw, hw, dark)
+  for (const w of [-hw + 0.08, hw - 0.08]) f.box(metal, -hl, hl, 0.16, 0.2, w - 0.06, w + 0.06, dark)
+  // motor along u with cooling fins, fan cowl and terminal box
+  const r = Math.min(hw * 0.7, h * 0.32), my = 0.2 + r + 0.04, m0 = -hl + 0.15, m1 = -hl + L * 0.45
+  const cyl = (u0: number, u1: number, y: number, rad: number, col: THREE.Color | number, geo = t.cyl12) => { const [x, z] = f.at((u0 + u1) / 2, 0); place(metal, geo, x, y, z, 0, f.ry, Math.PI / 2, rad, u1 - u0, rad, col) }
+  cyl(m0 + 0.12, m1, my, r, c)
+  for (let u = m0 + 0.25; u < m1 - 0.05; u += 0.12) cyl(u, u + 0.03, my, r + 0.025, c.clone().multiplyScalar(0.9))
+  cyl(m0, m0 + 0.14, my, r * 1.05, dark, t.cyl16)
+  f.box(metal, (m0 + m1) / 2 - 0.15, (m0 + m1) / 2 + 0.15, my + r - 0.02, my + r + 0.2, -0.14, 0.14, c.clone().multiplyScalar(0.85))
+  for (const w of [-r * 0.7, r * 0.7]) f.box(metal, m0 + 0.2, m1 - 0.1, 0.2, my - r * 0.5, w - 0.05, w + 0.05, dark)
+  // coupling guard (yellow) and the pump: volute housing with flanged suction and discharge
+  const p0 = m1 + 0.05, p1 = Math.min(hl - 0.15, p0 + L * 0.35)
+  f.box(metal, m1, p0 + 0.25, my - r * 0.45, my + r * 0.45, -r * 0.45, r * 0.45, tint(0xd8b030))
+  const pr = Math.min(r * 1.1, h * 0.35), pc = (p0 + 0.25 + p1) / 2
+  { const [x, z] = f.at(pc, 0); place(metal, t.cyl16, x, 0.2 + pr + 0.05, z, 0, f.ry, Math.PI / 2, pr, Math.max(0.2, (p1 - p0) * 0.5), pr, c.clone().multiplyScalar(0.8)) }
+  const top = 0.2 + 2 * pr + 0.05
+  { const [x, z] = f.at(pc, 0); place(metal, t.cyl12, x, (top + h) / 2, z, 0, 0, 0, 0.09, h - top, 0.09, 0x8a8e92); place(metal, t.cyl12, x, top + 0.05, z, 0, 0, 0, 0.16, 0.05, 0.16, 0x6a6e72) }
+  { const [x, z] = f.at(p1, 0); place(metal, t.cyl12, x + (alongX ? 0.15 : 0), 0.2 + pr + 0.05, z + (alongX ? 0 : 0.15), 0, f.ry, Math.PI / 2, 0.1, 0.3, 0.1, 0x8a8e92) }
+  // control box on a post with a red stop button
+  const [bx, bz] = f.at(hl - 0.15, hw - 0.12)
+  place(metal, t.box, bx, Math.min(h, 1.5) - 0.25, bz, 0, f.ry, 0, 0.12, 0.4, 0.3, 0x5a6066)
+  place(metal, t.box, bx, (Math.min(h, 1.5) - 0.45) / 2 + 0.16, bz, 0, f.ry, 0, 0.05, Math.min(h, 1.5) - 0.45, 0.05, 0x3a3e40)
+  ctx.B("lamp").box(bx - 0.03, Math.min(h, 1.5) - 0.2, bz - 0.03, bx + 0.03, Math.min(h, 1.5) - 0.14, bz + 0.03, { color: tint(0xff2010, 1, 0.8), ao: 0 })
+  decal(ctx, "danger", alongX ? s.x : s.x + s.w / 2 + 0.02, 0.45, alongX ? s.z + s.d / 2 + 0.02 : s.z, 0.3, 0.3, alongX ? "s" : "e")
+}
+
+/** Jaw crusher on a braced steel stand: platform with railings, crusher with flywheels, motor and belt guard, feed hopper, chute, ladder. */
+function crusher(ctx: BuildCtx, s: MapSolid, k: number): void {
+  const alongX = s.w >= s.d, f = frameOf(s.x, s.z, alongX ? 1 : 0, alongX ? 0 : 1), L = alongX ? s.w : s.d, W = alongX ? s.d : s.w, h = s.h
+  const metal = ctx.B("metal"), c = tint(s.tint, 1, k), steel = tint(0x4a4e52), dark = tint(0x26282a), rail = tint(0xd8b030), t = tpl(), hl = L / 2, hw = W / 2
+  const deck = h * 0.45, P = (u: number, y: number, w: number): [number, number, number] => { const [x, z] = f.at(u, w); return [x, y, z] }
+  // stand: legs, deck beams, X bracing on the long sides
+  const us = [-hl + 0.3, 0, hl - 0.3], ws = [-hw + 0.3, hw - 0.3]
+  for (const u of us) for (const w of ws) f.box(metal, u - 0.2, u + 0.2, 0, deck, w - 0.2, w + 0.2, steel)
+  f.box(metal, -hl, hl, deck - 0.4, deck, -hw, hw, steel)
+  f.box(ctx.B("concrete"), -hl, hl, deck, deck + 0.05, -hw, hw, tint(0x6a6a66))
+  for (const w of ws) for (let i = 0; i < us.length - 1; i++) {
+    const a = P(us[i], 0.3, w), b = P(us[i + 1], deck - 0.4, w), a2 = P(us[i], deck - 0.4, w), b2 = P(us[i + 1], 0.3, w)
+    strut(metal, a[0], a[1], a[2], b[0], b[1], b[2], 0.08, steel); strut(metal, a2[0], a2[1], a2[2], b2[0], b2[1], b2[2], 0.08, steel)
+  }
+  // crusher body with ribs, two flywheels with spokes, motor and belt guard
+  const cb0 = -L * 0.2, cb1 = L * 0.15, cw = W * 0.24, ct = deck + h * 0.32
+  f.box(metal, cb0, cb1, deck, ct, -cw, cw, c)
+  for (let u = cb0 + 0.4; u < cb1; u += 0.8) f.box(metal, u - 0.08, u + 0.08, deck, ct, -cw - 0.06, cw + 0.06, c.clone().multiplyScalar(0.85))
+  const fr = h * 0.17, fu = cb0 + (cb1 - cb0) * 0.35, fy = deck + h * 0.22
+  for (const sd of [-1, 1]) {
+    const [x, y, z] = P(fu, fy, sd * (cw + 0.25))
+    place(metal, t.cyl24, x, y, z, Math.PI / 2, f.ry, 0, fr, 0.22, fr, 0x3a3c3e)
+    place(metal, t.cyl12, x, y, z, Math.PI / 2, f.ry, 0, fr * 0.2, 0.5, fr * 0.2, 0x8a8e92)
+    for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI, [ax, ay, az] = P(fu + Math.cos(a) * fr * 0.9, fy + Math.sin(a) * fr * 0.9, sd * (cw + 0.25)), [bx, by, bz] = P(fu - Math.cos(a) * fr * 0.9, fy - Math.sin(a) * fr * 0.9, sd * (cw + 0.25)); strut(metal, ax, ay, az, bx, by, bz, 0.05, 0x2e3032) }
+  }
+  f.box(metal, fu - 0.3, fu + 0.3, deck, deck + 0.9, cw + 0.6, cw + 1.6, tint(0x3f6c48))
+  f.box(metal, fu - fr * 0.4, fu + fr * 0.4, deck + 0.6, fy + fr * 0.4, cw + 0.4, cw + 0.55, rail)
+  // feed hopper: inverted pyramid from the crusher mouth up to the top
+  {
+    // open funnel: four sloped plates from the crusher mouth to a wide rim, painted outside, worn dark inside
+    const e = Math.min(1.4, hw * 0.4), yt = h + 0.2, out = c.clone().multiplyScalar(0.9), ins = tint(0x4a4236)
+    const lo = [P(cb0, ct, -cw), P(cb1, ct, -cw), P(cb1, ct, cw), P(cb0, ct, cw)], hi = [P(cb0 - e, yt, -cw - e), P(cb1 + e, yt, -cw - e), P(cb1 + e, yt, cw + e), P(cb0 - e, yt, cw + e)]
+    for (let i = 0; i < 4; i++) {
+      const j = (i + 1) % 4
+      quadN(metal, lo[j], lo[i], hi[i], hi[j], out)
+      quadN(metal, lo[i], lo[j], hi[j], hi[i], ins)
+    }
+    for (let i = 0; i < 4; i++) { const a = hi[i], b = hi[(i + 1) % 4]; strut(metal, a[0], a[1], a[2], b[0], b[1], b[2], 0.06, steel) }
+  }
+  // discharge chute under the deck sloping out of the long side
+  { const [x, z] = f.at(-hl * 0.4, 0); place(metal, t.box, x, deck * 0.55, z, 0, f.ry, -0.5, 2.2, 0.12, 1.2, dark) }
+  // railings round the deck edge and a ladder at one corner
+  for (const [a, b] of [[[-hl, -hw], [hl, -hw]], [[hl, -hw], [hl, hw]], [[hl, hw], [-hl, hw]], [[-hl, hw], [-hl, -hw]]] as [number[], number[]][]) {
+    const len = Math.hypot(b[0] - a[0], b[1] - a[1]), n = Math.max(1, Math.round(len / 1.6))
+    for (let i = 0; i < n; i++) { const q = i / n, [x, , z] = P(a[0] + (b[0] - a[0]) * q, 0, a[1] + (b[1] - a[1]) * q); strut(metal, x, deck + 0.05, z, x, deck + 1.1, z, 0.025, rail) }
+    for (const y of [0.6, 1.1]) { const A = P(a[0], deck + y, a[1]), B = P(b[0], deck + y, b[1]); strut(metal, A[0], A[1], A[2], B[0], B[1], B[2], 0.025, rail) }
+  }
+  for (const o of [-0.22, 0.22]) { const A = P(hl + 0.35, 0, hw - 1 + o), B = P(hl + 0.35, deck + 1.1, hw - 1 + o); strut(metal, A[0], A[1], A[2], B[0], B[1], B[2], 0.025, rail) }
+  for (let y = 0.3; y < deck; y += 0.3) { const A = P(hl + 0.35, y, hw - 1.22), B = P(hl + 0.35, y, hw - 0.78); strut(metal, A[0], A[1], A[2], B[0], B[1], B[2], 0.016, rail) }
+  ctx.glow.add(...P(hl - 0.3, h + 0.4, hw - 0.3), 0.5, 0xffa020, 1.5, [3, 0.6, s.x])
+}
+
+function wagon(ctx: BuildCtx, s: MapSolid, x0: number, _y0: number, z0: number, x1: number, y1: number, z1: number, alongX: boolean, k: number): void {
+  const c = tint(s.tint ?? 0x6a3a2a, 1, k), v = s.v ?? 0, L = alongX ? x1 - x0 : z1 - z0
+  const f = alongX ? frameOf(s.x, s.z, 1, 0) : frameOf(s.x, s.z, 0, -1), m = placeAt(s.x, 0, s.z, f.ry)
+  const frame = tint(0x26282a, 1, 0.85 + ctx.rng() * 0.3), steel = tint(0x5a554e), rust = c.clone().lerp(new THREE.Color(0x6a3a22), 0.35)
+  if (v >= 20) {
+    addVehicle(ctx, hopperWagonGeometry(L), m, {
+      paint: ["container", c], frame: ["metal", frame], trim: ["metal", rust], chrome: ["metal", steel], load: ["gravel", tint(0xb8b0a0, 1, 0.9 + ctx.rng() * 0.15)],
+    })
+    const [nx, nz] = f.at(-L * 0.3, 1.42)
+    decal(ctx, "numbers", nx, 3.0, nz, 1.2, 0.35, alongX ? "s" : "e", 0xe8e4dc)
+    return
+  }
+  addVehicle(ctx, boxcarGeometry(L), m, {
+    paint: ["container", c], roof: ["metal", tint(0x8a8680, 1, 0.8 + ctx.rng() * 0.3)], frame: ["metal", frame], trim: ["metal", rust], chrome: ["metal", steel],
+  })
+  for (const sd of [1, -1]) {
+    const face: Side = alongX ? (sd > 0 ? "s" : "n") : (sd > 0 ? "e" : "w")
+    const [nx, nz] = f.at(-L * 0.32, sd * 1.475)
+    decal(ctx, "numbers", nx, 1.75, nz, 1.3, 0.38, face, 0xe8e4dc)
+    if (ctx.rng() < 0.5) { const [gx, gz] = f.at(L * 0.3, sd * 1.475); decal(ctx, `graffiti${Math.floor(ctx.rng() * 3)}`, gx, 1.45, gz, 3.0, 1.2, face) }
+  }
+  void y1
 }
 
 function apc(ctx: BuildCtx, s: MapSolid, alongX: boolean): void {
@@ -420,13 +800,94 @@ function apc(ctx: BuildCtx, s: MapSolid, alongX: boolean): void {
   decal(ctx, "numbers", nx, 1.45, nz, 1.0, 0.4, alongX ? "s" : "e", 0xffffff)
 }
 
+/** Strut (cylinder of radius r) between two points, into batch b. */
+function strut(b: GeoBatch, ax: number, ay: number, az: number, bx: number, by: number, bz: number, r: number, color: THREE.Color | number): void {
+  const d = V.set(bx - ax, by - ay, bz - az), l = d.length()
+  M.compose(S.set((ax + bx) / 2, (ay + by) / 2, (az + bz) / 2), Q.setFromUnitVectors(UP, d.normalize()), V.set(r, l, r))
+  b.add(tpl().cyl8, M, color)
+}
+const UP = new THREE.Vector3(0, 1, 0)
+
+/** Quad a-b-c-d (counter-clockwise seen from outside) with its normal and metre UVs along a→b and b→c. */
+function quadN(b: GeoBatch, a: number[], q: number[], c: number[], d: number[], color: THREE.Color): void {
+  const e1 = new THREE.Vector3(q[0] - a[0], q[1] - a[1], q[2] - a[2]), e2 = new THREE.Vector3(d[0] - a[0], d[1] - a[1], d[2] - a[2])
+  const n = e1.clone().cross(e2).normalize(), u = Math.hypot(c[0] - d[0], c[2] - d[2]), v = e2.length(), u0 = (u - e1.length()) / 2
+  b.quad(a, q, c, d, [n.x, n.y, n.z], [u0, 0, u0 + e1.length(), 0, u, v, 0, v], color)
+}
+
+/**
+ * Gravel loading bin over the quarry siding: ribbed bin with ring beams on legs (the pillar solids), funnel down to a
+ * slide-gate chute above the wagons, braced legs, railing round the roof deck, control cabin with windows, caged ladder.
+ */
+function hopperPlant(ctx: BuildCtx, p: MapProp): void {
+  const y = p.y ?? 9, w = p.w ?? 10, d = p.d ?? 9, h = p.h ?? 10, metal = ctx.B("metal"), c = tint(0x8a7a50, 1, jit(p)), steel = tint(0x4a4e52), rib = c.clone().multiplyScalar(0.82)
+  const x0 = p.x - w / 2, x1 = p.x + w / 2, z0 = p.z - d / 2, z1 = p.z + d / 2, yb = y + h * 0.35, yt = y + h, o = 0.8
+  metal.box(x0, yb, z0, x1, yt, z1, { color: c, ao: 0, local: true })
+  // funnel down to the outlet
+  const ox0 = p.x - o, ox1 = p.x + o, oz0 = p.z - o, oz1 = p.z + o, fc = c.clone().multiplyScalar(0.9)
+  quadN(metal, [ox0, y, oz1], [ox1, y, oz1], [x1, yb, z1], [x0, yb, z1], fc)
+  quadN(metal, [ox1, y, oz0], [ox0, y, oz0], [x0, yb, z0], [x1, yb, z0], fc)
+  quadN(metal, [ox1, y, oz1], [ox1, y, oz0], [x1, yb, z0], [x1, yb, z1], fc)
+  quadN(metal, [ox0, y, oz0], [ox0, y, oz1], [x0, yb, z1], [x0, yb, z0], fc)
+  // outlet chute with slide gate and hand wheel, ending above the wagon loads
+  metal.box(p.x - 0.55, 5.4, p.z - 0.55, p.x + 0.55, y, p.z + 0.55, { color: c.clone().multiplyScalar(0.75), ao: 0 })
+  metal.box(p.x - 0.75, 6.6, p.z - 0.7, p.x + 0.75, 6.9, p.z + 0.7, { color: steel, ao: 0 })
+  place(metal, tpl().torus, p.x + 0.95, 6.75, p.z, 0, 0, Math.PI / 2, 0.25, 0.06, 0.25, 0x2a2c2e)
+  strut(metal, p.x + 0.55, 6.75, p.z, p.x + 0.95, 6.75, p.z, 0.025, 0x2a2c2e)
+  // vertical stiffeners and ring beams on the bin
+  for (const [a0, a1, fixed, alongX] of [[x0, x1, z1 + 0.03, true], [x0, x1, z0 - 0.03, true], [z0, z1, x1 + 0.03, false], [z0, z1, x0 - 0.03, false]] as const) {
+    for (let a = a0 + 0.6; a < a1 - 0.3; a += 1.25) {
+      if (alongX) metal.box(a - 0.06, yb, fixed - 0.03, a + 0.06, yt, fixed + 0.03, { color: rib, ao: 0 })
+      else metal.box(fixed - 0.03, yb, a - 0.06, fixed + 0.03, yt, a + 0.06, { color: rib, ao: 0 })
+    }
+  }
+  for (const ry of [yb, yb + (yt - yb) * 0.5]) metal.box(x0 - 0.1, ry, z0 - 0.1, x1 + 0.1, ry + 0.28, z1 + 0.1, { color: steel, ao: 0 })
+  // legs: X bracing between the pillars on the planes either side of the track, knee braces under the bin
+  const px = [p.x - 4, p.x + 4], pz = [p.z - 3.5, p.z + 3.5]
+  for (const z of pz) {
+    strut(metal, px[0], 3.6, z, px[1], y - 0.4, z, 0.07, steel); strut(metal, px[1], 3.6, z, px[0], y - 0.4, z, 0.07, steel)
+    metal.box(px[0], y - 0.55, z - 0.12, px[1], y - 0.25, z + 0.12, { color: steel, ao: 0 })
+    metal.box(px[0], 3.45, z - 0.1, px[1], 3.7, z + 0.1, { color: steel, ao: 0 })
+  }
+  for (const x of px) for (const z of pz) strut(metal, x, y - 1.6, z, x + Math.sign(p.x - x) * 1.6, yb, z, 0.08, steel)
+  // roof deck: grating overhang with handrails
+  metal.box(x0 - 0.4, yt, z0 - 0.4, x1 + 0.4, yt + 0.2, z1 + 0.4, { color: steel, ao: 0 })
+  const rx0 = x0 - 0.33, rx1 = x1 + 0.33, rz0 = z0 - 0.33, rz1 = z1 + 0.33, rail = tint(0xd8b030)
+  for (const [ax, az, bx, bz] of [[rx0, rz0, rx1, rz0], [rx1, rz0, rx1, rz1], [rx1, rz1, rx0, rz1], [rx0, rz1, rx0, rz0]]) {
+    const l = Math.hypot(bx - ax, bz - az), n = Math.max(1, Math.round(l / 1.6))
+    for (let i = 0; i < n; i++) { const f = i / n; strut(metal, ax + (bx - ax) * f, yt + 0.2, az + (bz - az) * f, ax + (bx - ax) * f, yt + 1.25, az + (bz - az) * f, 0.025, rail) }
+    for (const hh of [0.7, 1.22]) strut(metal, ax, yt + 0.2 + hh, az, bx, yt + 0.2 + hh, bz, 0.025, rail)
+  }
+  // control cabin: clad box, window band, door, overhanging roof
+  const cb = ctx.B("cladding"), cy0 = yt + 0.2, cy1 = yt + 3
+  cb.box(p.x - 2.5, cy0, p.z - 2, p.x + 2.5, cy1, p.z + 2, { color: tint(0x9a9a92), ao: 0 })
+  const glass = ctx.B("glass"), gc = tint(0x2c353d)
+  glass.box(p.x - 2.2, cy0 + 1.2, p.z + 2, p.x + 2.2, cy0 + 2.1, p.z + 2.03, { color: gc, ao: 0 })
+  glass.box(p.x - 2.2, cy0 + 1.2, p.z - 2.03, p.x - 0.2, cy0 + 2.1, p.z - 2, { color: gc, ao: 0 })
+  for (const sx of [-1, 1]) glass.box(sx > 0 ? p.x + 2.5 : p.x - 2.53, cy0 + 1.2, p.z - 1.6, sx > 0 ? p.x + 2.53 : p.x - 2.5, cy0 + 2.1, p.z + 1.6, { color: gc, ao: 0 })
+  metal.box(p.x + 0.4, cy0, p.z - 2.04, p.x + 1.35, cy0 + 2.05, p.z - 2.0, { color: tint(0x5a6066), ao: 0 })
+  metal.box(p.x - 2.75, cy1, p.z - 2.25, p.x + 2.75, cy1 + 0.18, p.z + 2.25, { color: tint(0x5a5c5e), ao: 0 })
+  // caged ladder from the ground to the deck, off the south-east leg
+  const lx = px[1], lz = z1 + 0.45
+  for (const s of [-0.22, 0.22]) strut(metal, lx + s, 0, lz, lx + s, yt + 1.2, lz, 0.025, rail)
+  for (let ly = 0.3; ly < yt + 0.2; ly += 0.3) strut(metal, lx - 0.22, ly, lz, lx + 0.22, ly, lz, 0.016, rail)
+  for (let ly = 2.4; ly < yt + 1.2; ly += 0.9) for (let i = 0; i < 6; i++) {
+    const a0 = i / 6 * Math.PI, a1 = (i + 1) / 6 * Math.PI, r = 0.4
+    strut(metal, lx + Math.cos(a0) * r, ly, lz + Math.sin(a0) * r, lx + Math.cos(a1) * r, ly, lz + Math.sin(a1) * r, 0.018, rail)
+  }
+  for (const a of [0.5, 1.57, 2.64]) strut(metal, lx + Math.cos(a) * 0.4, 2.4, lz + Math.sin(a) * 0.4, lx + Math.cos(a) * 0.4, yt + 1.2, lz + Math.sin(a) * 0.4, 0.015, rail)
+  for (let ly = 3; ly < yb; ly += 3) strut(metal, lx, ly, lz - 0.05, lx, ly, pz[1] + 0.3, 0.035, steel)
+  decal(ctx, textKey(ctx, 0, "KIESWERK"), p.x, y + h * 0.6, z1 + 0.07, w * 0.7, 1.2, "s", 0x2a2a2a)
+  ctx.glow.add(p.x, cy1 + 0.4, p.z, 0.6, 0xff2a18, 2, [3, 0.5, 1])
+}
+
 function rock(ctx: BuildCtx, s: MapSolid, x0: number, y0: number, z0: number, x1: number, y1: number, z1: number): void {
   const b = ctx.B("rock"), v = s.v ?? 0, base = tint(s.tint ?? 0xb8b0a2, 1, jit(s, 0.12)), t = tpl(), rng = ctx.rng
   const col = (k: number) => base.clone().multiplyScalar(k)
   if (s.h < 5) {
     // boulder / rock bench: a lumpy mass filling the box plus a smaller stone on top
     place(b, t.chunk, s.x, y0 + s.h * 0.42, s.z, rng() * 0.3, rng() * 6.28, rng() * 0.3, s.w * 0.56, s.h * 0.62, s.d * 0.56, col(0.95 + rng() * 0.1), [s.w * 2, s.h * 2])
-    if (s.w > 1.6 && s.d > 1.2) place(b, t.chunk, s.x + (rng() - 0.5) * s.w * 0.3, y0 + s.h * 0.75, s.z + (rng() - 0.5) * s.d * 0.3, rng(), rng() * 6.28, 0, s.w * 0.3, s.h * 0.35, s.d * 0.3, col(1.05), [s.w, s.h])
+    if (s.w > 1.6 && s.d > 1.2) place(b, s.w < 3.5 ? t.chunkLo : t.chunk, s.x + (rng() - 0.5) * s.w * 0.3, y0 + s.h * 0.75, s.z + (rng() - 0.5) * s.d * 0.3, rng(), rng() * 6.28, 0, s.w * 0.3, s.h * 0.35, s.d * 0.3, col(1.05), [s.w, s.h])
     if (rng() < 0.6) ctx.weeds.push([s.x + s.w * 0.55, s.z, 1.1])
     return
   }
@@ -438,7 +899,7 @@ function rock(ctx: BuildCtx, s: MapSolid, x0: number, y0: number, z0: number, x1
     const a0 = fz ? x0 : z0, a1 = fz ? x1 : z1
     for (let a = a0 + 0.6; a < a1; a += 1.3 + rng() * 0.6) for (let yy = 0.6 + rng() * 0.8; yy < s.h - 0.6; yy += 1.8 + rng() * 1.2) {
       const r = 0.9 + rng() * 0.9, off = face - sgn * r * (0.35 + rng() * 0.25)
-      place(b, t.chunk, fz ? a : off, y0 + yy, fz ? off : a, rng() * 3, rng() * 6.28, rng() * 3, r * (1 + rng() * 0.6), r * (0.7 + rng() * 0.5), r, col(0.82 + rng() * 0.3), [r * 3, r * 3])
+      place(b, r < 1.3 ? t.chunkLo : t.chunk, fz ? a : off, y0 + yy, fz ? off : a, rng() * 3, rng() * 6.28, rng() * 3, r * (1 + rng() * 0.6), r * (0.7 + rng() * 0.5), r, col(0.82 + rng() * 0.3), [r * 3, r * 3])
     }
     const g = ctx.B("gravel"), sc = tint(0xb8b0a0, 1, 0.9 + rng() * 0.1), w = 2.2, hh = 0.75
     const q: number[][] = fz ? [[a1, hh, face], [a0, hh, face], [a0, 0.02, face + sgn * w], [a1, 0.02, face + sgn * w]] : [[face, hh, a0], [face, hh, a1], [face + sgn * w, 0.02, a1], [face + sgn * w, 0.02, a0]]
@@ -458,8 +919,8 @@ function rock(ctx: BuildCtx, s: MapSolid, x0: number, y0: number, z0: number, x1
     const r = 0.7 + rng() * 1.1, yy = y0 + r * 0.6 + rng() * (s.h - r * 1.4), u = (alongX ? x0 : z0) + a
     const face = alongX ? (side < 0 ? z0 : z1) : (side < 0 ? x0 : x1)
     const cx = alongX ? u : face - side * r * 0.45, cz = alongX ? face - side * r * 0.45 : u
-    place(b, t.chunk, cx, yy, cz, rng() * 3, rng() * 6.28, rng() * 3, r * 1.3, r, r, col(0.85 + rng() * 0.25), [r * 3, r * 3])
-    if (rng() < 0.35) { const rr = 0.25 + rng() * 0.35; place(b, t.chunk, alongX ? u + (rng() - 0.5) : face + side * 0.25, rr * 0.6, alongX ? face + side * 0.25 : u + (rng() - 0.5), rng() * 3, rng() * 6, 0, rr, rr * 0.8, rr, col(0.9), [1, 1]) }
+    place(b, r < 1.1 ? t.chunkLo : t.chunk, cx, yy, cz, rng() * 3, rng() * 6.28, rng() * 3, r * 1.3, r, r, col(0.85 + rng() * 0.25), [r * 3, r * 3])
+    if (rng() < 0.35) { const rr = 0.25 + rng() * 0.35; place(b, t.chunkLo, alongX ? u + (rng() - 0.5) : face + side * 0.25, rr * 0.6, alongX ? face + side * 0.25 : u + (rng() - 0.5), rng() * 3, rng() * 6, 0, rr, rr * 0.8, rr, col(0.9), [1, 1]) }
   }
   if (rng() < 0.6) ctx.weeds.push([s.x + (rng() - 0.5) * s.w * 0.6, s.z + (rng() - 0.5) * s.d * 0.6, 1.2])
 }
@@ -565,17 +1026,12 @@ function extraProp(ctx: BuildCtx, p: MapProp): void {
     }
     case "clock": { decal(ctx, "clock", p.x, p.y ?? 3, p.z - 0.02, 1.1, 1.1, "n"); return }
     case "tankwagon": {
-      const w = p.w ?? 12, c = tint(p.tint ?? 0x2a2c30, 1, jit(p)), dark = tint(0x1e2022)
-      metal.box(p.x - w / 2 + 0.3, 0.75, p.z - 1.1, p.x + w / 2 - 0.3, 1.0, p.z + 1.1, { color: dark, ao: 0 })
-      place(metal, t.cyl16, p.x, 2.3, p.z, 0, 0, Math.PI / 2, 1.3, w - 0.8, 1.3, c, [Math.PI * 2.6, w])
-      for (const e of [-1, 1]) place(metal, t.sphere, p.x + e * (w / 2 - 0.4), 2.3, p.z, 0, 0, 0, 0.3, 1.3, 1.3, c)
-      place(metal, t.cyl12, p.x, 3.65, p.z, 0, 0, 0, 0.45, 0.3, 0.45, c)
-      for (const f of [0.18, 0.82]) {
-        const bx = p.x - w / 2 + w * f
-        metal.box(bx - 1.2, 0.3, p.z - 0.85, bx + 1.2, 0.75, p.z + 0.85, { color: dark, ao: 0 })
-        for (const o of [-0.85, 0.85]) for (const sd of [-0.72, 0.72]) place(metal, t.wheel, bx + o, 0.45, p.z + sd, 0, 0, 0, 0.12, 0.45, 0.45, 0x2a2622)
-      }
-      decal(ctx, "hazard", p.x, 1.4, p.z + 1.32, 2, 0.35, "s")
+      const w = p.w ?? 12, c = tint(p.tint ?? 0x2a2c30, 1, jit(p)), light = c.r + c.g + c.b > 1.5
+      addVehicle(ctx, tankWagonGeometry(w), placeAt(p.x, 0, p.z, 0), {
+        paint: ["metal", c], trim: ["metal", light ? tint(0x3a3c40) : tint(0x8a8680)], frame: ["metal", tint(0x26282a, 1, 0.85 + ctx.rng() * 0.3)], chrome: ["metal", tint(0x8a8a84)],
+      })
+      decal(ctx, "hazard", p.x - w * 0.28, 2.3, p.z + 1.312, 1.6, 0.3, "s")
+      decal(ctx, "numbers", p.x + w * 0.28, 2.3, p.z + 1.312, 1.2, 0.3, "s", light ? 0x2a2a2a : 0xe8e4dc)
       return
     }
     case "portal": {
@@ -592,25 +1048,19 @@ function extraProp(ctx: BuildCtx, p: MapProp): void {
       return
     }
     case "quay": return quay(ctx, p)
-    case "hopper": {
-      const y = p.y ?? 9, w = p.w ?? 10, d = p.d ?? 9, h = p.h ?? 10, c = tint(0x8a7a50, 1, jit(p))
-      metal.box(p.x - w / 2, y + h * 0.35, p.z - d / 2, p.x + w / 2, y + h, p.z + d / 2, { color: c })
-      place(metal, t.pyr, p.x, y + h * 0.35, p.z, Math.PI, 0, 0, w * 1.35, h * 0.35, d * 1.35, tint(0x6a6040))
-      metal.box(p.x - w / 2 - 0.4, y + h, p.z - d / 2 - 0.4, p.x + w / 2 + 0.4, y + h + 0.2, p.z + d / 2 + 0.4, { color: tint(0x4a4e52), ao: 0 })
-      ctx.B("cladding").box(p.x - 2.5, y + h + 0.2, p.z - 2, p.x + 2.5, y + h + 3, p.z + 2, { color: tint(0x9a9a92), ao: 0 })
-      decal(ctx, textKey(ctx, 0, "KIESWERK"), p.x, y + h * 0.6, p.z + d / 2 + 0.02, w * 0.7, 1.2, "s", 0x2a2a2a)
-      ctx.glow.add(p.x, y + h + 3.4, p.z, 0.6, 0xff2a18, 2, [3, 0.5, 1])
-      return
-    }
+    case "hopper": return hopperPlant(ctx, p)
     case "conveyor": {
       const x2 = p.x2 ?? p.x, z2 = p.z2 ?? p.z, y0 = p.y ?? 1, y1 = p.h ?? 12
       const dx = x2 - p.x, dz = z2 - p.z, dy = y1 - y0, len = Math.hypot(dx, dy, dz)
       const dir = V.set(dx, dy, dz).normalize(), yaw = Math.atan2(dx, dz), pitch = -Math.asin(dir.y)
       M.compose(S.set((p.x + x2) / 2, (y0 + y1) / 2, (p.z + z2) / 2), Q.setFromEuler(E.set(pitch, yaw, 0, "YXZ")), V.set(1, 1, 1))
-      const g = new THREE.BoxGeometry(1.4, 1.0, len); ctx.B("truss").add(g, M, tint(0x9a8a50), [len, 1]); g.dispose()
-      const belt = new THREE.BoxGeometry(1.0, 0.08, len); M.multiply(new THREE.Matrix4().makeTranslation(0, 0.54, 0)); ctx.B("rubber").add(belt, M, tint(0x2a2a2a)); belt.dispose()
+      const steel = tint(0x4a4c4e), yellow = tint(0xc8a032, 1, 0.85 + ctx.rng() * 0.2)
+      addVehicle(ctx, conveyorGeometry(len), M, { paint: ["metal", yellow], frame: ["metal", steel], rubber: ["rubber", tint(0x1e1e1e)], chrome: ["metal", tint(0x8a8a84)], load: ["gravel", tint(0xb8b0a0)] })
       const n = Math.max(1, Math.floor(Math.hypot(dx, dz) / 12))
-      for (let i = 1; i <= n; i++) { const f = i / (n + 1), sx = p.x + dx * f, sz = p.z + dz * f, sy = y0 + dy * f; place(metal, t.box, sx, sy / 2, sz, 0, yaw, 0, 0.25, sy, 0.25, 0x6a6a62) }
+      for (let i = 1; i <= n; i++) {
+        const f = i / (n + 1), sy = y0 + dy * f - 0.55
+        addVehicle(ctx, trestleGeometry(Math.round(sy * 10) / 10), placeAt(p.x + dx * f, 0, p.z + dz * f, yaw), { paint: ["metal", yellow], frame: ["metal", steel] })
+      }
       return
     }
     case "heap": {
@@ -808,22 +1258,37 @@ function gable(ctx: BuildCtx, p: MapProp): void {
 function tent(ctx: BuildCtx, x: number, z: number, w: number, d: number, h: number, tintHex: number, v: number): void {
   const b = ctx.B("burlap"), c = tint(tintHex, 1, 1.25 + ctx.rng() * 0.2), dark = c.clone().multiplyScalar(0.55), alongX = w >= d
   const x0 = x - w / 2, x1 = x + w / 2, z0 = z - d / 2, z1 = z + d / 2, wall = h * 0.28
-  if (alongX) {
-    const sl = Math.hypot(d / 2, h - wall)
-    b.box(x0, 0, z0, x1, wall, z1, { color: c, skip: PY, local: true, ao: 0.15 })
-    b.quad([x1, wall, z0], [x0, wall, z0], [x0, h, z], [x1, h, z], [0, 0.6, -0.8], [w, 0, 0, 0, 0, sl, w, sl], c)
-    b.quad([x0, wall, z1], [x1, wall, z1], [x1, h, z], [x0, h, z], [0, 0.6, 0.8], [0, 0, w, 0, w, sl, 0, sl], c)
-    b.quad([x0, wall, z0], [x0, wall, z1], [x0, h, z], [x0, h, z], [-1, 0, 0], [0, 0, d, 0, d / 2, h, d / 2, h], v === 1 ? dark : c)
-    b.quad([x1, wall, z1], [x1, wall, z0], [x1, h, z], [x1, h, z], [1, 0, 0], [0, 0, d, 0, d / 2, h, d / 2, h], c)
-    ctx.lines.push(x0, h, z, x0 - 1.2, 0, z, x1, h, z, x1 + 1.2, 0, z)
-  } else {
-    const sl = Math.hypot(w / 2, h - wall)
-    b.box(x0, 0, z0, x1, wall, z1, { color: c, skip: PY, local: true, ao: 0.15 })
-    b.quad([x0, wall, z0], [x0, wall, z1], [x, h, z1], [x, h, z0], [-0.8, 0.6, 0], [0, 0, d, 0, d, sl, 0, sl], c)
-    b.quad([x1, wall, z1], [x1, wall, z0], [x, h, z0], [x, h, z1], [0.8, 0.6, 0], [0, 0, d, 0, d, sl, 0, sl], c)
-    b.quad([x1, wall, z0], [x0, wall, z0], [x, h, z0], [x, h, z0], [0, 0, -1], [0, 0, w, 0, w / 2, h, w / 2, h], c)
-    b.quad([x0, wall, z1], [x1, wall, z1], [x, h, z1], [x, h, z1], [0, 0, 1], [0, 0, w, 0, w / 2, h, w / 2, h], v === 1 ? dark : c)
-    ctx.lines.push(x, h, z0, x, 0, z0 - 1.2, x, h, z1, x, 0, z1 + 1.2)
+  // local frame: u along the ridge, v across; the canvas sags a little between the poles
+  const f = frameOf(x, z, alongX ? 1 : 0, alongX ? 0 : 1), L = alongX ? w : d, D = alongX ? d : w, hl = L / 2, hd = D / 2
+  const P = (u: number, y: number, q: number): number[] => { const [px, pz] = f.at(u, q); return [px, y, pz] }
+  b.box(x0, 0, z0, x1, wall, z1, { color: c, skip: PY, local: true, ao: 0.15 })
+  const n = Math.max(2, Math.round(L / 1.6)), sag = 0.07
+  for (let i = 0; i < n; i++) {
+    const ua = -hl + i * L / n, ub = ua + L / n, um = (ua + ub) / 2
+    for (const sd of [-1, 1]) {
+      const ea = P(ua, wall, sd * hd), eb = P(ub, wall, sd * hd), ra = P(ua, h, 0), rb = P(ub, h, 0), cm = P(um, (wall + h) / 2 - sag, sd * hd / 2)
+      const shade = c.clone().multiplyScalar(0.94 + ((i + (sd > 0 ? 1 : 0)) % 2) * 0.06)
+      const quad = sd < 0 ? [eb, ea, ra, rb] : [ea, eb, rb, ra]
+      for (let k = 0; k < 4; k++) quadN(b, quad[k], quad[(k + 1) % 4], cm, cm, shade)
+    }
+  }
+  quadN(b, P(-hl, wall, -hd), P(-hl, wall, hd), P(-hl, h, 0), P(-hl, h, 0), v === 1 ? dark : c)
+  quadN(b, P(hl, wall, hd), P(hl, wall, -hd), P(hl, h, 0), P(hl, h, 0), c)
+  // door on the -u end with the flap rolled up above it, ridge pole, guy ropes and pegs along both sides
+  const door = tint(0x1a1a16), dy = Math.min(h * 0.78, 1.9)
+  quadN(b, P(-hl - 0.012, 0, -0.45), P(-hl - 0.012, 0, 0.45), P(-hl - 0.012, dy, 0.3), P(-hl - 0.012, dy, -0.3), door)
+  const metal = ctx.B("metal"), [fa, fb] = [P(-hl, dy + 0.06, -0.42), P(-hl, dy + 0.06, 0.42)]
+  strut(b, fa[0] - (alongX ? 0.06 : 0), fa[1], fa[2] - (alongX ? 0 : 0.06), fb[0] - (alongX ? 0.06 : 0), fb[1], fb[2] - (alongX ? 0 : 0.06), 0.07, c.clone().multiplyScalar(0.85))
+  const [ra, rb] = [P(-hl - 0.18, h, 0), P(hl + 0.18, h, 0)]
+  strut(metal, ra[0], ra[1], ra[2], rb[0], rb[1], rb[2], 0.03, 0x3a3a34)
+  for (const e of [-1, 1]) { const g0 = P(e * (hl + 0.15), h, 0), g1 = P(e * (hl + 1.3), 0, 0); ctx.lines.push(g0[0], g0[1], g0[2], g1[0], g1[1], g1[2]) }
+  for (let i = 0; i <= n; i++) {
+    const u = -hl + i * L / n
+    for (const sd of [-1, 1]) {
+      const e0 = P(u, wall, sd * hd), e1 = P(u, 0.05, sd * (hd + 0.9))
+      ctx.lines.push(e0[0], e0[1], e0[2], e1[0], e1[1], e1[2])
+      place(metal, tpl().box, e1[0], 0.06, e1[2], 0, f.ry, 0.3 * sd, 0.03, 0.18, 0.03, 0x5a5a52)
+    }
   }
 }
 

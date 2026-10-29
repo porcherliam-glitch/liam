@@ -72,8 +72,14 @@ Schreiben dürfen Personen, mit denen das Artefakt mindestens als „Contributor
 - **Riesige Sperrzone** (~600 × 600 m) mit Stadtteilen: Altstadt, Industriegebiet, Hafen, Militäranlage, Forschungslabor mit Endgegner, Bauernhof, Bahnhof, Nordwald, Steinbruch. Vier Tageszeiten.
 - **Infizierte**: Schlurfer, Läufer, Brecher, Schreier, Spucker, Schleicher, Kriecher und der Koloss. Dazu **Söldnertrupps** mit Deckung, Flanken und Scharfschützen.
 - **Gore**: Kopftreffer lassen Köpfe platzen, Klingen und Schrot trennen Arme und Beine ab, Explosionen zerreißen Körper; Blut an Wänden, auf dem Boden und auf dem Bildschirm.
-- **15 Waffen**: Messer, Machete, Feuerwehraxt, P9, R-44 Revolver, VX-9 und K5 Maschinenpistolen, MK-4, SR-74, BR-10, KV-12 Pump- und SG-8 Selbstladeflinte, DR-7 Präzisionsgewehr, Falke .338 Repetierer, LM-60 MG.
-- **9 Aufsätze**: Rotpunkt, Holo-Visier, 4×-Zielfernrohr, Schalldämpfer, Kompensator, zwei Griffe, erweitertes Magazin, Laser-Licht-Modul. **9 Munitionssorten** inklusive panzerbrechender Munition und Flintenlaufgeschossen.
+- **24 Waffen**:
+  - Nahkampf: Messer, Brechstange, Baseballschläger, Machete, Feuerwehraxt, Katana, Vorschlaghammer.
+  - Pistolen: P9, P18 Reihenfeuerpistole, R-44 Revolver, DE-50 Großkaliberpistole.
+  - Maschinenpistolen: VX-9, K5, V-45 Vektor.
+  - Gewehre: MK-4, StG-77 Bullpup, SR-74, BR-10 Kampfgewehr.
+  - Schrotflinten: KV-12 Pump-, SG-8 Selbstlade- und AS-12 Sturmflinte.
+  - Präzision und MG: DR-7 Präzisionsgewehr, Falke .338 Repetierer, LM-60 MG.
+- **14 Aufsätze**: Rotpunkt, Holo-Visier, 2,5×-Prismenvisier, 4×-Zielfernrohr, Schalldämpfer, Kompensator, Mündungsbremse, Vertikal- und Winkelgriff, Zweibein, erweitertes Magazin, Trommelmagazin, Laser-Licht-Modul, Waffenlicht. **10 Munitionssorten** inklusive .45 ACP, panzerbrechender Munition und Flintenlaufgeschossen.
 - **Überleben**: Gesundheit, Blutungen, Hunger, Durst, Infektion, Schmerzmittel, Stimulanzien, Tragegewicht.
 - **Andere Überlebende**: Lager mit Händlerin, Sanitäterin und Wache; verirrte und verletzte Menschen zum Retten, die danach in der Basis wohnen.
 - **Online** (als claude.ai-Artefakt): andere Spieler als Echos, Funk, Bestenliste, Ausrüstung gefallener Spieler.

@@ -29,7 +29,7 @@ export interface DecalReq { key: string; x: number; y: number; z: number; w: num
 export interface WindowReq { x: number; y: number; z: number; w: number; h: number; face: Side; cell: number }
 
 export interface BuildCtx {
-  data: { props: readonly MapProp[]; buildings: readonly BuildingInfo[]; doorways: readonly Doorway[] }
+  data: { props: readonly MapProp[]; buildings: readonly BuildingInfo[]; doorways: readonly Doorway[]; solids?: readonly MapSolid[] }
   look: PropLook
   /** 0 = dead lamp, 1 = working (position-based, decided by world.ts). */
   lit(x: number, z: number): number
@@ -87,28 +87,34 @@ export function tpl(): Record<string, THREE.BufferGeometry> {
     taper: new THREE.CylinderGeometry(0.62, 1, 1, 16, 1, true).translate(0, 0.5, 0),
     dome: new THREE.SphereGeometry(1, 16, 6, 0, Math.PI * 2, 0, Math.PI / 2),
     disc: new THREE.CircleGeometry(1, 20),
-    // weathered rock: smooth lumpy mass (layered waves) broken by a few flat fracture planes, smooth normals
-    chunk: (() => {
-      let g: THREE.BufferGeometry = new THREE.IcosahedronGeometry(1, 3)
-      g.deleteAttribute("normal"); g.deleteAttribute("uv"); g = mergeVertices(g)
-      const p = g.attributes.position as THREE.BufferAttribute, v = new THREE.Vector3()
-      const wave = (x: number, y: number, z: number) => Math.sin(x * 2.1 + y * 1.3) * Math.cos(z * 1.7 - x * 0.9) * 0.16 + Math.sin(x * 4.7 - z * 3.9 + y * 2.3) * 0.06 + Math.sin(y * 8.3 + x * 6.1) * Math.cos(z * 7.7) * 0.025
-      const cuts = [[0.62, 0.55, 0.56, 0.66], [-0.7, 0.2, 0.68, 0.7], [0.1, -0.95, 0.3, 0.6], [-0.3, 0.7, -0.65, 0.68], [0.85, -0.2, -0.5, 0.64], [0, 1, 0.1, 0.62], [-0.6, -0.5, -0.6, 0.66], [0.3, 0.1, -0.95, 0.7]].map(([x, y, z, d]) => [new THREE.Vector3(x, y, z).normalize(), d] as const)
-      for (let i = 0; i < p.count; i++) {
-        v.fromBufferAttribute(p, i)
-        v.multiplyScalar(0.9 + wave(v.x, v.y, v.z))
-        for (const [n, d] of cuts) { const k = v.dot(n); if (k > d) v.addScaledVector(n, (d - k) * 0.97) }
-        p.setXYZ(i, v.x, v.y, v.z)
-      }
-      g.computeVertexNormals()
-      // planar UVs (metres on the unit rock; place() scales them)
-      const uv = new Float32Array(p.count * 2); for (let i = 0; i < p.count; i++) { uv[i * 2] = p.getX(i) + p.getZ(i) * 0.6; uv[i * 2 + 1] = p.getY(i) }
-      g.setAttribute("uv", new THREE.BufferAttribute(uv, 2))
-      return g
-    })(),
+    // weathered rock: smooth lumpy mass (layered waves) broken by a few flat fracture planes, smooth normals;
+    // chunkLo is the same rock with a quarter of the vertices for small stones and rubble
+    chunk: rockChunk(3),
+    chunkLo: rockChunk(2),
   }
   return T
 }
+
+/** Weathered rock template on an icosphere of the given detail. */
+function rockChunk(detail: number): THREE.BufferGeometry {
+  let g: THREE.BufferGeometry = new THREE.IcosahedronGeometry(1, detail)
+  g.deleteAttribute("normal"); g.deleteAttribute("uv"); g = mergeVertices(g)
+  const p = g.attributes.position as THREE.BufferAttribute, v = new THREE.Vector3()
+  const wave = (x: number, y: number, z: number) => Math.sin(x * 2.1 + y * 1.3) * Math.cos(z * 1.7 - x * 0.9) * 0.16 + Math.sin(x * 4.7 - z * 3.9 + y * 2.3) * 0.06 + Math.sin(y * 8.3 + x * 6.1) * Math.cos(z * 7.7) * 0.025
+  const cuts = [[0.62, 0.55, 0.56, 0.66], [-0.7, 0.2, 0.68, 0.7], [0.1, -0.95, 0.3, 0.6], [-0.3, 0.7, -0.65, 0.68], [0.85, -0.2, -0.5, 0.64], [0, 1, 0.1, 0.62], [-0.6, -0.5, -0.6, 0.66], [0.3, 0.1, -0.95, 0.7]].map(([x, y, z, d]) => [new THREE.Vector3(x, y, z).normalize(), d] as const)
+  for (let i = 0; i < p.count; i++) {
+    v.fromBufferAttribute(p, i)
+    v.multiplyScalar(0.9 + wave(v.x, v.y, v.z))
+    for (const [n, d] of cuts) { const k = v.dot(n); if (k > d) v.addScaledVector(n, (d - k) * 0.97) }
+    p.setXYZ(i, v.x, v.y, v.z)
+  }
+  g.computeVertexNormals()
+  // planar UVs (metres on the unit rock; place() scales them)
+  const uv = new Float32Array(p.count * 2); for (let i = 0; i < p.count; i++) { uv[i * 2] = p.getX(i) + p.getZ(i) * 0.6; uv[i * 2 + 1] = p.getY(i) }
+  g.setAttribute("uv", new THREE.BufferAttribute(uv, 2))
+  return g
+}
+
 /** Hooks for the zone additions (zoneprops.ts registers them; avoids a circular import). */
 export interface Extras {
   solid(ctx: BuildCtx, s: MapSolid): boolean
@@ -793,21 +799,41 @@ function mast(ctx: BuildCtx, p: MapProp): void {
 }
 
 function tower(ctx: BuildCtx, p: MapProp): void {
-  const t = tpl(), metal = ctx.B("metal"), L = ctx.look, base = 2.8, top = p.h ?? 7, s = 1.5
+  const t = tpl(), metal = ctx.B("metal"), L = ctx.look, base = 2.8, top = p.h ?? 7, s = 1.5, e = s - 0.12
   const olive = tint(0x4f5a3c), steel = tint(0x55595c)
-  for (const [dx, dz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) place(metal, t.box, p.x + dx * (s - 0.12), (base + top) / 2, p.z + dz * (s - 0.12), 0, 0, 0, 0.18, top - base, 0.18, steel)
+  for (const [dx, dz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) place(metal, t.box, p.x + dx * e, (base + top) / 2, p.z + dz * e, 0, 0, 0, 0.18, top - base, 0.18, steel)
   for (const y of [base + 1.4, top - 0.6]) for (const [ax, az, bx, bz] of [[-1, -1, 1, -1], [-1, 1, 1, 1], [-1, -1, -1, 1], [1, -1, 1, 1]]) {
-    const cx = p.x + (ax + bx) / 2 * (s - 0.12), cz = p.z + (az + bz) / 2 * (s - 0.12), len = Math.hypot(bx - ax, bz - az) * (s - 0.12)
+    const cx = p.x + (ax + bx) / 2 * e, cz = p.z + (az + bz) / 2 * e, len = Math.hypot(bx - ax, bz - az) * e
     place(metal, t.box, cx, y, cz, 0, Math.atan2(bx - ax, bz - az), 0, 0.08, 0.08, len, steel)
+  }
+  // X bracing on every face between the two rings
+  const y0 = base + 1.4, y1 = top - 0.6
+  for (const [ax, az, bx, bz] of [[-1, -1, 1, -1], [-1, 1, 1, 1], [-1, -1, -1, 1], [1, -1, 1, 1]]) {
+    rodP(metal, p.x + ax * e, y0, p.z + az * e, p.x + bx * e, y1, p.z + bz * e, 0.035, steel)
+    rodP(metal, p.x + bx * e, y0, p.z + bz * e, p.x + ax * e, y1, p.z + az * e, 0.035, steel)
   }
   metal.box(p.x - s - 0.3, top, p.z - s - 0.3, p.x + s + 0.3, top + 0.2, p.z + s + 0.3, { color: steel, ao: 0 })
   ctx.B("siding").box(p.x - s, top + 0.2, p.z - s, p.x + s, top + 1.1, p.z + s, { color: olive, ao: 0 })
   for (const [dx, dz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) metal.box(p.x + dx * s - 0.08, top + 1.1, p.z + dz * s - 0.08, p.x + dx * s + 0.08, top + 2.3, p.z + dz * s + 0.08, { color: olive, ao: 0, local: true })
   ctx.B("glass").box(p.x - s + 0.1, top + 1.1, p.z - s + 0.1, p.x + s - 0.1, top + 2.3, p.z + s - 0.1, { local: true, ao: 0, color: tint(0x6a7a8a) })
-  metal.box(p.x - s - 0.45, top + 2.3, p.z - s - 0.45, p.x + s + 0.45, top + 2.5, p.z + s + 0.45, { color: olive, ao: 0 })
-  for (let y = base + 0.2; y < top; y += 0.35) place(metal, t.box, p.x + s + 0.05, y, p.z, 0, 0, 0, 0.04, 0.04, 0.6, steel)
+  // window sill, eaves and a low pyramid roof with a vent cap
+  metal.box(p.x - s - 0.06, top + 1.08, p.z - s - 0.06, p.x + s + 0.06, top + 1.14, p.z + s + 0.06, { color: olive, ao: 0 })
+  metal.box(p.x - s - 0.45, top + 2.3, p.z - s - 0.45, p.x + s + 0.45, top + 2.42, p.z + s + 0.45, { color: olive, ao: 0 })
+  place(ctx.B("cladding"), t.pyr, p.x, top + 2.42, p.z, 0, 0, 0, 2 * s + 0.9, 0.7, 2 * s + 0.9, tint(0x5a6248), [2 * s, 1])
+  place(metal, t.cyl8, p.x, top + 3.15, p.z, 0, 0, 0, 0.12, 0.2, 0.12, 0x3a3e40)
+  // ladder: stringers and rungs up the +x face
+  for (const o of [-0.25, 0.25]) place(metal, t.box, p.x + s + 0.05, (base + top) / 2 + 0.6, p.z + o, 0, 0, 0, 0.05, top - base + 1.2, 0.05, steel)
+  for (let y = base + 0.2; y < top; y += 0.35) place(metal, t.box, p.x + s + 0.05, y, p.z, 0, 0, 0, 0.04, 0.04, 0.5, steel)
   ctx.glow.add(p.x, top + 1.6, p.z, 1.4, 0xffb060, 0.35 * (0.3 + L.night), [0.1, 3, p.x])
-  ctx.glow.add(p.x, top + 2.6, p.z, 0.35, 0xff2a18, 2, [3, 0.45, p.z])
+  ctx.glow.add(p.x, top + 3.3, p.z, 0.35, 0xff2a18, 2, [3, 0.45, p.z])
+}
+
+const UP_Y = new THREE.Vector3(0, 1, 0), RD = new THREE.Vector3()
+/** Round rod (radius r) between two points. */
+function rodP(b: GeoBatch, ax: number, ay: number, az: number, bx: number, by: number, bz: number, r: number, color: THREE.Color | number): void {
+  RD.set(bx - ax, by - ay, bz - az); const l = RD.length()
+  M.compose(P.set((ax + bx) / 2, (ay + by) / 2, (az + bz) / 2), Q.setFromUnitVectors(UP_Y, RD.normalize()), S.set(r, l, r))
+  b.add(tpl().cyl8, M, color)
 }
 
 function containerDoors(ctx: BuildCtx, p: MapProp): void {

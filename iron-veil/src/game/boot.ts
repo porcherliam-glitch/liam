@@ -36,6 +36,8 @@ declare global {
       give: (id: ItemId, qty: number) => number
       grant: (id: ItemId, qty: number) => void
       vitals: () => unknown
+      /** Renderer resource counts (geometries, textures, shader programs) and draw calls of the last frame. */
+      gpu: () => { geometries: number; textures: number; programs: number; calls: number; triangles: number }
       weapon: () => unknown
       defense: () => unknown
       profile: () => Profile
@@ -146,6 +148,7 @@ export function startGame(canvas: HTMLCanvasElement, uiHost: HTMLElement): void 
     containers: () => game.debug.containers(), exits: () => game.debug.exits(),
     give: (id, qty) => game.debug.give(id, qty), grant: (id, qty) => { company.addItem(id, qty); company.save() },
     vitals: () => game.debug.vitals(), weapon: () => game.debug.weapon(), defense: () => game.debug.defense(),
+    gpu: () => { const i = game.renderer.info; return { ...i.memory, programs: i.programs?.length ?? 0, calls: i.render.calls, triangles: i.render.triangles } },
     profile: () => JSON.parse(JSON.stringify(company.profile)),
     screen: () => ui.currentScreen,
     stations: () => baseLayout().stations.map(s => ({ id: s.id, x: s.x, z: s.z })),

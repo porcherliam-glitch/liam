@@ -1,16 +1,17 @@
 /**
  * vehicleModels.ts — shaped vehicle geometry for the zone props: cars in three body styles (saloon, hatchback,
  * estate) with rounded panels, real wheel arches, glazing, bumpers, lights, mirrors, door seams and spoked wheels.
+ * Also rail wagons (boxcar, hopper, tank wagon) and the quarry's conveyor gallery and trestles.
  * Templates are built once per variant and cached; zoneprops.ts adds the parts to the chunk batches with a placement
  * matrix. Local frame: +x forward, +y up, +z right, origin on the ground at the vehicle centre.
  * Pure three.js geometry (no DOM), so it also builds in Node tests.
  */
 import * as THREE from "three"
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js"
-import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js"
+import { mergeGeometries, mergeVertices } from "three/examples/jsm/utils/BufferGeometryUtils.js"
 
 /** Material slots of a vehicle template (zoneprops maps them to batch keys and colours). */
-export type VehiclePart = "paint" | "glass" | "trim" | "chrome" | "rubber" | "lampF" | "lampR" | "interior" | "plate"
+export type VehiclePart = "paint" | "glass" | "trim" | "chrome" | "rubber" | "lampF" | "lampR" | "interior" | "plate" | "roof" | "frame" | "load"
 export type VehicleGeo = Partial<Record<VehiclePart, THREE.BufferGeometry>>
 
 /** Car body styles: 0 saloon (separate boot), 1 hatchback (sloped tailgate), 2 estate (long roof, upright tail). */
@@ -35,16 +36,40 @@ class Parts {
     bin.push(x)
   }
   box(part: VehiclePart, w: number, h: number, d: number, x: number, y: number, z: number, r = 0, ry = 0, rz = 0): void {
-    const g = r > 0 ? new RoundedBoxGeometry(w, h, d, 2, Math.min(r, w / 2, h / 2, d / 2) * 0.99) : new THREE.BoxGeometry(w, h, d)
+    // rounding only where it shows: small parts get one bevel step, tiny ones none
+    const rr = Math.min(r, w / 2, h / 2, d / 2) * 0.99, big = Math.max(w, h, d)
+    const g = rr >= 0.012 && Math.min(w, h, d) >= 0.04 ? new RoundedBoxGeometry(w, h, d, big > 0.6 ? 2 : 1, rr) : new THREE.BoxGeometry(w, h, d)
     if (rz) g.rotateZ(rz)
     if (ry) g.rotateY(ry)
     g.translate(x, y, z); this.add(part, g)
   }
-  build(): VehicleGeo {
+  /**
+   * Merges each slot and welds identical vertices into an indexed mesh (hard edges keep their split normals);
+   * the slots in `meters` get planar UVs in metres (tiled textures keep their real size).
+   */
+  build(meters: VehiclePart[] = []): VehicleGeo {
     const out: VehicleGeo = {}
-    for (const [k, list] of this.bins) { const g = mergeGeometries(list, false); for (const x of list) x.dispose(); if (g) { g.computeBoundingSphere(); out[k] = g } }
+    for (const [k, list] of this.bins) {
+      const m = mergeGeometries(list, false); for (const x of list) x.dispose()
+      if (!m) continue
+      if (meters.includes(k)) meterUV(m)
+      const g = mergeVertices(m, 1e-4); if (g !== m) m.dispose()
+      g.computeBoundingSphere(); out[k] = g
+    }
     return out
   }
+}
+
+/** Planar UVs in metres, projected along each vertex's dominant normal axis. */
+function meterUV(g: THREE.BufferGeometry): void {
+  const p = g.attributes.position, n = g.attributes.normal, uv = g.attributes.uv as THREE.BufferAttribute
+  for (let i = 0; i < p.count; i++) {
+    const ax = Math.abs(n.getX(i)), ay = Math.abs(n.getY(i)), az = Math.abs(n.getZ(i))
+    if (ay >= ax && ay >= az) uv.setXY(i, p.getX(i), p.getZ(i))
+    else if (ax >= az) uv.setXY(i, p.getZ(i), p.getY(i))
+    else uv.setXY(i, p.getX(i), p.getY(i))
+  }
+  uv.needsUpdate = true
 }
 
 /** Side profile (x = length, y = height) extruded across z, centred, edges rounded by `bevel` (the outline grows by it). */
@@ -98,7 +123,7 @@ function wheel(p: Parts, r: number, w: number, x: number, y: number, z: number, 
     const g = new THREE.LatheGeometry(pts, 24); g.rotateX(Math.PI / 2)
     p.add("rubber", g, place)
     // tread blocks across the running surface
-    for (let i = 0; i < 18; i++) { const a = i / 18 * Math.PI * 2; p.box("rubber", 0.012, 0.035, w * 0.86, x + Math.cos(a) * r, y + Math.sin(a) * r, z, 0, 0, a) }
+    for (let i = 0; i < 14; i++) { const a = i / 14 * Math.PI * 2; p.box("rubber", 0.012, 0.035, w * 0.86, x + Math.cos(a) * r, y + Math.sin(a) * r, z, 0, 0, a) }
   }
   const rr = r * (tyre ? 0.64 : 0.86)
   const rim = new THREE.CylinderGeometry(rr, rr, w * 0.62, 20, 1, true); rim.rotateX(Math.PI / 2); p.add("chrome", rim, place)
@@ -504,6 +529,339 @@ export function boatGeometry(L: number, W: number, cradle: number): VehicleGeo {
       const a = st[i], c = st[Math.min(N, i + 2)]
       rod(p, "chrome", new THREE.Vector3(a.x, ySheer, sd * (a.b - 0.08)), new THREE.Vector3(a.x, ySheer + 0.75, sd * (a.b - 0.08)), 0.02)
       rod(p, "chrome", new THREE.Vector3(a.x, ySheer + 0.75, sd * (a.b - 0.08)), new THREE.Vector3(c.x, ySheer + 0.75, sd * (c.b - 0.08)), 0.02)
+    }
+    return p.build()
+  })
+}
+
+// ───────────────────────────── rail wagons ─────────────────────────────
+// Local frame as above (+x along the track). Wheels stand on the zone track: rail tops at y 0.26, gauge 1.435 m.
+
+const RAIL_TOP = 0.26, RAIL_HALF = 0.7175, WHEEL_R = 0.46
+const V3 = (x: number, y: number, z: number) => new THREE.Vector3(x, y, z)
+
+/** Flanged wheel pair on an axle (flanges inside the rails), axle at x. */
+function wheelset(p: Parts, x: number): void {
+  const r = WHEEL_R, cy = RAIL_TOP + r
+  const prof = [[0.1, -0.06], [0.17, -0.04], [r - 0.03, -0.07], [r + 0.01, -0.07], [r + 0.032, -0.06], [r + 0.03, -0.045], [r + 0.004, -0.035], [r, 0.06], [r - 0.02, 0.07], [0.1, 0.07]]
+    .map(([a, b]) => new THREE.Vector2(a, b))
+  for (const sd of [-1, 1]) {
+    const g = new THREE.LatheGeometry(prof, 22); g.rotateX(sd > 0 ? Math.PI / 2 : -Math.PI / 2); g.translate(x, cy, sd * (RAIL_HALF - 0.012))
+    p.add("chrome", g)
+    const hub = new THREE.CylinderGeometry(0.12, 0.13, 0.1, 12); hub.rotateX(Math.PI / 2); hub.translate(x, cy, sd * (RAIL_HALF + 0.09)); p.add("frame", hub)
+  }
+  rod(p, "frame", V3(x, cy, -1.0), V3(x, cy, 1.0), 0.075, 0.075, 10)
+}
+
+/** Two-axle freight bogie (Y25 style): wheelsets, cast side frames over the axle boxes, bolster, brake shoes. */
+function bogie(p: Parts, x: number): void {
+  const wb = 1.8, cy = RAIL_TOP + WHEEL_R
+  for (const a of [-wb / 2, wb / 2]) wheelset(p, x + a)
+  for (const sd of [-1, 1]) {
+    const z = sd * 1.0
+    const sf = extrude(poly([-1.32, 0.86, -0.72, 0.86, -0.5, 0.56, 0.5, 0.56, 0.72, 0.86, 1.32, 0.86, 1.32, 0.98, 0.66, 1.0, -0.66, 1.0, -1.32, 0.98]), 0.14, 0.015, 1)
+    sf.translate(x, 0, z); p.add("frame", sf)
+    for (const a of [-wb / 2, wb / 2]) {
+      p.box("frame", 0.3, 0.26, 0.24, x + a, cy, z, 0.03)                                      // axle box
+      p.box("trim", 0.06, 0.1, 0.18, x + a + Math.sign(a) * 0.17, cy - 0.02, z + sd * 0.03, 0.01)  // box cover
+      for (const e of [-1, 1]) p.box("frame", 0.07, 0.26, 0.1, x + a + e * (WHEEL_R + 0.05), cy - 0.04, sd * RAIL_HALF, 0.01)  // brake shoes
+    }
+    for (const e of [-1, 1]) rod(p, "frame", V3(x + e * (wb / 2 - WHEEL_R - 0.08), cy - 0.04, -RAIL_HALF), V3(x + e * (wb / 2 - WHEEL_R - 0.08), cy - 0.04, RAIL_HALF), 0.035, 0.035, 6)
+    // damper and spring nest visible in the frame window
+    for (const dz of [-0.04, 0.04]) rod(p, "chrome", V3(x - 0.12 + dz * 3, 0.6, z + dz), V3(x - 0.12 + dz * 3, 0.84, z + dz), 0.05, 0.05, 8)
+  }
+  p.box("frame", 0.5, 0.22, 2.08, x, 0.75, 0, 0.03)                                               // bolster
+  const pivot = new THREE.CylinderGeometry(0.3, 0.32, 0.12, 16); pivot.translate(x, 0.9, 0); p.add("frame", pivot)
+}
+
+/** Side and centre sills, headstocks, side buffers, screw couplings and corner steps for a wagon body ending at ±he. */
+function underframe(p: Parts, hl: number, he: number, hw: number, y: number): void {
+  for (const sd of [-1, 1]) p.box("frame", 2 * he, 0.3, 0.1, 0, y + 0.15, sd * (hw - 0.05))
+  p.box("frame", 2 * he - 0.4, 0.26, 0.36, 0, y + 0.13, 0)
+  for (let x = -he + 1.2; x < he - 1; x += 1.6) p.box("frame", 0.12, 0.2, 2 * hw - 0.2, x, y + 0.14, 0)
+  for (const e of [-1, 1]) {
+    const xe = e * he
+    p.box("trim", 0.2, 0.42, 2 * hw, xe - e * 0.1, y + 0.17, 0, 0.02)                               // headstock
+    for (const sd of [-1, 1]) {
+      const z = sd * 0.875, by = 1.06
+      p.box("frame", 0.05, 0.38, 0.38, xe + e * 0.02, by, z, 0.01)                                  // buffer base plate
+      rod(p, "frame", V3(xe, by, z), V3(xe + e * (hl - he - 0.02), by, z), 0.13, 0.12, 14)          // housing
+      rod(p, "chrome", V3(xe + e * (hl - he - 0.04), by, z), V3(xe + e * (hl - he + 0.08), by, z), 0.085, 0.085, 12)  // plunger
+      const head = new THREE.CylinderGeometry(0.22, 0.22, 0.04, 20); head.rotateZ(Math.PI / 2); head.translate(xe + e * (hl - he + 0.1), by, z); p.add("chrome", head)
+      // corner step and grab handle
+      p.box("frame", 0.36, 0.03, 0.22, xe - e * 0.3, 0.55, sd * (hw - 0.02))
+      for (const dx of [-0.16, 0.16]) rod(p, "frame", V3(xe - e * 0.3 + dx, 0.55, sd * (hw - 0.02)), V3(xe - e * 0.3 + dx, y + 0.02, sd * (hw - 0.02)), 0.015, 0.015, 5)
+      rod(p, "chrome", V3(xe + e * 0.05, 1.45, sd * (hw - 0.12)), V3(xe + e * 0.05, 2.25, sd * (hw - 0.12)), 0.018, 0.018, 6)
+    }
+    // draw hook and the screw coupling hanging from it
+    p.box("frame", 0.16, 0.12, 0.08, xe + e * (hl - he + 0.05), 1.06, 0, 0.02)
+    rod(p, "frame", V3(xe + e * (hl - he + 0.1), 1.02, -0.05), V3(xe + e * (hl - he + 0.16), 0.66, -0.05), 0.02, 0.02, 6)
+    rod(p, "frame", V3(xe + e * (hl - he + 0.1), 1.02, 0.05), V3(xe + e * (hl - he + 0.16), 0.66, 0.05), 0.02, 0.02, 6)
+    rod(p, "chrome", V3(xe + e * (hl - he + 0.13), 0.84, -0.09), V3(xe + e * (hl - he + 0.13), 0.84, 0.09), 0.025, 0.025, 6)
+  }
+}
+
+/** Vertical ladder of two stringers and rungs, from y0 to y1 at (x, z), rungs across `across` ("x" or "z"). */
+function ladder(p: Parts, part: VehiclePart, x: number, z: number, y0: number, y1: number, across: "x" | "z", w = 0.4): void {
+  const ax = across === "x" ? w / 2 : 0, az = across === "z" ? w / 2 : 0
+  for (const s of [-1, 1]) rod(p, part, V3(x + s * ax, y0, z + s * az), V3(x + s * ax, y1, z + s * az), 0.02, 0.02, 6)
+  for (let y = y0 + 0.2; y < y1 - 0.05; y += 0.3) rod(p, part, V3(x - ax, y, z - az), V3(x + ax, y, z + az), 0.014, 0.014, 5)
+}
+
+/** Hand-brake wheel facing along x (ring, spokes, hub) at (x, y, z). */
+function brakeWheel(p: Parts, x: number, y: number, z: number, r = 0.22): void {
+  const ring = new THREE.TorusGeometry(r, 0.02, 6, 20); ring.rotateY(Math.PI / 2); ring.translate(x, y, z); p.add("frame", ring)
+  for (let i = 0; i < 3; i++) p.add("frame", new THREE.BoxGeometry(0.02, 2 * r, 0.025).rotateX(i * Math.PI / 3).translate(x, y, z))
+  const hub = new THREE.CylinderGeometry(0.04, 0.04, 0.08, 8); hub.rotateZ(Math.PI / 2); hub.translate(x - 0.03, y, z); p.add("frame", hub)
+}
+
+/** Covered goods wagon (Gbs style): ribbed steel walls, sliding doors with rails, corrugated ends, arched roof. */
+export function boxcarGeometry(L: number): VehicleGeo {
+  return cached(`boxcar:${L.toFixed(1)}`, () => {
+    const p = new Parts(), hl = L / 2, he = hl - 0.22, bw = 1.42, yb = 1.22, yt = 3.78
+    const bc = Math.min(hl - 2.4, 4.6)
+    bogie(p, -bc); bogie(p, bc)
+    underframe(p, hl, he, 1.47, 0.95)
+    // body box, top chord, side stanchions (not behind the doors)
+    p.box("paint", 2 * he, yt - yb, 2 * bw, 0, (yb + yt) / 2, 0)
+    for (const sd of [-1, 1]) {
+      p.box("frame", 2 * he, 0.09, 0.05, 0, yt - 0.05, sd * (bw + 0.02))
+      p.box("frame", 2 * he, 0.07, 0.05, 0, yb + 0.03, sd * (bw + 0.02))
+      const n = Math.round(2 * he / 0.95)
+      for (let i = 0; i <= n; i++) {
+        const x = -he + 0.04 + i * (2 * he - 0.08) / n
+        if (Math.abs(x) < 1.62) continue
+        p.box("paint", 0.08, yt - yb - 0.1, 0.05, x, (yb + yt) / 2, sd * (bw + 0.025))
+      }
+      // sliding door: panel, stiffeners, rails above and below, handle and locking bar
+      const zd = sd * (bw + 0.07)
+      p.box("paint", 3.0, yt - yb - 0.2, 0.03, 0, (yb + yt) / 2 - 0.02, zd)
+      for (const x of [-1.2, -0.4, 0.4, 1.2]) p.box("paint", 0.1, yt - yb - 0.3, 0.03, x, (yb + yt) / 2 - 0.02, zd + sd * 0.025)
+      for (const x of [-1.48, 1.48]) p.box("paint", 0.06, yt - yb - 0.2, 0.04, x, (yb + yt) / 2 - 0.02, zd + sd * 0.02)
+      p.box("frame", 6.4, 0.1, 0.07, 0, yt - 0.14, sd * (bw + 0.05))
+      p.box("frame", 6.4, 0.06, 0.06, 0, yb + 0.07, sd * (bw + 0.05))
+      rod(p, "chrome", V3(1.32, 1.85, zd + sd * 0.07), V3(1.32, 2.55, zd + sd * 0.07), 0.02, 0.02, 6)
+      for (const y of [1.88, 2.52]) rod(p, "chrome", V3(1.32, y, zd + sd * 0.02), V3(1.32, y, zd + sd * 0.07), 0.012, 0.012, 4)
+      rod(p, "frame", V3(1.5, 2.2, zd + sd * 0.04), V3(1.75, 2.2, zd + sd * 0.04), 0.025, 0.025, 6)
+      // placard holder and vents high up near the ends
+      for (const e of [-1, 1]) p.box("trim", 0.5, 0.22, 0.02, e * (he - 0.8), yt - 0.45, sd * (bw + 0.012))
+    }
+    // ends: corrugations, corner posts, ladder, hand-brake wheel on one end
+    for (const e of [-1, 1]) {
+      const xe = e * (he + 0.015)
+      for (let y = yb + 0.3; y < yt - 0.2; y += 0.34) p.box("paint", 0.04, 0.14, 2 * bw - 0.36, xe, y, 0, 0.015)
+      for (const sd of [-1, 1]) p.box("frame", 0.07, yt - yb, 0.1, xe, (yb + yt) / 2, sd * (bw - 0.04))
+      ladder(p, "frame", e * (he + 0.09), bw - 0.42, 1.05, yt + 0.05, "z", 0.36)
+      if (e > 0) brakeWheel(p, he + 0.1, 2.05, -0.55)
+    }
+    // arched roof with overhang and gutters
+    const rs = new THREE.Shape(), rw = bw + 0.08
+    rs.moveTo(-rw, yt - 0.02); rs.quadraticCurveTo(0, yt + 0.56, rw, yt - 0.02); rs.lineTo(rw, yt - 0.07); rs.quadraticCurveTo(0, yt + 0.5, -rw, yt - 0.07); rs.closePath()
+    const roof = new THREE.ExtrudeGeometry(rs, { depth: 2 * he + 0.12, bevelEnabled: false, curveSegments: 14 })
+    roof.rotateY(Math.PI / 2); roof.translate(-he - 0.06, 0, 0); p.add("roof", roof)
+    for (const sd of [-1, 1]) p.box("roof", 2 * he + 0.12, 0.05, 0.05, 0, yt - 0.06, sd * (rw + 0.01))
+    return p.build(["paint", "roof"])
+  })
+}
+
+/** Open hopper wagon (Fals style) loaded with gravel: sloped ends over the bogies, central chute, posts, heaped load. */
+export function hopperWagonGeometry(L: number): VehicleGeo {
+  return cached(`hopperwagon:${L.toFixed(1)}`, () => {
+    const p = new Parts(), hl = L / 2, he = hl - 0.2, bw = 1.36, yt = 3.55, ys = he - 1.35
+    const bottom = (x: number) => { const a = Math.abs(x); return a > ys ? 1.3 + (a - ys) / 1.35 * 1.0 : a > 1.25 ? 1.3 : a > 0.45 ? 0.62 + (a - 0.45) / 0.8 * 0.68 : 0.62 }
+    const bc = Math.min(hl - 2.0, 4.0)
+    bogie(p, -bc); bogie(p, bc)
+    underframe(p, hl, he, 1.42, 0.92)
+    p.add("paint", extrude(poly([-he, yt, he, yt, he, 2.3, ys, 1.3, 1.25, 1.3, 0.45, 0.62, -0.45, 0.62, -1.25, 1.3, -ys, 1.3, -he, 2.3]), 2 * bw, 0.03, 1))
+    // rim around the open top, posts down the sides following the hopper profile
+    for (const sd of [-1, 1]) {
+      p.box("frame", 2 * he + 0.06, 0.16, 0.08, 0, yt + 0.06, sd * (bw - 0.02))
+      p.box("frame", 0.08, 0.16, 2 * bw, sd * (he - 0.02), yt + 0.06, 0)
+      const n = Math.round(2 * he / 1.05)
+      for (let i = 0; i <= n; i++) {
+        const x = -he + 0.05 + i * (2 * he - 0.1) / n, y0 = bottom(x) + 0.02
+        p.box("paint", 0.1, yt - y0 + 0.08, 0.05, x, (y0 + yt + 0.08) / 2, sd * (bw + 0.025))
+      }
+      p.box("frame", 2 * he, 0.08, 0.05, 0, 2.3, sd * (bw + 0.05))
+      // chute door levers
+      rod(p, "chrome", V3(-0.6, 0.95, sd * (bw + 0.08)), V3(0.6, 0.75, sd * (bw + 0.08)), 0.025, 0.025, 6)
+    }
+    p.box("frame", 0.9, 0.08, 2 * bw - 0.2, 0, 0.6, 0, 0.02)
+    for (const e of [-1, 1]) {
+      ladder(p, "frame", e * (he + 0.07), -(bw - 0.4), 1.05, yt + 0.12, "z", 0.36)
+      brakeWheel(p, e * (he + 0.08), 1.9, 0.5, 0.2)
+    }
+    // load: gravel level inside the rim with three cones where the chute dropped it
+    p.box("load", 2 * he - 0.12, 0.08, 2 * bw - 0.12, 0, yt + 0.02, 0)
+    for (const x of [-(he - 1.8), 0, he - 1.8]) {
+      const h = new THREE.LatheGeometry([[1, 0], [0.82, 0.12], [0.45, 0.36], [0.18, 0.48], [0, 0.5]].map(([a, b]) => new THREE.Vector2(a, b)), 14)
+      h.scale(1.6, 1, 1.28); h.translate(x, yt + 0.02, 0); p.add("load", h)
+    }
+    return p.build(["paint", "load"])
+  })
+}
+
+/** Tank wagon: barrel with dished heads, bands, saddles, dome with walkway and railings, side ladders, bottom valve. */
+export function tankWagonGeometry(L: number): VehicleGeo {
+  return cached(`tankwagon:${L.toFixed(1)}`, () => {
+    const p = new Parts(), hl = L / 2, he = hl - 0.25, R = 1.3, cy = 2.3, head = 0.42, bl = he - head
+    const bc = Math.min(hl - 2.2, 4.4)
+    bogie(p, -bc); bogie(p, bc)
+    underframe(p, hl, he, 1.3, 0.92)
+    const barrel = new THREE.CylinderGeometry(R, R, 2 * bl, 32, 1, true); barrel.rotateZ(Math.PI / 2); barrel.translate(0, cy, 0); p.add("paint", barrel)
+    for (const e of [-1, 1]) {
+      const h = new THREE.SphereGeometry(R, 32, 8, 0, Math.PI * 2, 0, Math.PI / 2); h.scale(1, head / R, 1); h.rotateZ(-e * Math.PI / 2); h.translate(e * bl, cy, 0); p.add("paint", h)
+      const ring = new THREE.CylinderGeometry(R + 0.015, R + 0.015, 0.08, 32, 1, true); ring.rotateZ(Math.PI / 2); ring.translate(e * (bl - 0.02), cy, 0); p.add("trim", ring)
+      // saddle on the underframe over each bogie
+      p.box("frame", 0.35, cy - R * 0.55 - 1.15, 2.0, e * bc, (cy - R * 0.55 + 1.15) / 2, 0)
+      ladder(p, "frame", e * (he + 0.05), 0.0, 1.1, 1.9, "z", 0.4)
+    }
+    for (const x of [-bl * 0.5, bl * 0.5]) { const b = new THREE.CylinderGeometry(R + 0.02, R + 0.02, 0.07, 32, 1, true); b.rotateZ(Math.PI / 2); b.translate(x, cy, 0); p.add("trim", b) }
+    // dome, lid and safety valve on top
+    const top = cy + R
+    const dome = new THREE.CylinderGeometry(0.42, 0.46, 0.36, 20); dome.translate(0, top + 0.1, 0); p.add("paint", dome)
+    const lid = new THREE.CylinderGeometry(0.44, 0.44, 0.05, 20); lid.translate(0, top + 0.3, 0); p.add("frame", lid)
+    rod(p, "chrome", V3(0.6, top - 0.02, 0.3), V3(0.6, top + 0.25, 0.3), 0.06, 0.05, 8)
+    // walkway gratings either side of the dome, brackets, railings, side ladders up to it
+    for (const sd of [-1, 1]) {
+      const zc = sd * 0.72, yw = top - 0.08
+      p.box("frame", 2.4, 0.04, 0.5, 0, yw, zc)
+      for (const x of [-1.0, 1.0]) rod(p, "frame", V3(x, yw, zc + sd * 0.2), V3(x, cy + Math.sqrt(R * R - 0.95 * 0.95) - 0.03, sd * 0.95), 0.025, 0.025, 6)
+      for (const x of [-1.15, 0, 1.15]) rod(p, "chrome", V3(x, yw, sd * 0.96), V3(x, yw + 0.95, sd * 0.96), 0.018, 0.018, 6)
+      rod(p, "chrome", V3(-1.15, yw + 0.95, sd * 0.96), V3(1.15, yw + 0.95, sd * 0.96), 0.02, 0.02, 6)
+      rod(p, "chrome", V3(-1.15, yw + 0.5, sd * 0.96), V3(1.15, yw + 0.5, sd * 0.96), 0.015, 0.015, 6)
+      ladder(p, "frame", 1.55, sd * (R + 0.08), 1.1, cy + 0.15, "x", 0.42)
+      for (const x of [1.34, 1.76]) rod(p, "frame", V3(x, cy + 0.15, sd * (R + 0.08)), V3(x - 0.2, yw, sd * 0.95), 0.02, 0.02, 6)
+    }
+    // bottom outlet valve with cap and wheel
+    rod(p, "frame", V3(0, cy - R + 0.05, 0), V3(0, 1.0, 0), 0.1, 0.09, 10)
+    rod(p, "frame", V3(0, 1.06, 0), V3(0, 1.06, 0.55), 0.08, 0.08, 10)
+    const cap = new THREE.CylinderGeometry(0.11, 0.11, 0.06, 12); cap.rotateX(Math.PI / 2); cap.translate(0, 1.06, 0.58); p.add("trim", cap)
+    return p.build(["paint"])
+  })
+}
+
+/**
+ * Counterbalance forklift, length L over the forks (+x = forks). Rounded chassis with the counterweight at the back,
+ * overhead guard, seat and steering wheel, two-stage mast with carriage, backrest and forks, tilt cylinders.
+ */
+export function forkliftGeometry(L: number): VehicleGeo {
+  return cached(`forklift:${L.toFixed(1)}`, () => {
+    const p = new Parts(), hl = L / 2, xb = -hl, xm = hl - 0.72, hw = 0.55
+    // chassis side profile: low nose under the mast, deck, rounded counterweight
+    p.add("paint", extrude(poly([xb + 0.1, 0.22, xm - 0.05, 0.22, xm, 0.35, xm, 0.78, xm - 0.25, 0.95, xb + 0.55, 0.95, xb + 0.35, 1.05, xb + 0.05, 1.05, xb, 0.9, xb, 0.35]), 2 * hw, 0.04, 2))
+    p.box("paint", 0.42, 0.5, 2 * hw + 0.04, xb + 0.24, 1.15, 0, 0.08)                               // counterweight top
+    p.box("trim", 0.06, 0.12, 0.5, xb - 0.01, 0.6, 0, 0.02)                                            // tow pin housing
+    // wheels: big drive wheels at the front, small steer wheels at the back
+    for (const sd of [-1, 1]) { wheel(p, 0.33, 0.24, xm - 0.32, 0.33, sd * (hw - 0.06)); wheel(p, 0.24, 0.18, xb + 0.42, 0.24, sd * (hw - 0.08)) }
+    // seat, steering column and wheel, levers
+    p.box("rubber", 0.42, 0.1, 0.48, xb + 0.85, 1.05, 0, 0.04)
+    p.box("rubber", 0.1, 0.45, 0.46, xb + 0.62, 1.3, 0, 0.04)
+    rod(p, "trim", V3(xm - 0.3, 0.95, 0), V3(xm - 0.45, 1.4, 0), 0.03, 0.03, 8)
+    const sw = new THREE.TorusGeometry(0.17, 0.018, 6, 16); sw.rotateX(Math.PI / 2); sw.rotateZ(-0.5); sw.translate(xm - 0.47, 1.44, 0); p.add("rubber", sw)
+    for (const z of [0.12, 0.2, 0.28]) rod(p, "trim", V3(xm - 0.22, 0.95, z), V3(xm - 0.3, 1.25, z), 0.012, 0.012, 5)
+    // overhead guard on four posts
+    const g0 = xb + 0.45, g1 = xm - 0.12, gy = 2.12
+    for (const x of [g0, g1]) for (const sd of [-1, 1]) rod(p, "trim", V3(x, 0.95, sd * (hw - 0.06)), V3(x + (x === g1 ? -0.05 : 0), gy, sd * (hw - 0.06)), 0.035, 0.035, 8)
+    for (const sd of [-1, 1]) p.box("trim", g1 - g0 + 0.1, 0.06, 0.06, (g0 + g1) / 2, gy, sd * (hw - 0.06))
+    for (let i = 0; i < 6; i++) p.box("trim", 0.05, 0.04, 2 * hw - 0.1, g0 + i * (g1 - g0) / 5, gy + 0.02, 0)
+    p.box("lampF", 0.05, 0.09, 0.12, g1 + 0.01, gy - 0.12, hw - 0.06, 0.01)
+    p.box("lampF", 0.05, 0.09, 0.12, g1 + 0.01, gy - 0.12, -hw + 0.06, 0.01)
+    const beacon = new THREE.CylinderGeometry(0.06, 0.07, 0.1, 10); beacon.translate(g0 + 0.1, gy + 0.09, 0); p.add("lampR", beacon)
+    // mast: two channels with cross ties, inner stage, chains; tilt cylinders from the chassis
+    const xmast = xm + 0.08
+    for (const sd of [-1, 1]) {
+      p.box("trim", 0.1, 2.0, 0.08, xmast, 1.05, sd * 0.34)
+      p.box("trim", 0.08, 1.7, 0.06, xmast + 0.06, 1.15, sd * 0.26)
+      p.box("rubber", 0.02, 1.6, 0.03, xmast + 0.1, 1.05, sd * 0.12)
+      rod(p, "chrome", V3(xm - 0.3, 0.75, sd * (hw - 0.12)), V3(xmast - 0.05, 1.2, sd * 0.38), 0.035, 0.03, 8)
+    }
+    for (const y of [0.25, 1.15, 2.0]) p.box("trim", 0.06, 0.08, 0.76, xmast, y, 0)
+    // carriage, backrest grid and forks
+    const xc = xmast + 0.14
+    p.box("trim", 0.06, 0.42, 0.95, xc, 0.42, 0)
+    for (let i = 0; i < 6; i++) p.box("trim", 0.03, 0.55, 0.03, xc, 0.9, -0.4 + i * 0.16)
+    p.box("trim", 0.04, 0.04, 0.95, xc, 1.17, 0)
+    for (const sd of [-1, 1]) {
+      p.box("chrome", 0.05, 0.6, 0.1, xc + 0.04, 0.42, sd * 0.3)
+      p.box("chrome", hl - xc - 0.02, 0.05, 0.1, (xc + hl) / 2 + 0.02, 0.14, sd * 0.3)
+    }
+    return p.build(["paint"])
+  })
+}
+
+// ───────────────────────────── conveyor plant ─────────────────────────────
+
+/**
+ * Inclined belt conveyor gallery, centred at the origin along +z (length len): two lattice side trusses, troughed
+ * idler stations with the loaded belt on top, return belt and rollers underneath, walkway with handrails on +x.
+ * Slots: frame (steel), paint (yellow trusses), rubber (belt), chrome (rollers), load (gravel on the belt).
+ */
+export function conveyorGeometry(len: number): VehicleGeo {
+  return cached(`conveyor:${len.toFixed(1)}`, () => {
+    const p = new Parts(), hz = len / 2, hw = 0.7, yb = -0.5, yt = 0.35, step = 2.0
+    const n = Math.max(2, Math.round(len / step)), dz = len / n
+    for (const sd of [-1, 1]) {
+      // chords and the lattice between them
+      for (const y of [yb, yt]) p.box("paint", 0.09, 0.09, len, sd * hw, y, 0)
+      for (let i = 0; i <= n; i++) {
+        const z = -hz + i * dz
+        rod(p, "paint", V3(sd * hw, yb, z), V3(sd * hw, yt, z), 0.035, 0.035, 5)
+        if (i < n) { const up = i % 2 === 0; rod(p, "paint", V3(sd * hw, up ? yb : yt, z), V3(sd * hw, up ? yt : yb, z + dz), 0.028, 0.028, 5) }
+      }
+    }
+    // cross members, bottom bracing
+    for (let i = 0; i <= n; i++) {
+      const z = -hz + i * dz
+      p.box("paint", 2 * hw, 0.07, 0.07, 0, yb, z)
+      if (i < n) rod(p, "frame", V3(-hw, yb, z), V3(hw, yb, z + dz), 0.02, 0.02, 4)
+    }
+    // troughed idler stations and the belt (flat centre, wings at 30°), load ridge on top
+    const wing = 0.32, ang = 0.52, yi = yt + 0.12
+    for (let z = -hz + 0.6; z < hz - 0.3; z += 1.2) {
+      p.box("frame", 1.2, 0.05, 0.06, 0, yt + 0.02, z)
+      for (const [cx, cy, a] of [[0, yi, 0], [-(0.2 + Math.cos(ang) * wing / 2), yi + Math.sin(ang) * wing / 2, -ang], [0.2 + Math.cos(ang) * wing / 2, yi + Math.sin(ang) * wing / 2, ang]] as const) {
+        const r = new THREE.CylinderGeometry(0.06, 0.06, a === 0 ? 0.38 : wing, 10); r.rotateZ(Math.PI / 2 + a); r.translate(cx, cy, z); p.add("chrome", r)
+      }
+      const ret = new THREE.CylinderGeometry(0.05, 0.05, 1.0, 8); ret.rotateZ(Math.PI / 2); ret.translate(0, yb + 0.12, z + 0.6); p.add("chrome", ret)
+    }
+    const yBelt = yi + 0.065
+    p.box("rubber", 0.4, 0.02, len, 0, yBelt, 0)
+    for (const sd of [-1, 1]) {
+      const g = new THREE.BoxGeometry(wing + 0.02, 0.02, len); g.rotateZ(sd * ang); g.translate(sd * (0.2 + Math.cos(ang) * (wing + 0.02) / 2), yBelt + Math.sin(ang) * (wing + 0.02) / 2, 0); p.add("rubber", g)
+    }
+    p.box("rubber", 0.9, 0.015, len, 0, yb + 0.19, 0)
+    const ridge = new THREE.CylinderGeometry(0.22, 0.22, len - 0.4, 10, 1, false, -Math.PI / 2, Math.PI)
+    ridge.rotateX(-Math.PI / 2); ridge.scale(1, 0.55, 1); ridge.translate(0, yBelt + 0.04, 0)
+    p.add("load", ridge)
+    // walkway grating on +x with posts and two handrails
+    const xw = hw + 0.42
+    p.box("frame", 0.7, 0.04, len, xw - 0.3, yb + 0.02, 0)
+    for (let i = 0; i <= n; i++) {
+      const z = -hz + i * dz
+      rod(p, "frame", V3(hw, yb, z), V3(xw + 0.05, yb, z), 0.025, 0.025, 4)
+      rod(p, "chrome", V3(xw + 0.05, yb, z), V3(xw + 0.05, yb + 1.05, z), 0.02, 0.02, 5)
+    }
+    for (const y of [0.55, 1.05]) p.box("chrome", 0.04, 0.04, len, xw + 0.05, yb + y, 0)
+    return p.build(["paint", "rubber", "load"])
+  })
+}
+
+/** A-frame trestle under a conveyor: two splayed legs from the ground to height h, a top beam and cross bracing. */
+export function trestleGeometry(h: number): VehicleGeo {
+  return cached(`trestle:${h.toFixed(1)}`, () => {
+    const p = new Parts(), top = 0.75, base = 0.75 + h * 0.08
+    for (const sd of [-1, 1]) {
+      rod(p, "paint", V3(sd * base, 0, 0), V3(sd * top, h, 0), 0.11, 0.09, 6)
+      const foot = new THREE.BoxGeometry(0.5, 0.3, 0.5); foot.translate(sd * base, 0.15, 0); p.add("frame", foot)
+    }
+    p.box("paint", 2 * top + 0.4, 0.22, 0.25, 0, h - 0.1, 0)
+    const rungs = Math.max(1, Math.floor(h / 3))
+    for (let i = 1; i <= rungs; i++) {
+      const y0 = (i - 1) * h / (rungs + 0.4) + 0.4, y1 = i * h / (rungs + 0.4) + 0.4, w = (y: number) => base + (top - base) * y / h
+      p.box("paint", 2 * w(y1), 0.1, 0.1, 0, y1, 0)
+      rod(p, "frame", V3(-w(y0), y0, 0), V3(w(y1), y1, 0), 0.03, 0.03, 4)
+      rod(p, "frame", V3(w(y0), y0, 0), V3(-w(y1), y1, 0), 0.03, 0.03, 4)
     }
     return p.build()
   })

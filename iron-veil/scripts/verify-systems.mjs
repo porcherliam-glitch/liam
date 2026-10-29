@@ -73,14 +73,12 @@ try {
   await page.keyboard.press("KeyE")
   await g.until(() => window.__ironVeil.screen() === "playing")
   check(true, "Beutefenster mit E geschlossen")
-  // healing
-  await api(() => window.__ironVeil.godMode(false))
+  // healing (god mode stays on: it only blocks hits, so a stray infected cannot undo the heal being measured)
   await api(() => window.__ironVeil.damage(40)); await g.frames(2)
   const hurt = (await g.snapshot()).health
   await page.keyboard.press("KeyQ")
   await g.until(h => window.__ironVeil.snapshot().health > h, hurt, 30000)
   check(true, `Q heilt (${Math.round(hurt)} → ${Math.round((await g.snapshot()).health)})`)
-  await api(() => window.__ironVeil.godMode(true))
   // extraction through the paid border post (instant after holding E)
   const exits = await api(() => window.__ironVeil.exits())
   const gate = exits.find(e => e.kind === "gate") ?? exits.find(e => !e.requirement)
