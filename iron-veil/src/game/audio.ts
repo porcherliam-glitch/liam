@@ -5,16 +5,21 @@
  *    attenuation, stereo pan, distance low-pass, rear muffling, a growing reverb share and (gunshots/explosions beyond
  *    40 m) a speed-of-sound delay. Without position it is a 2D UI/first-person sound.
  *  - setListener(position, yaw): call once per rendered frame during a raid (yaw 0 = facing -Z, + turns left).
- *  - setAmbience(theme | "menu" | null): looping background bed with a 1.5 s crossfade (null fades out).
+ *  - setAmbience(theme | "menu" | "base" | "dawn" | "day" | null): looping background bed with a 1.5 s crossfade
+ *    (null fades out). Beds: dusk, harbor, night, menu, base, dawn, day; unknown ids fall back to dusk.
  *  - setIntensity(0..1): combat tension layer; setHeartbeat(0..1): low-health heartbeat (0 = silent).
  *  - setMuted / setVolume / dispose. Never throws and never logs; without Web Audio everything is a silent no-op.
  *  - The AudioContext is created lazily on the first user gesture (pointerdown/keydown/touchend) and resumed whenever
  *    the browser suspended it — browsers block autoplay.
- *  - Dev/test additions: SFX_IDS (every SfxId), AudioSystem.stats (voice/timer counters) and renderOffline(events,
+ *  - opts.suppressed (any shot_*): muffled "thwip" with a prominent action clack, ~1/3 loudness, short tail.
+ *  - Hordes: infected vocals share a voice group (max 10), gore another (max 8); per-id caps keep the loudest
+ *    (nearest) voices and drop the quietest. opts.rate gives each infected its own pitch/size; for melee_swing
+ *    rate < 1 = heavy weapon, > 1 = light. stepSound(surface) maps unknown surfaces to step_dirt.
+ *  - Dev/test additions: SFX_IDS (every SfxId), AudioSystem.stats (voice/timer counters, voices per id) and renderOffline(events,
  *    options), which renders sounds through the identical mix chain into an OfflineAudioContext (src/dev/audio-bench.ts).
  * Mix: voice → [distance low-pass → stereo pan] → bus (sfx | ui | ambience | music) → master gain → compressor →
  *      safety soft clip → destination. Voices also feed one shared outdoor reverb (procedural impulse response).
- *      Budget: 40 voices, per-id caps and minimum gaps; the quietest/oldest low-priority voice is stolen first.
+ *      Budget: 40 voices, per-id and group caps, minimum gaps; the quietest/oldest low-priority voice is stolen first.
  */
 import type { Surface, ThemeId, Vec3 } from "./types"
 
@@ -28,6 +33,19 @@ export type SfxId =
   | "grenade_pin" | "grenade_bounce" | "explosion"
   | "extract_call" | "extract_tick" | "helicopter" | "alert" | "radio"
   | "ui_click" | "ui_hover" | "ui_buy" | "ui_error" | "build" | "win" | "lose" | "level_up" | "flashlight"
+  | "shot_r44" | "shot_k5" | "shot_sr74" | "shot_br10" | "shot_sg8" | "shot_falke" | "shot_lm60"
+  | "bolt_cycle" | "revolver_open" | "revolver_close" | "shell_insert" | "lmg_belt"
+  | "melee_swing" | "melee_hit_flesh" | "melee_hit_wall"
+  | "gore_splat" | "gore_burst" | "bone_crack" | "gib_land" | "blood_drip"
+  | "zombie_groan" | "zombie_alert" | "zombie_scream" | "zombie_attack" | "zombie_spit" | "zombie_pain" | "zombie_death"
+  | "zombie_crawl" | "boss_roar" | "acid_sizzle"
+  | "molotov_break" | "fire_burn"
+  | "eat" | "drink" | "bandage" | "syringe" | "zipper" | "item_drop" | "loot_take"
+  | "airdrop_plane" | "airdrop_land" | "door" | "base_alarm" | "wave_start" | "build_complete"
+  | "step_grass"
+
+/** Ambience beds accepted by setAmbience (zone times of day dawn/day/dusk/night, harbor, base camp, main menu). */
+export type AmbienceId = ThemeId | "menu" | "base" | "dawn" | "day"
 
 export interface PlayOptions {
   /** World position for 3D sounds. */
@@ -36,16 +54,22 @@ export interface PlayOptions {
   volume?: number
   /** Playback-rate / pitch multiplier (default 1). */
   rate?: number
+  /** shot_* only: suppressed variant (muffled thwip + action clack, ~1/3 loudness, short tail). */
+  suppressed?: boolean
 }
 
-export function stepSound(surface: Surface): SfxId { return `step_${surface}` as SfxId }
+/** Footstep id for a surface; unknown surfaces fall back to step_dirt. */
+export function stepSound(surface: Surface): SfxId { const id = `step_${surface}`; return (id in DEFS ? id : "step_dirt") as SfxId }
 
 // ------------------------------------------------------------------ shared tables
 const MAX_VOICES = 40
 const LOOKAHEAD = 0.004
 type Bus = "sfx" | "ui" | "amb" | "music"
 type Color = "w" | "p" | "b"
-type Amb = ThemeId | "menu"
+type Amb = AmbienceId
+type KnownAmb = "dusk" | "harbor" | "night" | "menu" | "base" | "dawn" | "day"
+/** Shared voice budgets for sound families that come in crowds. */
+const GROUP_CAP: Record<string, number> = { inf: 10, gore: 8 }
 
 const clamp = (x: number, a: number, b: number): number => x < a ? a : x > b ? b : x
 /** mulberry32 — seeded so offline renders are reproducible. */
@@ -250,12 +274,16 @@ interface Def {
   cap?: number
   /** Random pitch spread ± fraction. */
   vary?: number
-  /** Gunshot/explosion: speed-of-sound delay beyond 40 m and more reverb with distance. */
+  /** Loud far-carrying sound (gunshot, explosion, scream): speed-of-sound delay beyond 40 m, more reverb with distance. */
   gun?: boolean
+  /** Voice family sharing a budget (GROUP_CAP). */
+  group?: string
+  /** Player guns: base gain of the suppressed variant (tuned to ≈ 1/3 of the normal shot's loudness). */
+  sup?: number
   /** Side effect after start (bus dulling, ducking); dist = -1 for 2D sounds. */
   fx?: (e: Engine, t: number, dist: number) => void
 }
-interface Voice { key: string; pri: number; level: number; t0: number; end: number; dist: number; out: GainNode; srcs: AudioScheduledSourceNode[]; nodes: AudioNode[] }
+interface Voice { key: string; group?: string; pri: number; level: number; t0: number; end: number; dist: number; out: GainNode; srcs: AudioScheduledSourceNode[]; nodes: AudioNode[] }
 
 class Engine {
   readonly bank: Bank
@@ -302,7 +330,7 @@ class Engine {
   }
 
   play(id: SfxId, opts: PlayOptions, at?: number): void {
-    const def = DEFS[id]; if (!def) return
+    const def = opts.suppressed && id.startsWith("shot_") ? suppressedDef(id) ?? DEFS[id] : DEFS[id]; if (!def) return
     const v = this.spawn(id, def, opts, at)
     if (v && def.fx) def.fx(this, v.t0, opts.position ? v.dist : -1)
   }
@@ -335,12 +363,13 @@ class Engine {
     else { if (this.gaps.size > 256) this.gaps.clear(); this.gaps.set(cell, { t, n: 1 }) }
 
     this.reap(now)
-    let same = 0, oldest: Voice | null = null
-    for (const v of this.voices) if (v.key === key) { same++; if (!oldest || v.t0 < oldest.t0) oldest = v }
-    if (oldest && same >= (def.cap ?? 6)) this.steal(oldest, now)
+    const force = def.pri >= 3
+    if (!this.makeRoom(v => v.key === key, def.cap ?? 6, level, now, force)) return this.drop()
+    const group = def.group
+    if (group && !this.makeRoom(v => v.group === group, GROUP_CAP[group] ?? 12, level, now, force)) return this.drop()
     if (this.voices.length >= MAX_VOICES) {
       let victim: Voice | null = null, best = Infinity
-      for (const v of this.voices) { const s = v.pri * 10 + v.level * clamp((v.end - now) / Math.max(0.05, v.end - v.t0), 0.05, 1); if (s < best) { best = s; victim = v } }
+      for (const v of this.voices) { const s = v.pri * 10 + this.eff(v, now); if (s < best) { best = s; victim = v } }
       if (!victim || best > def.pri * 10 + level) return this.drop()
       this.steal(victim, now)
     }
@@ -355,13 +384,24 @@ class Engine {
     if (wet > 0.001) { wn = c.createGain(); wn.gain.value = base * wet; wn.connect(this.rev); nodes.push(wn) }
     const b = new V(this, t, out, wn, rate)
     try { def.make(b) } catch { for (const n of nodes.concat(b.nodes)) try { n.disconnect() } catch { /* ignore */ } return null }
-    const voice: Voice = { key, pri: def.pri, level, t0: t, end: b.end, dist, out, srcs: b.srcs, nodes: nodes.concat(b.nodes) }
+    const voice: Voice = { key, group, pri: def.pri, level, t0: t, end: b.end, dist, out, srcs: b.srcs, nodes: nodes.concat(b.nodes) }
     if (b.last) b.last.onended = () => this.release(voice)
     this.voices.push(voice); this.peak = Math.max(this.peak, this.voices.length)
     return voice
   }
 
   private drop(): null { this.dropped++; return null }
+  /** Remaining loudness of a voice (level × fraction of its length still to play). */
+  private eff(v: Voice, now: number): number { return v.level * clamp((v.end - now) / Math.max(0.05, v.end - v.t0), 0.05, 1) }
+  /** With `cap` matching voices, steals the one with the least remaining loudness — or refuses when the new voice
+   *  would be quieter still (a far groan never replaces a near one). force: always make room (player weapons). */
+  private makeRoom(match: (v: Voice) => boolean, cap: number, level: number, now: number, force: boolean): boolean {
+    let n = 0, victim: Voice | null = null, best = Infinity
+    for (const v of this.voices) if (match(v)) { n++; const e = this.eff(v, now); if (e < best) { best = e; victim = v } }
+    if (n < cap || !victim) return true
+    if (best > level && !force) return false
+    this.steal(victim, now); return true
+  }
   private reap(now: number): void { for (let i = this.voices.length - 1; i >= 0; i--) if (this.voices[i].end + 0.1 < now) this.voices.splice(i, 1) }
   private release(v: Voice): void {
     const i = this.voices.indexOf(v); if (i >= 0) this.voices.splice(i, 1)
@@ -438,26 +478,79 @@ function clank(v: V, at: number, f: number, g: number, d: number): void {
   v.tone({ f: 160, f2: 85, at, d: 0.1, g: g * 2, rv: false })
 }
 
-const G = (s: Gun) => (v: V): void => gun(v, s)
+/** Body/object hitting the ground: pitched-down sine + low noise. */
+function thud(v: V, at: number, g: number, f = 90): void {
+  v.tone({ f: f * v.j(0.08), f2: f * 0.5, gl: 0.1, at, a: 0.002, d: 0.2, g, rv: false })
+  v.noise({ c: "b", ft: "lowpass", f: 420, at, a: 0.002, d: 0.18, g: g * 1.1 })
+}
+/** Wet squelch: resonant noise with a fast falling filter plus droplet grains. */
+function wet(v: V, at: number, g: number, f = 1100, d = 0.18): void {
+  v.noise({ c: "p", ft: "bandpass", f: f * v.j(0.15), f2: f * 0.3, sw: d * 0.7, q: 2.2, at, a: 0.004, d, g, drive: 1 })
+  v.crackle({ c: "p", ft: "bandpass", f: f * 1.6, q: 1.2, n: 6, at: at + 0.01, span: d * 0.9, gl: 0.012, g: g * 0.6 })
+}
+/** Monster voice: buzzy glottal source (+ breath) through two moving formants, growl/gurgle AM and drive.
+ *  The voice rate scales pitch AND formants, so opts.rate gives every infected its own size. */
+interface Throat extends Env { f: number; f2?: number; gl?: number; w?: OscillatorType; f1: number; f1b?: number; f2f: number; f2b?: number; q?: number; growl?: number; gd?: number; breath?: number; drive?: number; vib?: number }
+function throat(v: V, o: Throat): void {
+  const c = v.c, r = v.r, [g, s, end] = v.env(o), osc = c.createOscillator()
+  osc.type = o.w ?? "sawtooth"; osc.frequency.value = v.e.hz(o.f * r); osc.frequency.setValueAtTime(v.e.hz(o.f * r), s)
+  if (o.f2) osc.frequency.exponentialRampToValueAtTime(v.e.hz(o.f2 * r), s + Math.max(0.01, (o.gl ?? o.d) / r))
+  v.mod(osc.frequency, (o.vib ?? 5.5) * v.j(0.2), o.f * r * 0.035, s, end, "triangle")
+  const sum = v.reg(c.createGain()); sum.gain.value = 2.2
+  const a = v.filter("bandpass", o.f1, o.q ?? 4, s, o.f1b, end), b = v.filter("bandpass", o.f2f, (o.q ?? 4) * 1.3, s, o.f2b, end)
+  osc.connect(a); osc.connect(b); a.connect(sum); b.connect(sum)
+  if (o.breath) {
+    const n = c.createBufferSource(), ng = v.reg(c.createGain()); n.buffer = v.e.bank.p; n.loop = true; ng.gain.value = o.breath * 2
+    n.connect(ng); ng.connect(a); ng.connect(b); v.runBuf(n, s, end + 0.01, v.rnd(2.5))
+  }
+  let head: AudioNode = sum
+  if (o.growl) { const m = v.trem(o.growl * v.j(0.1), o.gd ?? 0.6, s, end, "square"); head.connect(m); head = m }
+  if (o.drive) { const w = v.shaper(o.drive); head.connect(w); head = w }
+  head.connect(g); v.run(osc, s, end + 0.01)
+}
+/** Suppressed shot derived from the weapon's recipe: muffled "thwip", soft gas spit, prominent action clack, short tail. */
+function suppressedGun(v: V, s: Gun): void {
+  const k = v.j(0.06), b = s.body[0]
+  v.noise({ ft: "bandpass", f: b * 1.5 * k, f2: b * 0.45, sw: 0.05, q: 1.3, a: 0.0008, d: 0.1, g: 0.9, drive: 1 })
+  v.noise({ c: "p", ft: "lowpass", f: (s.low?.[0] ?? 700) * 0.8 * k, q: 0.9, a: 0.001, d: 0.12, g: 0.7 })
+  v.tone({ f: s.thump[0] * 0.9, f2: s.thump[1], gl: s.thump[2] * 0.7, a: 0.001, d: s.thump[3] * 0.5, g: s.thump[4] * 0.45, rv: false })
+  v.noise({ ft: "highpass", f: 5500, a: 0.0005, d: 0.014, g: 0.3 })
+  v.noise({ ft: "bandpass", f: 2400 * v.j(0.05), q: 3, at: 0.012, a: 0.0006, d: 0.035, g: 0.55, rv: false })
+  v.tone({ w: "triangle", f: 2900 * v.j(0.04), at: 0.013, d: 0.05, g: 0.05, rv: false })
+  for (const [at, f, d, g] of s.mech ?? []) v.noise({ ft: "bandpass", f: f * v.j(0.05), q: 3.5, at, a: 0.0006, d, g: g * 1.3, rv: false })
+  v.noise({ c: "b", ft: "lowpass", f: 450, q: 0.6, at: 0.004, a: 0.01, d: Math.min(0.35, s.tail[1] * 0.3), g: s.tail[2] * 0.5 })
+}
+const supCache = new Map<SfxId, Def>()
+function suppressedDef(id: SfxId): Def | null {
+  const hit = supCache.get(id); if (hit) return hit
+  const base = DEFS[id], spec = base ? GUN_SPEC.get(base.make) : undefined; if (!base || !spec) return null
+  const def: Def = { ...base, g: base.sup ?? base.g * 0.45, send: (base.send ?? 0) * 0.35, ref: 4, max: 120, fx: undefined, make: v => suppressedGun(v, spec) }
+  supCache.set(id, def); return def
+}
+
+/** Gun recipes by make function, so suppressed variants can be derived from the same weapon. */
+const GUN_SPEC = new Map<(v: V) => void, Gun>()
+const G = (s: Gun): ((v: V) => void) => { const make = (v: V): void => gun(v, s); GUN_SPEC.set(make, s); return make }
 const PGUN = { bus: "sfx" as Bus, pri: 3, gap: 0.03, gun: true, max: 300, ref: 6 }
 const EGUN = { bus: "sfx" as Bus, pri: 2, gap: 0.03, cap: 8, gun: true, max: 320, vary: 0.04 }
+const INF = { bus: "sfx" as Bus, group: "inf", vary: 0.04, send: 0.25 }
 const STEP = { bus: "sfx" as Bus, g: 0.5, pri: 0, ref: 3, roll: 1, max: 40, gap: 0.07, cap: 4, vary: 0.07, send: 0.1 }
 
 const DEFS: Record<SfxId, Def> = {
   // ---- player weapons (2D, first person)
-  shot_p9: { ...PGUN, g: 1.55, send: 0.35, vary: 0.035, cap: 5, make: G({
+  shot_p9: { ...PGUN, g: 1.55, sup: 0.56, send: 0.35, vary: 0.035, cap: 5, make: G({
     crack: [3300, 0.03, 0.9], body: [1900, 1.1, 0.16, 1], low: [800, 0.14, 0.5], thump: [200, 62, 0.05, 0.14, 0.8],
     mech: [[0.03, 3800, 0.025, 0.35], [0.065, 2600, 0.03, 0.2]], tail: [1200, 0.4, 0.3] }) },
-  shot_mk4: { ...PGUN, g: 1.0, send: 0.45, vary: 0.03, cap: 6, make: G({
+  shot_mk4: { ...PGUN, g: 1.0, sup: 0.63, send: 0.45, vary: 0.03, cap: 6, make: G({
     crack: [3600, 0.04, 0.85], body: [1150, 0.85, 0.3, 1.15], low: [520, 0.26, 0.8], thump: [155, 45, 0.09, 0.26, 1],
     mech: [[0.035, 2600, 0.035, 0.3]], tail: [800, 0.75, 0.45] }) },
-  shot_vx9: { ...PGUN, g: 2.05, send: 0.3, vary: 0.05, cap: 5, make: G({
+  shot_vx9: { ...PGUN, g: 2.05, sup: 0.53, send: 0.3, vary: 0.05, cap: 5, make: G({
     crack: [4800, 0.022, 0.75], body: [2400, 1.2, 0.1, 0.9], low: [950, 0.09, 0.45], thump: [250, 95, 0.035, 0.1, 0.65],
     mech: [[0.02, 5200, 0.015, 0.3]], tail: [1600, 0.28, 0.25] }) },
-  shot_kv12: { ...PGUN, g: 0.95, send: 0.55, vary: 0.03, cap: 3, make: G({
+  shot_kv12: { ...PGUN, g: 0.95, sup: 0.72, send: 0.55, vary: 0.03, cap: 3, make: G({
     crack: [2400, 0.05, 0.9], body: [820, 0.6, 0.45, 1.3], low: [400, 0.5, 1.1], thump: [118, 30, 0.2, 0.5, 1.15],
     sub: [58, 27, 0.7, 0.7], tail: [550, 1.3, 0.6] }) },
-  shot_dr7: { ...PGUN, g: 1.1, send: 0.65, vary: 0.025, cap: 3, make: G({
+  shot_dr7: { ...PGUN, g: 1.1, sup: 0.65, send: 0.65, vary: 0.025, cap: 3, make: G({
     crack: [3000, 0.06, 1], body: [980, 0.75, 0.38, 1.2], low: [450, 0.34, 0.95], thump: [138, 36, 0.13, 0.4, 1.15],
     mech: [[0.085, 1900, 0.045, 0.35], [0.14, 2700, 0.04, 0.18]], tail: [650, 1.6, 0.55], echo: [[0.27, 0.22], [0.55, 0.13], [0.86, 0.07]] }) },
   // ---- enemy weapons (positional; brighter crack, less chest thump, more echo)
@@ -647,6 +740,179 @@ const DEFS: Record<SfxId, Def> = {
   flashlight: { bus: "sfx", g: 0.7, pri: 1, gap: 0.05, make: v => {
     v.noise({ ft: "bandpass", f: 2600, q: 2, a: 0.0005, d: 0.015, g: 0.8 }); v.tone({ w: "triangle", f: 1300, d: 0.035, g: 0.1 })
     v.noise({ ft: "bandpass", f: 3300, q: 2, at: 0.045, a: 0.0005, d: 0.012, g: 0.45 }) } },
+  // ---- phase 2: further player weapons
+  shot_r44: { ...PGUN, g: 1.1, sup: 0.64, send: 0.55, vary: 0.03, cap: 3, make: G({
+    crack: [3000, 0.05, 0.95], body: [1300, 0.8, 0.3, 1.2], low: [550, 0.3, 1], thump: [170, 42, 0.1, 0.32, 1.15],
+    sub: [70, 32, 0.4, 0.45], mech: [[0.09, 3400, 0.02, 0.15]], tail: [900, 1, 0.5], echo: [[0.24, 0.12]] }) },
+  shot_k5: { ...PGUN, g: 2.1, sup: 0.46, send: 0.25, vary: 0.06, cap: 5, gap: 0.025, make: G({
+    crack: [5200, 0.018, 0.7], body: [2800, 1.3, 0.07, 0.85], low: [1100, 0.06, 0.35], thump: [280, 110, 0.03, 0.07, 0.5],
+    mech: [[0.015, 5800, 0.012, 0.28]], tail: [1800, 0.2, 0.2] }) },
+  shot_sr74: { ...PGUN, g: 1.0, sup: 0.65, send: 0.5, vary: 0.03, cap: 6, make: G({
+    crack: [3300, 0.045, 0.9], body: [1000, 0.8, 0.34, 1.2], low: [460, 0.3, 0.95], thump: [140, 40, 0.1, 0.3, 1.1],
+    mech: [[0.04, 2300, 0.04, 0.3]], tail: [720, 0.85, 0.5] }) },
+  shot_br10: { ...PGUN, g: 1.05, sup: 0.68, send: 0.55, vary: 0.03, cap: 5, make: G({
+    crack: [3100, 0.055, 1], body: [920, 0.75, 0.38, 1.3], low: [430, 0.34, 1.05], thump: [132, 36, 0.12, 0.36, 1.2],
+    sub: [62, 30, 0.4, 0.4], mech: [[0.05, 2100, 0.045, 0.32]], tail: [680, 1.1, 0.55], echo: [[0.3, 0.12]] }) },
+  shot_sg8: { ...PGUN, g: 0.9, sup: 0.66, send: 0.5, vary: 0.035, cap: 4, make: G({
+    crack: [2600, 0.05, 0.9], body: [880, 0.62, 0.4, 1.25], low: [420, 0.45, 1.05], thump: [122, 32, 0.18, 0.45, 1.1],
+    sub: [60, 28, 0.6, 0.55], mech: [[0.05, 1900, 0.05, 0.35]], tail: [580, 1.15, 0.55] }) },
+  shot_falke: { ...PGUN, g: 1.05, sup: 0.67, send: 0.8, vary: 0.02, cap: 3, gap: 0.2, max: 600, make: G({
+    crack: [2600, 0.09, 1.2], body: [800, 0.7, 0.5, 1.3], low: [380, 0.45, 1.1], thump: [118, 30, 0.16, 0.55, 1.25],
+    sub: [55, 26, 0.8, 0.7], tail: [560, 2.2, 0.6], echo: [[0.3, 0.26], [0.62, 0.17], [0.98, 0.1], [1.4, 0.06]] }) },
+  shot_lm60: { ...PGUN, g: 1.0, sup: 0.55, send: 0.45, vary: 0.025, cap: 6, make: G({
+    crack: [3200, 0.04, 0.8], body: [950, 0.8, 0.26, 1.15], low: [420, 0.26, 1], thump: [128, 42, 0.08, 0.24, 1.15],
+    mech: [[0.03, 2000, 0.03, 0.28], [0.05, 3600, 0.015, 0.12]], tail: [700, 0.7, 0.45] }) },
+  // ---- weapon mechanics
+  bolt_cycle: { bus: "sfx", g: 0.35, pri: 2, gap: 0.2, send: 0.12, make: v => {
+    v.noise({ ft: "bandpass", f: 2800, q: 4, a: 0.0006, d: 0.025, g: 0.8 })
+    v.noise({ ft: "bandpass", f: 1500, f2: 2600, q: 1.8, at: 0.07, a: 0.015, d: 0.1, g: 0.5 })
+    v.noise({ ft: "bandpass", f: 2200, q: 3, at: 0.17, a: 0.0006, d: 0.035, g: 0.7 }); v.metal({ f: 3100, p: [1, 1.7], at: 0.2, d: 0.12, g: 0.04 })
+    v.noise({ ft: "bandpass", f: 2400, f2: 1400, q: 1.8, at: 0.3, a: 0.012, d: 0.08, g: 0.5 })
+    v.noise({ ft: "bandpass", f: 1600, q: 2.5, at: 0.4, a: 0.0006, d: 0.05, g: 1, drive: 1 }); v.tone({ f: 200, f2: 100, at: 0.4, d: 0.08, g: 0.4, rv: false }) } },
+  revolver_open: { bus: "sfx", g: 0.7, pri: 1, gap: 0.2, send: 0.1, make: v => {
+    v.noise({ ft: "bandpass", f: 3200, q: 4, a: 0.0006, d: 0.02, g: 0.7 })
+    v.crackle({ ft: "bandpass", f: 4200, q: 3, n: 5, at: 0.03, span: 0.08, gl: 0.006, g: 0.5 })
+    v.noise({ ft: "bandpass", f: 1800, q: 2.5, at: 0.11, a: 0.0006, d: 0.04, g: 0.8 })
+    v.crackle({ ft: "bandpass", f: 3000, q: 2, n: 6, at: 0.3, span: 0.12, gl: 0.01, g: 0.5 })
+    for (let i = 0; i < 4; i++) v.metal({ f: 3600 * v.j(0.15), p: [1, 1.6], at: 0.42 + i * 0.07 + v.rnd(0.04), d: 0.12, g: 0.05 }) } },
+  revolver_close: { bus: "sfx", g: 0.4, pri: 1, gap: 0.2, send: 0.1, make: v => {
+    v.crackle({ ft: "bandpass", f: 4400, q: 3, n: 7, span: 0.12, gl: 0.006, g: 0.45 })
+    v.noise({ ft: "bandpass", f: 1700, q: 2.6, at: 0.15, a: 0.0006, d: 0.05, g: 1, drive: 1 })
+    v.metal({ f: 2300, p: [1, 1.55, 2.4], at: 0.152, d: 0.14, g: 0.08 }); v.tone({ f: 220, f2: 110, at: 0.15, d: 0.07, g: 0.35, rv: false }) } },
+  shell_insert: { bus: "sfx", g: 0.56, pri: 1, gap: 0.08, send: 0.08, vary: 0.05, make: v => {
+    v.noise({ ft: "bandpass", f: 1300, f2: 2000, q: 1.6, a: 0.01, d: 0.06, g: 0.45 })
+    v.noise({ ft: "bandpass", f: 2100, q: 2.8, at: 0.055, a: 0.0006, d: 0.03, g: 0.85 })
+    v.tone({ w: "triangle", f: 1450, at: 0.056, d: 0.05, g: 0.06 }); v.tone({ f: 180, f2: 110, at: 0.055, d: 0.05, g: 0.25, rv: false }) } },
+  lmg_belt: { bus: "sfx", g: 0.32, pri: 1, gap: 0.3, send: 0.12, make: v => {
+    v.noise({ ft: "bandpass", f: 2000, q: 2.5, a: 0.0006, d: 0.04, g: 0.9 }); v.metal({ f: 1500, p: [1, 1.8], d: 0.1, g: 0.06 })
+    v.crackle({ ft: "bandpass", f: 3400, q: 1.8, n: 22, at: 0.15, span: 0.45, gl: 0.01, g: 0.55 })
+    v.noise({ ft: "bandpass", f: 1200, f2: 1900, q: 1.4, at: 0.2, a: 0.05, d: 0.25, g: 0.25 })
+    v.noise({ ft: "bandpass", f: 1500, q: 2.4, at: 0.72, a: 0.0006, d: 0.06, g: 1.1, drive: 2 })
+    v.metal({ f: 1250, p: [1, 1.6, 2.5], at: 0.722, d: 0.14, g: 0.08 }); v.tone({ f: 190, f2: 90, at: 0.72, d: 0.09, g: 0.45, rv: false }) } },
+  // ---- melee (rate < 1 = heavy, slower and lower; rate > 1 = light, quick)
+  melee_swing: { bus: "sfx", g: 0.28, pri: 1, gap: 0.08, vary: 0.06, send: 0.05, make: v => {
+    v.noise({ ft: "bandpass", f: 500, f2: 2600, sw: 0.12, q: 1.6, a: 0.09, d: 0.16, g: 0.9 })
+    v.noise({ c: "p", ft: "bandpass", f: 300, f2: 900, sw: 0.1, q: 1, a: 0.08, d: 0.14, g: 0.6 }) } },
+  melee_hit_flesh: { bus: "sfx", g: 0.6, pri: 2, ref: 3, max: 40, gap: 0.04, burst: 2, cap: 6, send: 0.12, vary: 0.07, make: v => {
+    thud(v, 0, 0.9, 115); v.noise({ ft: "bandpass", f: 2400, q: 1.2, a: 0.0006, d: 0.03, g: 0.6 })
+    wet(v, 0.004, 0.9, 1200, 0.22); v.crackle({ ft: "bandpass", f: 2600, q: 1.5, n: 4, at: 0.01, span: 0.05, gl: 0.006, g: 0.5 }) } },
+  melee_hit_wall: { bus: "sfx", g: 0.7, pri: 1, ref: 3, max: 50, gap: 0.05, send: 0.2, vary: 0.06, make: v => {
+    v.noise({ ft: "highpass", f: 3000, a: 0.0005, d: 0.03, g: 0.9, drive: 1 }); v.metal({ f: 1700 * v.j(0.1), p: [1, 1.43, 2.17, 2.95], a: 0.0006, d: 0.5, g: 0.18 })
+    v.noise({ ft: "bandpass", f: 1100, q: 1, a: 0.0008, d: 0.08, g: 0.7 }); thud(v, 0, 0.45, 140)
+    v.crackle({ ft: "bandpass", f: 3600, q: 1.2, n: 5, at: 0.015, span: 0.12, gl: 0.008, g: 0.35 }) } },
+  // ---- gore (shared "gore" budget)
+  gore_splat: { bus: "sfx", g: 1.0, pri: 1, ref: 3, max: 35, gap: 0.04, burst: 2, cap: 6, group: "gore", send: 0.1, vary: 0.1, make: v => { wet(v, 0, 1, 900, 0.25); thud(v, 0, 0.25, 120) } },
+  gore_burst: { bus: "sfx", g: 0.6, pri: 2, ref: 4, max: 50, gap: 0.05, cap: 4, group: "gore", send: 0.2, vary: 0.06, make: v => {
+    v.crackle({ ft: "highpass", f: 2500, n: 10, span: 0.06, gl: 0.006, g: 0.9, drive: 1 })
+    v.noise({ c: "p", ft: "lowpass", f: 2200, f2: 400, sw: 0.25, q: 1, a: 0.002, d: 0.35, g: 1, drive: 2 })
+    thud(v, 0, 0.7, 100); wet(v, 0.02, 0.8, 1300, 0.3)
+    v.crackle({ c: "p", ft: "bandpass", f: 1800, q: 1.3, n: 14, at: 0.12, span: 0.5, gl: 0.02, g: 0.4 }) } },
+  bone_crack: { bus: "sfx", g: 0.95, pri: 1, ref: 3, max: 30, gap: 0.04, cap: 4, group: "gore", send: 0.08, vary: 0.1, make: v => {
+    v.noise({ ft: "highpass", f: 2200, a: 0.0004, d: 0.025, g: 1, drive: 2 })
+    v.crackle({ ft: "bandpass", f: 3200, q: 1.5, n: 7, at: 0.004, span: 0.045, gl: 0.005, g: 0.8 }); v.tone({ f: 260, f2: 140, d: 0.05, g: 0.3, rv: false }) } },
+  gib_land: { bus: "sfx", g: 0.45, pri: 0, ref: 3, max: 30, gap: 0.05, burst: 2, cap: 6, group: "gore", send: 0.06, vary: 0.12, make: v => { thud(v, 0, 0.9, 80); wet(v, 0.005, 0.5, 700, 0.15) } },
+  blood_drip: { bus: "sfx", g: 0.09, pri: 0, ref: 1.5, max: 8, gap: 0.08, cap: 3, group: "gore", send: 0.15, vary: 0.15, make: v => {
+    v.tone({ f: 1100, f2: 1900, gl: 0.03, a: 0.001, d: 0.06, g: 0.5 }); v.noise({ ft: "bandpass", f: 2500, q: 2, a: 0.0006, d: 0.015, g: 0.25 }) } },
+  // ---- infected (positional; shared "inf" budget keeps the nearest voices of a horde)
+  zombie_groan: { ...INF, g: 0.44, pri: 1, ref: 4, roll: 1.1, max: 45, cap: 4, gap: 0.3, make: v => {
+    const d = 0.7 + v.rnd(0.6)
+    throat(v, { f: 92 * v.j(0.1), f2: 72, a: 0.3, h: d * 0.5, d, g: 0.8, f1: 420 * v.j(0.1), f1b: 360, f2f: 850, f2b: 760, q: 3.5, growl: 9, gd: 0.4, breath: 0.35, drive: 2 }) } },
+  zombie_alert: { ...INF, g: 0.38, pri: 2, ref: 5, max: 60, cap: 3, gap: 0.25, make: v => {
+    throat(v, { f: 150 * v.j(0.08), f2: 230, gl: 0.15, a: 0.02, h: 0.25, d: 0.4, g: 0.9, f1: 760, f1b: 900, f2f: 1350, f2b: 1600, q: 3, growl: 33, gd: 0.75, breath: 0.8, drive: 3 })
+    v.noise({ ft: "bandpass", f: 2400, f2: 1500, q: 1, a: 0.02, h: 0.15, d: 0.3, g: 0.25 }) } },
+  zombie_scream: { bus: "sfx", g: 0.45, pri: 3, ref: 20, roll: 0.7, max: 450, cap: 2, gap: 0.5, gun: true, send: 0.6, vary: 0.04, make: v => {
+    throat(v, { f: 620 * v.j(0.06), f2: 980, gl: 0.45, a: 0.06, h: 0.9, d: 0.7, g: 0.8, f1: 1100, f1b: 1300, f2f: 2600, f2b: 3000, q: 3, growl: 55, gd: 0.3, breath: 0.6, drive: 3 })
+    v.tone({ w: "sawtooth", f: 930, f2: 1470, gl: 0.45, a: 0.08, h: 0.8, d: 0.6, g: 0.12, ft: "bandpass", ff: 3200, q: 2, vib: 7, vibd: 25 }) } },
+  zombie_attack: { ...INF, g: 0.43, pri: 2, ref: 4, max: 40, cap: 4, gap: 0.15, make: v => {
+    throat(v, { f: 125 * v.j(0.08), f2: 190, gl: 0.1, a: 0.015, h: 0.12, d: 0.32, g: 0.9, f1: 640, f1b: 720, f2f: 1150, f2b: 1300, q: 3, growl: 38, gd: 0.8, breath: 0.9, drive: 3 })
+    v.noise({ c: "p", ft: "bandpass", f: 600, f2: 1800, sw: 0.12, q: 1.4, at: 0.05, a: 0.06, d: 0.15, g: 0.35 }) } },
+  zombie_spit: { ...INF, g: 0.55, pri: 2, ref: 4, max: 50, cap: 3, gap: 0.3, make: v => {
+    throat(v, { f: 110 * v.j(0.08), f2: 95, a: 0.05, h: 0.2, d: 0.25, g: 0.7, f1: 380, f2f: 880, q: 3, growl: 17, gd: 0.95, breath: 0.6, drive: 2 })
+    v.noise({ ft: "bandpass", f: 2200, f2: 800, sw: 0.1, q: 1.6, at: 0.42, a: 0.003, d: 0.16, g: 0.8, drive: 1 })
+    v.crackle({ c: "p", ft: "bandpass", f: 1500, q: 1.2, n: 7, at: 0.44, span: 0.2, gl: 0.015, g: 0.45 }) } },
+  zombie_pain: { ...INF, g: 0.5, pri: 1, ref: 4, max: 40, cap: 4, gap: 0.15, make: v => {
+    throat(v, { f: 210 * v.j(0.1), f2: 140, gl: 0.12, a: 0.008, h: 0.05, d: 0.22, g: 0.9, f1: 620, f2f: 1250, q: 3, growl: 28, gd: 0.5, breath: 0.5, drive: 2 }) } },
+  zombie_death: { ...INF, g: 0.42, pri: 1, ref: 4, max: 50, cap: 4, gap: 0.15, make: v => {
+    throat(v, { f: 150 * v.j(0.08), f2: 68, gl: 0.8, a: 0.02, h: 0.3, d: 0.75, g: 0.85, f1: 560, f1b: 340, f2f: 1100, f2b: 700, q: 3, growl: 13, gd: 0.9, breath: 0.8, drive: 2 })
+    thud(v, 0.8, 0.8, 85); v.crackle({ c: "p", ft: "bandpass", f: 1400, q: 0.9, n: 6, at: 0.8, span: 0.15, gl: 0.02, g: 0.35 }) } },
+  zombie_crawl: { ...INF, g: 0.5, pri: 0, ref: 3, max: 30, cap: 3, gap: 0.4, make: v => {
+    v.noise({ c: "p", ft: "bandpass", f: 650 * v.j(0.15), q: 1.2, a: 0.15, h: 0.6, d: 0.4, g: 0.8, am: 1.8, amd: 0.9 })
+    v.crackle({ ft: "bandpass", f: 2600, q: 1.5, n: 14, span: 1, gl: 0.012, g: 0.3 })
+    throat(v, { at: 0.25, f: 85 * v.j(0.1), f2: 70, a: 0.25, h: 0.3, d: 0.5, g: 0.35, f1: 400, f2f: 800, q: 3, growl: 10, gd: 0.5, breath: 0.4, drive: 1 }) } },
+  boss_roar: { bus: "sfx", g: 0.7, pri: 3, ref: 25, roll: 0.6, max: 500, cap: 1, gap: 1, gun: true, send: 0.7, vary: 0.03, make: v => {
+    const e = { a: 0.15, h: 1.1, d: 1.2 }
+    throat(v, { ...e, f: 68, f2: 52, f1: 480, f1b: 400, f2f: 950, f2b: 820, q: 2.5, growl: 23, gd: 0.8, breath: 0.9, drive: 3, g: 0.8 })
+    throat(v, { ...e, f: 103, f2: 82, f1: 620, f2f: 1250, q: 2.5, growl: 27, gd: 0.7, breath: 0.5, drive: 3, g: 0.5 })
+    v.tone({ ...e, f: 42, f2: 34, g: 0.6, rv: false }); v.noise({ c: "p", ft: "bandpass", f: 650, q: 0.6, ...e, g: 0.5, drive: 2 }) } },
+  acid_sizzle: { bus: "sfx", g: 0.6, pri: 0, ref: 3, max: 30, cap: 3, gap: 0.4, send: 0.1, make: v => {
+    v.noise({ ft: "bandpass", f: 4500, q: 0.9, a: 0.08, h: 1.4, d: 0.5, g: 0.35, am: 6.5, amd: 0.4 })
+    v.crackle({ ft: "highpass", f: 3000, n: 60, span: 1.9, gl: 0.006, g: 0.5 })
+    v.crackle({ c: "p", ft: "bandpass", f: 900, q: 1.4, n: 14, span: 1.8, gl: 0.03, g: 0.3 }) } },
+  // ---- fire
+  molotov_break: { bus: "sfx", g: 0.55, pri: 2, ref: 5, max: 90, gap: 0.1, send: 0.35, make: v => {
+    v.noise({ ft: "highpass", f: 3500, a: 0.0005, d: 0.06, g: 0.9, drive: 1 }); v.crackle({ ft: "highpass", f: 4000, n: 24, span: 0.3, gl: 0.012, g: 0.6 })
+    for (let i = 0; i < 5; i++) v.metal({ f: 3800 * v.j(0.25), p: [1, 1.52], at: 0.02 + v.rnd(0.25), d: 0.15, g: 0.05 })
+    v.noise({ c: "b", ft: "lowpass", f: 250, f2: 1400, sw: 0.18, q: 1.1, at: 0.06, a: 0.12, d: 0.9, g: 1.2, drive: 1 })
+    v.tone({ f: 55, f2: 80, gl: 0.2, at: 0.06, a: 0.1, d: 0.6, g: 0.5, rv: false }) } },
+  fire_burn: { bus: "sfx", g: 0.45, pri: 0, ref: 3, max: 45, gap: 0.6, cap: 3, send: 0.1, vary: 0.05, make: v => {
+    v.noise({ c: "b", ft: "lowpass", f: 520, q: 0.7, a: 0.4, h: 1.8, d: 0.9, g: 0.9, am: 0.7, amd: 0.4 })
+    v.crackle({ ft: "bandpass", f: 2600, q: 1.2, n: 46, span: 3, gl: 0.007, g: 0.55 })
+    v.crackle({ c: "p", ft: "lowpass", f: 1200, n: 12, at: 0.2, span: 2.6, gl: 0.03, g: 0.5 }) } },
+  // ---- survival / base
+  eat: { bus: "ui", g: 1.2, pri: 1, gap: 0.5, make: v => {
+    v.crackle({ c: "p", ft: "bandpass", f: 2400, q: 1, n: 8, span: 0.15, gl: 0.02, g: 0.4 })
+    for (const at of [0.25, 0.6, 0.95]) { v.crackle({ ft: "bandpass", f: 1800 * v.j(0.15), q: 1.3, n: 6, at, span: 0.12, gl: 0.012, g: 0.55 }); v.noise({ c: "p", ft: "lowpass", f: 700, at, a: 0.01, d: 0.12, g: 0.4 }) } } },
+  drink: { bus: "ui", g: 0.63, pri: 1, gap: 0.5, make: v => {
+    v.noise({ ft: "bandpass", f: 2600, q: 3, a: 0.0006, d: 0.02, g: 0.5 })
+    for (const at of [0.2, 0.55, 0.9]) { v.tone({ f: 330 * v.j(0.08), f2: 190, gl: 0.08, at, a: 0.008, d: 0.12, g: 0.45 }); v.noise({ c: "p", ft: "bandpass", f: 650, f2: 300, q: 2, at, a: 0.01, d: 0.14, g: 0.5 }) }
+    v.noise({ c: "p", ft: "bandpass", f: 1400, q: 0.8, at: 1.2, a: 0.05, d: 0.3, g: 0.2 }) } },
+  bandage: { bus: "ui", g: 0.63, pri: 1, gap: 0.4, make: v => {
+    v.crackle({ ft: "bandpass", f: 2700, q: 0.9, n: 30, span: 0.36, gl: 0.013, g: 0.75 }); v.noise({ ft: "bandpass", f: 1900, f2: 3300, q: 1.2, a: 0.02, h: 0.26, d: 0.1, g: 0.2 })
+    v.crackle({ ft: "bandpass", f: 2300, q: 0.9, n: 20, at: 0.55, span: 0.24, gl: 0.013, g: 0.6 })
+    v.noise({ c: "p", ft: "bandpass", f: 1500, q: 0.7, at: 0.85, a: 0.1, h: 0.25, d: 0.25, g: 0.25, am: 3, amd: 0.6 }) } },
+  syringe: { bus: "ui", g: 0.6, pri: 1, gap: 0.4, make: v => {
+    v.noise({ ft: "bandpass", f: 3000, q: 3, a: 0.0006, d: 0.02, g: 0.6 })
+    v.noise({ ft: "bandpass", f: 3800, q: 4, at: 0.25, a: 0.0006, d: 0.015, g: 0.8 }); v.tone({ w: "triangle", f: 2600, at: 0.25, d: 0.04, g: 0.06 })
+    v.noise({ ft: "highpass", f: 3500, f2: 5500, sw: 0.4, at: 0.27, a: 0.06, h: 0.25, d: 0.15, g: 0.35 })
+    v.tone({ f: 520, f2: 780, gl: 0.4, at: 0.3, a: 0.1, h: 0.15, d: 0.4, g: 0.08 }) } },
+  zipper: { bus: "ui", g: 0.8, pri: 1, gap: 0.3, make: v => {
+    v.crackle({ ft: "bandpass", f: 3200, q: 1.2, n: 40, span: 0.42, gl: 0.005, g: 0.7 }); v.noise({ ft: "bandpass", f: 2400, f2: 4200, q: 1.5, a: 0.03, h: 0.3, d: 0.1, g: 0.12 }) } },
+  item_drop: { bus: "sfx", g: 0.37, pri: 1, ref: 3, max: 25, gap: 0.08, burst: 2, send: 0.08, vary: 0.08, make: v => {
+    thud(v, 0, 0.7, 140); v.crackle({ ft: "bandpass", f: 2800, q: 1.4, n: 5, at: 0.01, span: 0.12, gl: 0.012, g: 0.4 }) } },
+  loot_take: { bus: "ui", g: 1.6, pri: 1, gap: 0.05, make: v => {
+    v.crackle({ c: "p", ft: "bandpass", f: 2000, q: 0.9, n: 7, span: 0.1, gl: 0.02, g: 0.55 })
+    v.noise({ c: "p", ft: "lowpass", f: 600, at: 0.09, a: 0.004, d: 0.1, g: 0.6 }); v.tone({ f: 880, at: 0.1, a: 0.003, d: 0.1, g: 0.08 }) } },
+  airdrop_plane: { bus: "sfx", g: 0.6, pri: 1, ref: 80, roll: 0.6, max: 2500, cap: 1, gap: 2, send: 0.5, make: v => {
+    const e = { a: 2.4, h: 1.2, d: 2.6 }
+    v.tone({ w: "sawtooth", f: 84, f2: 74, gl: 6, ...e, g: 0.3, ft: "lowpass", ff: 520, q: 1.2, am: 31, amd: 0.55 })
+    v.tone({ w: "sawtooth", f: 126, f2: 111, gl: 6, ...e, g: 0.14, ft: "lowpass", ff: 700, q: 1, am: 31, amd: 0.5 })
+    v.noise({ c: "b", ft: "lowpass", f: 380, q: 0.7, ...e, g: 0.6 }) } },
+  airdrop_land: { bus: "sfx", g: 0.6, pri: 2, ref: 8, roll: 0.8, max: 250, gap: 0.5, gun: true, send: 0.4, make: v => {
+    v.tone({ f: 70, f2: 34, gl: 0.2, a: 0.002, d: 0.6, g: 1.1, rv: false }); v.noise({ c: "b", ft: "lowpass", f: 500, a: 0.003, d: 0.5, g: 1.1, drive: 1 })
+    v.metal({ f: 310 * v.j(0.05), p: [1, 2.3, 3.6, 5.1], at: 0.005, d: 0.45, g: 0.12 })
+    v.crackle({ c: "p", ft: "bandpass", f: 1800, q: 0.9, n: 14, at: 0.05, span: 0.6, gl: 0.025, g: 0.3 }) } },
+  door: { bus: "sfx", g: 1.4, pri: 1, ref: 3, max: 30, gap: 0.3, send: 0.2, vary: 0.06, make: v => {
+    v.noise({ ft: "bandpass", f: 2600, q: 3, a: 0.0006, d: 0.025, g: 0.3 })
+    v.tone({ w: "sawtooth", f: 160 * v.j(0.1), f2: 115, gl: 0.7, at: 0.06, a: 0.08, h: 0.4, d: 0.3, g: 0.2, ft: "bandpass", ff: 1100, ff2: 800, q: 6, vib: 17, vibd: 18 })
+    v.tone({ w: "sawtooth", f: 320 * v.j(0.1), f2: 250, gl: 0.7, at: 0.1, a: 0.08, h: 0.3, d: 0.3, g: 0.06, ft: "bandpass", ff: 2000, q: 7, vib: 13, vibd: 25 }) } },
+  base_alarm: { bus: "sfx", g: 0.85, pri: 3, gap: 3, cap: 1, send: 0.45, make: v => {
+    v.tone({ w: "sawtooth", f: 700, a: 0.3, h: 3.4, d: 0.6, g: 0.3, ft: "bandpass", ff: 1300, q: 0.9, vib: 0.5, vibd: 230, drive: 1 })
+    v.tone({ w: "square", f: 350, a: 0.3, h: 3.4, d: 0.6, g: 0.12, ft: "lowpass", ff: 1200, vib: 0.5, vibd: 115 }) } },
+  wave_start: { bus: "music", g: 0.55, pri: 3, gap: 2, make: v => {
+    v.noise({ c: "p", ft: "bandpass", f: 300, f2: 2400, sw: 0.9, q: 0.8, a: 0.9, d: 0.25, g: 0.5 })
+    const e = { at: 0.9, a: 0.01, h: 0.5, d: 1.6 }
+    v.tone({ ...e, w: "sawtooth", f: 55, g: 0.3, ft: "lowpass", ff: 2000, ff2: 300, q: 2.5 })
+    v.tone({ ...e, w: "sawtooth", f: 58.27, g: 0.25, ft: "lowpass", ff: 2000, ff2: 300, q: 2.5 })
+    v.tone({ ...e, w: "sawtooth", f: 82.4, g: 0.18, ft: "lowpass", ff: 1600, ff2: 300, q: 2 })
+    v.tone({ ...e, f: 48, f2: 30, gl: 0.6, g: 0.8, rv: false })
+    v.tone({ ...e, w: "triangle", f: 1244.5, a: 0.05, g: 0.06, am: 13, amd: 0.8 }); v.tone({ ...e, w: "triangle", f: 1318.5, a: 0.05, g: 0.05, am: 15, amd: 0.8 }) } },
+  build_complete: { bus: "ui", g: 0.8, pri: 2, gap: 0.3, make: v => {
+    clank(v, 0, 540, 0.15, 0.3); clank(v, 0.16, 500, 0.15, 0.3)
+    v.tone({ w: "triangle", f: 1046.5, at: 0.34, a: 0.003, h: 0.05, d: 0.5, g: 0.2 }); v.tone({ w: "triangle", f: 1568, at: 0.42, a: 0.003, h: 0.08, d: 0.7, g: 0.2 })
+    v.tone({ f: 2093, at: 0.42, a: 0.003, d: 0.4, g: 0.05 }) } },
+  step_grass: { ...STEP, g: 0.65, make: v => {
+    v.crackle({ ft: "highpass", f: 2600, n: 6, span: 0.08, gl: 0.012, g: 0.5 }); v.noise({ c: "p", ft: "bandpass", f: 2200, q: 0.8, a: 0.008, d: 0.09, g: 0.35 })
+    v.noise({ c: "b", ft: "lowpass", f: 380, a: 0.006, d: 0.1, g: 0.6 }) } },
 }
 /** Every SfxId (for dev tools and tests). */
 export const SFX_IDS = Object.keys(DEFS) as SfxId[]
@@ -696,6 +962,17 @@ const AMB_EV = {
   bell: { ...AMB, g: 0.3, ref: 6, send: 0.8, make: (v: V) => {
     const f = [587.33, 698.46, 880, 1174.7, 1046.5][Math.floor(v.rnd(5))]
     v.tone({ f, a: 0.004, d: 3.2, g: 0.25 }); v.tone({ f: f * 2.76, a: 0.004, d: 1.2, g: 0.05 }); v.tone({ f: f * 1.003, a: 0.004, d: 3, g: 0.15 }) } },
+  workshop: { ...AMB, g: 0.4, ref: 12, send: 0.5, make: (v: V) => { const n = 2 + Math.floor(v.rnd(3)), f = 560 * v.j(0.15); for (let i = 0; i < n; i++) clank(v, i * (0.32 + v.rnd(0.1)), f * v.j(0.03), 0.14, 0.3) } },
+  bird: { ...AMB, g: 0.3, ref: 15, send: 0.3, make: (v: V) => {
+    const n = 2 + Math.floor(v.rnd(4)), base = 2600 + v.rnd(2200), kind = v.rnd(), trill = kind < 0.3
+    for (let i = 0; i < n; i++) {
+      const at = i * (0.09 + v.rnd(0.12))
+      v.tone({ f: base * v.j(0.1), f2: base * (kind < 0.6 ? 1.35 : 0.75), gl: 0.06, at, a: 0.005, h: 0.02, d: 0.07, g: 0.25, ...(trill ? { vib: 40, vibd: 120 } : {}) })
+    } } },
+  crow: { ...AMB, g: 0.45, ref: 30, send: 0.6, make: (v: V) => {
+    const n = 2 + Math.floor(v.rnd(2))
+    for (let i = 0; i < n; i++) { const at = i * (0.42 + v.rnd(0.15)); v.tone({ w: "sawtooth", f: 560 * v.j(0.05), f2: 430, gl: 0.2, at, a: 0.015, h: 0.08, d: 0.18, g: 0.35, ft: "bandpass", ff: 1300, q: 2.5, am: 32, amd: 0.6 }) } } },
+  drip: { ...AMB, g: 0.18, ref: 4, send: 0.5, make: (v: V) => { v.tone({ f: 1200 * v.j(0.25), f2: 2100, gl: 0.03, a: 0.001, d: 0.08, g: 0.5 }) } },
 } satisfies Record<string, Def>
 type AmbEvent = keyof typeof AMB_EV
 
@@ -727,7 +1004,8 @@ class Bed {
   start(fade: number): void {
     const p = this.out.gain, t = this.now
     p.setValueAtTime(0, t); p.linearRampToValueAtTime(1, t + Math.max(0.02, fade))
-    BEDS[this.theme](this)
+    const build = (BEDS as Record<string, ((b: Bed) => void) | undefined>)[this.theme] ?? BEDS.dusk
+    build(this)
   }
   stop(fade: number): void {
     if (!this.alive) return
@@ -806,7 +1084,7 @@ class Bed {
   }
 }
 
-const BEDS: Record<Amb, (b: Bed) => void> = {
+const BEDS: Record<KnownAmb, (b: Bed) => void> = {
   // industrial area at sunset: gusty wind, far traffic rumble, factory hum; metal clanks, a dog, gusts
   dusk: b => {
     const w = b.noise("p", "bandpass", 430, 0.55, 0.4); b.lfo(w.f.frequency, 0.063, 170); b.lfo(w.g.gain, 0.11, 0.18); b.lfo(w.g.gain, 0.037, 0.2)
@@ -835,6 +1113,25 @@ const BEDS: Record<Amb, (b: Bed) => void> = {
     b.lfo(c1.gain, 0.05, 0.04); b.lfo(c2.gain, 0.07, 0.03)
     b.every(25, 60, 10, () => b.ev("chatter", 40, 90)); b.every(10, 25, 6, () => b.ev("flicker", 15, 30))
     b.every(40, 80, 30, () => b.ev("dog", 150, 250)); b.every(30, 60, 18, () => b.ev("clank", 80, 200)); b.every(15, 30, 9, () => b.ev("gust", 20, 40, 0.6))
+  },
+  // forward base camp: generator chug, faint wind; radio chatter and workshop hammering
+  base: b => {
+    const w = b.noise("p", "bandpass", 380, 0.5, 0.3); b.lfo(w.g.gain, 0.06, 0.1); b.lfo(w.f.frequency, 0.05, 120)
+    const gen = b.osc("sawtooth", 50, 0.05, 260); b.lfo(gen.gain, 8.3, 0.017); b.osc("square", 100, 0.016, 500)
+    const body = b.noise("b", "lowpass", 160, 0.8, 0.35, 1, 0.3); b.lfo(body.g.gain, 8.3, 0.14)
+    b.every(30, 70, 12, () => b.ev("chatter", 10, 25, 0.8)); b.every(10, 25, 5, () => b.ev("workshop", 15, 40)); b.every(25, 50, 18, () => b.ev("gust", 20, 40, 0.5))
+  },
+  // dawn in the zone: misty calm, soft air, dew drips, distant crows and a far dog
+  dawn: b => {
+    const w = b.noise("p", "lowpass", 300, 0.5, 0.3); b.lfo(w.g.gain, 0.05, 0.1)
+    const air = b.noise("p", "bandpass", 900, 0.4, 0.05); b.lfo(air.g.gain, 0.04, 0.03)
+    b.every(12, 30, 5, () => b.ev("crow", 80, 200)); b.every(3, 8, 1.5, () => b.ev("drip", 2, 8)); b.every(45, 90, 30, () => b.ev("dog", 180, 300))
+  },
+  // daytime: light wind, rustling leaves and birdsong
+  day: b => {
+    const w = b.noise("p", "bandpass", 620, 0.55, 0.55); b.lfo(w.f.frequency, 0.07, 180); b.lfo(w.g.gain, 0.12, 0.2)
+    const leaves = b.noise("w", "bandpass", 3800, 0.8, 0.02); b.lfo(leaves.g.gain, 0.11, 0.015)
+    b.every(2, 6, 0.8, () => b.ev("bird", 15, 60)); b.every(4, 10, 2, () => b.ev("bird", 30, 90, 0.7)); b.every(30, 60, 20, () => b.ev("crow", 120, 250, 0.7))
   },
   // tactical main menu: sub drone, airy noise, slow tense chord changes, sparse bell pings
   menu: b => {
@@ -915,6 +1212,8 @@ export interface AudioStats {
   /** Ambience beds alive (current + fading). */
   beds: number
   ambience: Amb | null
+  /** Active voices per sound id. */
+  perId: Record<string, number>
 }
 const GESTURES = ["pointerdown", "keydown", "touchend"] as const
 const noop = (): void => undefined
@@ -976,6 +1275,7 @@ export class AudioSystem {
       state: this.ctx ? this.ctx.state : this.failed ? "unavailable" : this.disposed ? "closed" : "none",
       voices: e?.voices.length ?? 0, peakVoices: e?.peak ?? 0, stolen: e?.stolen ?? 0, dropped: e?.dropped ?? 0,
       timers: this.timers.size + (this.clockId ? 1 : 0), beds: (this.bed ? 1 : 0) + this.fading.length, ambience: this.ambience,
+      perId: Object.fromEntries((e?.voices ?? []).reduce((m, v) => m.set(v.key, (m.get(v.key) ?? 0) + 1), new Map<string, number>())),
     }
   }
 
@@ -1039,7 +1339,7 @@ export class AudioSystem {
     this.engine?.setListener(position, yaw)
   }
 
-  setAmbience(theme: ThemeId | "menu" | null): void {
+  setAmbience(theme: AmbienceId | null): void {
     if (this.disposed || theme === this.ambience) return
     this.ambience = theme
     if (!this.engine) return
