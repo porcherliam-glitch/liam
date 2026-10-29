@@ -58,17 +58,21 @@ export async function openGame({ settings, profile, viewport = { width: 1280, he
   return api
 }
 
-/** A v3 profile with plenty of money for tests. */
+/** A v4 profile with plenty of money, materials and a built-up base for tests. overrides are merged shallowly. */
 export function richProfile(overrides = {}) {
+  const structures = { hq: 2, bunks: 1, storage: 1, workshop: 1, armory: 2, workbench: 2, clinic: 1, kitchen: 1, generator: 1, lab: 1, radio: 1, walls: 1, tower: 1 }
   return {
-    key: "ironVeil.profile.v3",
+    key: "ironVeil.profile.v4",
     value: {
-      version: 3, callsign: "VEIL-TEST", money: 20000, resources: 600, xp: 0, level: 3,
-      stash: { ammo: 8, medkit: 2, armor: 1, plate: 0, grenade: 2, parts: 3, intel: 0, electronics: 0, medical: 0, relic: 0 },
-      weapons: ["p9", "mk4"], buildings: { hq: 1, workshop: 1, lab: 1, clinic: 1 }, staff: { workshop: 1, lab: 1, clinic: 0 },
-      production: { workshop: 0, clinic: 0 }, research: [], activeResearch: null,
-      loadout: { primary: "mk4", armor: 55, armorMax: 55, medkits: 2, grenades: 0 },
-      stats: { raids: 1, extracts: 1, kills: 0, earned: 0, deaths: 0, headshots: 0, bestRaid: 0, contracts: 0 },
+      version: 4, callsign: "VEIL-TEST", money: 50000, xp: 0, level: 8,
+      stash: { ammo_556: 400, ammo_9mm: 300, ammo_762: 200, ammo_12buck: 60, ammo_556ap: 60, bandage: 10, medkit: 4, painkiller: 2, antiviral: 2, canned: 5, water: 5, grenade: 4, molotov: 3, scrap: 80, cloth: 40, chem: 20, parts: 20, electronics: 10, tools: 5, wood: 40, att_reddot: 1, att_suppressor: 1, att_extmag: 1, att_vgrip: 1, w_kv12: 1, w_machete: 1, helmet: 1 },
+      loadout: { primary: "mk4", primaryMods: {}, primaryAmmo: "ammo_556", secondary: "p9", secondaryMods: {}, secondaryAmmo: "ammo_9mm", melee: "knife", armor: 55, armorMax: 55, helmet: 0, backpack: "pack_small",
+        bag: [{ id: "ammo_556", qty: 60 }, { id: "ammo_556", qty: 60 }, { id: "ammo_9mm", qty: 30 }, { id: "bandage", qty: 3 }, { id: "medkit", qty: 1 }, { id: "water", qty: 1 }, { id: "canned", qty: 1 }, { id: "grenade", qty: 2 }, { id: "molotov", qty: 1 }], secure: [] },
+      structures, staff: { workshop: 1, clinic: 1, kitchen: 0, lab: 1, tower: 1 },
+      production: { workshop: 0, clinic: 0, kitchen: 0 }, workshopAmmo: "ammo_9mm", crafting: [], research: [], activeResearch: null,
+      contracts: { offers: [], active: [], refreshAt: 0 }, base: { threat: 10, attackPending: false, lastAttack: Date.now() },
+      infection: 0, raidStarted: 0, raidSecure: [], emergencyCooldown: 0,
+      stats: { raids: 3, extracts: 2, deaths: 1, kills: 10, infectedKills: 8, mercKills: 2, headshots: 3, dismembered: 1, earned: 0, bestRaid: 0, contracts: 0, defenses: 0 },
       tutorialDone: true, lastTick: Date.now(), ...overrides,
     },
   }

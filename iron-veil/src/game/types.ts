@@ -14,7 +14,7 @@ export type { ResearchId } from "./baseData"
 export interface Vec2 { x: number; z: number }
 export interface Vec3 { x: number; y: number; z: number }
 
-export type Screen = "menu" | "base" | "missions" | "trader" | "inventory" | "armory" | "crafting" | "build" | "radio" | "settings" | "playing" | "paused" | "raidInventory" | "loot" | "result" | "attack"
+export type Screen = "menu" | "base" | "missions" | "trader" | "inventory" | "armory" | "crafting" | "build" | "research" | "radio" | "settings" | "playing" | "paused" | "raidInventory" | "loot" | "result" | "attack"
 export type EnemyKind = "scout" | "rifleman" | "heavy" | "marksman"
 /** The three original operation areas; they are districts of the big zone map now. */
 export type MissionId = "greyzone" | "harbor" | "blacksite"

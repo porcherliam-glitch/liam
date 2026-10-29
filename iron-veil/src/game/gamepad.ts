@@ -35,9 +35,11 @@ export class MenuNavigator {
   private prev: boolean[] = []
   private repeatAt = 0
   private lastDir = ""
+  /** Identity (action/id/index) of the last focused button: menus re-render after every click, so focus is restored. */
+  private lastKey = ""
   enabled = true
 
-  constructor(private root: HTMLElement, private onBack: () => void, private onStart: () => void) {}
+  constructor(private root: HTMLElement, private onBack: () => void, private onStart: () => void, private onY: () => void = () => {}) {}
 
   /** Treat currently held buttons as already handled (call when a menu opens from gameplay). */
   reset(): void { const p = firstPad(); this.prev = p ? p.buttons.map(b => b.pressed || b.value > 0.5) : [] }
@@ -45,6 +47,7 @@ export class MenuNavigator {
   /** Call every frame while a menu (not the raid) is shown. Returns true when a pad is connected. */
   update(now: number): boolean {
     const p = firstPad(); if (!p || !this.enabled) { this.prev = []; return !!p }
+    this.trackFocus()
     const down = (i: number) => pressed(p, i) && !this.prev[i]
     const [lx, ly] = applyDeadzone(p.axes[0] ?? 0, p.axes[1] ?? 0, 0.5)
     const dir = pressed(p, BUTTON.UP) || ly < -0.5 ? "up" : pressed(p, BUTTON.DOWN) || ly > 0.5 ? "down" : pressed(p, BUTTON.LEFT) || lx < -0.5 ? "left" : pressed(p, BUTTON.RIGHT) || lx > 0.5 ? "right" : ""
@@ -53,12 +56,24 @@ export class MenuNavigator {
     if (down(BUTTON.A)) { const el = document.activeElement as HTMLElement | null; if (el && this.root.contains(el) && el instanceof HTMLButtonElement) el.click(); else this.move("down") }
     if (down(BUTTON.B)) this.onBack()
     if (down(BUTTON.START)) this.onStart()
+    if (down(BUTTON.Y)) this.onY()
     this.prev = p.buttons.map(b => b.pressed || b.value > 0.5)
     return true
   }
 
+  private keyOf(el: HTMLElement): string { return `${el.dataset.action ?? ""}|${el.dataset.id ?? ""}|${el.dataset.index ?? ""}|${el.dataset.from ?? ""}` }
+
+  /** Remembers the focused button, or puts focus back on its re-rendered twin after a refresh. */
+  private trackFocus(): void {
+    const active = document.activeElement as HTMLElement | null
+    if (active && active !== document.body && this.root.contains(active)) { if (active.dataset.action) this.lastKey = this.keyOf(active); return }
+    if (!this.lastKey) return
+    const twin = this.focusables().find(el => this.keyOf(el) === this.lastKey)
+    if (twin) twin.focus({ preventScroll: true })
+  }
+
   private focusables(): HTMLElement[] {
-    return [...this.root.querySelectorAll<HTMLElement>("button:not(:disabled), input[type=range], summary")].filter(el => {
+    return [...this.root.querySelectorAll<HTMLElement>("button:not(:disabled), input[type=range]")].filter(el => {
       const r = el.getBoundingClientRect(); return r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== "hidden"
     })
   }

@@ -42,8 +42,8 @@ export class WeaponRuntime {
   load(src: AmmoSource): void { if (this.ammo) this.mag += src.take(this.ammo, this.def.magazine - this.mag) }
 
   update(dt: number, src: AmmoSource): "reloaded" | null {
-    // may go slightly negative so automatic fire keeps its exact rate at a fixed 60 Hz step
-    this.cooldown = Math.max(-0.02, this.cooldown - dt)
+    // may go slightly negative during continuous fire so automatic weapons keep their exact rate at a fixed 60 Hz step
+    this.cooldown = Math.max(this.burst > 0 ? -0.02 : 0, this.cooldown - dt)
     this.queuedShot = Math.max(0, this.queuedShot - dt)
     this.bloom = Math.max(0, this.bloom - this.def.spreadRecovery * dt)
     if (this.reloadLeft <= 0) return null

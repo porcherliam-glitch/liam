@@ -17,6 +17,7 @@ const PREVENT = new Set(["Tab", "Space", "ArrowUp", "ArrowDown", "ArrowLeft", "A
 const PAD_ACTIONS: [number, string][] = [
   [BUTTON.A, "KeyE"], [BUTTON.X, "KeyR"], [BUTTON.Y, "KeyX"], [BUTTON.B, "KeyC"], [BUTTON.LB, "KeyG"], [BUTTON.RB, "KeyQ"],
   [BUTTON.UP, "KeyF"], [BUTTON.DOWN, "KeyM"], [BUTTON.START, "Escape"], [BUTTON.BACK, "Tab"],
+  [BUTTON.R3, "KeyV"], [BUTTON.RIGHT, "KeyT"], [BUTTON.LEFT, "Digit4"],
 ]
 /** Right-stick turn rate in rad/s at full deflection and sensitivity 0.75. */
 const PAD_LOOK_SPEED = 3.0

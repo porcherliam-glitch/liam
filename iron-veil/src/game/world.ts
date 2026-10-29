@@ -11,6 +11,8 @@
  *  - setStructures(levels) (base only): rebuilds structure meshes and their obstacles on the plots (and the nav
  *    grid/collision in those areas).
  *  - dispose(): removes the group from the scene and frees every GPU resource it created (incl. shadow maps).
+ *  - zoneLayout() / baseLayout(): the (cached, deterministic) layouts without building meshes — the UI reads
+ *    insertions, extractions and districts from them for raid planning.
  * PLACEHOLDER: the environment pass replaces this with authored districts, textures and merged geometry.
  */
 import * as THREE from "three"
@@ -59,7 +61,7 @@ const SKY: Record<TimeOfDay, { top: number; horizon: number; sun: number; sunI: 
 
 export function createWorld(kind: WorldKind, scene: THREE.Scene, quality: "high" | "low", opts: WorldOptions = {}): World {
   const time: TimeOfDay = kind === "base" ? "dusk" : opts.time ?? "dusk"
-  const layout: AnyLayout = kind === "zone" ? placeholderZone() : placeholderBase()
+  const layout: AnyLayout = kind === "zone" ? zoneLayout() : baseLayout()
   const sky = SKY[time]
   const group = new THREE.Group(); group.name = kind === "zone" ? "Sperrzone" : "Basis"
   const disposables: Array<{ dispose(): void }> = []
@@ -175,7 +177,10 @@ export function createWorld(kind: WorldKind, scene: THREE.Scene, quality: "high"
 
 // ───────────────────────────── placeholder layouts ─────────────────────────────
 
-let zoneCache: ZoneLayout | null = null
+let zoneCache: ZoneLayout | null = null, baseCache: BaseLayout | null = null
+export function zoneLayout(): ZoneLayout { return zoneCache ??= placeholderZone() }
+export function baseLayout(): BaseLayout { return baseCache ??= placeholderBase() }
+
 function placeholderZone(): ZoneLayout {
   if (zoneCache) return zoneCache
   const solids: ZoneLayout["solids"] = []

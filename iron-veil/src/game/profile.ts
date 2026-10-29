@@ -30,7 +30,11 @@ export function createProfile(now = Date.now()): Profile {
   return {
     version: 4, callsign: "VEIL-01", money: 2400, xp: 0, level: 1,
     stash: { ammo_556: 150, ammo_9mm: 75, bandage: 3, medkit: 1, canned: 2, water: 2, grenade: 1, scrap: 12, wood: 14, cloth: 6 },
-    loadout: { primary: "mk4", primaryMods: {}, primaryAmmo: "ammo_556", secondary: "p9", secondaryMods: {}, secondaryAmmo: "ammo_9mm", melee: "knife", armor: 55, armorMax: 55, helmet: 0, backpack: "pack_small", bag: [], secure: [] },
+    loadout: {
+      primary: "mk4", primaryMods: {}, primaryAmmo: "ammo_556", secondary: "p9", secondaryMods: {}, secondaryAmmo: "ammo_9mm", melee: "knife", armor: 55, armorMax: 55, helmet: 0, backpack: "pack_small",
+      // a starter kit is already packed so the first raid works without visiting the stash
+      bag: [{ id: "ammo_556", qty: 60 }, { id: "ammo_556", qty: 30 }, { id: "ammo_9mm", qty: 30 }, { id: "bandage", qty: 2 }, { id: "water", qty: 1 }, { id: "canned", qty: 1 }], secure: [],
+    },
     structures, staff: Object.fromEntries(STAFF_IDS.map(id => [id, 0])) as Record<StaffJob, number>,
     production: { workshop: 0, clinic: 0, kitchen: 0 }, workshopAmmo: "ammo_9mm", crafting: [],
     research: [], activeResearch: null,
@@ -410,7 +414,8 @@ export class Company {
     const places = [["town", "die Altstadt"], ["industry", "das Industriegebiet"], ["harbor", "den Hafen"], ["military", "die Militäranlage"], ["lab", "das Forschungslabor"], ["farm", "den Bauernhof"], ["station", "den Bahnhof"]]
     const targets = [["generator", "den Notstromgenerator am Bahnhof"], ["radio_mast", "den Funkmast auf der Militäranlage"], ["pump", "die Wasserpumpe am Bauernhof"], ["lab_terminal", "das Laborterminal"]]
     const templates = CONTRACT_TEMPLATES.filter(t => t.minHq <= hq)
-    for (let i = 0; i < this.offerCount(); i++) {
+    const seen = new Set<string>()
+    for (let i = 0, tries = 0; i < this.offerCount() && tries < 40; tries++) {
       const t = templates[Math.floor(rng() * templates.length)]
       const id = `c${Date.now().toString(36)}${Math.floor(rng() * 1e6).toString(36)}${i}`
       let target = 1, text = t.text, item: ItemId | undefined, subject: string | undefined, subjectName: string | undefined, money = 600, xp = 200
@@ -422,6 +427,10 @@ export class Company {
       else if (t.kind === "activate") { const tg = targets[Math.floor(rng() * targets.length)]; subject = tg[0]; subjectName = tg[1]; money = 1100; xp = 350; text = text.replace("{target}", tg[1]) }
       else if (t.kind === "boss") { money = 6000; xp = 2500 }
       const bonusItems: Partial<Record<ItemId, number>> | undefined = rng() < 0.4 ? { [(["scrap", "parts", "chem", "electronics", "tools"] as ItemId[])[Math.floor(rng() * 5)]]: 2 + Math.floor(rng() * 4) } : undefined
+      // no two offers with the same task (e.g. two recon contracts for the same place)
+      const key = `${t.kind}:${item ?? subject ?? ""}`
+      if (seen.has(key)) continue
+      seen.add(key); i++
       out.push({ id, kind: t.kind, title: t.title, text, target, item, subject, subjectName, reward: { money, xp, items: bonusItems } })
     }
     p.contracts.offers = out
@@ -556,9 +565,15 @@ export class Company {
     const def = this.defense(), threat = p.base.threat
     p.base.attackPending = false; p.base.lastAttack = Date.now()
     if (def + rng() * 20 >= threat * 0.8) {
-      p.base.threat = 15; this.addItem("scrap", 6); this.addItem("dogtag", 0)
+      p.base.threat = 15; this.addItem("scrap", 6)
       this.save(); return ok(`Angriff abgewehrt (Verteidigung ${def}). Die Wachen bergen 6× Altmetall.`)
     }
+    return this.overrun()
+  }
+
+  /** The infected break in: a share of materials, food and medicine is lost. */
+  private overrun(): ActionResult {
+    const p = this.profile
     const lostParts: string[] = []
     for (const id of Object.keys(p.stash) as ItemId[]) {
       const cat = ITEMS[id].cat
@@ -576,9 +591,8 @@ export class Company {
     p.base.attackPending = false; p.base.lastAttack = Date.now()
     p.stats.infectedKills += kills; p.stats.kills += kills
     if (won) { p.base.threat = 0; p.stats.defenses++; this.addItem("scrap", 10); this.addItem("parts", 2); this.addXp(150 + kills * 10); this.save(); return ok(`Basis verteidigt! ${kills} Infizierte erledigt · +10 Altmetall, +2 Maschinenteile`) }
-    this.save(); return this.resolveAttackLoss()
+    return this.overrun()
   }
-  private resolveAttackLoss(): ActionResult { this.profile.base.attackPending = true; return this.resolveAttack(() => 0) }
 
   /** Adds XP; returns true when at least one level was gained (each level pays 250 $). */
   addXp(amount: number): boolean {

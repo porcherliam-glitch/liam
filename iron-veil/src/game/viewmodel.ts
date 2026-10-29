@@ -7,7 +7,10 @@
  */
 import * as THREE from "three"
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js"
-import type { WeaponId } from "./types"
+import type { WeaponId, WeaponMods } from "./weaponData"
+
+/** Interim: weapons without their own model borrow the closest one (the weapons pass builds all 15). */
+const FALLBACK: Record<WeaponId, "p9" | "mk4" | "vx9" | "kv12" | "dr7"> = { knife: "p9", machete: "p9", axe: "p9", p9: "p9", r44: "p9", vx9: "vx9", k5: "vx9", mk4: "mk4", sr74: "mk4", br10: "mk4", kv12: "kv12", sg8: "kv12", dr7: "dr7", falke: "dr7", lm60: "mk4" }
 
 export interface ViewModelState {
   weapon: WeaponId
@@ -206,7 +209,7 @@ function makeFlashTexture(): THREE.CanvasTexture {
 export class ViewModel {
   readonly scene = new THREE.Scene()
   readonly camera = new THREE.PerspectiveCamera(54, 1, 0.01, 10)
-  private models: Record<WeaponId, Model>
+  private models: Record<"p9" | "mk4" | "vx9" | "kv12" | "dr7", Model>
   private holder = new THREE.Group()
   private current: WeaponId = "mk4"
   private hemi = new THREE.HemisphereLight(0xc8d6e0, 0x2a2620, 1.2)
@@ -251,18 +254,20 @@ export class ViewModel {
   }
   private envTexture: THREE.Texture | null = null
 
-  setWeapon(id: WeaponId): void {
-    this.models[this.current].root.visible = false
+  private model(id: WeaponId): Model { return this.models[FALLBACK[id]] }
+
+  setWeapon(id: WeaponId, _mods: WeaponMods = {}): void {
+    this.model(this.current).root.visible = false
     this.current = id
-    this.models[id].root.visible = true
+    this.model(id).root.visible = true
     this.recoil = 0; this.recoilVel = 0
   }
 
-  get isScoped(): boolean { return this.models[this.current].scoped }
+  get isScoped(): boolean { return this.model(this.current).scoped }
 
   /** Call when a shot is fired. */
   fire(): void {
-    const m = this.models[this.current]
+    const m = this.model(this.current)
     this.recoilVel += 1.1 * m.kick
     this.flashTime = 0.05
     this.flash.rotation.z = Math.random() * Math.PI
@@ -273,7 +278,7 @@ export class ViewModel {
 
   private ejectCasing(): void {
     const c = this.casings.find(k => k.life <= 0) ?? this.casings[0]
-    const m = this.models[this.current]
+    const m = this.model(this.current)
     c.mesh.position.copy(m.eject); m.root.localToWorld(c.mesh.position)
     // out to the right and up, slightly forward — never toward the camera
     c.vel.set(0.8 + Math.random() * 0.4, 0.7 + Math.random() * 0.4, -0.1 - Math.random() * 0.15)
@@ -285,7 +290,7 @@ export class ViewModel {
 
   update(dt: number, s: ViewModelState): void {
     if (s.weapon !== this.current) this.setWeapon(s.weapon)
-    const m = this.models[this.current]
+    const m = this.model(this.current)
     this.holder.visible = this.visible
     // lighting follows the scene light level so the gun is not glowing at night
     const lightLevel = 0.25 + s.light * 0.9

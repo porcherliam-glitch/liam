@@ -109,7 +109,7 @@ export class RaidGame {
   // carried
   bag = new Bag(8)
   secure = new Bag(2)
-  private weapons: Record<WeaponSlot, WeaponRuntime | null> = { primary: null, secondary: null, melee: null }
+  private weapons: Record<WeaponSlot, WeaponRuntime | null> = { primary: null, secondary: null, melee: new WeaponRuntime("knife", {}, null) }
   private active: WeaponSlot = "primary"
   private pending: WeaponSlot | null = null
   private switchTime = -1
@@ -594,7 +594,7 @@ export class RaidGame {
         const r = owner.applyDamage(hit, { amount, from: p.pos, dir: _dir, penetration: def.penetration, kind: def.pellets > 1 ? "pellet" : "bullet", sever })
         hitAny = true; head = head || hit.part === "head"
         if (r.severed) this.stats.dismembered++
-        if (r.killed) { killed = true; this.registerKill(hit.target, hit.part, r.headshotKill) }
+        if (r.killed) killed = true
       } else if (wall && wall.distance <= groundT) {
         end = _end.copy(origin).addScaledVector(_dir, wall.distance)
         const kind: ImpactKind = wall.obstacle.surface === "metal" ? "metal" : wall.obstacle.surface === "dirt" ? "dirt" : "concrete"
@@ -650,7 +650,7 @@ export class RaidGame {
       const r = owner.applyDamage(hit, { amount, from: p.pos, dir: _aim.fwd, penetration: 0.3, kind: "melee", sever: def.sever })
       any = true
       if (r.severed) this.stats.dismembered++
-      if (r.killed) this.registerKill(hit.target, hit.part, r.headshotKill)
+      if (r.killed) this.killMarker = 0.4
     }
     if (any) { this.sfx("melee_hit_flesh"); this.hitMarker = 0.14; if (this.settings.screenShake) this.shake = Math.min(0.5, this.shake + 0.12) }
     else {
@@ -660,6 +660,7 @@ export class RaidGame {
     this.noise(p.pos, 5)
   }
 
+  /** Every death of a hostile counts (bullets, melee, explosions, fire, bleeding out after losing a limb). */
   private registerKill(target: Hostile, part: HitPart, headshot: boolean): void {
     this.stats.kills++
     if (target.faction === "infected") this.stats.infectedKills++; else this.stats.mercKills++
@@ -671,7 +672,8 @@ export class RaidGame {
     this.killMarker = 0.4
   }
 
-  private onDied(target: Hostile, _cause: DamageInfo["kind"], _part: HitPart): void {
+  private onDied(target: Hostile, _cause: DamageInfo["kind"], part: HitPart): void {
+    if (this.mode === "raid" || this.mode === "defense" || this.mode === "dying") this.registerKill(target, part, part === "head")
     if (target.kind === "boss") { this.stats.bossKilled = true; this.say("DER KOLOSS IST GEFALLEN", 5) }
     if (this.mode !== "raid") return
     const danger = this.world.districtAt(target.position.x, target.position.z)?.danger ?? 1
@@ -681,8 +683,16 @@ export class RaidGame {
 
   private onHostileSound(t: Hostile, s: HostileSound): void {
     if (!this.isControlled) return
-    const map: Record<HostileSound, string> = { groan: "zombie_groan", alert: "zombie_alert", scream: "zombie_scream", attack: "zombie_attack", spit: "zombie_spit", roar: "boss_roar", pain: "zombie_pain", death: "zombie_death", radio: "radio" }
-    this.sfx(map[s], { position: t.position, rate: 0.85 + (t.id % 7) * 0.05 })
+    if (t.faction === "merc") {
+      // human voices: the grunt sound pitched per soldier (deeper for death, higher for a maimed scream)
+      if (s === "radio") this.sfx("radio", { position: t.position, volume: 0.5 })
+      else if (s === "alert") this.sfx("alert", { position: t.position, volume: 0.6 })
+      else if (s === "pain" || s === "death" || s === "scream") this.sfx("hurt", { position: t.position, volume: s === "scream" ? 1 : 0.8, rate: (s === "death" ? 0.62 : s === "scream" ? 1.18 : 0.8) + (t.id % 5) * 0.03 })
+    } else {
+      const map: Record<HostileSound, string> = { groan: "zombie_groan", alert: "zombie_alert", scream: "zombie_scream", attack: "zombie_attack", spit: "zombie_spit", roar: "boss_roar", pain: "zombie_pain", death: "zombie_death", radio: "radio" }
+      this.sfx(map[s], { position: t.position, rate: 0.85 + (t.id % 7) * 0.05 })
+    }
+    // screams carry far and draw the infected
     if (s === "scream") this.noise(t.position, 45)
   }
 
@@ -811,8 +821,7 @@ export class RaidGame {
         f.tick = 0.5
         for (const h of this.hostiles) for (const t of h.inRadius(f.pos, f.radius)) {
           const hit: HostileHit = { target: t, distance: 1, part: "body", bodyPart: "torso", point: t.chestPosition(new THREE.Vector3()) }
-          const r = h.applyDamage(hit, { amount: t.faction === "infected" ? 18 : 12, from: f.pos, dir: _upWorld, penetration: 1, kind: "fire", sever: 0 })
-          if (r.killed) this.registerKill(t, "body", false)
+          h.applyDamage(hit, { amount: t.faction === "infected" ? 18 : 12, from: f.pos, dir: _upWorld, penetration: 1, kind: "fire", sever: 0 })
         }
         if (this.player.pos.distanceTo(f.pos) < f.radius && !this.godMode) this.damagePlayer(7, 0, f.pos, "none")
         if (this.rng() < 0.5) this.sfx("fire_burn", { position: f.pos, volume: 0.7 })
@@ -970,8 +979,10 @@ export class RaidGame {
   }
 
   dropSlot(index: number): void { if (this.mode !== "raid" && this.mode !== "defense") return; const s = this.bag.removeSlot(index); if (s) this.dropItems([s]) }
-  moveToSecure(index: number): boolean { const moved = this.bag.moveSlotTo(index, this.secure); return moved > 0 }
-  moveFromSecure(index: number): boolean { const moved = this.secure.moveSlotTo(index, this.bag); return moved > 0 }
+  moveToSecure(index: number): boolean { const moved = this.bag.moveSlotTo(index, this.secure); this.syncSecure(); return moved > 0 }
+  moveFromSecure(index: number): boolean { const moved = this.secure.moveSlotTo(index, this.bag); this.syncSecure(); return moved > 0 }
+  /** A reload during the raid keeps exactly what is in the secure container now. */
+  private syncSecure(): void { if (this.mode === "raid") { this.company.profile.raidSecure = this.secure.toJSON(); this.company.save() } }
 
   // ───────────────────────────── extraction ─────────────────────────────
 
@@ -1104,7 +1115,7 @@ export class RaidGame {
 
   private finishDefense(won: boolean): void {
     if (!this.defense || !this.kit) { this.mode = "ended"; return }
-    const kills = this.defense.kills + this.stats.kills
+    const kills = this.stats.kills
     // ammo and meds used in the fight come out of the packed backpack; damaged armour stays damaged
     const lo = this.company.profile.loadout
     lo.bag = this.bag.toJSON()
@@ -1136,7 +1147,7 @@ export class RaidGame {
     this.audio.play(success ? "win" : "lose"); this.audio.setIntensity(0); this.audio.setHeartbeat(0)
     if (settlement.levelUp) window.setTimeout(() => this.sfx("level_up"), 700)
     const result: RaidResult = {
-      success, reason, insertion: this.plan?.insertion ?? "", time: this.plan?.time ?? "dusk",
+      success, reason, insertion: (this.world.layout.kind === "zone" ? (this.world.layout as ZoneLayout).insertions.find(i => i.id === this.plan?.insertion)?.name : undefined) ?? this.plan?.insertion ?? "", time: this.plan?.time ?? "dusk",
       kills: this.stats.kills, infectedKills: this.stats.infectedKills, mercKills: this.stats.mercKills, headshots: this.stats.headshots, dismembered: this.stats.dismembered,
       loot: settlement.returned.map(s => ({ id: s.id, qty: s.qty })), lost: settlement.lost.map(s => ({ id: s.id, qty: s.qty })), value: settlement.value,
       duration: this.elapsed, xp: settlement.xp, levelUp: settlement.levelUp, contractUpdates: settlement.contractUpdates,
