@@ -275,7 +275,8 @@ export class ViewModel {
     const c = this.casings.find(k => k.life <= 0) ?? this.casings[0]
     const m = this.models[this.current]
     c.mesh.position.copy(m.eject); m.root.localToWorld(c.mesh.position)
-    c.vel.set(0.9 + Math.random() * 0.5, 0.9 + Math.random() * 0.5, 0.25 + Math.random() * 0.2)
+    // out to the right and up, slightly forward — never toward the camera
+    c.vel.set(0.8 + Math.random() * 0.4, 0.7 + Math.random() * 0.4, -0.1 - Math.random() * 0.15)
     c.mesh.rotation.set(Math.random() * 3, Math.random() * 3, Math.random() * 3)
     c.life = 0.7; c.mesh.visible = true
   }
@@ -291,9 +292,12 @@ export class ViewModel {
     this.hemi.intensity = 0.4 + lightLevel * 0.6; this.key.intensity = lightLevel * 1.4
     this.scene.environmentIntensity = 0.12 + s.light * 0.5 + (s.flashlight ? 0.15 : 0)
     this.torch.intensity = s.flashlight ? 1.2 : 0
-    // spring-damped recoil
-    this.recoilVel += (-this.recoil * 260 - this.recoilVel * 22) * dt
-    this.recoil += this.recoilVel * dt
+    // spring-damped recoil, sub-stepped so long frames cannot make the spring explode
+    for (let left = dt; left > 0; left -= 1 / 240) {
+      const h = Math.min(left, 1 / 240)
+      this.recoilVel += (-this.recoil * 260 - this.recoilVel * 22) * h
+      this.recoil += this.recoilVel * h
+    }
     // sway: weapon lags behind mouse movement
     const swayScale = 1 - s.ads * 0.8
     this.sway.x += (THREE.MathUtils.clamp(-s.lookYaw * 1.6, -0.08, 0.08) * swayScale - this.sway.x) * Math.min(1, dt * 10)
@@ -351,7 +355,7 @@ export class ViewModel {
     this.flashLight.intensity = this.flashTime > 0 ? 2.5 : 0
     for (const c of this.casings) {
       if (c.life <= 0) continue
-      c.life -= dt; c.vel.y -= 6 * dt; c.mesh.position.addScaledVector(c.vel, dt); c.mesh.rotation.x += dt * 20; c.mesh.rotation.z += dt * 13
+      c.life -= dt; c.vel.y -= 5 * dt; c.mesh.position.addScaledVector(c.vel, dt); c.mesh.rotation.x += dt * 20; c.mesh.rotation.z += dt * 13
       if (c.life <= 0) c.mesh.visible = false
     }
   }

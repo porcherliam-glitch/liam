@@ -102,7 +102,7 @@ class ParticlePool {
   dispose(): void { this.geometry.dispose(); this.material.dispose() }
 }
 
-interface Tracer { mesh: THREE.Mesh; from: THREE.Vector3; dir: THREE.Vector3; length: number; travelled: number; speed: number; active: boolean }
+interface Tracer { mesh: THREE.Mesh; from: THREE.Vector3; dir: THREE.Vector3; length: number; travelled: number; speed: number; active: boolean; width: number }
 
 export type ImpactKind = "concrete" | "metal" | "dirt" | "flesh"
 
@@ -131,7 +131,7 @@ export class Effects {
     this.group.add(this.alpha.points, this.additive.points, this.explosionLight, this.muzzleLight)
     for (let i = 0; i < MAX_TRACERS; i++) {
       const mesh = new THREE.Mesh(this.tracerGeo, this.playerTracerMat); mesh.visible = false; mesh.frustumCulled = false; this.group.add(mesh)
-      this.tracers.push({ mesh, from: new THREE.Vector3(), dir: new THREE.Vector3(), length: 0, travelled: 0, speed: 0, active: false })
+      this.tracers.push({ mesh, from: new THREE.Vector3(), dir: new THREE.Vector3(), length: 0, travelled: 0, speed: 0, active: false, width: 0.02 })
     }
     this.decalMat = new THREE.MeshBasicMaterial({ map: this.decalTex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, opacity: 0.9 })
     this.decals = new THREE.InstancedMesh(this.decalGeo, this.decalMat, MAX_DECALS)
@@ -150,6 +150,7 @@ export class Effects {
     t.dir.divideScalar(t.length)
     t.travelled = enemy ? 0 : Math.min(2.5, t.length * 0.3)
     t.speed = enemy ? 220 : 380
+    t.width = enemy ? 0.013 : 0.02
     t.active = true; t.mesh.visible = true
     t.mesh.material = enemy ? this.enemyTracerMat : this.playerTracerMat
     t.mesh.quaternion.setFromUnitVectors(_z, t.dir)
@@ -209,7 +210,7 @@ export class Effects {
     for (const t of this.tracers) {
       if (!t.active) continue
       t.travelled += t.speed * dt
-      const streak = Math.min(t.length, t.speed * 0.022)
+      const streak = Math.min(t.length, t.speed * (t.width < 0.015 ? 0.016 : 0.022))
       let head = Math.min(t.length, t.travelled), tail = Math.max(0, head - streak)
       if (camera) {
         // parameter of the closest approach to the camera along the tracer
@@ -225,7 +226,7 @@ export class Effects {
       if (tail >= t.length - 0.01) { t.active = false; t.mesh.visible = false; continue }
       const mid = (head + tail) / 2, len = Math.max(0.05, head - tail)
       t.mesh.position.copy(t.from).addScaledVector(t.dir, mid)
-      t.mesh.scale.set(0.022, 0.022, len)
+      t.mesh.scale.set(t.width, t.width, len)
     }
     if (this.muzzleTime > 0) { this.muzzleTime -= dt; if (this.muzzleTime <= 0) this.muzzleLight.intensity = 0 }
     if (this.explosionLightTime > 0) { this.explosionLightTime -= dt; this.explosionLight.intensity = Math.max(0, this.explosionLightTime / 0.35) * 60 }
