@@ -88,12 +88,13 @@ try {
   await page.keyboard.up("KeyE")
   await g.until(() => window.__ironVeil.screen() === "result", null, 120000)
   const p1 = await profile()
-  check(p1.raidStarted === 0 && p1.loadout.primary === "mk4", `Extraktion über ${gate.name}: Ausrüstung zurück`)
+  check(p1.raidStarted === 0 && p1.loadout.primary === "mk4", `Extraktion über ${gate.id}: Ausrüstung zurück`)
   check((p1.stash.gold ?? 0) >= 2, "Sicherer Behälter ins Lager")
   check(p1.stats.infectedKills >= 1 && p1.stats.extracts === 3, "Statistik: Infizierte und Extraktionen")
   await g.shot("sys-04-result.png")
 
   // ── lost raid: only the secure container survives ──
+  await g.action("menu")
   await g.action("inventory")
   await g.action("stash-filter", "valuable")
   await api(() => window.__ironVeil.grant("watch", 1))
@@ -109,6 +110,7 @@ try {
   check((p2.stash.gold ?? 0) === (p1.stash.gold ?? 0) - 1, "Tod: Rucksack-Beute verloren")
 
   // ── reload during a raid counts as lost ──
+  await g.action("menu")
   await g.action("inventory")
   await g.action("stash-filter", "weapon")
   await g.action("equip-weapon", "kv12")
