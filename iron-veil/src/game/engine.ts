@@ -30,7 +30,9 @@ export class GameLoop {
       if (!this.running) return;
       let delta = (now - this.last) / 1000;
       this.last = now;
-      if (delta > GameLoop.MAX_FRAME) delta = GameLoop.MAX_FRAME;
+      // browser tests on software rendering may allow a longer catch-up so game time keeps up with the wall clock
+      const maxFrame = (globalThis as { __ivMaxFrame?: number }).__ivMaxFrame ?? GameLoop.MAX_FRAME;
+      if (delta > maxFrame) delta = maxFrame;
       this.acc += delta;
       while (this.acc >= GameLoop.STEP) {
         this.hooks.update(GameLoop.STEP);

@@ -35,6 +35,8 @@ export async function openGame({ settings, profile, viewport = { width: 1280, he
     if (s && !sessionStorage.getItem("iv-init")) localStorage.setItem("ironVeil.settings.v1", JSON.stringify(s))
     if (p && !sessionStorage.getItem("iv-init")) localStorage.setItem(p.key, JSON.stringify(p.value))
     sessionStorage.setItem("iv-init", "1")
+    // software rendering draws the big zone at ~1 fps: let the fixed-step loop catch up a full second per frame
+    window.__ivMaxFrame = 1
   }, [settings ?? { sensitivity: 0.75, adsSensitivity: 0.8, volume: 0.5, muted: true, quality: "low", invertY: false, fov: 75, difficulty: "normal", screenShake: false, showFps: false }, profile ?? null])
   const errors = []
   page.on("pageerror", e => errors.push(String(e)))

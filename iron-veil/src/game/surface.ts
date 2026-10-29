@@ -36,7 +36,7 @@ export interface SurfaceOptions {
   /** Three-tone camouflage on fabric (0..1). */
   camo?: number
   /** Surface type for geometries without a `surf` attribute. */
-  type?: Surf
+  type?: number
 }
 
 let noiseTex: THREE.Data3DTexture | null = null
