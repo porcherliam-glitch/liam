@@ -227,6 +227,29 @@ function watchGeometry(): THREE.BufferGeometry {
   const g = mergeGeometries(parts, false)!; for (const p of parts) p.dispose(); return g
 }
 
+/**
+ * Sleeve tube along +Y (0..1, scaled to the bone length) with cloth folds: fabric bunches up toward the top end (the
+ * wrist on the forearm, where the sleeve is pushed against the glove) and creases gently along the rest.
+ */
+function sleeveGeometry(rTop: number, rBottom: number, open: boolean, bunch: number): THREE.BufferGeometry {
+  const g = new THREE.CylinderGeometry(rTop, rBottom, 1, 24, 18, open).translate(0, 0.5, 0)
+  const p = g.attributes.position as THREE.BufferAttribute
+  for (let i = 0; i < p.count; i++) {
+    const x = p.getX(i), y = p.getY(i), z = p.getZ(i), r = Math.hypot(x, z)
+    if (r < 1e-5) continue
+    const a = Math.atan2(z, x), near = Math.exp(-(((1 - y) / 0.2) ** 2)) * bunch
+    const off = 0.0042 * near * Math.sin(a * 5 + y * 46 + Math.sin(a * 2) * 2) + 0.0014 * Math.sin(a * 3 + y * 17) + 0.0018 * near * Math.sin(y * 90)
+    p.setXYZ(i, x * (1 + off / r), y, z * (1 + off / r))
+  }
+  g.computeVertexNormals()
+  // the cylinder's UV seam duplicates vertices: average their normals so no crease shows
+  const n = g.attributes.normal as THREE.BufferAttribute, key = (i: number) => `${p.getX(i).toFixed(5)},${p.getY(i).toFixed(5)},${p.getZ(i).toFixed(5)}`
+  const sum = new Map<string, THREE.Vector3>()
+  for (let i = 0; i < p.count; i++) { const k = key(i), v = sum.get(k) ?? new THREE.Vector3(); v.x += n.getX(i); v.y += n.getY(i); v.z += n.getZ(i); sum.set(k, v) }
+  for (let i = 0; i < p.count; i++) { const v = sum.get(key(i))!.clone().normalize(); n.setXYZ(i, v.x, v.y, v.z) }
+  return g
+}
+
 /** One arm: sleeve (upper + forearm), glove gauntlet, the posed hand and (left arm) a field watch. */
 class Arm {
   readonly group = new THREE.Group()
@@ -239,8 +262,7 @@ class Arm {
   private watch: THREE.Mesh | null = null
   private key = ""
   constructor(private left: boolean, private mats: ArmMats, private handCache: Map<string, THREE.BufferGeometry>) {
-    const up = new THREE.CylinderGeometry(0.05, 0.056, 1, 18, 1, true).translate(0, 0.5, 0)
-    const fo = new THREE.CylinderGeometry(0.037, 0.049, 1, 18, 1, false).translate(0, 0.5, 0)
+    const up = sleeveGeometry(0.05, 0.056, true, 0.35), fo = sleeveGeometry(0.037, 0.049, false, 1)
     this.upper = new THREE.Mesh(up, mats.sleeve); this.fore = new THREE.Mesh(fo, mats.sleeve)
     this.elbow = new THREE.Mesh(new THREE.SphereGeometry(0.051, 16, 12), mats.sleeve)
     this.cuff = new THREE.Mesh(cuffGeometry(), mats.glove)
