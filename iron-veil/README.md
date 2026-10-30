@@ -86,6 +86,7 @@ Schreiben dürfen Personen, mit denen das Artefakt mindestens als „Contributor
 - **Andere Überlebende**: Lager mit Händlerin, Sanitäterin und Wache; verirrte und verletzte Menschen zum Retten, die danach in der Basis wohnen.
 - **Online** (als claude.ai-Artefakt): andere Spieler als Echos, Funk, Bestenliste, Ausrüstung gefallener Spieler.
 - **Basis**: 13 Gebäude mit je bis zu 3 Stufen, Personal, Herstellung (Medizin, Granaten, Westen, Rucksäcke, Munition, Aufsätze), 9 Forschungen, Aufträge über Funk, Angriffe auf die Basis.
+- **Erfolge**: 20 Meilensteine (Erstes Blut, Kopfjäger, Kolossfäller, Bauherr, Festung, Forschergeist …) mit Fortschrittsanzeige auf einer eigenen Seite; neue Erfolge werden im Hauptmenü gemeldet.
 - **Einstellungen**: Maus- und Zielempfindlichkeit, Sichtfeld, Lautstärke, Gore, Schwierigkeit, Grafikqualität, Bildschirmwackeln, Bildrate.
 
 ## Für Entwickler

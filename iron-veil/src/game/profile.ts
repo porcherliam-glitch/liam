@@ -3,6 +3,7 @@
  * production, crafting, research, radio contracts, base threat, and raid bookkeeping (what is carried in, what
  * comes back, what is lost). Pure logic on the Profile object; persistence through storage.ts. Unit-tested.
  */
+import { newAchievements, type Achievement } from "./achievements"
 import { Bag, type BagSlot } from "./bag"
 import { BASE_ATTACK, CONTRACT_TEMPLATES, PRODUCTION, RECIPES, RESEARCH, STAFF_JOBS, STRUCTURES, defenseRating, secureSlots, staffCap, type Cost, type ResearchId, type StaffJob, type StructureId } from "./baseData"
 import { DIFFICULTY } from "./data"
@@ -22,7 +23,7 @@ const fail = (message: string): ActionResult => ({ ok: false, message })
 export const STRUCTURE_IDS = Object.keys(STRUCTURES) as StructureId[]
 export const STAFF_IDS = Object.keys(STAFF_JOBS) as StaffJob[]
 
-export function emptyStats(): ProfileStats { return { raids: 0, extracts: 0, deaths: 0, kills: 0, infectedKills: 0, mercKills: 0, headshots: 0, dismembered: 0, earned: 0, bestRaid: 0, contracts: 0, defenses: 0, rescued: 0 } }
+export function emptyStats(): ProfileStats { return { raids: 0, extracts: 0, deaths: 0, kills: 0, infectedKills: 0, mercKills: 0, headshots: 0, dismembered: 0, earned: 0, bestRaid: 0, contracts: 0, defenses: 0, rescued: 0, bossKills: 0 } }
 
 export function createProfile(now = Date.now()): Profile {
   const structures = Object.fromEntries(STRUCTURE_IDS.map(id => [id, 0])) as Record<StructureId, number>
@@ -41,7 +42,7 @@ export function createProfile(now = Date.now()): Profile {
     contracts: { offers: [], active: [], refreshAt: 0 },
     base: { threat: 10, attackPending: false, lastAttack: now },
     infection: 0, raidStarted: 0, raidSecure: [], emergencyCooldown: 0, residents: 0,
-    stats: emptyStats(), tutorialDone: false, lastTick: now,
+    stats: emptyStats(), achievements: [], tutorialDone: false, lastTick: now,
   }
 }
 
@@ -85,6 +86,13 @@ export class Company {
   constructor(public profile: Profile) {}
 
   save(): boolean { return saveProfile(this.profile) }
+
+  /** Stores every achievement earned since the last call and returns those new ones (for a toast). */
+  unlockAchievements(): Achievement[] {
+    const fresh = newAchievements(this.profile)
+    if (fresh.length) { this.profile.achievements.push(...fresh.map(a => a.id)); this.save() }
+    return fresh
+  }
   has(id: ResearchId): boolean { return this.profile.research.includes(id) }
   level(id: StructureId): number { return this.profile.structures[id] }
 
@@ -504,6 +512,7 @@ export class Company {
     const p = this.profile, lo = p.loadout
     p.raidStarted = 0; p.raidSecure = []
     p.stats.raids++; p.stats.kills += stats.kills; p.stats.infectedKills += stats.infectedKills; p.stats.mercKills += stats.mercKills
+    if (stats.bossKilled) p.stats.bossKills++
     p.stats.headshots += stats.headshots; p.stats.dismembered += stats.dismembered
     p.emergencyCooldown = Math.max(0, p.emergencyCooldown - 1)
     const returned: BagSlot[] = [], lost: BagSlot[] = []

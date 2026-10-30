@@ -9,6 +9,7 @@ import { ITEMS, ITEM_IDS, sellPrice } from "./items"
 import { bagValue, rollAirdrop, rollContainer, rollInfectedBody, rollMercBody } from "./loot"
 import { NavGrid } from "./nav"
 import { Company, createProfile, type RaidStats } from "./profile"
+import { ACHIEVEMENTS } from "./achievements"
 import { headingOf, mulberry32, wrapDegrees } from "./raid"
 import { DEFAULT_SETTINGS, LEGACY_KEYS, PROFILE_KEY, SETTINGS_KEY, loadProfile, loadSettings, sanitizeProfile, sanitizeSettings } from "./storage"
 import { addBleed, applyUse, freshVitals, speedFactor, stepVitals } from "./survival"
@@ -145,6 +146,22 @@ describe("grenades", () => {
     const { ev, left } = run("decoy", DECOY_LIFE + 3)
     expect(ev.beep).toBeGreaterThanOrEqual(Math.floor(DECOY_LIFE / DECOY_BEEP) - 1)
     expect(left).toBe(0)
+  })
+})
+
+describe("achievements", () => {
+  it("unlock from the profile stats once and persist through sanitizing", () => {
+    const p = createProfile(1000), c = new Company(p)
+    expect(c.unlockAchievements()).toEqual([])
+    p.stats.infectedKills = 1; p.stats.extracts = 1
+    const fresh = c.unlockAchievements()
+    expect(fresh.map(a => a.id).sort()).toEqual(["first_blood", "first_extract"])
+    expect(c.unlockAchievements()).toEqual([])
+    p.stats.infectedKills = 100
+    expect(c.unlockAchievements().map(a => a.id)).toEqual(["hundred"])
+    const back = sanitizeProfile(JSON.parse(JSON.stringify({ ...p, achievements: [...p.achievements, "nonsense"] })), 1000)!
+    expect(back.achievements.sort()).toEqual(["first_blood", "first_extract", "hundred"])
+    expect(ACHIEVEMENTS.find(a => a.id === "hundred")!.progress!(back)).toEqual([100, 100])
   })
 })
 

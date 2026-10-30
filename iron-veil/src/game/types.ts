@@ -15,7 +15,7 @@ export type { ResearchId } from "./baseData"
 export interface Vec2 { x: number; z: number }
 export interface Vec3 { x: number; y: number; z: number }
 
-export type Screen = "menu" | "base" | "missions" | "trader" | "inventory" | "armory" | "crafting" | "build" | "research" | "radio" | "settings" | "playing" | "paused" | "raidInventory" | "loot" | "result" | "attack" | "online" | "chat"
+export type Screen = "menu" | "base" | "missions" | "trader" | "inventory" | "armory" | "crafting" | "build" | "research" | "radio" | "settings" | "playing" | "paused" | "raidInventory" | "loot" | "result" | "attack" | "online" | "chat" | "achievements"
 export type EnemyKind = "scout" | "rifleman" | "heavy" | "marksman"
 /** The three original operation areas; they are districts of the big zone map now. */
 export type MissionId = "greyzone" | "harbor" | "blacksite"
@@ -67,6 +67,8 @@ export interface ProfileStats {
   headshots: number; dismembered: number; earned: number; bestRaid: number; contracts: number; defenses: number
   /** Survivors brought out of the zone. */
   rescued: number
+  /** The Koloss killed (Erfolge). */
+  bossKills: number
 }
 
 export interface Profile {
@@ -100,6 +102,8 @@ export interface Profile {
   /** Rescued survivors living at the base (each one raises the staff limit, up to 6). */
   residents: number
   stats: ProfileStats
+  /** Unlocked achievement ids (achievements.ts). */
+  achievements: string[]
   tutorialDone: boolean
   lastTick: number
 }

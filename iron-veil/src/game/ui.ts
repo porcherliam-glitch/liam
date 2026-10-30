@@ -17,6 +17,7 @@ import type { ActionResult, Company } from "./profile"
 import { MODE_NAMES, type ChatLine, type Online } from "./online"
 import type { LootSession } from "./raid"
 import type { Vitals } from "./survival"
+import { ACHIEVEMENTS } from "./achievements"
 import type { Difficulty, GoreSetting, HudSnapshot, RaidPlan, RaidResult, Screen, Settings } from "./types"
 import { WEATHER, WEATHER_ORDER, type WeatherId } from "./weather"
 import { AMMO, AMMO_FOR, ATTACHMENTS, ATTACHMENT_ORDER, PRIMARY_WEAPONS, SECONDARY_WEAPONS, MELEE_WEAPONS, WEAPONS, canAttach, effectiveWeapon, type AmmoId, type AttachmentId, type AttachmentSlot, type WeaponId } from "./weaponData"
@@ -165,8 +166,8 @@ export class GameUI {
 
   private nav(active: string): string {
     const n = this.online?.available ? this.online.others().length : -1
-    const items: [string, string, string, string][] = [["radio", "EINSATZ & FUNK", "01", "↗"], ["inventory", "LAGER & RUCKSACK", "02", "↗"], ["armory", "WAFFENWERKSTATT", "03", "↗"], ["trader", "HÄNDLER", "04", "↗"], ["crafting", "HERSTELLUNG", "05", "↗"], ["build", "BASIS & PERSONAL", "06", "↗"], ["research", "FORSCHUNG", "07", "↗"], ["online", "ONLINE", "08", n > 0 ? `<b class="online-count">${n}</b>` : "◌"]]
-    return `<nav class="main-nav">${items.map(([id, label, num, mark]) => `<button class="nav-item ${active === id ? "active" : ""}" data-action="${id}"><small>${num}</small>${label}<span>${mark}</span></button>`).join("")}<button class="nav-item settings-link ${active === "settings" ? "active" : ""}" data-action="settings"><small>09</small>EINSTELLUNGEN<span>⌁</span></button></nav>`
+    const items: [string, string, string, string][] = [["radio", "EINSATZ & FUNK", "01", "↗"], ["inventory", "LAGER & RUCKSACK", "02", "↗"], ["armory", "WAFFENWERKSTATT", "03", "↗"], ["trader", "HÄNDLER", "04", "↗"], ["crafting", "HERSTELLUNG", "05", "↗"], ["build", "BASIS & PERSONAL", "06", "↗"], ["research", "FORSCHUNG", "07", "↗"], ["online", "ONLINE", "08", n > 0 ? `<b class="online-count">${n}</b>` : "◌"], ["achievements", "ERFOLGE", "09", `${this.company.profile.achievements.length}/${ACHIEVEMENTS.length}`]]
+    return `<nav class="main-nav">${items.map(([id, label, num, mark]) => `<button class="nav-item ${active === id ? "active" : ""}" data-action="${id}"><small>${num}</small>${label}<span>${mark}</span></button>`).join("")}<button class="nav-item settings-link ${active === "settings" ? "active" : ""}" data-action="settings"><small>10</small>EINSTELLUNGEN<span>⌁</span></button></nav>`
   }
 
   private panel(screen: Screen, section: string, body: string): void {
@@ -182,6 +183,8 @@ export class GameUI {
     this.screen = "menu"; this.fromBase = false; this.loot = null
     this.hudRoot.classList.add("hidden"); this.root.className = "screen menu-screen"
     this.handlers.toMenu()
+    const fresh = this.company.unlockAchievements()
+    if (fresh.length) window.setTimeout(() => this.notify(`Erfolg freigeschaltet: ${fresh.map(a => a.name).join(", ")}`), 400)
     const p = this.company.profile, rate = p.stats.raids ? Math.round(p.stats.extracts / p.stats.raids * 100) : 0
     const attack = p.base.attackPending ? `<div class="attack-banner"><b>☣ ANGRIFF AUF DIE BASIS</b><span>Infizierte sammeln sich vor dem Tor (Bedrohung ${Math.round(p.base.threat)} %).</span><button class="secondary" data-action="attack">REAGIEREN</button></div>` : ""
     const active = p.contracts.active.length ? p.contracts.active.map(c => `<div><span>${esc(c.title)}</span><b>${c.progress}/${c.target}</b></div>`).join("") : `<div><span>Keine aktiven Aufträge</span><b>Funk</b></div>`
@@ -211,8 +214,19 @@ export class GameUI {
   }
 
   private show(screen: Screen): void {
-    const map: Partial<Record<Screen, () => void>> = { menu: () => this.showMenu(), trader: () => this.showTrader(), inventory: () => this.showInventory(), armory: () => this.showArmory(), crafting: () => this.showCrafting(), build: () => this.showBuild(), research: () => this.showResearch(), radio: () => this.showRadio(), settings: () => this.showSettings(), online: () => this.showOnline() }
+    const map: Partial<Record<Screen, () => void>> = { menu: () => this.showMenu(), trader: () => this.showTrader(), inventory: () => this.showInventory(), armory: () => this.showArmory(), crafting: () => this.showCrafting(), build: () => this.showBuild(), research: () => this.showResearch(), radio: () => this.showRadio(), settings: () => this.showSettings(), online: () => this.showOnline(), achievements: () => this.showAchievements() }
     this.pad.reset(); map[screen]?.()
+  }
+
+  // ───────────────────────────── achievements ─────────────────────────────
+
+  showAchievements(): void {
+    const p = this.company.profile
+    const cards = ACHIEVEMENTS.map(a => {
+      const done = p.achievements.includes(a.id), pr = a.progress?.(p)
+      return `<div class="research-card achievement ${done ? "done" : ""}"><div class="research-symbol">${done ? a.mark : "○"}</div><div><h4>${esc(a.name)}</h4><p>${esc(a.description)}</p><small>${done ? "FREIGESCHALTET" : pr ? `${pr[0]} / ${pr[1]}` : "OFFEN"}</small></div></div>`
+    }).join("")
+    this.panel("achievements", "ERFOLGE", `<div class="content-heading"><div><span class="eyebrow">MEILENSTEINE DER TRUPPE</span><h2>Erfolge.</h2></div><div class="dealer-tag">FREIGESCHALTET <b>${p.achievements.length} / ${ACHIEVEMENTS.length}</b></div></div><div class="research-grid">${cards}</div>`)
   }
 
   // ───────────────────────────── trader ─────────────────────────────
@@ -523,6 +537,7 @@ export class GameUI {
       research: () => id ? this.result(this.company.startResearch(id as ResearchId)) : this.show("research"),
       settings: () => this.show("settings"),
       online: () => this.show("online"),
+      achievements: () => this.show("achievements"),
       "board-sort": () => { this.boardSort = id as typeof this.boardSort; for (const b of this.root.querySelectorAll<HTMLElement>(".board-tabs .tab")) b.classList.toggle("active", b.dataset.id === id); this.renderOnline() },
       intro: () => this.root.insertAdjacentHTML("beforeend", this.introCard()),
       "intro-close": () => this.root.querySelector(".intro-backdrop")?.remove(),
