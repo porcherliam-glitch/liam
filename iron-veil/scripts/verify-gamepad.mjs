@@ -45,7 +45,10 @@ try {
   const s2 = await g.snapshot()
   check(s2.yaw < s1.yaw - 0.1, "Rechter Stick nach rechts dreht nach rechts")
   const ammo = s2.ammo
-  await pad({ buttons: { 7: 1 } }); await g.frames(3); await page.waitForTimeout(300); await pad({ buttons: { 7: 0 } }); await g.frames(2)
+  // hold the trigger until a shot leaves (slow software rendering: wait on game state, not on wall-clock time)
+  await pad({ buttons: { 7: 1 } }); await g.frames(3)
+  await g.until(a => window.__ironVeil.snapshot().ammo < a, ammo, 90000).catch(() => {})
+  await pad({ buttons: { 7: 0 } }); await g.frames(2)
   check((await g.snapshot()).ammo < ammo, "RT feuert")
   const hud = (await g.snapshot()).hud
   check(hud.device === "pad", `Tastenhinweise wechseln auf Controller (${hud.device})`)

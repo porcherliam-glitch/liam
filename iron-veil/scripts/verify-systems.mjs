@@ -51,11 +51,16 @@ try {
   await api(() => window.__ironVeil.spawnInfected("walker", 9)); await g.frames(3)
   // only the spawned walker counts: the zone may hold other infected far away
   const nearInfected = () => api(() => { const t = window.__ironVeil.nearest("infected"), p = window.__ironVeil.snapshot().player; return t && Math.hypot(t.x - p.x, t.z - p.z) < 25 ? t : null })
-  for (let i = 0; i < 12; i++) {
+  for (let i = 0; i < 40; i++) {
     const t = await nearInfected()
     if (!t) break
     await api(t => window.__ironVeil.aimAt(t.chest.x, t.chest.y, t.chest.z), t)
-    await page.mouse.move(640, 360); await page.mouse.down(); await g.frames(4); await page.mouse.up(); await g.frames(3)
+    // fire until at least one round left the gun (frame rates in software rendering vary a lot)
+    const ammo = (await g.snapshot()).ammo
+    await page.mouse.move(640, 360); await page.mouse.down(); await g.frames(4)
+    await g.until(a => window.__ironVeil.snapshot().ammo < a || window.__ironVeil.snapshot().ammo === 0, ammo, 60000).catch(() => {})
+    await page.mouse.up(); await g.frames(3)
+    if ((await g.snapshot()).ammo === 0) { await page.keyboard.press("KeyR"); await g.until(() => window.__ironVeil.snapshot().ammo > 0, null, 60000).catch(() => {}) }
   }
   const left = await nearInfected()
   check(!left, `Infizierter erledigt${left ? ` (noch ${left.kind} mit ${left.health} LP)` : ""}`)
