@@ -11,7 +11,7 @@ import { weaponOfItem, type ItemId } from "./items"
 import { buildHandItem, weaponWorldModel } from "./weaponModels"
 
 const cache = new Map<string, string>()
-const HAND_ITEMS = new Set<string>(["bandage", "medkit", "painkiller", "antiviral", "stim", "canned", "mre", "water", "soda", "grenade", "molotov", "smoke", "flashbang", "decoy"])
+const HAND_ITEMS = new Set<string>(["bandage", "medkit", "painkiller", "antiviral", "stim", "canned", "mre", "water", "soda", "grenade", "molotov", "smoke", "flashbang", "decoy", "shocktrap"])
 
 /** True when the item has a real icon (model render or painting). */
 export function hasIcon(id: ItemId): boolean { return !!weaponOfItem(id) || HAND_ITEMS.has(id) || id in PAINTERS }

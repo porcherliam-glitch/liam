@@ -17,9 +17,9 @@ const FRICTION = 0.72
 const SIZE = 0.07
 
 export interface GrenadeBody { p: Vec3; v: Vec3; fuse: number; bounced: boolean }
-export type ThrowableKind = "grenade" | "molotov" | "smoke" | "flashbang" | "decoy"
+export type ThrowableKind = "grenade" | "molotov" | "smoke" | "flashbang" | "decoy" | "shocktrap"
 /** Cycle order of the throwables (key 4 / HUD). */
-export const THROWABLES: readonly ThrowableKind[] = ["grenade", "molotov", "smoke", "flashbang", "decoy"]
+export const THROWABLES: readonly ThrowableKind[] = ["grenade", "molotov", "smoke", "flashbang", "decoy", "shocktrap"]
 /** Name, fuse (s, the molotov bursts on impact instead) and throw speed (m/s) per throwable. */
 export const THROW_INFO: Record<ThrowableKind, { name: string; fuse: number; speed: number }> = {
   grenade: { name: "Splittergranate", fuse: GRENADE_FUSE, speed: 15 },
@@ -27,6 +27,8 @@ export const THROW_INFO: Record<ThrowableKind, { name: string; fuse: number; spe
   smoke: { name: "Rauchgranate", fuse: 1.6, speed: 14 },
   flashbang: { name: "Blendgranate", fuse: 1.5, speed: 15 },
   decoy: { name: "Lärmköder", fuse: 1.2, speed: 12 },
+  /** Not thrown: the raid sets it down in front of the player (see traps.ts). */
+  shocktrap: { name: "Schockfalle", fuse: 0, speed: 0 },
 }
 /** How long a smoke canister keeps hissing and how long a decoy beeps (they stay on the ground meanwhile). */
 export const SMOKE_BURN = 22

@@ -186,7 +186,7 @@ function syncUi(): void {
     ["Feuer", () => api.fire(1)], ["Feuerstoß", () => api.fire(6)], ["Nachladen", () => api.reload(false)], ["Leer nachladen", () => api.reload(true)],
     ["Wechsel", () => api.switchTo(st.weapon === "p9" ? "mk4" : "p9")], ["Nahkampf", () => api.melee()], ["Schnellmesser", () => api.quickKnife()],
     ["Sanitär", () => api.use("medical")], ["Essen", () => api.use("food")], ["Trinken", () => api.use("food", "water")], ["Granate", () => api.use("throw")], ["Molotow", () => api.use("throw", "molotov")],
-    ["Rauch", () => api.use("throw", "smoke")], ["Blend", () => api.use("throw", "flashbang")], ["Köder", () => api.use("throw", "decoy")],
+    ["Rauch", () => api.use("throw", "smoke")], ["Blend", () => api.use("throw", "flashbang")], ["Köder", () => api.use("throw", "decoy")], ["Falle", () => api.use("throw", "shocktrap")],
   ]
   const grid = el("div", "display:grid;grid-template-columns:1fr 1fr;gap:4px;margin:8px 0")
   for (const [label, fn] of btns) { const b = el("button", "padding:4px;background:#252b31;color:#e6ebef;border:1px solid #39424a;border-radius:3px;cursor:pointer", label); b.onclick = fn; grid.appendChild(b) }

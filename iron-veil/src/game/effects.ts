@@ -259,6 +259,27 @@ export class Effects {
   }
   private flashColorT = 0
 
+  /** Shock trap discharge: a cold blue-white flash and sparks at the coil. */
+  zap(p: Vec3): void {
+    const r = this.rand
+    this.explosionLight.position.set(p.x, p.y + 0.3, p.z); this.explosionLight.color.setHex(0x8fbcff); this.explosionLight.intensity = 45; this.explosionLightTime = 0.14
+    this.flashColorT = 0.3
+    for (let i = 0; i < 22; i++) { const a = r() * Math.PI * 2, s = 1.5 + r() * 4; this.additive.emit(p.x, p.y, p.z, Math.cos(a) * s, 1 + r() * 3, Math.sin(a) * s, 0.1 + r() * 0.2, 0.04, 0, 0.75, 0.88, 1, 1, 1, 8) }
+    this.additive.emit(p.x, p.y, p.z, 0, 0, 0, 0.1, 0.9, 1.5, 0.6, 0.78, 1, 1, 0, 0)
+  }
+
+  /** One jagged electric arc from a to b, drawn as short-lived glowing points along a zig-zag path. */
+  arc(a: Vec3, b: Vec3): void {
+    const r = this.rand, dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z, len = Math.hypot(dx, dy, dz)
+    const steps = Math.max(6, Math.min(26, Math.round(len * 5)))
+    let jx = 0, jy = 0, jz = 0
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps, amp = Math.sin(t * Math.PI) * Math.min(0.45, len * 0.12)
+      jx = jx * 0.5 + (r() - 0.5) * amp; jy = jy * 0.5 + (r() - 0.5) * amp; jz = jz * 0.5 + (r() - 0.5) * amp
+      this.additive.emit(a.x + dx * t + jx, a.y + dy * t + jy, a.z + dz * t + jz, 0, 0, 0, 0.09 + r() * 0.06, 0.07 + r() * 0.04, 0, 0.72, 0.86, 1, 1, 0, 0)
+    }
+  }
+
   /** Burning ground (molotov) — call each fixed step while it burns: flames, embers and dark smoke over the radius. */
   fire(p: Vec3, radius: number, dt: number): void {
     const r = this.rand

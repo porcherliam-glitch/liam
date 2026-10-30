@@ -77,6 +77,7 @@ export const RECIPES: Recipe[] = [
   r("grenade", "workbench", 2, { chem: 2, scrap: 2, parts: 1 }, "grenade", 1, 60),
   r("decoy", "workbench", 1, { electronics: 1, scrap: 1 }, "decoy", 2, 40),
   r("smoke", "workbench", 2, { chem: 2, scrap: 1, cloth: 1 }, "smoke", 1, 50),
+  r("shocktrap", "workbench", 2, { electronics: 2, scrap: 3, parts: 1 }, "shocktrap", 1, 120),
   r("flashbang", "workbench", 3, { chem: 2, scrap: 2, parts: 1 }, "flashbang", 1, 70),
   r("medkit", "workbench", 2, { cloth: 2, chem: 1, medical: 1 }, "medkit", 1, 60),
   r("stim", "workbench", 2, { chem: 2, medical: 1 }, "stim", 1, 90),

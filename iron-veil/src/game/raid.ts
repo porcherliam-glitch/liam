@@ -16,6 +16,8 @@ import { GhostPlayers } from "./ghosts"
 import { GoreSystem } from "./gore"
 import { WEATHER, type WeatherId } from "./weather"
 import { GRENADE_DAMAGE, GRENADE_RADIUS, GrenadeSystem, THROWABLES, THROW_INFO, type ThrowableKind } from "./grenades"
+import { TRAP_RADIUS, TRAP_STUN, TRAP_TRIGGER, TrapField, zapDamage, type ShockTrap } from "./traps"
+import { buildHandItem } from "./weaponModels"
 import type { DamageInfo, DamageResult, Hostile, HostileHit, HostileManager, HitPart, PlayerState, ShotEvent, AttackEvent, HostileSound } from "./hostiles"
 import { INFECTED, type InfectedKind } from "./infectedData"
 import { Input } from "./input"
@@ -108,6 +110,10 @@ export class RaidGame {
   private fires: FireZone[] = []
   /** Bloater gas clouds: poison the player (and mercs) standing in them. */
   private gases: FireZone[] = []
+  /** Shock traps set down by the player and their meshes (by trap id). */
+  private traps = new TrapField()
+  private trapMeshes = new Map<number, THREE.Object3D>()
+  private trapModel: { group: THREE.Group; lift: number } | null = null
   private fireLight = new THREE.PointLight(0xff8a3a, 0, 14, 2)
   private loop: GameLoop
   private flashlight = new THREE.SpotLight(0xfff2dc, 0, 40, 0.42, 0.55, 1.6)
@@ -273,6 +279,8 @@ export class RaidGame {
     this.ghosts?.dispose(); this.ghosts = null
     for (const g of this.ground) if (g.mesh) g.mesh.parent?.remove(g.mesh)
     this.ground = []; this.fires = []; this.gases = []; this.fireLight.intensity = 0
+    for (const m of this.trapMeshes.values()) this.scene.remove(m)
+    this.trapMeshes.clear(); this.traps.clear()
     if (this.airdrop?.mesh) this.airdrop.mesh.parent?.remove(this.airdrop.mesh)
     this.airdrop = null; this.defense = null; this.bossSpawned = false
     this.effects?.clear(); this.gore?.clear(); this.grenades?.clear(); this.world?.obscurants.clear()
@@ -530,6 +538,7 @@ export class RaidGame {
       this.updateFires(dt)
       this.updateSmoke(dt)
       this.updateGas(dt)
+      this.updateTraps(dt)
       this.updateWeather(dt)
       // survival
       const lost = stepVitals(this.player.vitals, dt, { metabolism: this.company.has("metabolism"), immunology: this.company.has("immunology"), sprinting: this.player.sprinting })
@@ -861,7 +870,7 @@ export class RaidGame {
     this.weapon.cancelReload()
     this.bag.remove(kind, 1); this.throwKind = kind
     this.useTime = 0; this.useItem = kind; this.useKind = "throw"
-    this.sfx(kind === "molotov" ? "flashlight" : kind === "decoy" ? "decoy_wind" : "grenade_pin")
+    this.sfx(kind === "molotov" || kind === "shocktrap" ? "flashlight" : kind === "decoy" ? "decoy_wind" : "grenade_pin")
   }
 
   /** Next throwable after `from` in the cycle that is in the backpack (or simply the next one when none is). */
@@ -917,6 +926,7 @@ export class RaidGame {
 
   private releaseThrowable(kind: ThrowableKind): void {
     const p = this.player
+    if (kind === "shocktrap") { this.setTrap(); return }
     p.aim(_aim)
     const eye = { x: p.pos.x, y: p.eye - 0.1, z: p.pos.z }
     // never start inside a wall: shorten the hand offset when something is right in front
@@ -924,6 +934,56 @@ export class RaidGame {
     const off = wall ? Math.max(0, Math.min(0.4, wall.distance - 0.1)) : 0.4
     const origin = { x: eye.x + _aim.fwd.x * off, y: eye.y + _aim.fwd.y * off, z: eye.z + _aim.fwd.z * off }
     this.grenades.throw(origin, _aim.fwd, { x: p.vel.x * 0.5, y: 0, z: p.vel.y * 0.5 }, kind)
+  }
+
+  /** Sets a shock trap down about a metre in front of the player (closer when a wall is in the way). */
+  private setTrap(): void {
+    const p = this.player
+    _trapDir.set(-Math.sin(p.yaw), 0, -Math.cos(p.yaw))
+    const wall = this.world.collision.raycast({ x: p.pos.x, y: p.pos.y + 0.4, z: p.pos.z }, _trapDir, 1.3)
+    const off = wall ? Math.max(0.3, wall.distance - 0.3) : 1
+    const t = this.traps.place(p.pos.x + _trapDir.x * off, p.pos.y, p.pos.z + _trapDir.z * off)
+    if (!this.trapModel) {
+      const group = buildHandItem("shocktrap", "world").group; group.scale.setScalar(3)
+      group.traverse(o => { if (o instanceof THREE.Mesh) o.castShadow = true })
+      this.trapModel = { group, lift: -new THREE.Box3().setFromObject(group).min.y }
+    }
+    const mesh = this.trapModel.group.clone(); mesh.position.set(t.x, t.y + this.trapModel.lift, t.z); mesh.rotation.y = p.yaw; mesh.name = "Schockfalle"
+    this.scene.add(mesh); this.trapMeshes.set(t.id, mesh)
+    this.sfx("trap_set", { position: t })
+    this.say(`Schockfalle aufgestellt – aktiv in 1,5 s (${this.bag.count("shocktrap")} übrig)`, 1.8)
+  }
+
+  /** Warm-up, blinking LED, discharges when hostiles come close, and removal of spent traps. */
+  private updateTraps(dt: number): void {
+    if (!this.traps.traps.length) return
+    for (const id of this.traps.update(dt)) { const m = this.trapMeshes.get(id); if (m) { this.scene.remove(m); this.trapMeshes.delete(id) } }
+    const near: Vec3[] = []
+    for (const t of this.traps.traps) {
+      const led = this.trapMeshes.get(t.id)?.getObjectByName("led")
+      if (led) led.visible = t.armT > 0 || t.cooldown > 0 ? Math.floor(this.time * 6) % 2 === 0 : true
+      for (const h of this.hostiles) for (const e of h.inRadius(t, TRAP_TRIGGER)) near.push(e.position)
+    }
+    if (near.length) for (const t of this.traps.discharge(near)) this.zap(t)
+  }
+
+  /** One discharge: arcs to every hostile in reach (not through walls), damage, and a few seconds of paralysis. */
+  private zap(t: ShockTrap): void {
+    const at = { x: t.x, y: t.y + 0.35, z: t.z }
+    this.effects.zap(at)
+    this.sfx("zap", { position: at })
+    this.noise(at, 25)
+    for (const h of this.hostiles) {
+      for (const e of h.inRadius(at, TRAP_RADIUS)) {
+        const point = e.chestPosition(new THREE.Vector3())
+        if (this.world.collision.segmentBlocked3D(at, point)) continue
+        const dmg = zapDamage(t, e.position); if (dmg <= 0) continue
+        this.effects.arc(at, point)
+        const d = Math.max(0.01, Math.hypot(point.x - at.x, point.z - at.z))
+        h.applyDamage({ target: e, distance: d, part: "body", bodyPart: "torso", point }, { amount: dmg, from: at, dir: { x: (point.x - at.x) / d, y: 0, z: (point.z - at.z) / d }, penetration: 1, kind: "fire", sever: 0 })
+      }
+      h.stun(at, TRAP_RADIUS, TRAP_STUN)
+    }
   }
 
   private explode(p: Vec3): void {
@@ -1674,6 +1734,7 @@ export class RaidGame {
   debug = {
     teleport: (x: number, z: number) => { this.player.pos.set(x, 0, z); const p = { x, z }; this.world.collision.depenetrate(p, RADIUS); this.player.pos.x = p.x; this.player.pos.z = p.z; this.player.prevPos.copy(this.player.pos) },
     damage: (amount: number) => { this.player.health = Math.max(0, this.player.health - amount); this.damageFlash = 0.3 },
+    traps: () => this.traps.traps.map(t => ({ x: t.x, y: t.y, z: t.z, charges: t.charges, armed: t.armT <= 0 })),
     aimAt: (x: number, y: number, z: number) => { const dx = x - this.player.pos.x, dy = y - this.player.eye, dz = z - this.player.pos.z; this.player.yaw = Math.atan2(-dx, -dz); this.player.pitch = Math.atan2(dy, Math.hypot(dx, dz)); this.player.punch.set(0, 0) },
     nearestHostile: (faction?: "merc" | "infected") => {
       let best: Hostile | null = null, bd = Infinity
@@ -1751,3 +1812,4 @@ const _camPos = new THREE.Vector3()
 const _cone = { x: 0, y: 0 }
 const _flashDir = new THREE.Vector3()
 const _upWorld = { x: 0, y: 1, z: 0 }
+const _trapDir = new THREE.Vector3()

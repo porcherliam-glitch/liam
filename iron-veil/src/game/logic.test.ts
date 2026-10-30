@@ -5,6 +5,7 @@ import { collides, depenetrate, moveCircle, raycastObstacles, rayCapsule, raySph
 import { xpForLevel } from "./data"
 import { DECOY_BEEP, DECOY_LIFE, GRENADE_FUSE, GrenadeSystem, SMOKE_BURN, stepGrenade, type ThrowableKind } from "./grenades"
 import { Obscurants, SMOKE_GROW, SMOKE_LIFE } from "./obscurants"
+import { TRAP_ARM, TRAP_CHARGES, TRAP_DAMAGE, TRAP_RADIUS, TRAP_RECHARGE, TRAP_TRIGGER, TrapField, zapDamage } from "./traps"
 import { ITEMS, ITEM_IDS, sellPrice } from "./items"
 import { bagValue, rollAirdrop, rollContainer, rollInfectedBody, rollMercBody } from "./loot"
 import { NavGrid } from "./nav"
@@ -162,6 +163,38 @@ describe("achievements", () => {
     const back = sanitizeProfile(JSON.parse(JSON.stringify({ ...p, achievements: [...p.achievements, "nonsense"] })), 1000)!
     expect(back.achievements.sort()).toEqual(["first_blood", "first_extract", "hundred"])
     expect(ACHIEVEMENTS.find(a => a.id === "hundred")!.progress!(back)).toEqual([100, 100])
+  })
+})
+
+describe("shock traps", () => {
+  const at = (x: number, z: number, y = 0) => ({ x, y, z })
+  it("stays quiet while warming up, then fires when a hostile comes close", () => {
+    const f = new TrapField(); f.place(0, 0, 0)
+    expect(f.discharge([at(1, 0)])).toHaveLength(0)
+    f.update(TRAP_ARM + 0.01)
+    expect(f.discharge([at(TRAP_TRIGGER + 0.5, 0)])).toHaveLength(0)
+    expect(f.discharge([at(1, 1)])).toHaveLength(1)
+    // recharging: nothing until the coil is ready again
+    expect(f.discharge([at(1, 1)])).toHaveLength(0)
+    f.update(TRAP_RECHARGE + 0.01)
+    expect(f.discharge([at(1, 1)])).toHaveLength(1)
+  })
+  it("ignores targets on another floor", () => {
+    const f = new TrapField(); f.place(0, 0, 0); f.update(TRAP_ARM + 0.01)
+    expect(f.discharge([at(1, 0, 3.5)])).toHaveLength(0)
+  })
+  it("is used up after its charges and then removed", () => {
+    const f = new TrapField(); const t = f.place(0, 0, 0); f.update(TRAP_ARM + 0.01)
+    let fired = 0
+    for (let i = 0; i < 10; i++) { fired += f.discharge([at(0.5, 0)]).length; const gone = f.update(TRAP_RECHARGE + 0.01); if (gone.length) { expect(gone).toEqual([t.id]); break } }
+    expect(fired).toBe(TRAP_CHARGES)
+    expect(f.traps).toHaveLength(0)
+  })
+  it("hurts most next to the coil and nothing outside the radius", () => {
+    const t = new TrapField().place(0, 0, 0)
+    expect(zapDamage(t, at(0, 0))).toBeCloseTo(TRAP_DAMAGE)
+    expect(zapDamage(t, at(TRAP_RADIUS, 0))).toBeCloseTo(TRAP_DAMAGE / 2)
+    expect(zapDamage(t, at(TRAP_RADIUS + 0.1, 0))).toBe(0)
   })
 })
 

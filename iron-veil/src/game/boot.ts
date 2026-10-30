@@ -28,6 +28,7 @@ declare global {
       lookAt: (x: number, z: number, y?: number) => void
       nearest: (faction?: "merc" | "infected") => { x: number; y: number; z: number; kind: string; faction: string; health: number; head: { x: number; y: number; z: number }; chest: { x: number; y: number; z: number } } | null
       spawnInfected: (kind: InfectedKind, distance: number) => void
+      traps: () => { x: number; y: number; z: number; charges: number; armed: boolean }[]
       spawnMerc: (kind: EnemyKind, distance: number) => void
       killAllInfected: () => void
       godMode: (on: boolean) => void
@@ -146,7 +147,7 @@ export function startGame(canvas: HTMLCanvasElement, uiHost: HTMLElement): void 
       const t = game.debug.nearestHostile(faction); if (!t) return null
       return { ...pos(t.position), kind: t.kind, faction: t.faction, health: t.health, head: pos(t.headPosition(t.position.clone())), chest: pos(t.chestPosition(t.position.clone())) }
     },
-    spawnInfected: (kind, d) => { game.debug.spawnInfected(kind, d) }, spawnMerc: (kind, d) => game.debug.spawnMerc(kind, d),
+    spawnInfected: (kind, d) => { game.debug.spawnInfected(kind, d) }, traps: () => game.debug.traps(), spawnMerc: (kind, d) => game.debug.spawnMerc(kind, d),
     killAllInfected: () => game.debug.killAllInfected(), godMode: on => game.debug.setGodMode(on),
     containers: () => game.debug.containers(), exits: () => game.debug.exits(),
     give: (id, qty) => game.debug.give(id, qty), grant: (id, qty) => { company.addItem(id, qty); company.save() },

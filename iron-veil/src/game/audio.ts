@@ -32,7 +32,7 @@ export type SfxId =
   | "step_asphalt" | "step_concrete" | "step_metal" | "step_gravel" | "step_dirt" | "step_wood" | "land"
   | "grenade_pin" | "grenade_bounce" | "explosion" | "smoke_hiss" | "flashbang" | "tinnitus" | "decoy_beep" | "decoy_wind" | "rain" | "rain_roof" | "thunder" | "gas_burst" | "cough"
   | "extract_call" | "extract_tick" | "helicopter" | "alert" | "radio"
-  | "ui_click" | "ui_hover" | "ui_buy" | "ui_error" | "build" | "win" | "lose" | "level_up" | "flashlight" | "nvg_on" | "nvg_off"
+  | "ui_click" | "ui_hover" | "ui_buy" | "ui_error" | "build" | "win" | "lose" | "level_up" | "flashlight" | "nvg_on" | "nvg_off" | "trap_set" | "zap"
   | "shot_r44" | "shot_k5" | "shot_sr74" | "shot_br10" | "shot_sg8" | "shot_falke" | "shot_lm60"
   | "shot_p18" | "shot_de50" | "shot_v45" | "shot_stg77" | "shot_as12"
   | "shot_km45" | "shot_u45" | "shot_ar36" | "shot_uh44" | "shot_k98" | "shot_db12" | "shot_xbow" | "lever_cycle"
@@ -786,6 +786,13 @@ const DEFS: Record<SfxId, Def> = {
     v.noise({ ft: "bandpass", f: 2200, q: 2, a: 0.0005, d: 0.02, g: 0.7 }); v.tone({ w: "sine", f: 900, f2: 3800, gl: 0.45, d: 0.5, a: 0.03, g: 0.08 }); v.tone({ w: "triangle", f: 1800, f2: 7600, gl: 0.45, d: 0.5, a: 0.05, g: 0.02 }) } },
   nvg_off: { bus: "sfx", g: 0.6, pri: 1, gap: 0.1, make: v => {
     v.noise({ ft: "bandpass", f: 2600, q: 2, a: 0.0005, d: 0.02, g: 0.7 }); v.tone({ w: "sine", f: 3400, f2: 700, gl: 0.28, d: 0.3, a: 0.01, g: 0.07 }) } },
+  // shock trap set down: a thud on the ground and the coil charging up
+  trap_set: { bus: "sfx", g: 0.7, pri: 1, gap: 0.1, make: v => {
+    v.noise({ ft: "lowpass", f: 500, q: 1, a: 0.001, d: 0.06, g: 0.8 }); v.tone({ w: "sawtooth", f: 140, f2: 520, gl: 1.2, at: 0.1, a: 0.2, d: 1.2, g: 0.05, ft: "lowpass", ff: 1600 }) } },
+  // electric arc: hard crackle with a mains buzz under it
+  zap: { bus: "sfx", g: 0.95, pri: 2, ref: 8, gap: 0.05, cap: 3, make: v => {
+    v.noise({ ft: "highpass", f: 2500, q: 0.7, a: 0.001, d: 0.32, g: 1 }); v.noise({ ft: "bandpass", f: 5200, q: 3, at: 0.05, a: 0.001, d: 0.12, g: 0.7 })
+    v.tone({ w: "square", f: 100, a: 0.003, d: 0.4, g: 0.14, ft: "lowpass", ff: 900, am: 31, amd: 0.8 }); v.tone({ w: "sawtooth", f: 1900, f2: 600, gl: 0.25, a: 0.001, d: 0.25, g: 0.04 }) } },
   // ---- phase 2: further player weapons
   shot_r44: { ...PGUN, g: 1.1, sup: 0.64, send: 0.55, vary: 0.03, cap: 3, make: G({
     crack: [3000, 0.05, 0.95], body: [1300, 0.8, 0.3, 1.2], low: [550, 0.3, 1], thump: [170, 42, 0.1, 0.32, 1.15],

@@ -1920,6 +1920,24 @@ export function buildHandItem(id: string, look: "vm" | "world" = "vm"): HandItem
     const lk = new Kit(); lk.sphere("glowRed", 0.0042, 0.016, 0.012, -0.0358, 1, 1, 0.6, 8)
     const lg = new THREE.Group(); lg.name = "led"; lk.merge(mats, lg); group.add(lg)
     r = 0.038; style = "throw"
+  } else if (id === "shocktrap") {
+    // shock trap: heavy base plate, a yellow battery pack, a copper coil around a steel core with two contact prongs,
+    // a status LED (group "led") and a short cable; local z is up inside k.at(up)
+    k.at(up, () => {
+      k.cyl("steelDark", 0.052, 0.012, 0, 0, -0.03, 22); k.cyl("rubber", 0.054, 0.004, 0, 0, -0.037, 22)
+      k.cyl("steel", 0.006, 0.05, -0.018, 0.012, 0.0, 10)
+      for (let j = 0; j < 6; j++) k.ring("copper", 0.0105, 0.0032, -0.018, 0.012, -0.016 + j * 0.0062, 14)
+      k.cyl("polymer", 0.014, 0.004, -0.018, 0.012, 0.027, 14)
+      for (const sx of [-0.028, -0.008]) { k.cyl("steelLight", 0.0022, 0.03, sx, 0.012, 0.044, 8); k.sphere("steelLight", 0.0042, sx, 0.012, 0.06, 1, 1, 1, 8) }
+    })
+    k.box("yellow", 0.042, 0.034, 0.05, 0.026, -0.006, 0.0, 0, 0, 0, 0.003)
+    k.box("dark", 0.044, 0.006, 0.052, 0.026, 0.012, 0.0, 0, 0, 0, 0.002)
+    for (const sz of [-0.012, 0.012]) k.box("steel", 0.008, 0.006, 0.008, 0.034, 0.017, sz, 0, 0, 0, 0.001)
+    k.box("rubber", 0.03, 0.004, 0.004, 0.006, 0.015, 0.012, 0, 0.4, 0, 0.001)
+    k.box("paintRed", 0.03, 0.006, 0.0015, 0.026, -0.006, -0.0255, 0, 0, 0, 0)
+    const lk = new Kit(); lk.sphere("glowGreen", 0.0038, 0.04, 0.016, -0.014, 1, 0.7, 1, 8)
+    const lg = new THREE.Group(); lg.name = "led"; lk.merge(mats, lg); group.add(lg)
+    r = 0.045; style = "throw"
   } else {
     // frag grenade: body, fuse, spoon and pin ring
     k.at(up, () => { k.lathe("od", [0, -0.042, 0.018, -0.04, 0.03, -0.022, 0.031, 0.0, 0.028, 0.02, 0.016, 0.034, 0, 0.036], 0, 0, 0, 18); k.cyl("steel", 0.009, 0.018, 0, 0, 0.042, 12) })

@@ -81,7 +81,7 @@ describe("weapon rigs", () => {
   })
 
   it("has hand-held models for usable items and an icon for every item", () => {
-    for (const id of ["bandage", "medkit", "painkiller", "antiviral", "stim", "canned", "mre", "water", "soda", "grenade", "molotov", "smoke", "flashbang", "decoy"]) expect(meshes(buildHandItem(id).group), id).toBeGreaterThan(0)
+    for (const id of ["bandage", "medkit", "painkiller", "antiviral", "stim", "canned", "mre", "water", "soda", "grenade", "molotov", "smoke", "flashbang", "decoy", "shocktrap"]) expect(meshes(buildHandItem(id).group), id).toBeGreaterThan(0)
     for (const id of ITEM_IDS) expect(hasIcon(id), id).toBe(true)
   })
 })

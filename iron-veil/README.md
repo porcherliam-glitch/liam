@@ -32,7 +32,7 @@ Der Spielstand liegt im Browser (localStorage). Mit einem anderen Browser oder n
 | F | Steuerkreuz ↑ | Taschenlampe (im Beutefenster: alles nehmen); mit Nachtsichtgerät schaltet Steuerkreuz ↑ Lampe → Nachtsicht → aus |
 | N | – | Nachtsichtgerät an/aus (muss im Lager montiert sein) |
 | Q | RB | Passende Medizin benutzen (Blutung zuerst) |
-| G | LB | Wurfwaffe werfen (Granate, Brandflasche, Rauch, Blendgranate, Lärmköder) |
+| G | LB | Wurfwaffe werfen (Granate, Brandflasche, Rauch, Blendgranate, Lärmköder) oder Schockfalle abstellen |
 | 4 | Steuerkreuz ← | Nächste Wurfwaffe aus dem Rucksack wählen |
 | M | Steuerkreuz ↓ | Karte (ganze Zone oder Umgebung) |
 | Tab | Back | Rucksack (benutzen, ablegen, in den sicheren Behälter) |
@@ -82,7 +82,7 @@ Schreiben dürfen Personen, mit denen das Artefakt mindestens als „Contributor
   - Lautlos und präzise: Jagdarmbrust, K98 Karabiner, DR-7 Präzisionsgewehr, Falke .338 Repetierer; dazu das LM-60 MG.
 - **21 Aufsätze**: Mini-Rotpunkt, Rotpunkt, Holo-Visier, 2,5×-Prismenvisier, 4×- und 6×-Zielfernrohr, Schalldämpfer, schwerer Schalldämpfer, Mündungsfeuerdämpfer, Kompensator, Mündungsbremse, Vertikal- und Winkelgriff, Handstopp, Zweibein, erweitertes Magazin, Magazinkoppler, Trommelmagazin, Laser-Licht-Modul, IR-Laser, Waffenlicht. **11 Munitionssorten** inklusive .45 ACP, panzerbrechender Munition, Flintenlaufgeschossen und Armbrustbolzen.
 - **Modelle**: alles prozedural im Code gebaut, ohne fremde Dateien – Söldner mit geschnürten Stiefeln, Knieschützern und Panzerplatten; Bäume mit Wurzelansätzen; Fahrzeuge, Güterzüge, Kieswerk, Bunker und Kasernen; Straßenmöbel (Hydranten, Zapfsäulen, Laternen, Mülleimer, Parkbänke); Möbel in den Häusern (Stühle, Tische, Betten mit Decken, Schreibtische, Schränke).
-- **Wurfwaffen**: Splittergranate, Brandflasche, Rauchgranate (Söldner und Infizierte sehen nicht hindurch, Kugeln schon), Blendgranate (blendet Söldner, Infizierte taumeln – nicht hineinschauen) und Lärmköder (ein umgebauter Wecker, der 14 Sekunden piept und Gegner weglockt).
+- **Wurfwaffen**: Splittergranate, Brandflasche, Rauchgranate (Söldner und Infizierte sehen nicht hindurch, Kugeln schon), Blendgranate (blendet Söldner, Infizierte taumeln – nicht hineinschauen) und Lärmköder (ein umgebauter Wecker, der 14 Sekunden piept und Gegner weglockt). Dazu die **Schockfalle**: mit G vor sich abstellen; kommt ein Gegner nahe, springt ein Stromschlag auf alle in der Nähe über und lähmt sie für einige Sekunden (drei Entladungen).
 - **Nachtsichtgerät**: Ausrüstung aus Beute, Werkbank (Stufe 3) oder vom Händler ab Level 4; im Lager montieren, im Einsatz mit N einschalten. Die Nacht wird grün und hell, mit Körnung und Röhrenrand; Blendgranaten blenden damit doppelt, bei Tag ist das Bild überstrahlt. Geht beim Tod verloren.
 - **Überleben**: Gesundheit, Blutungen, Hunger, Durst, Infektion, Schmerzmittel, Stimulanzien, Tragegewicht.
 - **Andere Überlebende**: Lager mit Händlerin, Sanitäterin und Wache; verirrte und verletzte Menschen zum Retten, die danach in der Basis wohnen.
