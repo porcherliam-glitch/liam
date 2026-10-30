@@ -97,6 +97,7 @@ export const RECIPES: Recipe[] = [
   r("ammo_762ap", "workshop", 3, { scrap: 4, chem: 2, parts: 1 }, "ammo_762ap", 30, 120),
   r("ammo_338", "workshop", 3, { scrap: 4, chem: 3, parts: 1 }, "ammo_338", 15, 150),
   r("ammo_bolt", "workshop", 1, { wood: 2, scrap: 1 }, "ammo_bolt", 8, 60),
+  r("ammo_flare", "workshop", 1, { chem: 2, scrap: 1 }, "ammo_flare", 4, 60),
   r("att_comp", "armory", 3, { scrap: 5, parts: 1 }, "att_comp", 1, 180),
   r("att_vgrip", "armory", 3, { scrap: 4, wood: 2 }, "att_vgrip", 1, 150),
   r("att_suppressor", "armory", 3, { scrap: 6, parts: 2, tools: 1 }, "att_suppressor", 1, 360),

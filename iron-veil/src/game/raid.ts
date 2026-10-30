@@ -73,6 +73,9 @@ type Interactable =
   | { kind: "survivor"; s: Survivor }
 
 interface FireZone { pos: THREE.Vector3; radius: number; life: number; tick: number }
+/** A burning signal flare lying where it landed: red light, smoke, and a call to every infected around. */
+interface Flare { pos: THREE.Vector3; life: number; call: number }
+const FLARE_LIFE = 25
 type WeaponSlot = "primary" | "secondary" | "melee"
 
 const PAD_LABEL: Record<string, string> = { E: "Ⓐ", Q: "RB", G: "LB", R: "Ⓧ", F: "Steuerkreuz ↑", M: "Steuerkreuz ↓", C: "Ⓑ", V: "R3", T: "Steuerkreuz →" }
@@ -115,6 +118,9 @@ export class RaidGame {
   private trapMeshes = new Map<number, THREE.Object3D>()
   private trapModel: { group: THREE.Group; lift: number } | null = null
   private fireLight = new THREE.PointLight(0xff8a3a, 0, 14, 2)
+  /** Burning flares (flare pistol); two lights always in the scene (intensity 0) so no shader has to recompile. */
+  private flares: Flare[] = []
+  private flareLights = [new THREE.PointLight(0xff3a24, 0, 34, 1.6), new THREE.PointLight(0xff3a24, 0, 34, 1.6)]
   private loop: GameLoop
   private flashlight = new THREE.SpotLight(0xfff2dc, 0, 40, 0.42, 0.55, 1.6)
   private mode: Mode = "menu"
@@ -201,6 +207,7 @@ export class RaidGame {
     this.camera.rotation.order = "YXZ"; this.scene.add(this.camera)
     this.flashlight.position.set(0.18, -0.12, 0.1); this.flashlight.target.position.set(0.05, -0.05, -5); this.camera.add(this.flashlight, this.flashlight.target)
     this.scene.add(this.fireLight)
+    for (const l of this.flareLights) this.scene.add(l)
     this.applySettings(settings)
     this.showMenu()
     this.resize()
@@ -279,6 +286,7 @@ export class RaidGame {
     this.ghosts?.dispose(); this.ghosts = null
     for (const g of this.ground) if (g.mesh) g.mesh.parent?.remove(g.mesh)
     this.ground = []; this.fires = []; this.gases = []; this.fireLight.intensity = 0
+    this.flares = []; for (const l of this.flareLights) l.intensity = 0
     for (const m of this.trapMeshes.values()) this.scene.remove(m)
     this.trapMeshes.clear(); this.traps.clear()
     if (this.airdrop?.mesh) this.airdrop.mesh.parent?.remove(this.airdrop.mesh)
@@ -536,6 +544,7 @@ export class RaidGame {
       this.updateHostiles(dt, true)
       this.grenades.update(dt, (x, z) => this.world.collision.near(x, z, 3))
       this.updateFires(dt)
+      this.updateFlares(dt)
       this.updateSmoke(dt)
       this.updateGas(dt)
       this.updateTraps(dt)
@@ -711,6 +720,7 @@ export class RaidGame {
         this.effects.impact(end, _upWorld, s === "metal" ? "metal" : s === "dirt" || s === "gravel" || s === "grass" ? "dirt" : "concrete")
       } else end = _end.copy(origin).addScaledVector(_dir, maxDist)
       if (!silent && (i === 0 || i % 3 === 0)) this.effects.tracer(muzzle, end)
+      if (def.id === "flare" && i === 0) this.dropFlare(end, !!hit)
     }
     if (hitAny) { this.hitMarker = 0.14; this.sfx(head ? "hit_head" : "hit_body", { volume: 0.8 }) }
     if (killed) { this.killMarker = 0.4; this.sfx("kill", { volume: 0.7 }) }
@@ -732,7 +742,8 @@ export class RaidGame {
     this.meleeTime = 0; this.meleeQuick = quick; this.meleeHitDone = false
     const def = quick ? WEAPONS.knife.melee! : this.weapon.def.melee!
     this.player.stamina = Math.max(0, this.player.stamina - def.stamina)
-    this.sfx("melee_swing", { rate: quick ? 1.2 : def.damage > 70 ? 0.8 : 1 })
+    if (!quick && this.weapon.id === "chainsaw") this.sfx("chainsaw_rev")
+    else this.sfx("melee_swing", { rate: quick ? 1.2 : def.damage > 70 ? 0.8 : 1 })
   }
 
   private quickMelee(): void {
@@ -763,7 +774,8 @@ export class RaidGame {
       const wall = this.world.collision.raycast(origin, _aim.fwd, def.range)
       if (wall) { this.sfx("melee_hit_wall", { position: _end.copy(origin).addScaledVector(_aim.fwd, wall.distance) }); this.effects.impact(_end, wall.normal, "concrete", false) }
     }
-    this.noise(p.pos, 5)
+    // blades are quiet; a chainsaw is heard across the district
+    this.noise(p.pos, WEAPONS[id].noise > 10 ? WEAPONS[id].noise : 5)
   }
 
   /** Wet, crunchy feedback for severed limbs and burst heads (only with gore enabled). */
@@ -1008,6 +1020,34 @@ export class RaidGame {
     this.sfx("molotov_break", { position: p })
     this.fires.push({ pos: new THREE.Vector3(p.x, 0.05, p.z), radius: 3.4, life: 8, tick: 0 })
     this.noise(p, 30)
+  }
+
+  /** A flare lands: a short burst of fire where it hits (a direct hit sets the target alight), then it burns on. */
+  private dropFlare(at: THREE.Vector3, direct: boolean): void {
+    const pos = new THREE.Vector3(at.x, Math.max(0.05, Math.min(at.y, 0.15)), at.z)
+    if (this.flares.length >= 4) this.flares.shift()
+    this.flares.push({ pos, life: FLARE_LIFE, call: 0 })
+    this.fires.push({ pos: pos.clone(), radius: direct ? 1.4 : 1, life: direct ? 3.5 : 2, tick: 0 })
+    this.sfx("smoke_hiss", { position: pos, volume: 0.7 })
+  }
+
+  /** Burning flares: light flickers, smoke rises, and every few seconds the glare draws infected (and mercs) in. */
+  private updateFlares(dt: number): void {
+    for (let i = this.flares.length - 1; i >= 0; i--) {
+      const f = this.flares[i]
+      f.life -= dt; f.call -= dt
+      this.effects.flareSmoke(f.pos, dt)
+      if (f.call <= 0) { f.call = 3; this.noise(f.pos, 32) }
+      if (f.life <= 0) this.flares.splice(i, 1)
+    }
+    // the two newest flares get the lights
+    for (let k = 0; k < this.flareLights.length; k++) {
+      const l = this.flareLights[k], f = this.flares[this.flares.length - 1 - k]
+      if (!f) { l.intensity = 0; continue }
+      const fade = Math.min(1, f.life / 3, (FLARE_LIFE - f.life) / 0.3)
+      l.position.set(f.pos.x, f.pos.y + 0.6, f.pos.z)
+      l.intensity = fade * (26 + Math.sin(this.time * 31 + k) * 4 + Math.sin(this.time * 13) * 3)
+    }
   }
 
   private updateFires(dt: number): void {

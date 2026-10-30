@@ -65,6 +65,7 @@ const BASE: ItemDef[] = [
   item("ammo_12slug", "ammo", AMMO.ammo_12slug.name, "SLUG", AMMO.ammo_12slug.description, 6, 0.04, 30, 1, 3),
   item("ammo_338", "ammo", AMMO.ammo_338.name, ".338", AMMO.ammo_338.description, 14, 0.05, 30, 3, 5),
   item("ammo_bolt", "ammo", AMMO.ammo_bolt.name, "BOLZEN", AMMO.ammo_bolt.description, 12, 0.03, 20, 1, 2),
+  item("ammo_flare", "ammo", AMMO.ammo_flare.name, "LEUCHT", AMMO.ammo_flare.description, 30, 0.09, 10, 1, 1),
   // medicine
   item("bandage", "medical", "Verband", "VERB", "Stoppt leichte Blutungen, +8 Gesundheit.", 60, 0.1, 5, 0, 1, { time: 2.2, heal: 8, stopBleed: "light" }),
   item("medkit", "medical", "Trauma-Set", "MED", "+45 Gesundheit, stoppt alle Blutungen.", 180, 0.6, 2, 1, 1, { time: 3.2, heal: 45, stopBleed: "heavy" }),

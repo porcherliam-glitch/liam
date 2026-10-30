@@ -14,7 +14,7 @@ import { ACHIEVEMENTS } from "./achievements"
 import { headingOf, mulberry32, wrapDegrees } from "./raid"
 import { DEFAULT_SETTINGS, LEGACY_KEYS, PROFILE_KEY, SETTINGS_KEY, loadProfile, loadSettings, sanitizeProfile, sanitizeSettings } from "./storage"
 import { addBleed, applyUse, freshVitals, speedFactor, stepVitals } from "./survival"
-import { WEAPONS, WEAPON_ORDER, canAttach, effectiveWeapon } from "./weaponData"
+import { AMMO_FOR, WEAPONS, WEAPON_ORDER, canAttach, effectiveWeapon } from "./weaponData"
 import { WeaponRuntime, coneOffset, damageAt, type AmmoSource } from "./weapons"
 
 class MemoryStorage {
@@ -364,6 +364,22 @@ describe("survival", () => {
     expect(speedFactor(v)).toBeLessThan(1)
     v.painkiller = 30; expect(speedFactor(v)).toBe(1)
     v.boost = 10; expect(speedFactor(v)).toBeGreaterThan(1)
+  })
+})
+
+describe("new weapons", () => {
+  it("flare pistol, shotgun revolver and G-8 load their own ammunition", () => {
+    expect(AMMO_FOR[WEAPONS.flare.caliber!]).toEqual(["ammo_flare"])
+    expect(ITEMS.ammo_flare.cat).toBe("ammo")
+    expect(effectiveWeapon("rs12", {}, "ammo_12buck").pellets).toBe(8)
+    expect(effectiveWeapon("rs12", {}, "ammo_12slug").pellets).toBe(1)
+    expect(AMMO_FOR[WEAPONS.g8.caliber!]).toContain("ammo_762")
+    expect(canAttach("g8", "att_scope4x")).toBe(true); expect(canAttach("g8", "att_vgrip")).toBe(false)
+  })
+  it("the chainsaw is a loud melee weapon, the tomahawk a quiet one", () => {
+    expect(WEAPONS.chainsaw.slot).toBe("melee"); expect(WEAPONS.chainsaw.noise).toBeGreaterThan(30)
+    expect(WEAPONS.tomahawk.slot).toBe("melee"); expect(WEAPONS.tomahawk.noise).toBeLessThan(10)
+    for (const id of ["tomahawk", "chainsaw", "flare", "rs12", "g8"] as const) expect(ITEMS[`w_${id}`].cat).toBe("weapon")
   })
 })
 

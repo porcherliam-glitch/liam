@@ -549,7 +549,7 @@ export class ViewModel {
     this.flashLight.intensity = sp.flash === 0 ? 0 : r.suppressed ? 0.4 : r.hider ? 1.2 : 2.5
     this.shotT = 0
     if (sp.action === "pump" || sp.action === "bolt" || sp.action === "lever") { this.actionT = 0; this.ejectedThisAction = false }
-    else if (sp.action === "revolver") { this.cylIndex++; this.cylAnim = 0; this.revShots = Math.min(6, this.revShots + 1) }
+    else if (sp.action === "revolver") { this.cylIndex++; this.cylAnim = 0; this.revShots = Math.min(sp.chambers ?? 6, this.revShots + 1) }
     else if (sp.action !== "break" && sp.action !== "bow") this.ejectCasing(sp.casing === "none" ? "556" : sp.casing as CasingType)
     if (sp.action === "belt") { this.beltPhase++; this.shake = Math.min(1.6, this.shake + 0.45); this.ejectCasing("link") }
   }
@@ -633,7 +633,7 @@ export class ViewModel {
     if (P.slide) P.slide.position.z = 0.027 * cyc
     if (P.carrier) P.carrier.position.z = 0.03 * cyc
     if (P.charger && sp.reciprocating) P.charger.position.z = sp.reciprocating * cyc
-    if (P.cylinder) { this.cylAnim = Math.min(1, this.cylAnim + dt / 0.12); P.cylinder.rotation.z = (this.cylIndex - 1 + easeOut(this.cylAnim)) * Math.PI / 3 }
+    if (P.cylinder) { this.cylAnim = Math.min(1, this.cylAnim + dt / 0.12); P.cylinder.rotation.z = (this.cylIndex - 1 + easeOut(this.cylAnim)) * Math.PI * 2 / (sp.chambers ?? 6) }
     if (rig.belt) rig.belt(this.beltPhase - 1 + seg(this.shotT, 0, 0.05), true)
     // slide / bolt locked open on an empty magazine until the reload's charge step releases it
     if (s.empty && !s.singleLoad && !(s.reload > 0.77)) { if (P.slide) P.slide.position.z = 0.027; if (P.carrier) P.carrier.position.z = 0.03 }
@@ -680,7 +680,7 @@ export class ViewModel {
         if (P.crane) P.crane.rotation.z = 1.45 * seg(o, 0, 0.7)
         rz += 0.55 * o; rx += 0.42 * o; px -= 0.05 * o; py += 0.035 * o; ry -= 0.15 * o
         if (!this.dumped && o > 0.6 && r >= 0) { this.dumped = true; this.queueDump = true }
-        if (P.cylinder) P.cylinder.rotation.z = (this.cylIndex + seg(step, 0.6, 0.85)) * Math.PI / 3
+        if (P.cylinder) P.cylinder.rotation.z = (this.cylIndex + seg(step, 0.6, 0.85)) * Math.PI * 2 / (sp.chambers ?? 6)
       } else if (action === "bolt") {
         if (P.bolt) { P.bolt.rotation.z = 1.05 * seg(o, 0, 0.45); P.bolt.position.z = 0.115 * seg(o, 0.45, 0.9) }
         rz -= 0.2 * o; rx += 0.06 * o; py += 0.01 * o
@@ -740,7 +740,7 @@ export class ViewModel {
     if (rightJob) (rightJob as () => void)(); else fromObject(rig.anchors.grip, this.tR)
     let leftVisible = false
     if (leftJob) { (leftJob as () => void)(); leftVisible = true }
-    else if (!melee && rig.anchors.support) { fromObject(rig.anchors.support, this.tL); leftVisible = true }
+    else if (rig.anchors.support) { fromObject(rig.anchors.support, this.tL); leftVisible = true }
     // item use: the left hand leaves the weapon and raises the item
     this.itemHolder.visible = false
     if (s.using >= 0 && s.usingKind) {
@@ -763,7 +763,7 @@ export class ViewModel {
       else { this.tL.pos.copy(this.tB.pos); this.tL.quat.copy(this.tB.quat); this.tL.hold = this.tB.hold; leftVisible = true }
       this.quickHolder.visible = w > 0.05
       if (s.melee > 0.24 && s.melee < 0.6) this.trail.push(this.quickKnife.anchors.tip.getWorldPosition(_v2), this.quickKnife.anchors.grip.getWorldPosition(_v3)); else this.trail.cut()
-    } else if (melee && s.melee > 0.24 && s.melee < 0.6 && rig.anchors.tip) this.trail.push(rig.anchors.tip.getWorldPosition(_v2), rig.anchors.grip.getWorldPosition(_v3))
+    } else if (melee && this.current !== "chainsaw" && s.melee > 0.24 && s.melee < 0.6 && rig.anchors.tip) this.trail.push(rig.anchors.tip.getWorldPosition(_v2), rig.anchors.grip.getWorldPosition(_v3))
     else this.trail.cut()
     const shown = this.visible && rig.group.visible
     this.armR.group.visible = shown
@@ -928,6 +928,16 @@ export class ViewModel {
   /** Swings for knife, machete and axe (right hand). Offsets relative to the idle pose. */
   private meleePose(m: number, pos: THREE.Vector3, quat: THREE.Quaternion): void {
     const id = this.current
+    if (id === "chainsaw") {
+      // two-handed at the hip; a cut pushes the bar forward and sweeps it across; the engine shakes everything
+      const idle: Key = [0, 0.19, -0.17, -0.4, 0.06, 0.55, -0.1]
+      const keys: Key[] = [idle, [0.22, 0.15, -0.16, -0.52, -0.1, 0.42, -0.05], [0.55, 0.08, -0.18, -0.54, -0.08, 0.12, 0.05], [1, ...idle.slice(1)] as Key]
+      if (m < 0) { pos.set(idle[1], idle[2], idle[3]); quat.setFromEuler(_e.set(idle[4], idle[5], idle[6])) }
+      else samplePose(keys, m, pos, quat, [easeOut, easeInOut, easeInOut])
+      const amp = m >= 0 && m < 0.8 ? 0.0035 : 0.0012, t = this.time
+      pos.x += Math.sin(t * 97) * amp; pos.y += Math.sin(t * 131 + 1.3) * amp; pos.z += Math.sin(t * 71 + 2.1) * amp * 0.5
+      return
+    }
     const heavy = id === "axe" || id === "sledge" || id === "bat" || id === "pickaxe" || id === "spade", long = id === "machete" || id === "katana"
     const idle: Key = heavy ? [0, 0.2, -0.24, -0.42, 0.55, 0.25, -0.15] : long ? [0, 0.21, -0.22, -0.4, 0.75, 0.32, -0.25] : [0, 0.19, -0.2, -0.36, 0.85, 0.35, -0.3]
     if (m < 0) { pos.set(idle[1], idle[2], idle[3]); quat.setFromEuler(_e.set(idle[4], idle[5], idle[6])); return }
@@ -974,12 +984,13 @@ export class ViewModel {
 
   /** Drops the empties out of the swung-out cylinder. */
   private dumpCylinder(): void {
-    const n = Math.max(1, this.revShots || 6), cyl = this.rig.parts.cylinder; if (!cyl) return
+    const sp = this.rig.spec, ch = sp.chambers ?? 6, cr = sp.chamberR ?? 0.0145
+    const n = Math.max(1, this.revShots || ch), cyl = this.rig.parts.cylinder; if (!cyl) return
     for (let i = 0; i < n; i++) {
       const c = this.casings.find(k => k.life <= 0) ?? this.casings[i]
-      this.prepCasing(c, "44")
+      this.prepCasing(c, sp.casing === "shell" ? "shell" : "44")
       cyl.updateWorldMatrix(true, false)
-      c.group.position.set(Math.cos(i * Math.PI / 3) * 0.0145, Math.sin(i * Math.PI / 3) * 0.0145, 0.01).applyMatrix4(cyl.matrixWorld)
+      c.group.position.set(Math.cos(i * Math.PI * 2 / ch) * cr, Math.sin(i * Math.PI * 2 / ch) * cr, 0.01).applyMatrix4(cyl.matrixWorld)
       c.vel.set((Math.random() - 0.5) * 0.15, -0.3 - Math.random() * 0.2, 0.05)
       c.spin.set(Math.random() * 6, 0, Math.random() * 6); c.life = 0.9; c.group.visible = true
     }

@@ -15,7 +15,7 @@ import { WEAPONS, canAttach, type AttachmentId, type AttachmentSlot, type Weapon
 
 export type MatName = "steel" | "steelDark" | "steelLight" | "stainless" | "alu" | "polymer" | "polyGrey" | "od" | "tan" | "plum" | "wood" | "woodLight"
   | "rubber" | "brass" | "copper" | "blade" | "bladeEdge" | "paintRed" | "shellRed" | "cloth" | "glass" | "lens" | "glowGreen" | "glowOrange" | "glowRed" | "dark"
-  | "white" | "tin" | "cream" | "yellow" | "blueLiquid" | "orangeClear" | "greenLabel" | "bottle" | "glassBrown" | "flame"
+  | "white" | "tin" | "cream" | "yellow" | "blueLiquid" | "orangeClear" | "greenLabel" | "bottle" | "glassBrown" | "flame" | "signal"
 
 // colour, roughness, metalness, edge wear (how much lighter worn edges get)
 const SOLID: Partial<Record<MatName, [number, number, number, number]>> = {
@@ -26,13 +26,15 @@ const SOLID: Partial<Record<MatName, [number, number, number, number]>> = {
   bladeEdge: [0xbcc3c8, 0.18, 1.0, 0], paintRed: [0x9e1f17, 0.45, 0.25, 0.9], shellRed: [0x8a1b1b, 0.55, 0.05, 0], cloth: [0x4d5338, 0.98, 0.0, 0.1],
   dark: [0x060606, 1, 0, 0], white: [0xd9dbd6, 0.5, 0.02, 0], tin: [0xa9aeb2, 0.3, 0.9, 0.2], cream: [0xe2dcc8, 0.95, 0, 0], yellow: [0xd8b02a, 0.45, 0.05, 0.2],
   greenLabel: [0x2f6b3c, 0.55, 0.05, 0],
+  // signal orange (flare pistol, chainsaw housing)
+  signal: [0xd2601c, 0.55, 0.03, 0.3],
 }
 
 export type WeaponMaterials = Record<MatName, THREE.Material>
 /** Surface detail type per weapon material (surface.ts). */
 const SURFACE_OF: Partial<Record<MatName, number>> = {
   steel: SURF.metal, steelDark: SURF.metal, steelLight: SURF.metal, stainless: SURF.metal, alu: SURF.metal, blade: SURF.metal, bladeEdge: SURF.metal, brass: SURF.metal, copper: SURF.metal, tin: SURF.metal,
-  polymer: SURF.polymer, polyGrey: SURF.polymer, od: SURF.polymer, tan: SURF.polymer, plum: SURF.polymer, rubber: SURF.polymer, paintRed: SURF.paint, shellRed: SURF.polymer,
+  polymer: SURF.polymer, polyGrey: SURF.polymer, signal: SURF.polymer, od: SURF.polymer, tan: SURF.polymer, plum: SURF.polymer, rubber: SURF.polymer, paintRed: SURF.paint, shellRed: SURF.polymer,
   wood: SURF.wood, woodLight: SURF.wood, cloth: SURF.fabric, cream: SURF.fabric,
 }
 const materialCache: Partial<Record<"vm" | "world", WeaponMaterials>> = {}
@@ -247,6 +249,9 @@ export interface RigSpec {
   reciprocating?: number
   /** Shoulder positions in camera space (right, left) when the arms need a different reach (pistols). */
   shoulders?: [number, number, number, number, number, number]
+  /** Revolver: chambers in the cylinder and their distance from its axis (default 6 and 0.0145 m). */
+  chambers?: number
+  chamberR?: number
 }
 
 export interface WeaponRig {
@@ -1824,6 +1829,188 @@ function buildPickaxe(b: Build): void {
   b.spec = MELEE_SPEC; b.irons = "none"
 }
 
+/** Tomahawk: short oval hickory haft with a leather wrap, a bearded blade below and a back spike above the eye. */
+function buildTomahawk(b: Build): void {
+  const k = b.body
+  k.at(scale(0.76, 1, 1), () => k.lathe("woodLight", [0, 0.11, 0.0165, 0.11, 0.018, 0.096, 0.0158, 0.06, 0.0142, -0.2, 0.0146, -0.43, 0.012, -0.44], 0, 0, 0, 14))
+  k.at(scale(0.8, 1, 1), () => k.lathe("tan", [0.0168, 0.09, 0.0178, 0.086, 0.0178, -0.07, 0.0166, -0.074], 0, 0, 0, 14))
+  for (const z of [0.083, -0.067]) k.at(scale(0.8, 1, 1), () => k.lathe("cloth", [0.018, z + 0.003, 0.0186, z + 0.002, 0.0186, z - 0.002, 0.018, z - 0.003], 0, 0, 0, 12))
+  // eye around the haft, bearded blade (edge down), spike up
+  k.box("steelDark", 0.026, 0.038, 0.05, 0, 0.0, -0.41, 0, 0, 0, 0.004)
+  k.side("steel", "M -.388 -.017 L -.432 -.017 Q -.442 -.055 -.47 -.098 L -.343 -.098 Q -.368 -.055 -.388 -.017 Z", 0.01, 0, 0.0012)
+  k.side("bladeEdge", "M -.346 -.088 Q -.406 -.082 -.466 -.088 L -.47 -.098 L -.343 -.098 Z", 0.011, 0, 0.0005)
+  k.side("steel", "M -.396 .017 L -.424 .017 Q -.418 .062 -.411 .104 L -.407 .104 Q -.401 .062 -.396 .017 Z", 0.012, 0, 0.0012)
+  k.box("woodLight", 0.012, 0.006, 0.012, 0, 0.021, -0.41, 0, 0, 0, 0.001)
+  k.sphere("shellRed", 0.012, 0.005, -0.06, -0.4, 0.6, 1.4, 1.2, 10)
+  b.anchor("grip", "body", [0, 0, 0.045], bladeGrip(), { rx: 0.0122, rz: 0.0158, wrist: [0.022, -0.04, 0.06] })
+  b.anchor("tip", "body", [0, -0.098, -0.41], new THREE.Quaternion(), { rx: 0.01, rz: 0.01 })
+  b.spec = MELEE_SPEC; b.irons = "none"
+}
+
+/** Chainsaw: engine housing with a starter cover and fins, rear handle (right hand) with throttle, wrap-over front
+ *  handle (left hand), hand guard, guide bar with the chain along its edges and a rounded nose. */
+function buildChainsaw(b: Build): void {
+  const k = b.body
+  // rear handle along Z at the grip, joined to the housing by a back post; throttle below, lockout on top
+  k.box("polymer", 0.028, 0.032, 0.13, 0, 0, 0.04, 0, 0, 0, 0.012)
+  k.box("polymer", 0.024, 0.08, 0.024, 0, -0.045, 0.098, 0, 0, 0, 0.008)
+  k.box("polymer", 0.024, 0.018, 0.13, 0, -0.084, 0.045, 0, 0, 0, 0.007)
+  k.box("rubber", 0.009, 0.02, 0.03, 0, -0.022, 0.03, 0, 0, 0, 0.003)
+  k.box("rubber", 0.012, 0.008, 0.03, 0, 0.017, 0.05, 0, 0, 0, 0.002)
+  // housing: orange shell, dark top cover with the filler caps, starter cover left, fins right, muffler in front
+  k.box("signal", 0.11, 0.12, 0.23, 0, -0.05, -0.12, 0, 0, 0, 0.02)
+  k.box("polymer", 0.112, 0.03, 0.2, 0, -0.106, -0.12, 0, 0, 0, 0.008)
+  k.box("polymer", 0.1, 0.022, 0.15, 0, 0.018, -0.12, 0, 0, 0, 0.008)
+  for (const [z, m] of [[-0.06, "polyGrey"], [-0.17, "signal"]] as const) k.peg(m, 0.012, 0.012, 0.02, 0.032, z, "y", 12)
+  k.peg("polymer", 0.046, 0.012, -0.059, -0.05, -0.12, "x", 26)
+  for (let i = 0; i < 5; i++) k.box("steelDark", 0.004, 0.024, 0.07, -0.0665, -0.05, -0.12, (i - 2) * 0.6, 0, 0, 0)
+  k.box("rubber", 0.018, 0.012, 0.03, -0.072, -0.01, -0.12, 0, 0, 0, 0.004)
+  for (let i = 0; i < 6; i++) k.box("steelDark", 0.006, 0.07, 0.006, 0.057, -0.05, -0.05 - i * 0.025, 0, 0, 0, 0.001)
+  k.box("steelDark", 0.05, 0.045, 0.024, 0.022, -0.065, -0.246, 0, 0, 0, 0.004)
+  for (let i = 0; i < 3; i++) k.box("dark", 0.04, 0.004, 0.003, 0.022, -0.08 + i * 0.012, -0.259, 0, 0, 0, 0)
+  // front handle (tube over the top and down the left side) and the hand guard in front of it
+  k.box("steelDark", 0.13, 0.016, 0.016, 0, 0.065, -0.205, 0, 0, 0, 0.006)
+  k.box("steelDark", 0.016, 0.13, 0.016, -0.064, 0.0, -0.205, 0, 0, 0, 0.006)
+  k.box("steelDark", 0.016, 0.06, 0.016, 0.06, 0.035, -0.205, 0, 0, 0, 0.006)
+  k.box("polymer", 0.11, 0.075, 0.006, 0, 0.04, -0.245, -0.25, 0, 0, 0.003)
+  // guide bar, chain teeth along both edges and round the nose, sprocket nose, bar stripe
+  const by = -0.078, z0 = -0.24, z1 = -0.6
+  k.box("steelLight", 0.006, 0.054, z0 - z1, 0, by, (z0 + z1) / 2, 0, 0, 0, 0.002)
+  k.peg("steelLight", 0.027, 0.006, 0, by, z1, "x", 22)
+  k.peg("steelDark", 0.011, 0.008, 0, by, z1, "x", 12)
+  k.box("signal", 0.0068, 0.012, 0.13, 0, by, -0.36, 0, 0, 0, 0.001)
+  for (let i = 0; i < 18; i++) for (const sy of [-1, 1]) k.box(i % 2 ? "steel" : "steelDark", 0.009, 0.007, 0.013, 0, by + sy * 0.0305, z0 - 0.01 - i * 0.02, 0, 0, 0, 0.001)
+  for (let i = 1; i < 6; i++) { const a = -Math.PI / 2 + i * Math.PI / 6; k.box("steelDark", 0.009, 0.013, 0.007, 0, by + Math.sin(a) * 0.0305, z1 - Math.cos(a) * 0.0305, -a, 0, 0, 0.001) }
+  b.anchor("grip", "body", [0, 0, 0.045], bladeGrip(), { rx: 0.014, rz: 0.016, wrist: [0.022, -0.04, 0.06] })
+  b.anchor("support", "body", [-0.02, 0.065, -0.205], frame([0, -1, 0], [1, 0, 0]), { rx: 0.0085, rz: 0.0085, thumb: "wrap" })
+  b.anchor("tip", "body", [0, by, z1], new THREE.Quaternion(), { rx: 0.01, rz: 0.01 })
+  b.spec = MELEE_SPEC; b.irons = "none"
+}
+
+/** Flare pistol: chunky signal-orange frame and grip, wide single barrel that tips down on a hinge, big trigger guard,
+ *  external hammer, simple blade and notch sights. */
+function buildFlare(b: Build): void {
+  const k = b.body
+  k.side("signal", "M -.03 .02 L .036 .02 Q .046 .02 .049 .008 L .052 -.03 L -.03 -.03 Z", 0.036, 0, 0.003)
+  const g = pistolGrip(k, "signal", 0.04, -0.028, 0.3, 0.096, 0.038, 0.032)
+  for (const sx of [-1, 1]) k.box("polymer", 0.002, 0.05, 0.026, sx * 0.0162, g[1], g[2], -0.3, 0, 0, 0.001)
+  triggerGuard(k, "signal", -0.012, 0.034, -0.03, 0.03, 0.012, "steelDark")
+  k.box("steelDark", 0.006, 0.01, 0.012, -0.0185, 0.006, 0.01, 0, 0, 0, 0.001)
+  const hm = b.part("hammer", "body", [0, 0.0, 0.045])
+  hm.side("steelDark", "M .038 -.004 L .046 -.004 L .052 .016 Q .058 .024 .066 .022 L .064 .028 Q .05 .03 .044 .02 Z", 0.008, 0, 0.0008)
+  k.box("signal", 0.016, 0.01, 0.014, 0, 0.024, 0.03, 0, 0, 0, 0.002)
+  for (const sx of [-1, 1]) k.box("signal", 0.005, 0.01, 0.008, sx * 0.0052, 0.033, 0.03, 0, 0, 0, 0.001)
+  k.ring("steel", 0.006, 0.0014, 0, g[1] - 0.05, g[2] + 0.02, 14)
+  // barrel (part, opens around the hinge pin under the breech front); the cartridge rim shows at the breech face
+  const br = b.part("barrels", "body", [0, -0.016, -0.03])
+  br.cyl("signal", 0.0175, 0.16, 0, 0, -0.11, 22)
+  br.lathe("signal", [0.0175, -0.178, 0.0192, -0.181, 0.0192, -0.19, 0.0175, -0.192], 0, 0, 0, 22)
+  br.disc("dark", 0.0135, 0, 0, -0.1922)
+  br.disc("shellRed", 0.0142, 0, 0, -0.0298, false); br.disc("brass", 0.0152, 0, 0, -0.0296, false)
+  br.box("signal", 0.028, 0.018, 0.03, 0, -0.012, -0.045, 0, 0, 0, 0.004)
+  br.peg("steelDark", 0.004, 0.036, 0, -0.016, -0.03, "x")
+  br.box("signal", 0.008, 0.006, 0.12, 0, 0.019, -0.12, 0, 0, 0, 0.002)
+  br.box("signal", 0.004, 0.016, 0.01, 0, 0.028, -0.175, 0, 0, 0, 0.001)
+  b.ironY = 0.036; b.ironZ = 0.03; b.irons = "none"
+  b.mark("front", "barrels", 0, 0.036, -0.175); b.mark("rear", "body", 0, 0.036, 0.03)
+  b.anchor("grip", "body", g, gripFrame(0.3), holdGrip(0.016, 0.021))
+  b.anchor("support", "body", [-0.006, g[1] - 0.008, g[2] - 0.004], gripFrame(0.3), { rx: 0.034, rz: 0.034, thumb: "along" })
+  b.anchor("load", "barrels", [0, 0, -0.012], underFrame(), { rx: 0.0145, rz: 0.0145, thumb: "wrap" })
+  b.loadDir.set(0, 0, -1)
+  b.setEject(0, 0.0, -0.03, "barrels"); b.setMuzzle(-0.192, "barrels")
+  b.mount = {}
+  b.spec = { cls: "pistol", action: "break", casing: "shell", kick: 1.4, flash: 1.0, charge: "none", hip: [0.1, -0.08, -0.36, 0.03, 0.06, 0], eyeIron: 0.4, shoulders: PISTOL_SHOULDERS }
+}
+
+/** RS-12: heavy blued revolver frame around a big five-shot cylinder for 12-gauge shells, short barrel with a rib,
+ *  rubber grip. */
+function buildRs12(b: Build): void {
+  const k = b.body
+  k.side("steelDark", "M -.056 .022 L .03 .022 Q .044 .022 .048 .01 L .054 -.008 L .054 -.036 L .034 -.06 L -.058 -.06 L -.058 -.036 L -.056 .012 Z", 0.03, 0, 0.0015,
+    ["M -.0525 .0125 L -.0015 .0125 L -.0015 -.0505 L -.0525 -.0505 Z"])
+  barrel(k, -0.056, -0.17, 0.0125, "steelDark")
+  k.side("steelDark", "M -.058 -.008 L -.164 -.008 Q -.17 -.008 -.17 -.018 L -.17 -.026 Q -.168 -.033 -.16 -.033 L -.058 -.033 Z", 0.02, 0, 0.0015)
+  k.box("steelDark", 0.012, 0.007, 0.11, 0, 0.016, -0.113, 0, 0, 0, 0.002)
+  for (let i = 0; i < 3; i++) k.box("dark", 0.0124, 0.0012, 0.006, 0, 0.0196, -0.135 - i * 0.01, 0, 0, 0, 0)
+  k.side("steelDark", "M -.168 .0195 L -.168 .03 L -.159 .03 L -.148 .0195 Z", 0.0035, 0, 0.0004)
+  k.box("glowOrange", 0.0037, 0.003, 0.0012, 0, 0.0272, -0.1588, 0, 0, 0, 0)
+  const rs = b.part("ironRear", "body", [0, 0.022, 0.012])
+  rs.box("steel", 0.014, 0.004, 0.016, 0, 0.024, 0.012, 0, 0, 0, 0.001)
+  for (const sx of [-1, 1]) rs.box("steel", 0.0048, 0.005, 0.01, sx * 0.0047, 0.0275, 0.014, 0, 0, 0, 0.0006)
+  b.ironY = 0.03; b.ironZ = 0.019; b.irons = "hide"
+  b.mark("front", "body", 0, 0.03, -0.159); b.mark("rear", "ironRear", 0, 0.03, 0.019)
+  const hm = b.part("hammer", "body", [0, -0.006, 0.042])
+  hm.side("steel", "M .034 -.007 L .044 -.007 L .05 .017 Q .058 .027 .068 .025 L .066 .032 Q .05 .035 .042 .023 Z", 0.0075, 0, 0.0008)
+  triggerGuard(k, "steelDark", -0.034, 0.014, -0.06, 0.026, 0.011)
+  k.box("steel", 0.004, 0.008, 0.012, -0.0165, -0.006, 0.012, 0, 0, 0, 0.001)
+  k.side("rubber", "M .024 -.054 Q .02 -.09 .032 -.122 Q .038 -.138 .056 -.138 L .08 -.138 Q .09 -.134 .088 -.12 Q .078 -.082 .076 -.052 Q .074 -.024 .058 -.016 L .046 -.018 Z", 0.036, 0, 0.004)
+  for (let i = 0; i < 4; i++) k.box("dark", 0.037, 0.002, 0.03, 0, -0.068 - i * 0.016, 0.06, 0.3, 0, 0, 0)
+  // crane + five-shot cylinder (swings out to the left), ejector rod; shell heads at the back
+  const cr = b.part("crane", "body", [-0.003, -0.048, 0])
+  cr.cyl("steelDark", 0.004, 0.034, 0, -0.019, -0.07, 10)
+  cr.box("steelDark", 0.006, 0.03, 0.005, -0.0015, -0.034, -0.056, 0, 0, 0, 0.001)
+  const cy = b.part("cylinder", "crane", [0, -0.019, -0.027])
+  cy.lathe("steelDark", [0, 0.0, 0.025, 0.0, 0.0285, -0.002, 0.0285, -0.046, 0.025, -0.05, 0.004, -0.05], 0, -0.019, -0.002, 26)
+  for (let i = 0; i < 5; i++) {
+    const a = i * Math.PI * 2 / 5 + Math.PI / 2, f = a + Math.PI / 5
+    cy.box("dark", 0.005, 0.005, 0.03, Math.cos(f) * 0.0276, -0.019 + Math.sin(f) * 0.0276, -0.027, 0, 0, f, 0)
+    cy.disc("dark", 0.0095, Math.cos(a) * 0.019, -0.019 + Math.sin(a) * 0.019, -0.0522)
+    cy.disc("brass", 0.0102, Math.cos(a) * 0.019, -0.019 + Math.sin(a) * 0.019, -0.0005, false)
+  }
+  b.anchor("load", "crane", [0, 0, 0.03], underFrame(), { rx: 0.0095, rz: 0.0095, thumb: "wrap" })
+  b.loadDir.set(0, 0, -1)
+  const g: [number, number, number] = [0, -0.09, 0.056]
+  b.anchor("grip", "body", g, gripFrame(0.36), holdGrip(0.017, 0.023))
+  b.anchor("support", "body", [-0.006, g[1] - 0.008, g[2] - 0.004], gripFrame(0.36), { rx: 0.034, rz: 0.034, thumb: "along" })
+  b.setEject(0.0, 0.0, 0.0); b.setMuzzle(-0.17)
+  b.mount = { tac: { z: -0.14, y: -0.0335, x: 0, under: true } }
+  b.spec = { cls: "pistol", action: "revolver", casing: "shell", kick: 2.2, flash: 1.6, charge: "none", hip: [0.1, -0.085, -0.37, 0.03, 0.06, 0], eyeIron: 0.4, shoulders: PISTOL_SHOULDERS, chambers: 5, chamberR: 0.019 }
+}
+
+/** G-8: old self-loading rifle — milled receiver, one-piece wooden stock with a straight wrist, upper handguard, two
+ *  barrel bands, hooded front sight, peep rear sight, 10-round box magazine, charging handle on the right. */
+function buildG8(b: Build): void {
+  const k = b.body
+  k.side("steelDark", "M -.11 .02 L .11 .02 L .11 -.012 L -.11 -.012 Z", 0.03, 0, 0.002)
+  k.box("steel", 0.002, 0.012, 0.06, 0.0152, 0.008, 0.02, 0, 0, 0, 0)
+  const dev = b.has("muzzle")
+  barrel(k, -0.11, -0.58, 0.0098)
+  k.cyl("steelDark", 0.0068, 0.26, 0, -0.016, -0.26, 12)
+  k.side("wood", "M -.38 -.004 L -.07 -.006 L .1 -.008 L .14 -.014 L .4 -.026 Q .41 -.026 .41 -.036 L .41 -.134 Q .408 -.142 .398 -.142 L .37 -.14 Q .28 -.104 .2 -.084 Q .16 -.09 .13 -.074 Q .11 -.06 .08 -.05 L -.38 -.034 Q -.392 -.032 -.392 -.02 Z", 0.042, 0, 0.004)
+  k.side("steel", "M .408 -.024 L .414 -.03 L .414 -.14 L .408 -.144 Z", 0.044, 0, 0.0008)
+  k.side("wood", "M -.11 .006 L -.37 .006 Q -.374 .014 -.366 .018 L -.11 .018 Z", 0.022, 0, 0.003)
+  for (const z of [-0.25, -0.37]) k.lathe("steel", [0.0255, z + 0.007, 0.027, z + 0.006, 0.027, z - 0.006, 0.0255, z - 0.007], 0, -0.008, 0, 16)
+  k.peg("steel", 0.0025, 0.03, 0.0, -0.046, 0.3, "x")
+  // front sight: post between two wings on a base near the muzzle
+  k.box("steel", 0.014, 0.012, 0.022, 0, 0.012, -0.56, 0, 0, 0, 0.002)
+  for (const sx of [-1, 1]) k.side("steel", "M -.568 .012 L -.568 .037 Q -.564 .041 -.56 .037 L -.56 .012 Z", 0.003, sx * 0.0075, 0.0005)
+  k.box("steel", 0.0025, 0.016, 0.003, 0, 0.024, -0.564, 0, 0, 0, 0)
+  if (!dev) birdcage(k, -0.58, 0.0115, 0.034)
+  // peep rear sight on the receiver bridge
+  const rs = b.part("ironRear", "body", [0, 0.02, 0.09])
+  rs.box("steel", 0.02, 0.008, 0.02, 0, 0.024, 0.09, 0, 0, 0, 0.002)
+  rs.ring("steel", 0.0055, 0.0018, 0, 0.032, 0.09, 18)
+  for (const sx of [-1, 1]) rs.box("steel", 0.003, 0.018, 0.01, sx * 0.0095, 0.031, 0.09, 0, 0, 0, 0.0008)
+  b.ironY = 0.032; b.ironZ = 0.09; b.irons = "hide"
+  b.mark("front", "body", 0, 0.032, -0.564); b.mark("rear", "ironRear", 0, 0.032, 0.09)
+  if (b.has("optic")) rail(k, -0.07, 0.05, 0, 0.02, "steel")
+  triggerGuard(k, "steel", 0.0, 0.06, -0.047, 0.024, 0.011)
+  const ch = b.part("charger")
+  ch.box("steel", 0.022, 0.006, 0.008, 0.026, 0.008, 0.03, 0, 0, 0, 0.001); ch.sphere("steel", 0.0065, 0.038, 0.008, 0.03, 1, 1, 1, 10)
+  const m = b.part("mag", "body", [0, -0.046, -0.05], { local: true })
+  const ext = b.has("mag") === "att_extmag"
+  boxMag(m, "steelDark", 0.024, 0.052, 0.054, ext ? 0.13 : 0.085, 0.06, ext ? 0.12 : 0.08, "762")
+  b.magRest.set(0, -0.046, -0.05); b.magAxis.set(0, -Math.cos(0.06), -Math.sin(0.06))
+  b.anchor("magHold", "mag", [0, -0.05, -0.004], gripFrame(-0.1), { rx: 0.013, rz: 0.028, thumb: "wrap" }, true)
+  b.setEject(0.018, 0.012, 0.02); b.setMuzzle(dev ? -0.58 : -0.615)
+  const g: [number, number, number] = [0, -0.072, 0.135]
+  b.anchor("grip", "body", g, wristFrame(0.8), holdGrip(0.016, 0.021, { wrist: wristBelow(0.8) }))
+  b.anchor("support", "body", [0, -0.028, -0.25], underFrame(), { rx: 0.024, rz: 0.026, thumb: "along" })
+  b.anchor("charge", "charger", [0.04, 0.008, 0.03], underFrame(0.9), { rx: 0.008, rz: 0.012, thumb: "wrap" })
+  b.mount = { optic: { z: -0.01, y: 0.0285 }, muzzle: { z: -0.58, r: 0.0098 }, tac: { z: -0.32, y: -0.02, x: 0.0235, rail: true } }
+  b.spec = { cls: "battle", action: "auto", casing: "762", kick: 1.35, flash: 1.15, charge: "right", reciprocating: 0.08, hip: [0.11, -0.095, -0.31, 0.02, 0.05, -0.02], eyeIron: 0.24 }
+}
+
 // ───────────────────────────── hand-held items ─────────────────────────────
 
 export interface HandItem {
@@ -1955,6 +2142,7 @@ const BUILDERS: Partial<Record<WeaponId, (b: Build) => void>> = {
   kv12: buildKv12, sg8: buildSg8, dr7: buildDr7, falke: buildFalke, lm60: buildLm60,
   crowbar: buildCrowbar, bat: buildBat, katana: buildKatana, sledge: buildSledge, p18: buildP18, de50: buildDe50, v45: buildV45, stg77: buildStg77, as12: buildAs12,
   spade: buildSpade, pickaxe: buildPickaxe, km45: buildKm45, u45: buildU45, ar36: buildAr36, uh44: buildUh44, k98: buildK98, db12: buildDb12, xbow: buildXbow,
+  tomahawk: buildTomahawk, chainsaw: buildChainsaw, flare: buildFlare, rs12: buildRs12, g8: buildG8,
 }
 
 // ───────────────────────────── attachments ─────────────────────────────

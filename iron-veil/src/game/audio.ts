@@ -35,7 +35,7 @@ export type SfxId =
   | "ui_click" | "ui_hover" | "ui_buy" | "ui_error" | "build" | "win" | "lose" | "level_up" | "flashlight" | "nvg_on" | "nvg_off" | "trap_set" | "zap"
   | "shot_r44" | "shot_k5" | "shot_sr74" | "shot_br10" | "shot_sg8" | "shot_falke" | "shot_lm60"
   | "shot_p18" | "shot_de50" | "shot_v45" | "shot_stg77" | "shot_as12"
-  | "shot_km45" | "shot_u45" | "shot_ar36" | "shot_uh44" | "shot_k98" | "shot_db12" | "shot_xbow" | "lever_cycle"
+  | "shot_km45" | "shot_u45" | "shot_ar36" | "shot_uh44" | "shot_k98" | "shot_db12" | "shot_xbow" | "shot_flare" | "shot_rs12" | "shot_g8" | "chainsaw_rev" | "lever_cycle"
   | "bolt_cycle" | "revolver_open" | "revolver_close" | "shell_insert" | "lmg_belt"
   | "melee_swing" | "melee_hit_flesh" | "melee_hit_wall"
   | "gore_splat" | "gore_burst" | "bone_crack" | "gib_land" | "blood_drip"
@@ -856,6 +856,22 @@ const DEFS: Record<SfxId, Def> = {
     v.tone({ w: "sawtooth", f: 98, f2: 76, a: 0.002, d: 0.14, g: 0.16, ft: "lowpass", ff: 700, ff2: 300, q: 1 })
     v.noise({ ft: "bandpass", f: 900, f2: 350, q: 1.3, at: 0.012, a: 0.015, d: 0.28, g: 0.32 })
     v.metal({ f: 1700, p: [1, 1.5, 2.3], at: 0.004, d: 0.08, g: 0.05 }) } },
+  shot_rs12: { ...PGUN, g: 1.02, sup: 0.7, send: 0.55, vary: 0.04, cap: 3, gap: 0.08, make: G({
+    crack: [2600, 0.05, 0.95], body: [900, 0.65, 0.4, 1.3], low: [420, 0.45, 1.1], thump: [120, 30, 0.18, 0.46, 1.2],
+    sub: [58, 27, 0.6, 0.6], mech: [[0.05, 2600, 0.03, 0.2]], tail: [560, 1.1, 0.55], echo: [[0.26, 0.13]] }) },
+  shot_g8: { ...PGUN, g: 1.05, sup: 0.65, send: 0.68, vary: 0.025, cap: 4, gap: 0.08, make: G({
+    crack: [2850, 0.065, 1.05], body: [960, 0.76, 0.4, 1.25], low: [430, 0.36, 1.05], thump: [132, 34, 0.13, 0.42, 1.18],
+    sub: [60, 28, 0.55, 0.55], mech: [[0.045, 3100, 0.03, 0.26]], tail: [660, 1.6, 0.55], echo: [[0.28, 0.18], [0.58, 0.1]] }) },
+  // flare pistol: a soft thump, then the hiss of the burning flare flying off
+  shot_flare: { bus: "sfx", g: 0.9, pri: 3, gap: 0.1, send: 0.35, make: v => {
+    v.noise({ ft: "lowpass", f: 900, q: 0.8, a: 0.001, d: 0.12, g: 1, drive: 1.2 })
+    v.tone({ w: "sine", f: 140, f2: 60, gl: 0.12, a: 0.001, d: 0.16, g: 0.5 })
+    v.noise({ ft: "bandpass", f: 3200, f2: 1400, sw: 0.9, q: 1.4, at: 0.03, a: 0.05, h: 0.3, d: 0.6, g: 0.45 }) } },
+  // chainsaw: the engine screams up for the cut and drops back, chain rattle on top
+  chainsaw_rev: { bus: "sfx", g: 0.75, pri: 3, gap: 0.12, send: 0.2, make: v => {
+    v.tone({ w: "sawtooth", f: 105, f2: 215, gl: 0.18, a: 0.01, h: 0.28, d: 0.32, g: 0.2, ft: "lowpass", ff: 2400, q: 1.2, am: 41, amd: 0.55 })
+    v.tone({ w: "square", f: 52, f2: 108, gl: 0.18, a: 0.01, h: 0.28, d: 0.32, g: 0.12, ft: "lowpass", ff: 700 })
+    v.noise({ ft: "bandpass", f: 2600, q: 1.1, a: 0.02, h: 0.3, d: 0.3, g: 0.45, am: 83, amd: 0.6 }) } },
   // ---- weapon mechanics
   lever_cycle: { bus: "sfx", g: 0.4, pri: 2, gap: 0.15, send: 0.12, make: v => {
     v.noise({ ft: "bandpass", f: 2400, q: 3, a: 0.0006, d: 0.03, g: 0.85, drive: 1 }); v.metal({ f: 2600, p: [1, 1.6], at: 0.005, d: 0.08, g: 0.05 })

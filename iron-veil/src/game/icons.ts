@@ -459,6 +459,7 @@ const PAINTERS: Record<string, Painter> = {
   ammo_12buck: ammo(["#8a2a20", "#4e1410"], "12/70", "shell", ""),
   ammo_12slug: ammo(["#8a2a20", "#4e1410"], "SLUG", "slug", "", "#e8c23a"),
   ammo_338: ammo(["#2a2e33", "#121417"], ".338", "lapua", "#c87a3a", "#3a7ad8"),
+  ammo_flare: ammo(["#c4561c", "#6e2a0c"], "SIGNAL", "shell", "", "#e83a2a"),
   ammo_bolt: g => {
     for (let i = 0; i < 3; i++) {
       const y = 28 + i * 22, x0 = 4, x1 = 92
