@@ -10,7 +10,7 @@ import { ITEMS, ITEM_IDS, sellPrice } from "./items"
 import { bagValue, rollAirdrop, rollContainer, rollInfectedBody, rollMercBody } from "./loot"
 import { NavGrid } from "./nav"
 import { Company, createProfile, type RaidStats } from "./profile"
-import { ACHIEVEMENTS } from "./achievements"
+import { ACHIEVEMENTS, weaponsOwned } from "./achievements"
 import { headingOf, mulberry32, wrapDegrees } from "./raid"
 import { DEFAULT_SETTINGS, LEGACY_KEYS, PROFILE_KEY, SETTINGS_KEY, loadProfile, loadSettings, sanitizeProfile, sanitizeSettings } from "./storage"
 import { addBleed, applyUse, freshVitals, speedFactor, stepVitals } from "./survival"
@@ -151,6 +151,16 @@ describe("grenades", () => {
 })
 
 describe("achievements", () => {
+  it("the weapon collector counts different weapons in stash and loadout", () => {
+    const p = createProfile(1000), c = new Company(p)
+    const start = weaponsOwned(p)
+    c.addItem("w_g8", 2); c.addItem("w_chainsaw", 1); c.addItem("w_tomahawk", 1)
+    expect(weaponsOwned(p)).toBe(start + 3)
+    const col = ACHIEVEMENTS.find(a => a.id === "collector")!
+    expect(col.done(p)).toBe(false)
+    for (const id of ["flare", "rs12", "k98", "xbow", "db12", "uh44", "ar36", "u45", "km45", "pickaxe", "spade", "katana"] as const) c.addItem(`w_${id}`, 1)
+    expect(col.done(p)).toBe(true)
+  })
   it("unlock from the profile stats once and persist through sanitizing", () => {
     const p = createProfile(1000), c = new Company(p)
     expect(c.unlockAchievements()).toEqual([])

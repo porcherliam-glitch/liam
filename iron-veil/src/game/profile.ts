@@ -320,7 +320,8 @@ export class Company {
     this.unpackAll()
     const lo = this.profile.loadout
     const want: [ItemId, number][] = []
-    const ammoFor = (id: WeaponId | null, ammo: AmmoId | null, mags: number) => { if (id && ammo) want.push([ammo, WEAPONS[id].magazine * mags]) }
+    // single-shot weapons (crossbow, flare pistol) still get a handful of rounds
+    const ammoFor = (id: WeaponId | null, ammo: AmmoId | null, mags: number) => { if (id && ammo) want.push([ammo, Math.max(6, WEAPONS[id].magazine * mags)]) }
     ammoFor(lo.primary, lo.primaryAmmo, lo.primary === "lm60" ? 2 : 5)
     ammoFor(lo.secondary, lo.secondaryAmmo, 3)
     want.push(["medkit", 1], ["bandage", 3], ["painkiller", 1], ["antiviral", 1], ["water", 1], ["canned", 1], ["grenade", 2], ["molotov", 1], ["smoke", 1], ["flashbang", 1], ["decoy", 1], ["shocktrap", 1], ["stim", 1])

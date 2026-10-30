@@ -7,6 +7,14 @@ import type { Profile } from "./types"
 
 const STRUCTURE_IDS = Object.keys(STRUCTURES) as StructureId[]
 
+/** Different weapons the company owns right now (stash and loadout). */
+export function weaponsOwned(p: Profile): number {
+  const ids = new Set<string>()
+  for (const [id, n] of Object.entries(p.stash)) if (id.startsWith("w_") && (n ?? 0) > 0) ids.add(id.slice(2))
+  for (const w of [p.loadout.primary, p.loadout.secondary, p.loadout.melee]) if (w && w !== "knife") ids.add(w)
+  return ids.size
+}
+
 export interface Achievement {
   id: string
   name: string
@@ -39,6 +47,7 @@ export const ACHIEVEMENTS: readonly Achievement[] = [
   { id: "builder", name: "Bauherr", description: "Jedes Gebäude der Basis mindestens einmal bauen.", mark: "⌂", done: p => STRUCTURE_IDS.every(id => (p.structures[id] ?? 0) >= 1), progress: p => [STRUCTURE_IDS.filter(id => (p.structures[id] ?? 0) >= 1).length, STRUCTURE_IDS.length] },
   { id: "fortress", name: "Festung", description: "Den Schutzwall auf Stufe 3 ausbauen.", mark: "▦", done: p => (p.structures.walls ?? 0) >= 3, progress: p => [Math.min(3, p.structures.walls ?? 0), 3] },
   { id: "scientist", name: "Forschergeist", description: "Jede Forschung abschließen.", mark: "⚗", done: p => Object.keys(RESEARCH).every(id => p.research.includes(id as never)), progress: p => [p.research.length, Object.keys(RESEARCH).length] },
+  { id: "collector", name: "Waffensammler", description: "15 verschiedene Waffen gleichzeitig besitzen.", mark: "⚔", ...count(weaponsOwned, 15) },
   { id: "level10", name: "Kommandant", description: "Stufe 10 erreichen.", mark: "⬆", ...count(p => p.level, 10) },
   { id: "hard_way", name: "Neun Leben", description: "9 Mal sterben – und trotzdem weitermachen.", mark: "✖", ...count(p => p.stats.deaths, 9) },
 ]
