@@ -146,18 +146,41 @@ function createHelicopter(fx: FxUniforms, night: number, disposables: Array<{ di
   }
   shape(new THREE.CapsuleGeometry(1.15, 3.4, 6, 14).rotateX(Math.PI / 2), 0, 1.65, -0.9, 0, 0.95, 0.88, 1, olive)
   shape(new THREE.SphereGeometry(1, 16, 10), 0, 1.95, -2.7, 0, 0.93, 0.72, 1.05, glass)
-  for (const x of [-1.07, 1.07]) { body.box(x - 0.04, 1.6, -1.5, x + 0.04, 2.2, 0.9, { color: glass, local: true, ao: 0 }); body.box(x - 0.05, 0.95, -1.0, x + 0.05, 2.3, 0.6, { color: 0x30352e, local: true, ao: 0 }) }
+  // sliding cabin doors on both sides: door panel with window, handle and rail, plus the cockpit side windows
+  for (const x of [-1.07, 1.07]) {
+    const sd = Math.sign(x)
+    body.box(x - 0.04, 1.6, -1.5, x + 0.04, 2.2, -0.2, { color: glass, local: true, ao: 0 })
+    body.box(x + sd * 0.02 - 0.03, 0.95, -0.2, x + sd * 0.02 + 0.03, 2.35, 1.3, { color: 0x353a32, local: true, ao: 0 })
+    body.box(x + sd * 0.06 - 0.02, 1.55, 0.0, x + sd * 0.06 + 0.02, 2.15, 1.05, { color: glass, local: true, ao: 0 })
+    body.box(x + sd * 0.07 - 0.02, 1.25, 0.95, x + sd * 0.07 + 0.02, 1.33, 1.2, { color: dark, local: true, ao: 0 })
+    body.box(x + sd * 0.07 - 0.02, 2.38, -0.3, x + sd * 0.07 + 0.02, 2.44, 2.0, { color: dark, local: true, ao: 0 })
+    body.box(x - 0.05, 0.95, -1.0, x + 0.05, 2.3, -0.2, { color: 0x30352e, local: true, ao: 0 })
+  }
+  // engine deck with two exhaust stubs, rotor pylon, chin sensor ball and pitot tube
   body.box(-0.8, 2.45, -1.2, 0.8, 3.1, 2.2, { color: 0x34392f, local: true, ao: 0 })
+  for (const x of [-0.55, 0.55]) { const ex = new THREE.CylinderGeometry(0.16, 0.16, 0.6, 10).rotateZ(Math.PI / 2).rotateY(0.5 * Math.sign(x)); m.makeTranslation(x * 1.55, 2.95, 1.9); body.add(ex, m, 0x1a1a1a); ex.dispose() }
   shape(new THREE.CylinderGeometry(0.45, 0.45, 1.2, 10).rotateX(Math.PI / 2), 0, 2.75, 2.3, 0, 1, 1, 1, dark)
+  shape(new THREE.SphereGeometry(0.28, 12, 8), 0, 0.85, -3.3, 0, 1, 0.8, 1, dark)
+  shape(new THREE.CylinderGeometry(0.02, 0.03, 1.1, 6).rotateX(Math.PI / 2), 0.7, 1.4, -4.1, 0, 1, 1, 1, 0x8a8e92)
+  // tail boom with fin, stabilizer end plates and a tail skid
   shape(new THREE.CylinderGeometry(0.2, 0.55, 7, 10).rotateX(Math.PI / 2), 0, 2.05, 5.3, 0.05, 1, 1, 1, olive)
   body.box(-0.4, 1.85, 4.0, 0.4, 2.45, 4.6, { color: stripe, local: true, ao: 0 })
   tilted(0.16, 2.2, 1.3, 0, 3.0, 9.0, -0.35, olive)
   body.box(-1.7, 1.95, 8.2, 1.7, 2.05, 8.9, { color: olive, local: true, ao: 0 })
+  for (const x of [-1.7, 1.7]) body.box(x - 0.03, 1.75, 8.1, x + 0.03, 2.35, 9.0, { color: olive, local: true, ao: 0 })
+  tilted(0.08, 0.7, 0.08, 0, 1.4, 8.6, 0.6, dark)
+  // skids: round tubes with upturned toes on four angled struts
   for (const x of [-1.25, 1.25]) {
-    body.box(x - 0.07, 0, -3.1, x + 0.07, 0.12, 2.8, { color: dark, local: true, ao: 0 })
-    for (const z of [-1.8, 1.4]) body.box(x * 0.85 - 0.05, 0.1, z - 0.05, x * 0.85 + 0.05, 0.7, z + 0.05, { color: dark, local: true, ao: 0 })
+    const tube = new THREE.CylinderGeometry(0.07, 0.07, 5.9, 8).rotateX(Math.PI / 2); m.makeTranslation(x, 0.07, -0.15); body.add(tube, m, dark); tube.dispose()
+    const toe = new THREE.CylinderGeometry(0.07, 0.06, 0.8, 8).rotateX(Math.PI / 2 + 0.6); m.makeTranslation(x, 0.3, -3.35); body.add(toe, m, dark); toe.dispose()
+    for (const z of [-1.8, 1.4]) { const st = new THREE.CylinderGeometry(0.05, 0.05, 1.05, 6).rotateZ(x < 0 ? 0.32 : -0.32); m.makeTranslation(x * 0.86, 0.5, z); body.add(st, m, dark); st.dispose() }
   }
+  // rescue hoist over the right door, blade aerials on the belly and roof
+  body.box(1.1, 2.5, -0.4, 1.75, 2.62, -0.2, { color: dark, local: true, ao: 0 }); body.box(1.65, 2.3, -0.42, 1.78, 2.62, -0.18, { color: dark, local: true, ao: 0 })
+  shape(new THREE.CylinderGeometry(0.16, 0.16, 0.3, 10).rotateX(Math.PI / 2), 1.55, 2.4, -0.3, 0, 1, 1, 1, 0x4a4e52)
+  for (const [y, z, up] of [[0.95, 2.6, -1], [3.1, -0.6, 1], [0.95, -2.3, -1]]) body.box(-0.02, y, z - 0.2, 0.02, y + up * 0.3, z + 0.2, { color: dark, local: true, ao: 0 })
   const mast = new THREE.CylinderGeometry(0.14, 0.18, 0.55, 8); m.makeTranslation(0, 3.4, 0.6); body.add(mast, m, dark); mast.dispose()
+  shape(new THREE.TorusGeometry(0.3, 0.04, 6, 14).rotateX(Math.PI / 2), 0, 3.52, 0.6, 0, 1, 1, 1, 0x4a4e52)
   const bodyGeo = body.build()!, bodyMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, metalness: 0.25 })
   disposables.push(bodyGeo, bodyMat)
   const hull = new THREE.Mesh(bodyGeo, bodyMat); hull.castShadow = true; group.add(hull)
@@ -259,20 +282,50 @@ function createBoat(fx: FxUniforms, night: number, disposables: Array<{ dispose(
   const shape = (g: THREE.BufferGeometry, x: number, y: number, z: number, rx: number, ry: number, sx: number, sy: number, sz: number, color: number) => {
     m.compose(p.set(x, y, z), q.setFromEuler(e.set(rx, ry, 0)), s.set(sx, sy, sz)); b.add(g, m, color); g.dispose()
   }
-  // hull: box body + tapered bow (local -Z = bow), boot top stripe, rubbing strake
-  b.box(-1.6, -0.6, -2.5, 1.6, 0.9, 5.5, { color: hull, local: true, ao: 0 })
-  shape(new THREE.CylinderGeometry(0, 1.6, 4.2, 4, 1).rotateY(Math.PI / 4), 0, 0.15, -4.6, -Math.PI / 2, 0, 1.13, 1.0, 0.53, hull)
-  b.box(-1.62, 0.55, -2.5, 1.62, 0.75, 5.5, { color: stripe, local: true, ao: 0 })
-  b.box(-1.5, 0.9, -2.4, 1.5, 0.95, 5.4, { color: deck, local: true, ao: 0 })
-  // wheelhouse with windows, mast, radar, railing
+  // lofted hull (local -Z = bow): fine raked bow, flared topsides, chine, flat transom; boot-top stripe, rub rail, deck
+  const quadN = (pa: number[], pb: number[], pc: number[], pd: number[], out: number[], color: number) => {
+    const ux = pb[0] - pa[0], uy = pb[1] - pa[1], uz = pb[2] - pa[2], vx = pc[0] - pa[0], vy = pc[1] - pa[1], vz = pc[2] - pa[2]
+    let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx
+    const l = Math.hypot(nx, ny, nz) || 1; nx /= l; ny /= l; nz /= l
+    const c = new THREE.Color(color), uv = [0, 0, 1, 0, 1, 1, 0, 1]
+    if (nx * out[0] + ny * out[1] + nz * out[2] < 0) b.quad(pa, pd, pc, pb, [-nx, -ny, -nz], uv, c); else b.quad(pa, pb, pc, pd, [nx, ny, nz], uv, c)
+  }
+  const sec = (t: number) => { const bow = Math.min(1, t / 0.42), half = 1.62 * (0.04 + 0.96 * Math.sin(bow * Math.PI / 2) ** 1.5); return { z: -4.6 + t * 10.1, half, chine: half * 0.8, keel: half * 0.18, top: 0.9 + 0.55 * (1 - Math.min(1, t / 0.5)) ** 2 } }
+  const NS = 12, S = Array.from({ length: NS + 1 }, (_, i) => sec(i / NS))
+  for (let i = 0; i < NS; i++) {
+    const A = S[i], B = S[i + 1]
+    for (const sx of [-1, 1]) {
+      const o = [sx, 0, 0]
+      quadN([sx * A.half, A.top, A.z], [sx * B.half, B.top, B.z], [sx * B.chine, 0.25, B.z], [sx * A.chine, 0.25, A.z], o, hull)
+      quadN([sx * A.chine, 0.25, A.z], [sx * B.chine, 0.25, B.z], [sx * B.keel, -0.6, B.z], [sx * A.keel, -0.6, A.z], o, hull)
+      quadN([sx * (A.half * 0.985), 0.62, A.z], [sx * (B.half * 0.985), 0.62, B.z], [sx * (B.chine + (B.half - B.chine) * 0.45), 0.42, B.z], [sx * (A.chine + (A.half - A.chine) * 0.45), 0.42, A.z], o, stripe)
+      quadN([sx * (A.half + 0.08), A.top - 0.12, A.z], [sx * (B.half + 0.08), B.top - 0.12, B.z], [sx * B.half, B.top - 0.3, B.z], [sx * A.half, A.top - 0.3, A.z], o, 0x1d2024)
+    }
+    quadN([-A.keel, -0.6, A.z], [-B.keel, -0.6, B.z], [B.keel, -0.6, B.z], [A.keel, -0.6, A.z], [0, -1, 0], hull)
+    quadN([-A.half, A.top, A.z], [-B.half, B.top, B.z], [B.half, B.top, B.z], [A.half, A.top, A.z], [0, 1, 0], deck)
+  }
+  const st = S[NS]
+  quadN([-st.half, st.top, st.z], [st.half, st.top, st.z], [st.keel, -0.6, st.z], [-st.keel, -0.6, st.z], [0, 0, 1], hull)
+  // gunwale, bow cuddy, wheelhouse with window frames, roof rack with radar bar, searchlight and aerial
+  for (const sx of [-1, 1]) for (let i = 0; i < NS; i++) { const A = S[i], B = S[i + 1]; quadN([sx * A.half, A.top, A.z], [sx * B.half, B.top, B.z], [sx * (B.half - 0.12), B.top + 0.18, B.z], [sx * (A.half - 0.12), A.top + 0.18, A.z], [sx, 1, 0], 0x4a5058) }
+  b.box(-1.15, 0.9, -2.9, 1.15, 1.45, -0.6, { color: cabin, local: true, ao: 0 })
   b.box(-1.1, 0.95, -0.6, 1.1, 2.7, 2.6, { color: cabin, local: true, ao: 0 })
   b.box(-1.12, 1.9, -0.62, 1.12, 2.45, 2.62, { color: 0x1b2633, local: true, ao: 0 })
+  for (const z of [-0.62, 0.45, 1.5, 2.62]) b.box(-1.14, 1.88, z - 0.03, 1.14, 2.47, z + 0.03, { color: 0xb8bcc0, local: true, ao: 0 })
+  for (const x of [-1.14, 1.14]) b.box(x - 0.01, 1.88, -0.63, x + 0.01, 2.47, 2.63, { color: 0xb8bcc0, local: true, ao: 0, skip: 0 })
   b.box(-1.2, 2.7, -0.8, 1.2, 2.85, 2.8, { color: 0x8a8e92, local: true, ao: 0 })
-  shape(new THREE.CylinderGeometry(0.06, 0.08, 2.4, 6), 0, 4.0, 1.4, 0, 0, 1, 1, 1, 0x8a8e92)
-  b.box(-0.7, 4.6, 1.3, 0.7, 4.7, 1.5, { color: 0x2a2c30, local: true, ao: 0 })
-  for (const x of [-1.45, 1.45]) b.box(x - 0.03, 0.95, -2.3, x + 0.03, 1.8, 5.3, { color: 0xb8bcc0, local: true, ao: 0, skip: 0 })
+  for (const x of [-1.0, 1.0]) for (const z of [-0.6, 2.4]) b.box(x - 0.03, 2.85, z - 0.03, x + 0.03, 3.5, z + 0.03, { color: 0x8a8e92, local: true, ao: 0 })
+  b.box(-1.1, 3.5, -0.7, 1.1, 3.58, 2.5, { color: 0x8a8e92, local: true, ao: 0 })
+  shape(new THREE.CylinderGeometry(0.06, 0.08, 2.4, 6), 0, 4.6, 1.4, 0, 0, 1, 1, 1, 0x8a8e92)
+  b.box(-0.7, 3.75, 1.3, 0.7, 3.85, 1.5, { color: 0x2a2c30, local: true, ao: 0 })
+  shape(new THREE.CylinderGeometry(0.2, 0.22, 0.3, 12).rotateX(Math.PI / 2), 0.6, 3.75, -0.5, 0, 0, 1, 1, 1, 0x3a3e42)
+  shape(new THREE.CylinderGeometry(0.01, 0.02, 2.0, 5), -0.8, 4.5, 2.3, 0, 0, 1, 1, 1, 0xc8ccd0)
+  // deck fittings: railing stanchions with top rail, bollards, fenders along the sides, life ring, twin outboards
+  for (const x of [-1.45, 1.45]) { for (const z of [-2.3, -0.9, 3.0, 4.4, 5.3]) b.box(x - 0.025, 0.95, z - 0.025, x + 0.025, 1.8, z + 0.025, { color: 0xb8bcc0, local: true, ao: 0 }); b.box(x - 0.025, 1.78, -2.3, x + 0.025, 1.83, 5.3, { color: 0xb8bcc0, local: true, ao: 0, skip: 0 }) }
+  for (const [x, z] of [[-1.2, -2.2], [1.2, -2.2], [-1.2, 5.0], [1.2, 5.0]]) shape(new THREE.CylinderGeometry(0.1, 0.1, 0.3, 8), x, 1.05, z, 0, 0, 1, 1, 1, 0x2a2c30)
+  for (const sx of [-1, 1]) for (const z of [-1.2, 1.0, 3.2]) shape(new THREE.CylinderGeometry(0.17, 0.17, 0.5, 10), sx * 1.72, 0.6, z, 0, 0, 1, 1, 1, 0x1d2024)
   shape(new THREE.TorusGeometry(0.35, 0.09, 6, 14), 1.62, 1.2, 4, 0, Math.PI / 2, 1, 1, 1, 0xe8601c)
-  for (const x of [-0.9, 0.9]) shape(new THREE.CylinderGeometry(0.3, 0.3, 1.1, 10), x, 1.3, 4.6, 0, 0, 1, 1, 1, 0x3a3e42)
+  for (const x of [-0.6, 0.6]) { b.box(x - 0.28, 0.5, 5.5, x + 0.28, 1.5, 6.2, { color: 0x3a3e42, local: true, ao: 0 }); shape(new THREE.CylinderGeometry(0.08, 0.08, 1.2, 8), x, -0.1, 5.9, 0, 0, 1, 1, 1, 0x2a2c30); b.box(x - 0.3, 1.5, 5.45, x + 0.3, 1.65, 6.25, { color: 0x1d2024, local: true, ao: 0 }) }
   const geo = b.build()!, mat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55, metalness: 0.2 })
   disposables.push(geo, mat)
   const mesh = new THREE.Mesh(geo, mat); mesh.castShadow = true; group.add(mesh)
