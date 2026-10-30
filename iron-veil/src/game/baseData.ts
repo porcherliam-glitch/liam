@@ -84,6 +84,7 @@ export const RECIPES: Recipe[] = [
   r("helmet", "workbench", 2, { scrap: 6, parts: 1, cloth: 2 }, "helmet", 1, 150),
   r("plate", "workbench", 3, { scrap: 10, parts: 4, tools: 1 }, "plate", 1, 300),
   r("pack_large", "workbench", 3, { cloth: 12, parts: 2, tools: 1 }, "pack_large", 1, 300),
+  r("nvg", "workbench", 3, { electronics: 4, parts: 2, scrap: 3, tools: 1 }, "nvg", 1, 420),
   r("antiviral", "workbench", 3, { chem: 2, sample: 1 }, "antiviral", 2, 240),
   r("ammo_9mm", "workshop", 1, { scrap: 2, chem: 1 }, "ammo_9mm", 60, 45),
   r("ammo_556", "workshop", 1, { scrap: 3, chem: 1 }, "ammo_556", 60, 60),

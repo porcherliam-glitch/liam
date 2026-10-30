@@ -8,7 +8,7 @@ import { Bag, type BagSlot } from "./bag"
 import { BASE_ATTACK, CONTRACT_TEMPLATES, PRODUCTION, RECIPES, RESEARCH, STAFF_JOBS, STRUCTURES, defenseRating, secureSlots, staffCap, type Cost, type ResearchId, type StaffJob, type StructureId } from "./baseData"
 import { DIFFICULTY } from "./data"
 import { INFECTED, type InfectedKind } from "./infectedData"
-import { BACKPACKS, ITEMS, sellPrice, weaponItem, type ItemId } from "./items"
+import { BACKPACKS, ITEMS, sellPrice, weaponItem, type GearId, type ItemId } from "./items"
 import { saveProfile } from "./storage"
 import type { ActiveContract, BackpackId, ContractOffer, Difficulty, Profile, ProfileStats } from "./types"
 import { AMMO_FOR, ATTACHMENTS, canAttach, WEAPONS, type AmmoId, type AttachmentId, type AttachmentSlot, type WeaponId, type WeaponMods } from "./weaponData"
@@ -32,7 +32,7 @@ export function createProfile(now = Date.now()): Profile {
     version: 4, callsign: "VEIL-01", money: 2400, xp: 0, level: 1,
     stash: { ammo_556: 150, ammo_9mm: 75, bandage: 3, medkit: 1, canned: 2, water: 2, grenade: 1, scrap: 12, wood: 14, cloth: 6 },
     loadout: {
-      primary: "mk4", primaryMods: {}, primaryAmmo: "ammo_556", secondary: "p9", secondaryMods: {}, secondaryAmmo: "ammo_9mm", melee: "knife", armor: 55, armorMax: 55, helmet: 0, backpack: "pack_small",
+      primary: "mk4", primaryMods: {}, primaryAmmo: "ammo_556", secondary: "p9", secondaryMods: {}, secondaryAmmo: "ammo_9mm", melee: "knife", armor: 55, armorMax: 55, helmet: 0, nvg: false, backpack: "pack_small",
       // a starter kit is already packed so the first raid works without visiting the stash
       bag: [{ id: "ammo_556", qty: 60 }, { id: "ammo_556", qty: 30 }, { id: "ammo_9mm", qty: 30 }, { id: "bandage", qty: 2 }, { id: "water", qty: 1 }, { id: "canned", qty: 1 }], secure: [],
     },
@@ -52,6 +52,7 @@ export interface RaidKit {
   secondary: WeaponId | null; secondaryMods: WeaponMods; secondaryAmmo: AmmoId | null
   melee: WeaponId
   armor: number; armorMax: number; helmet: number
+  nvg: boolean
   backpack: BackpackId
   bag: BagSlot[]
   secure: BagSlot[]
@@ -255,7 +256,7 @@ export class Company {
     delete mods[attSlot]; this.addItem(att, 1); this.save(); return ok(`${ATTACHMENTS[att].name} abmontiert`)
   }
 
-  equipGear(id: "armor" | "plate" | "helmet" | "pack_small" | "pack_large"): ActionResult {
+  equipGear(id: GearId): ActionResult {
     const lo = this.profile.loadout
     if (this.count(id) <= 0) return fail("Nicht im Lager")
     if (id === "armor" || id === "plate") {
@@ -265,6 +266,9 @@ export class Company {
     } else if (id === "helmet") {
       if (lo.helmet >= 50) this.addItem("helmet", 1)
       this.takeItem("helmet", 1); lo.helmet = 50
+    } else if (id === "nvg") {
+      if (lo.nvg) return fail("Nachtsichtgerät ist schon montiert")
+      this.takeItem("nvg", 1); lo.nvg = true
     } else {
       if (lo.backpack !== "none") this.addItem(lo.backpack, 1)
       this.takeItem(id, 1); lo.backpack = id
@@ -273,10 +277,11 @@ export class Company {
     this.save(); return ok(`${ITEMS[id].name} angelegt`)
   }
 
-  unequipGear(kind: "armor" | "helmet" | "backpack"): ActionResult {
+  unequipGear(kind: "armor" | "helmet" | "nvg" | "backpack"): ActionResult {
     const lo = this.profile.loadout
     if (kind === "armor") { if (lo.armor <= 0) return fail("Keine Weste"); if (lo.armor >= lo.armorMax) this.addItem(lo.armorMax === 85 ? "plate" : "armor", 1); lo.armor = 0; lo.armorMax = 0 }
     else if (kind === "helmet") { if (lo.helmet <= 0) return fail("Kein Helm"); if (lo.helmet >= 50) this.addItem("helmet", 1); lo.helmet = 0 }
+    else if (kind === "nvg") { if (!lo.nvg) return fail("Kein Nachtsichtgerät"); this.addItem("nvg", 1); lo.nvg = false }
     else { if (lo.backpack === "none") return fail("Kein Rucksack"); this.addItem(lo.backpack, 1); lo.backpack = "none"; this.trimBag() }
     this.save(); return ok("Abgelegt")
   }
@@ -488,10 +493,10 @@ export class Company {
     const kit: RaidKit = {
       primary: lo.primary, primaryMods: { ...lo.primaryMods }, primaryAmmo: lo.primaryAmmo,
       secondary: lo.secondary, secondaryMods: { ...lo.secondaryMods }, secondaryAmmo: lo.secondaryAmmo,
-      melee: lo.melee, armor: lo.armor, armorMax: lo.armorMax, helmet: lo.helmet, backpack: lo.backpack,
+      melee: lo.melee, armor: lo.armor, armorMax: lo.armorMax, helmet: lo.helmet, nvg: lo.nvg, backpack: lo.backpack,
       bag: lo.bag.map(s => ({ ...s })), secure: lo.secure.map(s => ({ ...s })), secureSlots: this.secureSlots(), infection: p.infection,
     }
-    p.loadout = { primary: null, primaryMods: {}, primaryAmmo: null, secondary: null, secondaryMods: {}, secondaryAmmo: null, melee: "knife", armor: 0, armorMax: 0, helmet: 0, backpack: "none", bag: [], secure: [] }
+    p.loadout = { primary: null, primaryMods: {}, primaryAmmo: null, secondary: null, secondaryMods: {}, secondaryAmmo: null, melee: "knife", armor: 0, armorMax: 0, helmet: 0, nvg: false, backpack: "none", bag: [], secure: [] }
     p.raidStarted = now; p.raidSecure = kit.secure.map(s => ({ ...s }))
     this.save()
     return kit
@@ -525,7 +530,7 @@ export class Company {
       p.loadout = {
         primary: kit.primary, primaryMods: kit.primaryMods, primaryAmmo: kit.primaryAmmo, secondary: kit.secondary, secondaryMods: kit.secondaryMods, secondaryAmmo: kit.secondaryAmmo,
         melee: kit.melee, armor: ret.armor >= 0.5 && kit.armorMax > 0 ? Math.min(kit.armor, Math.round(ret.armor)) : 0, armorMax: ret.armor >= 0.5 && kit.armorMax > 0 ? kit.armorMax : 0,
-        helmet: Math.max(0, Math.round(ret.helmet)), backpack: kit.backpack, bag: [], secure: [],
+        helmet: Math.max(0, Math.round(ret.helmet)), nvg: kit.nvg, backpack: kit.backpack, bag: [], secure: [],
       }
       p.stats.extracts++
       p.stats.bestRaid = Math.max(p.stats.bestRaid, value)
@@ -537,6 +542,7 @@ export class Company {
       for (const att of [...Object.values(kit.primaryMods), ...Object.values(kit.secondaryMods)]) if (att) lost.push({ id: att, qty: 1 })
       if (kit.armor > 0) lost.push({ id: kit.armorMax === 85 ? "plate" : "armor", qty: 1 })
       if (kit.helmet > 0) lost.push({ id: "helmet", qty: 1 })
+      if (kit.nvg) lost.push({ id: "nvg", qty: 1 })
       if (kit.backpack !== "none") lost.push({ id: kit.backpack, qty: 1 })
       p.stats.deaths++
       lo.melee = "knife"

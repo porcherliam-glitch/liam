@@ -39,6 +39,8 @@ export interface Loadout {
   armorMax: number
   /** Helmet durability (0 = none, 50 = fresh). */
   helmet: number
+  /** Night-vision goggles mounted (toggled with N in the raid; lost on death). */
+  nvg: boolean
   backpack: BackpackId
   /** Packed backpack contents (taken into the raid, lost on death). */
   bag: BagSlot[]
@@ -193,6 +195,8 @@ export interface HudSnapshot {
   clock: string
   /** Weather name shown next to the clock ("" when clear). */
   weather?: string
+  /** Night vision is switched on (green overlay with grain). */
+  nvg?: boolean
   area: string
   extraction: number
   extractionName: string

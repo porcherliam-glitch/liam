@@ -12,7 +12,7 @@ import { DIFFICULTY, xpForLevel } from "./data"
 import { MenuNavigator } from "./gamepad"
 import { Hud, drawTacticalMap, formatTime, type TacticalMapData } from "./hud"
 import { itemIcon } from "./icons"
-import { BACKPACKS, ITEMS, ITEM_IDS, RARITY_COLORS, RARITY_NAMES, weaponOfItem, type ItemCategory, type ItemId } from "./items"
+import { BACKPACKS, ITEMS, ITEM_IDS, RARITY_COLORS, RARITY_NAMES, weaponOfItem, type GearId, type ItemCategory, type ItemId } from "./items"
 import type { ActionResult, Company } from "./profile"
 import { MODE_NAMES, type ChatLine, type Online } from "./online"
 import type { LootSession } from "./raid"
@@ -274,6 +274,7 @@ export class GameUI {
       slot("NAHKAMPF", esc(WEAPONS[lo.melee].name), lo.melee !== "knife" ? `<button data-action="unequip-weapon" data-id="melee">ABLEGEN</button>` : "", `w_${lo.melee}`),
       slot("WESTE", lo.armor > 0 ? `${lo.armorMax === 85 ? "Plattenträger" : "Schutzweste"} · ${lo.armor}/${lo.armorMax}` : "Keine", lo.armor > 0 ? `<button data-action="unequip-gear" data-id="armor">ABLEGEN</button>` : "", lo.armor > 0 ? (lo.armorMax === 85 ? "plate" : "armor") : undefined),
       slot("HELM", lo.helmet > 0 ? `Helm · ${lo.helmet}` : "Keiner", lo.helmet > 0 ? `<button data-action="unequip-gear" data-id="helmet">ABLEGEN</button>` : "", lo.helmet > 0 ? "helmet" : undefined),
+      slot("NACHTSICHT", lo.nvg ? "Nachtsichtgerät · Taste N" : "Keins", lo.nvg ? `<button data-action="unequip-gear" data-id="nvg">ABLEGEN</button>` : "", lo.nvg ? "nvg" : undefined),
       slot("RUCKSACK", lo.backpack === "none" ? `Keiner · ${BACKPACKS.none.slots} Plätze` : `${esc(ITEMS[lo.backpack].name)} · ${BACKPACKS[lo.backpack].slots} Plätze`, lo.backpack !== "none" ? `<button data-action="unequip-gear" data-id="backpack">ABLEGEN</button>` : "", lo.backpack !== "none" ? lo.backpack : undefined),
     ].join("")
     const bagSlots = this.company.bagSlots(), secSlots = this.company.secureSlots()
@@ -284,7 +285,7 @@ export class GameUI {
     const rows = ids.map(id => {
       const it = ITEMS[id], n = this.company.count(id), stack = Math.min(n, it.stack)
       const w = weaponOfItem(id)
-      const equip = w ? `<button data-action="equip-weapon" data-id="${w}">AUSRÜSTEN</button>` : ["armor", "plate", "helmet", "pack_small", "pack_large"].includes(id) ? `<button data-action="equip-gear" data-id="${id}">ANLEGEN</button>` : ""
+      const equip = w ? `<button data-action="equip-weapon" data-id="${w}">AUSRÜSTEN</button>` : ["armor", "plate", "helmet", "nvg", "pack_small", "pack_large"].includes(id) ? `<button data-action="equip-gear" data-id="${id}">ANLEGEN</button>` : ""
       const pack = w ? "" : `<button data-action="pack" data-id="${id}" data-qty="1">+1</button>${stack > 1 ? `<button data-action="pack" data-id="${id}" data-qty="${stack}">+${stack}</button>` : ""}<button data-action="pack-secure" data-id="${id}" title="In den sicheren Behälter">⛨</button>`
       return `<div class="stash-row" style="--rar:${RARITY_COLORS[it.rarity]}">${icon(id, "s")}<div><b>${esc(it.name)}</b><small>${CAT_NAMES[it.cat]} · ${kg(it.weight)} · ${RARITY_NAMES[it.rarity]}</small></div><strong>${n}</strong><div class="row-actions">${equip}${pack}</div></div>`
     }).join("") || `<p class="empty-note">Nichts in dieser Kategorie.</p>`
@@ -396,7 +397,7 @@ export class GameUI {
     if (!lo.bag.some(s => s.id === "water" || s.id === "soda")) warnings.push("Kein Wasser dabei.")
     if (p.infection >= 30) warnings.push(`Sie sind infiziert (${Math.round(p.infection)} %). Ein Gegenmittel einpacken oder im Lazarett behandeln lassen.`)
     if (p.base.attackPending) warnings.push("Die Basis wird angegriffen! Ohne Abwehr verlieren Sie Vorräte.")
-    const kit = `${lo.primary ? esc(WEAPONS[lo.primary].short) : "—"} · ${lo.secondary ? esc(WEAPONS[lo.secondary].short) : "—"} · ${esc(WEAPONS[lo.melee].short)} · ${lo.armor ? `Weste ${lo.armor}` : "keine Weste"}${lo.helmet ? " · Helm" : ""} · Rucksack ${lo.bag.length}/${this.company.bagSlots()} · Sicher ${lo.secure.length}/${this.company.secureSlots()}`
+    const kit = `${lo.primary ? esc(WEAPONS[lo.primary].short) : "—"} · ${lo.secondary ? esc(WEAPONS[lo.secondary].short) : "—"} · ${esc(WEAPONS[lo.melee].short)} · ${lo.armor ? `Weste ${lo.armor}` : "keine Weste"}${lo.helmet ? " · Helm" : ""}${lo.nvg ? " · NVG" : ""} · Rucksack ${lo.bag.length}/${this.company.bagSlots()} · Sicher ${lo.secure.length}/${this.company.secureSlots()}`
     this.panel("radio", "EINSATZ & FUNK", `<div class="content-heading"><div><span class="eyebrow">FUNKSTATION · STUFE ${this.company.level("radio")}</span><h2>Einsatz planen.</h2></div><span class="risk-note">SCHWIERIGKEIT: ${DIFFICULTY[this.settings.difficulty].name.toUpperCase()} · TOD = AUSRÜSTUNG WEG</span></div>
       <div class="radio-layout"><section><div class="subheading"><h3>AUFTRÄGE</h3><span>${p.contracts.active.length} / ${this.company.contractSlots()} AKTIV · NEUE IN <b data-ends="${p.contracts.refreshAt}">${formatTime((p.contracts.refreshAt - Date.now()) / 1000)}</b></span></div>${active}${offers}</section>
       <article class="briefing-card plan"><div class="briefing-body"><span class="eyebrow">EINSTIEGSPUNKT</span><div class="choices">${insertions}</div><span class="eyebrow">TAGESZEIT</span><div class="choices">${times}</div><span class="eyebrow">WETTER</span><div class="choices">${weathers}</div>
@@ -448,7 +449,7 @@ export class GameUI {
   showSettings(): void {
     this.panel("settings", "EINSTELLUNGEN", `<div class="content-heading"><div><span class="eyebrow">SYSTEMKONFIGURATION</span><h2>Einstellungen.</h2></div></div><div class="settings-list">${this.settingsRows()}</div>
       <div class="danger-zone"><div><h3>LOKALER SPIELSTAND</h3><p>Alles wird automatisch gespeichert. Browserdaten löschen entfernt den Fortschritt.</p></div><button class="secondary" data-action="save">JETZT SPEICHERN</button><button class="danger-button" data-action="reset">NEU ANFANGEN</button></div>
-      <div class="manual"><h3>STEUERUNG</h3><div><span><kbd>W A S D</kbd> Bewegen</span><span><kbd>SHIFT</kbd> Sprinten</span><span><kbd>C</kbd> Ducken</span><span><kbd>LINKS</kbd> Feuer / Schlag</span><span><kbd>RECHTS</kbd> Zielen</span><span><kbd>R</kbd> Nachladen</span><span><kbd>T</kbd> Munitionssorte</span><span><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> / <kbd>MAUSRAD</kbd> Waffe</span><span><kbd>V</kbd> Schnelles Messer</span><span><kbd>E</kbd> Benutzen / Durchsuchen</span><span><kbd>Q</kbd> Heilen</span><span><kbd>G</kbd> Werfen · <kbd>4</kbd> Wurfwaffe wählen</span><span><kbd>F</kbd> Taschenlampe</span><span><kbd>M</kbd> Karte</span><span><kbd>TAB</kbd> Rucksack</span><span><kbd>ESC</kbd> Pause</span></div></div>`)
+      <div class="manual"><h3>STEUERUNG</h3><div><span><kbd>W A S D</kbd> Bewegen</span><span><kbd>SHIFT</kbd> Sprinten</span><span><kbd>C</kbd> Ducken</span><span><kbd>LINKS</kbd> Feuer / Schlag</span><span><kbd>RECHTS</kbd> Zielen</span><span><kbd>R</kbd> Nachladen</span><span><kbd>T</kbd> Munitionssorte</span><span><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> / <kbd>MAUSRAD</kbd> Waffe</span><span><kbd>V</kbd> Schnelles Messer</span><span><kbd>E</kbd> Benutzen / Durchsuchen</span><span><kbd>Q</kbd> Heilen</span><span><kbd>G</kbd> Werfen · <kbd>4</kbd> Wurfwaffe wählen</span><span><kbd>F</kbd> Taschenlampe</span><span><kbd>N</kbd> Nachtsicht (mit Gerät)</span><span><kbd>M</kbd> Karte</span><span><kbd>TAB</kbd> Rucksack</span><span><kbd>ESC</kbd> Pause</span></div></div>`)
   }
 
   // ───────────────────────────── in raid / base overlays ─────────────────────────────
@@ -551,8 +552,8 @@ export class GameUI {
       "stash-filter": () => { this.stashFilter = id as typeof this.stashFilter; this.showInventory() },
       "equip-weapon": () => this.result(this.company.equipWeapon(id as WeaponId)),
       "unequip-weapon": () => this.result(this.company.unequipWeapon(id as "primary" | "secondary" | "melee")),
-      "equip-gear": () => this.result(this.company.equipGear(id as "armor" | "plate" | "helmet" | "pack_small" | "pack_large")),
-      "unequip-gear": () => this.result(this.company.unequipGear(id as "armor" | "helmet" | "backpack")),
+      "equip-gear": () => this.result(this.company.equipGear(id as GearId)),
+      "unequip-gear": () => this.result(this.company.unequipGear(id as "armor" | "helmet" | "nvg" | "backpack")),
       pack: () => this.result(this.company.pack(id as ItemId, qty)),
       "pack-secure": () => this.result(this.company.pack(id as ItemId, Math.min(this.company.count(id as ItemId), ITEMS[id as ItemId].stack), "secure")),
       unpack: () => this.result(this.company.unpack(index, button.dataset.from as "bag" | "secure")),

@@ -6,7 +6,7 @@
 import { AMMO, ATTACHMENTS, WEAPONS, WEAPON_ORDER, type AmmoId, type AttachmentId, type WeaponId } from "./weaponData"
 
 export type SupplyId = "bandage" | "medkit" | "painkiller" | "antiviral" | "stim" | "canned" | "mre" | "water" | "soda" | "grenade" | "molotov" | "smoke" | "flashbang" | "decoy"
-export type GearId = "armor" | "plate" | "helmet" | "pack_small" | "pack_large"
+export type GearId = "armor" | "plate" | "helmet" | "pack_small" | "pack_large" | "nvg"
 export type MaterialId = "scrap" | "wood" | "cloth" | "chem" | "parts" | "electronics" | "fuel" | "tools"
 export type ValuableId = "intel" | "medical" | "relic" | "gold" | "watch" | "sample" | "dogtag"
 export type KeyId = "keycard_lab" | "key_tunnel"
@@ -86,6 +86,7 @@ const BASE: ItemDef[] = [
   item("armor", "gear", "Schutzweste", "WST", "Leichte Weste mit 55 Rüstung.", 400, 3.5, 1, 1, 1),
   item("plate", "gear", "Plattenträger", "PLT", "Schwere Platten mit 85 Rüstung.", 950, 7.5, 1, 2, 3),
   item("helmet", "gear", "Gefechtshelm", "HELM", "Fängt 40 % des Kopftreffer-Schadens ab (50 Haltbarkeit).", 520, 1.4, 1, 2, 2),
+  item("nvg", "gear", "Nachtsichtgerät", "NVG", "Restlichtverstärker für den Helm. Taste N: die Nacht wird grün und hell. Blendgranaten blenden damit doppelt, bei Tag ist das Bild überstrahlt.", 2400, 0.7, 1, 3, 4),
   item("pack_small", "gear", "Kampfrucksack", "RUCK", "16 Rucksackplätze statt 8.", 600, 1.2, 1, 1, 1),
   item("pack_large", "gear", "Expeditionsrucksack", "RUCK+", "24 Rucksackplätze und +10 kg Traglast.", 1500, 2.2, 1, 2, 3),
   // materials (base building, crafting)

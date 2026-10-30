@@ -69,6 +69,9 @@ export interface World {
   onLightning: ((distance: number) => void) | null
   /** True when rain falls on the camera right now (outdoors in rain or storm). */
   raining: boolean
+  /** Night-vision goggles: the sky light is boosted and everything turns phosphor green; fog reaches further. */
+  nightVision: boolean
+  setNightVision(on: boolean): void
   surfaceAt(x: number, z: number): Surface
   districtAt(x: number, z: number): District | null
   indoor(x: number, z: number): boolean
@@ -442,23 +445,27 @@ export function createWorld(kind: WorldKind, scene: THREE.Scene, quality: "high"
   own(rain); group.add(rain.mesh)
   const skyU = (sky.material as THREE.ShaderMaterial).uniforms
   const baseLook = {
-    hemi: hemi.intensity, sun: sun.intensity, fogColor: new THREE.Color(look.sky.fog),
+    hemi: hemi.intensity, sun: sun.intensity, fogColor: new THREE.Color(look.sky.fog), hemiSky: hemi.color.clone(), hemiGround: hemi.groundColor.clone(),
     zenith: skyU.zenith.value.clone(), mid: skyU.mid.value.clone(), horizon: skyU.horizon.value.clone(), skyFog: skyU.fogColor.value.clone(),
     clouds: skyU.clouds.value as number, sunVisible: skyU.sunVisible.value as number, glow: skyU.glowStrength.value as number,
   }
   const greyOf = (fogLike: boolean) => time === "night" ? (fogLike ? 0x23272c : 0x1b1e23) : time === "dusk" || time === "dawn" ? (fogLike ? 0x7a7d82 : 0x5d6066) : fogLike ? 0xaeb2b5 : 0x878c90
   const greyLin = new THREE.Vector3(), greyFog = new THREE.Color()
+  // night vision: phosphor green, strongest where it is darkest (an image intensifier has little to add by day)
+  const NV_FOG = new THREE.Color(0x0f2e16), nvC = raw(0x12381a), nvLin = new THREE.Vector3(nvC.r, nvC.g, nvC.b), NV_SKY = new THREE.Color(0x9cf09a), NV_GROUND = new THREE.Color(0x2f6a34)
+  const nvBoost = time === "night" ? 5.5 : time === "dusk" || time === "dawn" ? 2.6 : 1.35
   let wLight = 1, bolt = 0, boltNext = 12, boltRng = mulberry(4711)
   const applyLight = () => {
     const flash = bolt > 0 ? (bolt > 0.12 ? 1 : 0.35) * 3.2 : 0
     // overcast: hardly any direct sun (soft or no shadows), the sky light carries the scene
-    const w = world.weather
-    hemi.intensity = baseLook.hemi * (w === "clear" ? 1 : wLight * 1.25) + flash
-    sun.intensity = baseLook.sun * (w === "clear" ? 1 : w === "fog" ? 0.22 : w === "rain" ? 0.16 : 0.1)
+    const w = world.weather, nv = world.nightVision ? nvBoost : 1
+    hemi.intensity = (baseLook.hemi * (w === "clear" ? 1 : wLight * 1.25) + flash) * nv
+    sun.intensity = baseLook.sun * (w === "clear" ? 1 : w === "fog" ? 0.22 : w === "rain" ? 0.16 : 0.1) * (world.nightVision ? 1.4 : 1)
   }
 
   const world: World = {
-    weather: "clear", weatherVision: 1, onLightning: null, raining: false,
+    weather: "clear", weatherVision: 1, onLightning: null, raining: false, nightVision: false,
+    setNightVision(on) { if (world.nightVision === on) return; world.nightVision = on; world.setWeather(world.weather) },
     setWeather(id) {
       const w = WEATHER[id], k = w.overcast
       world.weather = id; world.weatherVision = w.vision; wLight = w.light; bolt = 0; boltRng = mulberry(4711); boltNext = 9
@@ -474,6 +481,12 @@ export function createWorld(kind: WorldKind, scene: THREE.Scene, quality: "high"
       skyU.sunVisible.value = baseLook.sunVisible * (1 - k)
       skyU.glowStrength.value = baseLook.glow * (1 - k * 0.85)
       rain.amount = w.rain
+      if (world.nightVision) {
+        hemi.color.copy(NV_SKY); hemi.groundColor.copy(NV_GROUND)
+        if (fog && fog.isFog) { fog.color.lerp(NV_FOG, 0.9); fog.near *= 1.5; fog.far *= 1.6; scene.background = fog.color }
+        for (const u of [skyU.zenith, skyU.mid, skyU.horizon, skyU.fogColor]) (u.value as THREE.Vector3).lerp(nvLin, 0.9)
+        skyU.glowStrength.value *= 0.3
+      } else { hemi.color.copy(baseLook.hemiSky); hemi.groundColor.copy(baseLook.hemiGround) }
     },
     kind, layout, time, theme: time === "night" ? "night" : "dusk", group, obstacles, collision, nav, coverPoints,
     exposure: look.exposure, lightLevel: look.light, visionScale: TIMES[time].visionScale, night: time === "night", obscurants: new Obscurants(),

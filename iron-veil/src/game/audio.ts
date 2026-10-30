@@ -32,7 +32,7 @@ export type SfxId =
   | "step_asphalt" | "step_concrete" | "step_metal" | "step_gravel" | "step_dirt" | "step_wood" | "land"
   | "grenade_pin" | "grenade_bounce" | "explosion" | "smoke_hiss" | "flashbang" | "tinnitus" | "decoy_beep" | "decoy_wind" | "rain" | "rain_roof" | "thunder" | "gas_burst" | "cough"
   | "extract_call" | "extract_tick" | "helicopter" | "alert" | "radio"
-  | "ui_click" | "ui_hover" | "ui_buy" | "ui_error" | "build" | "win" | "lose" | "level_up" | "flashlight"
+  | "ui_click" | "ui_hover" | "ui_buy" | "ui_error" | "build" | "win" | "lose" | "level_up" | "flashlight" | "nvg_on" | "nvg_off"
   | "shot_r44" | "shot_k5" | "shot_sr74" | "shot_br10" | "shot_sg8" | "shot_falke" | "shot_lm60"
   | "shot_p18" | "shot_de50" | "shot_v45" | "shot_stg77" | "shot_as12"
   | "shot_km45" | "shot_u45" | "shot_ar36" | "shot_uh44" | "shot_k98" | "shot_db12" | "shot_xbow" | "lever_cycle"
@@ -781,6 +781,11 @@ const DEFS: Record<SfxId, Def> = {
   flashlight: { bus: "sfx", g: 0.7, pri: 1, gap: 0.05, make: v => {
     v.noise({ ft: "bandpass", f: 2600, q: 2, a: 0.0005, d: 0.015, g: 0.8 }); v.tone({ w: "triangle", f: 1300, d: 0.035, g: 0.1 })
     v.noise({ ft: "bandpass", f: 3300, q: 2, at: 0.045, a: 0.0005, d: 0.012, g: 0.45 }) } },
+  // night-vision goggles: a click and the rising whine of the intensifier tube powering up (down when switched off)
+  nvg_on: { bus: "sfx", g: 0.6, pri: 1, gap: 0.1, make: v => {
+    v.noise({ ft: "bandpass", f: 2200, q: 2, a: 0.0005, d: 0.02, g: 0.7 }); v.tone({ w: "sine", f: 900, f2: 3800, gl: 0.45, d: 0.5, a: 0.03, g: 0.08 }); v.tone({ w: "triangle", f: 1800, f2: 7600, gl: 0.45, d: 0.5, a: 0.05, g: 0.02 }) } },
+  nvg_off: { bus: "sfx", g: 0.6, pri: 1, gap: 0.1, make: v => {
+    v.noise({ ft: "bandpass", f: 2600, q: 2, a: 0.0005, d: 0.02, g: 0.7 }); v.tone({ w: "sine", f: 3400, f2: 700, gl: 0.28, d: 0.3, a: 0.01, g: 0.07 }) } },
   // ---- phase 2: further player weapons
   shot_r44: { ...PGUN, g: 1.1, sup: 0.64, send: 0.55, vary: 0.03, cap: 3, make: G({
     crack: [3000, 0.05, 0.95], body: [1300, 0.8, 0.3, 1.2], low: [550, 0.3, 1], thump: [170, 42, 0.1, 0.32, 1.15],

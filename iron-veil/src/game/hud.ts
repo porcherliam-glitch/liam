@@ -24,7 +24,7 @@ export class Hud {
 
   constructor(private root: HTMLElement) {
     root.innerHTML = `
-      <div class="damage-overlay"></div><div class="lowhp-overlay"></div><div class="bleed-overlay"></div><div class="infect-overlay"></div><div class="death-overlay"></div><div class="smoke-overlay"></div><div class="gas-overlay"></div><div class="flash-overlay"></div>
+      <div class="damage-overlay"></div><div class="lowhp-overlay"></div><div class="bleed-overlay"></div><div class="infect-overlay"></div><div class="death-overlay"></div><div class="smoke-overlay"></div><div class="gas-overlay"></div><div class="nvg-overlay"></div><div class="flash-overlay"></div>
       <div class="scope-overlay"><i class="h"></i><i class="v"></i><b></b></div>
       <div class="hud-objective"><span class="hud-label" data-hud="area">SPERRZONE</span><b data-hud="objective"></b><small data-hud="objectiveProgress"></small><em data-hud="contract"></em></div>
       <div class="hud-compass"><canvas width="560" height="54"></canvas></div>
@@ -142,6 +142,7 @@ export class Hud {
     this.bar("interact", h.interactionProgress); this.bar("extract", h.extraction)
     this.bar("reload", h.reloading > 0 && h.reloadTotal > 0 ? 1 - h.reloading / h.reloadTotal : 0)
     r.classList.toggle("low-health", h.health <= 30 && h.health > 0)
+    r.classList.toggle("nvg", !!h.nvg)
     r.classList.toggle("damaged", h.damageFlash > 0)
     r.classList.toggle("interacting", !!h.interaction)
     r.classList.toggle("holding", h.interactionProgress > 0)

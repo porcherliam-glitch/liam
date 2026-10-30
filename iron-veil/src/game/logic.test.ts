@@ -421,6 +421,25 @@ describe("company", () => {
     expect(s.lost.some(x => x.id === "w_mk4")).toBe(true)
     expect(c.profile.infection).toBe(0)
   })
+  it("night-vision goggles are mounted from the stash, come home on extraction and are lost on death", () => {
+    const c = rich()
+    expect(c.equipGear("nvg").ok).toBe(false)
+    c.addItem("nvg", 1)
+    expect(c.equipGear("nvg").ok).toBe(true); expect(c.profile.loadout.nvg).toBe(true); expect(c.count("nvg")).toBe(0)
+    expect(c.unequipGear("nvg").ok).toBe(true); expect(c.profile.loadout.nvg).toBe(false); expect(c.count("nvg")).toBe(1)
+    expect(c.unequipGear("nvg").ok).toBe(false)
+    c.equipGear("nvg")
+    let kit = c.beginRaid()
+    expect(kit.nvg).toBe(true); expect(c.profile.loadout.nvg).toBe(false)
+    c.finishRaid(kit, { armor: 0, helmet: 0, bag: [], secure: [], loaded: {}, infection: 0 }, emptyRaidStats(), true, "normal", mulberry32(1))
+    expect(c.profile.loadout.nvg).toBe(true)
+    kit = c.beginRaid()
+    const s = c.finishRaid(kit, { armor: 0, helmet: 0, bag: [], secure: [], loaded: {}, infection: 0 }, emptyRaidStats(), false, "normal", mulberry32(1))
+    expect(c.profile.loadout.nvg).toBe(false); expect(s.lost.some(x => x.id === "nvg")).toBe(true); expect(c.count("nvg")).toBe(0)
+    // the flag survives a save round trip and anything but `true` means "none"
+    const back = sanitizeProfile(JSON.parse(JSON.stringify({ ...c.profile, loadout: { ...c.profile.loadout, nvg: "yes" } })), 1000)!
+    expect(back.loadout.nvg).toBe(false)
+  })
   it("a reload during a raid counts as lost but keeps the secure container", () => {
     const c = rich()
     c.profile.loadout.secure = [{ id: "intel", qty: 1 }]

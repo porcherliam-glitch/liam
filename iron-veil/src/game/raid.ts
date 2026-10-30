@@ -135,6 +135,8 @@ export class RaidGame {
   private throwKind: ThrowableKind = "grenade"
   private ads = 0
   private flashlightOn = false
+  /** Night-vision goggles switched on (needs kit.nvg); the world turns phosphor green and the HUD adds grain. */
+  private nvgOn = false
   private godMode = false
   // raid state
   private timeLeft = 0
@@ -394,7 +396,7 @@ export class RaidGame {
     this.lastArea = ""
     this.say(`${TIMES[plan.time].name} · ${ins.name} · Offene Extraktionen: ${this.openExits.length}`, 5)
     if (!this.company.profile.tutorialDone) this.showHint("move", "WASD bewegen · Shift sprinten · C ducken · V Messer · Tab Rucksack · M Karte · Esc Pause", 9)
-    else if (plan.time === "night") this.showHint("night", `Nacht: mehr Infizierte, bessere Beute. Taschenlampe mit ${this.key("F")} – Licht macht sichtbar.`, 7)
+    else if (plan.time === "night") this.showHint("night", this.kit?.nvg ? `Nacht: mehr Infizierte, bessere Beute. Nachtsichtgerät mit ${this.input.device === "pad" ? this.key("F") : "N"}, Taschenlampe mit ${this.key("F")} – Licht macht sichtbar.` : `Nacht: mehr Infizierte, bessere Beute. Taschenlampe mit ${this.key("F")} – Licht macht sichtbar.`, 7)
     this.audio.setAmbience(plan.time)
     this.requestLock(); this.pushHud()
   }
@@ -406,7 +408,7 @@ export class RaidGame {
     const layout = this.world.layout as BaseLayout
     this.makeHostiles((Date.now() >>> 0) ^ 0x5bd1e995)
     const lo = this.company.profile.loadout
-    this.kit = { primary: lo.primary, primaryMods: { ...lo.primaryMods }, primaryAmmo: lo.primaryAmmo, secondary: lo.secondary, secondaryMods: { ...lo.secondaryMods }, secondaryAmmo: lo.secondaryAmmo, melee: lo.melee, armor: lo.armor, armorMax: lo.armorMax, helmet: lo.helmet, backpack: lo.backpack, bag: lo.bag.map(s => ({ ...s })), secure: [], secureSlots: 0, infection: this.company.profile.infection }
+    this.kit = { primary: lo.primary, primaryMods: { ...lo.primaryMods }, primaryAmmo: lo.primaryAmmo, secondary: lo.secondary, secondaryMods: { ...lo.secondaryMods }, secondaryAmmo: lo.secondaryAmmo, melee: lo.melee, armor: lo.armor, armorMax: lo.armorMax, helmet: lo.helmet, nvg: lo.nvg, backpack: lo.backpack, bag: lo.bag.map(s => ({ ...s })), secure: [], secureSlots: 0, infection: this.company.profile.infection }
     this.equipKit(this.kit)
     this.player.reset(layout.spawn.x, layout.spawn.z - 6, layout.spawn.yaw)
     const threat = this.company.profile.base.threat
@@ -435,7 +437,8 @@ export class RaidGame {
 
   private resetCombatState(): void {
     this.pending = null; this.switchTime = -1; this.meleeTime = -1; this.useTime = -1; this.useItem = null; this.useKind = null
-    this.ads = 0; this.flashlightOn = false; this.godMode = false
+    this.ads = 0; this.flashlightOn = false; this.nvgOn = false; this.godMode = false
+    if (this.world) this.world.setNightVision(false)
     this.interactTarget = null; this.interactHold = 0; this.damageDirs = []
     this.hitMarker = this.killMarker = this.damageFlash = this.shake = 0
     this.hintsShown.clear(); this.hint = ""; this.hintTime = 0; this.deathTime = 0; this.dyingRoll = 0
@@ -563,7 +566,12 @@ export class RaidGame {
     if (i.consumeAction("KeyG")) this.startThrow()
     if (i.consumeAction("KeyV") || i.consumeAction("Middle")) this.quickMelee()
     if (i.consumeAction("KeyT")) this.switchAmmo()
-    if (i.consumeAction("KeyF")) { this.flashlightOn = !this.flashlightOn; this.sfx("flashlight") }
+    if (i.consumeAction("KeyF")) {
+      // on a gamepad the one button cycles torch → goggles → off when goggles are mounted
+      if (this.input.device === "pad" && this.hasNvg) { if (this.flashlightOn) { this.flashlightOn = false; this.toggleNvg() } else if (this.nvgOn) this.toggleNvg(); else { this.flashlightOn = true; this.sfx("flashlight") } }
+      else { this.flashlightOn = !this.flashlightOn; this.sfx("flashlight") }
+    }
+    if (i.consumeAction("KeyN")) this.toggleNvg()
     if (i.consumeAction("KeyC")) this.player.crouched = !this.player.crouched
     if (i.consumeAction("Digit1")) this.switchTo("primary")
     if (i.consumeAction("Digit2")) this.switchTo("secondary")
@@ -571,6 +579,15 @@ export class RaidGame {
     if (i.consumeAction("Digit4")) { this.throwKind = this.nextThrowable(this.throwKind); this.say(`Wurfwaffe: ${THROW_INFO[this.throwKind].name} (${this.bag.count(this.throwKind)})`, 1.4) }
     if (i.consumeAction("WheelUp") || i.consumeAction("KeyX")) this.cycleWeapon(1)
     if (i.consumeAction("WheelDown")) this.cycleWeapon(-1)
+  }
+
+  private get hasNvg(): boolean { return this.kit ? this.kit.nvg : this.company.profile.loadout.nvg }
+
+  private toggleNvg(): void {
+    if (!this.hasNvg) { this.say("Kein Nachtsichtgerät montiert", 1.6); return }
+    this.nvgOn = !this.nvgOn
+    this.sfx(this.nvgOn ? "nvg_on" : "nvg_off")
+    if (this.nvgOn && !this.world.night) this.say(this.world.time === "day" ? "Nachtsicht: bei Tageslicht überstrahlt" : "Nachtsicht an", 1.6)
   }
 
   private updateHostiles(dt: number, active: boolean): void {
@@ -873,7 +890,8 @@ export class RaidGame {
     if (d > 18 || this.world.collision.segmentBlocked3D(center, { x: this.player.pos.x, y: this.player.eye, z: this.player.pos.z })) return
     this.camera.getWorldDirection(_flashDir)
     const facing = (dx * _flashDir.x + dy * _flashDir.y + dz * _flashDir.z) / Math.max(0.01, Math.hypot(dx, dy, dz))
-    const amount = Math.min(1, (1 - d / 18) * (0.25 + 0.75 * Math.max(0, (facing + 0.35) / 1.35)) * 1.4)
+    // goggles amplify the flash: a much harder dazzle, so switch them off before throwing
+    const amount = Math.min(1, (1 - d / 18) * (0.25 + 0.75 * Math.max(0, (facing + 0.35) / 1.35)) * (this.nvgOn ? 2.4 : 1.4))
     if (amount > 0.05) { this.screenFlash?.(amount); this.sfx("tinnitus", { volume: Math.min(1, amount * 1.2) }) }
     if (this.settings.screenShake) this.shake = Math.min(1.2, this.shake + Math.max(0, 1 - d / 15) * 0.6)
   }
@@ -1538,6 +1556,8 @@ export class RaidGame {
       const weaponLight = w.mods.tactical === "att_light"
       this.flashlight.intensity = this.flashlightOn && this.isControlled ? (weaponLight ? 48 : 26) : 0
       this.flashlight.distance = weaponLight ? 80 : 40
+      this.world.setNightVision(this.nvgOn && this.isControlled)
+      this.renderer.toneMappingExposure = this.world.exposure * (this.world.nightVision ? 1.7 : 1)
       if (this.viewModel.visible) this.viewModel.update(dt, {
         weapon: w.id, mods: w.mods, ads: this.ads, move: moving / WALK, sprinting: p.sprinting, crouched: p.crouched,
         lookYaw: this.lookFrame.yaw, lookPitch: this.lookFrame.pitch,
@@ -1597,7 +1617,7 @@ export class RaidGame {
       quickMeds, grenades: this.bag.count(throwable), throwableName: THROW_INFO[throwable].name,
       reloading: w.reloadLeft, reloadTotal: w.reloadTotal,
       objective, objectiveProgress: progress, contract, lootValue: this.bag.value(id => ITEMS[id].cat === "valuable" ? ITEMS[id].value : 0),
-      raidTime: Math.max(0, this.timeLeft), clock: this.plan ? TIMES[this.plan.time].clock : "", weather: this.mode === "raid" && this.weather !== "clear" ? WEATHER[this.weather].name : "", area,
+      raidTime: Math.max(0, this.timeLeft), clock: this.plan ? TIMES[this.plan.time].clock : "", weather: this.mode === "raid" && this.weather !== "clear" ? WEATHER[this.weather].name : "", nvg: this.nvgOn && fight, area,
       extraction: this.activeExit ? this.exitState.get(this.activeExit.id)!.progress : 0, extractionName: this.activeExit?.name ?? "",
       interaction: this.interactText, interactionProgress: this.interactHold,
       enemies: this.hostiles.reduce((n, h) => n + h.combatCount(), 0), hitMarker: this.hitMarker, killMarker: this.killMarker, damageFlash: this.damageFlash,

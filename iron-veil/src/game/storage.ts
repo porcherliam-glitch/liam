@@ -139,7 +139,7 @@ function sanitizeLoadout(raw: any): Loadout {
     primary, primaryMods: sanitizeMods(primary, lo.primaryMods), primaryAmmo: ammoFor(primary, lo.primaryAmmo),
     secondary, secondaryMods: sanitizeMods(secondary, lo.secondaryMods), secondaryAmmo: ammoFor(secondary, lo.secondaryAmmo),
     melee: weaponOrNull(lo.melee, "melee") ?? "knife",
-    armor: armorMax ? int(lo.armor, 0, armorMax, 0) : 0, armorMax, helmet: int(lo.helmet, 0, 50, 0),
+    armor: armorMax ? int(lo.armor, 0, armorMax, 0) : 0, armorMax, helmet: int(lo.helmet, 0, 50, 0), nvg: lo.nvg === true,
     backpack: lo.backpack === "pack_small" || lo.backpack === "pack_large" ? lo.backpack : "none",
     bag: sanitizeSlots(lo.bag, 24), secure: sanitizeSlots(lo.secure, 6),
   }
@@ -175,7 +175,7 @@ function migrateLegacy(r: Record<string, any>, now: number): Profile | null {
     loadout: {
       primary, primaryMods: {}, primaryAmmo: (WEAPONS[primary].caliber === "556" ? "ammo_556" : WEAPONS[primary].caliber === "9mm" ? "ammo_9mm" : WEAPONS[primary].caliber === "12g" ? "ammo_12buck" : "ammo_762") as AmmoId,
       secondary, secondaryMods: {}, secondaryAmmo: "ammo_9mm", melee: "knife",
-      armor: Math.min(armorMax, legacyArmor), armorMax, helmet: 0, backpack: "pack_small", bag: [], secure: [],
+      armor: Math.min(armorMax, legacyArmor), armorMax, helmet: 0, nvg: false, backpack: "pack_small", bag: [], secure: [],
     },
     structures: { ...fresh.structures, hq: int(b.hq, 1, 3, 1), workshop: int(b.workshop, 0, 3, 0), lab: int(b.lab, 0, 3, 0), clinic: int(b.clinic, 0, 3, 0) },
     staff: { ...fresh.staff, workshop: int(r.staff?.workshop, 0, 3, 0), lab: int(r.staff?.lab, 0, 3, 0), clinic: int(r.staff?.clinic, 0, 3, 0) },

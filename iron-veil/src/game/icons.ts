@@ -314,6 +314,18 @@ const GEAR: Record<string, Painter> = {
     shape(g, () => rr(g, 40, 26, 20, 12, 2), "#2a2f33", undefined, 1.2, false)
     line(g, [20, 50, 80, 50], "rgba(0,0,0,.25)", 3)
   },
+  nvg: g => {
+    // helmet mount arm, binocular body and two objective tubes with green-glowing lenses
+    shape(g, () => rr(g, 44, 8, 12, 22, 3), lin(g, 44, 8, 56, 30, "#4a5058", "#23272c"), "rgba(0,0,0,.7)", 1.2, false)
+    shape(g, () => rr(g, 16, 28, 68, 30, 8), lin(g, 16, 28, 84, 58, "#3f4a3a", "#1f251c"))
+    for (const x of [22, 54]) {
+      shape(g, () => rr(g, x, 52, 24, 34, 6), lin(g, x, 52, x + 24, 86, "#2e3530", "#141815"), "rgba(0,0,0,.7)", 1.4, false)
+      shape(g, () => { g.arc(x + 12, 82, 9, 0, Math.PI * 2) }, rad(g, x + 12, 82, 9, "#b9ffb0", "#1c7a2a"), "rgba(0,0,0,.8)", 1.2, false)
+      g.fillStyle = "rgba(255,255,255,.55)"; g.beginPath(); g.arc(x + 9, 79, 2.2, 0, Math.PI * 2); g.fill()
+    }
+    shape(g, () => rr(g, 40, 36, 20, 12, 3), "#1b1f22", undefined, 1, false)
+    g.fillStyle = "#6fdc5a"; g.fillRect(45, 40, 4, 4)
+  },
   pack_small: g => backpack(g, 22, 18, 56, 70, "#55603e", "#353c26"),
   pack_large: g => { backpack(g, 16, 12, 68, 80, "#4b5a6a", "#2a3440"); shape(g, () => rr(g, 18, 6, 64, 12, 6), lin(g, 0, 6, 0, 18, "#7a6a4a", "#4c4130"), "rgba(0,0,0,.6)", 1.2) },
 }

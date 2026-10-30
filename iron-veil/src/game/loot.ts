@@ -27,7 +27,7 @@ const TABLES: Record<LootCategory, Entry[]> = {
 }
 /** Extra entries unlocked on tier 2 spots. */
 const TIER2: Partial<Record<LootCategory, Entry[]>> = {
-  military: [["ammo_556ap", 3, [15, 30]], ["ammo_762ap", 2, [10, 25]], ["flashbang", 1.2, [1, 2]], ["plate", 1.2, [1, 1]], ["att_scope4x", 0.6, [1, 1]], ["att_suppressor", 0.7, [1, 1]], ["att_extmag", 1, [1, 1]], ["att_acog", 0.5, [1, 1]], ["att_brake", 0.7, [1, 1]], ["att_drum", 0.4, [1, 1]], ["ammo_338", 1, [5, 10]], ["stim", 2, [1, 1]], ["att_bigsup", 0.35, [1, 1]], ["att_scope6x", 0.35, [1, 1]], ["att_fastmag", 0.7, [1, 1]], ["att_irlaser", 0.4, [1, 1]], ["w_ar36", 0.2, [1, 1]], ["w_k98", 0.2, [1, 1]]],
+  military: [["ammo_556ap", 3, [15, 30]], ["ammo_762ap", 2, [10, 25]], ["flashbang", 1.2, [1, 2]], ["plate", 1.2, [1, 1]], ["att_scope4x", 0.6, [1, 1]], ["att_suppressor", 0.7, [1, 1]], ["att_extmag", 1, [1, 1]], ["att_acog", 0.5, [1, 1]], ["att_brake", 0.7, [1, 1]], ["att_drum", 0.4, [1, 1]], ["ammo_338", 1, [5, 10]], ["stim", 2, [1, 1]], ["att_bigsup", 0.35, [1, 1]], ["att_scope6x", 0.35, [1, 1]], ["att_fastmag", 0.7, [1, 1]], ["att_irlaser", 0.4, [1, 1]], ["nvg", 0.45, [1, 1]], ["w_ar36", 0.2, [1, 1]], ["w_k98", 0.2, [1, 1]]],
   tech: [["att_scope4x", 0.6, [1, 1]], ["att_acog", 0.6, [1, 1]], ["relic", 0.6, [1, 1]], ["electronics", 3, [1, 2]], ["att_scope6x", 0.3, [1, 1]], ["att_irlaser", 0.5, [1, 1]]],
   lab: [["relic", 1.5, [1, 1]], ["keycard_lab", 0.6, [1, 1]], ["sample", 3, [1, 2]]],
   civil: [["gold", 3, [1, 2]], ["watch", 3, [1, 2]], ["pack_small", 0.8, [1, 1]], ["w_katana", 0.15, [1, 1]], ["w_uh44", 0.2, [1, 1]], ["w_xbow", 0.15, [1, 1]]],
