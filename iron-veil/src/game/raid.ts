@@ -16,6 +16,8 @@ import { GhostPlayers } from "./ghosts"
 import { GoreSystem } from "./gore"
 import { WEATHER, type WeatherId } from "./weather"
 import { GRENADE_DAMAGE, GRENADE_RADIUS, GrenadeSystem, THROWABLES, THROW_INFO, type ThrowableKind } from "./grenades"
+import { TOUCH_LABEL, TouchControls } from "./touch"
+import { touchEnabled } from "./storage"
 import { TRAP_RADIUS, TRAP_STUN, TRAP_TRIGGER, TrapField, zapDamage, type ShockTrap } from "./traps"
 import { buildHandItem } from "./weaponModels"
 import type { DamageInfo, DamageResult, Hostile, HostileHit, HostileManager, HitPart, PlayerState, ShotEvent, AttackEvent, HostileSound } from "./hostiles"
@@ -147,6 +149,9 @@ export class RaidGame {
   private throwKind: ThrowableKind = "grenade"
   private ads = 0
   private flashlightOn = false
+  /** On-screen controls for phones and tablets (shown only while the player is in control). */
+  private touch: TouchControls
+  private touchOn = false
   /** Night-vision goggles switched on (needs kit.nvg); the world turns phosphor green and the HUD adds grain. */
   private nvgOn = false
   private godMode = false
@@ -204,6 +209,7 @@ export class RaidGame {
     this.quality = settings.quality
     this.viewModel.initEnvironment(this.renderer)
     this.input = new Input(canvas)
+    this.touch = new TouchControls(canvas.parentElement ?? document.body, this.input)
     this.camera.rotation.order = "YXZ"; this.scene.add(this.camera)
     this.flashlight.position.set(0.18, -0.12, 0.1); this.flashlight.target.position.set(0.05, -0.05, -5); this.camera.add(this.flashlight, this.flashlight.target)
     this.scene.add(this.fireLight)
@@ -468,15 +474,22 @@ export class RaidGame {
     give: (id, n) => { const added = this.bag.add(id, n); if (added < n) this.dropItems([{ id, qty: n - added }]); return n },
   }
 
+  /** Shows the touch layer only while the player controls the operator (not in menus, pause or overlays). */
+  private syncTouch(h?: HudSnapshot): void {
+    this.touch.update(this.touchOn && this.isControlled && !this.paused && !this.overlay, h)
+  }
+
   requestLock(): void {
+    // phones and tablets have no mouse to capture: the touch layer turns the view
+    if (this.touchOn) return
     const el = this.renderer.domElement
     if (document.pointerLockElement === el) return
     try { const r = el.requestPointerLock() as unknown as Promise<void> | undefined; if (r && typeof r.catch === "function") r.catch(() => this.say("Zum Umsehen in das Spielfeld klicken", 3)) } catch { this.say("Zum Umsehen in das Spielfeld klicken", 3) }
   }
   resume(): void { if (!this.isControlled) return; this.paused = false; this.overlay = false; this.input.capture = true; this.input.clearActions(); this.input.resetAll(); this.requestLock() }
-  pause(): void { if (!this.isControlled) return; this.paused = true; this.input.capture = false; this.input.resetAll(); if (document.pointerLockElement) document.exitPointerLock() }
+  pause(): void { if (!this.isControlled) return; this.paused = true; this.input.capture = false; this.input.resetAll(); this.syncTouch(); if (document.pointerLockElement) document.exitPointerLock() }
   /** Opens a live overlay (loot, backpack, map): the world keeps running, the player stands still. */
-  openOverlay(): void { if (!this.isControlled) return; this.overlay = true; this.input.capture = false; this.input.resetAll(); if (document.pointerLockElement) document.exitPointerLock() }
+  openOverlay(): void { if (!this.isControlled) return; this.overlay = true; this.input.capture = false; this.input.resetAll(); this.syncTouch(); if (document.pointerLockElement) document.exitPointerLock() }
   get isPaused(): boolean { return this.paused }
   leaveToMenu(): void {
     if (this.mode === "raid" || this.mode === "dying") this.finishRaid(false, "Einsatz abgebrochen")
@@ -496,6 +509,7 @@ export class RaidGame {
 
   private update(dt: number): void {
     this.time += dt
+    this.syncTouch()
     this.reportOnline(dt)
     this.fpsTime += dt
     if (this.mode === "menu" || this.mode === "ended") {
@@ -1588,7 +1602,7 @@ export class RaidGame {
   /** Rain and thunder mask sounds: every noise radius shrinks with the weather. */
   private noise(pos: Vec3, radius: number): void { const r = radius * (this.mode === "raid" ? WEATHER[this.weather].noise : 1); for (const h of this.hostiles) h.hearNoise(pos, r) }
   private sfx(id: string, opts: { position?: Vec3; volume?: number; rate?: number } = {}): void { this.audio.play(id as SfxId, opts) }
-  private key(k: string): string { return this.input.device === "pad" ? PAD_LABEL[k] ?? k : k }
+  private key(k: string): string { return this.input.device === "pad" ? PAD_LABEL[k] ?? k : this.touchOn && this.input.device !== "kb" || this.input.device === "touch" ? TOUCH_LABEL[k] ?? k : k }
   private say(text: string, seconds: number): void { this.message = text; this.messageTime = seconds }
 
   /** Called once when the first raid runs too slowly on high quality (boot switches the setting to low). */
@@ -1708,7 +1722,7 @@ export class RaidGame {
     const quickMeds = this.bag.count("bandage") + this.bag.count("medkit")
     const throwable = this.bag.count(this.throwKind) > 0 ? this.throwKind : THROWABLES.find(k => this.bag.count(k) > 0) ?? this.throwKind
     const fight = this.mode === "raid" || this.mode === "defense"
-    this.callbacks.onHud({
+    const snap: HudSnapshot = {
       health: Math.max(0, Math.ceil(v.health)), armor: Math.max(0, Math.ceil(p.armor)), armorMax: Math.max(p.armorMax, Math.ceil(p.armor)), helmet: Math.ceil(p.helmet),
       stamina: p.stamina, energy: v.energy, water: v.water, bleed: v.bleed, infection: v.infection, painkiller: v.painkiller, boost: v.boost,
       weight: this.load() * this.weightLimit(), weightLimit: this.weightLimit(),
@@ -1724,8 +1738,9 @@ export class RaidGame {
       damageDirections: this.damageDirs.map(d => ({ angle: wrapDegrees(d.heading - heading), life: d.life })),
       compass: heading, markers, spread: w.isMelee ? 0.004 : w.spread(this.ads, p.speed / WALK, p.crouched) / (this.camera.fov * Math.PI / 180) * 2,
       crouched: p.crouched, ads: this.ads > 0.6, scoped: this.viewModel.isScoped && this.ads > 0.92, dead: this.mode === "dying", device: this.input.device,
-      message: this.message, messageTime: this.messageTime, hint: this.hintTime > 0 ? this.hint : "", fps: this.fps, safe: !fight,
-    })
+      message: this.message, messageTime: this.messageTime, hint: this.hintTime > 0 ? this.hint : "", fps: this.fps, safe: !fight, touch: this.touchOn,
+    }
+    this.callbacks.onHud(snap); this.syncTouch(snap)
   }
 
   private contractRaidProgress(kind: string, subject?: string): number {
@@ -1801,6 +1816,7 @@ export class RaidGame {
   applySettings(settings: Settings): void {
     this.settings = settings
     this.input.sensitivity = settings.sensitivity; this.input.invertY = settings.invertY
+    this.touchOn = touchEnabled(settings)
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, settings.quality === "high" ? 1.75 : 1))
     this.renderer.shadowMap.enabled = settings.quality === "high"
     if (this.gore) this.gore.level = settings.gore
@@ -1813,6 +1829,7 @@ export class RaidGame {
   }
 
   dispose(): void {
+    this.touch.dispose()
     this.loop.stop(); this.pause()
     window.removeEventListener("resize", this.onResize); document.removeEventListener("pointerlockchange", this.onPointerLock)
     this.renderer.domElement.removeEventListener("click", this.onCanvasClick)

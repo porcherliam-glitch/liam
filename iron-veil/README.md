@@ -41,6 +41,13 @@ Der Spielstand liegt im Browser (localStorage). Mit einem anderen Browser oder n
 
 In den Menüs funktionieren Maus, Tastatur und Controller (Steuerkreuz, A = auswählen, B = zurück).
 
+**Auf dem Handy oder Tablet** (Querformat): Die Touch-Steuerung schaltet sich automatisch ein, die Grafik startet auf „Niedrig“.
+- Linker Daumen: Wo er aufsetzt, erscheint ein Stick zum Laufen; ganz nach vorn geschoben wird gesprintet.
+- Rechter Daumen: Wischen auf der rechten Hälfte dreht die Sicht. Der rote Feuerknopf schießt; zieht man den Daumen darauf, zielt man gleichzeitig nach.
+- Rund um den Feuerknopf: Zielen (an/aus), Nachladen, Ducken. Unten in der Mitte: Heilen, Werfen, Wurfwaffe wechseln, Messer, Waffe wechseln, Munitionssorte.
+- Oben rechts: Lampe, Nachtsicht, Vollbild, Pause, Karte, Rucksack. „Benutzen“ erscheint in der Mitte, sobald man etwas durchsuchen oder benutzen kann (gedrückt halten).
+- In den Einstellungen lässt sich die Touch-Steuerung auf „An“ (auch am PC) oder „Aus“ stellen.
+
 ## So läuft es
 
 1. **Basis.** Sie laufen durch Ihre Basis und drücken **E** an den Stationen: Händler, Lager, Funk, Werkbank, Waffenwerkstatt, Bauplätze. Alles ist auch über das Hauptmenü erreichbar.

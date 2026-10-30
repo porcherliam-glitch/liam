@@ -282,3 +282,30 @@ button.bag-slot:hover{border-color:var(--mint)}
 .chat-raid b{font:700 10px ui-monospace,monospace;letter-spacing:1.6px;color:#6fd3ff}
 .chat-raid small{font:9px ui-monospace,monospace;color:var(--muted);white-space:nowrap}
 @media (max-width:1100px){.online-grid{grid-template-columns:1fr}.chat-screen .chat-raid{width:calc(100vw - 56px)}}
+
+/* phones in landscape (and very low windows): compact bars, smaller titles, everything scrollable */
+@media (max-height:500px){
+  .topbar{height:46px;padding:0 max(14px,env(safe-area-inset-right,0px)) 0 max(14px,env(safe-area-inset-left,0px))}
+  .brand-mark{width:28px;height:28px;font-size:11px}.wordmark{font-size:12px}.wordmark small{display:none}
+  .resources{gap:12px;font-size:10px}
+  .menu-footer{display:none}
+  .menu-layout{height:calc(100% - 46px);padding:10px max(16px,env(safe-area-inset-right,0px)) 10px max(16px,env(safe-area-inset-left,0px));gap:18px;align-items:stretch;overflow:hidden}
+  .hero{align-self:center;overflow-y:auto;max-height:100%}
+  .hero h1{font-size:40px;letter-spacing:-2px;margin:10px 0}
+  .hero-copy{font-size:12px;line-height:1.5;margin:10px 0}
+  .controls-hint{display:none}
+  .primary.large{min-width:220px;height:46px}
+  .menu-layout>.main-nav{overflow-y:auto;max-height:100%;align-self:stretch;padding-right:4px}
+  .nav-item,.menu-layout>.main-nav .nav-item,.side-nav .nav-item{height:36px;min-height:36px}
+  .settings-link,.side-nav .settings-link{margin-top:6px}
+  .workspace{height:calc(100% - 46px)}
+  .side-nav{padding:10px 10px 10px max(12px,env(safe-area-inset-left,0px));overflow-y:auto}
+  .side-nav .main-nav{position:static}
+  .content{padding:14px max(16px,env(safe-area-inset-right,0px)) 40px 16px}
+  .content-heading{margin-bottom:14px}.content-heading h2{font-size:22px}
+  .modal-screen{place-items:start center;padding:10px 0}
+  .modal-card{padding:16px 18px}.modal-card h2{font-size:24px;letter-spacing:3px;margin:6px}
+  .result-main h1{font-size:40px;margin:10px 0}.result-layout{gap:20px}
+  .setting-row{padding:12px 0}
+  .toast{bottom:12px}
+}

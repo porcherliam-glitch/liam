@@ -123,6 +123,8 @@ export interface Settings {
   screenShake: boolean
   showFps: boolean
   gore: GoreSetting
+  /** On-screen touch controls: auto = on phones and tablets (no hover, coarse pointer). */
+  touch: "auto" | "on" | "off"
 }
 
 export interface LootStack { id: ItemId; qty: number }
@@ -195,6 +197,8 @@ export interface HudSnapshot {
   clock: string
   /** Weather name shown next to the clock ("" when clear). */
   weather?: string
+  /** On-screen touch controls are active (HUD moves out of their way). */
+  touch?: boolean
   /** Night vision is switched on (green overlay with grain). */
   nvg?: boolean
   area: string
@@ -218,7 +222,7 @@ export interface HudSnapshot {
   /** Player is dying (death camera). */
   dead: boolean
   /** Input device in use, for button prompts. */
-  device: "kb" | "pad"
+  device: "kb" | "pad" | "touch"
   message: string
   messageTime: number
   hint: string

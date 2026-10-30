@@ -2,7 +2,8 @@
  * input.ts — keyboard, mouse and gamepad for the raid. Direction conventions are fixed: W / left stick up = forward,
  * S back, A left, D right; mouse right / right stick right turns right; mouse up looks up (invertible).
  * Discrete presses are queued as "actions" (consumed once per fixed step), held keys are tracked separately.
- * Gamepad buttons are translated to the same key codes (see PAD_ACTIONS). dispose() detaches every listener.
+ * Gamepad buttons are translated to the same key codes (see PAD_ACTIONS); so are the on-screen touch buttons
+ * (touch.ts calls touchKey / touchStick / touchLook). dispose() detaches every listener.
  */
 import { INPUT_CONFIG } from "./config"
 import { BUTTON, applyDeadzone, firstPad, lookCurve, pressed } from "./gamepad"
@@ -21,8 +22,20 @@ const PAD_ACTIONS: [number, string][] = [
 ]
 /** Right-stick turn rate in rad/s at full deflection and sensitivity 0.75. */
 const PAD_LOOK_SPEED = 3.0
+/** Touch look: radians per CSS pixel dragged at sensitivity 0.75. */
+export const TOUCH_LOOK = 0.0052
+/** Move-stick deflection from which the player sprints. */
+export const TOUCH_SPRINT = 0.92
 
-export type InputDevice = "kb" | "pad"
+export type InputDevice = "kb" | "pad" | "touch"
+
+/** Move-stick vector from a drag offset (screen pixels, y down) inside a stick of radius r: x right, z forward. */
+export function stickVector(dx: number, dy: number, r: number): { x: number; z: number; mag: number } {
+  const len = Math.hypot(dx, dy)
+  if (len < r * 0.12) return { x: 0, z: 0, mag: 0 }
+  const mag = Math.min(1, len / r), k = mag / len
+  return { x: dx * k, z: -dy * k, mag }
+}
 
 export class Input {
   moveX = 0; moveZ = 0; yawDelta = 0; pitchDelta = 0
@@ -39,6 +52,8 @@ export class Input {
   private padPrev: boolean[] = []
   private padSprint = false
   private padFresh = true
+  private touchHeld = new Set<string>()
+  private touchX = 0; private touchZ = 0; private touchFire = false; private touchAds = false; private touchSprint = false
   private unsubscribe: Array<() => void> = []
 
   constructor(private target: HTMLElement) {
@@ -110,26 +125,53 @@ export class Input {
   }
 
   private combine(px: number, pz: number, padFire: boolean, padAds: boolean): void {
-    this.moveX = Math.max(-1, Math.min(1, this.kbX + px))
-    this.moveZ = Math.max(-1, Math.min(1, this.kbZ + pz))
-    this.fireHeld = this.mouseFire || padFire
-    this.adsHeld = this.mouseAds || padAds
-    this.sprintHeld = this.shiftHeld || this.padSprint
+    this.moveX = Math.max(-1, Math.min(1, this.kbX + px + this.touchX))
+    this.moveZ = Math.max(-1, Math.min(1, this.kbZ + pz + this.touchZ))
+    this.fireHeld = this.mouseFire || padFire || this.touchFire
+    this.adsHeld = this.mouseAds || padAds || this.touchAds
+    this.sprintHeld = this.shiftHeld || this.padSprint || this.touchSprint
   }
+
+  // ── on-screen touch controls (touch.ts) ──
+  /** Move stick: x right, z forward (each −1..1); a full push sprints. */
+  touchStick(x: number, z: number): void {
+    if (!this.capture) { this.touchX = this.touchZ = 0; this.touchSprint = false; return }
+    this.device = "touch"; this.touchX = x; this.touchZ = z; this.touchSprint = z > 0.5 && Math.hypot(x, z) >= TOUCH_SPRINT
+    this.combine(0, 0, false, false)
+  }
+  /** Look drag in CSS pixels (right / down positive). */
+  touchLook(dx: number, dy: number): void {
+    if (!this.capture) return
+    this.device = "touch"
+    const scale = this.sensitivity / 0.75 * TOUCH_LOOK
+    this.yawDelta -= dx * scale
+    this.pitchDelta -= dy * scale * 0.85 * (this.invertY ? -1 : 1)
+  }
+  /** A touch button pressed or released: queues the key code like a key press and tracks it while held. */
+  touchKey(code: string, down: boolean): void {
+    if (!this.capture) { this.touchHeld.delete(code); return }
+    this.device = "touch"
+    if (code === "Fire") { if (down && !this.touchFire) this.actions.add("Fire"); this.touchFire = down; this.combine(0, 0, false, false); return }
+    if (down) { this.actions.add(code); this.touchHeld.add(code) } else this.touchHeld.delete(code)
+  }
+  /** Aim button: toggles aiming down sights. */
+  touchAim(on: boolean): void { if (!this.capture) return; this.device = "touch"; this.touchAds = on; this.combine(0, 0, false, false) }
+  get touchAiming(): boolean { return this.touchAds }
 
   dispose(): void { for (const off of this.unsubscribe) off(); this.unsubscribe = []; this.actions.clear(); this.resetAll() }
   resetAll(): void {
     this.held.clear(); this.padHeld.clear(); this.kbX = 0; this.kbZ = 0; this.moveX = 0; this.moveZ = 0; this.yawDelta = 0; this.pitchDelta = 0
     this.mouseFire = false; this.mouseAds = false; this.shiftHeld = false; this.padSprint = false; this.fireHeld = false; this.adsHeld = false; this.sprintHeld = false; this.padFresh = true
+    this.touchHeld.clear(); this.touchX = 0; this.touchZ = 0; this.touchFire = false; this.touchAds = false; this.touchSprint = false
   }
   private recomputeAxes(): void {
     let x = 0, z = 0
     for (const code of this.held) { const m = KEYMAP[code]; if (m) { if (m[0] === "moveX") x += m[1]; else z += m[1] } }
     this.kbX = Math.max(-1, Math.min(1, x)); this.kbZ = Math.max(-1, Math.min(1, z))
-    this.moveX = this.kbX; this.moveZ = this.kbZ; this.sprintHeld = this.shiftHeld || this.padSprint
+    this.moveX = Math.max(-1, Math.min(1, this.kbX + this.touchX)); this.moveZ = Math.max(-1, Math.min(1, this.kbZ + this.touchZ)); this.sprintHeld = this.shiftHeld || this.padSprint || this.touchSprint
   }
   consumeLook(): { yaw: number; pitch: number } { const r = { yaw: this.yawDelta, pitch: this.pitchDelta }; this.yawDelta = 0; this.pitchDelta = 0; return r }
   consumeAction(code: string): boolean { const has = this.actions.has(code); if (has) this.actions.delete(code); return has }
-  isHeld(code: string): boolean { return this.held.has(code) || this.padHeld.has(code) }
+  isHeld(code: string): boolean { return this.held.has(code) || this.padHeld.has(code) || this.touchHeld.has(code) }
   clearActions(): void { this.actions.clear() }
 }

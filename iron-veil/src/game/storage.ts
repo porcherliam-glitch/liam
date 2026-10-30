@@ -15,15 +15,28 @@ export const SETTINGS_KEY = "ironVeil.settings.v1"
 
 export const DEFAULT_SETTINGS: Settings = {
   sensitivity: 0.75, adsSensitivity: 0.8, volume: 0.55, muted: false, quality: "high", invertY: false,
-  fov: 75, difficulty: "normal", screenShake: true, showFps: false, gore: "brutal",
+  fov: 75, difficulty: "normal", screenShake: true, showFps: false, gore: "brutal", touch: "auto",
 }
 
 function storageGet(key: string): string | null { try { return localStorage.getItem(key) } catch { return null } }
 function storageSet(key: string, value: string): boolean { try { localStorage.setItem(key, value); return true } catch { return false } }
 
 export function loadSettings(): Settings {
-  try { return sanitizeSettings(JSON.parse(storageGet(SETTINGS_KEY) || "null") as Partial<Settings> | null) } catch { return { ...DEFAULT_SETTINGS } }
+  const stored = storageGet(SETTINGS_KEY)
+  let s: Settings
+  try { s = sanitizeSettings(JSON.parse(stored || "null") as Partial<Settings> | null) } catch { s = { ...DEFAULT_SETTINGS } }
+  // first start on a phone or tablet: the light graphics setting (a saved choice always wins)
+  if (!stored && isTouchDevice()) s.quality = "low"
+  return s
 }
+
+/** Phones and tablets: no hover and a coarse (finger) pointer. */
+export function isTouchDevice(): boolean {
+  try { return typeof matchMedia === "function" && matchMedia("(hover: none) and (pointer: coarse)").matches } catch { return false }
+}
+
+/** Whether the on-screen touch controls are used with these settings on this device. */
+export function touchEnabled(s: Settings): boolean { return s.touch === "on" || (s.touch === "auto" && isTouchDevice()) }
 
 export function sanitizeSettings(raw: Partial<Settings> | null | undefined): Settings {
   if (!raw || typeof raw !== "object") return { ...DEFAULT_SETTINGS }
@@ -40,6 +53,7 @@ export function sanitizeSettings(raw: Partial<Settings> | null | undefined): Set
     screenShake: raw.screenShake !== false,
     showFps: raw.showFps === true,
     gore: raw.gore === "off" || raw.gore === "normal" ? raw.gore : "brutal",
+    touch: raw.touch === "on" || raw.touch === "off" ? raw.touch : "auto",
   }
 }
 

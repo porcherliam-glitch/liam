@@ -12,6 +12,7 @@ import { NavGrid } from "./nav"
 import { Company, createProfile, type RaidStats } from "./profile"
 import { ACHIEVEMENTS, weaponsOwned } from "./achievements"
 import { headingOf, mulberry32, wrapDegrees } from "./raid"
+import { TOUCH_SPRINT, stickVector } from "./input"
 import { DEFAULT_SETTINGS, LEGACY_KEYS, PROFILE_KEY, SETTINGS_KEY, loadProfile, loadSettings, sanitizeProfile, sanitizeSettings } from "./storage"
 import { addBleed, applyUse, freshVitals, speedFactor, stepVitals } from "./survival"
 import { AMMO_FOR, WEAPONS, WEAPON_ORDER, canAttach, effectiveWeapon } from "./weaponData"
@@ -377,6 +378,19 @@ describe("survival", () => {
   })
 })
 
+describe("touch stick", () => {
+  it("maps a thumb drag to movement: up is forward, a small wobble is ignored, a full push sprints", () => {
+    expect(stickVector(2, 3, 56)).toEqual({ x: 0, z: 0, mag: 0 })
+    const fwd = stickVector(0, -56, 56)
+    expect(fwd.z).toBeCloseTo(1); expect(fwd.x).toBeCloseTo(0); expect(fwd.mag).toBeGreaterThanOrEqual(TOUCH_SPRINT)
+    const right = stickVector(28, 0, 56)
+    expect(right.x).toBeCloseTo(0.5); expect(right.z).toBeCloseTo(0)
+    // beyond the rim the vector stays at length 1
+    const far = stickVector(-200, 200, 56)
+    expect(Math.hypot(far.x, far.z)).toBeCloseTo(1); expect(far.x).toBeLessThan(0); expect(far.z).toBeLessThan(0)
+  })
+})
+
 describe("new weapons", () => {
   it("flare pistol, shotgun revolver and G-8 load their own ammunition", () => {
     expect(AMMO_FOR[WEAPONS.flare.caliber!]).toEqual(["ammo_flare"])
@@ -603,6 +617,12 @@ describe("storage", () => {
   it("round-trips a fresh profile unchanged", () => {
     const p = createProfile(1000)
     expect(sanitizeProfile(JSON.parse(JSON.stringify(p)), 1000)).toEqual(p)
+  })
+  it("keeps the touch control choice and falls back to automatic", () => {
+    expect(sanitizeSettings({ touch: "on" }).touch).toBe("on")
+    expect(sanitizeSettings({ touch: "off" }).touch).toBe("off")
+    expect(sanitizeSettings({ touch: "yes" as never }).touch).toBe("auto")
+    expect(DEFAULT_SETTINGS.touch).toBe("auto")
   })
   it("sanitizes settings with brutal gore as default", () => {
     expect(sanitizeSettings(null)).toEqual(DEFAULT_SETTINGS)

@@ -131,8 +131,10 @@ export class Hud {
     this.text("ammo", h.melee ? "—" : String(h.ammo).padStart(2, "0"))
     this.text("reserve", h.melee ? "" : String(h.reserve))
     this.text("ammoName", h.melee ? "" : h.ammoName)
-    this.text("reload", h.melee ? "" : h.reloading > 0 ? "NACHLADEN" : h.ammo === 0 ? (h.reserve > 0 ? `${pad ? "Ⓧ" : "R"} · NACHLADEN` : "KEINE MUNITION") : "")
-    this.text("keyQ", pad ? "RB" : "Q"); this.text("keyG", pad ? "LB" : "G")
+    const touch = !!h.touch && !pad
+    r.classList.toggle("touch", !!h.touch)
+    this.text("reload", h.melee ? "" : h.reloading > 0 ? "NACHLADEN" : h.ammo === 0 ? (h.reserve > 0 ? `${pad ? "Ⓧ" : touch ? "↻" : "R"} · NACHLADEN` : "KEINE MUNITION") : "")
+    this.text("keyQ", pad ? "RB" : touch ? "✚" : "Q"); this.text("keyG", pad ? "LB" : touch ? "●" : "G")
     this.text("interaction", h.interaction)
     this.text("extractName", h.extractionName ? `EVAKUIERUNG · ${h.extractionName.toUpperCase()}` : "EVAKUIERUNG")
     this.text("message", h.messageTime > 0 ? h.message : "")

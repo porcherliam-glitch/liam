@@ -443,6 +443,7 @@ export class GameUI {
       toggle("quality", "GRAFIKQUALITÄT", "Niedrig: ohne Schatten und mit geringerer Auflösung – für schwächere Rechner.", s.quality === "high", s.quality === "high" ? "HOCH" : "NIEDRIG"),
       toggle("shake", "BILDSCHIRMWACKELN", "Wackeln bei Schüssen, Treffern und Explosionen.", s.screenShake, s.screenShake ? "AN" : "AUS"),
       toggle("fps", "BILDRATE ANZEIGEN", "Zeigt die Bilder pro Sekunde im Einsatz.", s.showFps, s.showFps ? "AN" : "AUS"),
+      toggle("touch", "TOUCH-STEUERUNG", "Knöpfe und Stick auf dem Bildschirm. Automatisch: an auf Handys und Tablets.", s.touch !== "off", s.touch === "auto" ? "AUTOMATISCH" : s.touch === "on" ? "AN" : "AUS"),
     ].join("")
   }
 
@@ -473,7 +474,7 @@ export class GameUI {
     const grid = (bag: Bag, from: "bag" | "secure") => `<div class="bag-grid">${Array.from({ length: bag.slots }, (_, i) => {
       const s = bag.items[i]; if (!s) return `<span class="bag-slot empty"></span>`
       const it = ITEMS[s.id], use = from === "bag" && !!it.use
-      return `<div class="bag-slot live" style="--rar:${RARITY_COLORS[it.rarity]}" title="${esc(it.name)}: ${esc(it.description)}">${icon(s.id)}<b>${s.qty > 1 ? s.qty : ""}</b><small>${esc(it.short)}</small><div class="slot-menu">${use ? `<button data-action="raid-use" data-index="${i}">BENUTZEN</button>` : ""}${from === "bag" ? `<button data-action="raid-secure" data-index="${i}">⛨ SICHERN</button><button data-action="raid-drop" data-index="${i}">ABLEGEN</button>` : `<button data-action="raid-unsecure" data-index="${i}">IN RUCKSACK</button>`}</div></div>`
+      return `<div class="bag-slot live" tabindex="0" style="--rar:${RARITY_COLORS[it.rarity]}" title="${esc(it.name)}: ${esc(it.description)}">${icon(s.id)}<b>${s.qty > 1 ? s.qty : ""}</b><small>${esc(it.short)}</small><div class="slot-menu">${use ? `<button data-action="raid-use" data-index="${i}">BENUTZEN</button>` : ""}${from === "bag" ? `<button data-action="raid-secure" data-index="${i}">⛨ SICHERN</button><button data-action="raid-drop" data-index="${i}">ABLEGEN</button>` : `<button data-action="raid-unsecure" data-index="${i}">IN RUCKSACK</button>`}</div></div>`
     }).join("")}</div>`
     const value = st.bag.value(id => ITEMS[id].cat === "valuable" ? this.company.sellPrice(id) : 0)
     const bar = (label: string, val: number, cls: string, text = String(Math.round(val))) => `<div class="vbar ${cls}"><small>${label}</small><div><i style="width:${Math.max(0, Math.min(100, val))}%"></i></div><b>${text}</b></div>`
@@ -592,6 +593,7 @@ export class GameUI {
       mute: () => toggleSetting(() => { this.settings.muted = !this.settings.muted }),
       invert: () => toggleSetting(() => { this.settings.invertY = !this.settings.invertY }),
       quality: () => toggleSetting(() => { this.settings.quality = this.settings.quality === "high" ? "low" : "high" }),
+      touch: () => toggleSetting(() => { this.settings.touch = this.settings.touch === "auto" ? "on" : this.settings.touch === "on" ? "off" : "auto" }),
       shake: () => toggleSetting(() => { this.settings.screenShake = !this.settings.screenShake }),
       fps: () => toggleSetting(() => { this.settings.showFps = !this.settings.showFps }),
       difficulty: () => toggleSetting(() => { const order: Difficulty[] = ["easy", "normal", "hard"]; this.settings.difficulty = order[(order.indexOf(this.settings.difficulty) + 1) % 3] }),

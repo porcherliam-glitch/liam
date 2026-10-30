@@ -12,7 +12,7 @@ export const DIST = join(ROOT, "dist")
 export const SHOTS = join(ROOT, "verification-shots")
 const MIME = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".png": "image/png", ".json": "application/json" }
 
-export async function openGame({ settings, profile, viewport = { width: 1280, height: 720 }, initScript } = {}) {
+export async function openGame({ settings, profile, viewport = { width: 1280, height: 720 }, initScript, mobile = false } = {}) {
   if (!existsSync(join(DIST, "index.html"))) throw new Error("Build fehlt – zuerst `npm run build` ausführen")
   mkdirSync(SHOTS, { recursive: true })
   const server = createServer(async (req, res) => {
@@ -30,7 +30,8 @@ export async function openGame({ settings, profile, viewport = { width: 1280, he
     executablePath: process.env.CHROMIUM_PATH || undefined,
     args: ["--no-sandbox", "--use-gl=angle", "--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--autoplay-policy=no-user-gesture-required"],
   })
-  const page = await browser.newPage({ viewport })
+  // mobile: a phone in landscape (touch events, coarse pointer, no hover)
+  const page = await browser.newPage(mobile ? { viewport, hasTouch: true, isMobile: true, deviceScaleFactor: 2 } : { viewport })
   // software rendering of the big zone can take seconds per frame: give clicks and waits room
   page.setDefaultTimeout(90000)
   await page.addInitScript(([s, p]) => {
@@ -39,7 +40,7 @@ export async function openGame({ settings, profile, viewport = { width: 1280, he
     sessionStorage.setItem("iv-init", "1")
     // software rendering draws the big zone at ~1 fps: let the fixed-step loop catch up a full second per frame
     window.__ivMaxFrame = 1
-  }, [settings ?? { sensitivity: 0.75, adsSensitivity: 0.8, volume: 0.5, muted: true, quality: "low", invertY: false, fov: 75, difficulty: "normal", screenShake: false, showFps: false }, profile ?? null])
+  }, [settings ?? { sensitivity: 0.75, adsSensitivity: 0.8, volume: 0.5, muted: true, quality: "low", invertY: false, fov: 75, difficulty: "normal", screenShake: false, showFps: false, touch: mobile ? "on" : "off" }, profile ?? null])
   if (initScript) await page.addInitScript(initScript)
   const errors = []
   page.on("pageerror", e => errors.push(String(e)))

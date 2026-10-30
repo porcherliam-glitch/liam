@@ -14,7 +14,8 @@
     "verify:edge": "node scripts/verify-edge.mjs",
     "verify:gamepad": "node scripts/verify-gamepad.mjs",
     "verify:online": "node scripts/verify-online.mjs",
-    "verify:all": "npm run verify && npm run verify:systems && npm run verify:edge && npm run verify:gamepad && npm run verify:online"
+    "verify:all": "npm run verify && npm run verify:systems && npm run verify:edge && npm run verify:gamepad && npm run verify:online && npm run verify:touch",
+    "verify:touch": "node scripts/verify-touch.mjs"
   },
   "dependencies": {
     "three": "^0.180.0"
