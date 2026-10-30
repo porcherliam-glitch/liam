@@ -214,7 +214,7 @@ describe("base", () => {
       for (const a of B.attackSpawns) expect(ok(a) && ok(B.gate), `attack ${a.x},${a.z}`).toBe(true)
       // structure solids stay on their plots (walls/second tower excepted) and never cover a station
       for (const p of B.plots) {
-        if (p.structure === "walls" || p.structure === "tower") continue
+        if (p.structure === "walls" || p.structure === "tower" || p.structure === "turrets") continue
         for (const s of structureModel(p, levels[p.structure]).solids) {
           expect(s.x - s.w / 2, p.structure).toBeGreaterThanOrEqual(p.x - p.w / 2 - 0.01); expect(s.x + s.w / 2, p.structure).toBeLessThanOrEqual(p.x + p.w / 2 + 0.01)
           expect(s.z - s.d / 2, p.structure).toBeGreaterThanOrEqual(p.z - p.d / 2 - 0.01); expect(s.z + s.d / 2, p.structure).toBeLessThanOrEqual(p.z + p.d / 2 + 0.01)

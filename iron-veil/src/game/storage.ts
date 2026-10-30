@@ -3,7 +3,7 @@
  * blocked or corrupt storage degrades to defaults. Unit-tested.
  */
 import { ACHIEVEMENT_IDS } from "./achievements"
-import { RESEARCH, STAFF_JOBS, STRUCTURES, type ResearchId, type StaffJob, type StructureId } from "./baseData"
+import { EXPEDITIONS, RESEARCH, STAFF_JOBS, STRUCTURES, type ResearchId, type StaffJob, type StructureId } from "./baseData"
 import { isItemId, type ItemId } from "./items"
 import type { BagSlot } from "./bag"
 import type { ActiveContract, ContractOffer, Loadout, Profile, Settings } from "./types"
@@ -95,7 +95,8 @@ export function sanitizeProfile(raw: unknown, now = Date.now()): Profile | null 
     callsign: typeof r.callsign === "string" && r.callsign.trim() ? r.callsign.slice(0, 24) : "VEIL-01",
     money: int(r.money, 0, 1e9, 0), xp: int(r.xp, 0, 1e9, 0), level: int(r.level, 1, 999, 1),
     stash, loadout: sanitizeLoadout(r.loadout), structures, staff,
-    production: { workshop: num(r.production?.workshop, 0, 1e6, 0), clinic: num(r.production?.clinic, 0, 1e6, 0), kitchen: num(r.production?.kitchen, 0, 1e6, 0) },
+    production: { workshop: num(r.production?.workshop, 0, 1e6, 0), clinic: num(r.production?.clinic, 0, 1e6, 0), kitchen: num(r.production?.kitchen, 0, 1e6, 0), scrapyard: num(r.production?.scrapyard, 0, 1e6, 0) },
+    expeditions: Array.isArray(r.expeditions) ? (r.expeditions as any[]).filter(e => e && typeof e.destination === "string" && e.destination in EXPEDITIONS && Number.isFinite(e.endsAt) && Number.isFinite(e.id)).slice(0, 3).map(e => ({ id: e.id, destination: e.destination, crew: int(e.crew, 1, 3, 1), endsAt: e.endsAt })) : [],
     workshopAmmo: typeof r.workshopAmmo === "string" && r.workshopAmmo in AMMO ? r.workshopAmmo as AmmoId : "ammo_9mm",
     crafting: Array.isArray(r.crafting) ? (r.crafting as any[]).filter(j => j && typeof j.station === "string" && typeof j.recipe === "string" && Number.isFinite(j.endsAt)).slice(0, 8).map(j => ({ station: j.station, recipe: j.recipe, endsAt: j.endsAt })) : [],
     research,

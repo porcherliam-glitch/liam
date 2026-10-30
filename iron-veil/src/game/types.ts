@@ -4,7 +4,7 @@ import type { WeatherId } from "./weather"
  * Coordinates: world XZ is the ground plane, Y is up. Yaw 0 looks toward -Z; positive yaw turns left (counter-clockwise from above).
  */
 import type { BagSlot } from "./bag"
-import type { ContractKind, ResearchId, StaffJob, StructureId, TimeOfDay } from "./baseData"
+import type { ContractKind, ExpeditionRun, ResearchId, StaffJob, StructureId, TimeOfDay } from "./baseData"
 import type { ItemId } from "./items"
 import type { AmmoId, WeaponId, WeaponMods } from "./weaponData"
 
@@ -85,7 +85,9 @@ export interface Profile {
   structures: Record<StructureId, number>
   staff: Record<StaffJob, number>
   /** Fractional production progress per producing structure. */
-  production: { workshop: number; clinic: number; kitchen: number }
+  production: { workshop: number; clinic: number; kitchen: number; scrapyard: number }
+  /** Garage crews out on expeditions (they come back on their own; see Company.tick). */
+  expeditions: ExpeditionRun[]
   /** Ammunition the workshop produces. */
   workshopAmmo: AmmoId
   crafting: { station: string; recipe: string; endsAt: number }[]

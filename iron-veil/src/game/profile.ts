@@ -5,7 +5,7 @@
  */
 import { newAchievements, type Achievement } from "./achievements"
 import { Bag, type BagSlot } from "./bag"
-import { BASE_ATTACK, CONTRACT_TEMPLATES, PRODUCTION, RECIPES, RESEARCH, STAFF_JOBS, STRUCTURES, defenseRating, secureSlots, staffCap, type Cost, type ResearchId, type StaffJob, type StructureId } from "./baseData"
+import { BASE_ATTACK, CONTRACT_TEMPLATES, EXPEDITIONS, PRODUCTION, RECIPES, RESEARCH, STAFF_JOBS, STRUCTURES, defenseRating, recycleYield, rollExpedition, secureSlots, staffCap, type Cost, type ExpeditionId, type ProducerId, type ResearchId, type StaffJob, type StructureId } from "./baseData"
 import { DIFFICULTY } from "./data"
 import { INFECTED, type InfectedKind } from "./infectedData"
 import { BACKPACKS, ITEMS, sellPrice, weaponItem, type GearId, type ItemId } from "./items"
@@ -37,7 +37,7 @@ export function createProfile(now = Date.now()): Profile {
       bag: [{ id: "ammo_556", qty: 60 }, { id: "ammo_556", qty: 30 }, { id: "ammo_9mm", qty: 30 }, { id: "bandage", qty: 2 }, { id: "water", qty: 1 }, { id: "canned", qty: 1 }], secure: [],
     },
     structures, staff: Object.fromEntries(STAFF_IDS.map(id => [id, 0])) as Record<StaffJob, number>,
-    production: { workshop: 0, clinic: 0, kitchen: 0 }, workshopAmmo: "ammo_9mm", crafting: [],
+    production: { workshop: 0, clinic: 0, kitchen: 0, scrapyard: 0 }, expeditions: [], workshopAmmo: "ammo_9mm", crafting: [],
     research: [], activeResearch: null,
     contracts: { offers: [], active: [], refreshAt: 0 },
     base: { threat: 10, attackPending: false, lastAttack: now },
@@ -121,22 +121,32 @@ export class Company {
     const p = this.profile
     const elapsed = Math.min(OFFLINE_CAP, Math.max(0, (now - p.lastTick) / 1000))
     const notes: string[] = []
-    const powered = p.structures.generator >= 2 ? 1.25 : 1
-    const produce = (key: "workshop" | "clinic" | "kitchen", out: () => { id: ItemId; qty: number }) => {
+    const produce = (key: ProducerId, out: () => { id: ItemId; qty: number }) => {
       const staff = p.staff[key as StaffJob] ?? 0, lvl = p.structures[key]
       if (!staff || !lvl) return
-      p.production[key] += elapsed / 3600 * PRODUCTION[key].perHour * staff * (0.6 + lvl * 0.4) * powered
-      let made = 0
-      while (p.production[key] >= 1 && made < 10000) {
+      p.production[key] += elapsed / 3600 * this.productionRate(key)
+      const made = new Map<ItemId, number>()
+      let total = 0
+      while (p.production[key] >= 1 && total < 10000) {
         const o = out(); if (p.production[key] < o.qty && key === "workshop") break
         p.production[key] -= key === "workshop" ? o.qty : 1
-        this.addItem(o.id, o.qty); made += o.qty
+        this.addItem(o.id, o.qty); made.set(o.id, (made.get(o.id) ?? 0) + o.qty); total += o.qty
       }
-      if (made > 0) notes.push(`${STRUCTURES[key].name}: ${made}× ${ITEMS[out().id].name}`)
+      if (total > 0) notes.push(`${STRUCTURES[key].name}: ${[...made].map(([id, n]) => `${n}× ${ITEMS[id].name}`).join(", ")}`)
     }
     produce("workshop", () => ({ id: p.workshopAmmo, qty: 10 }))
     produce("clinic", () => ({ id: p.structures.clinic >= 2 && rng() < 0.35 ? "medkit" : "bandage", qty: 1 }))
     produce("kitchen", () => ({ id: p.structures.kitchen >= 2 && rng() < 0.5 ? "canned" : "water", qty: 1 }))
+    produce("scrapyard", () => ({ id: recycleYield(p.structures.scrapyard, rng()), qty: 1 }))
+    // expeditions that are back
+    for (const run of [...p.expeditions]) if (now >= run.endsAt) {
+      p.expeditions.splice(p.expeditions.indexOf(run), 1)
+      const r = rollExpedition(run.destination, p.structures.garage, rng)
+      for (const [id, n] of r.items) this.addItem(id, n)
+      p.money += r.money
+      const list = r.items.slice(0, 4).map(([id, n]) => `${n}× ${ITEMS[id].name}`).join(", ")
+      notes.push(`${r.ambush ? "Hinterhalt! " : ""}Expedition ${EXPEDITIONS[run.destination].name} zurück: ${list}${r.items.length > 4 ? " …" : ""} · ${r.money} $`)
+    }
     for (const job of [...p.crafting]) if (now >= job.endsAt) {
       const recipe = RECIPES.find(r => r.id === job.recipe)
       if (recipe) { this.addItem(recipe.output, recipe.qty); notes.push(`Fertig: ${recipe.qty}× ${ITEMS[recipe.output].name}`) }
@@ -344,12 +354,31 @@ export class Company {
   }
 
   // ───────────── base ─────────────
+  /** Items per hour a producing structure makes with its current staff (generator stage 2 adds 25 %). */
+  productionRate(key: ProducerId): number {
+    const p = this.profile, staff = p.staff[key as StaffJob] ?? 0, lvl = p.structures[key]
+    if (!staff || !lvl) return 0
+    return PRODUCTION[key].perHour * staff * (0.6 + lvl * 0.4) * (p.structures.generator >= 2 ? 1.25 : 1)
+  }
+  /** People out with the garage trucks (not available for jobs until they are back). */
+  crewOut(): number { return this.profile.expeditions.reduce((n, e) => n + e.crew, 0) }
+  expeditionSlots(): number { return this.level("garage") }
+  sendExpedition(id: ExpeditionId, now = Date.now()): ActionResult {
+    const e = EXPEDITIONS[id], p = this.profile
+    if (this.level("garage") < e.garage) return fail(`Garage Stufe ${e.garage} nötig`)
+    if (p.expeditions.length >= this.expeditionSlots()) return fail("Alle Fahrzeuge unterwegs")
+    if (this.availableStaff() < e.crew) return fail(`${e.crew} freie Leute nötig`)
+    if (this.count("fuel") < 1 && id !== "outskirts") return fail("1× Treibstoff nötig")
+    if (id !== "outskirts") this.takeItem("fuel", 1)
+    p.expeditions.push({ id: now + p.expeditions.length, destination: id, crew: e.crew, endsAt: now + e.minutes * 60000 })
+    this.save(); return ok(`Trupp fährt los: ${e.name} · zurück in ${e.minutes} min`)
+  }
   staffTotal(): number { return STAFF_IDS.reduce((n, j) => n + this.profile.staff[j], 0) }
   staffCap(): number { return staffCap(this.level("hq"), this.level("bunks")) + Math.min(6, this.profile.residents) }
   /** Survivors brought out of a raid move into the base. */
   addResidents(n: number): void { if (n <= 0) return; this.profile.residents = Math.min(30, this.profile.residents + n); this.profile.stats.rescued += n; this.save() }
-  availableStaff(): number { return this.staffCap() - this.staffTotal() }
-  defense(): number { return defenseRating(this.level("walls"), this.level("tower"), this.profile.staff.tower, this.level("generator")) }
+  availableStaff(): number { return this.staffCap() - this.staffTotal() - this.crewOut() }
+  defense(): number { return defenseRating(this.level("walls"), this.level("tower"), this.profile.staff.tower, this.level("generator"), this.level("turrets")) }
 
   buildRequirement(id: StructureId): string | null {
     const s = STRUCTURES[id], lvl = this.level(id)
@@ -374,7 +403,7 @@ export class Company {
     return parts.join(", ")
   }
 
-  jobCap(job: StaffJob): number { const lvl = this.level(STAFF_JOBS[job].structure); return job === "tower" ? lvl * 2 : lvl }
+  jobCap(job: StaffJob): number { const lvl = this.level(STAFF_JOBS[job].structure); return job === "tower" || job === "scrapyard" ? lvl * 2 : lvl }
 
   assignStaff(job: StaffJob, delta: number): ActionResult {
     if (this.level(STAFF_JOBS[job].structure) === 0) return fail("Gebäude noch nicht errichtet")

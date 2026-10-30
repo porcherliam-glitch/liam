@@ -94,7 +94,11 @@ Schreiben dürfen Personen, mit denen das Artefakt mindestens als „Contributor
 - **Überleben**: Gesundheit, Blutungen, Hunger, Durst, Infektion, Schmerzmittel, Stimulanzien, Tragegewicht.
 - **Andere Überlebende**: Lager mit Händlerin, Sanitäterin und Wache; verirrte und verletzte Menschen zum Retten, die danach in der Basis wohnen.
 - **Online** (als claude.ai-Artefakt): andere Spieler als Echos, Funk, Bestenliste, Ausrüstung gefallener Spieler.
-- **Basis**: 13 Gebäude mit je bis zu 3 Stufen, Personal, Herstellung (Medizin, Granaten, Westen, Rucksäcke, Munition, Aufsätze), 9 Forschungen, Aufträge über Funk, Angriffe auf die Basis.
+- **Basis**: 16 Gebäude mit je bis zu 3 Stufen, Personal, Herstellung (Medizin, Granaten, Westen, Rucksäcke, Munition, Aufsätze), 9 Forschungen, Aufträge über Funk, Angriffe auf die Basis.
+  - **Recyclinghof**: Sammler gewinnen laufend Baumaterial (Altmetall, Holz, Stoff; ab Stufe 2 Teile und Chemikalien, ab Stufe 3 Elektronik und Werkzeug).
+  - **Garage & Expeditionen**: freie Leute fahren für 20–90 Minuten los (Stadtrand, Bauernhöfe, Industriegebiet, Militärdepot) und bringen Beute und Geld zurück – mit etwas Risiko, in einen Hinterhalt zu geraten.
+  - **Geschütztürme**: automatische Maschinengewehre auf erhöhten Nestern neben dem Tor schießen bei der Basisverteidigung selbst auf Infizierte und erhöhen die Verteidigung.
+  - Die Basis-Seite zeigt, was jedes Gebäude pro Stunde produziert, und die laufenden Expeditionen mit Restzeit.
 - **Erfolge**: 21 Meilensteine (Erstes Blut, Kopfjäger, Kolossfäller, Waffensammler, Bauherr, Festung, Forschergeist …) mit Fortschrittsanzeige auf einer eigenen Seite; neue Erfolge werden im Hauptmenü gemeldet.
 - **Einstellungen**: Maus- und Zielempfindlichkeit, Sichtfeld, Lautstärke, Gore, Schwierigkeit, Grafikqualität, Bildschirmwackeln, Bildrate.
 

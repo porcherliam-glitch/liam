@@ -7,7 +7,7 @@
  */
 import { AudioSystem } from "./audio"
 import type { Bag, BagSlot } from "./bag"
-import { BASE_ATTACK, RECIPES, RESEARCH, RESEARCH_ORDER, STAFF_JOBS, STRUCTURES, STRUCTURE_ORDER, TIMES, TIME_ORDER, type RecipeStation, type ResearchId, type StaffJob, type StructureId, type TimeOfDay } from "./baseData"
+import { BASE_ATTACK, EXPEDITIONS, EXPEDITION_ORDER, PRODUCTION, RECIPES, RESEARCH, RESEARCH_ORDER, STAFF_JOBS, STRUCTURES, STRUCTURE_ORDER, TIMES, TIME_ORDER, type ExpeditionId, type ProducerId, type RecipeStation, type ResearchId, type StaffJob, type StructureId, type TimeOfDay } from "./baseData"
 import { DIFFICULTY, xpForLevel } from "./data"
 import { MenuNavigator } from "./gamepad"
 import { Hud, drawTacticalMap, formatTime, type TacticalMapData } from "./hud"
@@ -360,8 +360,35 @@ export class GameUI {
     this.panel("build", "BASIS & PERSONAL", `<div class="content-heading"><div><span class="eyebrow">AUSBAU DER BASIS</span><h2>Basis & Personal.</h2></div><div class="staff-counter"><small>FREIES PERSONAL</small><b>${this.company.availableStaff()} <span>/ ${this.company.staffCap()}</span></b></div></div>
       <div class="base-status"><div><small>BEDROHUNG</small><div class="threat-bar"><i style="width:${threat}%"></i><em style="left:${BASE_ATTACK.threshold}%"></em></div><b>${threat} %</b></div><div><small>VERTEIDIGUNG</small><b>${def}</b></div>${p.base.attackPending ? `<button class="primary" data-action="attack"><span>ANGRIFF ABWEHREN</span><b>☣</b></button>` : `<span class="slot-note">Ab ${BASE_ATTACK.threshold} % greifen Infizierte die Basis an. Mauern, Türme und Wachen halten sie auf.</span>`}</div>
       <section class="staff-section"><div class="subheading"><h3>PERSONAL EINTEILEN</h3><span>QUARTIERE AUSBAUEN FÜR MEHR LEUTE</span></div><div class="staff-grid">${jobs}</div></section>
+      ${this.productionHtml()}
+      ${this.expeditionsHtml()}
       <div class="building-grid v3">${cards}</div>`)
     this.buildFocus = null
+  }
+
+  /** Production per hour of every staffed building (what the base makes while you are away). */
+  private productionHtml(): string {
+    const c = this.company, p = c.profile
+    const rows = (["workshop", "clinic", "kitchen", "scrapyard"] as ProducerId[]).map(k => {
+      const rate = c.productionRate(k), lvl = c.level(k)
+      const what = k === "workshop" ? esc(ITEMS[p.workshopAmmo].name) : esc(PRODUCTION[k].describe)
+      return `<div class="prod-row ${rate ? "" : "idle"}"><b>${esc(STRUCTURES[k].name)}</b><span>${lvl ? what : "nicht gebaut"}</span><strong>${rate ? `${Math.round(rate)} / h` : lvl ? "kein Personal" : "—"}</strong></div>`
+    }).join("")
+    return `<section class="prod-section"><div class="subheading"><h3>PRODUKTION</h3><span>LÄUFT WEITER, AUCH WÄHREND DER EINSÄTZE (BIS 2 STUNDEN)</span></div><div class="prod-grid">${rows}</div></section>`
+  }
+
+  /** Garage: send crews out; running trips with time left. */
+  private expeditionsHtml(): string {
+    const c = this.company, p = c.profile, garage = c.level("garage")
+    if (!garage) return `<section class="exp-section"><div class="subheading"><h3>EXPEDITIONEN</h3><span>GARAGE ERRICHTEN, UM TRUPPS LOSZUSCHICKEN</span></div></section>`
+    const now = Date.now()
+    const running = p.expeditions.map(e => `<div class="exp-run"><b>${esc(EXPEDITIONS[e.destination].name)}</b><span>${e.crew} ${e.crew === 1 ? "Person" : "Personen"}</span><strong data-ends="${e.endsAt}">${formatTime(Math.max(0, (e.endsAt - now) / 1000))}</strong></div>`).join("")
+    const cards = EXPEDITION_ORDER.map(id => {
+      const e = EXPEDITIONS[id], locked = garage < e.garage, risk = Math.round(e.risk * (garage >= 3 ? 50 : 100))
+      const why = locked ? `GARAGE ${e.garage}` : p.expeditions.length >= c.expeditionSlots() ? "ALLE UNTERWEGS" : c.availableStaff() < e.crew ? `${e.crew} FREIE LEUTE NÖTIG` : id !== "outskirts" && c.count("fuel") < 1 ? "TREIBSTOFF NÖTIG" : ""
+      return `<article class="exp-card ${locked ? "locked" : ""}"><h4>${esc(e.name)}</h4><p>${esc(e.description)}</p><small>${e.crew} ${e.crew === 1 ? "PERSON" : "PERSONEN"} · ${e.minutes} MIN · RISIKO ${risk} %${id !== "outskirts" ? " · 1× TREIBSTOFF" : ""}</small><button data-action="expedition" data-id="${id}" ${why ? "disabled" : ""}>${why || "LOSSCHICKEN"}</button></article>`
+    }).join("")
+    return `<section class="exp-section"><div class="subheading"><h3>EXPEDITIONEN · ${p.expeditions.length} / ${c.expeditionSlots()} FAHRZEUGE</h3><span>DER TRUPP KOMMT VON SELBST ZURÜCK, DIE BEUTE LANDET IM LAGER</span></div>${running ? `<div class="exp-running">${running}</div>` : ""}<div class="exp-grid">${cards}</div></section>`
   }
 
   // ───────────────────────────── research ─────────────────────────────
@@ -536,6 +563,7 @@ export class GameUI {
       radio: () => this.show("radio"), trader: () => this.show("trader"), inventory: () => this.show("inventory"), armory: () => this.show("armory"), crafting: () => this.show("crafting"),
       build: () => this.show("build"),
       "build-structure": () => this.result(this.company.build(id as StructureId), "build_complete", () => this.handlers.structuresChanged()),
+      expedition: () => this.result(this.company.sendExpedition(id as ExpeditionId)),
       research: () => id ? this.result(this.company.startResearch(id as ResearchId)) : this.show("research"),
       settings: () => this.show("settings"),
       online: () => this.show("online"),

@@ -5,7 +5,8 @@
 import type { ItemId } from "./items"
 
 export type StructureId = "hq" | "bunks" | "storage" | "workshop" | "armory" | "workbench" | "clinic" | "kitchen" | "generator" | "lab" | "radio" | "walls" | "tower"
-export type StaffJob = "workshop" | "clinic" | "kitchen" | "lab" | "tower"
+  | "scrapyard" | "garage" | "turrets"
+export type StaffJob = "workshop" | "clinic" | "kitchen" | "lab" | "tower" | "scrapyard"
 export type Cost = { money: number; items: Partial<Record<ItemId, number>> }
 
 export interface StructureDef {
@@ -52,19 +53,75 @@ export const STRUCTURES: Record<StructureId, StructureDef> = {
     perks: ["Holzpalisade (+20 Verteidigung)", "Betonmauer (+20)", "Stahltore und Stacheldraht (+20)"], costs: [c(400, { wood: 25 }), c(1500, { scrap: 30, wood: 10 }), c(3600, { scrap: 45, parts: 4 })], needsHq: [1, 2, 3] },
   tower: { name: "Wachturm", short: "TURM", description: "Wachen schießen bei Angriffen auf Infizierte.", max: 3,
     perks: ["1 Turm (+15 Verteidigung)", "2 Türme (+15)", "Scheinwerfer und MG (+20)"], costs: [c(600, { wood: 20, scrap: 6 }), c(1600, { wood: 15, scrap: 20 }), c(4200, { scrap: 30, parts: 3, electronics: 2 })], needsHq: [1, 2, 3] },
+  scrapyard: { name: "Recyclinghof", short: "REC", description: "Sammler zerlegen Schrott und Autowracks zu Baumaterial.", max: 3,
+    perks: ["Altmetall, Holz und Stoff", "+ Maschinenteile und Chemikalien, schneller", "+ Elektronik und Werkzeug"],
+    costs: [c(600, { wood: 10, scrap: 5 }), c(1600, { scrap: 20, wood: 10, tools: 1 }), c(3800, { scrap: 30, parts: 4, tools: 2 })], needsHq: [1, 2, 3], needsPower: [0, 0, 1] },
+  garage: { name: "Garage & Fuhrpark", short: "GAR", description: "Schickt Trupps auf Expeditionen in die Umgebung. Sie bringen Beute zurück, solange Sie im Einsatz sind.", max: 3,
+    perks: ["1 Trupp: Stadtrand", "2 Trupps: + Bauernhöfe und Industriegebiet", "3 Trupps: + Militärdepot, halbes Risiko"],
+    costs: [c(900, { scrap: 15, parts: 2, fuel: 1 }), c(2200, { scrap: 25, parts: 4, fuel: 2 }), c(5000, { parts: 6, electronics: 2, fuel: 3, tools: 1 })], needsHq: [1, 2, 3] },
+  turrets: { name: "Geschütztürme", short: "MG", description: "Automatische Maschinengewehre neben dem Tor schießen bei Angriffen auf Infizierte.", max: 3,
+    perks: ["1 Geschütz (+15 Verteidigung)", "2 Geschütze (+15)", "Schwere Geschütze mit Schutzschild (+20)"],
+    costs: [c(1400, { scrap: 20, parts: 3, electronics: 1 }), c(2800, { scrap: 25, parts: 4, electronics: 2 }), c(5200, { scrap: 30, parts: 6, electronics: 4 })], needsHq: [2, 2, 3], needsPower: [1, 1, 2] },
 }
-export const STRUCTURE_ORDER: StructureId[] = ["hq", "bunks", "storage", "workbench", "workshop", "armory", "clinic", "kitchen", "generator", "lab", "radio", "walls", "tower"]
+export const STRUCTURE_ORDER: StructureId[] = ["hq", "bunks", "storage", "workbench", "workshop", "armory", "clinic", "kitchen", "generator", "lab", "radio", "scrapyard", "garage", "walls", "tower", "turrets"]
 
 export const STAFF_JOBS: Record<StaffJob, { name: string; structure: StructureId }> = {
   workshop: { name: "Techniker", structure: "workshop" }, clinic: { name: "Sanitäter", structure: "clinic" }, kitchen: { name: "Köche", structure: "kitchen" },
-  lab: { name: "Analysten", structure: "lab" }, tower: { name: "Wachen", structure: "tower" },
+  lab: { name: "Analysten", structure: "lab" }, tower: { name: "Wachen", structure: "tower" }, scrapyard: { name: "Sammler", structure: "scrapyard" },
 }
 export function staffCap(hq: number, bunks: number): number { return 1 + hq + bunks * 2 }
 export function secureSlots(storage: number): number { return [2, 3, 4, 6][Math.max(0, Math.min(3, storage))] }
 
 /** Defence rating of the compound against infected attacks. */
-export function defenseRating(walls: number, tower: number, guards: number, generator: number): number {
-  return walls * 20 + tower * 15 + (tower >= 3 ? 5 : 0) + Math.min(guards, tower * 2) * 8 + generator * 5
+export function defenseRating(walls: number, tower: number, guards: number, generator: number, turrets = 0): number {
+  return walls * 20 + tower * 15 + (tower >= 3 ? 5 : 0) + Math.min(guards, tower * 2) * 8 + generator * 5 + turrets * 15 + (turrets >= 3 ? 5 : 0)
+}
+
+/** Automatic guns at the gate (base defence): seconds between shots, damage per hit and range per level. */
+export function turretStats(level: number): { interval: number; damage: number; range: number } {
+  return { interval: level >= 3 ? 0.16 : 0.24, damage: 12 + level * 5, range: level >= 3 ? 48 : 40 }
+}
+
+// ───────────── expeditions (garage) ─────────────
+export type ExpeditionId = "outskirts" | "farms" | "industry" | "depot"
+export interface ExpeditionDef {
+  name: string
+  description: string
+  /** Garage level needed, crew size, duration in minutes (real time) and the chance of an ambush. */
+  garage: number; crew: number; minutes: number; risk: number
+  /** Loot table: item, weight, quantity range; rolls = draws per run. */
+  loot: [ItemId, number, [number, number]][]
+  rolls: number
+  money: [number, number]
+}
+export const EXPEDITIONS: Record<ExpeditionId, ExpeditionDef> = {
+  outskirts: { name: "Stadtrand", description: "Kurze Fahrt durch die Vororte: Vorräte, Stoff und etwas Schrott.", garage: 1, crew: 1, minutes: 20, risk: 0.06, rolls: 4, money: [60, 180],
+    loot: [["canned", 4, [1, 2]], ["water", 4, [1, 2]], ["cloth", 4, [2, 4]], ["scrap", 4, [2, 5]], ["bandage", 2, [1, 2]], ["ammo_9mm", 2, [10, 25]], ["wood", 3, [2, 5]]] },
+  farms: { name: "Bauernhöfe", description: "Höfe im Norden: Holz, Lebensmittel und Chemikalien aus den Scheunen.", garage: 2, crew: 2, minutes: 40, risk: 0.09, rolls: 6, money: [120, 300],
+    loot: [["wood", 5, [4, 8]], ["canned", 3, [1, 3]], ["water", 3, [1, 3]], ["chem", 3, [1, 3]], ["cloth", 2, [2, 4]], ["fuel", 1.5, [1, 1]], ["ammo_12buck", 2, [6, 12]], ["medical", 1, [1, 1]]] },
+  industry: { name: "Industriegebiet", description: "Hallen und Lager: Maschinenteile, Werkzeug, Treibstoff – und Gefahr.", garage: 2, crew: 2, minutes: 45, risk: 0.14, rolls: 6, money: [150, 360],
+    loot: [["scrap", 5, [4, 9]], ["parts", 4, [1, 3]], ["tools", 2, [1, 1]], ["fuel", 2, [1, 2]], ["chem", 2, [1, 3]], ["electronics", 1.5, [1, 2]], ["ammo_556", 2, [15, 40]]] },
+  depot: { name: "Militärdepot", description: "Lange Fahrt zum alten Depot: Munition, Ausrüstung und Elektronik.", garage: 3, crew: 3, minutes: 90, risk: 0.22, rolls: 8, money: [300, 700],
+    loot: [["ammo_556", 4, [30, 60]], ["ammo_762", 3, [20, 40]], ["grenade", 2, [1, 2]], ["medkit", 2, [1, 2]], ["electronics", 3, [1, 3]], ["parts", 3, [2, 4]], ["armor", 0.8, [1, 1]], ["helmet", 0.8, [1, 1]], ["shocktrap", 0.6, [1, 1]], ["w_g8", 0.25, [1, 1]]] },
+}
+export const EXPEDITION_ORDER: ExpeditionId[] = ["outskirts", "farms", "industry", "depot"]
+export interface ExpeditionRun { id: number; destination: ExpeditionId; crew: number; endsAt: number }
+
+/** Rolls what a crew brings home; an ambush (risk, halved by garage level 3) halves the haul. */
+export function rollExpedition(id: ExpeditionId, garage: number, rng: () => number): { items: [ItemId, number][]; money: number; ambush: boolean } {
+  const e = EXPEDITIONS[id], ambush = rng() < e.risk * (garage >= 3 ? 0.5 : 1)
+  const total = e.loot.reduce((s, l) => s + l[1], 0), got = new Map<ItemId, number>()
+  for (let i = 0; i < e.rolls; i++) {
+    let x = rng() * total
+    const pick = e.loot.find(l => (x -= l[1]) <= 0) ?? e.loot[e.loot.length - 1]
+    const qty = pick[2][0] + Math.floor(rng() * (pick[2][1] - pick[2][0] + 1))
+    got.set(pick[0], (got.get(pick[0]) ?? 0) + qty)
+  }
+  let money = Math.round(e.money[0] + rng() * (e.money[1] - e.money[0]))
+  const items: [ItemId, number][] = []
+  for (const [it, n] of got) { const q = ambush ? Math.floor(n / 2) : n; if (q > 0) items.push([it, q]) }
+  if (ambush) money = Math.round(money / 2)
+  return { items, money, ambush }
 }
 
 export type RecipeStation = "workbench" | "workshop" | "armory" | "clinic" | "kitchen"
@@ -121,10 +178,21 @@ export const RECIPES: Recipe[] = [
 ]
 
 /** Passive production per staff member (items per hour of real time, capped offline at 2 h). */
-export const PRODUCTION: Record<"workshop" | "clinic" | "kitchen", { perHour: number; describe: string }> = {
+export type ProducerId = "workshop" | "clinic" | "kitchen" | "scrapyard"
+export const PRODUCTION: Record<ProducerId, { perHour: number; describe: string }> = {
   workshop: { perHour: 90, describe: "Patronen des gewählten Kalibers" },
   clinic: { perHour: 4, describe: "Verbände (Stufe 2: Trauma-Sets)" },
   kitchen: { perHour: 5, describe: "Wasser und Konserven" },
+  scrapyard: { perHour: 6, describe: "Baumaterial (Stufe 2: Teile, Stufe 3: Elektronik)" },
+}
+
+/** What one unit of recycling yields at a scrapyard level (rng 0..1). */
+export function recycleYield(level: number, roll: number): ItemId {
+  if (level >= 3 && roll < 0.06) return "electronics"
+  if (level >= 3 && roll < 0.1) return "tools"
+  if (level >= 2 && roll < 0.22) return "parts"
+  if (level >= 2 && roll < 0.32) return "chem"
+  return roll < 0.62 ? "scrap" : roll < 0.84 ? "wood" : "cloth"
 }
 
 export type ResearchId = "ballistics" | "plating" | "fieldmed" | "metabolism" | "broker" | "recon" | "immunology" | "scavenger" | "logistics"

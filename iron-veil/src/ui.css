@@ -309,3 +309,24 @@ button.bag-slot:hover{border-color:var(--mint)}
   .setting-row{padding:12px 0}
   .toast{bottom:12px}
 }
+
+/* base: production summary and garage expeditions */
+.prod-section,.exp-section{max-width:1500px;margin:22px 0}
+.prod-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px;margin-top:12px}
+.prod-row{display:grid;grid-template-columns:1fr auto;gap:2px 12px;border:1px solid var(--line);background:#142124;padding:10px 12px}
+.prod-row b{font-size:11px;letter-spacing:.6px}
+.prod-row span{grid-column:1;font-size:9px;color:var(--muted)}
+.prod-row strong{grid-column:2;grid-row:1/3;align-self:center;font:12px ui-monospace,monospace;color:var(--mint)}
+.prod-row.idle strong{color:#6f827a}
+.exp-running{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.exp-run{display:flex;gap:12px;align-items:center;border:1px solid #4d7c66;background:rgba(40,80,64,.25);padding:8px 12px;font-size:10px}
+.exp-run span{color:var(--muted)}
+.exp-run strong{font:12px ui-monospace,monospace;color:var(--amber)}
+.exp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;margin-top:12px}
+.exp-card{display:flex;flex-direction:column;gap:6px;border:1px solid var(--line);background:#142124;padding:14px}
+.exp-card h4{margin:0;font-size:13px}
+.exp-card p{margin:0;font-size:10px;line-height:1.45;color:var(--muted)}
+.exp-card small{font:8px ui-monospace,monospace;color:var(--amber);letter-spacing:.6px}
+.exp-card button{margin-top:auto;height:32px;background:#20342d;border:1px solid #3f5e50;font-size:9px;letter-spacing:1px}
+.exp-card button:not(:disabled):hover{border-color:var(--mint)}
+.exp-card.locked{opacity:.55}

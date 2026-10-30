@@ -7,7 +7,7 @@
 import * as THREE from "three"
 import { AudioSystem, stepSound, type SfxId } from "./audio"
 import { Bag, type BagSlot } from "./bag"
-import { STRUCTURES, TIMES } from "./baseData"
+import { STRUCTURES, TIMES, turretStats } from "./baseData"
 import { ENEMIES } from "./data"
 import { Effects, type ImpactKind } from "./effects"
 import { EnemyManager } from "./enemies"
@@ -16,6 +16,7 @@ import { GhostPlayers } from "./ghosts"
 import { GoreSystem } from "./gore"
 import { WEATHER, type WeatherId } from "./weather"
 import { GRENADE_DAMAGE, GRENADE_RADIUS, GrenadeSystem, THROWABLES, THROW_INFO, type ThrowableKind } from "./grenades"
+import { TURRET_GUN_Y, TURRET_SPOTS } from "./basemap"
 import { TOUCH_LABEL, TouchControls } from "./touch"
 import { touchEnabled } from "./storage"
 import { TRAP_RADIUS, TRAP_STUN, TRAP_TRIGGER, TrapField, zapDamage, type ShockTrap } from "./traps"
@@ -192,6 +193,8 @@ export class RaidGame {
   private bossSpawned = false
   private defense: { wave: number; waves: number; nextWave: number; kills: number } | null = null
   private guardClock = 0
+  /** Seconds until each gate gun fires again (base defence). */
+  private turretClocks = [0, 0]
   private lastArea = ""
   private onResize = () => this.resize()
   private onPointerLock = () => {
@@ -1487,6 +1490,7 @@ export class RaidGame {
         d.nextWave = 15
       }
     } else if (d.wave >= d.waves && alive === 0) { this.finishDefense(true); return }
+    this.updateTurrets(dt)
     // tower guards shoot the nearest infected
     this.guardClock -= dt
     const guards = Math.min(this.company.profile.staff.tower, this.company.level("tower") * 2)
@@ -1505,6 +1509,25 @@ export class RaidGame {
           this.infected.applyDamage({ target: t, distance: from.distanceTo(to), part: head ? "head" : "body", bodyPart: head ? "head" : "torso", point: to }, { amount: 30 + this.company.level("tower") * 8, from, dir: to.clone().sub(from).normalize(), penetration: 0.3, kind: "bullet", sever: 0.1 })
         }
       }
+    }
+  }
+
+  /** Automatic guns at the gate: short bursts at the nearest infected in range, with tracers and muzzle flashes. */
+  private updateTurrets(dt: number): void {
+    const lvl = this.company.level("turrets"); if (!lvl || !this.infected) return
+    const st = turretStats(lvl)
+    for (let i = 0; i < Math.min(lvl >= 2 ? 2 : 1, TURRET_SPOTS.length); i++) {
+      this.turretClocks[i] -= dt
+      if (this.turretClocks[i] > 0) continue
+      const s = TURRET_SPOTS[i], muzzle = _turret.set(s.x, TURRET_GUN_Y, s.z + 1.1)
+      let best: Hostile | null = null, bd = st.range * st.range
+      for (const t of this.infected.inRadius(muzzle, st.range)) { const d = t.position.distanceToSquared(muzzle); if (d < bd) { bd = d; best = t } }
+      if (!best) { this.turretClocks[i] = 0.3; continue }
+      this.turretClocks[i] = st.interval * (0.85 + this.rng() * 0.3)
+      const to = best.chestPosition(new THREE.Vector3()).add(new THREE.Vector3((this.rng() - 0.5) * 0.3, (this.rng() - 0.5) * 0.3, 0))
+      this.effects.tracer(muzzle, to); this.effects.muzzleFlash(muzzle, 0.8)
+      this.sfx("shot_lm60", { position: muzzle, volume: 0.45 })
+      this.infected.applyDamage({ target: best, distance: Math.sqrt(bd), part: "body", bodyPart: "torso", point: to }, { amount: st.damage, from: muzzle, dir: to.clone().sub(muzzle).normalize(), penetration: 0.35, kind: "bullet", sever: 0.15 })
     }
   }
 
@@ -1870,3 +1893,4 @@ const _cone = { x: 0, y: 0 }
 const _flashDir = new THREE.Vector3()
 const _upWorld = { x: 0, y: 1, z: 0 }
 const _trapDir = new THREE.Vector3()
+const _turret = new THREE.Vector3()

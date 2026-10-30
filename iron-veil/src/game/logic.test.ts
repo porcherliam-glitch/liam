@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest"
 import { Bag } from "./bag"
 import { collides, depenetrate, moveCircle, raycastObstacles, rayCapsule, raySphere, segmentBlocked2D, segmentBlocked3D, type Obstacle } from "./collision"
 import { xpForLevel } from "./data"
+import { defenseRating, rollExpedition, turretStats } from "./baseData"
 import { DECOY_BEEP, DECOY_LIFE, GRENADE_FUSE, GrenadeSystem, SMOKE_BURN, stepGrenade, type ThrowableKind } from "./grenades"
 import { Obscurants, SMOKE_GROW, SMOKE_LIFE } from "./obscurants"
 import { TRAP_ARM, TRAP_CHARGES, TRAP_DAMAGE, TRAP_RADIUS, TRAP_RECHARGE, TRAP_TRIGGER, TrapField, zapDamage } from "./traps"
@@ -546,6 +547,50 @@ describe("company", () => {
     c.tick(t0 + 3600 * 1000, mulberry32(2))
     expect(c.count("bandage")).toBeGreaterThanOrEqual(before + 2 + 3)
     expect(c.profile.crafting.length).toBe(0)
+  })
+  it("the scrapyard turns staff time into building materials", () => {
+    const c = rich()
+    for (const id of ITEM_IDS) if (ITEMS[id].cat === "material") c.addItem(id, 200)
+    expect(c.build("scrapyard").ok).toBe(true)
+    c.profile.structures.bunks = 3
+    expect(c.assignStaff("scrapyard", 1).ok).toBe(true); expect(c.assignStaff("scrapyard", 1).ok).toBe(true)
+    expect(c.assignStaff("scrapyard", 1).ok).toBe(false)
+    expect(c.productionRate("scrapyard")).toBeCloseTo(6 * 2 * 1)
+    const mats = () => (["scrap", "wood", "cloth"] as const).reduce((n, id) => n + c.count(id), 0)
+    const before = mats()
+    c.tick(c.profile.lastTick + 3600 * 1000, mulberry32(4))
+    expect(mats() - before).toBeGreaterThanOrEqual(11)
+  })
+  it("expeditions take crew and fuel, come back on their own and pay out", () => {
+    const c = rich(), t0 = c.profile.lastTick
+    expect(c.sendExpedition("outskirts", t0).ok).toBe(false)
+    for (const id of ITEM_IDS) if (ITEMS[id].cat === "material") c.addItem(id, 200)
+    c.build("garage"); c.profile.structures.bunks = 1
+    const free = c.availableStaff()
+    expect(c.sendExpedition("farms", t0).ok).toBe(false)
+    expect(c.sendExpedition("outskirts", t0).ok).toBe(true)
+    expect(c.availableStaff()).toBe(free - 1)
+    expect(c.sendExpedition("outskirts", t0).ok).toBe(false)
+    const money = c.profile.money, items = Object.values(c.profile.stash).reduce((a, b) => a + (b ?? 0), 0)
+    c.tick(t0 + 10 * 60000, mulberry32(1)); expect(c.profile.expeditions.length).toBe(1)
+    const notes = c.tick(t0 + 21 * 60000, mulberry32(1))
+    expect(c.profile.expeditions.length).toBe(0); expect(c.availableStaff()).toBe(free)
+    expect(notes.some(n => n.includes("Stadtrand"))).toBe(true)
+    expect(c.profile.money).toBeGreaterThan(money)
+    expect(Object.values(c.profile.stash).reduce((a, b) => a + (b ?? 0), 0)).toBeGreaterThan(items)
+    // farther trips need a bigger garage and fuel
+    c.profile.structures.hq = 2; expect(c.build("garage").ok).toBe(true); const fuel = c.count("fuel")
+    expect(c.sendExpedition("farms", t0).ok).toBe(true); expect(c.count("fuel")).toBe(fuel - 1)
+    // a running trip survives a save round trip
+    const back = sanitizeProfile(JSON.parse(JSON.stringify(c.profile)), 1000)!
+    expect(back.expeditions.map(e => e.destination)).toEqual(["farms"])
+  })
+  it("an ambush halves the haul; gate guns raise the defence", () => {
+    const always = () => 0, clean = rollExpedition("industry", 2, () => 0.5), hit = rollExpedition("industry", 2, always)
+    expect(hit.ambush).toBe(true); expect(clean.ambush).toBe(false)
+    expect(hit.money).toBeLessThan(clean.money + 1)
+    expect(defenseRating(1, 1, 0, 0, 2) - defenseRating(1, 1, 0, 0, 0)).toBe(30)
+    expect(turretStats(3).interval).toBeLessThan(turretStats(1).interval)
   })
   it("research needs the lab and an analyst", () => {
     const c = rich(); c.addItem("parts", 5)

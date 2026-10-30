@@ -45,8 +45,15 @@ const PLOTS: BasePlot[] = [
   { structure: "generator", x: 28.5, z: 10, w: 9, d: 9, yaw: 0 },
   { structure: "tower", x: -9, z: 30, w: 5, d: 5, yaw: 0 },
   { structure: "walls", x: -24, z: 31, w: 6, d: 4, yaw: 0 },
+  { structure: "garage", x: -26, z: 0.5, w: 12, d: 6, yaw: 0 },
+  { structure: "scrapyard", x: 26, z: 0.5, w: 11, d: 6, yaw: 0 },
+  { structure: "turrets", x: 15, z: 31.5, w: 5, d: 3.5, yaw: 0 },
 ]
 const SECOND_TOWER = { x: 9, z: 30 }
+/** Gun nests left and right of the gate (the second one comes with turrets level 2). */
+export const TURRET_SPOTS = [{ x: 15, z: 31.5 }, { x: -15, z: 31.5 }]
+/** Height of the gun on its nest (platform + tripod). */
+export const TURRET_GUN_Y = 3.55
 const STATIONS: Array<{ id: StationId; name: string; x: number; z: number }> = [
   { id: "radio", name: "Funkstation · Einsatzplanung", x: 0, z: 14 },
   { id: "trader", name: "Händler", x: -8, z: 21 },
@@ -93,13 +100,11 @@ function buildBase(): BaseMap {
   // yard clutter: crates, pallets, fuel drums, a jeep, sandbag nests by the gate, camo net, fire barrel
   m.rect(-33, 30, -31.8, 31.2, 1.2, "crate"); m.rect(-33, 31.4, -31.8, 32.6, 1.2, "crate"); m.rect(-31.6, 30, -30.4, 31.2, 2.4, "crate")
   m.rect(30.4, 31, 32.8, 32.2, 1.1, "pallets"); m.rect(31, 33, 33.4, 34.2, 1.15, "pallets")
-  m.prop("barrels", 33, 2, { w: 1.4, d: 2.1, tint: 0x4a5536 }); m.rect(32.3, 0.95, 33.7, 3.05, 0.95, "proxy-barrels")
+  m.prop("barrels", 33.6, -1, { w: 1.2, d: 2.1, tint: 0x4a5536 }); m.rect(33, -2.05, 34.2, 0.05, 0.95, "proxy-barrels")
   m.prop("barrels", -33.5, -18, { w: 1.4, d: 1.4, tint: 0x6a2e24 }); m.rect(-34.2, -18.7, -32.8, -17.3, 0.95, "proxy-barrels")
-  m.car(-26, 3, "x", 0x4d5536, 5)
   m.rect(-7.5, 31.4, -5, 32.4, 1.1, "sandbag"); m.rect(5, 31.4, 7.5, 32.4, 1.1, "sandbag")
-  m.prop("tarp", 26, 3.5, { w: 5, d: 3.4, h: 2.4, tint: 0x4d5536, rot: Math.PI })
   m.prop("campfire", 3, 27, {})
-  m.prop("cable", -20, -14, { x2: 20, z2: -14 }); m.prop("cable", 28.5, 5, { x2: 28.5, z2: -2 })
+  m.prop("cable", -20, -14, { x2: 20, z2: -14 }); m.prop("cable", 33, 5, { x2: 33, z2: 1 })
 
   return {
     kind: "base", bounds: { minX: -40, maxX: 40, minZ: -40, maxZ: 75 }, solids: m.solids, spawn: { x: 0, z: 28, yaw: 0 }, plots: PLOTS,
@@ -137,6 +142,29 @@ export function structureModel(plot: BasePlot, level: number): DraftData {
     return m.data()
   }
   if (id === "tower") { towerModel(m, plot.x, plot.z, lvl); if (lvl >= 2) towerModel(m, SECOND_TOWER.x, SECOND_TOWER.z, lvl); if (lvl === 0) stakes(m, plot); return m.data() }
+  if (id === "turrets") { if (lvl === 0) stakes(m, plot); else { turretModel(m, TURRET_SPOTS[0].x, TURRET_SPOTS[0].z, lvl); if (lvl >= 2) turretModel(m, TURRET_SPOTS[1].x, TURRET_SPOTS[1].z, lvl) } return m.data() }
+  if (id === "scrapyard" && lvl > 0) {
+    // scrap heaps left and right; a crushed wreck and a forklift from level 2; a sorting shed replaces the left heap at 3
+    if (lvl >= 3) { m.rect(x0 + 0.3, z0 + 0.3, x0 + 3.6, z1 - 1.6, 3.0, "block", { tint: 0x8d8a82 }); m.rect(x0 + 0.2, z0 + 0.2, x0 + 3.7, z1 - 1.5, 0.3, "roof", { y: 3.0 }) }
+    else { m.rect(x0 + 0.5, z0 + 0.5, x0 + 3.5, z0 + 3.5, 1.5, "proxy-heap"); m.prop("scrap", x0 + 2, z0 + 2, { w: 3.4, d: 3.4, h: 1.6 }) }
+    m.rect(x1 - 3.5, z0 + 0.5, x1 - 0.5, z0 + 3.5, 1.7, "proxy-heap"); m.prop("scrap", x1 - 2, z0 + 2, { w: 3.4, d: 3.4, h: 1.8 })
+    m.prop("tyres", x0 + 4.3, z1 - 1.4, {})
+    if (lvl >= 2) { m.car(plot.x + 0.3, z0 + 1.5, "x", 0x6a4a3a, 9); m.rect(x1 - 3.2, z1 - 1.9, x1 - 0.6, z1 - 0.7, 1.6, "machine", { tint: 0xc89a2a, v: 2 }) }
+    else m.rect(plot.x - 1, z0 + 0.8, plot.x + 1.2, z0 + 2, 1.15, "pallets")
+    sign(1.6, z1 - 0.2)
+    return m.data()
+  }
+  if (id === "garage" && lvl > 0) {
+    // the jeep under a camouflage tarp; a workshop container from level 2; a second vehicle in front at 3
+    m.car(plot.x + 1, z0 + 1.5, "x", 0x4d5536, 5)
+    m.prop("tarp", plot.x + 1, z0 + 1.5, { w: 5.6, d: 3.2, h: 2.5, tint: 0x4d5536, rot: Math.PI })
+    m.prop("barrels", x1 - 1.2, z0 + 0.9, { w: 0.9, d: 0.9, tint: 0x6a2e24 }); m.rect(x1 - 1.65, z0 + 0.45, x1 - 0.75, z0 + 1.35, 0.95, "proxy-barrels")
+    if (lvl >= 2) m.rect(x0 + 0.4, z0 + 0.4, x0 + 3, z1 - 1.8, 2.6, "container", { tint: 0x59603f, v: 9 })
+    else m.prop("tyres", x0 + 1.4, z0 + 1.2, {})
+    if (lvl >= 3) m.car(plot.x + 1, z1 - 1.25, "x", 0x7c8186, 4)
+    sign(1.6, z1 - 0.2)
+    return m.data()
+  }
   if (lvl === 0) { stakes(m, plot); return m.data() }
   if (lvl === 1) {
     // field tents
@@ -188,6 +216,15 @@ function towerModel(m: Draft, x: number, z: number, lvl: number): void {
     for (const [a, b, c, d] of [[-2.3, -2.3, 2.3, -1.9], [-2.3, 1.9, 2.3, 2.3], [-2.3, -1.9, -1.9, 1.9]]) m.rect(x + a, z + b, x + c, z + d, 0.9, "sandbag", { y: 4.45 })
     m.prop("searchlight", x, z + 1.6, { y: 5.6, rot: Math.PI, v: 0.9, r: 30 })
   }
+}
+
+/** Gun nest: a raised platform with sandbags on three sides and the automatic gun on top, facing the gate side (+Z). */
+function turretModel(m: Draft, x: number, z: number, lvl: number): void {
+  const h = 2.4
+  m.rect(x - 1.3, z - 1.1, x + 1.3, z + 1.1, h, "towerbase")
+  m.rect(x - 1.4, z + 0.85, x + 1.4, z + 1.35, 0.8, "sandbag", { y: h })
+  for (const sx of [-1, 1]) m.rect(x + sx * 1.35 - 0.25, z - 0.9, x + sx * 1.35 + 0.25, z + 0.85, 0.8, "sandbag", { y: h })
+  m.prop("turret", x, z, { y: h, v: lvl })
 }
 
 /** Perimeter at a walls level; the gate passage (x ±4 at z 36) always stays open. */
