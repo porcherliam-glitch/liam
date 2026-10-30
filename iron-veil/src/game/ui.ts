@@ -11,6 +11,7 @@ import { BASE_ATTACK, EXPEDITIONS, EXPEDITION_ORDER, PRODUCTION, RECIPES, RESEAR
 import { DIFFICULTY, xpForLevel } from "./data"
 import { MenuNavigator } from "./gamepad"
 import { Hud, drawTacticalMap, formatTime, type TacticalMapData } from "./hud"
+import { touchEnabled } from "./storage"
 import { itemIcon } from "./icons"
 import { BACKPACKS, ITEMS, ITEM_IDS, RARITY_COLORS, RARITY_NAMES, weaponOfItem, type GearId, type ItemCategory, type ItemId } from "./items"
 import type { ActionResult, Company } from "./profile"
@@ -455,7 +456,8 @@ export class GameUI {
     const range = (key: string, label: string, help: string, min: number, max: number, step: number, value: number, shown: string) => `<label class="setting-row"><div><b>${label}</b><small>${help}</small></div><input type="range" min="${min}" max="${max}" step="${step}" value="${value}" data-setting="${key}"><output>${shown}</output></label>`
     const toggle = (action: string, label: string, help: string, on: boolean, text: string) => `<div class="setting-row"><div><b>${label}</b><small>${help}</small></div><button class="toggle ${on ? "on" : ""}" data-action="${action}">${text}</button></div>`
     const rows = [
-      range("sensitivity", "MAUSEMPFINDLICHKEIT", "Umsehen mit der Maus.", 0.2, 1.8, 0.05, s.sensitivity, s.sensitivity.toFixed(2)),
+      touchEnabled(s) ? range("sensitivity", "BLICK-EMPFINDLICHKEIT", "Umsehen durch Wischen auf der rechten Bildschirmhälfte.", 0.2, 1.8, 0.05, s.sensitivity, s.sensitivity.toFixed(2))
+        : range("sensitivity", "MAUSEMPFINDLICHKEIT", "Umsehen mit der Maus.", 0.2, 1.8, 0.05, s.sensitivity, s.sensitivity.toFixed(2)),
       range("adsSensitivity", "EMPFINDLICHKEIT BEIM ZIELEN", "Faktor, solange die rechte Maustaste gehalten wird.", 0.3, 1.5, 0.05, s.adsSensitivity, `× ${s.adsSensitivity.toFixed(2)}`),
       range("fov", "SICHTFELD (FOV)", "Größer = mehr Überblick, kleiner = mehr Detail.", 60, 100, 1, s.fov, `${s.fov}°`),
       range("volume", "LAUTSTÄRKE", "Alle Geräusche werden im Browser erzeugt.", 0, 1, 0.05, s.volume, `${Math.round(s.volume * 100)} %`),

@@ -144,10 +144,10 @@ export function structureModel(plot: BasePlot, level: number): DraftData {
   if (id === "tower") { towerModel(m, plot.x, plot.z, lvl); if (lvl >= 2) towerModel(m, SECOND_TOWER.x, SECOND_TOWER.z, lvl); if (lvl === 0) stakes(m, plot); return m.data() }
   if (id === "turrets") { if (lvl === 0) stakes(m, plot); else { turretModel(m, TURRET_SPOTS[0].x, TURRET_SPOTS[0].z, lvl); if (lvl >= 2) turretModel(m, TURRET_SPOTS[1].x, TURRET_SPOTS[1].z, lvl) } return m.data() }
   if (id === "scrapyard" && lvl > 0) {
-    // scrap heaps left and right; a crushed wreck and a forklift from level 2; a sorting shed replaces the left heap at 3
-    if (lvl >= 3) { m.rect(x0 + 0.3, z0 + 0.3, x0 + 3.6, z1 - 1.6, 3.0, "block", { tint: 0x8d8a82 }); m.rect(x0 + 0.2, z0 + 0.2, x0 + 3.7, z1 - 1.5, 0.3, "roof", { y: 3.0 }) }
-    else { m.rect(x0 + 0.5, z0 + 0.5, x0 + 3.5, z0 + 3.5, 1.5, "proxy-heap"); m.prop("scrap", x0 + 2, z0 + 2, { w: 3.4, d: 3.4, h: 1.6 }) }
-    m.rect(x1 - 3.5, z0 + 0.5, x1 - 0.5, z0 + 3.5, 1.7, "proxy-heap"); m.prop("scrap", x1 - 2, z0 + 2, { w: 3.4, d: 3.4, h: 1.8 })
+    // scrap heaps left and right; a crushed wreck and a forklift from level 2; a sorting shed replaces the right heap at 3
+    m.rect(x0 + 0.5, z0 + 0.5, x0 + 3.5, z0 + 3.5, 1.5, "proxy-heap"); m.prop("scrap", x0 + 2, z0 + 2, { w: 3.4, d: 3.4, h: 1.6 })
+    if (lvl >= 3) { m.rect(x1 - 3.6, z0 + 0.3, x1 - 0.3, z1 - 2.1, 3.0, "block", { tint: 0x8d8a82 }); m.rect(x1 - 3.7, z0 + 0.2, x1 - 0.2, z1 - 2, 0.3, "roof", { y: 3.0 }) }
+    else { m.rect(x1 - 3.5, z0 + 0.5, x1 - 0.5, z0 + 3.5, 1.7, "proxy-heap"); m.prop("scrap", x1 - 2, z0 + 2, { w: 3.4, d: 3.4, h: 1.8 }) }
     m.prop("tyres", x0 + 4.3, z1 - 1.4, {})
     if (lvl >= 2) { m.car(plot.x + 0.3, z0 + 1.5, "x", 0x6a4a3a, 9); m.rect(x1 - 3.2, z1 - 1.9, x1 - 0.6, z1 - 0.7, 1.6, "machine", { tint: 0xc89a2a, v: 2 }) }
     else m.rect(plot.x - 1, z0 + 0.8, plot.x + 1.2, z0 + 2, 1.15, "pallets")
@@ -155,9 +155,11 @@ export function structureModel(plot: BasePlot, level: number): DraftData {
     return m.data()
   }
   if (id === "garage" && lvl > 0) {
-    // the jeep under a camouflage tarp; a workshop container from level 2; a second vehicle in front at 3
+    // the jeep under a carport (posts and a flat roof); a workshop container from level 2; a second vehicle in front at 3
     m.car(plot.x + 1, z0 + 1.5, "x", 0x4d5536, 5)
-    m.prop("tarp", plot.x + 1, z0 + 1.5, { w: 5.6, d: 3.2, h: 2.5, tint: 0x4d5536, rot: Math.PI })
+    const cx0 = plot.x - 2.3, cx1 = plot.x + 4.3, cz0 = z0 + 0.15, cz1 = z0 + 2.9
+    for (const [px, pz] of [[cx0, cz0], [cx1, cz0], [cx0, cz1], [cx1, cz1]]) m.rect(px - 0.08, pz - 0.08, px + 0.08, pz + 0.08, 2.5, "pillar")
+    m.rect(cx0 - 0.1, cz0 - 0.1, cx1 + 0.1, cz1 + 0.1, 0.18, "roof", { y: 2.5, v: 3 })
     m.prop("barrels", x1 - 1.2, z0 + 0.9, { w: 0.9, d: 0.9, tint: 0x6a2e24 }); m.rect(x1 - 1.65, z0 + 0.45, x1 - 0.75, z0 + 1.35, 0.95, "proxy-barrels")
     if (lvl >= 2) m.rect(x0 + 0.4, z0 + 0.4, x0 + 3, z1 - 1.8, 2.6, "container", { tint: 0x59603f, v: 9 })
     else m.prop("tyres", x0 + 1.4, z0 + 1.2, {})

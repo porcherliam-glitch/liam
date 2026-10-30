@@ -26,8 +26,8 @@ const ROW: ButtonDef[] = [
 ]
 const TOP: ButtonDef[] = [
   { code: "KeyF", label: "LAMPE", cls: "", icon: "☀" },
-  { code: "KeyN", label: "NACHTSICHT", cls: "", icon: "◐" },
-  { code: "Full", label: "VOLLBILD", cls: "", icon: "⛶" },
+  { code: "KeyN", label: "NACHT", cls: "", icon: "◐" },
+  { code: "Full", label: "VOLL", cls: "", icon: "⛶" },
   { code: "Escape", label: "PAUSE", cls: "", icon: "❚❚" },
   { code: "KeyM", label: "KARTE", cls: "", icon: "▦" },
   { code: "Tab", label: "RUCKSACK", cls: "", icon: "▣" },

@@ -1251,25 +1251,29 @@ function extraProp(ctx: BuildCtx, p: MapProp): void {
       return
     }
     case "turret": {
-      // automatic gun on a tripod (base defence), barrel towards +Z; level 2 a heavier barrel, level 3 a shield
+      // automatic gun on a tripod (base defence), barrel towards +Z: long receiver with a top sight, cooling jacket with
+      // vents and a muzzle brake, ammo drum on the left, spade grips at the back; level 2 heavier barrel, level 3 a shield
       const lvl = p.v ?? 1, y0 = p.y ?? 0, x = p.x, z = p.z, dark = 0x23262a, olive = 0x4a5236, gy = y0 + 0.95
       for (let i = 0; i < 3; i++) {
-        const a = i * Math.PI * 2 / 3 + Math.PI / 3, lx = Math.sin(a) * 0.42, lz = Math.cos(a) * 0.42
-        place(metal, t.cyl8, x + lx / 2, y0 + gy / 2 - y0 / 2, z + lz / 2, -Math.cos(a) * 0.42, 0, Math.sin(a) * 0.42, 0.03, gy - y0 + 0.05, 0.03, dark)
+        const a = i * Math.PI * 2 / 3 + Math.PI / 3, lx = Math.sin(a) * 0.5, lz = Math.cos(a) * 0.5
+        place(metal, t.cyl8, x + lx / 2, (y0 + gy) / 2, z + lz / 2, -Math.cos(a) * 0.48, 0, Math.sin(a) * 0.48, 0.035, gy - y0 + 0.08, 0.035, dark)
       }
-      place(metal, t.cyl12, x, gy, z, 0, 0, 0, 0.1, 0.16, 0.1, dark)
-      place(metal, t.box, x, gy + 0.2, z + 0.02, 0, 0, 0, 0.17, 0.2, 0.62, dark)
-      place(metal, t.box, x, gy + 0.33, z - 0.05, 0, 0, 0, 0.12, 0.05, 0.34, 0x30343a)
-      const r = lvl >= 2 ? 0.055 : 0.042
-      place(metal, t.cyl12, x, gy + 0.22, z + 0.62, Math.PI / 2, 0, 0, r, 0.62, r, 0x3a3e40)
-      for (let k = 0; k < 4; k++) place(metal, t.cyl8, x, gy + 0.22, z + 0.4 + k * 0.13, Math.PI / 2, 0, 0, r + 0.008, 0.03, r + 0.008, dark)
-      place(metal, t.cyl8, x, gy + 0.22, z + 1.04, Math.PI / 2, 0, 0, 0.024, 0.24, 0.024, 0x1a1c1e)
-      place(metal, t.box, x - 0.19, gy + 0.14, z, 0, 0, 0, 0.13, 0.17, 0.24, olive)
-      place(metal, t.box, x - 0.12, gy + 0.24, z + 0.02, 0, 0, 0.5, 0.11, 0.015, 0.06, 0xb08a3a)
-      for (const sx of [-1, 1]) place(metal, t.cyl8, x + sx * 0.07, gy + 0.18, z - 0.36, Math.PI / 2, 0, 0, 0.022, 0.16, 0.022, 0x1a1c1e)
+      place(metal, t.cyl12, x, gy, z, 0, 0, 0, 0.12, 0.2, 0.12, dark)
+      place(metal, t.box, x, gy + 0.24, z + 0.08, 0, 0, 0, 0.22, 0.24, 0.9, dark)
+      place(metal, t.box, x, gy + 0.39, z + 0.0, 0, 0, 0, 0.16, 0.06, 0.5, 0x30343a)
+      place(metal, t.box, x, gy + 0.47, z - 0.12, 0, 0, 0, 0.05, 0.1, 0.12, 0x1a1c1e)
+      place(metal, t.box, x, gy + 0.46, z + 0.42, 0, 0, 0, 0.03, 0.08, 0.03, 0x1a1c1e)
+      const r = lvl >= 2 ? 0.07 : 0.058
+      place(metal, t.cyl12, x, gy + 0.26, z + 0.95, Math.PI / 2, 0, 0, r, 0.9, r, 0x3a3e40)
+      for (let k = 0; k < 6; k++) place(metal, t.cyl8, x, gy + 0.26, z + 0.6 + k * 0.13, Math.PI / 2, 0, 0, r + 0.01, 0.035, r + 0.01, dark)
+      place(metal, t.cyl8, x, gy + 0.26, z + 1.5, Math.PI / 2, 0, 0, 0.03, 0.3, 0.03, 0x1a1c1e)
+      place(metal, t.cyl12, x, gy + 0.26, z + 1.66, Math.PI / 2, 0, 0, 0.05, 0.12, 0.05, dark)
+      place(metal, t.cyl12, x - 0.24, gy + 0.2, z + 0.12, 0, 0, Math.PI / 2, 0.17, 0.12, 0.17, olive)
+      place(metal, t.box, x - 0.15, gy + 0.3, z + 0.12, 0, 0, 0.6, 0.12, 0.02, 0.07, 0xb08a3a)
+      for (const sx of [-1, 1]) place(metal, t.cyl8, x + sx * 0.09, gy + 0.22, z - 0.48, Math.PI / 2, 0, 0, 0.026, 0.2, 0.026, 0x1a1c1e)
       if (lvl >= 3) {
-        place(metal, t.box, x, gy + 0.36, z + 0.3, 0, 0, 0, 0.72, 0.5, 0.035, olive)
-        for (const sx of [-1, 1]) place(metal, t.box, x + sx * 0.38, gy + 0.36, z + 0.2, 0, sx * 0.5, 0, 0.035, 0.5, 0.24, olive)
+        place(metal, t.box, x, gy + 0.42, z + 0.42, 0, 0, 0, 0.86, 0.62, 0.04, olive)
+        for (const sx of [-1, 1]) place(metal, t.box, x + sx * 0.45, gy + 0.42, z + 0.3, 0, sx * 0.5, 0, 0.04, 0.62, 0.28, olive)
       }
       return
     }
