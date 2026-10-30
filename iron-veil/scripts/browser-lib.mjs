@@ -52,7 +52,7 @@ export async function openGame({ settings, profile, viewport = { width: 1280, he
     snapshot: () => page.evaluate(() => window.__ironVeil.snapshot()),
     profile: () => page.evaluate(() => window.__ironVeil.profile()),
     async action(name, id) { await page.locator(id ? `button[data-action="${name}"][data-id="${id}"]` : `button[data-action="${name}"]`).first().click(); await page.waitForTimeout(80) },
-    async shot(name) { await page.screenshot({ path: join(SHOTS, name), timeout: 120000 }) },
+    async shot(name) { await page.screenshot({ path: join(SHOTS, name), timeout: 300000 }) },
     async reload() { await page.reload({ waitUntil: "load" }); await page.waitForFunction(() => window.__GAME_READY__ === true, null, { timeout: 60000 }) },
     /** Waits for n rendered frames (the first frames of a raid can stall while shaders compile). */
     frames: (n = 3) => page.evaluate(n => new Promise(r => { let k = 0; const f = () => (++k >= n ? r() : requestAnimationFrame(f)); requestAnimationFrame(f) }), n),
