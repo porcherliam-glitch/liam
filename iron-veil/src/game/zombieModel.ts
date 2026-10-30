@@ -41,6 +41,8 @@ export interface BodySpec {
   belly?: number; throat?: number; plates?: boolean; spikes?: boolean; weakSpot?: boolean; club?: boolean; spine?: boolean
   /** Gas-bloated body: stretched bruised skin, glowing gas pustules (Gasbläher). */
   bloat?: boolean
+  /** Riot gear: helmet with visor, shoulder and knee pads (Gepanzerter). */
+  riot?: boolean
   /** Movement collision radius. */
   radius: number
   /** Lying offset (half body depth) and total standing height. */
@@ -67,6 +69,7 @@ export const SPECS: Record<InfectedKind, BodySpec> = {
     armR: 0.05, foreR: 0.042, thighR: 0.08, shinR: 0.058, jawMax: 0.9, hunch: -0.02, radius: 0.42 }),
   bloater: spec({ ...HUMAN, hipH: 0.82, thigh: 0.4, shin: 0.37, pelvisW: 0.44, waistW: 0.5, waistD: 0.46, chestW: 0.52, chestD: 0.42, torsoLen: 0.55, belly: 0.3, throat: 0.13,
     neck: 0.03, headR: 0.112, upperArm: 0.29, foreArm: 0.26, armR: 0.072, foreR: 0.062, thighR: 0.115, shinR: 0.078, jawMax: 0.75, hunch: -0.02, bloat: true, radius: 0.52 }),
+  riot: spec({ ...HUMAN, chestW: 0.41, chestD: 0.25, armR: 0.056, foreR: 0.045, thighR: 0.084, shinR: 0.058, hunch: -0.1, riot: true, radius: 0.34 }),
   stalker: spec({ ...HUMAN, hipH: 0.9, thigh: 0.44, shin: 0.41, chestW: 0.35, chestD: 0.2, waistW: 0.22, upperArm: 0.37, foreArm: 0.36, hand: 0.12, armR: 0.047, foreR: 0.039,
     thighR: 0.07, shinR: 0.05, claw: 0.09, jawMax: 0.8, hunch: -0.35, spine: true, radius: 0.34 }),
   crawler: spec({ ...HUMAN, legs: false, upperArm: 0.32, foreArm: 0.29, claw: 0.05, jawMax: 0.75, hunch: 0, radius: 0.36 }),
@@ -79,10 +82,10 @@ export const SPECS: Record<InfectedKind, BodySpec> = {
 }
 
 /** Number of cached look variants per kind (instances pick one at random). */
-export const VARIANTS: Record<InfectedKind, number> = { walker: 10, runner: 5, brute: 3, screamer: 3, spitter: 3, stalker: 3, crawler: 4, bloater: 3, boss: 1 }
+export const VARIANTS: Record<InfectedKind, number> = { walker: 10, runner: 5, brute: 3, screamer: 3, spitter: 3, stalker: 3, crawler: 4, bloater: 3, riot: 3, boss: 1 }
 
 /** Blood colour per kind (spitters bleed bile). */
-export const BLOOD: Record<InfectedKind, number> = { walker: 0x4a0b07, runner: 0x520c08, brute: 0x3e0906, screamer: 0x4a0b07, spitter: 0x4a4a0c, bloater: 0x56601a, stalker: 0x350806, crawler: 0x4a0b07, boss: 0x3a0705 }
+export const BLOOD: Record<InfectedKind, number> = { walker: 0x4a0b07, runner: 0x520c08, brute: 0x3e0906, screamer: 0x4a0b07, spitter: 0x4a4a0c, bloater: 0x56601a, riot: 0x4a0b07, stalker: 0x350806, crawler: 0x4a0b07, boss: 0x3a0705 }
 
 // ------------------------------------------------------------------ looks
 
@@ -102,7 +105,7 @@ const C = {
   plate: 0xb8a988, muscle: 0x8a3027, bile: 0x9aa457, sac: 0xa9b35e, acid: 0x9cff52, weak: 0xffa236,
 }
 const SKINS = [0x8e9a80, 0x84926e, 0x969880, 0x7a866a, 0x8c8e8c, 0x86806c, 0x8a8c78, 0x7e8a84]
-const EYES: Record<InfectedKind, number> = { walker: 0xf2e7a6, runner: 0xff7a3a, screamer: 0xe6f0ff, spitter: 0xbdff6a, bloater: 0xe2ff4a, stalker: 0x9fd8ff, crawler: 0xf2e7a6, brute: 0xffb24a, boss: 0xff8a1e }
+const EYES: Record<InfectedKind, number> = { walker: 0xf2e7a6, runner: 0xff7a3a, screamer: 0xe6f0ff, spitter: 0xbdff6a, bloater: 0xe2ff4a, riot: 0xffd27a, stalker: 0x9fd8ff, crawler: 0xf2e7a6, brute: 0xffb24a, boss: 0xff8a1e }
 const CIV_TOPS = [0x6b4a3a, 0x3d4f66, 0x7a7466, 0x5e2b2b, 0x4a5a3a, 0x8a7a5a, 0x2e3440, 0x6a6a72, 0x7c5a2e]
 const CIV_PANTS = [0x3d4b66, 0x4b4236, 0x3a3a3c, 0x5a5444, 0x48505a, 0x5b4a3a]
 const SHOES = [0x2a2420, 0x4a4a4a, 0x5e554c, 0x1c1a18]
@@ -150,6 +153,10 @@ function makeLook(kind: InfectedKind, r: () => number): Look {
     // clothes burst open over the swollen body; bruised, purple-green skin
     look.top = arche < 0.5 ? "tank" : "none"; look.sleeves = "none"; look.topColor = pick([0x7a7466, 0x6a5a4a, 0x8a8a7a], r); look.pants = "torn"; look.pantsColor = pick([0x3d4b66, 0x4b4236, 0x5a5444], r)
     look.skin = pick([0x8a9078, 0x7f8a6a, 0x8a867a], r); look.hair = r() < 0.3 ? 0x2a2a2a : null; look.ribs = 0
+  } else if (kind === "riot") {
+    // former riot police: dark uniform, black plate vest, helmet with visor, boots
+    look.top = "uniform"; look.topColor = pick([0x23262b, 0x1f2a3a, 0x2c2f33], r); look.sleeves = "long"; look.vest = "plate"; look.vestColor = 0x15171a
+    look.pants = "long"; look.pantsColor = dim(look.topColor, 0.9); look.shoes = 0x111111; look.hair = null; look.helmet = true
   } else if (kind === "stalker") {
     look.top = "none"; look.sleeves = "none"; look.pants = "rags"; look.pantsColor = pick([0x2a2a26, 0x3a332a], r); look.shoes = null; look.hair = null
     look.skin = pick([0x4e524a, 0x5a5850, 0x45493f], r); look.ribs = 2
@@ -558,6 +565,11 @@ function torsoSeg(kind: InfectedKind, S: BodySpec, L: Look, r: () => number): TH
   } else if (L.vest === "plate") {
     g.box(0, T * 0.64, F * cd * 1.05, cw * 1.45, T * 0.46, 0.06, L.vestColor).box(0, T * 0.64, cd * 1.05, cw * 1.45, T * 0.46, 0.06, L.vestColor)
     for (let i = 0; i < 3; i++) g.box((i - 1) * 0.075, T * 0.48, F * cd * 1.17, 0.06, 0.1, 0.045, 0x2b2d21)
+    if (S.riot) {
+      g.box(0, T * 0.76, cd * 1.13, cw * 1.3, 0.055, 0.012, 0xd6d6cc)
+      g.box(-cw * 0.42, T * 0.8, F * cd * 1.15, 0.05, 0.08, 0.035, 0x0e0f10).box(-cw * 0.42, T * 0.86, F * cd * 1.15, 0.008, 0.06, 0.008, 0x0e0f10)
+      g.loft([{ y: T * 0.9, w: cw * 0.78, d: cd * 0.92, c: 0x15171a }, { y: T + 0.02, w: cw * 0.62, d: cd * 0.78, c: 0x15171a }], 9, 0)
+    }
   }
   // holes in the cloth, wounds, blood from feeding down the front
   const holes = 3 + Math.floor(r() * 3)
@@ -740,7 +752,15 @@ function headSeg(kind: InfectedKind, S: BodySpec, L: Look, r: () => number): THR
   // ears (one torn)
   g.blob(-h * 0.88 * sx, h * 1.08 * sy, h * 0.05, h * 0.05, h * 0.2, h * 0.14, dim(L.skin, 0.92), 0, 0, 0.15)
   if (r() < 0.6) g.blob(h * 0.88 * sx, h * 1.08 * sy, h * 0.05, h * 0.05, h * 0.2, h * 0.14, dim(L.skin, 0.92), 0, 0, -0.15); else g.blob(h * 0.86 * sx, h * 1.08 * sy, h * 0.05, h * 0.045, h * 0.11, h * 0.1, C.gore)
-  if (L.helmet) {
+  if (L.helmet && S.riot) {
+    // riot helmet: rounded shell, neck guard, raised rim and a tinted visor over the face, hinge bolts on the sides
+    g.ball(0, h * 1.4 * sy, h * 0.08, h * sx * 1.12, h * sy * 0.9, h * sz * 1.2, 0x1d2430)
+    g.box(0, h * 0.95 * sy, h * 0.95, h * sx * 1.7, h * 0.55, h * 0.12, 0x15171a)
+    g.box(0, h * 1.06 * sy, h * 0.06, h * sx * 2.2, h * 0.1, h * sz * 2.25, 0x161b24)
+    g.ball(0, h * 0.95 * sy, F * h * 0.72, h * sx * 1.02, h * sy * 0.62, h * 0.36, 0x4f6f84)
+    g.box(0, h * 0.45 * sy, F * h * 0.98, h * sx * 1.4, h * 0.05, h * 0.06, 0x15171a)
+    for (const ex of [-1, 1]) g.ball(ex * h * sx * 1.08, h * 1.05 * sy, F * h * 0.1, h * 0.12, h * 0.12, h * 0.12, 0x0e0f10)
+  } else if (L.helmet) {
     g.ball(0, h * 1.42 * sy, h * 0.06, h * sx * 1.02, h * sy * 0.8, h * sz * 1.1, 0x3f4430)
     g.box(0, h * 1.16 * sy, h * 0.06, h * sx * 2.0, h * 0.1, h * sz * 2.05, 0x353a28)
   } else if (L.hair !== null) {
@@ -806,6 +826,7 @@ function armSegs(S: BodySpec, L: Look, side: number, r: () => number, kind: Infe
   if (sleeveLen > 0) up.loft([{ y: 0.05, w: R * 1.18, d: R * 1.15, c: sleeve }, { y: -0.05, w: R * 1.4, d: R * 1.3, c: sleeve }, { y: -A * sleeveLen * 0.98, w: R * 1.15, d: R * 1.1, c: sleeve, jag: 0.05 }], 7, sleeveLen === 1 ? 0 : 0)
   up.carve(side * R * 0.95, -A * (0.3 + r() * 0.45), F * R * 0.2, R * 1.1, 0.3)
   if (big) up.plate(side * R * 1.0, -A * 0.3, 0, R * 0.32, A * 0.3, R * 0.8, 0, 0, side * 0.1)
+  if (S.riot) up.ball(side * R * 0.35, -0.03, 0, R * 1.6, R * 1.05, R * 1.5, 0x15171a).ball(side * R * 0.5, -0.1, 0, R * 1.45, R * 0.6, R * 1.35, 0x1d2430)
   if (!big && DETAIL >= 1) up.ball(0, -A + 0.004, R * 0.45, R * 0.62, R * 0.55, R * 0.5, dim(L.skin, 0.9))
   // forearm
   const club = S.club && side > 0
@@ -870,6 +891,7 @@ function legSegs(S: BodySpec, L: Look, side: number, r: () => number): [THREE.Bu
   if (S.plates) th.plate(side * R * 0.95, -Th * 0.4, 0, R * 0.32, Th * 0.3, R * 0.85, 0, 0, side * 0.08)
   if (!S.plates && DETAIL >= 1 && !fullPants) th.ball(0, -Th + 0.006, F * R * 0.42, R * 0.66, R * 0.6, R * 0.5, dim(L.skin, 0.92))
   // shin + foot
+  if (S.riot) sh.ball(0, -0.01, F * Q * 0.75, Q * 1.15, Q * 1.4, Q * 0.75, 0x15171a)
   const torn = L.pants === "torn" ? 0.35 + r() * 0.35 : L.pants === "long" ? 1 : 0
   sh.loft([
     { y: 0.035, w: Q * 1.0, d: Q * 1.0, c: L.skin },

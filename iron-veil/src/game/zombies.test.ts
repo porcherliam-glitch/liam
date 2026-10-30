@@ -13,7 +13,7 @@ import type { Difficulty, ThemeId } from "./types"
 import { headlessWorld } from "./testWorld"
 import type { World } from "./world"
 import { FlowField, SPAWN_RULES, findSpawnPoint, goreOutcome, inViewCone, makeRng, nextMind, rayCapsule, separation, spawnAllowed, zoneTarget, type GoreInput } from "./zombieAi"
-import { GORE_RULES, InfectedManager, type Infected, type InfectedZone } from "./zombies"
+import { GORE_RULES, InfectedManager, riotFront, type Infected, type InfectedZone } from "./zombies"
 
 // ------------------------------------------------------------------ helpers
 
@@ -232,6 +232,21 @@ describe("InfectedManager behaviour", () => {
     mgr.applyDamage(limbHit(e, "head"), shot(400))
     expect(e.alive).toBe(false)
     expect(gas).toBe(1)
+  })
+  it("riot gear stops shots from the front, not from behind", () => {
+    expect(riotFront(0, { x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: -5 })).toBe(true)
+    expect(riotFront(0, { x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: 5 })).toBe(false)
+    const w = testWorld([]), { mgr } = setup(w)
+    const a = mgr.spawn("riot", 0, 0, { state: "idle" }), b = mgr.spawn("riot", 10, 0, { state: "idle" })
+    // a faces the shooter at z = -5, b turns its back to its shooter
+    a.yaw = 0; a.group.rotation.y = 0; b.yaw = Math.PI; b.group.rotation.y = Math.PI
+    const front = mgr.applyDamage(limbHit(a, "torso"), { ...shot(40), from: { x: 0, y: 1.6, z: -5 } }).dealt
+    const back = mgr.applyDamage(limbHit(b, "torso"), { ...shot(40), from: { x: 10, y: 1.6, z: -5 } }).dealt
+    expect(front).toBeLessThan(back * 0.5)
+    expect(back).toBeGreaterThan(30)
+    // the visor takes the edge off a headshot from the front
+    const head = mgr.applyDamage(limbHit(a, "head"), { ...shot(40), from: { x: 0, y: 1.6, z: -5 } }).dealt
+    expect(head).toBeLessThan(40)
   })
   it("a flashbang stops a charging runner for a few seconds", () => {
     const w = testWorld([]), { mgr, run, log } = setup(w)

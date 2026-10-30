@@ -56,16 +56,21 @@ const LOD_DIST = 45
 const SHADOW_DIST = 26
 const PART_INDEX: Record<BodyPartId, number> = { head: 0, torso: 1, armL: 2, armR: 3, legL: 4, legR: 5 }
 /** Extra head damage on top of the weapon's head multiplier: the head is the infected's weak point. */
-const HEAD_BONUS: Record<InfectedKind, number> = { walker: 1.5, runner: 1.5, screamer: 1.5, spitter: 1.4, stalker: 1.3, crawler: 1.5, bloater: 1.3, brute: 1, boss: 0.8 }
-const HEAD_ARMOR: Record<InfectedKind, number> = { walker: 0, runner: 0, screamer: 0, spitter: 0, stalker: 0, crawler: 0, bloater: 0, brute: 0.2, boss: 0.15 }
+const HEAD_BONUS: Record<InfectedKind, number> = { walker: 1.5, runner: 1.5, screamer: 1.5, spitter: 1.4, stalker: 1.3, crawler: 1.5, bloater: 1.3, riot: 1.2, brute: 1, boss: 0.8 }
+const HEAD_ARMOR: Record<InfectedKind, number> = { walker: 0, runner: 0, screamer: 0, spitter: 0, stalker: 0, crawler: 0, bloater: 0, riot: 0.6, brute: 0.2, boss: 0.15 }
 /** Attack wind-up (telegraph) in seconds. */
-const WIND: Record<InfectedKind, number> = { walker: 0.45, runner: 0.28, brute: 0.62, screamer: 0.4, spitter: 0.4, stalker: 0.3, crawler: 0.42, bloater: 0.55, boss: 0.75 }
-const TURN: Record<InfectedKind, number> = { walker: 3.5, runner: 8, brute: 2.4, screamer: 4, spitter: 3, stalker: 7, crawler: 2.5, bloater: 2.4, boss: 1.7 }
-const FOV_COS: Record<InfectedKind, number> = { walker: 0.34, runner: 0.34, brute: 0.34, screamer: 0.26, spitter: 0.5, stalker: 0.08, crawler: 0.34, bloater: 0.4, boss: 0.2 }
+const WIND: Record<InfectedKind, number> = { walker: 0.45, runner: 0.28, brute: 0.62, screamer: 0.4, spitter: 0.4, stalker: 0.3, crawler: 0.42, bloater: 0.55, riot: 0.5, boss: 0.75 }
+const TURN: Record<InfectedKind, number> = { walker: 3.5, runner: 8, brute: 2.4, screamer: 4, spitter: 3, stalker: 7, crawler: 2.5, bloater: 2.4, riot: 3.2, boss: 1.7 }
+const FOV_COS: Record<InfectedKind, number> = { walker: 0.34, runner: 0.34, brute: 0.34, screamer: 0.26, spitter: 0.5, stalker: 0.08, crawler: 0.34, bloater: 0.4, riot: 0.34, boss: 0.2 }
 /** Damage (fraction of max health) that staggers / interrupts a wind-up. */
-const STAGGER: Record<InfectedKind, number> = { walker: 0.12, runner: 0.14, screamer: 0.1, spitter: 0.15, stalker: 0.2, crawler: 0.2, bloater: 0.1, brute: 0.22, boss: 9 }
+const STAGGER: Record<InfectedKind, number> = { walker: 0.12, runner: 0.14, screamer: 0.1, spitter: 0.15, stalker: 0.2, crawler: 0.2, bloater: 0.1, riot: 0.08, brute: 0.22, boss: 9 }
 
 const WALKERS: readonly InfectedKind[] = ["walker", "walker", "walker", "runner"]
+
+/** True when an attack from `from` hits the front of a body facing `yaw` (forward = (-sin yaw, -cos yaw)). */
+export function riotFront(yaw: number, at: Vec3, from: Vec3): boolean {
+  return (from.x - at.x) * -Math.sin(yaw) + (from.z - at.z) * -Math.cos(yaw) > 0
+}
 
 export class Infected implements Hostile, AnimDriver {
   readonly faction = "infected" as const
@@ -219,7 +224,7 @@ export class InfectedManager implements HostileManager {
    * Builds the cached geometry of every look variant up front (~200 ms for all kinds). Call it while the raid
    * loads; otherwise each variant is built on first spawn (~6 ms each, spawns happen out of sight).
    */
-  prewarm(kinds: readonly InfectedKind[] = ["walker", "runner", "brute", "screamer", "spitter", "stalker", "crawler", "bloater", "boss"]): number {
+  prewarm(kinds: readonly InfectedKind[] = ["walker", "runner", "brute", "screamer", "spitter", "stalker", "crawler", "bloater", "riot", "boss"]): number {
     let n = 0
     for (const k of kinds) for (let v = 0; v < VARIANTS[k]; v++) { this.assets.get(k, v); n++ }
     return n
@@ -1096,11 +1101,13 @@ export class InfectedManager implements HostileManager {
     let part: BodyPartId = hit.bodyPart
     if (e.gore.severed.has(part)) part = "torso"
     let amount = dmg.amount, armor = 0
-    if (part === "head") { amount *= HEAD_BONUS[e.kind]; armor = HEAD_ARMOR[e.kind] }
+    // riot gear only covers the front: helmet visor and chest plate; from behind the back panel stops little
+    const riot = e.kind === "riot", front = riot && riotFront(e.yaw, e.position, dmg.from)
+    if (part === "head") { amount *= HEAD_BONUS[e.kind]; armor = riot ? (front ? HEAD_ARMOR.riot : 0.15) : HEAD_ARMOR[e.kind] }
     else if (part === "torso") {
-      armor = def.armor
+      armor = riot && !front ? 0.15 : def.armor
       if (e.kind === "boss" && this.isWeakSpot(e, hit.point)) { armor = 0; amount *= 2 }
-    } else armor = e.kind === "brute" || e.kind === "boss" ? def.armor * 0.5 : 0
+    } else armor = e.kind === "brute" || e.kind === "boss" ? def.armor * 0.5 : riot ? 0.2 : 0
     const dealt = amount * (1 - armor * (1 - Math.max(0, Math.min(1, dmg.penetration))))
     e.health -= dealt
     const pi = PART_INDEX[part]

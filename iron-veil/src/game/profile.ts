@@ -423,7 +423,7 @@ export class Company {
     const p = this.profile, hq = this.level("hq"), out: ContractOffer[] = []
     const fetchItems: ItemId[] = ["medical", "electronics", "intel", "parts", "gold", "sample", "fuel", "dogtag", "tools", "chem"]
     const killKinds: { id: string; name: string; min: number }[] = [
-      { id: "runner", name: INFECTED.runner.name, min: 1 }, { id: "screamer", name: INFECTED.screamer.name, min: 2 }, { id: "spitter", name: INFECTED.spitter.name, min: 2 }, { id: "bloater", name: INFECTED.bloater.name, min: 1 },
+      { id: "runner", name: INFECTED.runner.name, min: 1 }, { id: "screamer", name: INFECTED.screamer.name, min: 2 }, { id: "spitter", name: INFECTED.spitter.name, min: 2 }, { id: "bloater", name: INFECTED.bloater.name, min: 1 }, { id: "riot", name: INFECTED.riot.name, min: 2 },
       { id: "brute", name: INFECTED.brute.name, min: 2 }, { id: "stalker", name: INFECTED.stalker.name, min: 3 }, { id: "heavy", name: "Schwere Söldner", min: 2 }, { id: "marksman", name: "Scharfschützen", min: 3 },
     ]
     const places = [["town", "die Altstadt"], ["industry", "das Industriegebiet"], ["harbor", "den Hafen"], ["military", "die Militäranlage"], ["lab", "das Forschungslabor"], ["farm", "den Bauernhof"], ["station", "den Bahnhof"]]

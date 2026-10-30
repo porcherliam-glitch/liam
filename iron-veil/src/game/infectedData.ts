@@ -3,7 +3,7 @@
  * Reference points (weaponData.ts): MK-4 body 30, head ×2 (+ infected head bonus in zombies.ts), shotgun 9 × 14,
  * DR-7 72, .338 150. A walker drops to two rifle body shots plus one more, or one pistol/rifle head shot.
  */
-export type InfectedKind = "walker" | "runner" | "brute" | "screamer" | "spitter" | "stalker" | "crawler" | "bloater" | "boss"
+export type InfectedKind = "walker" | "runner" | "brute" | "screamer" | "spitter" | "stalker" | "crawler" | "bloater" | "riot" | "boss"
 
 export interface InfectedDef {
   name: string
@@ -35,6 +35,7 @@ export const INFECTED: Record<InfectedKind, InfectedDef> = {
   screamer: { name: "Schreier", health: 55, armor: 0, walkSpeed: 0.8, runSpeed: 3.4, sight: 32, hearing: 1.5, damage: 7, attackTime: 1.2, attackRange: 1.4, bleedChance: 0.2, infection: 5, xp: 45, weight: 1 },
   spitter: { name: "Speier", health: 80, armor: 0, walkSpeed: 0.8, runSpeed: 2.6, sight: 30, hearing: 1, damage: 14, attackTime: 2.6, attackRange: 15, bleedChance: 0, infection: 12, xp: 50, weight: 1.5 },
   stalker: { name: "Pirscher", health: 90, armor: 0.1, walkSpeed: 1.1, runSpeed: 5.2, sight: 24, hearing: 1.4, damage: 22, attackTime: 1.0, attackRange: 1.6, bleedChance: 0.55, infection: 8, xp: 60, weight: 1 },
+  riot: { name: "Gepanzerter", health: 130, armor: 0.75, walkSpeed: 0.7, runSpeed: 2.3, sight: 20, hearing: 0.9, damage: 18, attackTime: 1.3, attackRange: 1.55, bleedChance: 0.35, infection: 7, xp: 55, weight: 0.9 },
   bloater: { name: "Gasbläher", health: 150, armor: 0, walkSpeed: 0.55, runSpeed: 1.75, sight: 18, hearing: 1.1, damage: 11, attackTime: 1.6, attackRange: 1.6, bleedChance: 0.1, infection: 10, xp: 40, weight: 1.1 },
   crawler: { name: "Kriecher", health: 40, armor: 0, walkSpeed: 0.45, runSpeed: 1.2, sight: 14, hearing: 1, damage: 10, attackTime: 1.1, attackRange: 1.25, bleedChance: 0.4, infection: 8, xp: 10, weight: 2 },
   boss: { name: "Der Koloss", health: 2600, armor: 0.3, walkSpeed: 1.1, runSpeed: 4.0, sight: 40, hearing: 1, damage: 55, attackTime: 2.2, attackRange: 3.4, bleedChance: 0.8, infection: 20, xp: 900, weight: 0 },

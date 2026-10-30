@@ -71,7 +71,7 @@ Schreiben dürfen Personen, mit denen das Artefakt mindestens als „Contributor
 ## Inhalt
 
 - **Riesige Sperrzone** (~600 × 600 m) mit Stadtteilen: Altstadt, Industriegebiet, Hafen, Militäranlage, Forschungslabor mit Endgegner, Bauernhof, Bahnhof, Nordwald, Steinbruch. Vier Tageszeiten und vier Wetterlagen (klar, Regen, Nebel, Gewitter mit Blitz und Donner): Regen und Donner überdecken Geräusche, Nebel verkürzt die Sicht – auch für die Gegner.
-- **Infizierte**: Schlurfer, Läufer, Brecher, Schreier, Spucker, Schleicher, Kriecher, Gasbläher (bläht sich auf und platzt in eine Giftgaswolke – am besten aus der Ferne erledigen) und der Koloss. Dazu **Söldnertrupps** mit Deckung, Flanken und Scharfschützen.
+- **Infizierte**: Schlurfer, Läufer, Brecher, Schreier, Spucker, Schleicher, Kriecher, Gasbläher (bläht sich auf und platzt in eine Giftgaswolke – am besten aus der Ferne erledigen), Gepanzerter (ehemaliger Bereitschaftspolizist mit Helm, Visier und Schutzweste: von vorn sehr zäh, von hinten und an den Beinen verwundbar) und der Koloss. Dazu **Söldnertrupps** mit Deckung, Flanken und Scharfschützen.
 - **Gore**: Kopftreffer lassen Köpfe platzen, Klingen und Schrot trennen Arme und Beine ab, Explosionen zerreißen Körper; Blut an Wänden, auf dem Boden und auf dem Bildschirm.
 - **38 Waffen**:
   - Nahkampf: Messer, Brechstange, Nagelkeule, Klappspaten, Tomahawk, Machete, Feueraxt, Spitzhacke, Katana, Vorschlaghammer und die Kettensäge (beidhändig, zerteilt alles, aber jeder hört sie).
