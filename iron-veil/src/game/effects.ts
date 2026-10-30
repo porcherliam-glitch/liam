@@ -220,7 +220,7 @@ export class Effects {
     let k = Math.floor(n) + (rnd() < n - Math.floor(n) ? 1 : 0)
     while (k-- > 0) {
       const a = rnd() * Math.PI * 2, d = Math.sqrt(rnd()) * r * 0.85, sh = 0.62 + rnd() * 0.12
-      this.alpha.emit(x + Math.cos(a) * d, 0.4 + rnd() * 2.6, z + Math.sin(a) * d, (rnd() - 0.5) * 0.35, 0.05 + rnd() * 0.15, (rnd() - 0.5) * 0.35, 3.5 + rnd() * 2.5, 1.6 + rnd() * 1.3, 0.9, sh, sh, sh * 0.98, 0.32 * density, 0.2, -0.02)
+      this.alpha.emit(x + Math.cos(a) * d, 0.4 + rnd() * 2.6, z + Math.sin(a) * d, (rnd() - 0.5) * 0.35, 0.05 + rnd() * 0.15, (rnd() - 0.5) * 0.35, 3.5 + rnd() * 2.5, 1.6 + rnd() * 1.3, 0.9, sh, sh, sh * 0.98, 0.42 * density, 0.2, -0.02)
     }
   }
 
