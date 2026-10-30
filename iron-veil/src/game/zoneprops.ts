@@ -1150,11 +1150,24 @@ function extraProp(ctx: BuildCtx, p: MapProp): void {
       return
     }
     case "antenna": {
-      const h = p.h ?? 9
-      place(metal, t.cyl8, p.x, h / 2, p.z, 0, 0, 0, 0.05, h, 0.05, 0x8a8e92)
-      for (const [ax, az] of [[3, 2], [-3, 2], [0, -3.5]]) ctx.lines.push(p.x, h * 0.8, p.z, p.x + ax, 0.05, p.z + az)
-      for (const y of [h * 0.6, h * 0.8]) place(metal, t.box, p.x, y, p.z, 0, 0.5, 0, 1.2, 0.04, 0.04, 0x8a8e92)
-      ctx.glow.add(p.x, h + 0.15, p.z, 0.35, 0xff2a18, 1.8, [3, 0.6, p.x])
+      // guyed lattice mast: concrete foot, three legs with zigzag bracing, guy wires to anchor blocks, dipoles, dish and whip
+      const h = p.h ?? 9, r = 0.22, grey = 0x8a8e92
+      ctx.B("concrete").box(p.x - 0.5, 0, p.z - 0.5, p.x + 0.5, 0.25, p.z + 0.5, { color: tint(0x9a968c) })
+      const legs = [0, 1, 2].map(i => [p.x + Math.cos(i * 2.094) * r, p.z + Math.sin(i * 2.094) * r])
+      for (const [lx, lz] of legs) place(metal, t.cyl8, lx, 0.25 + (h - 0.25) / 2, lz, 0, 0, 0, 0.025, h - 0.25, 0.025, grey, [1, h])
+      for (let y = 0.6; y < h - 0.5; y += 0.6) for (let i = 0; i < 3; i++) {
+        const [ax, az] = legs[i], [bx, bz] = legs[(i + 1) % 3], up = (Math.round(y / 0.6) % 2) * 0.6
+        strut(metal, ax, y, az, bx, y + up, bz, 0.014, 0x6a6e72)
+      }
+      for (let i = 0; i < 3; i++) {
+        const a = i * 2.094 + 1.05, ax = p.x + Math.cos(a) * h * 0.45, az = p.z + Math.sin(a) * h * 0.45
+        ctx.lines.push(p.x, h * 0.85, p.z, ax, 0.3, az, p.x, h * 0.5, p.z, ax, 0.3, az)
+        metal.box(ax - 0.25, 0, az - 0.25, ax + 0.25, 0.3, az + 0.25, { color: tint(0x9a968c), ao: 0 })
+      }
+      for (const [y, ry] of [[h * 0.62, 0.5], [h * 0.8, 1.3]]) place(metal, t.box, p.x, y, p.z, 0, ry, 0, 1.4, 0.035, 0.035, grey)
+      place(metal, t.disc, p.x + 0.42, h * 0.72, p.z, 0.35, Math.PI / 2, 0, 0.32, 0.32, 1, 0xd8d8d0)
+      place(metal, t.cyl8, p.x, h + 0.9, p.z, 0, 0, 0, 0.015, 1.8, 0.015, 0xc8ccd0)
+      ctx.glow.add(p.x, h + 1.85, p.z, 0.3, 0xff2a18, 1.8, [3, 0.6, p.x])
       return
     }
     case "gunrack": {

@@ -16,6 +16,7 @@
  */
 import * as THREE from "three"
 import type { WeatherId } from "../game/weather"
+import { STRUCTURES, type StructureId } from "../game/baseData"
 import { AudioSystem } from "../game/audio"
 import type { TimeOfDay } from "../game/baseData"
 import { EnemyManager, type PlayerState } from "../game/enemies"
@@ -54,7 +55,10 @@ const freeCam = { pos: new THREE.Vector3(0, 30, 60), target: new THREE.Vector3()
 function load(k: "zone" | "base" = kind, t: TimeOfDay = timeOfDay): void {
   enemies?.dispose(); infected?.dispose(); gore?.dispose(); world?.dispose()
   kind = k; timeOfDay = t
-  world = createWorld(k, scene, quality, { time: t })
+  // ?structures=N builds every base structure at level N (0 = empty plots)
+  const lvl = Number(params.get("structures") ?? 0)
+  const structures = k === "base" && lvl > 0 ? Object.fromEntries(Object.keys(STRUCTURES).map(id => [id, Math.min(lvl, STRUCTURES[id as StructureId].max)])) : undefined
+  world = createWorld(k, scene, quality, { time: t, structures })
   if (params.get("weather")) world.setWeather(params.get("weather") as WeatherId)
   renderer.toneMappingExposure = world.exposure
   gore = new GoreSystem(scene, world.collision, "brutal")
