@@ -485,18 +485,34 @@ function truckCabModel(ctx: BuildCtx, s: MapSolid): void {
 /** Junk wall: pallets on edge, corrugated sheets, a door, tyres, planks, sandbags at the foot (inside the box). */
 function barricade(ctx: BuildCtx, s: MapSolid, alongX: boolean): void {
   const L = alongX ? s.w : s.d, W = alongX ? s.d : s.w, h = s.h, f = alongX ? frameOf(s.x, s.z, 1, 0) : frameOf(s.x, s.z, 0, 1), rng = ctx.rng, t = tpl()
-  let u = -L / 2 + 0.1
+  let u = -L / 2 + 0.1, last = -1
   while (u < L / 2 - 0.4) {
-    const kind = Math.floor(rng() * 5), w = Math.min(L / 2 - u, 0.9 + rng() * 0.8), c = u + w / 2, tilt = (rng() - 0.5) * 0.18
+    let kind = Math.floor(rng() * 5); if (kind === last) kind = (kind + 1 + Math.floor(rng() * 4)) % 5; last = kind
+    const w = Math.min(L / 2 - u, 0.7 + rng() * 0.7), c = u + w / 2, tilt = (rng() - 0.5) * 0.18
     const [x, z] = f.at(c, (rng() - 0.5) * W * 0.3)
     if (kind === 0) place(ctx.B("pallets"), t.box, x, h * 0.42, z, tilt, f.ry, (rng() - 0.5) * 0.12, w, h * 0.84, 0.16, tint(undefined, 1, 0.8 + rng() * 0.3), [1.2, 1.2])
     else if (kind === 1) place(ctx.B("cladding"), t.box, x, h * 0.48, z, tilt, f.ry, (rng() - 0.5) * 0.1, w + 0.2, h * 0.95, 0.04, tint([0x7a4a34, 0x5a6066, 0x8a9096, 0x6a5a40][Math.floor(rng() * 4)], 1, 0.8 + rng() * 0.3), [w, h])
     else if (kind === 2) place(ctx.B("plaster"), t.box, x, h * 0.4, z, tilt * 0.5, f.ry, 0, 0.8, h * 0.8, 0.5, tint(rng() < 0.5 ? 0xd8d8d0 : 0x6e4b33), [1, 1])
     else if (kind === 3) for (let i = 0; i < 3; i++) place(ctx.B("rubber"), t.tyre, x + (rng() - 0.5) * 0.1, 0.12 + i * 0.24, z, 0, rng() * 3, 0, 0.36, 0.24, 0.36, 0x8a8a8c)
     else place(ctx.B("crate"), t.box, x, 0.35, z, 0, f.ry + (rng() - 0.5) * 0.4, 0, Math.min(w, 1), 0.7, Math.min(W, 0.8), tint(undefined, 1, 0.8 + rng() * 0.3), [1.2, 1.2])
-    u += w + 0.05
+    u += w - 0.1
+  }
+  // a second, lower row of junk in front (oil drums, a dropped pallet, rubble), planks nailed across, sandbags at the foot
+  for (let a = -L / 2 + 0.6; a < L / 2 - 0.5; a += 1.1 + rng() * 0.8) {
+    const [x, z] = f.at(a, -W * 0.38), r = rng()
+    if (r < 0.35) ctx.inst("barrel", x, 0.45, z, rng() * 6, [0.9, 0.9, 0.9], tint(0x4f5a4a, 1, 0.7 + rng() * 0.5).getHex())
+    else if (r < 0.65) place(ctx.B("pallets"), t.box, x, 0.08, z, 0, f.ry + (rng() - 0.5) * 0.6, 0, 1.2, 0.14, 0.8, tint(undefined, 1, 0.8 + rng() * 0.3), [1.2, 1.2])
+    else for (let i = 0; i < 3; i++) { const sz = 0.12 + rng() * 0.2; place(ctx.B("concrete"), t.chunkLo, x + (rng() - 0.5) * 0.6, sz * 0.5, z + (rng() - 0.5) * 0.5, rng() * 3, rng() * 3, 0, sz, sz * 0.7, sz, tint(0x9a968c, 1, 0.8 + rng() * 0.3)) }
   }
   for (let i = 0; i < 3; i++) { const [x, z] = f.at(-L / 2 + L * (0.2 + i * 0.3), 0); place(ctx.B("plank"), t.box, x, h * (0.4 + rng() * 0.4), z, 0, f.ry, (rng() - 0.5) * 1.2, Math.min(2.4, L * 0.4), 0.18, 0.05, tint(0x9a7a58, 1, 0.8 + rng() * 0.3), [2.4, 0.2]) }
+  // concertina wire along the top and a leaning warning sign
+  const c = tint(0xc8ccd0), cb = ctx.B("concertina"), [ax, az] = f.at(-L / 2 + 0.2, 0), [bx, bz] = f.at(L / 2 - 0.2, 0), r = 0.32, y = h - 0.05
+  const nx = -Math.sin(f.ry + Math.PI / 2), nz = -Math.cos(f.ry + Math.PI / 2)
+  cb.quad([ax, y, az], [bx, y, bz], [bx, y + 2 * r, bz], [ax, y + 2 * r, az], [nx, 0, nz], [0, 0, L, 0, L, 1, 0, 1], c)
+  cb.quad([ax - nx * r, y + r, az - nz * r], [bx - nx * r, y + r, bz - nz * r], [bx + nx * r, y + r, bz + nz * r], [ax + nx * r, y + r, az + nz * r], [0, 1, 0], [0, 0, L, 0, L, 1, 0, 1], c)
+  const [sx, sz] = f.at(L / 2 - 0.5, W * 0.35)
+  place(ctx.B("metal"), t.cyl8, sx, 0.9, sz, 0.22, f.ry, 0.1, 0.03, 1.8, 0.03, 0x6a6e72)
+  place(ctx.B("metal"), t.box, sx - Math.sin(f.ry) * 0.2, 1.75, sz - Math.cos(f.ry) * 0.2, 0.22, f.ry, 0.1, 0.6, 0.6, 0.03, 0xd8c040)
   for (let a = -L / 2 + 0.35; a < L / 2 - 0.3; a += 0.62) for (const sd of [-1, 1]) { const [x, z] = f.at(a, sd * (W / 2 - 0.2)); if (rng() < 0.6) ctx.inst("sandbag", x, 0.13, z, f.ry, [0.6, 0.26, 0.36], 0x8a7a5a) }
 }
 

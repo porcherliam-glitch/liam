@@ -410,6 +410,17 @@ function jersey(ctx: BuildCtx, s: MapSolid, x0: number, z0: number, x1: number, 
       }
     }
     if (ctx.rng() < 0.35) { const mid = a + seg / 2; decal(ctx, "hazard", alongX ? mid : cc + Wd * 0.29, 0.55, alongX ? cc + Wd * 0.29 : mid, 0.9, 0.18, alongX ? "s" : "e") }
+    // forklift slots through the base, two rebar lifting loops on top and the cast seam between segments
+    const dark = tint(0x3a3834), steel = tint(0x5a5248)
+    for (const o of [0.3, 0.7]) {
+      const m = a + seg * o
+      if (alongX) b.box(m - 0.2, 0.09, cc - Wd / 2 - 0.01, m + 0.2, 0.26, cc + Wd / 2 + 0.01, { color: dark, ao: 0 })
+      else b.box(cc - Wd / 2 - 0.01, 0.09, m - 0.2, cc + Wd / 2 + 0.01, m + 0.2, 0.26, { color: dark, ao: 0 })
+      if (alongX) b.box(m - 0.06, H, cc - 0.02, m + 0.06, H + 0.07, cc + 0.02, { color: steel, ao: 0 })
+      else b.box(cc - 0.02, H, m - 0.06, cc + 0.02, H + 0.07, m + 0.06, { color: steel, ao: 0 })
+    }
+    if (alongX) b.box(a - 0.02, 0, cc - Wd * 0.2, a + 0.02, H - 0.02, cc + Wd * 0.2, { color: dark, ao: 0 })
+    else b.box(cc - Wd * 0.2, 0, a - 0.02, cc + Wd * 0.2, a + 0.02, H - 0.02, { color: dark, ao: 0 })
   }
 }
 
@@ -933,33 +944,102 @@ function crane(ctx: BuildCtx, p: MapProp): void {
 }
 
 function ship(ctx: BuildCtx, p: MapProp): void {
-  const metal = ctx.B("metal"), w = p.w ?? 30, len = p.d ?? 170, h = p.h ?? 12, L = ctx.look
-  const x0 = p.x - w / 2, x1 = p.x + w / 2, z0 = p.z - len / 2, z1 = p.z + len / 2
-  metal.box(x0, -6, z0 + 8, x1, h, z1 - 14, { color: tint(0x1d2633), ao: 0 })
-  metal.box(x0 + 3, -6, z0, x1 - 3, h, z0 + 8, { color: tint(0x1d2633), ao: 0 })
-  metal.box(x0 + 4, -6, z1 - 14, x1 - 4, h + 1.5, z1, { color: tint(0x1d2633), ao: 0 })
-  metal.box(x0 - 0.02, -1.2, z0 + 8, x0, -0.6, z1 - 14, { color: tint(0x6a1c18), ao: 0 })
-  metal.box(x0 - 0.03, h - 0.6, z0 + 8, x0 + 0.1, h, z1 - 14, { color: tint(0xdcdcd4), ao: 0 })
+  const metal = ctx.B("metal"), w = p.w ?? 30, len = p.d ?? 170, h = p.h ?? 12, L = ctx.look, t = tpl()
+  const x0 = p.x - w / 2, x1 = p.x + w / 2, z0 = p.z - len / 2, z1 = p.z + len / 2, keel = -6, water = -1.3
+  const hull = tint(0x26354a), anti = tint(0x6a1c18), boot = tint(0xdcdcd4), deckC = tint(0x4a5258), rail = tint(0xc8ccd0)
+  // quad with the normal computed from its corners and flipped toward `out`
+  const quadN = (b: GeoBatch, a: number[], bb: number[], c: number[], d: number[], out: number[], col: THREE.Color, uv: number[]) => {
+    const ux = bb[0] - a[0], uy = bb[1] - a[1], uz = bb[2] - a[2], vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2]
+    let nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx
+    const l = Math.hypot(nx, ny, nz) || 1; nx /= l; ny /= l; nz /= l
+    if (nx * out[0] + ny * out[1] + nz * out[2] < 0) { b.quad(a, d, c, bb, [-nx, -ny, -nz], [uv[0], uv[1], uv[6], uv[7], uv[4], uv[5], uv[2], uv[3]], col) } else b.quad(a, bb, c, d, [nx, ny, nz], uv, col)
+  }
+  // hull sections bow (t = 0) → stern (t = 1): deck half width, keel half width, deck height (sheer rises at the bow)
+  const N = 16, hw = w / 2
+  const sec = (tt: number) => {
+    // fine entry at the bow, full beam amidships, rounded stern
+    const bow = Math.min(1, tt / 0.34), st = tt > 0.86 ? 1 - (tt - 0.86) / 0.14 * 0.3 : 1
+    const half = hw * (0.03 + 0.97 * Math.sin(bow * Math.PI / 2) ** 1.7) * st
+    return { z: z0 + tt * len, half, kw: half * (tt < 0.1 ? 0.15 : 0.55), deck: h + 1.8 * (1 - Math.min(1, tt / 0.35)) ** 2 + 0.5 * Math.max(0, (tt - 0.75) / 0.25) ** 2 }
+  }
+  const S = Array.from({ length: N + 1 }, (_, i) => sec(i / N))
+  for (let i = 0; i < N; i++) {
+    const a = S[i], b = S[i + 1]
+    for (const sx of [-1, 1]) {
+      // topside (flared a little), boot-top band, antifouling below the waterline down to the bilge, flat bottom
+      const o = [sx, 0, 0]
+      quadN(metal, [p.x + sx * a.half, a.deck, a.z], [p.x + sx * b.half, b.deck, b.z], [p.x + sx * b.half * 0.985, water + 0.5, b.z], [p.x + sx * a.half * 0.985, water + 0.5, a.z], o, hull, [a.z, a.deck, b.z, b.deck, b.z, water + 0.5, a.z, water + 0.5])
+      quadN(metal, [p.x + sx * a.half * 0.985, water + 0.5, a.z], [p.x + sx * b.half * 0.985, water + 0.5, b.z], [p.x + sx * b.half * 0.98, water - 0.2, b.z], [p.x + sx * a.half * 0.98, water - 0.2, a.z], o, boot, [a.z, 0, b.z, 0, b.z, 0.7, a.z, 0.7])
+      quadN(metal, [p.x + sx * a.half * 0.98, water - 0.2, a.z], [p.x + sx * b.half * 0.98, water - 0.2, b.z], [p.x + sx * b.kw, keel, b.z], [p.x + sx * a.kw, keel, a.z], o, anti, [a.z, water, b.z, water, b.z, keel, a.z, keel])
+      // rub rail and three plating seams along the topside
+      for (const y of [a.deck - 0.9, water + 2.2]) quadN(metal, [p.x + sx * (a.half + 0.12), y + 0.1, a.z], [p.x + sx * (b.half + 0.12), y + 0.1, b.z], [p.x + sx * b.half, y - 0.1, b.z], [p.x + sx * a.half, y - 0.1, a.z], o, hull, [a.z, 0, b.z, 0, b.z, 0.2, a.z, 0.2])
+    }
+    // deck
+    quadN(metal, [p.x - a.half, a.deck, a.z], [p.x - b.half, b.deck, b.z], [p.x + b.half, b.deck, b.z], [p.x + a.half, a.deck, a.z], [0, 1, 0], deckC, [p.x - a.half, a.z, p.x - b.half, b.z, p.x + b.half, b.z, p.x + a.half, a.z])
+    // bulwark: a 1.1 m wall along the deck edge
+    for (const sx of [-1, 1]) {
+      const ia = p.x + sx * (a.half - 0.25), ib = p.x + sx * (b.half - 0.25)
+      quadN(metal, [p.x + sx * a.half, a.deck, a.z], [p.x + sx * b.half, b.deck, b.z], [p.x + sx * b.half, b.deck + 1.1, b.z], [p.x + sx * a.half, a.deck + 1.1, a.z], [sx, 0, 0], hull, [a.z, 0, b.z, 0, b.z, 1.1, a.z, 1.1])
+      quadN(metal, [ia, a.deck, a.z], [ib, b.deck, b.z], [ib, b.deck + 1.1, b.z], [ia, a.deck + 1.1, a.z], [-sx, 0, 0], hull, [a.z, 0, b.z, 0, b.z, 1.1, a.z, 1.1])
+      quadN(metal, [ia, a.deck + 1.1, a.z], [ib, b.deck + 1.1, b.z], [p.x + sx * b.half, b.deck + 1.1, b.z], [p.x + sx * a.half, a.deck + 1.1, a.z], [0, 1, 0], rail, [0, a.z, 0, b.z, 0.25, b.z, 0.25, a.z])
+    }
+  }
+  // transom and bow cap
+  const st = S[N], bw = S[0]
+  quadN(metal, [p.x - st.half, st.deck + 1.1, st.z], [p.x + st.half, st.deck + 1.1, st.z], [p.x + st.kw, keel, st.z], [p.x - st.kw, keel, st.z], [0, 0, 1], hull, [-st.half, st.deck, st.half, st.deck, st.kw, keel, -st.kw, keel])
+  quadN(metal, [p.x - bw.half, bw.deck + 1.1, bw.z], [p.x + bw.half, bw.deck + 1.1, bw.z], [p.x + bw.kw, keel, bw.z], [p.x - bw.kw, keel, bw.z], [0, 0, -1], hull, [0, bw.deck, 1, bw.deck, 1, keel, 0, keel])
+  // anchors in their hawse pipes, draft marks, name board on the bow
+  for (const sx of [-1, 1]) {
+    const a = sec(0.1)
+    metal.box(p.x + sx * a.half - 0.5, water + 3.2, a.z - 0.9, p.x + sx * a.half + 0.5, water + 4.4, a.z + 0.9, { color: tint(0x0c1014), ao: 0 })
+    metal.box(p.x + sx * (a.half + 0.05), water + 1.6, a.z - 0.25, p.x + sx * (a.half + 0.45), water + 3.4, a.z + 0.25, { color: tint(0x2a2c2e), ao: 0 })
+    metal.box(p.x + sx * (a.half + 0.05), water + 1.4, a.z - 1.1, p.x + sx * (a.half + 0.4), water + 1.8, a.z + 1.1, { color: tint(0x2a2c2e), ao: 0 })
+    for (let m = 0; m < 5; m++) metal.box(p.x + sx * (sec(0.2).half + 0.01), water + 0.8 + m * 1.2, sec(0.2).z - 0.7, p.x + sx * (sec(0.2).half + 0.04), water + 0.95 + m * 1.2, sec(0.2).z + 0.7, { color: tint(0xe8e6de), ao: 0 })
+  }
+  decal(ctx, textKey(ctx, 2, "MERIDIAN STAR"), p.x - sec(0.4).half - 0.05, h - 1.6, z0 + len * 0.4, 9, 1.2, "w")
+  // hatch coamings and the container stacks
   const rng = mulberry(990), cols = [0x9a3328, 0x2d557f, 0x3f6c48, 0xc4651f, 0x7c8186, 0x2f7174, 0xc4c2b8, 0x6e4b33]
   for (let bay = 0; bay < 9; bay++) {
     const zb = z0 + 12 + bay * 14
     if (zb + 13 > z1 - 40) break
+    metal.box(x0 + 2.2, h, zb - 0.4, x1 - 2.2, h + 0.7, zb + 12.6, { color: tint(0x5a6066), ao: 0 })
     for (let c = 0; c < 10; c++) {
       const xc = x0 + 2.6 + c * 2.5, n = 2 + Math.floor(rng() * 5)
-      ctx.B("container").box(xc, h, zb, xc + 2.44, h + n * 2.6, zb + 12.2, { color: tint(cols[Math.floor(rng() * cols.length)], 1, 0.9 + rng() * 0.2), ao: 0.05 })
+      ctx.B("container").box(xc, h + 0.7, zb, xc + 2.44, h + 0.7 + n * 2.6, zb + 12.2, { color: tint(cols[Math.floor(rng() * cols.length)], 1, 0.9 + rng() * 0.2), ao: 0.05 })
     }
   }
+  // two deck cranes between the holds: pedestal, house, boom with cable
+  for (const zc of [z0 + 12 + 3 * 14 - 1, z0 + 12 + 6 * 14 - 1]) {
+    const cx = x1 - 4
+    place(metal, t.cyl8, cx, h + 2.5, zc, 0, 0, 0, 1.4, 5, 1.4, 0x8a8e92)
+    metal.box(cx - 1.6, h + 5, zc - 2.2, cx + 1.6, h + 8, zc + 1.2, { color: tint(0xc4651f), ao: 0 })
+    ctx.B("glass").box(cx - 1.7, h + 6.2, zc - 2.3, cx - 1.6, h + 7.6, zc + 0.8, { color: tint(0x2c353d), ao: 0 })
+    place(metal, t.box, cx - 0.5 - 8, h + 6.5 + 7, zc, 0, 0, -0.75, 20, 0.9, 0.9, 0xc4651f)
+    ctx.lines.push(cx - 0.5 - 15.5, h + 6.5 + 14.2, zc, cx - 0.5 - 15.5, h + 2, zc, cx - 0.5 - 15.5, h + 6.5 + 14.2, zc, cx, h + 8, zc)
+    place(metal, t.box, cx - 0.5 - 15.5, h + 1.7, zc, 0, 0, 0, 1.2, 0.6, 1.2, 0x3a3c3e)
+  }
+  // superstructure: accommodation block with bridge wings, funnel, radar mast, lifeboats, rails
   const ax = p.x, az = z1 - 26
   ctx.B("plaster").box(ax - 12, h, az - 7, ax + 12, h + 22, az + 7, { color: tint(0xe0ded6), ao: 0 })
   ctx.B("plaster").box(ax - 15, h + 20, az - 6, ax + 15, h + 23, az + 4, { color: tint(0xe0ded6), ao: 0 })
-  metal.box(ax - 3, h + 22, az + 2, ax + 3, h + 30, az + 6, { color: tint(0x2a2c30), ao: 0 })
+  for (const sx of [-1, 1]) { metal.box(ax + sx * 15 - 0.1, h + 23, az - 6, ax + sx * 15 + 0.1, h + 24.1, az + 4, { color: rail, ao: 0 }); for (let i = 0; i < 6; i++) metal.box(ax - 15, h + 23, az - 6 + i * 2 - 0.05, ax + 15, h + 24.1, az - 6 + i * 2 + 0.05, { color: rail, ao: 0 }) }
+  for (let y = h + 3; y < h + 20; y += 3) for (const sx of [-1, 1]) for (let i = 0; i < 5; i++) metal.box(ax + sx * 12 - 0.3, y, az - 5 + i * 2.5 - 0.15, ax + sx * 12 + 0.3, y + 0.25, az - 5 + i * 2.5 + 0.15, { color: tint(0x9a9e9a), ao: 0 })
+  place(metal, t.cyl16, ax, h + 25, az + 4, 0, 0, 0, 2.4, 7, 2.4, 0x2a2c30, [15, 7])
+  place(metal, t.cyl16, ax, h + 27.3, az + 4, 0, 0, 0, 2.45, 1.2, 2.45, 0xc4651f)
+  place(metal, t.cyl8, ax, h + 26, az - 5, 0, 0, 0, 0.3, 8, 0.3, 0xc8ccd0)
+  place(metal, t.box, ax, h + 30, az - 5, 0, 0, 0, 3.2, 0.25, 0.6, 0xc8ccd0)
+  place(metal, t.box, ax, h + 29, az - 5, 0, 0.6, 0, 1.0, 0.8, 0.4, 0x3a3c3e)
+  for (const sx of [-1, 1]) {
+    place(metal, t.sphere, ax + sx * 13.5, h + 16, az - 2, 0, 0, 0, 1.2, 1.1, 3.4, 0xe8661c)
+    place(metal, t.box, ax + sx * 13.2, h + 17.6, az - 2, 0, 0, 0, 2.2, 0.3, 4.2, 0x5a6066)
+  }
   for (let y = h + 2; y < h + 20; y += 3) for (let i = -4; i <= 4; i++) {
     const cell = rng() < 0.55 ? 4 + Math.floor(rng() * 2) : 0
     ctx.windows.push({ x: ax - 12, y, z: az + i * 1.4, w: 1.0, h: 1.2, face: "w", cell })
   }
   for (let i = 0; i < 12; i++) ctx.glow.add(x0 - 0.3, h + 0.6, z0 + 10 + i * 12, 0.7, 0xffd8a0, 0.9 * (0.4 + L.night), [0, 0, 0])
-  ctx.glow.add(ax, h + 31, az + 4, 0.9, 0xffffff, 2, [2, 0.9, 0]); ctx.glow.add(x0, h + 23, az, 0.8, 0xff2020, 1.8); ctx.glow.add(x1, h + 23, az, 0.8, 0x20ff60, 1.8)
-  ctx.lines.push(ax, h + 30, az + 4, p.x, h + 4, z0 + 2, ax, h + 30, az + 4, p.x, h + 4, z1)
+  ctx.glow.add(ax, h + 31, az - 5, 0.9, 0xffffff, 2, [2, 0.9, 0]); ctx.glow.add(x0, h + 23, az, 0.8, 0xff2020, 1.8); ctx.glow.add(x1, h + 23, az, 0.8, 0x20ff60, 1.8)
+  ctx.lines.push(ax, h + 30, az - 5, p.x, h + 4, z0 + 2, ax, h + 30, az - 5, p.x, h + 4, z1)
 }
 
 // ---------------------------------------------------------------------------------------------------------------
