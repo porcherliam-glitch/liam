@@ -257,10 +257,13 @@ function extractionVisual(ctx: Ctx, def: ExtractionDef): ExtractionSite {
       placeProp(ctx, P.hayBale(), x - 1.8, z + 1, 0.4, { reserve: 1 })
       torch(ctx, x - 2, z - 2)
       break
-    case "tunnel":
-      placeProp(ctx, P.tunnelEntrance(ctx.area.biome === "catacombs"), x, z - 2, towardCentre + Math.PI, { reserve: 5 })
-      torch(ctx, x + 3, z + 1)
+    case "tunnel": {
+      // Mouth faces the map centre, the mound sits behind the beacon so the light circle stays walkable
+      const back = 3.5
+      placeProp(ctx, P.tunnelEntrance(ctx.area.biome === "catacombs"), x - Math.sin(towardCentre) * back, z - Math.cos(towardCentre) * back, towardCentre, { reserve: 5 })
+      torch(ctx, x + Math.cos(towardCentre) * 3, z - Math.sin(towardCentre) * 3)
       break
+    }
     case "ford": {
       placeProp(ctx, P.dock(8), x, z, towardCentre, { reserve: 3, sink: 0.3 })
       torch(ctx, x + 2.5, z + 2.5)
