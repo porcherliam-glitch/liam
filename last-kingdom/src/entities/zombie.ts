@@ -97,7 +97,7 @@ export class Zombie {
     this.humanoid.bones.head.add(this.eyes)
     // Ground ring that appears while an attack winds up (readable telegraphs)
     const r = type.attackRange + 0.4
-    this.telegraph = new THREE.Mesh(new THREE.RingGeometry(r * 0.7, r, 24), new THREE.MeshBasicMaterial({ color: 0xff3020, transparent: true, opacity: 0.35, depthWrite: false, side: THREE.DoubleSide }))
+    this.telegraph = new THREE.Mesh(new THREE.RingGeometry(r * 0.82, r, 28), new THREE.MeshBasicMaterial({ color: 0xff4030, transparent: true, opacity: 0.3, depthWrite: false, side: THREE.DoubleSide }))
     this.telegraph.rotation.x = -Math.PI / 2
     this.telegraph.position.y = 0.06
     this.telegraph.visible = false
@@ -487,7 +487,7 @@ export class Zombie {
     this.telegraph.visible = winding
     if (winding) {
       const m = this.telegraph.material as THREE.MeshBasicMaterial
-      m.opacity = 0.25 + Math.min(0.5, a.progress * 0.6)
+      m.opacity = 0.15 + Math.min(0.35, a.progress * 0.4)
       const sc = this.ability === "slam" ? 2 : this.ability === "leap" ? 1.4 : 1
       this.telegraph.scale.setScalar(sc / this.type.scale)
     }

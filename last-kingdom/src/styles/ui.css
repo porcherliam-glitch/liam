@@ -50,9 +50,21 @@
   align-items: stretch;
 }
 .menu-list.compact {
-  gap: 6px;
-  margin-top: 12px;
+  gap: 5px;
+  margin-top: 10px;
   width: 100%;
+}
+.menu-list.compact .btn {
+  padding: 7px 14px;
+  font-size: 1rem;
+}
+.menu-list.compact .btn.big {
+  padding: 10px 16px;
+  font-size: 1.15rem;
+}
+.menu-list.compact .btn.small {
+  padding: 5px 10px;
+  font-size: 0.85rem;
 }
 .btn {
   font-family: var(--font-head);
@@ -885,4 +897,25 @@ canvas.runmap {
 .ach.done {
   opacity: 1;
   border-color: var(--good);
+}
+
+.lore {
+  max-width: 720px;
+  background: #e9dcc0;
+  color: #2a2016;
+  border: 6px double #8a7250;
+  padding: 24px 32px;
+  font-family: var(--font-head);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7);
+}
+.lore h2 {
+  color: #4a3010;
+  border-bottom-color: #8a7250;
+}
+.lore-text {
+  font-size: 1.1rem;
+  line-height: 1.65;
+  white-space: pre-line;
+  margin-bottom: 14px;
+  font-style: italic;
 }

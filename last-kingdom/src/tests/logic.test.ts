@@ -17,6 +17,7 @@ import { CLASSES } from "../meta/classData"
 import { ACHIEVEMENTS, checkAchievements } from "../meta/achievements"
 import { createProfile } from "../meta/profile"
 import { sortInventory } from "../items/inventory"
+import { LORE } from "../meta/lore"
 
 describe("rng", () => {
   it("is deterministic", () => {
@@ -255,6 +256,17 @@ describe("collision and navigation", () => {
     expect(path!.some((p) => Math.abs(p[1]) > 19.5)).toBe(true)
     expect(nav.isBlockedWorld(0, 0)).toBe(true)
     expect(nav.isBlockedWorld(-10, 0)).toBe(false)
+  })
+})
+
+describe("lore", () => {
+  it("every document is an item with text", () => {
+    for (const [id, doc] of Object.entries(LORE)) {
+      expect(doc.id).toBe(id)
+      expect(itemDef(id).kind).toBe("quest")
+      expect(doc.text.length).toBeGreaterThan(80)
+    }
+    expect(Object.keys(LORE).length).toBe(8)
   })
 })
 

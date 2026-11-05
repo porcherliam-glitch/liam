@@ -57,7 +57,8 @@ Alle Menüs sind vollständig mit dem Controller bedienbar (Steuerkreuz/Stick zu
 7. **Tod:** Alles Mitgeführte ist verloren – außer den versicherten Rucksackplätzen (Verteidigungsanlagen, Fähigkeit „Versichert“) und ab Verteidigung Stufe 3 der ausgerüsteten Waffe. Die Hälfte der Erfahrung bleibt.
 8. **Nacht-Expeditionen:** Nach dem Sieg über den Boss eines Gebiets lässt sich das Gebiet bei Nacht betreten: anderthalbmal so viele Untote, deutlich bessere Beute und 40 % mehr Erfahrung. Eine Fackel in der linken Hand spendet Licht, lockt aber Untote an.
 9. **Expeditionsbedingungen:** Jede dritte Expedition hat eine Besonderheit – Blutmond, dichter Nebel, Totenstille, reiche Ernte oder Unwetter – mit eigenen Vor- und Nachteilen.
-10. **Erfolge:** Zwölf Erfolge (erste Extraktion, hundert Untote, alle Bosse, legendäre Beute, …) und eine Statistik im Lager.
+10. **Schriftstücke:** In Geheimverstecken liegen acht lesbare Dokumente (Zettel des Müllers, Tagebuch des Abts, Brief an die Königin, …), die die Geschichte der Seuche erzählen. Lesen bringt einmalig Erfahrung.
+11. **Erfolge:** Zwölf Erfolge (erste Extraktion, hundert Untote, alle Bosse, legendäre Beute, …) und eine Statistik im Lager.
 
 ## Systeme im Überblick
 

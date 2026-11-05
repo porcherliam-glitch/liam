@@ -610,7 +610,7 @@ export class Player {
       const ws2 = this.weaponStats
       if (this.state === "attacking" && this.attack && !ws2?.ranged && this.animator.progress > this.attack.hitAt - 0.25 && this.animator.progress < this.attack.hitAt + 0.3) {
         this.group.updateMatrixWorld(true)
-        this.trail.push(this.humanoid.handR, (ws2?.range ?? 1.5) * 0.75)
+        this.trail.push(this.humanoid.handR, (ws2?.range ?? 1.5) * 0.55)
       } else this.trail.update()
     }
   }

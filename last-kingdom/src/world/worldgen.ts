@@ -401,7 +401,7 @@ function buildVillage(ctx: Ctx): void {
   }
   // Secrets: cellar chest under the tavern, miller's hidden box
   ctx.keyChests.push(addContainer(ctx, "chest", -58 + 3, -14 + 2, 0, { secret: true }))
-  addContainer(ctx, "chest", 120, -100, 0.4, { secret: true })
+  addContainer(ctx, "chest", 120, -100, 0.4, { secret: true, fixed: [{ id: "miller_note", qty: 1 }] })
   addWater(ctx, 150, 0, 60, 300)
 }
 
@@ -410,7 +410,7 @@ function buildForest(ctx: Ctx): void {
   // Hunter's hut, logging camp, ruins, quarry
   placeProp(ctx, P.house({ w: 6, d: 5, roof: "thatch", seed: 11 }), -40, 20, 0.4, { reserve: 6 })
   poi(ctx, "hut", "Jägerhütte", -40, 20)
-  ctx.keyChests.push(addContainer(ctx, "chest", -40 + 1, 20 + 4.5, 0.4, { secret: true, fixed: [{ id: "bow_3", qty: 1 }] }))
+  ctx.keyChests.push(addContainer(ctx, "chest", -40 + 1, 20 + 4.5, 0.4, { secret: true, fixed: [{ id: "bow_3", qty: 1 }, { id: "huntsman_warning", qty: 1 }] }))
   for (let i = 0; i < 3; i++) placeProp(ctx, P.tent(i), 30 + i * 6, 60 + (i % 2) * 5, rng.range(0, 6), { reserve: 2.5 })
   placeProp(ctx, P.logPile(), 42, 56, 0.3, { reserve: 1.2 })
   placeProp(ctx, P.logPile(), 26, 70, 1.3, { reserve: 1.2 })
@@ -473,7 +473,7 @@ function buildCastle(ctx: Ctx): void {
   placeProp(ctx, P.house({ w: 16, d: 12, h: 9, stone: true, tall: true, seed: 3 }), 0, -30, 0, { reserve: 13 })
   placeProp(ctx, P.tower(4, 18), 10, -38, 0, { reserve: 4.5 })
   poi(ctx, "keep", "Der Bergfried", 0, -24)
-  ctx.keyChests.push(addContainer(ctx, "chest", 4, -27, 0, { secret: true, fixed: [{ id: "crypt_key", qty: 1 }] }))
+  ctx.keyChests.push(addContainer(ctx, "chest", 4, -27, 0, { secret: true, fixed: [{ id: "crypt_key", qty: 1 }, { id: "castellan_orders", qty: 1 }] }))
   // Barracks, stables, chapel, smithy
   placeProp(ctx, P.barn(4), -36, -20, Math.PI / 2, { reserve: 9 })
   poi(ctx, "stable", "Die Stallungen", -36, -20)
@@ -532,7 +532,7 @@ function buildGraveyard(ctx: Ctx): void {
   const royal = P.mausoleum(1)
   placeProp(ctx, royal, 0, -40, 0, { reserve: 6 })
   poi(ctx, "royal", "Mausoleum der Königsfamilie", 0, -36)
-  ctx.keyChests.push(addContainer(ctx, "chest", 0, -38.5, 0, { secret: true, fixed: [{ id: "torch_item", qty: 2 }] }))
+  ctx.keyChests.push(addContainer(ctx, "chest", 0, -38.5, 0, { secret: true, fixed: [{ id: "torch_item", qty: 2 }, { id: "gravedigger_ledger", qty: 1 }] }))
   for (let i = 0; i < 6; i++) {
     const x = rng.range(-90, 90)
     const z = rng.range(-90, 60)
@@ -712,7 +712,7 @@ function buildCatacombs(ctx: Ctx): void {
   poi(ctx, "ossuary", "Großes Beinhaus", 0, 0)
   poi(ctx, "stairs", "Treppe zur Oberwelt", -120, 120)
   poi(ctx, "crypt", "Alte Gruft", 0, -110)
-  ctx.keyChests.push(addContainer(ctx, "chest", 40, 40, 0, { secret: true, fixed: [{ id: "crypt_key", qty: 1 }], bonusRolls: 2 }))
+  ctx.keyChests.push(addContainer(ctx, "chest", 40, 40, 0, { secret: true, fixed: [{ id: "crypt_key", qty: 1 }, { id: "catacomb_inscription", qty: 1 }], bonusRolls: 2 }))
   addContainer(ctx, "chest", -60, -30, 0, { secret: true })
   for (let k = 0; k < 10; k++) addContainer(ctx, "bones", rng.range(-120, 120), rng.range(-120, 120), rng.range(0, 6))
   // Torches around spawn and boss
@@ -753,7 +753,7 @@ function buildCity(ctx: Ctx): void {
   // Cathedral on the square, market stalls, fountain
   placeProp(ctx, P.church({ w: 14, d: 30, towerH: 26 }), 0, -70, 0, { reserve: 22 })
   poi(ctx, "cathedral", "Kathedrale", 0, -55)
-  ctx.keyChests.push(addContainer(ctx, "chest", 0, -83, 0, { secret: true, fixed: [{ id: "gate_key", qty: 1 }], bonusRolls: 2 }))
+  ctx.keyChests.push(addContainer(ctx, "chest", 0, -83, 0, { secret: true, fixed: [{ id: "gate_key", qty: 1 }, { id: "lost_letter", qty: 1 }], bonusRolls: 2 }))
   placeProp(ctx, P.well(), 0, 0, 0, { reserve: 3 })
   poi(ctx, "market", "Marktplatz", 0, 8)
   for (let i = 0; i < 8; i++) placeProp(ctx, P.marketStall(i), -24 + (i % 4) * 14, i < 4 ? 20 : -20, i < 4 ? 0 : Math.PI, { reserve: 2.2 })
@@ -820,7 +820,7 @@ function buildFortress(ctx: Ctx): void {
   placeProp(ctx, P.house({ w: 20, d: 14, h: 10, stone: true, tall: true, seed: 52 }), 0, -95, 0, { reserve: 15 })
   placeProp(ctx, P.tower(5, 22), 14, -100, 0, { reserve: 5.5 })
   poi(ctx, "keep", "Kommandantur", 0, -86)
-  addContainer(ctx, "chest", 0, -92, 0, { secret: true, bonusRolls: 3 })
+  addContainer(ctx, "chest", 0, -92, 0, { secret: true, bonusRolls: 3, fixed: [{ id: "soldier_diary", qty: 1 }] })
   // Parade ground: statues, banners, palisades, cages
   placeProp(ctx, P.statue(3), 0, 20, 0, { reserve: 1.5 })
   poi(ctx, "parade", "Exerzierplatz", 0, 20)

@@ -11,6 +11,9 @@ import { campBonuses } from "../../meta/campData"
 import type { EquipSlot, ItemInstance, InventoryState } from "../../core/types"
 import { classDef } from "../../meta/classData"
 import { skillBonuses } from "../../meta/skillData"
+import { LORE } from "../../meta/lore"
+import { applyXp } from "../../meta/progression"
+import { events } from "../../core/events"
 
 const EQUIP_LABELS: Record<EquipSlot, string> = { mainHand: "Waffe", offHand: "Schild", head: "Helm", body: "Rüstung", quick1: "Schnell 1", quick2: "Schnell 2", quick3: "Schnell 3", quick4: "Schnell 4" }
 
@@ -66,6 +69,7 @@ export class InventoryScreen implements Screen {
     const inStash = this.game.profile!.stash.includes(item)
     const equipped = Object.values(this.inv.equipment).includes(item)
     const btns: string[] = []
+    if (LORE[item.defId]) btns.push(`<button class="btn small" data-focus data-focus-id="read" data-action="read" data-uid="${item.uid}">Lesen${(this.game.profile!.loreRead ?? []).includes(item.defId) ? "" : " (+EP)"}</button>`)
     if (inBag && isEquippable(def)) btns.push(`<button class="btn small" data-focus data-action="equip" data-uid="${item.uid}">Ausrüsten</button>`)
     if (inBag && canGoInQuickSlot(item.defId)) btns.push(`<button class="btn small" data-focus data-action="quick" data-uid="${item.uid}">In Schnellzugriff</button>`)
     if (inBag && isUsable(def) && this.mode === "expedition") btns.push(`<button class="btn small" data-focus data-action="use" data-uid="${item.uid}">Benutzen</button>`)
@@ -106,7 +110,8 @@ export class InventoryScreen implements Screen {
       } else if (button === "alt2") {
         action = action === "equipslot" ? "unequip" : "quick"
       } else {
-        if (action === "equipslot") action = "unequip"
+        if (LORE[item.defId]) action = "read"
+        else if (action === "equipslot") action = "unequip"
         else if (action === "stash") action = "tobag"
         else if (isEquippable(def)) action = "equip"
         else if (isUsable(def) && this.mode === "expedition") action = "use"
@@ -137,6 +142,20 @@ export class InventoryScreen implements Screen {
     }
     if (!item) return
     switch (action) {
+      case "read": {
+        const doc = LORE[item.defId]
+        if (!doc) break
+        p.loreRead ??= []
+        let gained = false
+        if (!p.loreRead.includes(doc.id)) {
+          p.loreRead.push(doc.id)
+          const levels = applyXp(p, 120)
+          if (levels) events.emit("levelUp", { level: p.level })
+          gained = true
+        }
+        this.game.ui.push(new LoreScreen(this.game, doc.title, doc.text, gained))
+        break
+      }
       case "equip": {
         const r = equip(inv, item.uid)
         if (!r.ok) toast(r.reason ?? "Geht nicht", "warn")
@@ -298,5 +317,20 @@ export class LootScreen implements Screen {
   // Y takes everything
   onAlt2(): void {
     this.onAction("takeall", document.body, "confirm")
+  }
+}
+
+export class LoreScreen implements Screen {
+  name = "lore"
+  overlay = true
+  constructor(private game: Pick<GameApi, "ui">, private title: string, private text: string, private gained: boolean) {}
+  render(): string {
+    return `<div class="lore"><h2>${esc(this.title)}</h2><div class="lore-text">${esc(this.text)}</div>${this.gained ? `<div class="good">+120 Erfahrung für die Entdeckung.</div>` : ""}<button class="btn" data-focus data-action="close">Schließen</button></div>`
+  }
+  onAction(): void {
+    this.game.ui.pop()
+  }
+  onBack(): void {
+    this.game.ui.pop()
   }
 }

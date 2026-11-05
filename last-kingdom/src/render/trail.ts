@@ -29,7 +29,7 @@ export class WeaponTrail {
     const mat = new THREE.ShaderMaterial({
       uniforms: { uColor: { value: new THREE.Color(color) } },
       vertexShader: /* glsl */ `attribute float aAlpha; varying float vA; void main() { vA = aAlpha; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
-      fragmentShader: /* glsl */ `uniform vec3 uColor; varying float vA; void main() { gl_FragColor = vec4(uColor, vA * 0.55); }`,
+      fragmentShader: /* glsl */ `uniform vec3 uColor; varying float vA; void main() { gl_FragColor = vec4(uColor, vA * 0.28); }`,
       transparent: true,
       depthWrite: false,
       side: THREE.DoubleSide,
@@ -45,6 +45,19 @@ export class WeaponTrail {
   push(grip: THREE.Object3D, tipOffset: number): void {
     grip.getWorldPosition(this.tmpA)
     this.tmpB.set(0, -tipOffset, 0).applyMatrix4(grip.matrixWorld)
+    if (this.count === 0) {
+      // Fresh swing: every sample starts at the current blade so no ribbon stretches to old positions
+      for (let i = 0; i < SAMPLES; i++) {
+        this.positions[i * 6] = this.tmpA.x
+        this.positions[i * 6 + 1] = this.tmpA.y
+        this.positions[i * 6 + 2] = this.tmpA.z
+        this.positions[i * 6 + 3] = this.tmpB.x
+        this.positions[i * 6 + 4] = this.tmpB.y
+        this.positions[i * 6 + 5] = this.tmpB.z
+        this.alphas[i * 2] = 0
+        this.alphas[i * 2 + 1] = 0
+      }
+    }
     // shift samples
     for (let i = SAMPLES - 1; i > 0; i--) {
       for (let k = 0; k < 6; k++) this.positions[i * 6 + k] = this.positions[(i - 1) * 6 + k]

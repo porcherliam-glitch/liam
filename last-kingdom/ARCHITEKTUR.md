@@ -57,6 +57,7 @@ Zustände `idle → wander → investigate → chase → attack / ability → st
 - Nacht-Expeditionen (`Expedition.night`): nach dem Boss-Sieg eines Gebiets wählbar; Start um 22:30, 1,5-fache Bevölkerung, +0,35 Beuteglück, +40 % Erfahrung.
 - Expeditionsbedingungen (`Expedition.modifier`): mit 35 % Wahrscheinlichkeit erhält ein Einsatz Blutmond, Nebel, Totenstille, reiche Ernte oder Unwetter; sie verändern Beuteglück, Horden-Takt, Bevölkerung oder sperren das Wetter. Bei Regen und Sturm trägt Lärm nur 70 % so weit.
 - Erfolge werden beim Rückweg ins Lager aus den Profilstatistiken abgeleitet (`checkAchievements`).
+- Schriftstücke (`meta/lore.ts`) sind Questgegenstände mit Text; das Inventar bietet „Lesen“, der erste Lesevorgang bringt 120 EP (`profile.loreRead`).
 - Schwierigkeit (leicht/normal/schwer) skaliert Lebenspunkte und Schaden der Gegner beim Spawnen bzw. Treffen.
 - Die Fackel (`torch_item`) kann in die linke Hand genommen werden und erzeugt ein flackerndes Punktlicht; Zombies sehen den Träger weiter.
 

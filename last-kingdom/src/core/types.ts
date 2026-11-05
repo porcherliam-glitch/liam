@@ -314,6 +314,8 @@ export interface Profile {
   female?: boolean
   /** Completed achievement ids. */
   achievements?: string[]
+  /** Lore documents already read. */
+  loreRead?: string[]
 }
 
 export interface Settings {
