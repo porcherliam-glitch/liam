@@ -48,3 +48,25 @@ export function formatTime(seconds: number): string {
   const s = Math.floor(seconds % 60)
   return `${m}:${s.toString().padStart(2, "0")}`
 }
+
+/** Integer hash to 0..1 (deterministic, no trig so large inputs stay stable). */
+export function hash1(i: number): number {
+  let x = Math.imul(i | 0, 0x27d4eb2d)
+  x ^= x >>> 15
+  x = Math.imul(x, 0x2c1b3c6d)
+  x ^= x >>> 12
+  return (x >>> 0) / 4294967296
+}
+
+/** 1D value noise in 0..1: hashed lattice values, smoothly interpolated. */
+export function noise1(t: number): number {
+  const i = Math.floor(t)
+  const f = t - i
+  const u = f * f * (3 - 2 * f)
+  return lerp(hash1(i), hash1(i + 1), u)
+}
+
+/** Flame flicker in 0..1: three noise octaves so torches never pulse periodically. */
+export function flicker(t: number, seed: number): number {
+  return 0.55 * noise1(t * 7 + seed) + 0.3 * noise1(t * 19 + seed * 3) + 0.15 * noise1(t * 41 + seed * 7)
+}

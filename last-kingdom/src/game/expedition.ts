@@ -35,6 +35,7 @@ import { campBonuses } from "../meta/campData"
 import { mat, waterMaterial, windUniforms } from "../render/materials"
 import type { PostProcess } from "../render/postprocess"
 import { RARITIES } from "../core/types"
+import { clamp, damp, flicker, lerp, noise1 } from "../core/math"
 
 interface Interactable {
   kind: "container" | "lever" | "extraction" | "pickup" | "survivor" | "arrow"
@@ -55,7 +56,10 @@ interface Pickup {
   x: number
   z: number
   y: number
-  light?: THREE.PointLight
+  /** Glow colour by best rarity; epic and better borrow the shared loot light slot. */
+  glow: number
+  /** Index into RARITIES of the best item. */
+  rarity: number
   /** Collected by walking over it (ammo). */
   auto?: boolean
 }
