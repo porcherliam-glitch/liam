@@ -44,6 +44,7 @@ export class Bot {
   private huntHp = 0
   private huntStall = 0
   private ignored = new Map<Zombie, number>()
+  private potionCooldown = 0
   done = false
 
   private hunt: boolean
@@ -89,12 +90,14 @@ export class Bot {
     }
     this.attackTimer -= dt
     this.dodgeCooldown -= dt
+    this.potionCooldown -= dt
     // Potion when hurt (quick slot 1 holds the potion if the harness placed one)
-    if (p.hp < p.maxHp * 0.45 && p.state === "normal") {
+    if (p.hp < p.maxHp * 0.45 && p.state === "normal" && this.potionCooldown <= 0) {
       const q = p.inventory.equipment.quick1
       if (q && itemDef(q.defId).consumable) {
         v.tap.add("quick1")
         this.stats.potions++
+        this.potionCooldown = 3
         return
       }
     }
