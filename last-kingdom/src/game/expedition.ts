@@ -56,6 +56,8 @@ interface Pickup {
   z: number
   y: number
   light?: THREE.PointLight
+  /** Collected by walking over it (ammo). */
+  auto?: boolean
 }
 
 interface Survivor {
@@ -136,6 +138,7 @@ export class Expedition implements ExpeditionApi {
   readonly modifier: { id: string; name: string; description: string } | null = null
   private hordeRate = 1
   private bossIntroShown = false
+  private tipKinds = new Set<string>()
   readonly missions: MissionDef[]
 
   constructor(
@@ -464,7 +467,7 @@ export class Expedition implements ExpeditionApi {
     g.add(shaft)
     g.position.set(x, this.world.terrain.heightAt(x, z), z)
     this.scene.add(g)
-    this.pickups.push({ items: [item], gold: 0, object: g, x, z, y })
+    this.pickups.push({ items: [item], gold: 0, object: g, x, z, y, auto: true })
   }
 
   private summon(x: number, z: number, typeId: string, count: number): void {
@@ -520,7 +523,10 @@ export class Expedition implements ExpeditionApi {
         else if (e.def.activation && e.def.activation.kind !== "lever") consider({ kind: "extraction", x: e.x, z: e.z, radius: 3.2, label: e.def.activation.label, extraction: e })
       }
     }
-    for (const pk of this.pickups) consider({ kind: "pickup", x: pk.x, z: pk.z, radius: 2.0, label: pk.items.length === 1 && pk.gold === 0 ? `Aufheben: ${displayName(pk.items[0])}${pk.items[0].qty > 1 ? ` ×${pk.items[0].qty}` : ""}` : "Beute aufheben", pickup: pk })
+    for (const pk of this.pickups) {
+      if (pk.auto) continue
+      consider({ kind: "pickup", x: pk.x, z: pk.z, radius: 2.0, label: pk.items.length === 1 && pk.gold === 0 ? `Aufheben: ${displayName(pk.items[0])}${pk.items[0].qty > 1 ? ` ×${pk.items[0].qty}` : ""}` : "Beute aufheben", pickup: pk })
+    }
     if (this.survivor && !this.survivor.following && !this.survivor.rescued) consider({ kind: "survivor", x: this.survivor.pos.x, z: this.survivor.pos.z, radius: 2.5, label: "Überlebenden mitnehmen", survivor: this.survivor })
     return best
   }
@@ -812,6 +818,28 @@ export class Expedition implements ExpeditionApi {
     this.updateExtraction(dt)
     this.updateExploration()
     this.updateEnvironment(dt)
+    // Walk-over pickups (ammo)
+    for (let i = this.pickups.length - 1; i >= 0; i--) {
+      const pk = this.pickups[i]
+      if (!pk.auto || this.player.dead) continue
+      if (Math.hypot(pk.x - this.player.pos.x, pk.z - this.player.pos.z) < 1.2) {
+        if (this.giveItem(pk.items[0]) && pk.items[0].qty <= 0) {
+          pk.object.removeFromParent()
+          this.pickups.splice(i, 1)
+        }
+      }
+    }
+    // First-contact tips for special enemy kinds
+    if (this.tipKinds.size < 3) {
+      for (const z of this.zombies) {
+        if (z.dead || !z.alerted || this.tipKinds.has(z.type.kind)) continue
+        if (z.type.kind === "knight") this.ui.toast("Verseuchte Ritter blocken Angriffe von vorn. Weiche aus und triff sie von der Seite.", "warn")
+        else if (z.type.kind === "brute") this.ui.toast("Brutale holen weit aus: der rote Ring zeigt den Schlag an. Rechtzeitig ausweichen!", "warn")
+        else if (z.type.kind === "sprinter") this.ui.toast("Sprinter sind schnell. Blocke den Sprung oder weiche im letzten Moment aus.", "warn")
+        else continue
+        this.tipKinds.add(z.type.kind)
+      }
+    }
     // Interaction
     const it = this.nearestInteractable()
     this.lastPrompt = it

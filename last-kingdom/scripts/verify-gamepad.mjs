@@ -105,10 +105,9 @@ try {
   for (let i = 0; i < 12; i++) {
     const f = await page.evaluate(() => document.querySelector(".screen:not(.hidden) .focused")?.getAttribute("data-action"))
     if (f === "start") break
-    await tap(15)
-    const f2 = await page.evaluate(() => document.querySelector(".screen:not(.hidden) .focused")?.getAttribute("data-action"))
-    if (f2 === "start") break
-    await tap(13)
+    if (f === "select") await tap(15) // into the detail panel
+    else if (f === "back") await tap(12) // "Expedition starten" sits above "Zurück"
+    else await tap(13)
   }
   focused = await page.evaluate(() => document.querySelector(".screen:not(.hidden) .focused")?.getAttribute("data-action"))
   g.check(focused === "start", `Expedition starten fokussiert (${focused})`)

@@ -555,7 +555,7 @@ export class MapScreen implements Screen {
       return `<div class="area ${this.selected === a.id ? "selected" : ""} ${ok ? "" : "locked"}" data-focus data-focus-id="a-${a.id}" data-action="select" data-id="${a.id}"><b>${esc(a.name)}</b><div class="dim">${"☠".repeat(a.danger)} ${ok ? "" : `· ab Stufe ${a.unlockLevel}${a.unlockAfter ? ", nach " + AREAS.find((x) => x.id === a.unlockAfter)!.name : ""}`}</div></div>`
     }).join("")}</section>
     <section class="panel area-detail"><h2>${esc(area.name)} <small>${esc(area.subtitle)}</small></h2>
-      <p>${esc(area.description)}</p>
+      <div class="area-top"><p>${esc(area.description)}</p><canvas class="area-sketch" width="260" height="260"></canvas></div>
       <div class="stat"><span>Gefahr</span><b>${"☠".repeat(area.danger)} (${area.danger} / 6)</b></div>
       <div class="stat"><span>Gegner</span><b>${area.enemies.map((e) => zombieType(e.typeId).name).join(", ")}</b></div>
       ${boss ? `<div class="stat"><span>Boss</span><b>${boss.name}, ${boss.bossTitle}</b></div>` : ""}
@@ -576,6 +576,7 @@ export class MapScreen implements Screen {
         this.selected = el.dataset.id!
         this.confirm = false
         this.game.ui.refresh(this)
+        this.drawSketch(document.querySelector(".screen-map") as HTMLElement)
         break
       case "start":
         this.confirm = true
@@ -606,7 +607,44 @@ export class MapScreen implements Screen {
       this.selected = el.dataset.id!
       this.confirm = false
       this.game.ui.refresh(this)
+      this.drawSketch(document.querySelector(".screen-map") as HTMLElement)
     }
+  }
+  onShow(el: HTMLElement): void {
+    this.drawSketch(el)
+  }
+  /** Schematic of the area: spawn, boss, extraction points with their activation needs. */
+  private drawSketch(root: HTMLElement): void {
+    const canvas = root.querySelector<HTMLCanvasElement>(".area-sketch")
+    if (!canvas) return
+    const area = AREAS.find((a) => a.id === this.selected)!
+    const ctx = canvas.getContext("2d")!
+    const W = canvas.width
+    const s = (W - 20) / (area.size * 2)
+    const px = (x: number) => 10 + (x + area.size) * s
+    const pz = (z: number) => 10 + (z + area.size) * s
+    ctx.fillStyle = "#15120f"
+    ctx.fillRect(0, 0, W, W)
+    ctx.strokeStyle = "#4a3a28"
+    ctx.lineWidth = 2
+    ctx.strokeRect(10, 10, W - 20, W - 20)
+    ctx.font = "11px sans-serif"
+    ctx.textAlign = "center"
+    const mark = (x: number, z: number, glyph: string, color: string, label?: string) => {
+      ctx.fillStyle = color
+      ctx.font = "bold 15px sans-serif"
+      ctx.fillText(glyph, px(x), pz(z) + 5)
+      if (label) {
+        ctx.font = "10px sans-serif"
+        ctx.fillStyle = "#c8bca6"
+        const w = ctx.measureText(label).width
+        const lx = Math.max(w / 2 + 4, Math.min(W - w / 2 - 4, px(x)))
+        ctx.fillText(label, lx, Math.min(W - 6, pz(z) + 17))
+      }
+    }
+    mark(area.spawnX, area.spawnZ, "▲", "#7fc46a", "Start")
+    if (area.bossX !== undefined) mark(area.bossX, area.bossZ!, "☠", "#ff6a4a", "Boss")
+    for (const e of area.extractions) mark(e.x, e.z, "⬆", e.activation ? "#8a9aa8" : "#6fd0ff", e.name + (e.activation ? " (" + { lever: "Hebel", key: "Schlüssel", repair: "Reparatur", torch: "Fackel" }[e.activation.kind] + ")" : ""))
   }
   onBack(): void {
     this.game.ui.pop()

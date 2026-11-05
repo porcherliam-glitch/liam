@@ -919,3 +919,18 @@ canvas.runmap {
   margin-bottom: 14px;
   font-style: italic;
 }
+
+.area-top {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+.area-top p {
+  flex: 1;
+  margin-top: 0;
+}
+.area-sketch {
+  flex: 0 0 260px;
+  border: 1px solid var(--panel-border);
+  border-radius: 3px;
+}

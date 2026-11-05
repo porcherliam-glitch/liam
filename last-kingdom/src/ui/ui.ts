@@ -209,20 +209,21 @@ export class UI {
     const cy = (r.top + r.bottom) / 2
     let best: HTMLElement | null = null
     let bestScore = Infinity
+    let fallback: HTMLElement | null = null
+    let fallbackScore = Infinity
     for (const el of list) {
       if (el === cur) continue
       const b = el.getBoundingClientRect()
       const bx = (b.left + b.right) / 2
       const by = (b.top + b.bottom) / 2
-      let dx = bx - cx
-      let dy = by - cy
+      const dx = bx - cx
+      const dy = by - cy
       let primary: number
       let secondary: number
       switch (dir) {
         case "up":
           primary = -dy
           secondary = Math.abs(dx)
-          // Use edge distance to favour elements in the same column
           if (b.bottom > r.top + 2 && b.top < r.bottom) primary = -1
           break
         case "down":
@@ -241,16 +242,21 @@ export class UI {
           if (b.left < r.right - 2 && b.right > r.left) primary = -1
       }
       if (primary <= 0) continue
-      // Overlap bonus: elements that overlap on the secondary axis are strongly preferred.
       const overlap = dir === "up" || dir === "down" ? Math.max(0, Math.min(r.right, b.right) - Math.max(r.left, b.left)) : Math.max(0, Math.min(r.bottom, b.bottom) - Math.max(r.top, b.top))
-      // Without overlap, only accept candidates roughly in the pressed direction (no jumps across columns).
-      if (overlap === 0 && secondary > primary * 1.5) continue
       const score = primary + secondary * (overlap > 0 ? 0.3 : 2.5)
-      if (score < bestScore) {
-        bestScore = score
-        best = el
+      // Candidates inside a wide cone (about 70°) win; steeper diagonals are only a fallback.
+      const aligned = overlap > 0 || secondary <= primary * 2.7
+      if (aligned) {
+        if (score < bestScore) {
+          bestScore = score
+          best = el
+        }
+      } else if (score < fallbackScore) {
+        fallbackScore = score
+        fallback = el
       }
     }
+    if (!best) best = fallback
     if (best) this.setFocus(top, best)
   }
 
