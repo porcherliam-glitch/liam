@@ -257,8 +257,9 @@ export class Bot {
     const p = e.player
     this.pathTimer -= dt
     if (!this.path || this.pathTimer <= 0) {
-      this.pathTimer = 2
-      this.path = e.world.nav.findPath(p.pos.x, p.pos.z, target.x, target.z, 120000)
+      // Long walks across a city need the large node budget (same as the world checks)
+      this.pathTimer = 3
+      this.path = e.world.nav.findPath(p.pos.x, p.pos.z, target.x, target.z, 400000)
     }
     let wp: [number, number] = [target.x, target.z]
     if (this.path && this.path.length) {
