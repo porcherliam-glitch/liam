@@ -48,6 +48,8 @@ export class Input {
   private capture: ((kind: "key" | "mouse" | "pad", code: string | number) => void) | null = null
   /** Mouse position in CSS pixels, for UI hover handled by the browser. */
   pointer = { x: 0, y: 0 }
+  /** Virtual input (automated play tests): replaces devices while set. */
+  virtual: { move: Vec2; held: Set<Action>; tap: Set<Action> } | null = null
   anyKeyThisFrame = false
   private textInputActive = false
   private rumbleUntil = 0
@@ -234,7 +236,8 @@ export class Input {
     this.pressedThisFrame.clear()
     this.releasedThisFrame.clear()
     for (const a of ALL_ACTIONS) {
-      if (this.isActionDown(a)) {
+      const down = this.virtual ? this.virtual.held.has(a) || this.virtual.tap.has(a) : this.isActionDown(a)
+      if (down) {
         this.held.add(a)
         if (!this.heldPrev.has(a)) this.pressedThisFrame.add(a)
       } else if (this.heldPrev.has(a)) {
@@ -242,6 +245,7 @@ export class Input {
         this.repeatTimers.delete(a)
       }
     }
+    if (this.virtual) this.virtual.tap.clear()
     this.pendingKeys.clear()
     this.pendingMouse.clear()
     for (const a of this.consumed) if (!this.held.has(a)) this.consumed.delete(a)
@@ -300,6 +304,7 @@ export class Input {
 
   /** Movement vector: x right, y forward, length <= 1. */
   move(): Vec2 {
+    if (this.virtual) return { x: this.virtual.move.x, y: this.virtual.move.y }
     let x = 0
     let y = 0
     if (this.down("moveRight")) x += 1
@@ -328,6 +333,7 @@ export class Input {
 
   /** Look delta for this frame in radians (already scaled by sensitivity and dt for the stick). */
   look(dt: number): Vec2 {
+    if (this.virtual) return { x: 0, y: 0 }
     let x = this.mouseDelta.x * 0.0022 * this.mouseSensitivity * 1.6
     let y = this.mouseDelta.y * 0.0022 * this.mouseSensitivity * 1.6
     const sx = this.padAxes[2]

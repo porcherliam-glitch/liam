@@ -6,6 +6,8 @@ import { addItem, equip } from "../items/inventory"
 import { zombieType } from "../entities/zombieTypes"
 import { Zombie } from "../entities/zombie"
 import type { WeatherKind } from "../render/weather"
+import { Bot } from "./bot"
+import { AREAS } from "../world/areas"
 
 export function installHarness(game: Game): void {
   const api = {
@@ -43,6 +45,7 @@ export function installHarness(game: Game): void {
       }
     },
     profile: () => game.profile,
+    areas: () => AREAS.map((a) => ({ id: a.id, name: a.name, unlockLevel: a.unlockLevel, danger: a.danger })),
     /** Teleports the player. */
     teleport(x: number, z: number) {
       const e = game.expedition
@@ -135,6 +138,23 @@ export function installHarness(game: Game): void {
     },
     setMaxFrame(v: number) {
       game.maxFrame = v
+    },
+    /** Starts the automated player on the running expedition. */
+    startBot(opts: { lootGoal?: number; maxSeconds?: number } = {}) {
+      const e = game.expedition
+      if (!e) return null
+      const bot = new Bot(game, e, opts)
+      api.bot = bot
+      const orig = e.update.bind(e)
+      e.update = (dt: number) => {
+        if (api.bot === bot && !bot.done) bot.update(dt)
+        orig(dt)
+      }
+      return true
+    },
+    bot: null as Bot | null,
+    botStats() {
+      return api.bot ? { ...api.bot.stats, done: api.bot.done } : null
     },
     godMode(on: boolean) {
       const e = game.expedition

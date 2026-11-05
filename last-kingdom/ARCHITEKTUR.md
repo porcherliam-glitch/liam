@@ -16,7 +16,7 @@ Technik: **Three.js 0.180, TypeScript 5, Vite 7, WebGL, Gamepad API, Web Audio A
 | `src/ui/` | DOM-Menüsystem mit Controller-Navigation (`ui.ts`), HUD (`hud.ts`), Bildschirme unter `screens/` |
 | `src/audio/` | Prozeduraler Klang (Web Audio): Effekte, Ambiente, Musikzustände |
 | `src/game/` | `game.ts` (Zustände Menü/Lager/Expedition, Profile, Ergebnis), `expedition.ts` (Spielschleife eines Einsatzes), `api.ts` (Schnittstelle für Menüs) |
-| `src/dev/` | Test-Hooks `window.__lastKingdom` für die Playwright-Prüfskripte |
+| `src/dev/` | Test-Hooks `window.__lastKingdom` für die Playwright-Prüfskripte; automatischer Testspieler (`bot.ts`), der über `Input.virtual` plündert, kämpft, Tränke nutzt und extrahiert |
 | `scripts/` | `build-single.mjs` (Einzeldatei), `verify-*.mjs` (Browser-Tests) |
 
 ## Datenfluss
@@ -72,4 +72,5 @@ DOM-basiert. `UI` verwaltet einen Bildschirm-Stapel; jedes `Screen` liefert HTML
 - `npm run verify:systems`: Ausbau, Herstellen, Reparatur, Aufwertung, Händler, Fähigkeiten, Lagerkiste, Todesstrafe, Missionsabgabe, Export/Import.
 - `npm run verify:gamepad`: simulierter Xbox-/PlayStation-Controller: Menüs, Erstellen, Expedition, Stick-Bewegung, Kamera, Angriff, Block, Inventar, Pause, Hot-Plug und Symbolwechsel.
 - `npm run verify:worlds`: baut alle acht Gebiete, prüft Bevölkerung, Beute, Draw-Calls, begehbaren Start und die Erreichbarkeit von Boss und allen Extraktionspunkten über das Navigationsgitter.
+- `npm run balance -- <gebiet> <klasse> <schwierigkeit> <sekunden> [stufe|auto] [ausrüstung]`: der Bot spielt eine Expedition und meldet Kills, erlittenen Schaden, Container, Beute und Ausgang (extrahiert / gestorben / Zeit). Die Stufe ist standardmäßig die Freischaltstufe des Gebiets; `ausrüstung` ist eine Liste von Gegenstands-IDs (z. B. `longsword_2,armor_chain`), die vor dem Lauf angelegt werden. Dient der Balance-Prüfung ohne menschlichen Spieler.
 - `npm run verify:stress`: Belastungstest mit allen Gegnertypen, Horde, Bogen, Nacht, Sturm, Nebel, Bosskampf mit Phasenwechsel, Katakomben und Pestnebel; mehrere simulierte Minuten ohne Konsolenfehler.
