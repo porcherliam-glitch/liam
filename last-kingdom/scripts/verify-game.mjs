@@ -50,14 +50,14 @@ try {
   // Move forward
   const p0 = s.expedition.player
   await g.page.mouse.click(640, 360)
-  await g.hold("KeyW", 6)
+  await g.hold("KeyW", 1.5)
   await g.frames(2)
   s = await g.snapshot()
   const moved = Math.hypot(s.expedition.player.x - p0.x, s.expedition.player.z - p0.z)
   g.check(moved > 2, `Spieler bewegt sich (${moved.toFixed(1)} m)`)
   // Sprint and jump
   await g.page.keyboard.down("ShiftLeft")
-  await g.hold("KeyW", 4)
+  await g.hold("KeyW", 1.0)
   await g.page.keyboard.up("ShiftLeft")
   await g.page.keyboard.press("Space")
   await g.frames(3)
@@ -75,10 +75,14 @@ try {
   if (s.screen === "loot") {
     await g.shot("05-loot.png")
     await g.page.keyboard.press("KeyF") // alt2: take all
-    await g.page.waitForTimeout(200)
+    await g.frames(3)
     s = await g.snapshot()
     if (s.screen === "loot") {
-      await g.click("takeall")
+      const left = await g.page.evaluate(() => Array.from(document.querySelectorAll(".screen-loot .lname")).map((e) => e.textContent))
+      console.log("  Beute-Fenster noch offen, Rest:", left, "Rucksack:", s.profile.bag)
+      await g.page.keyboard.press("Escape")
+      await g.frames(3)
+      s = await g.snapshot()
     }
   }
   s = await g.snapshot()

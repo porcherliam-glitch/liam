@@ -2,6 +2,7 @@
 
 import * as THREE from "three"
 import { clamp, lerp, smoothstep } from "../core/math"
+import { Noise2D } from "../core/noise"
 
 const skyVert = /* glsl */ `
 varying vec3 vWorld;
@@ -52,6 +53,9 @@ export class Sky {
   readonly ambient: THREE.AmbientLight
   readonly dome: THREE.Mesh
   readonly fog: THREE.FogExp2
+  private clouds: THREE.Mesh
+  private cloudTex: THREE.Texture
+  private cloudTime = 0
   hour = 9
   /** Hours of game time per real minute. */
   speed = 1.2
@@ -98,6 +102,14 @@ export class Sky {
     this.scene.add(this.dome)
     this.fog = new THREE.FogExp2(0x8090a0, 0.004)
     this.scene.fog = this.fog
+    // Cloud layer: a huge quad with a soft noise texture, drifting with the wind
+    this.cloudTex = makeCloudTexture()
+    const cloudMat = new THREE.MeshBasicMaterial({ map: this.cloudTex, transparent: true, opacity: 0, depthWrite: false, fog: false, color: 0xffffff })
+    this.clouds = new THREE.Mesh(new THREE.PlaneGeometry(1600, 1600), cloudMat)
+    this.clouds.rotation.x = Math.PI / 2
+    this.clouds.renderOrder = -9
+    this.clouds.frustumCulled = false
+    this.scene.add(this.clouds)
   }
 
   setShadows(on: boolean): void {
@@ -160,6 +172,14 @@ export class Sky {
     this.uniforms.uStars.value = this.underground ? 0 : (1 - day) * (1 - cloud)
     this.uniforms.uFogMix.value = 0.3 + this.fogBoost * 0.6 + cloud * 0.2
     this.dome.position.copy(focus)
+    // Clouds
+    this.cloudTime += dt
+    this.clouds.position.set(focus.x, focus.y + 140, focus.z)
+    this.clouds.visible = !this.underground && cloud > 0.03
+    const cm = this.clouds.material as THREE.MeshBasicMaterial
+    cm.opacity = clamp(cloud * 0.85, 0, 0.85)
+    cm.color.setHSL(0.6, 0.05, lerp(0.12, 0.75, day) * (1 - cloud * 0.3))
+    this.cloudTex.offset.set(this.cloudTime * 0.004, this.cloudTime * 0.002)
     // Fog
     const fogCol = horizon.clone().lerp(new THREE.Color(0x202228), 0.25)
     if (this.underground) fogCol.setHex(0x06060a)
@@ -167,4 +187,30 @@ export class Sky {
     this.fog.density = this.underground ? 0.02 : 0.0035 + this.fogBoost * 0.012 + cloud * 0.0015 + (1 - day) * 0.002
     this.scene.background = null
   }
+}
+
+function makeCloudTexture(): THREE.Texture {
+  const size = 256
+  const c = document.createElement("canvas")
+  c.width = c.height = size
+  const ctx = c.getContext("2d")!
+  const img = ctx.createImageData(size, size)
+  const n = new Noise2D(7)
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      const u = (x / size) * 4
+      const v = (y / size) * 4
+      // Tiled fbm, thresholded into fluffy shapes
+      const f = (n.fbm(u, v, 5) + n.fbm(u + 4, v, 5) + n.fbm(u, v + 4, 5) + n.fbm(u + 4, v + 4, 5)) / 4
+      const a = clamp((f + 0.15) * 2.2, 0, 1)
+      const i = (y * size + x) * 4
+      img.data[i] = img.data[i + 1] = img.data[i + 2] = 255
+      img.data[i + 3] = Math.round(a * 255)
+    }
+  }
+  ctx.putImageData(img, 0, 0)
+  const t = new THREE.CanvasTexture(c)
+  t.wrapS = t.wrapT = THREE.RepeatWrapping
+  t.repeat.set(6, 6)
+  return t
 }

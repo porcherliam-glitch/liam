@@ -95,7 +95,7 @@ function build(name: string): THREE.Texture {
       return finish(c, 1)
     }
     case "mud": {
-      const c = noiseTexture(31, size, [88, 76, 58], 0.5, 4, 5)
+      const c = noiseTexture(31, size, [118, 104, 82], 0.45, 4, 5)
       return finish(c, 1)
     }
     case "cobble": {

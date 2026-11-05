@@ -63,8 +63,11 @@ export class Game implements GameApi {
     window.addEventListener("pointerdown", unlock)
     window.addEventListener("keydown", unlock)
     document.addEventListener("pointerlockchange", () => {
-      // Esc releases the pointer lock before we see the key: treat that as "pause".
-      if (this.state === "expedition" && this.expedition && !this.input.locked && this.ui.depth === 0 && !this.expedition.player.dead) this.openPause()
+      // Esc releases the pointer lock before we see the key: treat that as "pause" and swallow the key itself.
+      if (this.state === "expedition" && this.expedition && !this.input.locked && this.ui.depth === 0 && !this.expedition.player.dead) {
+        this.input.ignoreEscapeUntil = performance.now() + 400
+        this.openPause()
+      }
     })
     this.unsub.push(
       events.on("toast", (e) => this.ui.toast(e.text, e.kind)),

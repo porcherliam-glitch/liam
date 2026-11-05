@@ -51,6 +51,9 @@ export class Input {
   anyKeyThisFrame = false
   private textInputActive = false
   private rumbleUntil = 0
+  private repeatFrames = new Map<Action, number>()
+  /** Escape presses are ignored until this time (set when the browser released the pointer lock with Esc). */
+  ignoreEscapeUntil = 0
 
   constructor(private canvas: HTMLElement) {
     window.addEventListener("keydown", this.onKeyDown)
@@ -85,6 +88,7 @@ export class Input {
       cb("key", e.code)
       return
     }
+    if (e.code === "Escape" && performance.now() < this.ignoreEscapeUntil) return
     if (!this.keys.has(e.code)) this.anyKeyThisFrame = true
     this.keys.add(e.code)
     this.pendingKeys.add(e.code)
@@ -240,7 +244,10 @@ export class Input {
     this.pendingKeys.clear()
     this.pendingMouse.clear()
     for (const a of this.consumed) if (!this.held.has(a)) this.consumed.delete(a)
-    for (const [a, t] of this.repeatTimers) this.repeatTimers.set(a, t + dt)
+    for (const [a, t] of this.repeatTimers) {
+      this.repeatTimers.set(a, t + dt)
+      this.repeatFrames.set(a, (this.repeatFrames.get(a) ?? 0) + 1)
+    }
     if (this.rumbleUntil && performance.now() > this.rumbleUntil) this.rumbleUntil = 0
   }
 
@@ -277,11 +284,13 @@ export class Input {
   repeat(action: Action, delay = 0.38, interval = 0.11): boolean {
     if (this.pressed(action)) {
       this.repeatTimers.set(action, 0)
+      this.repeatFrames.set(action, 0)
       return true
     }
     if (!this.down(action)) return false
     const t = this.repeatTimers.get(action) ?? 0
-    if (t >= delay) {
+    // Needs both: enough time and a few frames, so a tap during a slow frame never double-fires.
+    if (t >= delay && (this.repeatFrames.get(action) ?? 0) >= 3) {
       this.repeatTimers.set(action, delay - interval)
       return true
     }

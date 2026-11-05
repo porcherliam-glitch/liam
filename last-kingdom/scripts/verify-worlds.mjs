@@ -22,6 +22,7 @@ try {
       window.__lastKingdom.setMaxFrame(0.5)
       window.__lastKingdom.setHour(13)
       window.__lastKingdom.setWeather("clear")
+      window.__lastKingdom.godMode(true)
     })
     await g.frames(4)
     const s = (await g.snapshot()).expedition
@@ -33,7 +34,7 @@ try {
     g.check(s.drawCalls < 1500, `${id}: Draw-Calls im Rahmen (${s.drawCalls})`)
     // Player must stand on free ground and be able to move
     const p0 = s.player
-    await g.hold("KeyW", 5)
+    await g.hold("KeyW", 2.5)
     const p1 = (await g.snapshot()).expedition.player
     g.check(Math.hypot(p1.x - p0.x, p1.z - p0.z) > 1, `${id}: Startplatz begehbar`)
     // Boss reachable: nav path from spawn to the boss arena

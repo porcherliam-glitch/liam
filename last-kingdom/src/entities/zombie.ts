@@ -145,6 +145,9 @@ export class Zombie {
     this.perceptionTimer = this.rng.range(0, 0.3)
     this.groanTimer = this.rng.range(3, 12)
     this.lastPos = { x: this.pos.x, z: this.pos.z }
+    // Apply the idle pose once so distant (sleeping) zombies never show the bind pose.
+    this.animator.update(0.001)
+    this.group.rotation.y = this.yaw
   }
 
   get isBoss(): boolean {

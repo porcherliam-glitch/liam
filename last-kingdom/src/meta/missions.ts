@@ -50,7 +50,7 @@ export function generateMission(rng: Rng, areaId: string, kind: MissionKind, lev
     case "rescue":
       return { ...base, title: "Rettung: Überlebender", description: `Ein Überlebender versteckt sich irgendwo in ${area.name}. Finde ihn und bring ihn zu einem Extraktionspunkt.`, goal: 1, stars: Math.min(5, danger + 1), reward: { gold: Math.round(180 * scale), xp: Math.round(220 * scale), reputation: 35 + danger * 4 } }
     case "explore": {
-      const goal = 3 + Math.min(3, danger)
+      const goal = danger >= 3 ? 4 : 3
       return { ...base, title: `Erkundung: ${area.name}`, description: `Erkunde ${goal} markierte Orte in ${area.name}. Der Kartograph zahlt gut für jeden Eintrag.`, goal, stars: Math.min(5, danger), reward: { gold: Math.round(90 * scale), xp: Math.round(150 * scale), reputation: 15 + danger * 3 } }
     }
     case "treasure":

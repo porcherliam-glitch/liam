@@ -9,6 +9,7 @@ import { Projectiles } from "../entities/projectiles"
 import { buildWorld, type ContainerSite, type ExtractionSite, type WorldBuild } from "../world/worldgen"
 import { areaDef } from "../world/areas"
 import { Particles } from "../render/particles"
+import { Decals } from "../render/decals"
 import { Sky } from "../render/sky"
 import { Weather, WEATHER_NAMES } from "../render/weather"
 import { ThirdPersonCamera } from "../render/camera"
@@ -86,6 +87,7 @@ export class Expedition implements ExpeditionApi {
   readonly zombies: Zombie[] = []
   readonly projectiles = new Projectiles()
   readonly particles: Particles
+  readonly decals: Decals
   readonly sky: Sky
   readonly weather: Weather
   readonly camera: ThirdPersonCamera
@@ -124,6 +126,7 @@ export class Expedition implements ExpeditionApi {
   private rainTimer = 0
   private tmpV = new THREE.Vector3()
   private inventoryHold = 0
+  private inventoryHoldFrames = 0
   readonly missions: MissionDef[]
 
   constructor(
@@ -148,7 +151,10 @@ export class Expedition implements ExpeditionApi {
     this.weather = new Weather(this.scene, this.sky, area.seed ^ Date.now(), area.biome === "forest" ? "fog" : area.biome === "graveyard" ? (this.rng.chance(0.5) ? "fog" : "overcast") : undefined)
     this.particles = new Particles(this.scene)
     this.particles.setViewport(window.innerHeight)
+    this.particles.gore = settings.gore
     this.world = buildWorld(area, this.scene)
+    this.decals = new Decals(this.scene, (x, z) => this.world.terrain.heightAt(x, z))
+    this.decals.enabled = settings.gore
     this.player = new Player(profile, profile.loadout)
     this.skillsLuck = skillBonuses(profile.skills).lootLuck + (profile.classId === "rogue" ? 0.15 : 0)
     this.hud = new Hud(input)
@@ -312,6 +318,7 @@ export class Expedition implements ExpeditionApi {
           this.audio.play("mission_done")
           if (!this.profile.clearedBosses.includes(this.areaId)) this.profile.clearedBosses.push(this.areaId)
         }
+        if (this.settings.gore) this.decals.spawn(e.x, e.z, 1.6)
         const lifeOnKill = skillBonuses(this.profile.skills).lifeOnKill
         if (lifeOnKill) this.player.heal(lifeOnKill, true)
         for (const m of this.missions) {
@@ -319,6 +326,9 @@ export class Expedition implements ExpeditionApi {
           if (m.kind === "bossHunt" && e.boss && m.targetId === e.typeId) this.progressMission(m, 1)
           if (m.kind === "purge" && e.special === m.targetId) this.progressMission(m, 1)
         }
+      }),
+      events.on("enemyHit", (e) => {
+        if (e.damage > 0 && this.settings.gore) this.decals.spawn(e.x, e.z, 0.6)
       }),
       events.on("playerDied", (e) => {
         this.audio.setMusic("none")
@@ -670,13 +680,16 @@ export class Expedition implements ExpeditionApi {
       // Inventory button: tap opens the inventory, holding fires the active ability (controller has no spare button).
       if (input.down("inventory")) {
         this.inventoryHold += dt
-        if (this.inventoryHold >= 0.4) {
+        this.inventoryHoldFrames++
+        if (this.inventoryHold >= 0.4 && this.inventoryHoldFrames >= 4) {
           input.consume("inventory")
           this.inventoryHold = 0
+          this.inventoryHoldFrames = 0
           this.player.useAbility()
         }
       } else if (this.inventoryHold > 0) {
         this.inventoryHold = 0
+        this.inventoryHoldFrames = 0
         this.callbacks.openInventory()
         return
       }
@@ -717,6 +730,7 @@ export class Expedition implements ExpeditionApi {
     }
     this.projectiles.update(dt)
     this.particles.update(dt)
+    this.decals.update(dt)
     this.updateHazards(dt)
     this.updateSurvivor(dt)
     this.updateSpawns(dt)
@@ -956,6 +970,11 @@ export class Expedition implements ExpeditionApi {
       if (m.kind === "bossHunt" && this.boss && !this.boss.dead) markers.push({ x: this.boss.pos.x, z: this.boss.pos.z, label: m.title, kind: "boss" })
       if (m.kind === "rescue" && this.survivor && !this.survivor.following) markers.push({ x: this.survivor.pos.x, z: this.survivor.pos.z, label: "Überlebender", kind: "mission" })
       if (m.kind === "explore") for (const poi of this.world.pois) if (!this.visitedPois.has(poi.id)) markers.push({ x: poi.x, z: poi.z, label: poi.name, kind: "poi" })
+      if (m.kind === "treasure" && this.treasureChest && !this.treasureChest.opened && Math.hypot(this.treasureChest.x - this.player.pos.x, this.treasureChest.z - this.player.pos.z) < 45) markers.push({ x: this.treasureChest.x, z: this.treasureChest.z, label: "Schatz in der Nähe", kind: "mission" })
+      if (m.kind === "purge") {
+        const target = this.zombies.find((z) => z.special && !z.dead)
+        if (target) markers.push({ x: target.pos.x, z: target.pos.z, label: m.title, kind: "mission" })
+      }
     }
     let lockScreen = { x: 0, y: 0, visible: false }
     if (lock && !lock.dead) {
@@ -966,7 +985,7 @@ export class Expedition implements ExpeditionApi {
       prompt: this.lastPrompt?.label ?? null,
       markers,
       cameraYaw: this.camera.yaw,
-      missions: this.missions,
+      missions: this.missions.filter((m) => m.areaId === this.areaId),
       boss: this.boss && this.boss.alerted ? this.boss : null,
       extraction: this.extracting ? { name: this.extracting.site.def.name, progress: this.extracting.progress } : null,
       hour: this.sky.hour,
@@ -990,6 +1009,8 @@ export class Expedition implements ExpeditionApi {
     this.camera.setFov(this.settings.fov)
     this.camera.shakeEnabled = this.settings.cameraShake
     this.sky.setShadows(this.settings.shadows)
+    this.decals.enabled = this.settings.gore
+    this.particles.gore = this.settings.gore
   }
 
   // ---- ending ----------------------------------------------------------------------------------------
@@ -1035,6 +1056,7 @@ export class Expedition implements ExpeditionApi {
     this.player.dispose()
     this.projectiles.dispose()
     this.particles.dispose()
+    this.decals.dispose()
     this.weather.dispose()
     if (this.survivor) disposeHumanoid(this.survivor.humanoid)
     for (const p of this.pickups) p.object.removeFromParent()

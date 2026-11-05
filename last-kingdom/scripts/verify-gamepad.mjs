@@ -60,18 +60,19 @@ try {
   // Navigate: name field focused; dpad down to "Name würfeln"? Layout: name input, roll button, class cards, create.
   // Press down until the create button is focused (max 8 steps)
   for (let i = 0; i < 8; i++) {
-    const f = await page.evaluate(() => document.querySelector(".focused")?.getAttribute("data-action"))
+    const f = await page.evaluate(() => document.querySelector(".screen:not(.hidden) .focused")?.getAttribute("data-action"))
     if (f === "create") break
-    await tap(13) // dpad down
+    if (f === "cancel") await tap(14) // dpad left: "Ins Lager" sits left of "Abbrechen"
+    else await tap(13) // dpad down
   }
-  let focused = await page.evaluate(() => document.querySelector(".focused")?.getAttribute("data-action"))
+  let focused = await page.evaluate(() => document.querySelector(".screen:not(.hidden) .focused")?.getAttribute("data-action"))
   g.check(focused === "create", `Mit Steuerkreuz zum Erstellen-Knopf navigiert (${focused})`)
   await tap(0)
   s = await g.snapshot()
   g.check(s.state === "camp", "Charakter per Controller erstellt")
   // Camp: navigate down to "Fähigkeiten" and open it, then B back
   for (let i = 0; i < 4; i++) await tap(13)
-  focused = await page.evaluate(() => document.querySelector(".focused")?.getAttribute("data-action"))
+  focused = await page.evaluate(() => document.querySelector(".screen:not(.hidden) .focused")?.getAttribute("data-action"))
   console.log("  Fokus im Lager:", focused)
   await tap(0)
   s = await g.snapshot()
@@ -81,7 +82,7 @@ try {
   g.check(s.screen === "camp", "B schließt den Bildschirm")
   // Right into the buildings panel, open the smithy
   await tap(15)
-  focused = await page.evaluate(() => document.querySelector(".focused")?.getAttribute("data-action"))
+  focused = await page.evaluate(() => document.querySelector(".screen:not(.hidden) .focused")?.getAttribute("data-action"))
   g.check(focused === "building", `Steuerkreuz rechts erreicht die Gebäude (${focused})`)
   await tap(0)
   s = await g.snapshot()
@@ -89,24 +90,23 @@ try {
   await g.shot("g03-building-pad.png")
   await tap(1)
   // Start expedition: focus "Expedition planen" (first button) → up presses then A
+  for (let i = 0; i < 3; i++) await tap(14)
   for (let i = 0; i < 10; i++) await tap(12)
-  await tap(14)
-  for (let i = 0; i < 10; i++) await tap(12)
-  focused = await page.evaluate(() => document.querySelector(".focused")?.getAttribute("data-action"))
+  focused = await page.evaluate(() => document.querySelector(".screen:not(.hidden) .focused")?.getAttribute("data-action"))
   g.check(focused === "map", `Expedition planen fokussiert (${focused})`)
   await tap(0)
   s = await g.snapshot()
   g.check(s.screen === "map", "Kartenübersicht offen")
   // Right to the detail panel, find "start"
   for (let i = 0; i < 12; i++) {
-    const f = await page.evaluate(() => document.querySelector(".focused")?.getAttribute("data-action"))
+    const f = await page.evaluate(() => document.querySelector(".screen:not(.hidden) .focused")?.getAttribute("data-action"))
     if (f === "start") break
     await tap(15)
-    const f2 = await page.evaluate(() => document.querySelector(".focused")?.getAttribute("data-action"))
+    const f2 = await page.evaluate(() => document.querySelector(".screen:not(.hidden) .focused")?.getAttribute("data-action"))
     if (f2 === "start") break
     await tap(13)
   }
-  focused = await page.evaluate(() => document.querySelector(".focused")?.getAttribute("data-action"))
+  focused = await page.evaluate(() => document.querySelector(".screen:not(.hidden) .focused")?.getAttribute("data-action"))
   g.check(focused === "start", `Expedition starten fokussiert (${focused})`)
   await tap(0)
   await tap(0) // confirm "go"

@@ -20,33 +20,34 @@ export function itemTile(item: ItemInstance | null, focusId: string, action: str
   </div>`
 }
 
+const SVG: Record<string, string> = {
+  sword: '<path d="M4 20l3-3m0 0L18 6l2 0 0 2L9 19m-2-2 2 2M17 5l2 2"/>',
+  greatsword: '<path d="M3 21l4-4m0 0L20 4l1 3L9 19M7 17l2 2M5 15l4 4"/>',
+  axe: '<path d="M5 19L14 10m0 0c3-3 6-2 6-2s-1 4-4 6l-2-4zM14 10l2 4"/>',
+  mace: '<path d="M5 19l8-8m0 0l-2-2 4-4 2 2 2-2 2 2-2 2 2 2-4 4-2-2z"/>',
+  spear: '<path d="M3 21L17 7m0 0l3-4-1 5-2-1z"/>',
+  dagger: '<path d="M7 17l6-6m0 0l1-5 4 4-5 1zM7 17l-2 2"/>',
+  bow: '<path d="M6 4c6 3 6 13 0 16M6 4l12 8L6 20M4 12h14"/>',
+  crossbow: '<path d="M4 12h16M12 4v16M6 8c4 1 8 1 12 0M9 16h6"/>',
+  armor: '<path d="M8 4l-4 3 2 4h2v9h8v-9h2l2-4-4-3-2 2h-4z"/>',
+  helmet: '<path d="M6 13c0-4 3-7 6-7s6 3 6 7v5H6zM9 15h6M12 12v6"/>',
+  shield: '<path d="M12 3l7 3v6c0 4-3 7-7 9-4-2-7-5-7-9V6z"/>',
+  food: '<path d="M7 20l3-3m0 0c-3-3-3-7 0-10s7-3 10 0l-10 10zM13 7l4 4"/>',
+  potion: '<path d="M10 3h4v5l4 7c1 3-1 6-4 6h-4c-3 0-5-3-4-6l4-7zM8 15h8"/>',
+  material: '<path d="M4 8l8-4 8 4-8 4zM4 8v8l8 4 8-4V8M12 12v8"/>',
+  gold: '<circle cx="12" cy="12" r="7"/><path d="M12 8v8M9 10h6M9 14h6"/>',
+  artifact: '<path d="M12 3l4 5-4 13-4-13zM8 8h8M4 8l4-5h8l4 5"/>',
+  key: '<circle cx="8" cy="12" r="4"/><path d="M12 12h9m-3 0v3m-3-3v3"/>',
+  ammo: '<path d="M4 20L18 6m0 0h-4m4 0v4M8 20l-4 0 0-4"/>',
+}
+
 export function itemIcon(kind: string, weaponClass?: string): string {
-  switch (kind) {
-    case "weapon":
-      return { longsword: "🗡", shortsword: "🗡", greatsword: "⚔", battleaxe: "🪓", mace: "🔨", spear: "🔱", dagger: "🔪", bow: "🏹", crossbow: "🏹" }[weaponClass ?? ""] ?? "🗡"
-    case "armor":
-      return "🥋"
-    case "helmet":
-      return "⛑"
-    case "shield":
-      return "🛡"
-    case "food":
-      return "🍖"
-    case "remedy":
-      return "🧪"
-    case "material":
-      return "🪵"
-    case "gold":
-      return "🪙"
-    case "artifact":
-      return "💎"
-    case "quest":
-      return "🗝"
-    case "ammo":
-      return "➶"
-    default:
-      return "▪"
-  }
+  let key = kind
+  if (kind === "weapon") key = { longsword: "sword", shortsword: "sword", greatsword: "greatsword", battleaxe: "axe", mace: "mace", spear: "spear", dagger: "dagger", bow: "bow", crossbow: "crossbow" }[weaponClass ?? ""] ?? "sword"
+  else if (kind === "remedy") key = "potion"
+  else if (kind === "quest") key = "key"
+  const path = SVG[key] ?? SVG.material
+  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${path}</svg>`
 }
 
 export function itemDetails(item: ItemInstance | null, compare?: ItemInstance | null, opts: { sellPrice?: number; buyPrice?: number } = {}): string {

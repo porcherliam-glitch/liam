@@ -149,6 +149,12 @@ export function buildHumanoid(app: Partial<Appearance> = {}): Humanoid {
   parts.push({ bone: boneIndex("neck"), size: [0.1, 0.1, 0.1], offset: [0, 0.04, 0], color: skin })
   const headSize: [number, number, number] = [0.2, 0.24, 0.22]
   parts.push({ bone: boneIndex("head"), size: headSize, offset: [0, 0.12, 0], color: skin, round: true })
+  // Eyes and brow give the face a direction (the undead get glowing eyes attached separately)
+  if (!a.undead && a.helmet !== "great") {
+    parts.push({ bone: boneIndex("head"), size: [0.035, 0.03, 0.02], offset: [-0.045, 0.14, 0.11], color: 0x15100c })
+    parts.push({ bone: boneIndex("head"), size: [0.035, 0.03, 0.02], offset: [0.045, 0.14, 0.11], color: 0x15100c })
+    parts.push({ bone: boneIndex("head"), size: [0.14, 0.015, 0.02], offset: [0, 0.165, 0.11], color: vary(a.hair, rng, 0.1) })
+  }
   // Hair / helmet
   if (a.helmet === "none") {
     parts.push({ bone: boneIndex("head"), size: [0.21, 0.1, 0.23], offset: [0, 0.2, -0.01], color: a.undead ? vary(a.hair, rng, 0.4) : a.hair })

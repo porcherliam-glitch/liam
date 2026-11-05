@@ -25,6 +25,8 @@ export class Particles {
   private parts: P[] = []
   private free: number[] = []
   private material: THREE.ShaderMaterial
+  /** With gore disabled, blood becomes grey dust. */
+  gore = true
 
   constructor(scene: THREE.Scene) {
     this.pos = new Float32Array(MAX * 3)
@@ -90,7 +92,7 @@ export class Particles {
   }
 
   blood(x: number, y: number, z: number, amount = 14): void {
-    this.emit(x, y, z, { count: amount, color: 0x6a0a10, spread: 1, speed: 3.5, life: 0.7, size: 0.16, gravity: 14 })
+    this.emit(x, y, z, { count: amount, color: this.gore ? 0x6a0a10 : 0x6a6a66, spread: 1, speed: 3.5, life: 0.7, size: 0.16, gravity: 14 })
   }
 
   dust(x: number, y: number, z: number, amount = 8): void {

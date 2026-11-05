@@ -35,6 +35,7 @@ export class UI {
   private hintBar: HTMLElement
   private toastBox: HTMLElement
   private lastDevice = ""
+  private pushedAt = 0
 
   constructor(private input: Input, private audio: AudioEngine) {
     this.root = document.getElementById("ui")!
@@ -69,6 +70,7 @@ export class UI {
     this.root.insertBefore(el, this.hintBar)
     const entry = { screen, el, focused: null as HTMLElement | null }
     this.stack.push(entry)
+    this.pushedAt = performance.now()
     this.updateVisibility()
     screen.onShow?.(el)
     this.focusInitial(entry)

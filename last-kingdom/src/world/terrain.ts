@@ -121,7 +121,7 @@ export class Terrain {
     const pos = geo.attributes.position
     const colors = new Float32Array(pos.count * 3)
     const b = this.area.biome
-    const base = new THREE.Color(b === "forest" ? 0x6a8a4c : b === "graveyard" ? 0x7a7a62 : b === "catacombs" ? 0x6a6872 : b === "castle" || b === "fortress" ? 0xa09c8c : b === "city" ? 0xa09c90 : b === "monastery" ? 0x8a9a62 : 0x8aa45a)
+    const base = new THREE.Color(b === "forest" ? 0x6a8a4c : b === "graveyard" ? 0x9a9680 : b === "catacombs" ? 0x6a6872 : b === "castle" || b === "fortress" ? 0xa09c8c : b === "city" ? 0xa09c90 : b === "monastery" ? 0x8a9a62 : 0x8aa45a)
     const dark = new THREE.Color(0x3a4030)
     const rockC = new THREE.Color(0x76726a)
     const roadC = new THREE.Color(0x8a7a62)

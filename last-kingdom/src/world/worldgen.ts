@@ -484,6 +484,8 @@ function buildCastle(ctx: Ctx): void {
   placeProp(ctx, P.anvilStand(), 20, 20, 0, { reserve: 1 })
   placeProp(ctx, P.house({ w: 7, d: 6, stone: true, ruined: true, seed: 10 }), 26, 26, 0.3, { reserve: 6 })
   poi(ctx, "smithy", "Burgschmiede", 20, 20)
+  poi(ctx, "gate", "Torhaus", 0, 45)
+  poi(ctx, "well", "Burgbrunnen", 0, 10)
   addContainer(ctx, "scrap", 18, 24)
   addContainer(ctx, "scrap", 23, 17)
   // Courtyard details
@@ -538,6 +540,8 @@ function buildGraveyard(ctx: Ctx): void {
   }
   placeProp(ctx, P.ruin(12, 9, 4, 9), 70, 30, 0.2, { reserve: 9 })
   poi(ctx, "ossuary", "Das Beinhaus", 70, 30)
+  poi(ctx, "fog", "Pestgrube im Nebel", -40, 50)
+  poi(ctx, "gate", "Friedhofstor", 0, 85)
   addContainer(ctx, "chest", 70, 30, 0, { secret: true, fixed: [{ id: "saint_bones", qty: 1 }] })
   for (let i = 0; i < 5; i++) addContainer(ctx, "bones", 70 + rng.range(-8, 8), 30 + rng.range(-6, 6), rng.range(0, 6))
   // Rows of graves
@@ -705,6 +709,8 @@ function buildCatacombs(ctx: Ctx): void {
   poi(ctx, "treasury", "Verborgene Schatzkammer", 40, 40)
   poi(ctx, "wellroom", "Brunnenkammer", -60, -30)
   poi(ctx, "ossuary", "Großes Beinhaus", 0, 0)
+  poi(ctx, "stairs", "Treppe zur Oberwelt", -120, 120)
+  poi(ctx, "crypt", "Alte Gruft", 0, -110)
   ctx.keyChests.push(addContainer(ctx, "chest", 40, 40, 0, { secret: true, fixed: [{ id: "crypt_key", qty: 1 }], bonusRolls: 2 }))
   addContainer(ctx, "chest", -60, -30, 0, { secret: true })
   for (let k = 0; k < 10; k++) addContainer(ctx, "bones", rng.range(-120, 120), rng.range(-120, 120), rng.range(0, 6))
@@ -760,6 +766,8 @@ function buildCity(ctx: Ctx): void {
   placeProp(ctx, P.dock(14), 158, -60, Math.PI / 2, { reserve: 2, sink: 0.3 })
   placeProp(ctx, P.house({ w: 8, d: 6, roof: "thatch", seed: 100 }), 135, -60, -Math.PI / 2, { reserve: 7 })
   poi(ctx, "harbour", "Der Hafen", 150, -80)
+  poi(ctx, "gallows", "Galgenplatz", 24, 0)
+  poi(ctx, "gate", "Stadttor", 0, 150)
   ctx.keyChests.push(addContainer(ctx, "chest", 138, -56, 0, { secret: true, fixed: [{ id: "oar", qty: 1 }] }))
   // Torches along the main streets
   for (let i = -4; i <= 4; i++) {
@@ -835,9 +843,6 @@ function buildFortress(ctx: Ctx): void {
 export function buildWorld(area: AreaDef, scene: THREE.Scene): WorldBuild {
   const rng = new Rng(area.seed)
   const features: TerrainFeature[] = []
-  features.push({ kind: "flatten", x: area.spawnX, z: area.spawnZ, r: 18, height: 0 })
-  if (area.bossX !== undefined) features.push({ kind: "flatten", x: area.bossX, z: area.bossZ!, r: 24, height: 0 })
-  for (const e of area.extractions) features.push({ kind: "flatten", x: e.x, z: e.z, r: 12, height: e.kind === "boat" || e.kind === "ford" ? -0.4 : 0 })
   switch (area.biome) {
     case "village":
       road(features, -140, 0, 140, 0, 7)
@@ -875,6 +880,10 @@ export function buildWorld(area: AreaDef, scene: THREE.Scene): WorldBuild {
       road(features, 0, 0, 0, 170, 8)
       break
   }
+  // Spawn, boss arena and extraction points are flattened last so lakes and rivers never swallow them.
+  features.push({ kind: "flatten", x: area.spawnX, z: area.spawnZ, r: 18, height: 0 })
+  if (area.bossX !== undefined) features.push({ kind: "flatten", x: area.bossX, z: area.bossZ!, r: 24, height: 0 })
+  for (const e of area.extractions) features.push({ kind: "flatten", x: e.x, z: e.z, r: 12, height: e.kind === "boat" || e.kind === "ford" ? -0.4 : 0 })
   const terrain = new Terrain(area, features)
   const collision = new CollisionWorld()
   const root = new THREE.Group()

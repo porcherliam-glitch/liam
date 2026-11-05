@@ -74,10 +74,11 @@ export async function openGame({ viewport = { width: 1280, height: 720 }, initSc
     async until(fn, arg, timeout = 60000) {
       await page.waitForFunction(fn, arg, { timeout })
     },
-    /** Holds a key for n rendered frames (deterministic even when rendering is slow). */
-    async hold(key, n) {
+    /** Holds a key until the expedition clock advanced by `seconds` (independent of frame rate). */
+    async hold(key, seconds) {
+      const t0 = await page.evaluate(() => window.__lastKingdom.game.expedition?.elapsed ?? 0)
       await page.keyboard.down(key)
-      await api.frames(n)
+      await page.waitForFunction((t) => (window.__lastKingdom.game.expedition?.elapsed ?? 0) >= t, t0 + seconds, { timeout: 120000 })
       await page.keyboard.up(key)
       await api.frames(1)
     },
