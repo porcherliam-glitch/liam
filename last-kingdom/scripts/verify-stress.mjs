@@ -94,6 +94,21 @@ try {
   s = await g.snapshot()
   g.check(s.expedition.player.hp < s.expedition.player.maxHp, "Pest richtet Schaden an")
   await g.shot("x07-plague.png")
+  // Long soak in the city at night: hordes, abilities, weather changes
+  await page.evaluate(() => window.__lastKingdom.game.goToCamp())
+  await g.frames(2)
+  await page.evaluate(() => { const p = window.__lastKingdom.profile(); p.clearedBosses = ["city"]; window.__lastKingdom.game.startExpedition("city", true) })
+  await page.waitForFunction(() => window.__lastKingdom.snapshot().expedition !== null, null, { timeout: 180000 })
+  await page.evaluate(() => { window.__lastKingdom.setMaxFrame(0.5); window.__lastKingdom.godMode(true) })
+  const before = (await g.snapshot()).expedition.zombies
+  for (let i = 0; i < 6; i++) {
+    await sim(25)
+    await page.evaluate(() => { const e = window.__lastKingdom.game.expedition; const p = e.player.pos; window.__lastKingdom.teleport(p.x + (Math.random() - 0.5) * 60, p.z + (Math.random() - 0.5) * 60) })
+  }
+  s = await g.snapshot()
+  console.log(`  Stadt bei Nacht nach 150 s: ${s.expedition.zombies} Zombies (Start ${before}), ${s.expedition.kills} Kills, Draw-Calls ${s.expedition.drawCalls}`)
+  g.check(s.expedition.zombies >= before * 0.5, "Stadt-Soak ohne Abbruch")
+  await g.shot("x08-city-night.png")
   const errs = g.errors.filter((e) => !/favicon/.test(e))
   if (errs.length) console.log("  Konsolenfehler:", errs.join("\n"))
   g.check(errs.length === 0, `Keine Konsolenfehler (${errs.length})`)

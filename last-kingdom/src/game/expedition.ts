@@ -10,6 +10,7 @@ import { buildWorld, type ContainerSite, type ExtractionSite, type WorldBuild } 
 import { areaDef } from "../world/areas"
 import { Particles } from "../render/particles"
 import { Decals } from "../render/decals"
+import { Crows } from "../render/crows"
 import { Sky } from "../render/sky"
 import { Weather, WEATHER_NAMES } from "../render/weather"
 import { ThirdPersonCamera } from "../render/camera"
@@ -89,6 +90,7 @@ export class Expedition implements ExpeditionApi {
   readonly projectiles = new Projectiles()
   readonly particles: Particles
   readonly decals: Decals
+  private crows: Crows | null = null
   readonly sky: Sky
   readonly weather: Weather
   readonly camera: ThirdPersonCamera
@@ -165,6 +167,7 @@ export class Expedition implements ExpeditionApi {
     this.particles.gore = settings.gore
     this.world = buildWorld(area, this.scene)
     this.decals = new Decals(this.scene, (x, z) => this.world.terrain.heightAt(x, z))
+    if (!this.world.underground) this.crows = new Crows(this.scene, area.size, area.seed)
     this.decals.enabled = settings.gore
     this.player = new Player(profile, profile.loadout)
     this.skillsLuck = skillBonuses(profile.skills).lootLuck + (profile.classId === "rogue" ? 0.15 : 0) + (night ? 0.35 : 0)
@@ -799,6 +802,10 @@ export class Expedition implements ExpeditionApi {
     this.projectiles.update(dt)
     this.particles.update(dt)
     this.decals.update(dt)
+    if (this.crows) {
+      this.crows.update(dt)
+      this.crows.visible = this.sky.state.daylight > 0.2 && this.weather.fog < 0.6
+    }
     this.updateHazards(dt)
     this.updateSurvivor(dt)
     this.updateSpawns(dt)
@@ -899,11 +906,11 @@ export class Expedition implements ExpeditionApi {
         const cx = this.player.pos.x + Math.cos(a) * d
         const cz = this.player.pos.z + Math.sin(a) * d
         let placed = 0
-        for (let i = 0; i < count * 3 && placed < count; i++) {
-          const x = cx + this.rng.range(-6, 6)
-          const z = cz + this.rng.range(-6, 6)
+        for (let i = 0; i < count * 10 && placed < count; i++) {
+          const x = cx + this.rng.range(-10, 10)
+          const z = cz + this.rng.range(-10, 10)
           if (Math.max(Math.abs(x), Math.abs(z)) > this.world.area.size * 0.9 || this.world.nav.isBlockedWorld(x, z)) continue
-          if (this.world.collision.blocked(x, z, this.player.pos.x, this.player.pos.z, 1.5, "player") || d > 50) {
+          if (this.world.collision.blocked(x, z, this.player.pos.x, this.player.pos.z, 1.5, "player") || d > 42) {
             const typeId = this.rng.weighted(this.world.area.enemies, (e) => e.weight).typeId
             const zb = this.spawnZombie(typeId, x, z)
             zb.onNoise(this.player.pos.x, this.player.pos.z, 80)
@@ -1065,6 +1072,13 @@ export class Expedition implements ExpeditionApi {
     }
     bars.sort((a, b) => a.d - b.d)
     this.hud.updateEnemyBars(bars.slice(0, 8))
+    // Marker above the interactable the prompt refers to
+    if (this.lastPrompt) {
+      const it = this.lastPrompt
+      const y = this.world.terrain.heightAt(it.x, it.z) + (it.kind === "survivor" ? 2.2 : it.kind === "extraction" ? 2.6 : 1.5)
+      const v = new THREE.Vector3(it.x, y, it.z).project(this.camera.camera)
+      this.hud.showInteractMarker(v.z < 1 ? { x: ((v.x + 1) / 2) * window.innerWidth, y: ((1 - v.y) / 2) * window.innerHeight } : null)
+    } else this.hud.showInteractMarker(null)
     let lockScreen = { x: 0, y: 0, visible: false }
     if (lock && !lock.dead) {
       const v = new THREE.Vector3(lock.pos.x, lock.pos.y + 1.4, lock.pos.z).project(this.camera.camera)
@@ -1155,6 +1169,7 @@ export class Expedition implements ExpeditionApi {
     this.projectiles.dispose()
     this.particles.dispose()
     this.decals.dispose()
+    this.crows?.dispose()
     this.weather.dispose()
     if (this.survivor) disposeHumanoid(this.survivor.humanoid)
     for (const p of this.pickups) p.object.removeFromParent()

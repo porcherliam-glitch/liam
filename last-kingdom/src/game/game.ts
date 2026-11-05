@@ -100,7 +100,7 @@ export class Game implements GameApi {
     this.input.vibration = s.vibration
     this.input.deadzone = s.deadzone
     this.renderer.shadowMap.enabled = s.shadows
-    this.renderer.setPixelRatio(s.quality === "low" ? Math.min(1, window.devicePixelRatio) : s.quality === "medium" ? Math.min(1.25, window.devicePixelRatio) : Math.min(2, window.devicePixelRatio))
+    this.renderer.setPixelRatio(s.quality === "low" ? Math.min(1, window.devicePixelRatio) : s.quality === "medium" ? Math.min(1.25, window.devicePixelRatio) : Math.min(1.5, window.devicePixelRatio))
     if (this.post) {
       this.post.setup(this.campScene.scene, this.campScene.camera, s.quality)
       this.post.resize(window.innerWidth, window.innerHeight)

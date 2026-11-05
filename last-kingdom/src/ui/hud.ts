@@ -45,6 +45,7 @@ export class Hud {
   private enemyBars: HTMLElement
   private mouseHint: HTMLElement
   private hitDir: HTMLElement
+  private imarker: HTMLElement
   private barPool: HTMLElement[] = []
 
   constructor(private input: Input) {
@@ -72,6 +73,7 @@ export class Hud {
       <div class="hud-bossintro hidden"><div class="bi-name"></div><div class="bi-title"></div></div>
       <div class="hud-mousehint hidden">Ins Spiel klicken, um die Maus zu binden (Esc = Pause)</div>
       <div class="hud-hitdir hidden"><div class="hd-arc"></div></div>
+      <div class="hud-imarker hidden">◆</div>
       <div class="hud-enemybars"></div>`
     const q = (s: string) => this.el.querySelector<HTMLElement>(s)!
     this.hp = q(".hud-bar.hp .fill")
@@ -96,6 +98,7 @@ export class Hud {
     this.enemyBars = q(".hud-enemybars")
     this.mouseHint = q(".hud-mousehint")
     this.hitDir = q(".hud-hitdir")
+    this.imarker = q(".hud-imarker")
     for (let i = 0; i < 8; i++) {
       const b = document.createElement("div")
       b.className = "ebar hidden"
@@ -114,6 +117,16 @@ export class Hud {
     this.hitDir.classList.remove("hidden")
     this.hitDir.style.transform = `rotate(${(-relAngle * 180) / Math.PI}deg)`
     this.hitDir.style.opacity = `${Math.min(1, strength)}`
+  }
+
+  showInteractMarker(p: { x: number; y: number } | null): void {
+    if (!p) {
+      this.imarker.classList.add("hidden")
+      return
+    }
+    this.imarker.classList.remove("hidden")
+    this.imarker.style.left = `${p.x}px`
+    this.imarker.style.top = `${p.y}px`
   }
 
   showMouseHint(on: boolean): void {
