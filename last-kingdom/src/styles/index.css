@@ -1,0 +1,127 @@
+/* Base layout and typography: dark fantasy, parchment text on near-black. */
+:root {
+  --bg: #0b0a0c;
+  --panel: rgba(18, 15, 14, 0.92);
+  --panel-border: #4a3a28;
+  --text: #e6dcc6;
+  --muted: #9a8f7a;
+  --gold: #d9a63a;
+  --gold-dim: #8a6a28;
+  --blood: #8a1e1e;
+  --good: #7fc46a;
+  --bad: #e06a5a;
+  --focus: #f3c75a;
+  --font-head: "Palatino Linotype", "Book Antiqua", Palatino, Georgia, "Times New Roman", serif;
+  --font-body: "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 15px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+#game {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  outline: none;
+}
+#hud,
+#ui {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+#ui {
+  pointer-events: none;
+}
+#ui .screen,
+#ui .hintbar {
+  pointer-events: auto;
+}
+.hidden {
+  display: none !important;
+}
+h1,
+h2,
+h3 {
+  font-family: var(--font-head);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  margin: 0 0 0.5em;
+  color: var(--gold);
+}
+h1 {
+  font-size: 2.1rem;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.8);
+}
+h1.good {
+  color: var(--good);
+}
+h1.bad {
+  color: var(--bad);
+}
+h2 {
+  font-size: 1.25rem;
+  border-bottom: 1px solid var(--panel-border);
+  padding-bottom: 0.3em;
+}
+h2 small {
+  color: var(--muted);
+  font-size: 0.8rem;
+  margin-left: 0.5em;
+}
+h3 {
+  font-size: 1.05rem;
+  color: var(--text);
+}
+p {
+  line-height: 1.5;
+}
+.dim {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+.good {
+  color: var(--good);
+}
+.bad {
+  color: var(--bad);
+}
+.lack {
+  color: var(--bad);
+}
+.ok {
+  color: var(--good);
+}
+#loading {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(ellipse at center, #1a1512 0%, #0b0a0c 70%);
+  z-index: 50;
+}
+.loading-box {
+  text-align: center;
+}
+.loading-box h1 {
+  font-size: 3rem;
+}
+body.menu-open #game {
+  filter: brightness(0.7) saturate(0.8);
+}

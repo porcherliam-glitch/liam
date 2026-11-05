@@ -1,0 +1,160 @@
+// End-to-end check: boot, create a character, camp, start an expedition, fight, loot, extract.
+import { openGame } from "./browser-lib.mjs"
+
+const g = await openGame()
+try {
+  let s = await g.snapshot()
+  g.check(s.state === "menu" && s.screen === "main", "Hauptmenü wird angezeigt")
+  await g.shot("01-main.png")
+  await g.click("characters")
+  await g.click("new")
+  await g.page.fill("#char-name", "Testritter")
+  await g.click("class", '[data-id="knight"]')
+  await g.click("create")
+  s = await g.snapshot()
+  g.check(s.state === "camp" && s.screen === "camp", "Charakter erstellt, Lager offen")
+  g.check(s.profile.equipment.mainHand === "longsword_1", "Ritter startet mit Langschwert")
+  await g.shot("02-camp.png")
+  // Camp screens open and close
+  for (const a of ["missions", "inventory", "skills", "merchant", "map"]) {
+    await g.click(a)
+    s = await g.snapshot()
+    console.log(`  Bildschirm ${a}: ${s.screen}`)
+    await g.shot(`03-${a}.png`)
+    await g.page.keyboard.press("Escape")
+    await g.page.waitForTimeout(150)
+  }
+  s = await g.snapshot()
+  g.check(s.screen === "camp", "Zurück im Lager")
+  // Accept a mission
+  await g.click("missions")
+  const accepted = await g.page.locator('[data-action="accept"]').count()
+  g.check(accepted > 0, `Missionsangebote vorhanden (${accepted})`)
+  await g.click("accept")
+  s = await g.snapshot()
+  g.check(s.profile.missions.some((m) => m.status === "active"), "Mission angenommen")
+  await g.page.keyboard.press("Escape")
+  // Start expedition
+  await g.click("map")
+  await g.click("start")
+  await g.click("go")
+  await g.page.waitForFunction(() => window.__lastKingdom.snapshot().state === "expedition", null, { timeout: 120000 })
+  await g.page.evaluate(() => window.__lastKingdom.setMaxFrame(0.5))
+  await g.frames(5)
+  s = await g.snapshot()
+  g.check(s.expedition && s.expedition.area === "village", "Expedition im Dorf gestartet")
+  g.check(s.expedition.zombies > 10, `Zombies bevölkern die Karte (${s.expedition.zombies})`)
+  g.check(s.expedition.containers > 20, `Container vorhanden (${s.expedition.containers})`)
+  console.log(`  Draw calls: ${s.expedition.drawCalls}, Dreiecke: ${s.expedition.triangles}`)
+  await g.shot("04-expedition.png")
+  // Move forward
+  const p0 = s.expedition.player
+  await g.page.mouse.click(640, 360)
+  await g.hold("KeyW", 6)
+  await g.frames(2)
+  s = await g.snapshot()
+  const moved = Math.hypot(s.expedition.player.x - p0.x, s.expedition.player.z - p0.z)
+  g.check(moved > 2, `Spieler bewegt sich (${moved.toFixed(1)} m)`)
+  // Sprint and jump
+  await g.page.keyboard.down("ShiftLeft")
+  await g.hold("KeyW", 4)
+  await g.page.keyboard.up("ShiftLeft")
+  await g.page.keyboard.press("Space")
+  await g.frames(3)
+  s = await g.snapshot()
+  g.check(s.expedition.player.stamina < s.expedition.player.hp + 200, "Sprint verbraucht Ausdauer")
+  // Open a container: teleport next to the nearest one
+  const c = await g.page.evaluate(() => window.__lastKingdom.nearestContainer())
+  await g.page.evaluate(({ x, z }) => window.__lastKingdom.teleport(x + 1.2, z + 1.2), c)
+  await g.frames(3)
+  await g.page.keyboard.press("KeyE")
+  await g.frames(3)
+  await g.page.waitForTimeout(300)
+  s = await g.snapshot()
+  g.check(s.expedition.containersOpened >= 1, `Container geöffnet (${c.kind})`)
+  if (s.screen === "loot") {
+    await g.shot("05-loot.png")
+    await g.page.keyboard.press("KeyF") // alt2: take all
+    await g.page.waitForTimeout(200)
+    s = await g.snapshot()
+    if (s.screen === "loot") {
+      await g.click("takeall")
+    }
+  }
+  s = await g.snapshot()
+  g.check(s.screen === null, "Beute-Fenster geschlossen")
+  // Combat: spawn a walker and attack
+  await g.page.evaluate(() => window.__lastKingdom.spawnZombie("walker", 2.0, 0))
+  await g.frames(2)
+  s = await g.snapshot()
+  const before = s.expedition.zombies
+  // Face it: it's at +x; turn by looking is complex, so use lock-on then attack repeatedly
+  await g.page.keyboard.press("KeyT")
+  for (let i = 0; i < 14; i++) {
+    await g.page.mouse.down()
+    await g.page.waitForTimeout(60)
+    await g.page.mouse.up()
+    await g.frames(4)
+  }
+  s = await g.snapshot()
+  console.log(`  Zombies vorher ${before}, nachher ${s.expedition.zombies}, Kills ${s.expedition.kills}, HP ${s.expedition.player.hp}`)
+  g.check(s.expedition.kills >= 1, "Zombie im Nahkampf getötet")
+  await g.shot("06-combat.png")
+  // Inventory in expedition
+  await g.page.keyboard.press("Tab")
+  await g.page.waitForTimeout(200)
+  s = await g.snapshot()
+  g.check(s.screen === "inventory", "Inventar in der Expedition geöffnet")
+  await g.shot("07-inventory-run.png")
+  await g.page.keyboard.press("Escape")
+  await g.frames(3)
+  s = await g.snapshot()
+  g.check(s.screen === null, "Inventar geschlossen, Spiel läuft weiter")
+  // Pause + map
+  await g.page.keyboard.press("Escape")
+  await g.frames(3)
+  s = await g.snapshot()
+  g.check(s.screen === "pause", "Pausemenü geöffnet")
+  await g.click("map")
+  await g.page.waitForTimeout(300)
+  await g.shot("08-runmap.png")
+  await g.page.keyboard.press("Escape")
+  await g.frames(2)
+  await g.click("resume")
+  await g.frames(2)
+  // Extract: teleport to an active extraction and interact
+  s = await g.snapshot()
+  const ex = s.expedition.extractions.find((e) => e.active)
+  await g.page.evaluate(({ x, z }) => window.__lastKingdom.teleport(x + 1, z), ex)
+  await g.page.evaluate(() => window.__lastKingdom.godMode(true))
+  await g.frames(3)
+  await g.page.keyboard.press("KeyE")
+  await g.frames(3)
+  await g.shot("09-extracting.png")
+  await g.page.waitForFunction(() => window.__lastKingdom.snapshot().state === "camp", null, { timeout: 60000 })
+  s = await g.snapshot()
+  g.check(s.screen === "results", "Ergebnisbildschirm nach der Extraktion")
+  g.check(s.profile.stats.extractions === 1, "Extraktion gezählt")
+  g.check(s.profile.unlocked.includes("forest"), "Wald freigeschaltet")
+  await g.shot("10-results.png")
+  await g.click("camp")
+  s = await g.snapshot()
+  g.check(s.screen === "camp", "Zurück im Lager")
+  // Save persisted
+  await g.page.reload({ waitUntil: "load" })
+  await g.page.waitForFunction(() => window.__GAME_READY__ === true)
+  await g.click("continue")
+  s = await g.snapshot()
+  g.check(s.profile && s.profile.name === "Testritter" && s.profile.stats.extractions === 1, "Spielstand nach Neuladen vorhanden")
+  const errs = g.errors.filter((e) => !/favicon/.test(e))
+  g.check(errs.length === 0, `Keine Konsolenfehler (${errs.length})`)
+  if (errs.length) console.log(errs.join("\n"))
+  console.log("verify-game: alles bestanden")
+} catch (e) {
+  console.error(e)
+  console.error("Konsolenfehler:", g.errors.slice(0, 10))
+  await g.shot("error.png").catch(() => undefined)
+  process.exitCode = 1
+} finally {
+  await g.close()
+}

@@ -1,0 +1,29 @@
+{
+  "name": "the-last-kingdom",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "THE LAST KINGDOM – 3D medieval zombie extraction game for the browser (Three.js, TypeScript)",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build && node scripts/build-single.mjs",
+    "check": "tsc -b",
+    "test": "vitest run",
+    "preview": "vite preview",
+    "verify": "node scripts/verify-game.mjs",
+    "verify:systems": "node scripts/verify-systems.mjs",
+    "verify:gamepad": "node scripts/verify-gamepad.mjs",
+    "verify:all": "npm run verify && npm run verify:systems && npm run verify:gamepad && npm run verify:worlds",
+    "verify:worlds": "node scripts/verify-worlds.mjs"
+  },
+  "dependencies": {
+    "three": "^0.180.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.10.1",
+    "@types/three": "^0.180.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.2.2",
+    "vitest": "^3.2.4"
+  }
+}

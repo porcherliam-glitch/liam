@@ -1,0 +1,70 @@
+# THE LAST KINGDOM
+
+Ein düsteres Mittelalter-Zombie-Extraction-Spiel in 3D, das komplett im Browser läuft. Ein Königreich ist an einer Seuche zugrunde gegangen; du bist ein Überlebender, der aus dem sicheren Lager heraus Expeditionen in acht verseuchte Gebiete unternimmt: Beute finden, Missionen erfüllen, lebend extrahieren, das Lager ausbauen, stärker werden.
+
+Alles im Spiel wird prozedural erzeugt: 3D-Modelle, Texturen, Animationen und Geräusche entstehen beim Start im Browser. Es werden keine Dateien aus dem Internet geladen, nichts installiert und keine fremden Assets verwendet.
+
+## Spielen
+
+**Am einfachsten:** Die Datei `TheLastKingdom.html` doppelklicken (entsteht mit `npm run build`). Sie öffnet sich im Browser (Chrome, Edge oder Firefox empfohlen, WebGL nötig).
+
+**Entwicklung:**
+
+```
+npm install
+npm run dev        # http://localhost:3100
+npm run build      # dist/ und die Einzeldatei TheLastKingdom.html
+npm test           # Unit-Tests der Spiellogik (vitest)
+npm run verify:all # Browser-Tests mit Playwright (Spielablauf, Systeme, Controller)
+```
+
+Der Spielstand liegt im Browser (localStorage, drei Charakterplätze). In den Einstellungen lässt er sich als Datei exportieren und bei der Charakterauswahl wieder importieren.
+
+## Steuerung
+
+| Tastatur & Maus | Xbox | PlayStation | Aktion |
+|---|---|---|---|
+| W A S D | linker Stick | linker Stick | Bewegen |
+| Maus | rechter Stick | rechter Stick | Kamera |
+| Mausrad | – | – | Zoom |
+| Leertaste | A | ✕ | Springen |
+| C / Alt | B | ○ | Ausweichen (unverwundbar während der Rolle) |
+| E | X | □ | Interagieren (Truhen, Hebel, Extraktion, Überlebende) |
+| Tab / I | Y | △ | Inventar (gedrückt halten: aktive Fähigkeit) |
+| linke Maustaste | RT | R2 | Leichter Angriff (Kombos), Bogen spannen |
+| Q | RB | R1 | Schwerer Angriff |
+| rechte Maustaste | LT | L2 | Blocken (mit Bogen/Armbrust: Zielen) |
+| R | LB | L1 | Waffe wechseln (aus dem Schnellzugriff) |
+| Shift | L3 | L3 | Sprinten |
+| T / mittlere Maustaste | R3 | R3 | Ziel anvisieren |
+| 1 2 3 4 | Steuerkreuz | Steuerkreuz | Schnellzugriff (Tränke, Nahrung, Zweitwaffe) |
+| G | Y halten | △ halten | Aktive Fähigkeit |
+| M | Back | Share | Karte |
+| Esc | Start | Options | Pause |
+
+Alle Menüs sind vollständig mit dem Controller bedienbar (Steuerkreuz/Stick zum Navigieren, A bestätigen, B zurück, LB/RB Reiter, X/Y Zweitaktionen). Controller werden automatisch erkannt, auch beim Anstecken während des Spiels, und die passenden Tastensymbole werden angezeigt. Jede Taste lässt sich unter **Steuerung** neu belegen.
+
+## Spielablauf
+
+1. **Charakter anlegen:** Ritter (Schild und Schwert, viel Leben), Waldläufer (Bogen, schnell) oder Schattendieb (Dolche, kritische Treffer, bessere Beute).
+2. **Lager:** Acht ausbaubare Gebäude: Schmiede, Waffenkammer, Lagerhaus, Krankenstation, Händler, Werkstatt, Alchemielabor, Verteidigungsanlagen. Jede Stufe schaltet Rezepte, Plätze, Heilung, Reparatur, Aufwertungen oder versicherte Rucksackplätze frei.
+3. **Missionen** vom Brett annehmen (bis zu 3): Sammeln, Bossjagd, Rettung, Erkundung, Schatzsuche, Ressourcen, Säuberung.
+4. **Expedition** in eines der Gebiete: Verlassenes Dorf, Verseuchter Wald, Alte Burg, Friedhof, Kloster, Katakomben, Mittelalterliche Stadt, Verlassene Militärfestung. Jedes Gebiet hat eigene Gegner, Beutetabellen, Geheimnisse, Gefahren und einen Boss.
+5. **Überleben:** Tag und Nacht, Wetter (klar, bewölkt, Nebel, Regen, Sturm), Pestnebel, Horden. Zombies sehen und hören dich.
+6. **Extrahieren:** Drei bis vier Extraktionspunkte pro Karte (Stadttor, Karren, Tunnel, Flussübergang, Waldweg, Boot, Seil). Manche müssen erst aktiviert werden: Hebel, Schlüssel aus der Karte, Fackel, Reparatur mit Holz. Am Punkt einige Sekunden im Lichtkreis bleiben.
+7. **Tod:** Alles Mitgeführte ist verloren – außer den versicherten Rucksackplätzen (Verteidigungsanlagen, Fähigkeit „Versichert“) und ab Verteidigung Stufe 3 der ausgerüsteten Waffe. Die Hälfte der Erfahrung bleibt.
+
+## Systeme im Überblick
+
+- **Kampf:** 9 Waffengattungen (Langschwert, Kurzschwert, Zweihänder, Streitaxt, Streitkolben, Speer, Dolch, Bogen, Armbrust) in je 2–4 Stufen plus 4 Schilde. Leichte Kombos, schwere Angriffe, Blocken, Ausweichen mit Unverwundbarkeit, Ausdauer, kritische Treffer, Wucht und Taumeln, Waffenhaltbarkeit, Aufwertungen bis +3, Waffenbeherrschung je Gattung.
+- **Gegner:** Verseuchte (Bauer, Magd, Mönch, Soldat), Sprinter und Pestläufer, Brutale und Schlächter, Verseuchte Ritter und Hauptleute (blocken von vorn), acht Bosse mit Phasen und Fähigkeiten (Rufen, Sturmangriff, Sprung, Bodenschlag, Pestwolke).
+- **KI:** Sicht (Sichtkegel, Tageslicht, Nebel, Tarnung) und Gehör (Sprinten, Kampf, Hebel), Wandern, Nachforschen, Verfolgen mit Wegfindung (A*), Angriffe mit Vorlauf, Gruppenalarm, Horden, die sich mit der Zeit verstärken.
+- **Beute:** Sechs Seltenheiten (Gewöhnlich bis Mythisch) mit Affixen, Truhen, Kisten, Fässer, Säcke, Leichen, Schränke, Kräuter, Holz, Knochen, Eisen, Geheimverstecke mit Schlüsselgegenständen.
+- **Inventar:** Rucksack mit Plätzen und Gewichtslimit, Ausrüstung (Waffe, Schild, Helm, Rüstung, 1–4 Schnellzugriffe), Lagerkiste im Camp, Vergleich mit der ausgerüsteten Ausrüstung, Händler mit Ruf und Rabatt.
+- **Fortschritt:** Stufen bis 40, Fähigkeitenbaum mit drei Zweigen (Krieger, Waldläufer, Überlebender) à 6 Knoten, je eine aktive Fähigkeit pro Zweig (Kriegsschrei, Adrenalin, Notverband), Händler-Ruf, Waffenbeherrschung.
+
+Die Architektur ist in [ARCHITEKTUR.md](ARCHITEKTUR.md) beschrieben.
+
+## Lizenz der Inhalte
+
+Alle Modelle, Texturen, Animationen und Klänge werden im Code erzeugt; es gibt keine Fremd-Assets. Einzige Abhängigkeit zur Laufzeit ist [Three.js](https://threejs.org) (MIT-Lizenz).
