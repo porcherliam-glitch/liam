@@ -21,6 +21,8 @@ export interface BotStats {
   lowestHp: number
   dodges: number
   blocks: number
+  /** Most live enemies within 6 m at any moment (group pressure). */
+  maxNear: number
 }
 
 export class Bot {
@@ -53,7 +55,7 @@ export class Bot {
     this.lootGoal = opts.lootGoal ?? 8
     this.maxSeconds = opts.maxSeconds ?? 420
     this.hunt = opts.hunt ?? true
-    this.stats = { area: e.areaId, seconds: 0, kills: 0, damageTaken: 0, potions: 0, containers: 0, items: 0, gold: 0, outcome: "running", lowestHp: e.player.maxHp, dodges: 0, blocks: 0 }
+    this.stats = { area: e.areaId, seconds: 0, kills: 0, damageTaken: 0, potions: 0, containers: 0, items: 0, gold: 0, outcome: "running", lowestHp: e.player.maxHp, dodges: 0, blocks: 0, maxNear: 0 }
     this.lastHp = e.player.hp
     game.input.virtual = { move: { x: 0, y: 0 }, held: new Set(), tap: new Set() }
   }
@@ -105,15 +107,18 @@ export class Bot {
     let threat: Zombie | null = null
     let td = 999
     for (const [z, until] of this.ignored) if (until < e.elapsed || z.dead) this.ignored.delete(z)
+    let near = 0
     for (const z of e.zombies) {
       if (z.dead) continue
-      if (this.ignored.has(z) && Math.hypot(z.pos.x - p.pos.x, z.pos.z - p.pos.z) > 3.5) continue
       const d = Math.hypot(z.pos.x - p.pos.x, z.pos.z - p.pos.z)
+      if (d < 6) near++
+      if (this.ignored.has(z) && d > 3.5) continue
       if (d < td) {
         td = d
         threat = z
       }
     }
+    this.stats.maxNear = Math.max(this.stats.maxNear, near)
     const bagCount = allItems(p.inventory).length
     if (threat && (td < 7 || (this.hunt && td < 22 && this.mode !== "extract" && !threat.sleeping))) {
       if (this.huntTarget !== threat) {

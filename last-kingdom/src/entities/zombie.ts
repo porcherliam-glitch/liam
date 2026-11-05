@@ -356,11 +356,18 @@ export class Zombie {
           this.lungeTimer = 0.6
           ctx.audio.play("zombie_alert", { x: this.pos.x, y: 1, z: this.pos.z, pitch: 1.3, volume: 0.6 })
         }
-        // Attack when in range and facing
+        // Attack when in range and facing. Only a few enemies may swing at once (attack tokens), the
+        // rest hold position at arm's length so groups stay readable instead of a damage pile.
         if (dist < this.type.attackRange + p.height * 0.1 && this.attackCooldown <= 0 && !p.dead) {
           const ang = Math.abs(angleDelta(this.yaw, Math.atan2(dx, dz)))
-          if (ang < 0.6) this.startAttack()
-          else this.yaw = turnToward(this.yaw, Math.atan2(dx, dz), dt * 7)
+          if (ang >= 0.6) this.yaw = turnToward(this.yaw, Math.atan2(dx, dz), dt * 7)
+          else if (this.isBoss || this.attackTokenFree()) this.startAttack()
+          else this.attackCooldown = this.rng.range(0.15, 0.45)
+        }
+        if (!this.isBoss && this.attackCooldown > 0 && dist < this.type.attackRange + 0.3) {
+          // Waiting for a turn: stay where we are and keep facing the player
+          wantMove = false
+          this.yaw = turnToward(this.yaw, Math.atan2(dx, dz), dt * 5)
         }
         // Abilities
         if (this.state === "chase") this.tryAbility(dist, dx, dz)
@@ -520,6 +527,22 @@ export class Zombie {
   }
 
   // ---- attacks -------------------------------------------------------------------------------
+
+  /** Simultaneous attackers allowed on the player (bosses are exempt). */
+  static attackTokens(difficulty: "easy" | "normal" | "hard"): number {
+    return difficulty === "easy" ? 1 : difficulty === "hard" ? 3 : 2
+  }
+
+  private attackTokenFree(): boolean {
+    const cap = Zombie.attackTokens(this.ctx.settings.difficulty)
+    let busy = 0
+    for (const z of this.ctx.zombies) {
+      if (z === this || z.dead || z.isBoss) continue
+      if (z.state === "attack" || z.state === "ability") busy++
+      if (busy >= cap) return false
+    }
+    return true
+  }
 
   private startAttack(): void {
     this.setState("attack")

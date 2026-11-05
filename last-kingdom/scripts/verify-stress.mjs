@@ -34,6 +34,18 @@ try {
   g.check(s.expedition.alerted >= 5, `Gegner verfolgen (${s.expedition.alerted} alarmiert)`)
   // Survive: god mode and fight back with the sword from the quick slot
   await page.evaluate(() => window.__lastKingdom.godMode(true))
+  // Attack tokens: on normal difficulty at most two non-boss enemies swing at the same time
+  const maxAttackers = await page.evaluate(async () => {
+    let max = 0
+    for (let i = 0; i < 40; i++) {
+      const e = window.__lastKingdom.game.expedition
+      const n = e.zombies.filter((z) => !z.dead && !z.isBoss && z.state === "attack").length
+      max = Math.max(max, n)
+      await new Promise((r) => setTimeout(r, 100))
+    }
+    return max
+  })
+  g.check(maxAttackers >= 1 && maxAttackers <= 2, `Höchstens zwei Gegner greifen gleichzeitig an (max ${maxAttackers})`)
   await sim(8)
   await g.shot("x02-horde.png")
   await page.keyboard.press("Digit1") // quick slot 1: shortsword
