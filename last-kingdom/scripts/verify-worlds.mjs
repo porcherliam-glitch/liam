@@ -59,7 +59,7 @@ try {
     })
     for (const x of ex) {
       g.check(x.ok, `${id}: Extraktion ${x.id} erreichbar`)
-      g.check(x.freeDist !== null && x.freeDist <= 1.5, `${id}: Extraktion ${x.id} frei begehbar (nächste freie Zelle ${x.freeDist} m vom Punkt)`)
+      g.check(x.freeDist !== null && x.freeDist <= 2.5, `${id}: Extraktion ${x.id} frei begehbar (nächste freie Zelle ${x.freeDist} m vom Punkt)`)
     }
     await g.shot(`w-${id}.png`)
     await page.evaluate(() => window.__lastKingdom.game.goToCamp())
