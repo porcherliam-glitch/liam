@@ -77,6 +77,48 @@ export class NavGrid {
     return null
   }
 
+  /** Cells reachable from a world position (same neighbour rules as the path search), as a per-cell mask. */
+  reachableMask(x: number, z: number): Uint8Array {
+    const n = this.n
+    const mask = new Uint8Array(n * n)
+    const start = this.nearestFree(x, z)
+    if (!start) return mask
+    const queue = new Int32Array(n * n)
+    let head = 0
+    let tail = 0
+    const sIdx = start[1] * n + start[0]
+    mask[sIdx] = 1
+    queue[tail++] = sIdx
+    while (head < tail) {
+      const cur = queue[head++]
+      const ci = cur % n
+      const cj = (cur - ci) / n
+      for (let dj = -1; dj <= 1; dj++) {
+        for (let di = -1; di <= 1; di++) {
+          if (di === 0 && dj === 0) continue
+          const ni = ci + di
+          const nj = cj + dj
+          if (ni < 0 || nj < 0 || ni >= n || nj >= n || this.isBlocked(ni, nj)) continue
+          if (di !== 0 && dj !== 0 && (this.isBlocked(ci + di, cj) || this.isBlocked(ci, cj + dj))) continue
+          const nIdx = nj * n + ni
+          if (mask[nIdx]) continue
+          mask[nIdx] = 1
+          queue[tail++] = nIdx
+        }
+      }
+    }
+    return mask
+  }
+
+  /** Whether the walkable cell nearest to a world position lies inside a reachable mask (and within maxDist metres). */
+  isReachable(mask: Uint8Array, x: number, z: number, maxDist = 2.0): boolean {
+    const cell = this.nearestFree(x, z)
+    if (!cell) return false
+    const w = this.toWorld(cell[0], cell[1])
+    if (Math.hypot(w[0] - x, w[1] - z) > maxDist) return false
+    return mask[cell[1] * this.n + cell[0]] === 1
+  }
+
   newFrame(): void {
     this.pathsThisFrame = 0
   }

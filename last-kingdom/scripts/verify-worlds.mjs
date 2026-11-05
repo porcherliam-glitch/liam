@@ -61,6 +61,18 @@ try {
       g.check(x.ok, `${id}: Extraktion ${x.id} erreichbar`)
       g.check(x.freeDist !== null && x.freeDist <= 2.5, `${id}: Extraktion ${x.id} frei begehbar (nächste freie Zelle ${x.freeDist} m vom Punkt)`)
     }
+    // Key chests (keys, oars, lore) must be reachable; ordinary containers mostly (houses with blocked doors are tolerated up to 5 %)
+    const reach = await page.evaluate(() => {
+      const e = window.__lastKingdom.game.expedition
+      const nav = e.world.nav
+      const mask = nav.reachableMask(e.world.playerSpawn.x, e.world.playerSpawn.z)
+      const keys = e.world.keyChests.map((c) => ({ x: Math.round(c.x), z: Math.round(c.z), ok: nav.isReachable(mask, c.x, c.z, 2.4) }))
+      const bad = e.world.containers.filter((c) => !nav.isReachable(mask, c.x, c.z, 2.4)).map((c) => `${c.kind}@${Math.round(c.x)},${Math.round(c.z)}`)
+      return { keys, total: e.world.containers.length, bad, dropped: e.world.droppedContainers }
+    })
+    for (const k of reach.keys) g.check(k.ok, `${id}: Schlüsseltruhe bei ${k.x},${k.z} erreichbar`)
+    g.check(reach.bad.length === 0, `${id}: alle ${reach.total} Container erreichbar (${reach.dropped} beim Aufbau entfernt${reach.bad.length ? "; unerreichbar: " + reach.bad.slice(0, 6).join(", ") : ""})`)
+    g.check(reach.dropped <= Math.ceil((reach.total + reach.dropped) * 0.08), `${id}: höchstens 8 % der Container mussten entfernt werden (${reach.dropped})`)
     await g.shot(`w-${id}.png`)
     await page.evaluate(() => window.__lastKingdom.game.goToCamp())
     await g.frames(2)

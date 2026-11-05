@@ -64,6 +64,10 @@ export interface WorldBuild {
   nav: NavGrid
   root: THREE.Group
   containers: ContainerSite[]
+  /** Chests with fixed contents (keys, oars, lore): must always be reachable. */
+  keyChests: ContainerSite[]
+  /** Containers removed at build time because no walkable path from the spawn reached them. */
+  droppedContainers: number
   extractions: ExtractionSite[]
   spawnPoints: { x: number; z: number }[]
   interiorSpots: { x: number; z: number }[]
@@ -535,7 +539,8 @@ function buildGraveyard(ctx: Ctx): void {
   const royal = P.mausoleum(1)
   placeProp(ctx, royal, 0, -40, 0, { reserve: 6 })
   poi(ctx, "royal", "Mausoleum der Königsfamilie", 0, -36)
-  ctx.keyChests.push(addContainer(ctx, "chest", 0, -38.5, 0, { secret: true, fixed: [{ id: "torch_item", qty: 2 }, { id: "gravedigger_ledger", qty: 1 }] }))
+  // Back corner of the mausoleum: the centre lane between door and sarcophagus must stay open
+  ctx.keyChests.push(addContainer(ctx, "chest", -1.7, -42, 0, { secret: true, fixed: [{ id: "torch_item", qty: 2 }, { id: "gravedigger_ledger", qty: 1 }] }))
   for (let i = 0; i < 6; i++) {
     const x = rng.range(-90, 90)
     const z = rng.range(-90, 60)
@@ -756,7 +761,8 @@ function buildCity(ctx: Ctx): void {
   // Cathedral on the square, market stalls, fountain
   placeProp(ctx, P.church({ w: 14, d: 30, towerH: 26 }), 0, -70, 0, { reserve: 22 })
   poi(ctx, "cathedral", "Kathedrale", 0, -55)
-  ctx.keyChests.push(addContainer(ctx, "chest", 0, -83, 0, { secret: true, fixed: [{ id: "gate_key", qty: 1 }, { id: "lost_letter", qty: 1 }], bonusRolls: 2 }))
+  // In front of the altar (the altar block itself is solid)
+  ctx.keyChests.push(addContainer(ctx, "chest", -2.2, -81.5, 0, { secret: true, fixed: [{ id: "gate_key", qty: 1 }, { id: "lost_letter", qty: 1 }], bonusRolls: 2 }))
   placeProp(ctx, P.well(), 0, 0, 0, { reserve: 3 })
   poi(ctx, "market", "Marktplatz", 0, 8)
   for (let i = 0; i < 8; i++) placeProp(ctx, P.marketStall(i), -24 + (i % 4) * 14, i < 4 ? 20 : -20, i < 4 ? 0 : Math.PI, { reserve: 2.2 })
@@ -935,8 +941,19 @@ export function buildWorld(area: AreaDef, scene: THREE.Scene): WorldBuild {
   root.traverse((o) => {
     if (o.name === "banner") ctx.banners.push(o)
   })
-  const merged = batcher.build(root)
   const nav = new NavGrid(area.size, collision, area.biome === "catacombs" ? null : terrain, (x, z) => (area.biome === "catacombs" ? Math.max(Math.abs(x), Math.abs(z)) > 128 : false))
+  // Containers nobody can reach (houses whose door got blocked by a neighbour, sealed pockets) are removed
+  // before the merge; chests with fixed contents are never dropped so keys and lore stay obtainable.
+  const reachable = nav.reachableMask(area.spawnX, area.spawnZ)
+  let droppedContainers = 0
+  ctx.containers = ctx.containers.filter((c) => {
+    if (ctx.keyChests.includes(c) || nav.isReachable(reachable, c.x, c.z, 2.4)) return true
+    batcher.removeGroup(c.object)
+    c.object.removeFromParent()
+    droppedContainers++
+    return false
+  })
+  const merged = batcher.build(root)
   const grass = buildGrass(terrain, nav, area.biome, area.seed, Math.round(area.size * area.size * 0.22))
   if (grass) root.add(grass)
   return {
@@ -946,6 +963,8 @@ export function buildWorld(area: AreaDef, scene: THREE.Scene): WorldBuild {
     nav,
     root,
     containers: ctx.containers,
+    keyChests: ctx.keyChests,
+    droppedContainers,
     extractions,
     spawnPoints: ctx.spawnPoints,
     interiorSpots: ctx.interiorSpots,

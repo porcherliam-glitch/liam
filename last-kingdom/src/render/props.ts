@@ -259,7 +259,8 @@ export function church(opts: { w?: number; d?: number; towerH?: number; ruined?:
       cols.push(boxCol(s * 2.6, z - 0.1, 1.5, 0.3, 0, 0.9))
     }
   }
-  return { group: g, colliders: cols, spots: [{ x: 0, z: -d / 2 + 3, kind: "loot" }, { x: 0, z: 0, kind: "spawn" }, { x: 0, z: d / 2 - 3, kind: "interior" }] }
+  // Loot beside the centre aisle in front of the altar, so the aisle itself stays open
+  return { group: g, colliders: cols, spots: [{ x: 2.2, z: -d / 2 + 3.5, kind: "loot" }, { x: 0, z: 0, kind: "spawn" }, { x: 0, z: d / 2 - 3, kind: "interior" }] }
 }
 
 export function tower(r = 3, h = 10, opts: { ruined?: boolean; dark?: boolean } = {}): Prop {
@@ -293,7 +294,8 @@ export function wall(len: number, h = 5, thick = 1.2, opts: { crenels?: boolean;
     const pw = len / pieces
     const rng = new Rng(Math.round(len * 100 + opts.ruined))
     for (let i = 0; i < pieces; i++) {
-      if (i === Math.floor(pieces / 2) && rng.chance(0.7)) continue
+      // The middle piece is always missing so a ruined wall is really passable
+      if (i === Math.floor(pieces / 2)) continue
       const ph = h * rng.range(0.35, 1)
       const x = -len / 2 + pw * (i + 0.5)
       g.add(box(pw, ph, thick, stone, x, ph / 2, 0))
@@ -473,7 +475,8 @@ export function mausoleum(seed = 1): Prop {
   // Sarcophagus inside
   g.add(box(1.0, 0.9, 2.2, stone, 0, 0.45, -0.5))
   cols.push(boxCol(0, -0.5, 0.5, 1.1, 0, 0.9))
-  return { group: g, colliders: cols, spots: [{ x: 0, z: 1.6, kind: "loot" }] }
+  // Loot at the end of the right-hand lane; the lane between door and sarcophagus stays open
+  return { group: g, colliders: cols, spots: [{ x: 1.6, z: -2.2, kind: "loot" }] }
 }
 
 export function fence(len: number, seed = 1): Prop {

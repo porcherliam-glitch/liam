@@ -28,6 +28,13 @@ export class StaticBatcher {
     })
   }
 
+  /** Forgets every mesh recorded from a group (for props removed again before the merge). */
+  removeGroup(group: THREE.Object3D): void {
+    const inGroup = new Set<THREE.Object3D>()
+    group.traverse((o) => inGroup.add(o))
+    this.entries = this.entries.filter((e) => !inGroup.has(e.source))
+  }
+
   /** Builds merged meshes and adds them to the scene. */
   build(scene: THREE.Object3D): THREE.Mesh[] {
     const groups = new Map<string, Entry[]>()
