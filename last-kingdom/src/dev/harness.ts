@@ -159,15 +159,22 @@ export function installHarness(game: Game): void {
     botStats() {
       return api.bot ? { ...api.bot.stats, done: api.bot.done } : null
     },
+    /** Hits swallowed while god mode is on. */
+    godHits: 0,
     godMode(on: boolean) {
       const e = game.expedition
       if (!e) return
       const p = e.player
       const anyP = p as unknown as Record<string, unknown>
       if (on) {
-        anyP._origTake = p.takeDamage
-        anyP._origApply = anyP.applyDamage
-        p.takeDamage = () => false
+        if (!anyP._origTake) {
+          anyP._origTake = p.takeDamage
+          anyP._origApply = anyP.applyDamage
+        }
+        p.takeDamage = () => {
+          api.godHits++
+          return false
+        }
         anyP.applyDamage = () => undefined
         p.hp = p.maxHp
       } else {

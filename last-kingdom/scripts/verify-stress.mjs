@@ -25,15 +25,16 @@ try {
   await g.frames(2)
   const arrows = await page.evaluate(() => window.__lastKingdom.profile().loadout.slots.reduce((n, s) => n + (s && s.defId === "arrow" ? s.qty : 0), 0))
   g.check(arrows < 40, `Bogen verschießt Pfeile (${arrows} übrig)`)
-  // Every enemy type attacks the player
+  // Every enemy type attacks the player; god mode counts the hits instead of letting the ranger die
   const types = ["walker", "walker_villager", "walker_monk", "walker_soldier", "sprinter", "sprinter_hound", "brute", "brute_butcher", "knight", "knight_captain"]
+  await page.evaluate(() => window.__lastKingdom.godMode(true))
   await page.evaluate((types) => { types.forEach((t, i) => window.__lastKingdom.spawnZombie(t, 4 + (i % 3) * 2, (i - 5) * 2)) }, types)
   await sim(4)
   let s = await g.snapshot()
-  g.check(s.expedition && s.expedition.player.hp < s.expedition.player.maxHp, `Gegner treffen den Spieler (HP ${Math.round(s.expedition?.player.hp)}/${s.expedition?.player.maxHp})`)
+  const hits = await page.evaluate(() => window.__lastKingdom.godHits)
+  g.check(hits > 0, `Gegner treffen den Spieler (${hits} Treffer abgefangen)`)
   g.check(s.expedition.alerted >= 5, `Gegner verfolgen (${s.expedition.alerted} alarmiert)`)
-  // Survive: god mode and fight back with the sword from the quick slot
-  await page.evaluate(() => window.__lastKingdom.godMode(true))
+  // Fight back with the sword from the quick slot
   // Attack tokens: on normal difficulty at most two non-boss enemies swing at the same time
   const maxAttackers = await page.evaluate(async () => {
     let max = 0
