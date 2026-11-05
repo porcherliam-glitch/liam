@@ -13,6 +13,7 @@ import { InventoryScreen } from "../ui/screens/inventory"
 import { RunMapScreen } from "../ui/screens/runmap"
 import { Expedition } from "./expedition"
 import { CampScene } from "../render/campScene"
+import { PostProcess } from "../render/postprocess"
 import { generateStock, type MerchantStock } from "../items/merchant"
 import { areaDef, areasUnlockedBy } from "../world/areas"
 import { applyXp } from "../meta/progression"
@@ -22,6 +23,7 @@ import { countItem, removeItem, resizeInventory } from "../items/inventory"
 import { events } from "../core/events"
 import { itemDef } from "../items/itemData"
 import { createItem } from "../items/items"
+import { checkAchievements } from "../meta/achievements"
 
 export const VERSION = "1.0.0"
 
@@ -38,12 +40,14 @@ export class Game implements GameApi {
   state: State = "menu"
   readonly version = VERSION
   private campScene: CampScene
+  private post: PostProcess
   private stock: MerchantStock | null = null
   private last = performance.now()
   private running = true
   private resultPending: RunSummary | null = null
   /** Tests can raise this to let the simulation catch up when rendering is slow. */
   maxFrame = 0.05
+  private loading = false
   private unsub: (() => void)[] = []
 
   constructor(private canvas: HTMLCanvasElement) {
@@ -51,11 +55,13 @@ export class Game implements GameApi {
     this.renderer.shadowMap.enabled = this.settings.shadows
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping
-    this.renderer.toneMappingExposure = 0.95
+    this.renderer.toneMappingExposure = 1.15
     this.renderer.outputColorSpace = THREE.SRGBColorSpace
     this.input = new Input(canvas)
     this.ui = new UI(this.input, this.audio)
     this.campScene = new CampScene(this.settings.shadows)
+    this.post = new PostProcess(this.renderer)
+    this.post.setup(this.campScene.scene, this.campScene.camera, this.settings.quality)
     this.applySettings()
     window.addEventListener("resize", () => this.resize())
     this.resize()
@@ -95,6 +101,10 @@ export class Game implements GameApi {
     this.input.deadzone = s.deadzone
     this.renderer.shadowMap.enabled = s.shadows
     this.renderer.setPixelRatio(s.quality === "low" ? Math.min(1, window.devicePixelRatio) : s.quality === "medium" ? Math.min(1.25, window.devicePixelRatio) : Math.min(2, window.devicePixelRatio))
+    if (this.post) {
+      this.post.setup(this.campScene.scene, this.campScene.camera, s.quality)
+      this.post.resize(window.innerWidth, window.innerHeight)
+    }
     this.expedition?.applySettings()
     document.body.classList.toggle("no-gore", !s.gore)
   }
@@ -108,6 +118,7 @@ export class Game implements GameApi {
     const h = window.innerHeight
     this.renderer.setSize(w, h, false)
     this.campScene.resize(w / h)
+    this.post?.resize(w, h)
     this.expedition?.resize(w, h)
   }
 
@@ -117,8 +128,8 @@ export class Game implements GameApi {
     return listProfiles()
   }
 
-  createProfile(slot: number, name: string, classId: Profile["classId"]): void {
-    this.profile = createProfile(slot, name, classId)
+  createProfile(slot: number, name: string, classId: Profile["classId"], female = false): void {
+    this.profile = createProfile(slot, name, classId, female)
     saveProfile(this.profile)
     this.stock = null
     this.goToCamp()
@@ -188,6 +199,12 @@ export class Game implements GameApi {
     this.state = "camp"
     this.ui.popAll()
     this.ui.push(new CampScreen(this))
+    if (this.profile) {
+      for (const a of checkAchievements(this.profile)) {
+        this.ui.toast(`Erfolg freigeschaltet: ${a.name} – ${a.description}`, "good")
+        this.audio.play("mission_done")
+      }
+    }
     this.audio.setMusic("menu")
     this.input.wantPointerLock = false
     this.input.releaseLock()
@@ -195,19 +212,31 @@ export class Game implements GameApi {
     this.saveProfile()
   }
 
-  startExpedition(areaId: string): void {
+  startExpedition(areaId: string, night = false): void {
     if (!this.profile) return
     this.ui.popAll()
-    this.state = "expedition"
     this.audio.unlock()
-    this.expedition = new Expedition(this.profile, areaId, this.input, this.audio, this.settings, this.ui, this.renderer, {
-      onEnd: (r) => this.onExpeditionEnd(r),
-      openPause: () => this.openPause(),
-      openInventory: () => this.openInventory(),
-    })
-    this.resize()
-    this.input.wantPointerLock = true
-    this.input.requestLock()
+    // Show the loading card first; the world is built on the next frame so the card actually paints.
+    const overlay = document.getElementById("loading")
+    if (overlay) {
+      overlay.innerHTML = `<div class="loading-box"><h1>${areaDef(areaId).name}</h1><p>${areaDef(areaId).subtitle}${night ? " · Nacht-Expedition" : ""} · Das Gebiet wird aufgebaut …</p></div>`
+      overlay.classList.remove("hidden")
+    }
+    this.state = "expedition"
+    this.loading = true
+    setTimeout(() => {
+      if (this.state !== "expedition" || !this.profile) return
+      this.expedition = new Expedition(this.profile, areaId, this.input, this.audio, this.settings, this.ui, this.renderer, this.post, {
+        onEnd: (r) => this.onExpeditionEnd(r),
+        openPause: () => this.openPause(),
+        openInventory: () => this.openInventory(),
+      }, night)
+      this.resize()
+      this.input.wantPointerLock = true
+      this.input.requestLock()
+      overlay?.classList.add("hidden")
+      this.loading = false
+    }, 30)
   }
 
   private openPause(): void {
@@ -267,6 +296,10 @@ export class Game implements GameApi {
         this.ui.toast(`Neues Gebiet freigeschaltet: ${areaDef(id).name}`, "good")
       }
       xp += 50 + area.danger * 30
+      if (e.night) {
+        xp = Math.round(xp * 1.4)
+        p.stats.nightExtractions = (p.stats.nightExtractions ?? 0) + 1
+      }
     } else {
       // Death: unsecured items are lost
       xp = Math.round(xp * 0.5)
@@ -336,12 +369,14 @@ export class Game implements GameApi {
     this.last = now
     this.input.update(rawDt)
     this.ui.update(rawDt)
-    if (this.state === "expedition" && this.expedition) {
+    if (this.state === "expedition" && this.loading) {
+      // world is being built
+    } else if (this.state === "expedition" && this.expedition) {
       this.expedition.update(rawDt)
       // Keep the pointer captured during play
       if (this.ui.depth === 0 && this.input.wantPointerLock && !this.input.locked && this.input.anyKeyThisFrame) this.input.requestLock()
     } else {
-      this.campScene.update(rawDt, this.renderer)
+      this.campScene.update(rawDt, (sc, cam) => this.post.render(sc, cam))
       this.audio.setListener(0, 2, 0, 0)
       this.audio.updateAmbience(rawDt, 0.3, 0, true, false, 0)
     }

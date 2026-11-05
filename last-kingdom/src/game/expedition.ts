@@ -31,7 +31,8 @@ import { buildHumanoid, disposeHumanoid, type Humanoid } from "../render/humanoi
 import { Animator } from "../render/animator"
 import { skillBonuses } from "../meta/skillData"
 import { campBonuses } from "../meta/campData"
-import { mat, windUniforms } from "../render/materials"
+import { mat, waterMaterial, windUniforms } from "../render/materials"
+import type { PostProcess } from "../render/postprocess"
 import { RARITIES } from "../core/types"
 
 interface Interactable {
@@ -127,6 +128,12 @@ export class Expedition implements ExpeditionApi {
   private tmpV = new THREE.Vector3()
   private inventoryHold = 0
   private inventoryHoldFrames = 0
+  private hitStopLeft = 0
+  private tutorialQueue: [number, string][] = []
+  /** Random condition of this expedition (shown in the HUD), or null. */
+  readonly modifier: { id: string; name: string; description: string } | null = null
+  private hordeRate = 1
+  private bossIntroShown = false
   readonly missions: MissionDef[]
 
   constructor(
@@ -137,7 +144,9 @@ export class Expedition implements ExpeditionApi {
     private settings: Settings,
     private ui: UI,
     private renderer: THREE.WebGLRenderer,
+    private post: PostProcess,
     private callbacks: ExpeditionCallbacks,
+    readonly night = false,
   ) {
     this.areaId = areaId
     const area = areaDef(areaId)
@@ -148,7 +157,8 @@ export class Expedition implements ExpeditionApi {
     this.camera.targetDistance = this.camera.distance = settings.cameraDistance
     this.sky = new Sky(this.scene, settings.shadows)
     this.sky.underground = area.biome === "catacombs"
-    this.sky.hour = this.rng.pick([7, 9, 12, 15, 17, 19, 21, 23, 2])
+    this.sky.hour = night ? 22.5 : this.rng.pick([7, 9, 12, 15, 17, 19, 21, 23, 2])
+    if (night) this.sky.speed = 0.4
     this.weather = new Weather(this.scene, this.sky, area.seed ^ Date.now(), area.biome === "forest" ? "fog" : area.biome === "graveyard" ? (this.rng.chance(0.5) ? "fog" : "overcast") : undefined)
     this.particles = new Particles(this.scene)
     this.particles.setViewport(window.innerHeight)
@@ -157,7 +167,39 @@ export class Expedition implements ExpeditionApi {
     this.decals = new Decals(this.scene, (x, z) => this.world.terrain.heightAt(x, z))
     this.decals.enabled = settings.gore
     this.player = new Player(profile, profile.loadout)
-    this.skillsLuck = skillBonuses(profile.skills).lootLuck + (profile.classId === "rogue" ? 0.15 : 0)
+    this.skillsLuck = skillBonuses(profile.skills).lootLuck + (profile.classId === "rogue" ? 0.15 : 0) + (night ? 0.35 : 0)
+    // Expedition modifiers: a third of all runs come with a twist
+    if (this.rng.chance(0.35) && profile.stats.expeditions >= 1) {
+      this.modifier = this.rng.pick([
+        { id: "bloodmoon", name: "Blutmond", description: "Mehr Untote, bessere Beute." },
+        { id: "fog", name: "Dichter Nebel", description: "Zombies sehen schlechter – du auch." },
+        { id: "silence", name: "Totenstille", description: "Kaum Horden, aber magere Beute." },
+        { id: "harvest", name: "Reiche Ernte", description: "Deutlich bessere Beute, die Toten riechen sie." },
+        { id: "storm", name: "Unwetter", description: "Sturm die ganze Zeit; Lärm trägt weniger weit." },
+      ])
+      switch (this.modifier.id) {
+        case "bloodmoon":
+          this.skillsLuck += 0.3
+          this.hordeRate = 1.6
+          break
+        case "fog":
+          this.weather.setKind("fog")
+          this.weather.locked = true
+          break
+        case "silence":
+          this.skillsLuck -= 0.2
+          this.hordeRate = 0.3
+          break
+        case "harvest":
+          this.skillsLuck += 0.5
+          this.hordeRate = 1.3
+          break
+        case "storm":
+          this.weather.setKind("storm")
+          this.weather.locked = true
+          break
+      }
+    }
     this.hud = new Hud(input)
     this.explored = new Uint8Array(this.exploredRes * this.exploredRes)
     const self = this
@@ -184,6 +226,9 @@ export class Expedition implements ExpeditionApi {
       summon: (x, z, typeId, count) => this.summon(x, z, typeId, count),
       plagueCloud: (x, z, r, s) => this.addHazard(x, z, r, s),
       dropArrow: (x, y, z, ammo) => this.dropArrowPickup(x, y, z, ammo),
+      hitStop: (seconds) => {
+        this.hitStopLeft = Math.max(this.hitStopLeft, seconds)
+      },
     }
     this.player.bind(this.ctx)
     this.player.pos.set(this.world.playerSpawn.x, this.world.terrain.heightAt(this.world.playerSpawn.x, this.world.playerSpawn.z), this.world.playerSpawn.z)
@@ -198,7 +243,18 @@ export class Expedition implements ExpeditionApi {
     this.hud.show(true)
     this.audio.setMusic("calm")
     profile.stats.expeditions++
-    events.emit("toast", { text: `${area.name}: Finde Beute und erreiche einen Extraktionspunkt.`, kind: "info" })
+    events.emit("toast", { text: `${area.name}${night ? " bei Nacht" : ""}: Finde Beute und erreiche einen Extraktionspunkt.`, kind: "info" })
+    if (night) events.emit("toast", { text: "Nacht-Expedition: mehr Untote, bessere Beute, +40 % Erfahrung.", kind: "warn" })
+    if (this.modifier) events.emit("toast", { text: `${this.modifier.name}: ${this.modifier.description}`, kind: "warn" })
+    if (!profile.tutorialSeen) {
+      this.tutorialQueue = [
+        [4, "Die blauen Lichtstrahlen sind Extraktionspunkte. Dort einige Sekunden im Lichtkreis bleiben."],
+        [12, "Truhen, Kisten und Säcke durchsuchen – Material brauchst du im Lager zum Ausbauen."],
+        [22, "Ausweichen macht dich kurz unverwundbar. Blocken direkt vor dem Treffer ist ein perfekter Block."],
+        [34, "Sprinten ist laut: Zombies hören dich. Nachts sehen sie schlechter – du aber auch."],
+        [48, "Stirbst du, ist alles Mitgeführte weg. Lieber früh extrahieren als gierig werden."],
+      ]
+    }
     if (area.danger >= 3) events.emit("toast", { text: `Gefahr ${"☠".repeat(area.danger)} – ${area.hazards[0]}`, kind: "warn" })
   }
 
@@ -209,15 +265,16 @@ export class Expedition implements ExpeditionApi {
     const spots = [...this.world.spawnPoints, ...this.world.interiorSpots]
     this.rng.shuffle(spots)
     let placed = 0
+    const population = Math.round(area.population * (this.night ? 1.5 : 1) * (this.modifier?.id === "bloodmoon" ? 1.4 : 1))
     for (const s of spots) {
-      if (placed >= area.population) break
+      if (placed >= population) break
       if (Math.hypot(s.x - this.player.pos.x, s.z - this.player.pos.z) < 32) continue
       if (this.world.nav.isBlockedWorld(s.x, s.z)) continue
       const typeId = this.rng.weighted(area.enemies, (e) => e.weight).typeId
       // Groups: walkers come in 2-4
       const t = zombieType(typeId)
       const groupSize = t.kind === "walker" ? this.rng.int(1, 3) : 1
-      for (let g = 0; g < groupSize && placed < area.population; g++) {
+      for (let g = 0; g < groupSize && placed < population; g++) {
         const gx = s.x + this.rng.range(-3, 3)
         const gz = s.z + this.rng.range(-3, 3)
         if (this.world.nav.isBlockedWorld(gx, gz)) continue
@@ -358,6 +415,7 @@ export class Expedition implements ExpeditionApi {
   // ---- services for entities -----------------------------------------------------------------
 
   private noise(x: number, z: number, radius: number): void {
+    if (this.weather.kind === "storm" || this.weather.kind === "rain") radius *= 0.7
     for (const zb of this.zombies) if (!zb.dead) zb.onNoise(x, z, radius)
     events.emit("noise", { x, z, radius, source: "player" })
   }
@@ -710,8 +768,17 @@ export class Expedition implements ExpeditionApi {
       this.renderFrame(0)
       return
     }
-    this.elapsed += dt
     this.profile.stats.playSeconds += dt
+    // Hit stop: the world crawls for a few frames after a landed blow
+    if (this.hitStopLeft > 0) {
+      this.hitStopLeft -= dt
+      dt *= 0.12
+    }
+    this.elapsed += dt
+    if (this.tutorialQueue.length && this.elapsed >= this.tutorialQueue[0][0]) {
+      this.ui.toast(this.tutorialQueue.shift()![1], "info")
+      if (!this.tutorialQueue.length) this.profile.tutorialSeen = true
+    }
     // Camera look
     const look = input.look(dt)
     this.camera.rotate(look.x, look.y)
@@ -824,7 +891,7 @@ export class Expedition implements ExpeditionApi {
     const alive = this.zombies.filter((z) => !z.dead).length
     const cap = this.world.area.population + 20 + Math.floor(this.elapsed / 120) * 4
     if (this.spawnTimer <= 0) {
-      this.spawnTimer = Math.max(25, 70 - this.elapsed / 40)
+      this.spawnTimer = Math.max(25, 70 - this.elapsed / 40) / this.hordeRate
       if (alive < cap) {
         const count = this.rng.int(2, 4 + Math.floor(this.elapsed / 180))
         const a = this.rng.range(0, Math.PI * 2)
@@ -933,10 +1000,11 @@ export class Expedition implements ExpeditionApi {
       const b = this.world.banners[i]
       b.rotation.y = Math.sin(this.flickerTime * (1.5 + this.weather.wind * 2) + i) * 0.25 * (0.3 + this.weather.wind)
     }
-    // Water shimmer
-    for (const w of this.world.waters) {
-      const m = w.material as THREE.MeshStandardMaterial
-      if (m.map) m.map.offset.set(this.flickerTime * 0.01, this.flickerTime * 0.006)
+    // Water ripples
+    if (this.world.waters.length) {
+      const wm = waterMaterial()
+      wm.normalMap!.offset.set(this.flickerTime * 0.012, this.flickerTime * 0.008)
+      wm.normalScale.set(0.5 + this.weather.wind * 0.5, 0.5 + this.weather.wind * 0.5)
     }
     // Extraction beams pulse
     for (const e of this.world.extractions) {
@@ -962,7 +1030,9 @@ export class Expedition implements ExpeditionApi {
     const lock = this.player.lockTarget
     this.camera.update(dt, this.player.pos, this.player.height, this.world.collision, this.world.terrain, lock ? lock.pos : null)
     this.sky.dome.position.copy(this.camera.camera.position)
-    this.renderer.render(this.scene, this.camera.camera)
+    this.sky.setFill(this.camera.camera.position, this.player.pos)
+    this.post.setDamage(Math.max(0, 1 - this.player.sinceHurt * 1.5) * 0.6 + (this.player.hp < this.player.maxHp * 0.3 && !this.player.dead ? 0.2 + Math.sin(performance.now() * 0.006) * 0.12 : 0))
+    this.post.render(this.scene, this.camera.camera)
     // HUD
     const markers: CompassMarker[] = []
     for (const e of this.world.extractions) markers.push({ x: e.x, z: e.z, label: e.def.name, kind: "extraction" })
@@ -977,11 +1047,36 @@ export class Expedition implements ExpeditionApi {
         if (target) markers.push({ x: target.pos.x, z: target.pos.z, label: m.title, kind: "mission" })
       }
     }
+    // Boss banner the first time the boss engages
+    if (this.boss && !this.boss.dead && this.boss.alerted && !this.bossIntroShown) {
+      this.bossIntroShown = true
+      this.hud.showBossIntro(this.boss.type.name, this.boss.type.bossTitle ?? "")
+      this.audio.play("bell", { volume: 0.6 })
+    }
+    // Health bars over enemies hit in the last seconds
+    const bars: { x: number; y: number; name: string; hp: number; maxHp: number; d: number }[] = []
+    for (const z of this.zombies) {
+      if (z.dead || z === lock || this.elapsed - z.lastHitAt > 4) continue
+      const d = z.pos.distanceTo(this.player.pos)
+      if (d > 30) continue
+      const v = new THREE.Vector3(z.pos.x, z.pos.y + 2.1 * z.type.scale, z.pos.z).project(this.camera.camera)
+      if (v.z > 1 || Math.abs(v.x) > 1 || Math.abs(v.y) > 1) continue
+      bars.push({ x: ((v.x + 1) / 2) * window.innerWidth, y: ((1 - v.y) / 2) * window.innerHeight, name: z.type.name, hp: z.hp, maxHp: z.maxHp, d })
+    }
+    bars.sort((a, b) => a.d - b.d)
+    this.hud.updateEnemyBars(bars.slice(0, 8))
     let lockScreen = { x: 0, y: 0, visible: false }
     if (lock && !lock.dead) {
       const v = new THREE.Vector3(lock.pos.x, lock.pos.y + 1.4, lock.pos.z).project(this.camera.camera)
       lockScreen = { x: ((v.x + 1) / 2) * window.innerWidth, y: ((1 - v.y) / 2) * window.innerHeight, visible: v.z < 1 }
     }
+    this.hud.showMouseHint(this.ui.depth === 0 && this.input.device === "keyboard" && !this.input.locked && !this.player.dead)
+    // Hit direction relative to the camera: 0 = straight ahead
+    const camBearing = Math.atan2(-Math.sin(this.camera.yaw), -Math.cos(this.camera.yaw))
+    let rel = this.player.lastDamageDir - camBearing
+    while (rel > Math.PI) rel -= Math.PI * 2
+    while (rel < -Math.PI) rel += Math.PI * 2
+    this.hud.showHitDirection(rel, this.player.dead ? 0 : Math.max(0, 1 - this.player.sinceHurt / 1.2))
     this.hud.update(this.player, {
       prompt: this.lastPrompt?.label ?? null,
       markers,
@@ -990,7 +1085,7 @@ export class Expedition implements ExpeditionApi {
       boss: this.boss && this.boss.alerted ? this.boss : null,
       extraction: this.extracting ? { name: this.extracting.site.def.name, progress: this.extracting.progress } : null,
       hour: this.sky.hour,
-      weather: this.world.underground ? "Unter der Erde" : WEATHER_NAMES[this.weather.kind],
+      weather: (this.world.underground ? "Unter der Erde" : WEATHER_NAMES[this.weather.kind]) + (this.modifier ? ` · ${this.modifier.name}` : "") + (this.night ? " · Nacht-Expedition" : ""),
       fps: this.settings.showFps ? this.fpsCounter.value : null,
       lockScreen,
     })
@@ -1004,6 +1099,7 @@ export class Expedition implements ExpeditionApi {
   resize(w: number, h: number): void {
     this.camera.resize(w / h)
     this.particles.setViewport(h)
+    this.post.resize(w, h)
   }
 
   applySettings(): void {

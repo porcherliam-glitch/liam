@@ -38,7 +38,7 @@ try {
   await g.click("map")
   await g.click("start")
   await g.click("go")
-  await g.page.waitForFunction(() => window.__lastKingdom.snapshot().state === "expedition", null, { timeout: 120000 })
+  await g.page.waitForFunction(() => window.__lastKingdom.snapshot().expedition !== null, null, { timeout: 120000 })
   await g.page.evaluate(() => window.__lastKingdom.setMaxFrame(0.5))
   await g.frames(5)
   s = await g.snapshot()

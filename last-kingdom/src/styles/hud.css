@@ -382,3 +382,86 @@ body.no-gore .hud-vignette {
   font-weight: bold;
   background: rgba(0, 0, 0, 0.5);
 }
+
+.hud-bossintro {
+  position: absolute;
+  top: 22%;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
+  font-family: var(--font-head);
+  transition: opacity 1s;
+  opacity: 1;
+}
+.hud-bossintro.fade {
+  opacity: 0;
+}
+.bi-name {
+  font-size: 2.6rem;
+  letter-spacing: 0.12em;
+  color: #ff8a6a;
+  text-shadow: 0 0 24px rgba(255, 80, 40, 0.5), 0 3px 10px #000;
+}
+.bi-title {
+  font-size: 1.1rem;
+  color: var(--muted);
+  letter-spacing: 0.2em;
+  font-style: italic;
+}
+.hud-enemybars {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.ebar {
+  position: absolute;
+  width: 90px;
+  transform: translate(-50%, -100%);
+  text-align: center;
+}
+.ebar-name {
+  font-size: 0.68rem;
+  color: #e6dcc6;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hud-bar.enemy {
+  height: 5px;
+  border-color: #6a2a2a;
+}
+.hud-bar.enemy .fill {
+  background: #c43a3a;
+}
+
+.hud-mousehint {
+  position: absolute;
+  left: 50%;
+  bottom: 120px;
+  transform: translateX(-50%);
+  background: rgba(10, 8, 8, 0.75);
+  border: 1px solid var(--gold-dim);
+  padding: 6px 14px;
+  border-radius: 3px;
+  font-size: 0.9rem;
+  color: var(--gold);
+}
+
+.hud-hitdir {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+.hd-arc {
+  position: absolute;
+  left: -70px;
+  top: -200px;
+  width: 140px;
+  height: 36px;
+  border-top: 5px solid rgba(255, 50, 30, 0.9);
+  border-radius: 70px 70px 0 0 / 36px 36px 0 0;
+  box-shadow: 0 -6px 18px rgba(255, 40, 20, 0.5);
+}

@@ -18,6 +18,8 @@ npm test           # Unit-Tests der Spiellogik (vitest)
 npm run verify:all # Browser-Tests mit Playwright (Spielablauf, Systeme, Controller, alle Welten, Belastungstest)
 ```
 
+In den Einstellungen gibt es drei Schwierigkeitsgrade (Leicht, Normal, Schwer), Grafikqualität, Kameraabstand, Empfindlichkeit, Blut an/aus und Vibration.
+
 Der Spielstand liegt im Browser (localStorage, drei Charakterplätze). In den Einstellungen lässt er sich als Datei exportieren und bei der Charakterauswahl wieder importieren.
 
 ## Steuerung
@@ -53,15 +55,20 @@ Alle Menüs sind vollständig mit dem Controller bedienbar (Steuerkreuz/Stick zu
 5. **Überleben:** Tag und Nacht, Wetter (klar, bewölkt, Nebel, Regen, Sturm), Pestnebel, Horden. Zombies sehen und hören dich.
 6. **Extrahieren:** Drei bis vier Extraktionspunkte pro Karte (Stadttor, Karren, Tunnel, Flussübergang, Waldweg, Boot, Seil). Manche müssen erst aktiviert werden: Hebel, Schlüssel aus der Karte, Fackel, Reparatur mit Holz. Am Punkt einige Sekunden im Lichtkreis bleiben.
 7. **Tod:** Alles Mitgeführte ist verloren – außer den versicherten Rucksackplätzen (Verteidigungsanlagen, Fähigkeit „Versichert“) und ab Verteidigung Stufe 3 der ausgerüsteten Waffe. Die Hälfte der Erfahrung bleibt.
+8. **Nacht-Expeditionen:** Nach dem Sieg über den Boss eines Gebiets lässt sich das Gebiet bei Nacht betreten: anderthalbmal so viele Untote, deutlich bessere Beute und 40 % mehr Erfahrung. Eine Fackel in der linken Hand spendet Licht, lockt aber Untote an.
+9. **Expeditionsbedingungen:** Jede dritte Expedition hat eine Besonderheit – Blutmond, dichter Nebel, Totenstille, reiche Ernte oder Unwetter – mit eigenen Vor- und Nachteilen.
+10. **Erfolge:** Zwölf Erfolge (erste Extraktion, hundert Untote, alle Bosse, legendäre Beute, …) und eine Statistik im Lager.
 
 ## Systeme im Überblick
 
-- **Kampf:** 9 Waffengattungen (Langschwert, Kurzschwert, Zweihänder, Streitaxt, Streitkolben, Speer, Dolch, Bogen, Armbrust) in je 2–4 Stufen plus 4 Schilde. Leichte Kombos, schwere Angriffe, Blocken, Ausweichen mit Unverwundbarkeit, Ausdauer, kritische Treffer, Wucht und Taumeln, Waffenhaltbarkeit, Aufwertungen bis +3, Waffenbeherrschung je Gattung.
+- **Kampf:** 9 Waffengattungen (Langschwert, Kurzschwert, Zweihänder, Streitaxt, Streitkolben, Speer, Dolch, Bogen, Armbrust) in je 2–4 Stufen plus 4 Schilde. Leichte Kombos, schwere Angriffe, Blocken, **perfekter Block** (Block kurz vor dem Treffer: kein Schaden, Gegner taumelt), Ausweichen mit Unverwundbarkeit, Ausdauer, kritische Treffer, Wucht und Taumeln, Trefferpause und Trefferblitz, Schwerttrails, Waffenhaltbarkeit, Aufwertungen bis +3, Waffenbeherrschung je Gattung.
 - **Gegner:** Verseuchte (Bauer, Magd, Mönch, Soldat), Sprinter und Pestläufer, Brutale und Schlächter, Verseuchte Ritter und Hauptleute (blocken von vorn), acht Bosse mit Phasen und Fähigkeiten (Rufen, Sturmangriff, Sprung, Bodenschlag, Pestwolke).
 - **KI:** Sicht (Sichtkegel, Tageslicht, Nebel, Tarnung) und Gehör (Sprinten, Kampf, Hebel), Wandern, Nachforschen, Verfolgen mit Wegfindung (A*), Angriffe mit Vorlauf, Gruppenalarm, Horden, die sich mit der Zeit verstärken.
 - **Beute:** Sechs Seltenheiten (Gewöhnlich bis Mythisch) mit Affixen, Truhen, Kisten, Fässer, Säcke, Leichen, Schränke, Kräuter, Holz, Knochen, Eisen, Geheimverstecke mit Schlüsselgegenständen.
 - **Inventar:** Rucksack mit Plätzen und Gewichtslimit, Ausrüstung (Waffe, Schild, Helm, Rüstung, 1–4 Schnellzugriffe), Lagerkiste im Camp, Vergleich mit der ausgerüsteten Ausrüstung, Händler mit Ruf und Rabatt.
 - **Fortschritt:** Stufen bis 40, Fähigkeitenbaum mit drei Zweigen (Krieger, Waldläufer, Überlebender) à 6 Knoten, je eine aktive Fähigkeit pro Zweig (Kriegsschrei, Adrenalin, Notverband), Händler-Ruf, Waffenbeherrschung.
+
+- **Grafik:** prozedurale Figuren mit zwei Materialgruppen (Stoff/Haut und Metall), Gesichter, Untoten-Verschleiß, acht Boss-Silhouetten; Tag/Nacht mit Wolken und Sternen, Nebel, Regen, Sturm mit Blitzen, Wind in Bäumen und Gras, Bodenbewuchs, Wasser mit Wellen, Blutspuren, Bloom, Vignette und Kantenglättung (abschaltbar über die Grafikqualität).
 
 Die Architektur ist in [ARCHITEKTUR.md](ARCHITEKTUR.md) beschrieben.
 

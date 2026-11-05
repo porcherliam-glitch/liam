@@ -114,7 +114,7 @@ try {
   g.check(focused === "start", `Expedition starten fokussiert (${focused})`)
   await tap(0)
   await tap(0) // confirm "go"
-  await page.waitForFunction(() => window.__lastKingdom.snapshot().state === "expedition", null, { timeout: 120000 })
+  await page.waitForFunction(() => window.__lastKingdom.snapshot().expedition !== null, null, { timeout: 120000 })
   await page.evaluate(() => window.__lastKingdom.setMaxFrame(0.5))
   await frames(4)
   s = await g.snapshot()

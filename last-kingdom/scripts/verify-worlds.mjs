@@ -17,7 +17,7 @@ try {
   for (const id of AREAS) {
     const t0 = Date.now()
     await page.evaluate((id) => window.__lastKingdom.game.startExpedition(id), id)
-    await page.waitForFunction(() => window.__lastKingdom.snapshot().state === "expedition", null, { timeout: 180000 })
+    await page.waitForFunction(() => window.__lastKingdom.snapshot().expedition !== null, null, { timeout: 180000 })
     await page.evaluate(() => {
       window.__lastKingdom.setMaxFrame(0.5)
       window.__lastKingdom.setHour(13)

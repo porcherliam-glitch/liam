@@ -20,6 +20,7 @@ import type { ItemInstance, Profile } from "../../core/types"
 import { RARITY_INFO } from "../../core/types"
 import { zombieType } from "../../entities/zombieTypes"
 import { events } from "../../core/events"
+import { ACHIEVEMENTS } from "../../meta/achievements"
 
 const WEAPON_CLASS_NAMES: Record<string, string> = { longsword: "Langschwert", shortsword: "Kurzschwert", greatsword: "Zweihänder", battleaxe: "Streitaxt", mace: "Streitkolben", spear: "Speer", dagger: "Dolch", bow: "Bogen", crossbow: "Armbrust" }
 
@@ -84,12 +85,14 @@ export class CampScreen implements Screen {
         <div class="stat"><span>Ruf beim Händler</span><b>${rep.name} (${p.reputation})</b></div>
         <div class="stat"><span>Extraktionen / Tode</span><b>${p.stats.extractions} / ${p.stats.deaths}</b></div>
         <div class="stat"><span>Versicherte Plätze</span><b>${bonuses.insuredSlots}</b></div>
+        <div class="stat"><span>Erfolge</span><b>${(p.achievements ?? []).length} / ${ACHIEVEMENTS.length}</b></div>
         <nav class="menu-list compact">
           <button class="btn big" data-focus data-focus-id="expedition" data-action="map">Expedition planen</button>
           <button class="btn" data-focus data-action="missions">Missionen${completed ? ` <span class="badge">${completed}</span>` : ""}</button>
           <button class="btn" data-focus data-action="inventory">Lager & Ausrüstung</button>
           <button class="btn" data-focus data-action="merchant">Händler${(p.camp.merchant ?? 0) === 0 ? " (Stand nötig)" : ""}</button>
           <button class="btn" data-focus data-action="skills">Fähigkeiten${p.skillPoints ? ` <span class="badge">${p.skillPoints}</span>` : ""}</button>
+          <button class="btn small" data-focus data-action="achievements">Erfolge & Statistik</button>
           <button class="btn small" data-focus data-action="settings">Einstellungen</button>
           <button class="btn small" data-focus data-action="controls">Steuerung</button>
           <button class="btn small" data-focus data-action="menu">Hauptmenü</button>
@@ -120,6 +123,9 @@ export class CampScreen implements Screen {
         break
       case "skills":
         ui.push(new SkillScreen(this.game))
+        break
+      case "achievements":
+        ui.push(new AchievementsScreen(this.game))
         break
       case "settings":
         ui.push(new SettingsScreen(this.game))
@@ -532,6 +538,7 @@ export class MapScreen implements Screen {
   overlay = true
   private selected: string
   private confirm = false
+  private night = false
   constructor(private game: GameApi) {
     const p = game.profile!
     this.selected = p.unlockedAreas[p.unlockedAreas.length - 1] ?? "village"
@@ -557,11 +564,13 @@ export class MapScreen implements Screen {
       <div class="stat"><span>Gefahren</span><b>${area.hazards.join(" · ")}</b></div>
       ${activeHere.length ? `<div class="stat"><span>Aktive Missionen hier</span><b>${activeHere.map((m) => esc(m.title)).join(", ")}</b></div>` : `<div class="dim">Keine aktive Mission in diesem Gebiet (optional).</div>`}
       <div class="dim">Du nimmst mit: ${bag} Gegenstände im Rucksack und deine Ausrüstung. Was du nicht verlieren willst, lass im Lager.</div>
-      ${unlocked ? (this.confirm ? `<div class="row"><button class="btn big" data-focus data-focus-id="go" data-action="go">Aufbrechen nach ${esc(area.name)}</button><button class="btn" data-focus data-action="cancel">Noch nicht</button></div>` : `<button class="btn big" data-focus data-focus-id="start" data-action="start">Expedition starten</button>`) : `<div class="lack">Noch gesperrt: Stufe ${area.unlockLevel}${area.unlockAfter && !p.unlockedAreas.includes(area.id) ? ` und eine erfolgreiche Extraktion aus „${AREAS.find((x) => x.id === area.unlockAfter)!.name}“` : ""} nötig.</div>`}
+      ${p.clearedBosses.includes(area.id) ? `<div class="row"><button class="btn small ${this.night ? "" : "selected"}" data-focus data-focus-id="day" data-action="day">Tag-Expedition</button><button class="btn small ${this.night ? "selected" : ""}" data-focus data-focus-id="night" data-action="night">Nacht-Expedition (mehr Untote, bessere Beute, +40 % EP)</button></div>` : `<div class="dim">Nach dem Sieg über den Boss werden hier Nacht-Expeditionen freigeschaltet.</div>`}
+      ${unlocked ? (this.confirm ? `<div class="row"><button class="btn big" data-focus data-focus-id="go" data-action="go">Aufbrechen nach ${esc(area.name)}${this.night ? " (Nacht)" : ""}</button><button class="btn" data-focus data-action="cancel">Noch nicht</button></div>` : `<button class="btn big" data-focus data-focus-id="start" data-action="start">Expedition starten</button>`) : `<div class="lack">Noch gesperrt: Stufe ${area.unlockLevel}${area.unlockAfter && !p.unlockedAreas.includes(area.id) ? ` und eine erfolgreiche Extraktion aus „${AREAS.find((x) => x.id === area.unlockAfter)!.name}“` : ""} nötig.</div>`}
       <button class="btn small" data-focus data-action="back">Zurück</button>
     </section></div>`
   }
   onAction(action: string, el: HTMLElement): void {
+    const p = this.game.profile!
     switch (action) {
       case "select":
         this.selected = el.dataset.id!
@@ -577,7 +586,15 @@ export class MapScreen implements Screen {
         this.game.ui.refresh(this)
         break
       case "go":
-        this.game.startExpedition(this.selected)
+        this.game.startExpedition(this.selected, this.night && p.clearedBosses.includes(this.selected))
+        break
+      case "day":
+        this.night = false
+        this.game.ui.refresh(this)
+        break
+      case "night":
+        this.night = true
+        this.game.ui.refresh(this)
         break
       case "back":
         this.game.ui.pop()
@@ -645,3 +662,34 @@ export class SkillScreen implements Screen {
 }
 
 export { MISSION_KIND_NAMES }
+
+export class AchievementsScreen implements Screen {
+  name = "achievements"
+  overlay = true
+  constructor(private game: GameApi) {}
+  render(): string {
+    const p = this.game.profile!
+    const done = p.achievements ?? []
+    const st = p.stats
+    return `<div class="ach-layout"><section class="panel"><h2>Erfolge (${done.length} / ${ACHIEVEMENTS.length})</h2><div class="ach-list" data-scroll="ach">${ACHIEVEMENTS.map((a) => `<div class="ach ${done.includes(a.id) ? "done" : ""}" data-focus data-focus-id="a-${a.id}" data-action="noop"><b>${done.includes(a.id) ? "✓ " : ""}${esc(a.name)}</b><div class="dim">${esc(a.description)}</div></div>`).join("")}</div></section>
+      <section class="panel"><h2>Statistik</h2>
+        <div class="stat"><span>Expeditionen</span><b>${st.expeditions}</b></div>
+        <div class="stat"><span>Extraktionen</span><b>${st.extractions}${st.nightExtractions ? ` (davon ${st.nightExtractions} bei Nacht)` : ""}</b></div>
+        <div class="stat"><span>Tode</span><b>${st.deaths}</b></div>
+        <div class="stat"><span>Gegner erledigt</span><b>${st.kills}</b></div>
+        <div class="stat"><span>Bosse besiegt</span><b>${st.bossKills}</b></div>
+        <div class="stat"><span>Gold verdient</span><b>${st.goldEarned}</b></div>
+        <div class="stat"><span>Beste Beute</span><b>${RARITY_INFO[st.bestLoot].name}</b></div>
+        <div class="stat"><span>Missionen abgeschlossen</span><b>${p.missionsCompleted}</b></div>
+        <div class="stat"><span>Spielzeit</span><b>${Math.floor(st.playSeconds / 3600)} h ${Math.floor((st.playSeconds % 3600) / 60)} min</b></div>
+        <div class="stat"><span>Besiegte Boss-Gebiete</span><b>${p.clearedBosses.length} / ${AREAS.length}</b></div>
+        <button class="btn" data-focus data-action="back">Zurück</button>
+      </section></div>`
+  }
+  onAction(action: string): void {
+    if (action === "back") this.game.ui.pop()
+  }
+  onBack(): void {
+    this.game.ui.pop()
+  }
+}

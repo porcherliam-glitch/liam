@@ -279,6 +279,8 @@ export interface ProfileStats {
   goldEarned: number
   playSeconds: number
   bestLoot: Rarity
+  nightExtractions?: number
+  perfectBlocks?: number
 }
 
 export interface Profile {
@@ -308,6 +310,10 @@ export interface Profile {
   missionRefreshAt: number
   nextUid: number
   tutorialSeen: boolean
+  /** Female character model. */
+  female?: boolean
+  /** Completed achievement ids. */
+  achievements?: string[]
 }
 
 export interface Settings {
@@ -328,6 +334,8 @@ export interface Settings {
   deadzone: number
   /** Default third-person camera distance in metres. */
   cameraDistance: number
+  /** Enemy strength: easy 0.75×, normal 1×, hard 1.3×. */
+  difficulty: "easy" | "normal" | "hard"
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -347,6 +355,7 @@ export const DEFAULT_SETTINGS: Settings = {
   vibration: true,
   deadzone: 0.18,
   cameraDistance: 4.6,
+  difficulty: "normal",
 }
 
 export const RARITY_INFO: Record<Rarity, { name: string; color: string; valueMult: number; affixes: number }> = {

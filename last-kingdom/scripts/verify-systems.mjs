@@ -120,7 +120,7 @@ try {
   await g.click("map")
   await g.click("start")
   await g.click("go")
-  await page.waitForFunction(() => window.__lastKingdom.snapshot().state === "expedition", null, { timeout: 120000 })
+  await page.waitForFunction(() => window.__lastKingdom.snapshot().expedition !== null, null, { timeout: 120000 })
   await page.evaluate(() => window.__lastKingdom.setMaxFrame(0.5))
   await g.frames(3)
   const bagBefore = (await g.snapshot()).profile.bag
@@ -157,7 +157,7 @@ try {
     await g.click("map")
     await g.click("start")
     await g.click("go")
-    await page.waitForFunction(() => window.__lastKingdom.snapshot().state === "expedition", null, { timeout: 120000 })
+    await page.waitForFunction(() => window.__lastKingdom.snapshot().expedition !== null, null, { timeout: 120000 })
     await page.evaluate(() => window.__lastKingdom.setMaxFrame(0.5))
     await g.frames(3)
     s = await g.snapshot()

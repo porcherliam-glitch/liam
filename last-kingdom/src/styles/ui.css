@@ -75,6 +75,10 @@
   font-size: 0.9rem;
   padding: 6px 12px;
 }
+.btn.selected {
+  border-color: var(--gold);
+  color: var(--gold);
+}
 .btn.danger {
   border-color: var(--blood);
   color: #f0a090;
@@ -107,6 +111,10 @@
   align-items: center;
   flex-wrap: wrap;
   margin: 8px 0;
+}
+.row.tight {
+  margin: 0 0 6px;
+  gap: 6px;
 }
 .panel {
   min-height: 0;
@@ -851,4 +859,30 @@ canvas.runmap {
   .slots {
     grid-template-columns: 1fr 1fr;
   }
+}
+
+.ach-layout {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  grid-template-rows: minmax(0, 1fr);
+  gap: 12px;
+  max-height: 86vh;
+  height: 100%;
+}
+.ach-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow: auto;
+  max-height: 74vh;
+}
+.ach {
+  padding: 7px 10px;
+  border: 1px solid var(--panel-border);
+  border-radius: 3px;
+  opacity: 0.6;
+}
+.ach.done {
+  opacity: 1;
+  border-color: var(--good);
 }

@@ -42,4 +42,6 @@ export interface EntityContext {
   plagueCloud(x: number, z: number, r: number, seconds: number): void
   /** Spawns an arrow pickup where a projectile landed. */
   dropArrow(x: number, y: number, z: number, ammoId: string): void
+  /** Freezes the simulation briefly so hits feel weighty. */
+  hitStop(seconds: number): void
 }

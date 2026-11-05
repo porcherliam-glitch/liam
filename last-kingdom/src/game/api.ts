@@ -10,6 +10,7 @@ import type { MerchantStock } from "../items/merchant"
 export interface ExpeditionApi {
   readonly player: Player
   readonly areaId: string
+  readonly night: boolean
   readonly missions: MissionDef[]
   readonly elapsed: number
   readonly kills: number
@@ -44,12 +45,12 @@ export interface GameApi {
   saveSettings(): void
   saveProfile(): void
   listProfiles(): (Profile | null)[]
-  createProfile(slot: number, name: string, classId: Profile["classId"]): void
+  createProfile(slot: number, name: string, classId: Profile["classId"], female?: boolean): void
   loadProfile(slot: number): void
   deleteProfile(slot: number): void
   exportProfile(): void
   importProfile(json: string, slot: number): boolean
-  startExpedition(areaId: string): void
+  startExpedition(areaId: string, night?: boolean): void
   goToCamp(): void
   goToMainMenu(): void
   resumeExpedition(): void

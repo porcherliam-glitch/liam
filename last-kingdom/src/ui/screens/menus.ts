@@ -87,6 +87,7 @@ export class CharacterSelectScreen implements Screen {
   private creating: number | null = null
   private nameValue = ""
   private classId: "knight" | "ranger" | "rogue" = "knight"
+  private female = false
   private confirmDelete: number | null = null
   constructor(private game: GameApi) {}
   render(): string {
@@ -105,6 +106,7 @@ export class CharacterSelectScreen implements Screen {
   private renderCreate(): string {
     return `<h1>Neuer Charakter</h1><div class="create">
       <label>Name</label><div class="row"><input id="char-name" class="text" maxlength="18" value="${esc(this.nameValue)}" placeholder="Name eingeben" data-focus data-action="name-focus"><button class="btn small" data-focus data-action="roll-name">Name würfeln</button></div>
+      <label>Figur</label><div class="row"><button class="btn small ${this.female ? "" : "selected"}" data-focus data-focus-id="body-m" data-action="body" data-id="m">Mann</button><button class="btn small ${this.female ? "selected" : ""}" data-focus data-focus-id="body-f" data-action="body" data-id="f">Frau</button></div>
       <label>Klasse</label><div class="classes">${CLASSES.map((c) => `<div class="class-card ${this.classId === c.id ? "selected" : ""}" data-focus data-focus-id="class-${c.id}" data-action="class" data-id="${c.id}"><h3>${c.name}</h3><p>${esc(c.description)}</p><div class="dim">Leben ${c.hp} · Ausdauer ${c.stamina} · Tragkraft ${c.carry} kg</div><div class="bonus">${esc(c.bonus)}</div><div class="dim">Start: ${Object.values(c.startEquipment).map((id) => itemDef(id).name).join(", ")}</div></div>`).join("")}</div>
       <div class="row"><button class="btn big" data-focus data-focus-id="create" data-action="create">Ins Lager</button><button class="btn" data-focus data-action="cancel">Abbrechen</button></div></div>`
   }
@@ -183,10 +185,14 @@ export class CharacterSelectScreen implements Screen {
         this.classId = el.dataset.id as "knight"
         this.game.ui.refresh(this)
         break
+      case "body":
+        this.female = el.dataset.id === "f"
+        this.game.ui.refresh(this)
+        break
       case "create":
         if (this.creating !== null) {
           const name = this.nameValue.trim() || new Rng(Date.now() & 0xffff).pick(NAMES)
-          this.game.createProfile(this.creating, name, this.classId)
+          this.game.createProfile(this.creating, name, this.classId, this.female)
         }
         break
       case "cancel":
@@ -234,6 +240,7 @@ export class SettingsScreen implements Screen {
     const q = s.quality
     return `<h1>Einstellungen</h1><div class="settings" data-scroll="settings">
       ${SLIDERS.map((sl) => `<div class="setting" data-focus data-adjust data-action="noop" data-key="${sl.key}"><span>${sl.label}</span><div class="setting-ctl"><button class="arrow" data-action="dec" data-key="${sl.key}">◀</button><b>${sl.pct ? Math.round((s[sl.key] as number) * 100) + " %" : s[sl.key]}</b><button class="arrow" data-action="inc" data-key="${sl.key}">▶</button></div></div>`).join("")}
+      <div class="setting" data-focus data-adjust data-action="noop" data-key="difficulty"><span>Schwierigkeit</span><div class="setting-ctl"><button class="arrow" data-action="dec" data-key="difficulty">◀</button><b>${{ easy: "Leicht", normal: "Normal", hard: "Schwer" }[s.difficulty]}</b><button class="arrow" data-action="inc" data-key="difficulty">▶</button></div></div>
       <div class="setting" data-focus data-adjust data-action="noop" data-key="quality"><span>Grafikqualität</span><div class="setting-ctl"><button class="arrow" data-action="dec" data-key="quality">◀</button><b>${{ low: "Niedrig", medium: "Mittel", high: "Hoch" }[q]}</b><button class="arrow" data-action="inc" data-key="quality">▶</button></div></div>
       ${TOGGLES.map((t) => `<div class="setting" data-focus data-adjust data-action="toggle" data-key="${t.key}"><span>${t.label}</span><div class="setting-ctl"><b>${s[t.key] ? "An" : "Aus"}</b></div></div>`).join("")}
       ${this.game.profile ? `<div class="row"><button class="btn small" data-focus data-action="export">Spielstand exportieren</button></div>` : ""}
@@ -253,6 +260,10 @@ export class SettingsScreen implements Screen {
       const list = ["low", "medium", "high"]
       const i = list.indexOf(s.quality as string)
       s.quality = list[Math.max(0, Math.min(2, i + delta))]
+    } else if (key === "difficulty") {
+      const list = ["easy", "normal", "hard"]
+      const i = list.indexOf(s.difficulty as string)
+      s.difficulty = list[Math.max(0, Math.min(2, i + delta))]
     } else if (typeof s[key] === "boolean") s[key] = !s[key]
     this.game.applySettings()
     this.game.saveSettings()
@@ -264,7 +275,7 @@ export class SettingsScreen implements Screen {
     else if (action === "inc") this.change(key, 1)
     else if (action === "toggle") this.change(key, 1)
     else if (action === "reset") {
-      Object.assign(this.game.settings, { masterVolume: 0.8, musicVolume: 0.6, sfxVolume: 0.9, lookSensitivity: 0.6, gamepadSensitivity: 0.6, invertY: false, quality: "high", shadows: true, fov: 70, cameraShake: true, showFps: false, gore: true, vibration: true, deadzone: 0.18, cameraDistance: 4.6 })
+      Object.assign(this.game.settings, { masterVolume: 0.8, musicVolume: 0.6, sfxVolume: 0.9, lookSensitivity: 0.6, gamepadSensitivity: 0.6, invertY: false, quality: "high", shadows: true, fov: 70, cameraShake: true, showFps: false, gore: true, vibration: true, deadzone: 0.18, cameraDistance: 4.6, difficulty: "normal" })
       this.game.applySettings()
       this.game.saveSettings()
       this.game.ui.refresh(this)
@@ -341,7 +352,7 @@ export class PauseScreen implements Screen {
         <button class="btn" data-focus data-action="map">Karte</button>
         <button class="btn" data-focus data-action="settings">Einstellungen</button>
         <button class="btn" data-focus data-action="controls">Steuerung</button>
-        ${this.confirmAbandon ? `<button class="btn danger" data-focus data-action="abandon-yes">Wirklich aufgeben? Alles Mitgeführte geht verloren.</button><button class="btn small" data-focus data-action="abandon-no">Doch nicht</button>` : `<button class="btn" data-focus data-action="abandon">Expedition aufgeben</button>`}
+        ${this.confirmAbandon ? `<button class="btn danger" data-focus data-action="abandon-yes">Wirklich aufgeben? Alles Mitgeführte geht verloren.</button><button class="btn small" data-focus data-action="abandon-no">Doch nicht</button>` : `<button class="btn" data-focus data-action="abandon">Expedition aufgeben (Beute verloren)</button>`}
       </nav>`
   }
   onAction(action: string): void {

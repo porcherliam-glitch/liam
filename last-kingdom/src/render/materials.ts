@@ -68,7 +68,7 @@ export const M = {
   bone: () => mat("bone"),
   cloth: (color: number) => mat("cloth", { color }),
   flat: (color: number, roughness = 0.9) => mat(null, { color, roughness }),
-  water: () => mat("water", { color: 0x5a7a88, transparent: true, opacity: 0.8, roughness: 0.2, metalness: 0.3 }),
+  water: () => waterMaterial(),
   glow: (color: number, intensity = 1.5) => mat(null, { color, emissive: color, emissiveIntensity: intensity }),
 }
 
@@ -101,4 +101,15 @@ function addWind(m: THREE.MeshStandardMaterial): THREE.MeshStandardMaterial {
 export const Foliage = {
   leaves: () => addWind(mat("leaves", { alphaTest: 0.5, side: THREE.DoubleSide, roughness: 1, flat: false })),
   leavesDead: () => addWind(mat("leaves_dead", { alphaTest: 0.5, side: THREE.DoubleSide, roughness: 1, flat: false })),
+}
+
+let waterMat: THREE.MeshStandardMaterial | null = null
+/** Shared water material: rippling normal map, animated by the expedition. */
+export function waterMaterial(): THREE.MeshStandardMaterial {
+  if (waterMat) return waterMat
+  const normal = tex("water_normal").clone()
+  normal.repeat.set(12, 12)
+  normal.needsUpdate = true
+  waterMat = new THREE.MeshStandardMaterial({ color: 0x3f6a7a, transparent: true, opacity: 0.86, roughness: 0.18, metalness: 0.35, normalMap: normal, normalScale: new THREE.Vector2(0.6, 0.6) })
+  return waterMat
 }

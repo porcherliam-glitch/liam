@@ -2,7 +2,7 @@
 
 import type { Game } from "../game/game"
 import { createItem } from "../items/items"
-import { addItem } from "../items/inventory"
+import { addItem, equip } from "../items/inventory"
 import { zombieType } from "../entities/zombieTypes"
 import { Zombie } from "../entities/zombie"
 import type { WeatherKind } from "../render/weather"
@@ -74,6 +74,31 @@ export function installHarness(game: Game): void {
       e.zombies.push(z)
       z.onNoise(e.player.pos.x, e.player.pos.z, 100)
     },
+    /** Spawns every enemy type frozen in two rows in front of the player and aims the camera at them. */
+    lineup() {
+      const e = game.expedition
+      if (!e) return
+      const ctx = (e as unknown as { ctx: Parameters<Zombie["bind"]>[0] }).ctx
+      const types = ["walker", "walker_villager", "walker_monk", "walker_soldier", "sprinter", "sprinter_hound", "brute", "brute_butcher", "knight", "knight_captain", "boss_elder", "boss_huntsman", "boss_castellan", "boss_gravedigger", "boss_abbot", "boss_bonelord", "boss_queen", "boss_marshal"]
+      const p = e.player
+      p.yaw = 0
+      for (let i = 0; i < types.length; i++) {
+        const row = i < 10 ? 0 : 1
+        const col = row === 0 ? i : i - 10
+        const count = row === 0 ? 10 : 8
+        const x = p.pos.x + (col - (count - 1) / 2) * 1.7
+        const zz = p.pos.z + 4.5 + row * 3.2
+        const z = new Zombie(zombieType(types[i]), x, zz, 500 + i)
+        z.bind(ctx)
+        z.yaw = Math.PI
+        z.frozen = true
+        e.zombies.push(z)
+      }
+      e.camera.yaw = Math.PI
+      e.camera.pitch = 0.22
+      e.camera.targetDistance = e.camera.distance = 9
+      e.camera.sideOffset = 0
+    },
     killAll() {
       const e = game.expedition
       if (!e) return
@@ -89,6 +114,15 @@ export function installHarness(game: Game): void {
         left -= it.qty
         addItem(p.loadout, it)
       }
+    },
+    /** Gives one item and equips it into its natural slot. */
+    equipItem(id: string) {
+      const p = game.profile
+      if (!p) return false
+      const it = createItem(id, 1)
+      addItem(p.loadout, it)
+      const r = equip(p.loadout, it.uid)
+      return r.ok
     },
     setHour(h: number) {
       if (game.expedition) game.expedition.sky.hour = h

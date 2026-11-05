@@ -14,7 +14,7 @@ export const SLOT_COUNT = 3
 
 const slotKey = (slot: number) => `profile.${slot}`
 
-export function createProfile(slot: number, name: string, classId: PlayerClassId): Profile {
+export function createProfile(slot: number, name: string, classId: PlayerClassId, female = false): Profile {
   const cls = classDef(classId)
   const camp: Record<string, number> = {}
   const bonuses = campBonuses(camp)
@@ -49,6 +49,7 @@ export function createProfile(slot: number, name: string, classId: PlayerClassId
     missionRefreshAt: 0,
     nextUid: 1000,
     tutorialSeen: false,
+    female,
   }
   profile.missions = generateBoard(new Rng(Date.now() & 0xffffffff), profile.unlockedAreas, 1)
   profile.missionRefreshAt = Date.now() + 1000 * 60 * 30
@@ -103,6 +104,7 @@ function migrate(p: Profile): Profile {
   p.unlockedAreas ??= ["village"]
   p.camp ??= {}
   p.nextUid ??= 1000
+  p.achievements ??= []
   p.loadout.equipment ??= {}
   return p
 }

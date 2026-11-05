@@ -49,6 +49,8 @@ export interface SkyState {
 export class Sky {
   readonly sun: THREE.DirectionalLight
   readonly moon: THREE.DirectionalLight
+  /** Weak light from the camera side so figures facing the player stay readable. */
+  readonly fill: THREE.DirectionalLight
   readonly hemi: THREE.HemisphereLight
   readonly ambient: THREE.AmbientLight
   readonly dome: THREE.Mesh
@@ -82,6 +84,9 @@ export class Sky {
     this.moon = new THREE.DirectionalLight(0x8090c0, 0.3)
     this.scene.add(this.moon)
     this.scene.add(this.moon.target)
+    this.fill = new THREE.DirectionalLight(0xc8d0e0, 0.45)
+    this.scene.add(this.fill)
+    this.scene.add(this.fill.target)
     this.hemi = new THREE.HemisphereLight(0x9ab0d0, 0x3a3a2a, 0.6)
     this.scene.add(this.hemi)
     this.ambient = new THREE.AmbientLight(0x404050, 0.2)
@@ -130,6 +135,13 @@ export class Sky {
     return { hour: t, sunElevation: elev, daylight: clamp(smoothstep(-0.1, 0.22, elev), 0, 1) }
   }
 
+  /** Points the fill light from the camera toward the focus. */
+  setFill(cameraPos: THREE.Vector3, focus: THREE.Vector3): void {
+    this.fill.position.set(cameraPos.x, cameraPos.y + 6, cameraPos.z)
+    this.fill.target.position.copy(focus)
+    this.fill.target.updateMatrixWorld()
+  }
+
   update(dt: number, focus: THREE.Vector3): void {
     this.hour = (this.hour + (dt / 60) * this.speed) % 24
     const s = this.state
@@ -150,8 +162,9 @@ export class Sky {
     this.moon.position.copy(focus).addScaledVector(moonDir.normalize(), 80)
     this.moon.target.position.copy(focus)
     this.moon.target.updateMatrixWorld()
-    this.hemi.intensity = this.underground ? 0.7 : lerp(0.26, 0.75, day) * (1 - cloud * 0.3)
-    this.ambient.intensity = this.underground ? 1.8 : lerp(0.32, 0.25, day)
+    this.hemi.intensity = this.underground ? 0.7 : lerp(0.3, 0.95, day) * (1 - cloud * 0.25)
+    this.fill.intensity = this.underground ? 0.5 : lerp(0.35, 1.0, day)
+    this.ambient.intensity = this.underground ? 1.8 : lerp(0.35, 0.32, day)
     this.ambient.color.setHex(this.underground ? 0x5a5270 : 0x404858)
     // Sky colours
     const top = new THREE.Color().setHSL(0.6, 0.55, lerp(0.05, 0.42, day))

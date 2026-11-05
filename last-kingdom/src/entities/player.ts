@@ -5,6 +5,8 @@ import type { EntityContext } from "./context"
 import { buildHumanoid, disposeHumanoid, type ArmorLook, type HelmetLook, type Humanoid } from "../render/humanoid"
 import { Animator } from "../render/animator"
 import { buildShield, buildWeapon } from "../render/weaponModels"
+import { mat } from "../render/materials"
+import { WeaponTrail } from "../render/trail"
 import type { EquipSlot, InventoryState, ItemInstance, Profile, WeaponClass } from "../core/types"
 import { itemDef } from "../items/itemData"
 import { effectiveArmor, effectiveBlock, effectiveWeapon, type EffectiveWeapon } from "../items/items"
@@ -71,6 +73,9 @@ export class Player {
   private comboWindow = 0
   blocking = false
   aiming = false
+  /** Seconds the block has been held; a block raised just before the hit is a perfect parry. */
+  private blockHeld = 0
+  private flashTimer = 0
   private iframes = 0
   private staminaDelay = 0
   private dodgeDir = new THREE.Vector3()
@@ -87,12 +92,16 @@ export class Player {
   private drawProgress = 0
   private crossbowLoaded = true
   lockTarget: Zombie | null = null
+  private flickLatched = false
   skills: SkillBonuses
   secondWindUsed = false
   private humanoid!: Humanoid
   animator!: Animator
   private weaponMesh: THREE.Object3D | null = null
   private shieldMesh: THREE.Object3D | null = null
+  private torchLight: THREE.PointLight | null = null
+  private torchFlame: THREE.Object3D | null = null
+  private trail: WeaponTrail | null = null
   private equipKey = ""
   private ctx!: EntityContext
   controlsEnabled = true
@@ -124,6 +133,7 @@ export class Player {
   bind(ctx: EntityContext): void {
     this.ctx = ctx
     ctx.scene.add(this.group)
+    this.trail = new WeaponTrail(ctx.scene)
     this.rebuildVisual()
   }
 
@@ -198,12 +208,13 @@ export class Player {
       shirt: cls === "knight" ? 0x3a4a7a : cls === "ranger" ? 0x3a5a3a : 0x3a3a3a,
       pants: cls === "ranger" ? 0x4a3a2a : 0x2a2a2a,
       boots: 0x241a12,
-      hair: cls === "rogue" ? 0x1a1410 : 0x5a3a1a,
+      hair: cls === "rogue" ? 0x1a1410 : cls === "ranger" ? 0x8a6a3a : 0x5a3a1a,
       armor: this.armorLook(),
       helmet: this.helmetLook(),
       armored: this.armorLook() === "plate",
       seed: 7,
       skinTexture: "cloth",
+      female: this.profile.female === true,
     })
     this.group.add(this.humanoid.root)
     this.animator = new Animator(this.humanoid)
@@ -226,7 +237,26 @@ export class Player {
       this.weaponMesh = m
     }
     const s = this.shield
-    if (s && !(this.weaponStats?.twoHanded)) {
+    this.torchLight = null
+    this.torchFlame = null
+    if (s && s.defId === "torch_item") {
+      // A lit torch in the off hand
+      const g = new THREE.Group()
+      const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.025, 0.5, 6), mat("timber"))
+      stick.position.y = 0.1
+      g.add(stick)
+      const flame = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.22, 6), mat(null, { color: 0xffa030, emissive: 0xff8020, emissiveIntensity: 2.5 }))
+      flame.position.y = 0.42
+      g.add(flame)
+      const light = new THREE.PointLight(0xffa040, 10, 14, 1.4)
+      light.position.y = 0.45
+      g.add(light)
+      g.rotation.x = -1.2
+      this.humanoid.handL.add(g)
+      this.shieldMesh = g
+      this.torchLight = light
+      this.torchFlame = flame
+    } else if (s && !(this.weaponStats?.twoHanded)) {
       const def = itemDef(s.defId)
       const m = buildShield(def.model ?? "shield_round")
       m.position.set(-0.08, 0.12, 0.06)
@@ -234,6 +264,10 @@ export class Player {
       this.humanoid.handL.add(m)
       this.shieldMesh = m
     }
+  }
+
+  get carriesTorch(): boolean {
+    return this.torchLight !== null
   }
 
   get height(): number {
@@ -323,6 +357,20 @@ export class Player {
       this.stamina = Math.min(this.maxStamina, this.stamina + regen * dt)
     }
 
+    if (this.flashTimer > 0) {
+      this.flashTimer -= dt
+      if (this.flashTimer <= 0) this.humanoid.clothMaterial.emissive.setHex(0x000000)
+    }
+    if (this.torchLight) {
+      const t = performance.now() * 0.001
+      this.torchLight.intensity = 9 + Math.sin(t * 13) * 1.5 + Math.sin(t * 29) * 1
+      this.torchFlame!.scale.setScalar(0.9 + Math.sin(t * 17) * 0.12)
+      if (ctx.rng.chance(dt * 6)) {
+        const p = new THREE.Vector3()
+        this.torchFlame!.getWorldPosition(p)
+        ctx.particles.embers(p.x, p.y, p.z, 1)
+      }
+    }
     const input = ctx.input
     const enabled = this.controlsEnabled
     const move = enabled ? input.move() : { x: 0, y: 0 }
@@ -339,9 +387,18 @@ export class Player {
     const ws = this.weaponStats
     const ranged = !!ws?.ranged
 
-    // ---- lock-on toggle ----
+    // ---- lock-on toggle and target switching (stick flick or quick mouse swipe) ----
     if (enabled && input.pressed("lockOn")) this.toggleLockOn()
     if (this.lockTarget && (this.lockTarget.dead || this.lockTarget.pos.distanceTo(this.pos) > 28)) this.lockTarget = null
+    if (this.lockTarget && enabled) {
+      const sx = input.stickRightX()
+      const look = input.look(0)
+      const dir = Math.abs(sx) > 0.85 ? Math.sign(sx) : Math.abs(look.x) > 0.12 ? Math.sign(look.x) : 0
+      if (dir !== 0 && !this.flickLatched) {
+        this.flickLatched = true
+        this.switchLockTarget(dir)
+      } else if (dir === 0 && Math.abs(sx) < 0.4) this.flickLatched = false
+    }
 
     // ---- state machine ----
     this.stateTimer -= dt
@@ -498,6 +555,7 @@ export class Player {
       this.comboWindow -= dt
       if (this.comboWindow <= 0) this.comboIndex = 0
     }
+    this.blockHeld = this.blocking ? this.blockHeld + dt : 0
 
     // ---- movement ----
     let moved = 0
@@ -547,6 +605,14 @@ export class Player {
     this.animator.ctx.speed = wantMove ? clamp((speed * this.speedFactor) / RUN, 0.45, 1.4) : 0
     this.animator.update(dt)
     this.applyTransform()
+    // Swing trail while a melee attack is in its active window
+    if (this.trail) {
+      const ws2 = this.weaponStats
+      if (this.state === "attacking" && this.attack && !ws2?.ranged && this.animator.progress > this.attack.hitAt - 0.25 && this.animator.progress < this.attack.hitAt + 0.3) {
+        this.group.updateMatrixWorld(true)
+        this.trail.push(this.humanoid.handR, (ws2?.range ?? 1.5) * 0.75)
+      } else this.trail.update()
+    }
   }
 
   private selectLocomotionClip(speed: number, wantMove: boolean, moved: number, dt: number, strafe: boolean): void {
@@ -571,7 +637,7 @@ export class Player {
     }
     if (a.name === "land" && !a.finished) return
     if (this.blocking) {
-      a.play(this.shield ? "block" : "block_weapon")
+      a.play(this.shield && this.shield.defId !== "torch_item" ? "block" : "block_weapon")
       return
     }
     if (this.aiming) {
@@ -799,6 +865,33 @@ export class Player {
     this.lockTarget = this.nearestEnemy(22, null)
   }
 
+  /** Switches the lock-on to the nearest enemy on the given side of the screen (-1 left, 1 right). */
+  private switchLockTarget(dir: number): void {
+    const cur = this.lockTarget
+    if (!cur) return
+    const camF = this.ctx.camera.forward()
+    const camR = { x: -camF.z, z: camF.x }
+    const curSide = (cur.pos.x - this.pos.x) * camR.x + (cur.pos.z - this.pos.z) * camR.z
+    let best: Zombie | null = null
+    let bestD = Infinity
+    for (const z of this.ctx.zombies) {
+      if (z === cur || z.dead || z.sleeping) continue
+      const d = Math.hypot(z.pos.x - this.pos.x, z.pos.z - this.pos.z)
+      if (d > 26) continue
+      const side = (z.pos.x - this.pos.x) * camR.x + (z.pos.z - this.pos.z) * camR.z
+      if ((side - curSide) * dir <= 0) continue
+      const score = Math.abs(side - curSide) + d * 0.3
+      if (score < bestD) {
+        bestD = score
+        best = z
+      }
+    }
+    if (best) {
+      this.lockTarget = best
+      this.ctx.audio.play("ui_move", { volume: 0.5 })
+    }
+  }
+
   private nearestEnemy(maxDist: number, exclude: Zombie | null): Zombie | null {
     let best: Zombie | null = null
     let bestD = maxDist
@@ -982,15 +1075,32 @@ export class Player {
   }
 
   /** Called by enemies. Returns true if damage went through (not dodged). */
-  takeDamage(amount: number, fromX: number, fromZ: number, opts: { heavy?: boolean; unblockable?: boolean; plague?: boolean; knockback?: number } = {}): boolean {
+  takeDamage(amount: number, fromX: number, fromZ: number, opts: { heavy?: boolean; unblockable?: boolean; plague?: boolean; knockback?: number; attacker?: Zombie } = {}): boolean {
     if (this.state === "dead") return false
     if (this.iframes > 0 || this.state === "dodging") return false
     const dirToAttacker = Math.atan2(fromX - this.pos.x, fromZ - this.pos.z)
     this.lastDamageDir = dirToAttacker
     let blocked = false
     let blockRed = 0
-    if (this.blocking && !opts.unblockable && Math.abs(angleDelta(this.yaw, dirToAttacker)) < Math.PI / 2.4) {
-      const sh = this.shield ? effectiveBlock(this.shield) : null
+    const facing = Math.abs(angleDelta(this.yaw, dirToAttacker)) < Math.PI / 2.4
+    // Perfect parry: block raised within 0.22 s before the hit lands
+    if (this.blocking && !opts.unblockable && facing && this.blockHeld < 0.22 && this.blockHeld > 0) {
+      this.animator.play("block_hit", { restart: true })
+      this.ctx.audio.play("block", { pitch: 1.5 })
+      this.ctx.audio.play("crit", { volume: 0.5 })
+      this.ctx.particles.sparks(this.pos.x + Math.sin(this.yaw) * 0.6, this.pos.y + 1.2, this.pos.z + Math.cos(this.yaw) * 0.6)
+      this.ctx.floatText(this.pos.x, this.pos.y + 2.1, this.pos.z, "Perfekt!", "#ffd24a")
+      this.ctx.hitStop(0.08)
+      this.ctx.camera.addShake(0.2)
+      this.ctx.input.rumble(0.3, 0.6, 90)
+      this.stamina = Math.min(this.maxStamina, this.stamina + 10)
+      if (opts.attacker && !opts.attacker.isBoss) opts.attacker.forceStagger(this.pos.x, this.pos.z)
+      else opts.attacker?.forceStagger(this.pos.x, this.pos.z)
+      this.addMastery(3)
+      return false
+    }
+    if (this.blocking && !opts.unblockable && facing) {
+      const sh = this.shield && this.shield.defId !== "torch_item" ? effectiveBlock(this.shield) : null
       let reduction = sh ? sh.reduction : 0.45
       let staminaCost = sh ? sh.staminaCost : 16
       reduction = Math.min(0.97, reduction + this.skills.blockPct + (this.classId === "knight" ? 0.1 : 0))
@@ -1031,6 +1141,9 @@ export class Player {
     this.sinceHurt = 0
     events.emit("playerDamaged", { amount, hp: this.hp, source })
     if (react) {
+      this.humanoid.clothMaterial.emissive.setHex(0xff2020)
+      this.humanoid.clothMaterial.emissiveIntensity = 0.5
+      this.flashTimer = 0.1
       this.ctx.audio.play("player_hurt", { pitch: 0.9 + Math.random() * 0.2 })
       this.ctx.particles.blood(this.pos.x, this.pos.y + 1.2, this.pos.z, 8)
       this.ctx.input.rumble(0.7, 0.5, 160)
@@ -1081,6 +1194,7 @@ export class Player {
 
   dispose(): void {
     if (this.humanoid) disposeHumanoid(this.humanoid)
+    this.trail?.dispose()
     this.group.removeFromParent()
   }
 }

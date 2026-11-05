@@ -13,7 +13,7 @@ function boot(): void {
     const game = new Game(canvas)
     installHarness(game)
     ;(window as unknown as { __GAME_READY__: boolean }).__GAME_READY__ = true
-    loading?.remove()
+    loading?.classList.add("hidden")
   } catch (err) {
     console.error(err)
     if (loading) loading.innerHTML = `<div class="loading-box"><h2>Das Spiel konnte nicht starten.</h2><p>${String(err)}</p><p>Bitte einen aktuellen Browser mit WebGL verwenden (Chrome, Edge, Firefox).</p></div>`

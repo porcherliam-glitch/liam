@@ -346,11 +346,59 @@ function build(name: string): THREE.Texture {
       return finish(c, 1)
     }
     case "zombie_skin": {
-      const c = noiseTexture(181, size, [128, 140, 104], 0.35, 6, 4)
+      const c = noiseTexture(181, size, [196, 204, 176], 0.3, 6, 4)
       const ctx = c.getContext("2d")!
-      speckle(ctx, size, new Rng(182), 160, () => hsl(0, 50, 22, 0.55), [1, 7])
-      speckle(ctx, size, new Rng(183), 90, () => hsl(90, 25, 30, 0.45), [2, 9])
+      speckle(ctx, size, new Rng(182), 160, () => hsl(0, 50, 30, 0.5), [1, 7])
+      speckle(ctx, size, new Rng(183), 90, () => hsl(90, 25, 40, 0.4), [2, 9])
       return finish(c, 1)
+    }
+    case "grass_blades": {
+      const [c, ctx] = canvas(128)
+      ctx.clearRect(0, 0, 128, 128)
+      const rng = new Rng(241)
+      for (let i = 0; i < 70; i++) {
+        const x = rng.range(4, 124)
+        const h = rng.range(50, 120)
+        const w = rng.range(3, 7)
+        const g = ctx.createLinearGradient(0, 128, 0, 128 - h)
+        g.addColorStop(0, hsl(rng.range(80, 110), 40, 22))
+        g.addColorStop(1, hsl(rng.range(70, 100), 45, 42))
+        ctx.fillStyle = g
+        ctx.beginPath()
+        ctx.moveTo(x - w / 2, 128)
+        ctx.quadraticCurveTo(x + rng.range(-10, 10), 128 - h * 0.5, x + rng.range(-6, 6), 128 - h)
+        ctx.lineTo(x + w / 2, 128)
+        ctx.closePath()
+        ctx.fill()
+      }
+      const t = finish(c, 1)
+      t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping
+      return t
+    }
+    case "water_normal": {
+      // Normal map from fbm height: tangent-space RGB encoding
+      const n = new Noise2D(251)
+      const [c, ctx] = canvas(size)
+      const img = ctx.createImageData(size, size)
+      const h = (x: number, y: number) => {
+        const u = (x / size) * 5
+        const v = (y / size) * 5
+        return (n.fbm(u, v, 4) + n.fbm(u + 5, v, 4) + n.fbm(u, v + 5, 4) + n.fbm(u + 5, v + 5, 4)) / 4
+      }
+      for (let y = 0; y < size; y++) {
+        for (let x = 0; x < size; x++) {
+          const dx = (h(x + 1, y) - h(x - 1, y)) * 6
+          const dy = (h(x, y + 1) - h(x, y - 1)) * 6
+          const len = Math.hypot(dx, dy, 1)
+          const i = (y * size + x) * 4
+          img.data[i] = Math.round((-dx / len * 0.5 + 0.5) * 255)
+          img.data[i + 1] = Math.round((-dy / len * 0.5 + 0.5) * 255)
+          img.data[i + 2] = Math.round((1 / len * 0.5 + 0.5) * 255)
+          img.data[i + 3] = 255
+        }
+      }
+      ctx.putImageData(img, 0, 0)
+      return finish(c, 1, false)
     }
     case "bone": {
       const c = noiseTexture(191, size, [214, 204, 178], 0.18, 5, 3)

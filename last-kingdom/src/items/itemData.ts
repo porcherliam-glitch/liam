@@ -160,7 +160,7 @@ export const ARTIFACTS: ItemDef[] = [
 export const QUEST_ITEMS: ItemDef[] = [
   { id: "gate_key", name: "Torschlüssel", kind: "quest", rarity: "uncommon", description: "Öffnet das verriegelte Stadttor.", weight: 0.2, value: 0, stack: 1 },
   { id: "crypt_key", name: "Gruftschlüssel", kind: "quest", rarity: "uncommon", description: "Ein schwerer Schlüssel aus den Katakomben.", weight: 0.2, value: 0, stack: 1 },
-  { id: "torch_item", name: "Fackel", kind: "quest", rarity: "common", description: "Entzündet Leuchtfeuer.", weight: 0.5, value: 0, stack: 3 },
+  { id: "torch_item", name: "Fackel", kind: "quest", rarity: "common", description: "In der linken Hand getragen spendet sie Licht in der Nacht, lockt aber Untote an. Entzündet auch Leuchtfeuer.", weight: 0.5, value: 6, stack: 3 },
   { id: "oar", name: "Ruder", kind: "quest", rarity: "common", description: "Ohne Ruder fährt kein Boot.", weight: 2, value: 0, stack: 1 },
   { id: "lost_letter", name: "Verlorener Brief", kind: "quest", rarity: "uncommon", description: "Ein versiegelter Brief an die Königin.", weight: 0.05, value: 0, stack: 1 },
   { id: "abbot_journal", name: "Tagebuch des Abts", kind: "quest", rarity: "rare", description: "Beschreibt die ersten Tage der Seuche.", weight: 0.3, value: 0, stack: 1 },

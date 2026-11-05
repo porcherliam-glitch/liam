@@ -56,12 +56,18 @@ export class Zombie {
   private weaponMesh: THREE.Object3D | null = null
   private stuckTimer = 0
   private lastPos = { x: 0, z: 0 }
+  private flashTimer = 0
   phase = 1
+  /** Expedition time of the last hit taken (HUD health bars). */
+  lastHitAt = -100
   readonly radius: number
   /** Marks special enemies for purge missions. */
   special = false
+  /** Dev: frozen zombies only animate (model line-ups). */
+  frozen = false
   lootDropped = false
   private eyes: THREE.Mesh
+  private telegraph: THREE.Mesh
 
   constructor(public type: ZombieTypeDef, x: number, z: number, seed: number) {
     this.rng = new Rng(seed)
@@ -89,49 +95,58 @@ export class Zombie {
     this.eyes = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.03, 0.02), M.glow(type.kind === "boss" ? 0xff4020 : 0xd0ff60, 2))
     this.eyes.position.set(0, 0.14, 0.11)
     this.humanoid.bones.head.add(this.eyes)
+    // Ground ring that appears while an attack winds up (readable telegraphs)
+    const r = type.attackRange + 0.4
+    this.telegraph = new THREE.Mesh(new THREE.RingGeometry(r * 0.7, r, 24), new THREE.MeshBasicMaterial({ color: 0xff3020, transparent: true, opacity: 0.35, depthWrite: false, side: THREE.DoubleSide }))
+    this.telegraph.rotation.x = -Math.PI / 2
+    this.telegraph.position.y = 0.06
+    this.telegraph.visible = false
+    this.group.add(this.telegraph)
     this.group.position.copy(this.pos)
   }
 
   private appearance(seed: number): Partial<Appearance> {
     const t = this.type
-    const base: Partial<Appearance> = { undead: true, seed, scale: t.scale, skin: parseInt(t.color.slice(1), 16) }
+    const rng = new Rng(seed ^ 0x5151)
+    // Individual variation: height, hair, worn clothes
+    const base: Partial<Appearance> = { undead: true, seed, scale: t.scale * rng.range(0.94, 1.06), skin: parseInt(t.color.slice(1), 16), hair: rng.pick([0x2a1a10, 0x4a3a2a, 0x6a5a40, 0x8a8070, 0x1a1410]) }
     switch (t.id) {
       case "walker":
-        return { ...base, shirt: 0x6a5a3a, pants: 0x3a3028 }
+        return { ...base, shirt: rng.pick([0x9a8a5a, 0x6a8a9a, 0x8a6a4a, 0xa89a6a, 0x7a8a6a]), pants: rng.pick([0x5a4a38, 0x4a4a52, 0x6a5a48]), female: rng.chance(0.35), helmet: rng.chance(0.2) ? "hood" : "none" }
       case "walker_villager":
-        return { ...base, shirt: 0x7a3a3a, pants: 0x5a4a5a, hair: 0x6a4a2a }
+        return { ...base, shirt: rng.pick([0xa05050, 0x5a7aa0, 0x9a9a4a, 0x8a5a8a]), pants: 0x7a6a7a, female: true, robe: rng.chance(0.6) }
       case "walker_monk":
-        return { ...base, shirt: 0x4a3a2a, pants: 0x4a3a2a, helmet: "hood" }
+        return { ...base, shirt: 0x7a5a3a, pants: 0x7a5a3a, helmet: "hood", robe: true }
       case "walker_soldier":
-        return { ...base, shirt: 0x5a5a4a, pants: 0x3a3a3a, armor: "gambeson", helmet: "kettle" }
+        return { ...base, shirt: 0x8a8a6a, pants: 0x5a5a5a, armor: rng.chance(0.5) ? "gambeson" : "chain", helmet: rng.chance(0.7) ? "kettle" : "nasal" }
       case "sprinter":
-        return { ...base, shirt: parseInt(t.color.slice(1), 16), pants: 0x3a2a2a, bulk: 0.85 }
+        return { ...base, shirt: 0xb08060, pants: 0x5a4040, bulk: 0.85, female: rng.chance(0.3) }
       case "sprinter_hound":
-        return { ...base, shirt: parseInt(t.color.slice(1), 16), pants: 0x2a1a1a, bulk: 0.9, helmet: "none" }
+        return { ...base, shirt: 0xb05050, pants: 0x4a2a2a, bulk: 0.9, helmet: "none" }
       case "brute":
-        return { ...base, shirt: 0x3a3a2a, pants: 0x2a2a1a, bulk: 1.7, armor: "rags" }
+        return { ...base, shirt: 0x6a6a4a, pants: 0x4a4a30, bulk: 1.7, armor: "rags" }
       case "brute_butcher":
-        return { ...base, shirt: 0x5a2a2a, pants: 0x2a2a1a, bulk: 1.75, armor: "leather" }
+        return { ...base, shirt: 0x8a3a3a, pants: 0x4a4a30, bulk: 1.75, armor: "leather" }
       case "knight":
-        return { ...base, armor: "plate", helmet: "bascinet", armored: true, shirt: 0x3a3a4a }
+        return { ...base, armor: "plate", helmet: rng.chance(0.6) ? "bascinet" : "great", armored: true, shirt: 0x3a3a4a }
       case "knight_captain":
         return { ...base, armor: "plate", helmet: "great", armored: true, shirt: 0x4a2a2a, bulk: 1.1 }
       case "boss_elder":
-        return { ...base, shirt: 0x2a3a2a, pants: 0x1a1a1a, bulk: 1.4, helmet: "hood" }
+        return { ...base, shirt: 0x4a6a4a, pants: 0x3a3a3a, bulk: 1.4, boss: "elder", robe: true }
       case "boss_huntsman":
-        return { ...base, shirt: 0x3a2a1a, pants: 0x2a1a0a, bulk: 1.0, armor: "leather", helmet: "hood" }
+        return { ...base, shirt: 0x6a4a2a, pants: 0x4a3a1a, bulk: 1.0, armor: "leather", helmet: "hood", boss: "huntsman" }
       case "boss_castellan":
-        return { ...base, armor: "plate", helmet: "great", armored: true, bulk: 1.3 }
+        return { ...base, armor: "plate", helmet: "great", armored: true, bulk: 1.3, boss: "castellan" }
       case "boss_gravedigger":
-        return { ...base, shirt: 0x2a2a1a, pants: 0x1a1a1a, bulk: 1.6, armor: "rags" }
+        return { ...base, shirt: 0x5a5a3a, pants: 0x3a3a2a, bulk: 1.6, armor: "rags", boss: "gravedigger" }
       case "boss_abbot":
-        return { ...base, shirt: 0x1a1010, pants: 0x1a1010, helmet: "hood", bulk: 1.1 }
+        return { ...base, shirt: 0x3a2a2a, pants: 0x3a2a2a, helmet: "hood", bulk: 1.1, boss: "abbot", robe: true }
       case "boss_bonelord":
-        return { ...base, armor: "chain", helmet: "nasal", armored: true, bulk: 1.3, skin: 0xb0a890, skinTexture: "bone" }
+        return { ...base, armor: "chain", helmet: "none", armored: true, bulk: 1.3, skin: 0xb0a890, skinTexture: "bone", boss: "bonelord" }
       case "boss_queen":
-        return { ...base, shirt: 0x3a1a3a, pants: 0x2a0a2a, bulk: 1.0, hair: 0x101010 }
+        return { ...base, shirt: 0x6a2a6a, pants: 0x4a1a4a, bulk: 1.0, hair: 0x101010, boss: "queen", female: true, robe: true }
       case "boss_marshal":
-        return { ...base, armor: "plate", helmet: "great", armored: true, bulk: 1.5 }
+        return { ...base, armor: "plate", helmet: "great", armored: true, bulk: 1.5, boss: "marshal" }
       default:
         return base
     }
@@ -139,6 +154,9 @@ export class Zombie {
 
   bind(ctx: EntityContext): void {
     this.ctx = ctx
+    const diff = ctx.settings.difficulty
+    this.maxHp = Math.round(this.type.hp * (diff === "easy" ? 0.8 : diff === "hard" ? 1.25 : 1))
+    this.hp = this.maxHp
     this.pos.y = ctx.world.terrain.heightAt(this.pos.x, this.pos.z)
     ctx.scene.add(this.group)
     this.group.position.copy(this.pos)
@@ -152,6 +170,11 @@ export class Zombie {
 
   get isBoss(): boolean {
     return this.type.kind === "boss"
+  }
+
+  private get damageScale(): number {
+    const d = this.ctx.settings.difficulty
+    return d === "easy" ? 0.75 : d === "hard" ? 1.3 : 1
   }
 
   get alerted(): boolean {
@@ -187,6 +210,7 @@ export class Zombie {
     let sight = this.type.sight * vis * (1 - p.skills.stealth)
     if (this.alerted) sight *= 1.6
     if (p.sprinting) sight *= 1.2
+    if (p.carriesTorch) sight = Math.max(sight, this.type.sight * 1.3)
     if (d > sight) return false
     // Field of view: 130 degrees, except when very close
     if (d > 2.5) {
@@ -229,6 +253,12 @@ export class Zombie {
     const dx = p.pos.x - this.pos.x
     const dz = p.pos.z - this.pos.z
     const dist = Math.hypot(dx, dz)
+    if (this.frozen) {
+      this.animator.update(dt)
+      this.group.position.copy(this.pos)
+      this.group.rotation.y = this.yaw
+      return
+    }
     // Far away and not alerted: sleep (cheap update)
     this.sleeping = dist > 95 && !this.alerted
     if (this.sleeping) {
@@ -237,6 +267,10 @@ export class Zombie {
     }
     this.group.visible = true
     this.stateTimer += dt
+    if (this.flashTimer > 0) {
+      this.flashTimer -= dt
+      if (this.flashTimer <= 0) this.humanoid.clothMaterial.emissive.setHex(0x000000)
+    }
     this.attackCooldown = Math.max(0, this.attackCooldown - dt)
     for (const k of Object.keys(this.abilityCooldowns)) this.abilityCooldowns[k] = Math.max(0, this.abilityCooldowns[k] - dt)
     this.perceptionTimer -= dt
@@ -409,7 +443,12 @@ export class Zombie {
         const faceDot = Math.cos(angleDelta(this.yaw, wantYaw))
         const sp = moveSpeed * Math.max(0.3, faceDot)
         moved = this.tryMove(Math.sin(this.yaw) * sp * dt, Math.cos(this.yaw) * sp * dt)
+        const before = this.walkPhase
         this.walkPhase += (moved / (this.type.kind === "sprinter" ? 1.0 : 0.7)) * Math.PI
+        // A footstep each half cycle when close to the player (heavy for brutes)
+        if (dist < 14 && Math.floor(before / Math.PI) !== Math.floor(this.walkPhase / Math.PI)) {
+          ctx.audio.play(this.type.kind === "brute" || this.isBoss ? "hit_blunt" : "footstep", { x: this.pos.x, y: this.pos.y, z: this.pos.z, volume: this.type.kind === "brute" || this.isBoss ? 0.35 : 0.25, pitch: this.type.kind === "brute" || this.isBoss ? 0.5 : 0.8 })
+        }
         // Stuck detection: repath or pick a new wander target
         this.stuckTimer += dt
         if (this.stuckTimer > 1.5) {
@@ -443,6 +482,15 @@ export class Zombie {
     a.ctx.phase = this.walkPhase
     a.ctx.speed = clamp(moveSpeed / 4, 0.5, 1.3)
     a.update(dt)
+    // Telegraph: visible during the wind-up of attacks and heavy abilities
+    const winding = (st === "attack" && !this.attackHitDone) || (st === "ability" && (this.ability === "slam" || this.ability === "leap" || this.ability === "charge") && !this.attackHitDone)
+    this.telegraph.visible = winding
+    if (winding) {
+      const m = this.telegraph.material as THREE.MeshBasicMaterial
+      m.opacity = 0.25 + Math.min(0.5, a.progress * 0.6)
+      const sc = this.ability === "slam" ? 2 : this.ability === "leap" ? 1.4 : 1
+      this.telegraph.scale.setScalar(sc / this.type.scale)
+    }
     this.group.position.copy(this.pos)
     this.group.rotation.y = this.yaw
   }
@@ -487,8 +535,8 @@ export class Zombie {
     const reach = this.type.attackRange + 0.6
     const ang = Math.abs(angleDelta(this.yaw, Math.atan2(dx, dz)))
     if (dist <= reach && ang < 1.1) {
-      const dmg = this.type.damage * (this.phase >= 3 ? 1.2 : 1)
-      p.takeDamage(dmg, this.pos.x, this.pos.z, { heavy: this.type.kind === "brute" || this.isBoss, knockback: this.type.kind === "brute" ? 1.5 : 0, plague: this.type.id.includes("hound") || this.type.id.includes("plague") })
+      const dmg = this.type.damage * (this.phase >= 3 ? 1.2 : 1) * this.damageScale
+      p.takeDamage(dmg, this.pos.x, this.pos.z, { heavy: this.type.kind === "brute" || this.isBoss, knockback: this.type.kind === "brute" ? 1.5 : 0, plague: this.type.id.includes("hound") || this.type.id.includes("plague"), attacker: this })
     }
     if (this.type.kind === "brute") {
       this.ctx.camera.addShake(dist < 8 ? 0.5 : 0.1)
@@ -550,7 +598,7 @@ export class Zombie {
         this.walkPhase += sp * dt * Math.PI * 0.8
         if (dist < this.radius + 1.2 && !this.attackHitDone) {
           this.attackHitDone = true
-          ctx.player.takeDamage(this.type.damage * 1.4, this.pos.x, this.pos.z, { heavy: true, knockback: 3 })
+          ctx.player.takeDamage(this.type.damage * 1.4 * this.damageScale, this.pos.x, this.pos.z, { heavy: true, knockback: 3, attacker: this })
           ctx.camera.addShake(0.7)
         }
         if (this.abilityTimer > 1.3 || this.attackHitDone) {
@@ -570,7 +618,7 @@ export class Zombie {
           ctx.particles.dust(this.pos.x, this.pos.y, this.pos.z, 18)
           ctx.camera.addShake(0.6)
           ctx.audio.play("hit_blunt", { x: this.pos.x, y: 0, z: this.pos.z })
-          if (dist < 3.2) ctx.player.takeDamage(this.type.damage * 1.2, this.pos.x, this.pos.z, { heavy: true, knockback: 2 })
+          if (dist < 3.2) ctx.player.takeDamage(this.type.damage * 1.2 * this.damageScale, this.pos.x, this.pos.z, { heavy: true, knockback: 2, attacker: this })
         }
         if (this.animator.finished) {
           this.attackHitDone = false
@@ -606,7 +654,7 @@ export class Zombie {
           ctx.particles.dust(this.pos.x, this.pos.y, this.pos.z, 24)
           ctx.camera.addShake(0.9)
           ctx.audio.play("hit_blunt", { x: this.pos.x, y: 0, z: this.pos.z, volume: 1 })
-          if (dist < 5) ctx.player.takeDamage(this.type.damage * 1.6, this.pos.x, this.pos.z, { heavy: true, knockback: 3, unblockable: false })
+          if (dist < 5) ctx.player.takeDamage(this.type.damage * 1.6 * this.damageScale, this.pos.x, this.pos.z, { heavy: true, knockback: 3, unblockable: false, attacker: this })
         }
         if (this.animator.finished) {
           this.attackHitDone = false
@@ -646,12 +694,18 @@ export class Zombie {
     if (this.dead) return
     const ctx = this.ctx
     this.hp -= damage
+    this.lastHitAt = ctx.time
     this.lastKnown = { x: ctx.player.pos.x, z: ctx.player.pos.z }
     this.alert = 1
     const hx = this.pos.x
     const hy = this.pos.y + 1.1 * this.type.scale
     const hz = this.pos.z
     if (!blocked) {
+      // Hit flash on the body material
+      this.humanoid.clothMaterial.emissive.setHex(crit ? 0xffd080 : 0xff6040)
+      this.humanoid.clothMaterial.emissiveIntensity = 0.55
+      this.flashTimer = 0.09
+      ctx.hitStop(heavy ? 0.07 : 0.035)
       ctx.particles.blood(hx, hy, hz, crit ? 22 : 12)
       ctx.audio.play(this.type.armor > 10 ? "hit_metal" : "hit_flesh", { x: hx, y: hy, z: hz, pitch: 0.9 + Math.random() * 0.2 })
       if (crit) ctx.audio.play("crit", { x: hx, y: hy, z: hz })
@@ -702,6 +756,7 @@ export class Zombie {
     this.ctx.audio.play("zombie_die", { x: this.pos.x, y: this.pos.y + 1, z: this.pos.z, pitch: this.type.kind === "brute" || this.isBoss ? 0.6 : 0.9 + Math.random() * 0.3 })
     this.ctx.particles.blood(this.pos.x, this.pos.y + 1, this.pos.z, 20)
     this.eyes.visible = false
+    this.telegraph.visible = false
     events.emit("enemyKilled", { typeId: this.type.id, x: this.pos.x, z: this.pos.z, boss: this.isBoss, special: this.special ? this.type.id : undefined })
     if (!this.lootDropped) {
       this.lootDropped = true
@@ -717,6 +772,8 @@ export class Zombie {
   dispose(): void {
     disposeHumanoid(this.humanoid)
     this.eyes.geometry.dispose()
+    this.telegraph.geometry.dispose()
+    ;(this.telegraph.material as THREE.Material).dispose()
     this.group.removeFromParent()
   }
 }

@@ -41,6 +41,11 @@ export class Hud {
   private clock: HTMLElement
   private lastQuickKey = ""
   private ability: HTMLElement
+  private bossIntro: HTMLElement
+  private enemyBars: HTMLElement
+  private mouseHint: HTMLElement
+  private hitDir: HTMLElement
+  private barPool: HTMLElement[] = []
 
   constructor(private input: Input) {
     this.el = document.getElementById("hud")!
@@ -63,7 +68,11 @@ export class Hud {
       <div class="hud-lock hidden"></div>
       <div class="hud-floats"></div>
       <div class="hud-fps hidden"></div>
-      <div class="hud-clock"></div>`
+      <div class="hud-clock"></div>
+      <div class="hud-bossintro hidden"><div class="bi-name"></div><div class="bi-title"></div></div>
+      <div class="hud-mousehint hidden">Ins Spiel klicken, um die Maus zu binden (Esc = Pause)</div>
+      <div class="hud-hitdir hidden"><div class="hd-arc"></div></div>
+      <div class="hud-enemybars"></div>`
     const q = (s: string) => this.el.querySelector<HTMLElement>(s)!
     this.hp = q(".hud-bar.hp .fill")
     this.hpText = q(".hud-hp-text")
@@ -83,6 +92,59 @@ export class Hud {
     this.fps = q(".hud-fps")
     this.clock = q(".hud-clock")
     this.ability = q(".hud-ability")
+    this.bossIntro = q(".hud-bossintro")
+    this.enemyBars = q(".hud-enemybars")
+    this.mouseHint = q(".hud-mousehint")
+    this.hitDir = q(".hud-hitdir")
+    for (let i = 0; i < 8; i++) {
+      const b = document.createElement("div")
+      b.className = "ebar hidden"
+      b.innerHTML = `<div class="ebar-name"></div><div class="hud-bar enemy"><div class="fill"></div></div>`
+      this.enemyBars.appendChild(b)
+      this.barPool.push(b)
+    }
+  }
+
+  /** Red arc at the screen edge pointing toward the last attacker. */
+  showHitDirection(relAngle: number, strength: number): void {
+    if (strength <= 0.01) {
+      this.hitDir.classList.add("hidden")
+      return
+    }
+    this.hitDir.classList.remove("hidden")
+    this.hitDir.style.transform = `rotate(${(-relAngle * 180) / Math.PI}deg)`
+    this.hitDir.style.opacity = `${Math.min(1, strength)}`
+  }
+
+  showMouseHint(on: boolean): void {
+    this.mouseHint.classList.toggle("hidden", !on)
+  }
+
+  /** Big boss name banner for a few seconds. */
+  showBossIntro(name: string, title: string): void {
+    this.bossIntro.querySelector(".bi-name")!.textContent = name
+    this.bossIntro.querySelector(".bi-title")!.textContent = title
+    this.bossIntro.classList.remove("hidden")
+    this.bossIntro.classList.remove("fade")
+    setTimeout(() => this.bossIntro.classList.add("fade"), 3200)
+    setTimeout(() => this.bossIntro.classList.add("hidden"), 4200)
+  }
+
+  /** Small health bars over recently hit enemies (screen positions). */
+  updateEnemyBars(list: { x: number; y: number; name: string; hp: number; maxHp: number }[]): void {
+    for (let i = 0; i < this.barPool.length; i++) {
+      const b = this.barPool[i]
+      const e = list[i]
+      if (!e) {
+        b.classList.add("hidden")
+        continue
+      }
+      b.classList.remove("hidden")
+      b.style.left = `${e.x}px`
+      b.style.top = `${e.y}px`
+      ;(b.querySelector(".ebar-name") as HTMLElement).textContent = e.name
+      ;(b.querySelector(".fill") as HTMLElement).style.width = `${Math.max(0, (e.hp / e.maxHp) * 100)}%`
+    }
   }
 
   show(on: boolean): void {

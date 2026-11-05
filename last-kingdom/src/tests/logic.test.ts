@@ -14,6 +14,9 @@ import { SKILLS, skillBonuses } from "../meta/skillData"
 import { CollisionWorld } from "../world/collision"
 import { NavGrid } from "../world/nav"
 import { CLASSES } from "../meta/classData"
+import { ACHIEVEMENTS, checkAchievements } from "../meta/achievements"
+import { createProfile } from "../meta/profile"
+import { sortInventory } from "../items/inventory"
 
 describe("rng", () => {
   it("is deterministic", () => {
@@ -239,5 +242,30 @@ describe("collision and navigation", () => {
     expect(path!.some((p) => Math.abs(p[1]) > 19)).toBe(true)
     expect(nav.isBlockedWorld(0, 0)).toBe(true)
     expect(nav.isBlockedWorld(-10, 0)).toBe(false)
+  })
+})
+
+describe("achievements and sorting", () => {
+  it("unlocks achievements from statistics once", () => {
+    const p = createProfile(0, "Test", "knight")
+    expect(checkAchievements(p).length).toBe(0)
+    p.stats.extractions = 1
+    p.stats.kills = 150
+    const fresh = checkAchievements(p)
+    expect(fresh.map((a) => a.id).sort()).toEqual(["first_extraction", "kills_100"])
+    expect(checkAchievements(p).length).toBe(0)
+    expect(ACHIEVEMENTS.length).toBeGreaterThanOrEqual(10)
+  })
+  it("sorts the bag by kind and rarity", () => {
+    const inv = createInventory(12)
+    addItem(inv, createItem("wood", 5))
+    addItem(inv, createItem("bandage", 2))
+    addItem(inv, createItem("longsword_1"))
+    addItem(inv, createItem("shortsword_1", 1, { rarity: "rare" }))
+    sortInventory(inv)
+    const ids = inv.slots.filter(Boolean).map((s) => s!.defId)
+    expect(ids[0]).toBe("shortsword_1")
+    expect(ids[1]).toBe("longsword_1")
+    expect(ids[ids.length - 1]).toBe("wood")
   })
 })

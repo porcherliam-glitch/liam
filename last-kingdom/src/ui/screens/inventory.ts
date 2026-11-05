@@ -4,7 +4,7 @@ import type { GameApi } from "../../game/api"
 import type { Screen, ButtonKind } from "../ui"
 import { esc } from "../ui"
 import { itemDetails, itemTile } from "./common"
-import { QUICK_SLOTS, addItem, allItems, equip, findByUid, removeByUid, resizeInventory, slotForItem, totalWeight, transfer, unequip, canGoInQuickSlot } from "../../items/inventory"
+import { QUICK_SLOTS, addItem, allItems, equip, findByUid, removeByUid, removeItem, resizeInventory, slotForItem, sortInventory, totalWeight, transfer, unequip, canGoInQuickSlot } from "../../items/inventory"
 import { itemDef } from "../../items/itemData"
 import { cloneItem, displayName, isEquippable, isUsable } from "../../items/items"
 import { campBonuses } from "../../meta/campData"
@@ -53,7 +53,7 @@ export class InventoryScreen implements Screen {
         <div class="stat ${weight > limit ? "bad" : ""}"><span>Gewicht</span><b>${weight.toFixed(1)} / ${limit.toFixed(0)} kg</b></div>
         ${insured ? `<div class="dim">Die ersten ${insured} Rucksackplätze sind versichert.</div>` : ""}
       </section>
-      <section class="panel bag"><h2>Rucksack (${allItems(inv).length} / ${inv.capacity})</h2><div class="grid" data-scroll="bag">${Array.from({ length: inv.capacity }, (_, i) => itemTile(inv.slots[i] ?? null, `bag${i}`, "bag", i < insured ? "insured" : "")).join("")}</div></section>
+      <section class="panel bag"><h2>Rucksack (${allItems(inv).length} / ${inv.capacity})</h2><div class="row tight"><button class="btn small" data-focus data-focus-id="sort" data-action="sort">Sortieren</button>${this.mode === "camp" ? `<button class="btn small" data-focus data-focus-id="matstash" data-action="matstash">Material ins Lager</button>` : ""}</div><div class="grid" data-scroll="bag">${Array.from({ length: inv.capacity }, (_, i) => itemTile(inv.slots[i] ?? null, `bag${i}`, "bag", i < insured ? "insured" : "")).join("")}</div></section>
       ${stash}
       <section class="panel detail">${itemDetails(selected, compare)}${this.actionsFor(selected)}</section>
     </div>`
@@ -114,6 +114,27 @@ export class InventoryScreen implements Screen {
         else return
       }
     }
+    if (action === "sort" || action === "matstash") {
+      if (action === "sort") sortInventory(inv)
+      else {
+        const bonuses = campBonuses(p.camp)
+        const stashInv: InventoryState = { slots: p.stash, capacity: bonuses.stashSlots, equipment: {} }
+        while (stashInv.slots.length < bonuses.stashSlots) stashInv.slots.push(null as unknown as ItemInstance)
+        for (const it of allItems(inv)) {
+          const d = itemDef(it.defId)
+          if (d.kind !== "material" && d.kind !== "artifact") continue
+          const copy = cloneItem(it)
+          const left = addItem(stashInv, copy)
+          const moved = it.qty - left
+          if (moved > 0) removeItem(inv, it.defId, moved)
+        }
+        p.stash = stashInv.slots.map((s) => s ?? null) as ItemInstance[]
+        toast("Material und Artefakte liegen im Lager.", "good")
+      }
+      if (this.mode === "camp") this.game.saveProfile()
+      this.game.ui.refresh(this)
+      return
+    }
     if (!item) return
     switch (action) {
       case "equip": {
@@ -167,6 +188,7 @@ export class InventoryScreen implements Screen {
       case "destroy":
         this.confirmDrop = item.uid
         break
+
       case "drop-yes":
         if (this.game.expedition) {
           removeByUid(inv, item.uid)

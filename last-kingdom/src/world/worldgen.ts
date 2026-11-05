@@ -10,6 +10,7 @@ import { NavGrid } from "./nav"
 import { StaticBatcher, disposeMeshes } from "../render/batcher"
 import * as P from "../render/props"
 import { M, mat } from "../render/materials"
+import { buildGrass } from "../render/grass"
 
 export type ContainerKind = "chest" | "crate" | "barrel" | "sack" | "corpse" | "herb" | "woodpile" | "bones" | "scrap" | "cupboard"
 
@@ -933,6 +934,8 @@ export function buildWorld(area: AreaDef, scene: THREE.Scene): WorldBuild {
   })
   const merged = batcher.build(root)
   const nav = new NavGrid(area.size, collision, area.biome === "catacombs" ? null : terrain, (x, z) => (area.biome === "catacombs" ? Math.max(Math.abs(x), Math.abs(z)) > 128 : false))
+  const grass = buildGrass(terrain, nav, area.biome, area.seed, Math.round(area.size * area.size * 0.22))
+  if (grass) root.add(grass)
   return {
     area,
     terrain,
@@ -953,6 +956,10 @@ export function buildWorld(area: AreaDef, scene: THREE.Scene): WorldBuild {
     playerSpawn: { x: area.spawnX, z: area.spawnZ },
     dispose: () => {
       disposeMeshes(merged)
+      if (grass) {
+        grass.geometry.dispose()
+        ;(grass.material as THREE.Material).dispose()
+      }
       terrain.dispose()
       root.traverse((o) => {
         const m = o as THREE.Mesh

@@ -346,6 +346,11 @@ export class Input {
     return this.wheelDelta
   }
 
+  /** Raw right-stick x (-1..1) for target switching. */
+  stickRightX(): number {
+    return this.padAxes[2]
+  }
+
   usingGamepad(): boolean {
     return this.device !== "keyboard"
   }

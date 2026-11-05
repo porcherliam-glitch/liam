@@ -110,6 +110,7 @@ export function findByUid(inv: InventoryState, uid: string): ItemInstance | null
 
 export function slotForItem(defId: string): EquipSlot | null {
   const def = itemDef(defId)
+  if (defId === "torch_item") return "offHand"
   switch (def.kind) {
     case "weapon":
       return "mainHand"
@@ -205,4 +206,18 @@ export function transfer(from: (ItemInstance | null)[], to: InventoryState, uid:
   item.qty = left
   if (item.qty <= 0) from[idx] = null
   return true
+}
+
+const KIND_ORDER = ["weapon", "shield", "helmet", "armor", "remedy", "food", "ammo", "quest", "artifact", "material", "gold"]
+
+/** Sorts the bag: equipment first, then consumables, materials; within a kind by rarity and name. */
+export function sortInventory(inv: InventoryState): void {
+  const items = allItems(inv)
+  const rank = (it: ItemInstance) => {
+    const d = itemDef(it.defId)
+    return KIND_ORDER.indexOf(d.kind) * 100 - ["common", "uncommon", "rare", "epic", "legendary", "mythic"].indexOf(it.rarity) * 10
+  }
+  items.sort((a, b) => rank(a) - rank(b) || itemDef(a.defId).name.localeCompare(itemDef(b.defId).name, "de") || b.qty - a.qty)
+  inv.slots = new Array(inv.capacity).fill(null)
+  for (const it of items) addItem(inv, it)
 }

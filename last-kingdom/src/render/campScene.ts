@@ -120,6 +120,7 @@ export class CampScene {
         helmet: head.includes("great") ? "great" : head.includes("basc") ? "bascinet" : head.includes("nasal") ? "nasal" : head.includes("kettle") ? "kettle" : head.includes("hood") ? "hood" : "none",
         skinTexture: "cloth",
         seed: 7,
+        female: profile.female === true,
       })
       this.hero.root.position.set(2.2, 0, 1.4)
       this.hero.root.rotation.y = -2.2
@@ -134,18 +135,19 @@ export class CampScene {
     this.camera.updateProjectionMatrix()
   }
 
-  update(dt: number, renderer: THREE.WebGLRenderer): void {
+  update(dt: number, render: (scene: THREE.Scene, camera: THREE.Camera) => void): void {
     this.t += dt
     const a = this.t * 0.05
     this.camera.position.set(Math.sin(a) * 11, 3.2 + Math.sin(this.t * 0.2) * 0.3, Math.cos(a) * 11)
     this.camera.lookAt(0, 1.2, 0)
     this.sky.update(0, new THREE.Vector3(0, 0, 0))
+    this.sky.setFill(this.camera.position, new THREE.Vector3(0, 1, 0))
     this.fireLight.intensity = 11 + Math.sin(this.t * 13) * 2 + Math.sin(this.t * 31) * 1.3
     for (const f of this.flames) f.scale.setScalar(0.9 + Math.sin(this.t * 17 + f.id) * 0.12)
     if (Math.random() < dt * 6) this.particles.embers(0, 0.5, 0, 1)
     if (Math.random() < dt * 1.5) this.particles.smoke(0, 0.9, 0, 1)
     this.particles.update(dt)
     if (this.heroAnim) this.heroAnim.update(dt)
-    renderer.render(this.scene, this.camera)
+    render(this.scene, this.camera)
   }
 }

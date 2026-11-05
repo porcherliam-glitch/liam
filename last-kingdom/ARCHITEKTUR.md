@@ -8,11 +8,11 @@ Technik: **Three.js 0.180, TypeScript 5, Vite 7, WebGL, Gamepad API, Web Audio A
 |---|---|
 | `src/core/` | Typen (`types.ts`), Zufall mit Seed (`rng.ts`), Rauschen (`noise.ts`), Ereignisbus (`events.ts`), Mathe, lokaler Speicher (`storage.ts`) |
 | `src/input/` | Aktionen und Standardbelegung (`bindings.ts`), Tastensymbole je Gerät (`glyphs.ts`), vereinheitlichte Eingabe für Tastatur/Maus/Gamepad inkl. Hot-Plug, Neubelegung, Vibration (`input.ts`) |
-| `src/render/` | Prozedurale Texturen, Material-Cache mit Wind-Shader, Skelett-Figur (`humanoid.ts`), Animationen (`animator.ts`), Waffenmodelle, Requisiten/Gebäude (`props.ts`), statisches Zusammenfassen (`batcher.ts`), Himmel/Tag-Nacht (`sky.ts`), Wetter (`weather.ts`), Partikel, Third-Person-Kamera, Lager-Hintergrundszene |
+| `src/render/` | Prozedurale Texturen, Material-Cache mit Wind-Shader, Skelett-Figur (`humanoid.ts`), Animationen (`animator.ts`), Waffenmodelle, Schwerttrail (`trail.ts`), Requisiten/Gebäude (`props.ts`), statisches Zusammenfassen (`batcher.ts`), Gras als Instanzen (`grass.ts`), Himmel/Tag-Nacht mit Wolken (`sky.ts`), Wetter (`weather.ts`), Partikel, Blutspuren (`decals.ts`), Nachbearbeitung mit Bloom/Vignette (`postprocess.ts`), Third-Person-Kamera, Lager-Hintergrundszene |
 | `src/world/` | Gebietsdefinitionen (`areas.ts`), Gelände-Heightmap (`terrain.ts`), Kollision (`collision.ts`), Navigationsgitter mit A* (`nav.ts`), Weltgenerator je Biom (`worldgen.ts`) |
 | `src/entities/` | Spieler (`player.ts`), Zombie-KI und Bosse (`zombie.ts`), Projektile, Schadensformeln (`combat.ts`), Gegnerliste (`zombieTypes.ts`), Kontext-Schnittstelle (`context.ts`) |
 | `src/items/` | Item-Definitionen und Affixe (`itemData.ts`), Instanzen und wirksame Werte (`items.ts`), Inventar (`inventory.ts`), Beutetabellen (`loot.ts`), Händler (`merchant.ts`) |
-| `src/meta/` | Profil/Spielstand (`profile.ts`), Erfahrung und Ränge (`progression.ts`), Klassen, Lager-Gebäude, Fähigkeitenbaum, Missionen |
+| `src/meta/` | Profil/Spielstand (`profile.ts`), Erfahrung und Ränge (`progression.ts`), Klassen, Lager-Gebäude, Fähigkeitenbaum (mit aktiven Fähigkeiten), Missionen, Erfolge (`achievements.ts`) |
 | `src/ui/` | DOM-Menüsystem mit Controller-Navigation (`ui.ts`), HUD (`hud.ts`), Bildschirme unter `screens/` |
 | `src/audio/` | Prozeduraler Klang (Web Audio): Effekte, Ambiente, Musikzustände |
 | `src/game/` | `game.ts` (Zustände Menü/Lager/Expedition, Profile, Ergebnis), `expedition.ts` (Spielschleife eines Einsatzes), `api.ts` (Schnittstelle für Menüs) |
@@ -44,13 +44,21 @@ main.ts → Game
 
 ## Figuren
 
-- `buildHumanoid()` erzeugt eine `SkinnedMesh` mit 17 Knochen aus Box-Teilen (ein Draw-Call pro Figur). Aussehen (Haut, Kleidung, Rüstung, Helm, Größe, Masse, Untot) wird per Parameter bestimmt; der Spieler wird beim Wechsel der Ausrüstung neu gebaut.
+- `buildHumanoid()` erzeugt eine `SkinnedMesh` mit 17 Knochen aus Kapseln, Kugeln und Boxen; Stoff/Haut und Metall liegen in zwei Materialgruppen (zwei Draw-Calls pro Figur). Aussehen (Haut, Kleidung, Rüstung, Helm, Größe, Masse, Untot, Boss-Silhouette, Figur, Robe) wird per Parameter bestimmt; der Spieler wird beim Wechsel der Ausrüstung neu gebaut. Trefferblitze setzen die Emissionsfarbe des Stoffmaterials.
 - `Animator` mischt Clips: prozedurale Laufzyklen (Phase aus zurückgelegter Strecke) und Keyframe-Clips (Angriffe, Blocken, Treffer, Tod, Zombie-Angriffe, Boss-Fähigkeiten). Übergänge werden geblendet.
-- Angriffe: pro Waffengattung eine Kombofolge mit Trefferzeitpunkt (`hitAt`); zum Zeitpunkt werden Gegner im Bogen vor dem Spieler getroffen (`performMeleeHit`). Fernkampf spawnt Projektile mit Ballistik.
+- Angriffe: pro Waffengattung eine Kombofolge mit Trefferzeitpunkt (`hitAt`); zum Zeitpunkt werden Gegner im Bogen vor dem Spieler getroffen (`performMeleeHit`). Treffer lösen Trefferpause (`hitStop`), Trefferblitz und Blutspuren aus. Ein Block, der weniger als 0,22 s vor dem Treffer gehoben wurde, ist ein perfekter Block. Fernkampf spawnt Projektile mit Ballistik.
 
 ## KI
 
 Zustände `idle → wander → investigate → chase → attack / ability → stagger → dead`. Wahrnehmung alle 0,25 s: Sichtweite × Tageslicht × Wetter × Tarnung, Sichtkegel, Sichtlinie gegen Kollider; Gehör über `onNoise`-Ereignisse. Verfolgung direkt bei freier Linie, sonst Pfad. Separation zwischen Zombies, Steckenbleib-Erkennung. Weit entfernte, nicht alarmierte Zombies schlafen (günstiger Update). Bosse haben Phasen (100/60/30 %) mit Rufen, Sturmangriff, Sprung, Bodenschlag, Pestwolke.
+
+## Endgame und Komfort
+
+- Nacht-Expeditionen (`Expedition.night`): nach dem Boss-Sieg eines Gebiets wählbar; Start um 22:30, 1,5-fache Bevölkerung, +0,35 Beuteglück, +40 % Erfahrung.
+- Expeditionsbedingungen (`Expedition.modifier`): mit 35 % Wahrscheinlichkeit erhält ein Einsatz Blutmond, Nebel, Totenstille, reiche Ernte oder Unwetter; sie verändern Beuteglück, Horden-Takt, Bevölkerung oder sperren das Wetter. Bei Regen und Sturm trägt Lärm nur 70 % so weit.
+- Erfolge werden beim Rückweg ins Lager aus den Profilstatistiken abgeleitet (`checkAchievements`).
+- Schwierigkeit (leicht/normal/schwer) skaliert Lebenspunkte und Schaden der Gegner beim Spawnen bzw. Treffen.
+- Die Fackel (`torch_item`) kann in die linke Hand genommen werden und erzeugt ein flackerndes Punktlicht; Zombies sehen den Träger weiter.
 
 ## UI
 
