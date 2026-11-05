@@ -66,6 +66,7 @@ export class Weather {
 
   setKind(kind: WeatherKind): void {
     if (kind === this.kind) return
+    if (!(kind in TARGETS)) return // unknown name from a script or an old save: keep the current weather
     this.kind = kind
     events.emit("weatherChanged", { weather: kind })
   }

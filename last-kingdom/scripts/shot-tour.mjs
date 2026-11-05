@@ -24,7 +24,7 @@ try {
     { area: "forest", hour: 9, weather: "rain", name: "12-forest-rain" },
     { area: "forest", hour: 15, weather: "fog", name: "13-forest-fog" },
     { area: "castle", hour: 17.5, weather: "clear", name: "14-castle-evening" },
-    { area: "graveyard", hour: 21, weather: "cloudy", name: "15-graveyard-dusk" },
+    { area: "graveyard", hour: 21, weather: "overcast", name: "15-graveyard-dusk" },
     { area: "monastery", hour: 11, weather: "clear", name: "16-monastery-day" },
     { area: "catacombs", hour: 12, weather: "clear", name: "17-catacombs" },
     { area: "city", hour: 13, weather: "storm", name: "18-city-storm" },
