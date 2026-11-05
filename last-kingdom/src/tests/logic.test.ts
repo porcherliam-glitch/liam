@@ -231,6 +231,19 @@ describe("collision and navigation", () => {
     expect(w.segmentCast(0, 5, 0, 10, 5, 0)).toBeNull()
     expect(w.blocked(0, 0, 10, 0, 1)).toBe(true)
   })
+  it("keeps doorways open and walls closed", () => {
+    const w = new CollisionWorld()
+    // wall along x with a 1.3 m gap at x = 0
+    w.add({ kind: "box", x: -10.65, z: 0, hw: 10, hd: 0.15, yaw: 0, y0: 0, y1: 3 })
+    w.add({ kind: "box", x: 10.65, z: 0, hw: 10, hd: 0.15, yaw: 0, y0: 0, y1: 3 })
+    const nav = new NavGrid(30, w, null)
+    expect(nav.isBlockedWorld(0.1, 0.1)).toBe(false)
+    expect(nav.isBlockedWorld(5, 0.1)).toBe(true)
+    const path = nav.findPath(0, -5, 0, 5)
+    expect(path).not.toBeNull()
+    // path must stay near x = 0 (through the door), never through the wall
+    expect(path!.every((p) => Math.abs(p[0]) < 2)).toBe(true)
+  })
   it("finds paths around walls", () => {
     const w = new CollisionWorld()
     w.add({ kind: "box", x: 0, z: 0, hw: 1, hd: 20, yaw: 0, y0: 0, y1: 3 })
@@ -239,7 +252,7 @@ describe("collision and navigation", () => {
     expect(path).not.toBeNull()
     expect(path!.length).toBeGreaterThan(1)
     // the path must go around the wall: some waypoint beyond |z| > 19
-    expect(path!.some((p) => Math.abs(p[1]) > 19)).toBe(true)
+    expect(path!.some((p) => Math.abs(p[1]) > 19.5)).toBe(true)
     expect(nav.isBlockedWorld(0, 0)).toBe(true)
     expect(nav.isBlockedWorld(-10, 0)).toBe(false)
   })

@@ -1,33 +1,39 @@
-// Grid navigation for enemies: 2 m cells, A* with a binary heap and line-of-sight path smoothing.
+// Grid navigation for enemies: 0.5 m cells, A* with a binary heap and line-of-sight path smoothing.
+// A cell is blocked when a 0.38 m circle at its centre touches a collider, so doorways (1.3 m) stay open
+// while every wall, however thin, blocks the cells next to it. Search arrays are allocated once and
+// stamped per search, so path finding does not allocate.
 
 import type { CollisionWorld } from "./collision"
 import type { Terrain } from "./terrain"
 
 export class NavGrid {
-  readonly cell = 2
+  readonly cell = 0.5
   readonly n: number
   readonly blocked: Uint8Array
   private origin: number
   private pathsThisFrame = 0
-  budgetPerFrame = 4
+  budgetPerFrame = 3
+  private g: Float32Array
+  private came: Int32Array
+  private stamp: Int32Array
+  private closedStamp: Int32Array
+  private gen = 0
+  private heap = new Heap()
 
   constructor(size: number, collision: CollisionWorld, terrain: Terrain | null, extraBlocked?: (x: number, z: number) => boolean) {
     this.n = Math.ceil((size * 2) / this.cell)
     this.origin = -size
     this.blocked = new Uint8Array(this.n * this.n)
+    this.g = new Float32Array(this.n * this.n)
+    this.came = new Int32Array(this.n * this.n)
+    this.stamp = new Int32Array(this.n * this.n)
+    this.closedStamp = new Int32Array(this.n * this.n)
     for (let j = 0; j < this.n; j++) {
       for (let i = 0; i < this.n; i++) {
         const x = this.origin + (i + 0.5) * this.cell
         const z = this.origin + (j + 0.5) * this.cell
         const y = terrain ? terrain.heightAt(x, z) : 0
-        let b = false
-        // Sample the centre and four offsets so thin walls are caught.
-        for (const [ox, oz] of [[0, 0], [0.7, 0], [-0.7, 0], [0, 0.7], [0, -0.7]]) {
-          if (collision.pointInside(x + ox, z + oz, y + 0.6)) {
-            b = true
-            break
-          }
-        }
+        let b = collision.resolveCircle(x, z, 0.38, y + 0.1, 1.5).hit
         if (!b && terrain) {
           if (terrain.isWater(x, z) || terrain.slopeAt(x, z) > 0.55) b = true
           if (Math.max(Math.abs(x), Math.abs(z)) > size * 0.94) b = true
@@ -57,7 +63,7 @@ export class NavGrid {
   }
 
   /** Nearest free cell to a world position (spiral search). */
-  nearestFree(x: number, z: number, maxR = 6): [number, number] | null {
+  nearestFree(x: number, z: number, maxR = 10): [number, number] | null {
     const [ci, cj] = this.toCell(x, z)
     if (!this.isBlocked(ci, cj)) return [ci, cj]
     for (let r = 1; r <= maxR; r++) {
@@ -105,7 +111,7 @@ export class NavGrid {
   }
 
   /** A* path from (sx,sz) to (tx,tz) in world units; returns waypoints (excluding the start). */
-  findPath(sx: number, sz: number, tx: number, tz: number, maxNodes = 6000): [number, number][] | null {
+  findPath(sx: number, sz: number, tx: number, tz: number, maxNodes = 60000): [number, number][] | null {
     this.pathsThisFrame++
     const start = this.nearestFree(sx, sz)
     const goal = this.nearestFree(tx, tz)
@@ -114,20 +120,29 @@ export class NavGrid {
     const sIdx = start[1] * n + start[0]
     const gIdx = goal[1] * n + goal[0]
     if (sIdx === gIdx) return [[tx, tz]]
-    const g = new Float32Array(n * n).fill(Infinity)
-    const came = new Int32Array(n * n).fill(-1)
-    const closed = new Uint8Array(n * n)
-    const heap = new Heap()
+    const gen = ++this.gen
+    const g = this.g
+    const came = this.came
+    const stamp = this.stamp
+    const closed = this.closedStamp
+    const heap = this.heap
+    heap.clear()
     g[sIdx] = 0
+    stamp[sIdx] = gen
+    came[sIdx] = -1
     heap.push(sIdx, this.h(start[0], start[1], goal[0], goal[1]))
     let expanded = 0
     const gi = goal[0]
     const gj = goal[1]
+    let found = false
     while (heap.size > 0) {
       const cur = heap.pop()
-      if (cur === gIdx) break
-      if (closed[cur]) continue
-      closed[cur] = 1
+      if (cur === gIdx) {
+        found = true
+        break
+      }
+      if (closed[cur] === gen) continue
+      closed[cur] = gen
       if (++expanded > maxNodes) return null
       const ci = cur % n
       const cj = (cur - ci) / n
@@ -140,17 +155,18 @@ export class NavGrid {
           // No corner cutting
           if (di !== 0 && dj !== 0 && (this.isBlocked(ci + di, cj) || this.isBlocked(ci, cj + dj))) continue
           const nIdx = nj * n + ni
-          if (closed[nIdx]) continue
+          if (closed[nIdx] === gen) continue
           const cost = g[cur] + (di !== 0 && dj !== 0 ? 1.4142 : 1)
-          if (cost < g[nIdx]) {
+          if (stamp[nIdx] !== gen || cost < g[nIdx]) {
             g[nIdx] = cost
+            stamp[nIdx] = gen
             came[nIdx] = cur
             heap.push(nIdx, cost + this.h(ni, nj, gi, gj))
           }
         }
       }
     }
-    if (came[gIdx] < 0) return null
+    if (!found) return null
     // Reconstruct
     const cells: [number, number][] = []
     let c = gIdx
@@ -178,10 +194,11 @@ export class NavGrid {
     return out
   }
 
+  /** Slightly weighted heuristic: greedier search, far fewer expansions on open ground. */
   private h(i: number, j: number, gi: number, gj: number): number {
     const dx = Math.abs(i - gi)
     const dz = Math.abs(j - gj)
-    return Math.max(dx, dz) + 0.4142 * Math.min(dx, dz)
+    return (Math.max(dx, dz) + 0.4142 * Math.min(dx, dz)) * 1.2
   }
 }
 
@@ -190,6 +207,10 @@ class Heap {
   private keys: number[] = []
   get size(): number {
     return this.items.length
+  }
+  clear(): void {
+    this.items.length = 0
+    this.keys.length = 0
   }
   push(item: number, key: number): void {
     this.items.push(item)

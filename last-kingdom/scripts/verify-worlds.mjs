@@ -40,14 +40,14 @@ try {
     // Boss reachable: nav path from spawn to the boss arena
     const path = await page.evaluate(() => {
       const e = window.__lastKingdom.game.expedition
-      const r = e.world.nav.findPath(e.world.playerSpawn.x, e.world.playerSpawn.z, e.world.bossArena.x, e.world.bossArena.z, 40000)
+      const r = e.world.nav.findPath(e.world.playerSpawn.x, e.world.playerSpawn.z, e.world.bossArena.x, e.world.bossArena.z, 400000)
       return r ? r.length : null
     })
     g.check(path !== null, `${id}: Weg vom Start zum Boss gefunden (${path} Wegpunkte)`)
     // every extraction reachable
     const ex = await page.evaluate(() => {
       const e = window.__lastKingdom.game.expedition
-      return e.world.extractions.map((x) => ({ id: x.def.id, ok: !!e.world.nav.findPath(e.world.playerSpawn.x, e.world.playerSpawn.z, x.x, x.z, 40000) }))
+      return e.world.extractions.map((x) => ({ id: x.def.id, ok: !!e.world.nav.findPath(e.world.playerSpawn.x, e.world.playerSpawn.z, x.x, x.z, 400000) }))
     })
     for (const x of ex) g.check(x.ok, `${id}: Extraktion ${x.id} erreichbar`)
     await g.shot(`w-${id}.png`)

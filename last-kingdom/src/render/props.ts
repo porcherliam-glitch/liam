@@ -238,16 +238,16 @@ export function church(opts: { w?: number; d?: number; towerH?: number; ruined?:
       g.add(r)
     }
   }
-  // Tower
+  // Tower at the back of the nave (the door is at +Z)
   const towerH = opts.towerH ?? 16
   const tx = 0
-  const tz = d / 2 + 2.2
+  const tz = -d / 2 - 2.2
   const tw = 4.4
   g.add(box(tw, towerH, tw, stone, tx, towerH / 2, tz))
   const tr = mesh(new THREE.ConeGeometry(tw * 0.8, 4, 4), M.roof(), tx, towerH + 2, tz)
   tr.rotation.y = Math.PI / 4
   g.add(tr)
-  g.add(box(1.2, 1.8, 0.2, win, tx, towerH - 2.5, tz + tw / 2))
+  g.add(box(1.2, 1.8, 0.2, win, tx, towerH - 2.5, tz - tw / 2))
   cols.push(boxCol(tx, tz, tw / 2, tw / 2, 0, towerH))
   // Altar + pews
   g.add(box(2, 1.1, 0.9, stone, 0, 0.55, -d / 2 + 1.6))

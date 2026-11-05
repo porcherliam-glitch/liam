@@ -40,7 +40,7 @@ main.ts → Game
 - `worldgen.ts` legt pro Biom Straßen, Gebäude, Mauern, Bäume, Gräber, Container, Fackeln, Extraktionspunkte, Hebel, Geheimtruhen mit Schlüsselgegenständen, Pestzonen und Orte (POIs) an. Alles ist deterministisch aus dem Gebiets-Seed; Beute und Gegnerplatzierung nutzen einen Laufzeit-Seed.
 - Statische Meshes werden pro 48-m-Zelle und Material zusammengefasst (`StaticBatcher`), dadurch bleiben die Draw-Calls im Bereich von einigen Hundert.
 - Kollision: gedrehte Boxen und Zylinder in einem Raster. Figuren sind Kreise auf der XZ-Ebene mit Höhenbereich. Die Kamera nutzt einen Segment-Cast gegen dieselben Kollider.
-- Navigation: 2-m-Gitter, blockiert durch Kollider, Wasser und Steilhänge; A* mit Heap und Sichtlinien-Glättung; Budget von 4 Pfaden pro Frame.
+- Navigation: 0,5-m-Gitter; eine Zelle ist blockiert, wenn ein Kreis mit 0,38 m Radius an ihrem Mittelpunkt einen Kollider berührt (Türen von 1,3 m bleiben offen, dünne Wände sperren), dazu Wasser und Steilhänge. A* mit Heap, einmalig angelegten, pro Suche gestempelten Arrays (keine Allokation) und Sichtlinien-Glättung; Budget von 3 Pfaden pro Frame, Gegner mit freier Sichtlinie steuern direkt.
 
 ## Figuren
 

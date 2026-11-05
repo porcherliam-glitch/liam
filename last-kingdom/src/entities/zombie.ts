@@ -403,14 +403,14 @@ export class Zombie {
       if (!direct) {
         this.pathTimer -= dt
         if ((!this.path || this.pathTimer <= 0) && ctx.world.nav.budgetLeft) {
-          this.pathTimer = this.state === "chase" ? 0.8 : 2.5
+          this.pathTimer = this.state === "chase" ? 1.1 : 2.5
           this.path = ctx.world.nav.findPath(this.pos.x, this.pos.z, targetX, targetZ)
         }
         if (this.path && this.path.length) {
           const wp = this.path[0]
           dirX = wp[0] - this.pos.x
           dirZ = wp[1] - this.pos.z
-          if (Math.hypot(dirX, dirZ) < 1.2) this.path.shift()
+          if (Math.hypot(dirX, dirZ) < 0.9) this.path.shift()
         }
       } else this.path = null
       const len = Math.hypot(dirX, dirZ)
