@@ -39,6 +39,8 @@ export class Zombie {
   private pathTimer = 0
   private perceptionTimer = 0
   private attackCooldown = 0
+  /** Direction (±1) in which this enemy circles while waiting for an attack token. */
+  private circleDir = 1
   private attackHitDone = false
   private groanTimer = 0
   private walkPhase = 0
@@ -161,6 +163,7 @@ export class Zombie {
     ctx.scene.add(this.group)
     this.group.position.copy(this.pos)
     this.perceptionTimer = this.rng.range(0, 0.3)
+    this.circleDir = this.rng.chance(0.5) ? 1 : -1
     this.groanTimer = this.rng.range(3, 12)
     this.lastPos = { x: this.pos.x, z: this.pos.z }
     // Apply the idle pose once so distant (sleeping) zombies never show the bind pose.
@@ -303,6 +306,7 @@ export class Zombie {
     let targetX = 0
     let targetZ = 0
     let wantMove = false
+    let holdRing = false
     switch (this.state) {
       case "idle":
         if (this.stateTimer > this.rng.range(2, 6)) this.setState("wander")
@@ -364,11 +368,8 @@ export class Zombie {
           else if (this.isBoss || this.attackTokenFree()) this.startAttack()
           else this.attackCooldown = this.rng.range(0.15, 0.45)
         }
-        if (!this.isBoss && this.attackCooldown > 0 && dist < this.type.attackRange + 0.3) {
-          // Waiting for a turn: stay where we are and keep facing the player
-          wantMove = false
-          this.yaw = turnToward(this.yaw, Math.atan2(dx, dz), dt * 5)
-        }
+        // Waiting for a turn (denied token or own cooldown): hold arm's length instead of pushing in
+        if (!this.isBoss && this.attackCooldown > 0 && dist < this.type.attackRange + 0.6) holdRing = true
         // Abilities
         if (this.state === "chase") this.tryAbility(dist, dx, dz)
         // Knights raise the shield while approaching the player head-on
@@ -401,7 +402,32 @@ export class Zombie {
 
     // ---- steering and movement ----
     let moved = 0
-    if (wantMove && moveSpeed > 0) {
+    if (holdRing) {
+      // Keep arm's length and drift sideways around the player, always facing them; the group stays readable
+      moveSpeed = this.type.wanderSpeed
+      const ring = this.type.attackRange + 0.1
+      const ax = dist > 0.01 ? (this.pos.x - p.pos.x) / dist : -Math.sin(this.yaw)
+      const az = dist > 0.01 ? (this.pos.z - p.pos.z) / dist : -Math.cos(this.yaw)
+      let mx: number
+      let mz: number
+      if (dist < ring - 0.2) {
+        mx = ax
+        mz = az
+      } else if (dist > ring + 0.3) {
+        mx = -ax
+        mz = -az
+      } else {
+        mx = az * this.circleDir
+        mz = -ax * this.circleDir
+      }
+      this.updateSeparation(dt)
+      mx += this.sepX * 1.5
+      mz += this.sepZ * 1.5
+      const ml = Math.hypot(mx, mz) || 1
+      moved = this.tryMove((mx / ml) * moveSpeed * dt, (mz / ml) * moveSpeed * dt)
+      this.walkPhase += (moved / 0.7) * Math.PI
+      this.yaw = turnToward(this.yaw, Math.atan2(dx, dz), dt * 5)
+    } else if (wantMove && moveSpeed > 0) {
       let dirX = targetX - this.pos.x
       let dirZ = targetZ - this.pos.z
       const tdist = Math.hypot(dirX, dirZ)
@@ -424,23 +450,7 @@ export class Zombie {
       if (len > 0.05) {
         dirX /= len
         dirZ /= len
-        // Separation from other zombies (every few frames)
-        this.separationTimer -= dt
-        if (this.separationTimer <= 0) {
-          this.separationTimer = 0.12
-          this.sepX = this.sepZ = 0
-          for (const z of ctx.zombies) {
-            if (z === this || z.dead || z.sleeping) continue
-            const ox = this.pos.x - z.pos.x
-            const oz = this.pos.z - z.pos.z
-            const d = Math.hypot(ox, oz)
-            const min = this.radius + z.radius + 0.3
-            if (d < min && d > 0.001) {
-              this.sepX += (ox / d) * (min - d)
-              this.sepZ += (oz / d) * (min - d)
-            }
-          }
-        }
+        this.updateSeparation(dt)
         const sx = dirX + this.sepX * 1.5
         const sz = dirZ + this.sepZ * 1.5
         const sl = Math.hypot(sx, sz) || 1
@@ -478,7 +488,7 @@ export class Zombie {
     const st = this.state
     if (st !== "attack" && st !== "stagger" && st !== "ability") {
       if (this.blocking) a.play("knight_block")
-      else if (wantMove && moved > 0.001) {
+      else if ((wantMove || holdRing) && moved > 0.001) {
         const runSpeed = moveSpeed >= 3.5
         if (this.type.abilities?.includes("sword")) a.play(runSpeed ? "run" : "walk")
         else a.play(runSpeed ? "z_run" : "z_walk")
@@ -502,6 +512,25 @@ export class Zombie {
     this.group.rotation.y = this.yaw
   }
 
+  /** Separation push away from other zombies, refreshed every few frames. */
+  private updateSeparation(dt: number): void {
+    this.separationTimer -= dt
+    if (this.separationTimer > 0) return
+    this.separationTimer = 0.12
+    this.sepX = this.sepZ = 0
+    for (const z of this.ctx.zombies) {
+      if (z === this || z.dead || z.sleeping) continue
+      const ox = this.pos.x - z.pos.x
+      const oz = this.pos.z - z.pos.z
+      const d = Math.hypot(ox, oz)
+      const min = this.radius + z.radius + 0.3
+      if (d < min && d > 0.001) {
+        this.sepX += (ox / d) * (min - d)
+        this.sepZ += (oz / d) * (min - d)
+      }
+    }
+  }
+
   private tryMove(dx: number, dz: number): number {
     const ctx = this.ctx
     const ox = this.pos.x
@@ -519,9 +548,15 @@ export class Zombie {
     const pdz = this.pos.z - ctx.player.pos.z
     const pd = Math.hypot(pdx, pdz)
     const minD = this.radius + 0.4
-    if (pd < minD && pd > 0.001) {
-      this.pos.x = ctx.player.pos.x + (pdx / pd) * minD
-      this.pos.z = ctx.player.pos.z + (pdz / pd) * minD
+    if (pd < minD) {
+      if (pd > 0.001) {
+        this.pos.x = ctx.player.pos.x + (pdx / pd) * minD
+        this.pos.z = ctx.player.pos.z + (pdz / pd) * minD
+      } else {
+        // Exactly on top of the player (large frame step): step back along the facing direction
+        this.pos.x = ctx.player.pos.x - Math.sin(this.yaw) * minD
+        this.pos.z = ctx.player.pos.z - Math.cos(this.yaw) * minD
+      }
     }
     return Math.hypot(this.pos.x - ox, this.pos.z - oz)
   }

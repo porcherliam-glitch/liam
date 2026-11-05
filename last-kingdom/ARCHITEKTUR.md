@@ -50,7 +50,7 @@ main.ts → Game
 
 ## KI
 
-Zustände `idle → wander → investigate → chase → attack / ability → stagger → dead`. Wahrnehmung alle 0,25 s: Sichtweite × Tageslicht × Wetter × Tarnung, Sichtkegel, Sichtlinie gegen Kollider; Gehör über `onNoise`-Ereignisse. Verfolgung direkt bei freier Linie, sonst Pfad. Separation zwischen Zombies, Steckenbleib-Erkennung. Weit entfernte, nicht alarmierte Zombies schlafen (günstiger Update). **Angriffs-Token:** Gleichzeitig greifen höchstens 1/2/3 Gegner (leicht/normal/schwer) an; wer keinen Token bekommt, wartet auf Armlänge und hält Blickkontakt (`Zombie.attackTokens`). Bosse sind ausgenommen. Bosse haben Phasen (100/60/30 %) mit Rufen, Sturmangriff, Sprung, Bodenschlag, Pestwolke.
+Zustände `idle → wander → investigate → chase → attack / ability → stagger → dead`. Wahrnehmung alle 0,25 s: Sichtweite × Tageslicht × Wetter × Tarnung, Sichtkegel, Sichtlinie gegen Kollider; Gehör über `onNoise`-Ereignisse. Verfolgung direkt bei freier Linie, sonst Pfad. Separation zwischen Zombies, Steckenbleib-Erkennung. Weit entfernte, nicht alarmierte Zombies schlafen (günstiger Update). **Angriffs-Token:** Gleichzeitig greifen höchstens 1/2/3 Gegner (leicht/normal/schwer) an; wer keinen Token bekommt oder gerade zugeschlagen hat, hält Armlänge (Angriffsreichweite + 0,1 m), driftet mit Gehtempo seitlich um den Spieler und bleibt ihm zugewandt (`holdRing` in `Zombie.update`, `Zombie.attackTokens`). Bosse sind ausgenommen. Steht ein Zombie durch einen großen Frameschritt exakt auf dem Spieler, wird er entlang seiner Blickrichtung zurückgesetzt. Bosse haben Phasen (100/60/30 %) mit Rufen, Sturmangriff, Sprung, Bodenschlag, Pestwolke.
 
 ## Endgame und Komfort
 
