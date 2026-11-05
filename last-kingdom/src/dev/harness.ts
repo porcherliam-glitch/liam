@@ -123,8 +123,11 @@ export function installHarness(game: Game): void {
       const p = game.profile
       if (!p) return false
       const it = createItem(id, 1)
-      addItem(p.loadout, it)
-      const r = equip(p.loadout, it.uid, slot)
+      if (addItem(p.loadout, it) > 0) return false
+      // addItem merges stackables into an existing stack, so look the item up by id rather than by uid
+      const inBag = p.loadout.slots.find((s) => s?.uid === it.uid) ?? p.loadout.slots.find((s) => s?.defId === id)
+      if (!inBag) return false
+      const r = equip(p.loadout, inBag.uid, slot)
       return r.ok
     },
     setHour(h: number) {

@@ -15,7 +15,7 @@ try {
 }
 
 export const ROOT = fileURLToPath(new URL("../", import.meta.url))
-export const DIST = join(ROOT, "dist")
+export const DIST = process.env.LK_DIST ?? join(ROOT, "dist")
 export const SHOTS = join(ROOT, "verification-shots")
 const MIME = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css", ".png": "image/png", ".json": "application/json" }
 
