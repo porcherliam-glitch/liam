@@ -227,7 +227,7 @@ export const AREAS: AreaDef[] = [
       { id: "city_gate", name: "Stadttor", kind: "gate", x: 0, z: 172, channel: 8, activation: { kind: "key", itemId: "gate_key", label: "Stadttor aufschließen" } },
       { id: "city_boat", name: "Boot am Hafen", kind: "boat", x: 140, z: -96, channel: 12, activation: { kind: "key", itemId: "oar", label: "Ruder einsetzen" } },
       { id: "city_tunnel", name: "Geheimer Tunnel", kind: "tunnel", x: -165, z: -140, channel: 10 },
-      { id: "city_cart", name: "Verlassener Karren", kind: "cart", x: 150, z: 150, channel: 8 },
+      { id: "city_cart", name: "Verlassener Karren", kind: "cart", x: 140, z: 140, channel: 8 },
     ],
     secrets: ["Die Schatzkammer der Kathedrale", "Das Haus des Goldschmieds"],
     hazards: ["Große Horden auf dem Marktplatz", "Hauptleute mit Schilden"],

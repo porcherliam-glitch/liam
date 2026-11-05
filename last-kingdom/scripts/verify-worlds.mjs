@@ -44,12 +44,20 @@ try {
       return r ? r.length : null
     })
     g.check(path !== null, `${id}: Weg vom Start zum Boss gefunden (${path} Wegpunkte)`)
-    // every extraction reachable
+    // every extraction reachable, and the beacon itself must not sit inside a collider (prompt radius 3.2 m)
     const ex = await page.evaluate(() => {
       const e = window.__lastKingdom.game.expedition
-      return e.world.extractions.map((x) => ({ id: x.def.id, ok: !!e.world.nav.findPath(e.world.playerSpawn.x, e.world.playerSpawn.z, x.x, x.z, 400000) }))
+      return e.world.extractions.map((x) => {
+        const path = e.world.nav.findPath(e.world.playerSpawn.x, e.world.playerSpawn.z, x.x, x.z, 400000)
+        const end = path && path.length ? path[path.length - 1] : null
+        const endDist = end ? Math.hypot(end[0] - x.x, end[1] - x.z) : null
+        return { id: x.def.id, ok: !!path, free: !e.world.nav.isBlockedWorld(x.x, x.z), endDist: endDist === null ? null : Math.round(endDist * 10) / 10 }
+      })
     })
-    for (const x of ex) g.check(x.ok, `${id}: Extraktion ${x.id} erreichbar`)
+    for (const x of ex) {
+      g.check(x.ok, `${id}: Extraktion ${x.id} erreichbar`)
+      g.check(x.free && x.endDist !== null && x.endDist < 2, `${id}: Extraktion ${x.id} frei begehbar (Wegende ${x.endDist} m vom Punkt)`)
+    }
     await g.shot(`w-${id}.png`)
     await page.evaluate(() => window.__lastKingdom.game.goToCamp())
     await g.frames(2)

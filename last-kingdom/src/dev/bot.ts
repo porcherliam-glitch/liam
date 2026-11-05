@@ -47,6 +47,8 @@ export class Bot {
   private huntStall = 0
   private ignored = new Map<Zombie, number>()
   private potionCooldown = 0
+  /** Bag stacks at the start; the loot goal counts only what the run adds. */
+  private startBag = 0
   done = false
 
   private hunt: boolean
@@ -57,6 +59,7 @@ export class Bot {
     this.hunt = opts.hunt ?? true
     this.stats = { area: e.areaId, seconds: 0, kills: 0, damageTaken: 0, potions: 0, containers: 0, items: 0, gold: 0, outcome: "running", lowestHp: e.player.maxHp, dodges: 0, blocks: 0, maxNear: 0 }
     this.lastHp = e.player.hp
+    this.startBag = allItems(e.player.inventory).length
     game.input.virtual = { move: { x: 0, y: 0 }, held: new Set(), tap: new Set() }
   }
 
@@ -119,7 +122,8 @@ export class Bot {
       }
     }
     this.stats.maxNear = Math.max(this.stats.maxNear, near)
-    const bagCount = allItems(p.inventory).length
+    const bagCount = allItems(p.inventory).length - this.startBag
+    this.stats.items = bagCount
     if (threat && (td < 7 || (this.hunt && td < 22 && this.mode !== "extract" && !threat.sleeping))) {
       if (this.huntTarget !== threat) {
         this.huntTarget = threat
@@ -275,9 +279,15 @@ export class Bot {
     this.lastPos = { x: p.pos.x, z: p.pos.z }
     if (moved < 0.02 * Math.max(1, dt * 60)) this.stuck += dt
     else this.stuck = Math.max(0, this.stuck - dt * 0.5)
-    if (this.stuck > 1.5 && this.stuck < 1.6) {
-      v.tap.add("jump")
-      v.move.x = Math.random() < 0.5 ? 1 : -1
+    if (this.stuck > 1.5) {
+      // Blocked: jump and sidestep, after a few seconds drop the path so it is searched again
+      if (this.stuck < 1.6) v.tap.add("jump")
+      v.move.x = Math.floor(this.stuck) % 2 === 0 ? 1 : -1
+      if (this.stuck > 4) {
+        this.stuck = 0
+        this.path = null
+        this.pathTimer = 0
+      }
     }
     void angleDelta
   }
