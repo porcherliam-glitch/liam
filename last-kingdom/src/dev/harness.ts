@@ -8,6 +8,7 @@ import { Zombie } from "../entities/zombie"
 import type { WeatherKind } from "../render/weather"
 import { Bot } from "./bot"
 import { AREAS } from "../world/areas"
+import { models } from "../render/assets"
 
 export function installHarness(game: Game): void {
   const api = {
@@ -45,6 +46,7 @@ export function installHarness(game: Game): void {
       }
     },
     profile: () => game.profile,
+    models,
     areas: () => AREAS.map((a) => ({ id: a.id, name: a.name, unlockLevel: a.unlockLevel, danger: a.danger })),
     /** Teleports the player. */
     teleport(x: number, z: number) {

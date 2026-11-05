@@ -1,5 +1,6 @@
 // Inlines the Vite build (dist/index.html + JS + CSS) into one self-contained HTML file that opens by double-click.
-import { readFile, writeFile } from "node:fs/promises"
+import { readFile, writeFile, readdir } from "node:fs/promises"
+import { existsSync } from "node:fs"
 import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 
@@ -21,6 +22,20 @@ for (const [tag, file] of scripts) {
   html = html.replace("</body>", () => `<script type="module">\n${js}\n</script>\n</body>`)
 }
 html = html.replace(/<link rel="modulepreload"[^>]*>/g, "")
+// Models (public/models/*.glb) are embedded as base64 so the single file still finds them (see src/render/assets.ts).
+const modelsDir = join(DIST, "models")
+let embedded = 0
+let embeddedBytes = 0
+if (existsSync(modelsDir)) {
+  const map = {}
+  for (const file of (await readdir(modelsDir)).filter((f) => f.endsWith(".glb")).sort()) {
+    const buf = await readFile(join(modelsDir, file))
+    map[file.replace(/\.glb$/, "")] = `data:model/gltf-binary;base64,${buf.toString("base64")}`
+    embedded++
+    embeddedBytes += buf.length
+  }
+  if (embedded) html = html.replace("</head>", () => `<script>window.__LK_MODELS=${JSON.stringify(map)}</script>\n</head>`)
+}
 if (/(src|href)="\.\/assets\//.test(html)) throw new Error("build-single: unresolved asset reference left in HTML")
 await writeFile(OUT, html)
-console.log(`build-single: ${OUT} (${Math.round(html.length / 1024)} KB)`)
+console.log(`build-single: ${OUT} (${Math.round(html.length / 1024)} KB, ${embedded} Modelle / ${Math.round(embeddedBytes / 1024)} KB eingebettet)`)
