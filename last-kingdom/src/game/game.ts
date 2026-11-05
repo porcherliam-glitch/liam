@@ -19,7 +19,8 @@ import { areaDef, areasUnlockedBy } from "../world/areas"
 import { applyXp } from "../meta/progression"
 import { campBonuses } from "../meta/campData"
 import { skillBonuses } from "../meta/skillData"
-import { countItem, removeItem, resizeInventory } from "../items/inventory"
+import { addItem, countItem, removeItem, resizeInventory } from "../items/inventory"
+import { classDef } from "../meta/classData"
 import { events } from "../core/events"
 import { itemDef } from "../items/itemData"
 import { createItem } from "../items/items"
@@ -275,6 +276,7 @@ export class Game implements GameApi {
     const lootKept: ItemInstance[] = []
     const lootLost: ItemInstance[] = []
     const missionsDone = []
+    let kit: ItemInstance[] | undefined
     let gold = e.runGold
     let xp = e.runXp
     if (r.success) {
@@ -324,6 +326,22 @@ export class Game implements GameApi {
       }
       // Rags so the character is not naked
       if (!inv.equipment.body) inv.equipment.body = createItem("armor_rags")
+      // Emergency kit: nobody comes back without any weapon at all, otherwise the next run is hopeless
+      const isWeapon = (it: ItemInstance | null | undefined) => !!it && !!itemDef(it.defId).weapon
+      const anyWeapon = isWeapon(inv.equipment.mainHand) || inv.slots.some(isWeapon) || p.stash.some(isWeapon)
+      if (!anyWeapon) {
+        const weaponId = classDef(p.classId).startEquipment.mainHand
+        if (weaponId) {
+          const weapon = createItem(weaponId)
+          inv.equipment.mainHand = weapon
+          kit = [weapon]
+          const ranged = itemDef(weaponId).weapon?.ranged
+          if (ranged) {
+            const ammo = createItem(ranged.ammoId, 20)
+            if (addItem(inv, ammo) === 0) kit.push(ammo)
+          }
+        }
+      }
       for (const m of e.missions) {
         if (m.status === "active" && m.areaId === area.id && m.kind !== "bossHunt") m.progress = 0
         if (m.status === "completed") missionsDone.push(m)
@@ -347,6 +365,7 @@ export class Game implements GameApi {
       levelsGained: levels,
       lootKept,
       lootLost,
+      kit,
       missionsDone,
       bestRarity: best,
     }
@@ -357,6 +376,7 @@ export class Game implements GameApi {
     this.input.wantPointerLock = false
     this.input.releaseLock()
     this.campScene.build(this.profile)
+    this.ui.clearToasts()
     this.ui.push(new ResultsScreen(this, this.resultPending))
     this.audio.setMusic("menu")
   }

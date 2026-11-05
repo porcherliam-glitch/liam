@@ -125,12 +125,23 @@ try {
   await g.frames(3)
   const bagBefore = (await g.snapshot()).profile.bag
   const firstSlot = await page.evaluate(() => window.__lastKingdom.profile().loadout.slots[0]?.defId ?? null)
+  // Does a weapon survive the death (insured slot 0 or stash)? Otherwise the camp hands out the class weapon.
+  const weaponStays = await page.evaluate(() => {
+    const p = window.__lastKingdom.profile()
+    const isWeapon = (it) => !!it && /^(longsword|shortsword|greatsword|battleaxe|mace|spear|dagger|bow|crossbow)_/.test(it.defId)
+    return isWeapon(p.loadout.slots[0]) || p.stash.some(isWeapon)
+  })
   await page.evaluate(() => window.__lastKingdom.game.expedition.player.die("Test"))
   await page.waitForFunction(() => window.__lastKingdom.snapshot().state === "camp", null, { timeout: 60000 })
   s = await g.snapshot()
   g.check(s.screen === "results", "Ergebnisbildschirm nach dem Tod")
   g.check(s.profile.stats.deaths === 1, "Tod gezählt")
-  g.check(s.profile.equipment.mainHand === null, "Ausgerüstete Waffe beim Tod verloren")
+  if (weaponStays) g.check(s.profile.equipment.mainHand === null, "Ausgerüstete Waffe beim Tod verloren")
+  else {
+    g.check(s.profile.equipment.mainHand === "dagger_1", `Notausrüstung: Dolch nach dem Tod ohne Waffe (${s.profile.equipment.mainHand})`)
+    const text = await page.locator(".screen-results").innerText()
+    g.check(/Notausrüstung/.test(text), "Notausrüstung auf dem Ergebnisbildschirm genannt")
+  }
   g.check(s.profile.equipment.body === "armor_rags", "Lumpen als Ersatzrüstung")
   const bagAfter = s.profile.bag
   g.check(bagAfter.length <= 1 && (firstSlot === null || bagAfter[0]?.startsWith(firstSlot)), `Nur der versicherte Platz bleibt (${bagAfter.join(", ") || "leer"}; vorher ${bagBefore.length} Stapel)`)

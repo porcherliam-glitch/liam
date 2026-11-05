@@ -337,6 +337,11 @@ export class UI {
     this.hintBar.innerHTML = hints.map((h) => `<span class="hint">${glyph(h.action, this.input.bindings, this.input.device)} ${h.label}</span>`).join("")
   }
 
+  /** Removes pending toasts, e.g. when a run ends and the results screen takes over. */
+  clearToasts(): void {
+    this.toastBox.replaceChildren()
+  }
+
   toast(text: string, kind: "info" | "loot" | "warn" | "good" = "info"): void {
     const el = document.createElement("div")
     el.className = `toast toast-${kind}`

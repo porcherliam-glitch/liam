@@ -69,7 +69,7 @@ DOM-basiert. `UI` verwaltet einen Bildschirm-Stapel; jedes `Screen` liefert HTML
 
 - `npm test`: Formeln, Inventar, Beute, Missionen, Gebiete, Kollision und Wegfindung.
 - `npm run verify`: Hauptmenü → Charakter → Lager → Expedition → Bewegung → Beute → Kampf → Inventar → Pause/Karte → Extraktion → Ergebnis → Spielstand nach Neuladen.
-- `npm run verify:systems`: Ausbau, Herstellen, Reparatur, Aufwertung, Händler, Fähigkeiten, Lagerkiste, Todesstrafe, Missionsabgabe, Export/Import.
+- `npm run verify:systems`: Ausbau, Herstellen, Reparatur, Aufwertung, Händler, Fähigkeiten, Lagerkiste, Todesstrafe (inkl. Notausrüstung ohne verbliebene Waffe), Missionsabgabe, Export/Import.
 - `npm run verify:gamepad`: simulierter Xbox-/PlayStation-Controller: Menüs, Erstellen, Expedition, Stick-Bewegung, Kamera, Angriff, Block, Inventar, Pause, Hot-Plug und Symbolwechsel.
 - `npm run verify:worlds`: baut alle acht Gebiete, prüft Bevölkerung, Beute, Draw-Calls, begehbaren Start und die Erreichbarkeit von Boss und allen Extraktionspunkten über das Navigationsgitter.
 - `npm run balance -- <gebiet> <klasse> <schwierigkeit> <sekunden> [stufe|auto] [ausrüstung]`: der Bot spielt eine Expedition und meldet Kills, erlittenen Schaden, Container, Beute und Ausgang (extrahiert / gestorben / Zeit). Die Stufe ist standardmäßig die Freischaltstufe des Gebiets; `ausrüstung` ist eine Liste von Gegenstands-IDs (z. B. `longsword_2,armor_chain`), die vor dem Lauf angelegt werden. Dient der Balance-Prüfung ohne menschlichen Spieler.

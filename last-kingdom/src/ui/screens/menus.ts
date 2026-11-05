@@ -403,6 +403,8 @@ export interface RunSummary {
   levelsGained: number
   lootKept: ItemInstance[]
   lootLost: ItemInstance[]
+  /** Replacement gear the camp hands out after a death that left no weapon at all. */
+  kit?: ItemInstance[]
   missionsDone: MissionDef[]
   bestRarity: Rarity
 }
@@ -424,7 +426,7 @@ export class ResultsScreen implements Screen {
           <div class="stat"><span>Stufe</span><b>${p.level} ${bar(p.xp, xpForLevel(p.level), "xp")}</b></div>
           ${s.missionsDone.length ? `<div class="stat"><span>Missionen erfüllt</span><b>${s.missionsDone.map((m) => esc(m.title)).join(", ")}</b></div>` : ""}
         </div>
-        <div class="panel"><h2>${s.success ? "Gesicherte Beute" : "Gerettet (versichert)"}</h2>${list(s.lootKept)}</div>
+        <div class="panel"><h2>${s.success ? "Gesicherte Beute" : "Gerettet (versichert)"}</h2>${list(s.lootKept)}${s.kit?.length ? `<h2>Notausrüstung</h2><div class="dim">Die Lagerwache gibt dir das Nötigste, damit du weiterkämpfen kannst.</div>${list(s.kit)}` : ""}</div>
         ${s.success ? "" : `<div class="panel"><h2>Verloren</h2>${list(s.lootLost)}</div>`}
       </div>
       <button class="btn big" data-focus data-action="camp">Zurück ins Lager</button>`
