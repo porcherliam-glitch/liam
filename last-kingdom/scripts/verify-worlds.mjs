@@ -48,15 +48,18 @@ try {
     const ex = await page.evaluate(() => {
       const e = window.__lastKingdom.game.expedition
       return e.world.extractions.map((x) => {
-        const path = e.world.nav.findPath(e.world.playerSpawn.x, e.world.playerSpawn.z, x.x, x.z, 400000)
-        const end = path && path.length ? path[path.length - 1] : null
-        const endDist = end ? Math.hypot(end[0] - x.x, end[1] - x.z) : null
-        return { id: x.def.id, ok: !!path, free: !e.world.nav.isBlockedWorld(x.x, x.z), endDist: endDist === null ? null : Math.round(endDist * 10) / 10 }
+        const nav = e.world.nav
+        const path = nav.findPath(e.world.playerSpawn.x, e.world.playerSpawn.z, x.x, x.z, 400000)
+        // nearest walkable cell to the beacon: must be close enough for the 3.2 m prompt radius
+        const cell = nav.nearestFree(x.x, x.z)
+        const w = cell ? nav.toWorld(cell[0], cell[1]) : null
+        const freeDist = w ? Math.round(Math.hypot(w[0] - x.x, w[1] - x.z) * 10) / 10 : null
+        return { id: x.def.id, ok: !!path, freeDist }
       })
     })
     for (const x of ex) {
       g.check(x.ok, `${id}: Extraktion ${x.id} erreichbar`)
-      g.check(x.free && x.endDist !== null && x.endDist < 2, `${id}: Extraktion ${x.id} frei begehbar (Wegende ${x.endDist} m vom Punkt)`)
+      g.check(x.freeDist !== null && x.freeDist <= 1.5, `${id}: Extraktion ${x.id} frei begehbar (nächste freie Zelle ${x.freeDist} m vom Punkt)`)
     }
     await g.shot(`w-${id}.png`)
     await page.evaluate(() => window.__lastKingdom.game.goToCamp())
