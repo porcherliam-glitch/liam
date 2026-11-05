@@ -15,7 +15,7 @@ npm install
 npm run dev        # http://localhost:3100
 npm run build      # dist/ und die Einzeldatei TheLastKingdom.html
 npm test           # Unit-Tests der Spiellogik (vitest)
-npm run verify:all # Browser-Tests mit Playwright (Spielablauf, Systeme, Controller)
+npm run verify:all # Browser-Tests mit Playwright (Spielablauf, Systeme, Controller, alle Welten, Belastungstest)
 ```
 
 Der Spielstand liegt im Browser (localStorage, drei Charakterplätze). In den Einstellungen lässt er sich als Datei exportieren und bei der Charakterauswahl wieder importieren.

@@ -62,3 +62,5 @@ DOM-basiert. `UI` verwaltet einen Bildschirm-Stapel; jedes `Screen` liefert HTML
 - `npm run verify`: Hauptmenü → Charakter → Lager → Expedition → Bewegung → Beute → Kampf → Inventar → Pause/Karte → Extraktion → Ergebnis → Spielstand nach Neuladen.
 - `npm run verify:systems`: Ausbau, Herstellen, Reparatur, Aufwertung, Händler, Fähigkeiten, Lagerkiste, Todesstrafe, Missionsabgabe, Export/Import.
 - `npm run verify:gamepad`: simulierter Xbox-/PlayStation-Controller: Menüs, Erstellen, Expedition, Stick-Bewegung, Kamera, Angriff, Block, Inventar, Pause, Hot-Plug und Symbolwechsel.
+- `npm run verify:worlds`: baut alle acht Gebiete, prüft Bevölkerung, Beute, Draw-Calls, begehbaren Start und die Erreichbarkeit von Boss und allen Extraktionspunkten über das Navigationsgitter.
+- `npm run verify:stress`: Belastungstest mit allen Gegnertypen, Horde, Bogen, Nacht, Sturm, Nebel, Bosskampf mit Phasenwechsel, Katakomben und Pestnebel; mehrere simulierte Minuten ohne Konsolenfehler.

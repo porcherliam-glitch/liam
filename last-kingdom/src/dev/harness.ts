@@ -106,13 +106,16 @@ export function installHarness(game: Game): void {
       const e = game.expedition
       if (!e) return
       const p = e.player
+      const anyP = p as unknown as Record<string, unknown>
       if (on) {
-        const orig = p.takeDamage.bind(p)
-        ;(p as unknown as { _origTake: typeof orig })._origTake = orig
+        anyP._origTake = p.takeDamage
+        anyP._origApply = anyP.applyDamage
         p.takeDamage = () => false
+        anyP.applyDamage = () => undefined
+        p.hp = p.maxHp
       } else {
-        const o = (p as unknown as { _origTake?: typeof p.takeDamage })._origTake
-        if (o) p.takeDamage = o
+        if (anyP._origTake) p.takeDamage = anyP._origTake as typeof p.takeDamage
+        if (anyP._origApply) anyP.applyDamage = anyP._origApply
       }
     },
   }

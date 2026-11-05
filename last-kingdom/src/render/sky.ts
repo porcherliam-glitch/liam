@@ -150,7 +150,7 @@ export class Sky {
     this.moon.position.copy(focus).addScaledVector(moonDir.normalize(), 80)
     this.moon.target.position.copy(focus)
     this.moon.target.updateMatrixWorld()
-    this.hemi.intensity = this.underground ? 0.7 : lerp(0.26, 0.55, day) * (1 - cloud * 0.3)
+    this.hemi.intensity = this.underground ? 0.7 : lerp(0.26, 0.75, day) * (1 - cloud * 0.3)
     this.ambient.intensity = this.underground ? 1.8 : lerp(0.32, 0.25, day)
     this.ambient.color.setHex(this.underground ? 0x5a5270 : 0x404858)
     // Sky colours
