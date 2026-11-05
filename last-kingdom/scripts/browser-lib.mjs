@@ -62,7 +62,9 @@ export async function openGame({ viewport = { width: 1280, height: 720 }, initSc
     },
     snapshot: () => page.evaluate(() => window.__lastKingdom.snapshot()),
     async click(action, extra = "") {
-      await page.locator(`[data-action="${action}"]${extra}`).first().click()
+      const loc = page.locator(`[data-action="${action}"]${extra}`).first()
+      await loc.evaluate((e) => e.scrollIntoView({ block: "center", inline: "nearest" }))
+      await loc.click()
       await page.waitForTimeout(120)
     },
     async shot(name) {

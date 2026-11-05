@@ -46,6 +46,11 @@ export class UI {
     this.toastBox.className = "toasts"
     this.root.appendChild(this.toastBox)
     this.root.addEventListener("click", (e) => this.onClick(e))
+    // Right click = secondary action (stash / drop); browsers send it as contextmenu, not click.
+    this.root.addEventListener("contextmenu", (e) => {
+      e.preventDefault()
+      this.onClick(e)
+    })
     this.root.addEventListener("mousemove", (e) => this.onMouseMove(e))
   }
 
@@ -147,12 +152,13 @@ export class UI {
     if (target) this.setFocus(entry, target, false)
   }
 
-  private setFocus(entry: { el: HTMLElement; focused: HTMLElement | null }, el: HTMLElement, sound = true): void {
+  private setFocus(entry: { el: HTMLElement; focused: HTMLElement | null }, el: HTMLElement, sound = true, scroll = true): void {
     if (entry.focused === el) return
     entry.focused?.classList.remove("focused")
     entry.focused = el
     el.classList.add("focused")
-    el.scrollIntoView({ block: "nearest", inline: "nearest" })
+    // Only keyboard/controller navigation scrolls; the mouse must never move what it hovers.
+    if (scroll) el.scrollIntoView({ block: "nearest", inline: "nearest" })
     if (sound) this.audio.play("ui_move")
     const top = this.stack[this.stack.length - 1]
     if (top && top.el === entry.el) this.renderHints()
@@ -170,7 +176,7 @@ export class UI {
     const top = this.stack[this.stack.length - 1]
     if (!top || !target || !top.el.contains(target)) return
     if (target.classList.contains("disabled")) return
-    if (target.dataset.focus !== undefined) this.setFocus(top, target, false)
+    if (target.dataset.focus !== undefined) this.setFocus(top, target, false, false)
     this.audio.play("ui_confirm")
     top.screen.onAction?.(target.dataset.action!, target, e.button === 2 ? "alt" : "confirm")
   }
@@ -179,7 +185,7 @@ export class UI {
     const top = this.stack[this.stack.length - 1]
     if (!top) return
     const target = (e.target as HTMLElement).closest<HTMLElement>("[data-focus]")
-    if (target && top.el.contains(target) && !target.classList.contains("disabled")) this.setFocus(top, target, false)
+    if (target && top.el.contains(target) && !target.classList.contains("disabled")) this.setFocus(top, target, false, false)
   }
 
   private navigate(dir: "up" | "down" | "left" | "right"): void {
@@ -237,6 +243,8 @@ export class UI {
       if (primary <= 0) continue
       // Overlap bonus: elements that overlap on the secondary axis are strongly preferred.
       const overlap = dir === "up" || dir === "down" ? Math.max(0, Math.min(r.right, b.right) - Math.max(r.left, b.left)) : Math.max(0, Math.min(r.bottom, b.bottom) - Math.max(r.top, b.top))
+      // Without overlap, only accept candidates roughly in the pressed direction (no jumps across columns).
+      if (overlap === 0 && secondary > primary * 1.5) continue
       const score = primary + secondary * (overlap > 0 ? 0.3 : 2.5)
       if (score < bestScore) {
         bestScore = score

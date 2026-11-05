@@ -55,8 +55,8 @@ try {
     await g.frames(2)
   }
   const errs = g.errors.filter((e) => !/favicon/.test(e))
+  if (errs.length) console.log("  Konsolenfehler:", errs.join("\n"))
   g.check(errs.length === 0, `Keine Konsolenfehler (${errs.length})`)
-  if (errs.length) console.log(errs.join("\n"))
   console.log("verify-worlds: alles bestanden")
 } catch (e) {
   console.error(e)

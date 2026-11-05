@@ -156,7 +156,7 @@ export const AREAS: AreaDef[] = [
     lootTable: "monastery",
     extractions: [
       { id: "mon_gate", name: "Klosterpforte", kind: "gate", x: -140, z: 60, channel: 8 },
-      { id: "mon_boat", name: "Boot am See", kind: "boat", x: 135, z: 120, channel: 12, activation: { kind: "key", itemId: "oar", label: "Ruder einsetzen" } },
+      { id: "mon_boat", name: "Boot am See", kind: "boat", x: 96, z: 80, channel: 12, activation: { kind: "key", itemId: "oar", label: "Ruder einsetzen" } },
       { id: "mon_tunnel", name: "Geheimer Tunnel", kind: "tunnel", x: 60, z: -135, channel: 10, activation: { kind: "lever", label: "Verborgene Tür öffnen", leverX: 48, leverZ: -122 } },
     ],
     secrets: ["Die Bibliothek", "Der Weinkeller unter dem Refektorium"],
@@ -206,8 +206,8 @@ export const AREAS: AreaDef[] = [
     unlockAfter: "catacombs",
     seed: 7707,
     biome: "city",
-    spawnX: -160,
-    spawnZ: 160,
+    spawnX: -130,
+    spawnZ: 130,
     enemies: [
       { typeId: "walker", weight: 5 },
       { typeId: "walker_villager", weight: 3 },
@@ -225,7 +225,7 @@ export const AREAS: AreaDef[] = [
     lootTable: "city",
     extractions: [
       { id: "city_gate", name: "Stadttor", kind: "gate", x: 0, z: 172, channel: 8, activation: { kind: "key", itemId: "gate_key", label: "Stadttor aufschließen" } },
-      { id: "city_boat", name: "Boot am Hafen", kind: "boat", x: 165, z: -100, channel: 12, activation: { kind: "key", itemId: "oar", label: "Ruder einsetzen" } },
+      { id: "city_boat", name: "Boot am Hafen", kind: "boat", x: 140, z: -96, channel: 12, activation: { kind: "key", itemId: "oar", label: "Ruder einsetzen" } },
       { id: "city_tunnel", name: "Geheimer Tunnel", kind: "tunnel", x: -165, z: -140, channel: 10 },
       { id: "city_cart", name: "Verlassener Karren", kind: "cart", x: 150, z: 150, channel: 8 },
     ],

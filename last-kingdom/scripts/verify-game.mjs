@@ -49,12 +49,12 @@ try {
   await g.shot("04-expedition.png")
   // Move forward
   const p0 = s.expedition.player
-  await g.page.mouse.click(640, 360)
-  await g.hold("KeyW", 1.5)
+  await g.page.mouse.click(640, 360) // captures the mouse (and swings once)
+  await g.hold("KeyW", 2.5)
   await g.frames(2)
   s = await g.snapshot()
   const moved = Math.hypot(s.expedition.player.x - p0.x, s.expedition.player.z - p0.z)
-  g.check(moved > 2, `Spieler bewegt sich (${moved.toFixed(1)} m)`)
+  g.check(moved > 3, `Spieler bewegt sich (${moved.toFixed(1)} m)`)
   // Sprint and jump
   await g.page.keyboard.down("ShiftLeft")
   await g.hold("KeyW", 1.0)
@@ -106,7 +106,7 @@ try {
   await g.shot("06-combat.png")
   // Inventory in expedition
   await g.page.keyboard.press("Tab")
-  await g.page.waitForTimeout(200)
+  await g.frames(3)
   s = await g.snapshot()
   g.check(s.screen === "inventory", "Inventar in der Expedition geöffnet")
   await g.shot("07-inventory-run.png")
@@ -149,10 +149,11 @@ try {
   await g.page.waitForFunction(() => window.__GAME_READY__ === true)
   await g.click("continue")
   s = await g.snapshot()
-  g.check(s.profile && s.profile.name === "Testritter" && s.profile.stats.extractions === 1, "Spielstand nach Neuladen vorhanden")
+  console.log(`  Geladen: ${s.profile?.name}, Extraktionen ${s.profile?.stats.extractions}`)
+  g.check(s.profile && s.profile.name === "Testritter" && s.profile.stats.extractions === 1, "Spielstand nach Neuladen vorhanden (Name und Statistik stimmen)")
   const errs = g.errors.filter((e) => !/favicon/.test(e))
+  if (errs.length) console.log("  Konsolenfehler:", errs.join("\n"))
   g.check(errs.length === 0, `Keine Konsolenfehler (${errs.length})`)
-  if (errs.length) console.log(errs.join("\n"))
   console.log("verify-game: alles bestanden")
 } catch (e) {
   console.error(e)

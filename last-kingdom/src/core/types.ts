@@ -326,6 +326,8 @@ export interface Settings {
   language: "de"
   vibration: boolean
   deadzone: number
+  /** Default third-person camera distance in metres. */
+  cameraDistance: number
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -344,6 +346,7 @@ export const DEFAULT_SETTINGS: Settings = {
   language: "de",
   vibration: true,
   deadzone: 0.18,
+  cameraDistance: 4.6,
 }
 
 export const RARITY_INFO: Record<Rarity, { name: string; color: string; valueMult: number; affixes: number }> = {

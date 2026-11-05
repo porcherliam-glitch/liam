@@ -137,7 +137,8 @@ export class Input {
     this.wheelDelta += Math.sign(e.deltaY)
   }
 
-  private onPadConnected(pad: Gamepad) {
+  private onPadConnected(pad: Gamepad | undefined) {
+    if (!pad) return
     this.gamepadConnected = true
     this.gamepadName = pad.id
     this.device = detectDevice(pad.id)

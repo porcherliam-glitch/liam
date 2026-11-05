@@ -883,7 +883,7 @@ export function buildWorld(area: AreaDef, scene: THREE.Scene): WorldBuild {
   // Spawn, boss arena and extraction points are flattened last so lakes and rivers never swallow them.
   features.push({ kind: "flatten", x: area.spawnX, z: area.spawnZ, r: 18, height: 0 })
   if (area.bossX !== undefined) features.push({ kind: "flatten", x: area.bossX, z: area.bossZ!, r: 24, height: 0 })
-  for (const e of area.extractions) features.push({ kind: "flatten", x: e.x, z: e.z, r: 12, height: e.kind === "boat" || e.kind === "ford" ? -0.4 : 0 })
+  for (const e of area.extractions) features.push({ kind: "flatten", x: e.x, z: e.z, r: e.kind === "boat" || e.kind === "ford" ? 22 : 12, height: e.kind === "boat" || e.kind === "ford" ? -0.4 : 0 })
   const terrain = new Terrain(area, features)
   const collision = new CollisionWorld()
   const root = new THREE.Group()

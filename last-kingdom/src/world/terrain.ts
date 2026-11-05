@@ -151,7 +151,8 @@ export class Terrain {
     geo.setAttribute("color", new THREE.BufferAttribute(colors, 3))
     geo.computeVertexNormals()
     const texture = groundTexture(b).clone()
-    texture.repeat.set(this.size / 3, this.size / 3)
+    const tile = b === "city" || b === "catacombs" ? 1.5 : b === "castle" || b === "fortress" ? 2 : 3
+    texture.repeat.set(this.size / tile, this.size / tile)
     texture.needsUpdate = true
     const material = new THREE.MeshStandardMaterial({ map: texture, vertexColors: true, roughness: 1, metalness: 0 })
     const mesh = new THREE.Mesh(geo, material)

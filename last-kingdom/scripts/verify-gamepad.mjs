@@ -90,8 +90,12 @@ try {
   await g.shot("g03-building-pad.png")
   await tap(1)
   // Start expedition: focus "Expedition planen" (first button) → up presses then A
-  for (let i = 0; i < 3; i++) await tap(14)
-  for (let i = 0; i < 10; i++) await tap(12)
+  for (let i = 0; i < 14; i++) {
+    focused = await page.evaluate(() => document.querySelector(".screen:not(.hidden) .focused")?.getAttribute("data-action"))
+    if (focused === "map") break
+    if (focused === "building") await tap(14)
+    else await tap(12)
+  }
   focused = await page.evaluate(() => document.querySelector(".screen:not(.hidden) .focused")?.getAttribute("data-action"))
   g.check(focused === "map", `Expedition planen fokussiert (${focused})`)
   await tap(0)
@@ -188,8 +192,8 @@ try {
   g.check(psGlyphs && (psGlyphs.includes("✕") || psGlyphs.includes("○")), `PlayStation-Symbole in der Hinweisleiste: ${psGlyphs?.trim()}`)
   await g.shot("g05-pause-ps.png")
   const errs = g.errors.filter((e) => !/favicon/.test(e))
+  if (errs.length) console.log("  Konsolenfehler:", errs.join("\n"))
   g.check(errs.length === 0, `Keine Konsolenfehler (${errs.length})`)
-  if (errs.length) console.log(errs.join("\n"))
   console.log("verify-gamepad: alles bestanden")
 } catch (e) {
   console.error(e)

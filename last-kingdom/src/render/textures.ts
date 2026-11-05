@@ -146,7 +146,7 @@ function build(name: string): THREE.Texture {
     }
     case "stone_dark": {
       const [c, ctx] = canvas(size)
-      ctx.fillStyle = "#26262a"
+      ctx.fillStyle = "#3a3a40"
       ctx.fillRect(0, 0, size, size)
       const rng = new Rng(61)
       const rowH = 28
@@ -155,7 +155,7 @@ function build(name: string): THREE.Texture {
         let x = -offset
         while (x < size) {
           const w = rng.range(30, 60)
-          const l = rng.range(22, 34)
+          const l = rng.range(32, 46)
           ctx.fillStyle = hsl(rng.range(210, 240), rng.range(4, 8), l)
           roundRect(ctx, x + 2, row * rowH + 2, w - 4, rowH - 4, 2)
           ctx.fill()

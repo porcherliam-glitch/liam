@@ -150,9 +150,9 @@ export class Sky {
     this.moon.position.copy(focus).addScaledVector(moonDir.normalize(), 80)
     this.moon.target.position.copy(focus)
     this.moon.target.updateMatrixWorld()
-    this.hemi.intensity = this.underground ? 0.12 : lerp(0.26, 0.55, day) * (1 - cloud * 0.3)
-    this.ambient.intensity = this.underground ? 0.35 : lerp(0.32, 0.25, day)
-    this.ambient.color.setHex(this.underground ? 0x3a3448 : 0x404858)
+    this.hemi.intensity = this.underground ? 0.7 : lerp(0.26, 0.55, day) * (1 - cloud * 0.3)
+    this.ambient.intensity = this.underground ? 1.8 : lerp(0.32, 0.25, day)
+    this.ambient.color.setHex(this.underground ? 0x5a5270 : 0x404858)
     // Sky colours
     const top = new THREE.Color().setHSL(0.6, 0.55, lerp(0.05, 0.42, day))
     const horizon = new THREE.Color().setHSL(lerp(0.62, 0.08, clamp(1 - Math.abs(s.sunElevation) * 4, 0, 1) * day), lerp(0.25, 0.5, day), lerp(0.09, 0.62, day))
@@ -182,9 +182,9 @@ export class Sky {
     this.cloudTex.offset.set(this.cloudTime * 0.004, this.cloudTime * 0.002)
     // Fog
     const fogCol = horizon.clone().lerp(new THREE.Color(0x202228), 0.25)
-    if (this.underground) fogCol.setHex(0x06060a)
+    if (this.underground) fogCol.setHex(0x0c0a10)
     this.fog.color.copy(fogCol)
-    this.fog.density = this.underground ? 0.02 : 0.0035 + this.fogBoost * 0.012 + cloud * 0.0015 + (1 - day) * 0.002
+    this.fog.density = this.underground ? 0.009 : 0.0035 + this.fogBoost * 0.012 + cloud * 0.0015 + (1 - day) * 0.002
     this.scene.background = null
   }
 }

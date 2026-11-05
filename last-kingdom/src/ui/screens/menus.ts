@@ -120,15 +120,20 @@ export class CharacterSelectScreen implements Screen {
         this.game.ui.refresh(this)
       })
     })
-    const input = el.querySelector<HTMLInputElement>("#char-name")
-    if (input) {
-      input.addEventListener("focus", () => this.game.input.setTextInput(true))
-      input.addEventListener("blur", () => this.game.input.setTextInput(false))
-      input.addEventListener("input", () => (this.nameValue = input.value))
-      input.addEventListener("keydown", (e) => {
-        if (e.key === "Enter" || e.key === "Escape") input.blur()
-      })
-    }
+    // Delegated listeners survive re-renders of the form (refresh replaces the input element).
+    const isName = (e: Event) => (e.target as HTMLElement)?.id === "char-name"
+    el.addEventListener("focusin", (e) => {
+      if (isName(e)) this.game.input.setTextInput(true)
+    })
+    el.addEventListener("focusout", (e) => {
+      if (isName(e)) this.game.input.setTextInput(false)
+    })
+    el.addEventListener("input", (e) => {
+      if (isName(e)) this.nameValue = (e.target as HTMLInputElement).value
+    })
+    el.addEventListener("keydown", (e) => {
+      if (isName(e) && (e.key === "Enter" || e.key === "Escape")) (e.target as HTMLInputElement).blur()
+    })
   }
   onHide(): void {
     this.game.input.setTextInput(false)
@@ -209,6 +214,7 @@ const SLIDERS: { key: keyof Settings; label: string; min: number; max: number; s
   { key: "gamepadSensitivity", label: "Controller-Empfindlichkeit", min: 0.1, max: 2, step: 0.1 },
   { key: "deadzone", label: "Stick-Totzone", min: 0.05, max: 0.4, step: 0.05 },
   { key: "fov", label: "Sichtfeld", min: 55, max: 95, step: 5 },
+  { key: "cameraDistance", label: "Kameraabstand (m)", min: 2, max: 8, step: 0.5 },
 ]
 const TOGGLES: { key: keyof Settings; label: string }[] = [
   { key: "invertY", label: "Y-Achse umkehren" },
@@ -258,7 +264,7 @@ export class SettingsScreen implements Screen {
     else if (action === "inc") this.change(key, 1)
     else if (action === "toggle") this.change(key, 1)
     else if (action === "reset") {
-      Object.assign(this.game.settings, { masterVolume: 0.8, musicVolume: 0.6, sfxVolume: 0.9, lookSensitivity: 0.6, gamepadSensitivity: 0.6, invertY: false, quality: "high", shadows: true, fov: 70, cameraShake: true, showFps: false, gore: true, vibration: true, deadzone: 0.18 })
+      Object.assign(this.game.settings, { masterVolume: 0.8, musicVolume: 0.6, sfxVolume: 0.9, lookSensitivity: 0.6, gamepadSensitivity: 0.6, invertY: false, quality: "high", shadows: true, fov: 70, cameraShake: true, showFps: false, gore: true, vibration: true, deadzone: 0.18, cameraDistance: 4.6 })
       this.game.applySettings()
       this.game.saveSettings()
       this.game.ui.refresh(this)

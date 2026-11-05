@@ -145,6 +145,7 @@ export class Expedition implements ExpeditionApi {
     this.missions = profile.missions.filter((m) => m.status === "active")
     this.camera = new ThirdPersonCamera(settings.fov, window.innerWidth / window.innerHeight)
     this.camera.shakeEnabled = settings.cameraShake
+    this.camera.targetDistance = this.camera.distance = settings.cameraDistance
     this.sky = new Sky(this.scene, settings.shadows)
     this.sky.underground = area.biome === "catacombs"
     this.sky.hour = this.rng.pick([7, 9, 12, 15, 17, 19, 21, 23, 2])
@@ -1007,6 +1008,7 @@ export class Expedition implements ExpeditionApi {
 
   applySettings(): void {
     this.camera.setFov(this.settings.fov)
+    this.camera.targetDistance = this.settings.cameraDistance
     this.camera.shakeEnabled = this.settings.cameraShake
     this.sky.setShadows(this.settings.shadows)
     this.decals.enabled = this.settings.gore

@@ -15,7 +15,7 @@ try {
   await page.evaluate(() => {
     const p = window.__lastKingdom.profile()
     p.gold = 5000
-    for (const [id, n] of [["wood", 50], ["iron", 50], ["leather", 20], ["cloth", 20], ["steel", 20], ["herbs", 30], ["bone", 20]]) window.__lastKingdom.give(id, n)
+    for (const [id, n] of [["wood", 120], ["iron", 80], ["leather", 30], ["cloth", 30], ["steel", 30], ["herbs", 40], ["bone", 30]]) window.__lastKingdom.give(id, n)
     window.__lastKingdom.game.saveProfile()
   })
   // Upgrade the smithy twice
@@ -50,7 +50,7 @@ try {
   })
   g.check(dur[0] === dur[1], `Dolch repariert (${dur[0]}/${dur[1]})`)
   await page.keyboard.press("Escape")
-  await page.waitForTimeout(150)
+  await g.frames(3)
   // Workshop + alchemy crafting
   await g.click("building", '[data-id="alchemy"]')
   await g.click("upgrade")
@@ -58,12 +58,15 @@ try {
   s = await g.snapshot()
   g.check(s.profile.bag.some((b) => b.startsWith("potion_small")), "Heiltrank gebraut")
   await page.keyboard.press("Escape")
-  await page.waitForTimeout(150)
+  await g.frames(3)
   // Merchant: build stand, buy and sell
   await g.click("building", '[data-id="merchant"]')
   await g.click("upgrade")
+  s = await g.snapshot()
+  console.log(`  Lager: ${JSON.stringify(s.profile.camp)}, Gold ${s.profile.gold}, Rucksack ${s.profile.bag.join(" ")}`)
+  g.check(s.profile.camp.merchant === 1, "Händlerstand gebaut")
   await page.keyboard.press("Escape")
-  await page.waitForTimeout(150)
+  await g.frames(3)
   await g.click("merchant")
   s = await g.snapshot()
   g.check(s.screen === "merchant", "Händler geöffnet")
@@ -78,7 +81,7 @@ try {
   s = await g.snapshot()
   g.check(s.profile.gold > goldBeforeSell, `Verkauf bringt Gold (${goldBeforeSell} → ${s.profile.gold})`)
   await page.keyboard.press("Escape")
-  await page.waitForTimeout(150)
+  await g.frames(3)
   // Skills: give points and learn w1 then w2
   await page.evaluate(() => {
     window.__lastKingdom.profile().skillPoints = 3
@@ -93,7 +96,7 @@ try {
   g.check(s.profile.skills.includes("w1") && s.profile.skills.includes("w2"), "Fähigkeiten gelernt")
   await g.shot("s03-skills.png")
   await page.keyboard.press("Escape")
-  await page.waitForTimeout(150)
+  await g.frames(3)
   // Inventory: move an item to the stash and back
   await g.click("inventory")
   const bagCount = (await g.snapshot()).profile.bag.length
@@ -107,7 +110,7 @@ try {
   g.check(s.profile.stash === 0, "Gegenstand zurück in den Rucksack")
   await g.shot("s04-inventory.png")
   await page.keyboard.press("Escape")
-  await page.waitForTimeout(150)
+  await g.frames(3)
   // Death penalty: start an expedition, die, check losses and insured slot
   await page.evaluate(() => {
     const p = window.__lastKingdom.profile()
@@ -139,12 +142,12 @@ try {
   const hasCollect = (await collectBtn.count()) > 0
   if (hasCollect) {
     await collectBtn.first().click()
-    await page.waitForTimeout(100)
+    await g.frames(2)
     s = await g.snapshot()
     const m = s.profile.missions.find((x) => x.status === "active" && x.kind === "collect")
     g.check(!!m, "Sammelmission angenommen")
     await page.keyboard.press("Escape")
-    await page.waitForTimeout(150)
+    await g.frames(3)
     await page.evaluate((id) => {
       const p = window.__lastKingdom.profile()
       const mm = p.missions.find((x) => x.id === id)
@@ -182,8 +185,8 @@ try {
   const ok = await page.evaluate((j) => window.__lastKingdom.game.importProfile(j, 2), json)
   g.check(ok === true, "Spielstand-Import in Platz 3")
   const errs = g.errors.filter((e) => !/favicon/.test(e))
+  if (errs.length) console.log("  Konsolenfehler:", errs.join("\n"))
   g.check(errs.length === 0, `Keine Konsolenfehler (${errs.length})`)
-  if (errs.length) console.log(errs.join("\n"))
   console.log("verify-systems: alles bestanden")
 } catch (e) {
   console.error(e)

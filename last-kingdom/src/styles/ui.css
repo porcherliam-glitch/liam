@@ -52,6 +52,7 @@
 .menu-list.compact {
   gap: 6px;
   margin-top: 12px;
+  width: 100%;
 }
 .btn {
   font-family: var(--font-head);
@@ -589,7 +590,7 @@ input.text:focus {
   flex-direction: column;
   gap: 4px;
   overflow: auto;
-  max-height: 40vh;
+  max-height: 52vh;
 }
 .loot-row,
 .shop-row,
@@ -753,6 +754,9 @@ input.text:focus {
 /* map (area select) */
 .map-layout {
   grid-template-columns: 320px 1fr;
+}
+.building-layout {
+  grid-template-columns: 1fr 1fr 320px;
 }
 .area {
   padding: 8px 10px;

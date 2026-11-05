@@ -82,7 +82,13 @@ export function installHarness(game: Game): void {
     give(id: string, qty = 1) {
       const p = game.profile
       if (!p) return
-      addItem(p.loadout, createItem(id, qty))
+      // createItem clamps to one stack, so hand over stack by stack
+      let left = qty
+      while (left > 0) {
+        const it = createItem(id, left)
+        left -= it.qty
+        addItem(p.loadout, it)
+      }
     },
     setHour(h: number) {
       if (game.expedition) game.expedition.sky.hour = h

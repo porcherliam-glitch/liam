@@ -1,5 +1,8 @@
 # Chroniken von Aetherfall
 
+> **Neu: [THE LAST KINGDOM](./last-kingdom/README.md)** – ein 3D-Mittelalter-Zombie-Extraction-Spiel für den Browser (Three.js, TypeScript, Controller-Unterstützung). Spielen: `last-kingdom/TheLastKingdom.html` doppelklicken.
+
+
 Ein 3D-Open-World-Action-RPG in Unity 6 (Universal Render Pipeline, C#) für macOS mit Apple Silicon und Windows-PC. Als Rissgeborener erkundet der Spieler den vor 300 Jahren zerbrochenen Kontinent Aetherfall, entscheidet zwischen sieben Fraktionen und stellt sich der erwachenden Leere: mit wuchtigem Echtzeit-Kampf, Quests mit echten Konsequenzen und einem Endgame für Monate. Grundlage ist die verbindliche Spezifikation des Auftraggebers im [Master-Prompt](./docs/00_Master-Prompt.md).
 
 **Status:** Phase 0 – Planung (Stand 2026-10-13). Es gibt noch **keinen Code und kein Unity-Projekt**. Code entsteht erst nach dem OK des Auftraggebers (§32.1). Aktueller Stand: [Projektstatus](./docs/Status.md) · Fragen an den Auftraggeber: [Offene Fragen](./docs/Offene_Fragen.md)

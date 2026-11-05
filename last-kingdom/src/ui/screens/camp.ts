@@ -176,12 +176,12 @@ export class BuildingScreen implements Screen {
         const upCost = Math.round(itemValue(it) * 0.6 * (up + 1))
         const upMat = up < maxUp ? { steel: up + 1, iron: 2 + up } : null
         return `<div class="gear-row" data-focus data-focus-id="g-${it.uid}" data-action="gearsel" data-uid="${it.uid}">${itemTile(it, `gt-${it.uid}`, "gearsel")}<div class="gear-info"><b style="color:${RARITY_INFO[it.rarity].color}">${esc(displayName(it))}</b><div class="dim">Haltbarkeit ${Math.round(it.durability ?? 0)} / ${it.maxDurability ?? 0}</div></div>
-          <button class="btn small ${repairCost > 0 && p.gold >= repairCost ? "" : "disabled"}" data-focus data-action="repair" data-uid="${it.uid}">Reparieren (${repairCost} Gold)</button>
-          <button class="btn small ${upMat && canAfford(p, upMat, upCost) ? "" : "disabled"}" data-focus data-action="upgradeitem" data-uid="${it.uid}">${upMat ? `+${up + 1} (${upCost} Gold, ${upMat.steel} Stahl, ${upMat.iron} Eisen)` : "Maximal"}</button></div>`
+          <button class="btn small ${repairCost > 0 && p.gold >= repairCost ? "" : "disabled"}" data-focus data-focus-id="rep-${it.uid}" data-action="repair" data-uid="${it.uid}">Reparieren (${repairCost} Gold)</button>
+          <button class="btn small ${upMat && canAfford(p, upMat, upCost) ? "" : "disabled"}" data-focus data-focus-id="up-${it.uid}" data-action="upgradeitem" data-uid="${it.uid}">${upMat ? `+${up + 1} (${upCost} Gold, ${upMat.steel} Stahl, ${upMat.iron} Eisen)` : "Maximal"}</button></div>`
       }).join("") : `<div class="dim">Keine passende Ausrüstung.</div>`}</div>`
     }
     const sel = this.selectedUid ? this.findItem(this.selectedUid) : null
-    return `<div class="building-layout"><section class="panel"><h2>${b.name} · Stufe ${lv}</h2><div class="dim">${esc(b.description)}</div>${upgrade}${craftable}${service}<button class="btn" data-focus data-action="back">Zurück</button></section><section class="panel detail">${sel ? itemDetails(sel) : this.recipeDetail()}</section></div>`
+    return `<div class="building-layout"><section class="panel"><h2>${b.name} · Stufe ${lv}</h2><div class="dim">${esc(b.description)}</div>${upgrade}${craftable}<button class="btn small" data-focus data-action="back">Zurück</button></section><section class="panel">${service || `<h2>Werkbank</h2><div class="dim">${lv === 0 ? "Noch nicht ausgebaut." : "Hier gibt es nichts zu reparieren."}</div>`}</section><section class="panel detail">${sel ? itemDetails(sel) : this.recipeDetail()}</section></div>`
   }
   private recipeDetail(): string {
     const f = this.game.ui.focused
