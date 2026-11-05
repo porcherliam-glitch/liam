@@ -189,13 +189,14 @@ export class Hud {
     const key = QUICK_SLOTS.map((s) => {
       const it = player.inventory.equipment[s]
       return it ? `${it.defId}:${it.qty}` : "-"
-    }).join("|") + this.input.device
+    }).join("|") + this.input.device + player.quickSlotCount
     if (key !== this.lastQuickKey) {
       this.lastQuickKey = key
       this.quick.innerHTML = QUICK_SLOTS.map((s, i) => {
         const it = player.inventory.equipment[s]
         const def = it ? itemDef(it.defId) : null
         const g = glyph(`quick${i + 1}` as "quick1", this.input.bindings, this.input.device)
+        if (i >= player.quickSlotCount) return `<div class="qslot locked" title="Waffenkammer ausbauen">${g}<div class="qname">gesperrt</div></div>`
         return `<div class="qslot ${it ? "" : "empty"}">${g}<div class="qname">${def ? esc(def.name) : "–"}</div>${it && def && def.stack > 1 ? `<div class="qty">${it.qty}</div>` : ""}</div>`
       }).join("")
     }

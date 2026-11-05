@@ -270,6 +270,11 @@ export class Player {
     return this.torchLight !== null
   }
 
+  /** Number of usable quick slots (grows with the armoury). */
+  get quickSlotCount(): number {
+    return this.campBonus.quickSlots
+  }
+
   get height(): number {
     return 1.8
   }

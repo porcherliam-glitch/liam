@@ -114,6 +114,30 @@ try {
   await g.frames(3)
   s = await g.snapshot()
   g.check(s.screen === null, "Inventar geschlossen, Spiel läuft weiter")
+  // Quick slots: potion in slot 1 heals, weapon in slot 2 swaps with R
+  await g.page.evaluate(() => {
+    window.__lastKingdom.killAll()
+    window.__lastKingdom.godMode(true)
+    // the armoury unlocks the second quick slot
+    window.__lastKingdom.profile().camp.armory = 1
+    window.__lastKingdom.game.expedition.player["campBonus"].quickSlots = 2
+    window.__lastKingdom.equipItem("potion_small", "quick1")
+    window.__lastKingdom.equipItem("shortsword_1", "quick2")
+    const p = window.__lastKingdom.game.expedition.player
+    p.hp = 40
+  })
+  await g.frames(2)
+  for (let i = 0; i < 6; i++) {
+    await g.page.keyboard.press("Digit1")
+    await g.frames(8)
+    if ((await g.snapshot()).expedition.player.hp > 60) break
+  }
+  s = await g.snapshot()
+  g.check(s.expedition.player.hp > 60, `Heiltrank aus Schnellzugriff 1 heilt (HP ${Math.round(s.expedition.player.hp)})`)
+  await g.page.keyboard.press("KeyR")
+  await g.frames(3)
+  s = await g.snapshot()
+  g.check(s.profile.equipment.mainHand === "shortsword_1" && s.profile.equipment.quick2 === "longsword_1", `Waffenwechsel mit R (${s.profile.equipment.mainHand})`)
   // Pause + map
   await g.page.keyboard.press("Escape")
   await g.frames(3)

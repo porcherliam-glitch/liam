@@ -115,13 +115,13 @@ export function installHarness(game: Game): void {
         addItem(p.loadout, it)
       }
     },
-    /** Gives one item and equips it into its natural slot. */
-    equipItem(id: string) {
+    /** Gives one item and equips it into its natural slot (or a given quick slot). */
+    equipItem(id: string, slot?: "quick1" | "quick2" | "quick3" | "quick4") {
       const p = game.profile
       if (!p) return false
       const it = createItem(id, 1)
       addItem(p.loadout, it)
-      const r = equip(p.loadout, it.uid)
+      const r = equip(p.loadout, it.uid, slot)
       return r.ok
     },
     setHour(h: number) {

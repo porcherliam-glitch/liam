@@ -147,6 +147,10 @@
 .qslot.empty {
   opacity: 0.5;
 }
+.qslot.locked {
+  opacity: 0.35;
+  border-style: dashed;
+}
 .qname {
   font-size: 0.66rem;
   text-align: center;
