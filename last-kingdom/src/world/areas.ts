@@ -224,7 +224,7 @@ export const AREAS: AreaDef[] = [
     bossZ: 0,
     lootTable: "city",
     extractions: [
-      { id: "city_gate", name: "Stadttor", kind: "gate", x: 0, z: 172, channel: 8, activation: { kind: "key", itemId: "gate_key", label: "Stadttor aufschließen" } },
+      { id: "city_gate", name: "Stadttor", kind: "gate", x: 0, z: 166, channel: 8, activation: { kind: "key", itemId: "gate_key", label: "Stadttor aufschließen" } },
       { id: "city_boat", name: "Boot am Hafen", kind: "boat", x: 140, z: -96, channel: 12, activation: { kind: "key", itemId: "oar", label: "Ruder einsetzen" } },
       { id: "city_tunnel", name: "Geheimer Tunnel", kind: "tunnel", x: -165, z: -140, channel: 10 },
       { id: "city_cart", name: "Verlassener Karren", kind: "cart", x: 140, z: 140, channel: 8 },
@@ -259,7 +259,7 @@ export const AREAS: AreaDef[] = [
     bossZ: -60,
     lootTable: "fortress",
     extractions: [
-      { id: "fort_gate", name: "Festungstor", kind: "gate", x: 0, z: 162, channel: 10, activation: { kind: "lever", label: "Fallgatter heben", leverX: 16, leverZ: 140 } },
+      { id: "fort_gate", name: "Festungstor", kind: "gate", x: 0, z: 156, channel: 10, activation: { kind: "lever", label: "Fallgatter heben", leverX: 16, leverZ: 140 } },
       { id: "fort_tunnel", name: "Fluchttunnel", kind: "tunnel", x: 150, z: -150, channel: 12, activation: { kind: "key", itemId: "crypt_key", label: "Eisentür aufschließen" } },
       { id: "fort_rope", name: "Seil über die Mauer", kind: "rope", x: -155, z: -100, channel: 12 },
     ],

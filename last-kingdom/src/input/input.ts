@@ -112,6 +112,11 @@ export class Input {
       cb("mouse", e.button)
       return
     }
+    // Clicks on menu screens are UI input, not game input; otherwise "Aufbrechen" swings the sword on arrival
+    if (e.target instanceof Element && e.target.closest("#ui")) {
+      this.device = "keyboard"
+      return
+    }
     this.mouseButtons.add(e.button)
     this.pendingMouse.add(e.button)
     this.device = "keyboard"
@@ -282,6 +287,8 @@ export class Input {
   }
 
   consumeAll(): void {
+    this.pendingKeys.clear()
+    this.pendingMouse.clear()
     for (const a of this.held) this.consumed.add(a)
   }
 
