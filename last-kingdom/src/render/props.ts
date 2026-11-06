@@ -540,7 +540,8 @@ export function cart(seed = 1): Prop {
   shaft.rotation.x = rng.range(-0.3, 0.1)
   g.add(shaft)
   g.add(box(0.1, 0.1, 2.4, M.timber(), -0.5, 0.7, 2.2))
-  return { group: g, colliders: [boxCol(0, 0.2, 0.95, 1.4, 0, 1.4)], spots: [{ x: 0, z: 0, kind: "loot" }] }
+  // The loot spot is beside the cart: under the bed a container would be hidden
+  return { group: g, colliders: [boxCol(0, 0.2, 0.95, 1.4, 0, 1.4)], spots: [{ x: 1.75, z: -0.4, kind: "loot" }] }
 }
 
 export function barrel(): Prop {

@@ -14,6 +14,8 @@ interface Entry {
   castShadow: boolean
   receiveShadow: boolean
   source: THREE.Mesh
+  /** Distance beyond which the merged batch may be hidden (userData.cullRange on the mesh or a parent). */
+  range: number
 }
 
 interface Group {
@@ -24,6 +26,7 @@ interface Group {
   cx: number
   cz: number
   cast: boolean
+  range: number
   tris: number
   list: Entry[]
 }
@@ -44,7 +47,7 @@ export class StaticBatcher {
       const m = o as THREE.Mesh
       if (!m.isMesh || o.userData.dynamic || hasDynamicParent(o, group)) return
       if (Array.isArray(m.material)) return
-      this.entries.push({ geometry: m.geometry, material: m.material, matrix: m.matrixWorld.clone(), castShadow: m.castShadow, receiveShadow: m.receiveShadow, source: m })
+      this.entries.push({ geometry: m.geometry, material: m.material, matrix: m.matrixWorld.clone(), castShadow: m.castShadow, receiveShadow: m.receiveShadow, source: m, range: cullRangeOf(o, group) })
     })
   }
 
@@ -61,16 +64,18 @@ export class StaticBatcher {
     const pos = new THREE.Vector3()
     for (const e of this.entries) {
       pos.setFromMatrixPosition(e.matrix)
-      const cx = Math.floor(pos.x / this.chunk)
-      const cz = Math.floor(pos.z / this.chunk)
+      // Details with a cull range use finer cells, so their batches can switch off close to the camera
+      const size = Number.isFinite(e.range) ? this.chunk / 2 : this.chunk
+      const cx = Math.floor(pos.x / size)
+      const cz = Math.floor(pos.z / size)
       const family = familyOf(e.material)
       // Only casting splits a family: merged meshes always receive shadows (for small props that did not,
       // this costs nothing visible and halves the number of groups).
       const id = family ?? e.material.uuid
-      const key = `${id}:${cx}:${cz}:${e.castShadow ? 1 : 0}`
+      const key = `${id}:${cx}:${cz}:${e.castShadow ? 1 : 0}:${e.range}`
       let g = groups.get(key)
       if (!g) {
-        g = { id, family: family !== null, cx, cz, cast: e.castShadow, tris: 0, list: [] }
+        g = { id, family: family !== null, cx, cz, cast: e.castShadow, range: e.range, tris: 0, list: [] }
         groups.set(key, g)
       }
       g.list.push(e)
@@ -78,7 +83,7 @@ export class StaticBatcher {
     }
     // Sparse groups (a few lamps or fittings in a cell) join the groups of the neighbouring cells.
     for (const [key, g] of [...groups]) {
-      if (g.tris >= SMALL_GROUP) continue
+      if (g.tris >= SMALL_GROUP || Number.isFinite(g.range)) continue
       groups.delete(key)
       const big = `${g.id}:S${Math.floor(g.cx / 2)}:${Math.floor(g.cz / 2)}:${g.cast ? 1 : 0}`
       const into = groups.get(big)
@@ -123,6 +128,7 @@ export class StaticBatcher {
       mesh.castShadow = first.castShadow
       mesh.receiveShadow = true
       mesh.matrixAutoUpdate = false
+      if (Number.isFinite(group.range)) mesh.userData.cullRange = group.range
       scene.add(mesh)
       out.push(mesh)
     }
@@ -130,6 +136,16 @@ export class StaticBatcher {
     this.entries = []
     return out
   }
+}
+
+function cullRangeOf(o: THREE.Object3D, root: THREE.Object3D): number {
+  let p: THREE.Object3D | null = o
+  while (p) {
+    if (typeof p.userData.cullRange === "number") return p.userData.cullRange
+    if (p === root) break
+    p = p.parent
+  }
+  return Infinity
 }
 
 function hasDynamicParent(o: THREE.Object3D, root: THREE.Object3D): boolean {

@@ -40,6 +40,14 @@ function part(name: string): THREE.Object3D | null {
   return c
 }
 
+/** Cull distance for small house parts (m), 0 for parts that shape the silhouette. */
+function detailRange(name: string): number {
+  if (/^Floor_/.test(name)) return 35
+  if (/^(Wall_BottomCover|Prop_Brick)/.test(name)) return 50
+  if (/^(Window_|WindowShutters_|DoorFrame_|Door_|Prop_Vine)/.test(name)) return 80
+  return 0
+}
+
 function boxCol(x: number, z: number, hw: number, hd: number, y0: number, y1: number): Collider {
   return { kind: "box", x, z, hw, hd, yaw: 0, y0, y1 } as Collider
 }
@@ -62,6 +70,9 @@ export function kitHouse(opts: KitHouseOpts): { group: THREE.Group; colliders: C
     if (!p) return null
     p.position.set(x, y, z)
     p.rotation.y = yaw
+    // Small details are drawn only near the camera (see StaticBatcher and the expedition's culling)
+    const range = detailRange(name)
+    if (range) p.userData.cullRange = range
     g.add(p)
     return p
   }

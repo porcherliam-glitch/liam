@@ -451,7 +451,7 @@ interface MixSpec {
 
 const CRAWL_HEAD: Pose = { neck: [-0.35, 0, 0], head: [-0.45, 0, 0] }
 const ZOMBIE_ARMS: Pose = { upperArmL: [-1.15, 0, -0.12], upperArmR: [-1.25, 0, 0.12], forearmL: [-0.35, 0, 0], forearmR: [-0.25, 0, 0], spine: [0.22, 0, 0], neck: [0.2, 0, 0.12], head: [0.12, 0.1, 0.18] }
-const MIX: Record<string, MixSpec> = {
+export const MIX: Record<string, MixSpec> = {
   rest: { clip: "Idle_Loop" },
   idle: { clip: "Idle_Loop" },
   combat_idle: { clip: "Sword_Idle" },

@@ -35,7 +35,7 @@ import { skillBonuses } from "../meta/skillData"
 import { campBonuses } from "../meta/campData"
 import { fogUniforms, mat, materialQuality, setWetness, waterMaterial, windUniforms } from "../render/materials"
 import { grassOptions } from "../render/grass"
-import { kitProp } from "../render/kitProps"
+import { kitProp, syncInstancedParts } from "../render/kitProps"
 import type { PostProcess } from "../render/postprocess"
 import { RARITIES } from "../core/types"
 import { clamp, damp, flicker, lerp, noise1 } from "../core/math"
@@ -167,7 +167,7 @@ export class Expedition implements ExpeditionApi {
   private thunder: { at: number; volume: number; shake: boolean }[] = []
   private lastStrike = 0
   /** Static meshes that may be skipped when the fog hides them. */
-  private cullables: { mesh: THREE.Object3D; center: THREE.Vector3; radius: number }[] = []
+  private cullables: { mesh: THREE.Object3D; center: THREE.Vector3; radius: number; range: number }[] = []
   private cullCut = Infinity
   private fogHidden = new WeakSet<Zombie>()
   private renderMsAvg = 0
@@ -469,7 +469,7 @@ export class Expedition implements ExpeditionApi {
       if (!m.geometry.boundingSphere) return
       o.updateWorldMatrix(true, false)
       const sphere = m.geometry.boundingSphere.clone().applyMatrix4(o.matrixWorld)
-      this.cullables.push({ mesh: o, center: sphere.center, radius: sphere.radius })
+      this.cullables.push({ mesh: o, center: sphere.center, radius: sphere.radius, range: typeof o.userData.cullRange === "number" ? o.userData.cullRange : Infinity })
     }
     for (const o of root.children) add(o)
     // Batches the static batcher may tag deeper in the tree
@@ -758,6 +758,7 @@ export class Expedition implements ExpeditionApi {
       const anim = () => {
         const k = Math.min(1, (this.elapsed - t0) / 0.5)
         lid.rotation.x = -k * 1.6
+        syncInstancedParts(lid)
         if (k < 1 && !this.ended) requestAnimationFrame(anim)
       }
       anim()
@@ -1390,7 +1391,8 @@ export class Expedition implements ExpeditionApi {
     if (this.envFrame % 10 === 1) {
       // Lightning lights up silhouettes: keep a little more in storms so nothing pops in with a flash
       this.cullCut = this.world.underground ? Infinity : this.sky.fogCut(this.weather.kind === "storm" ? 0.02 : 0.04)
-      for (const c of this.cullables) c.mesh.visible = c.center.distanceTo(cam) - c.radius < this.cullCut
+      // Batches of small details (window frames, shutters, floors) also switch off beyond their own range
+      for (const c of this.cullables) c.mesh.visible = c.center.distanceTo(cam) - c.radius < Math.min(this.cullCut, c.range)
     }
     // Zombies set their own visibility every update; hide those beyond the fog, restore only the ones hidden here
     const zCut = Math.min(140, this.cullCut)

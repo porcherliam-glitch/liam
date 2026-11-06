@@ -9,7 +9,7 @@ import { Terrain, type TerrainFeature } from "./terrain"
 import { NavGrid } from "./nav"
 import { StaticBatcher, disposeMeshes } from "../render/batcher"
 import * as P from "../render/props"
-import { kitProp } from "../render/kitProps"
+import { instanceParts, kitProp, rigidify } from "../render/kitProps"
 import { tex } from "../render/textures"
 import { bakedCorpse } from "../render/rig"
 import { buildHumanoid } from "../render/humanoid"
@@ -178,9 +178,12 @@ function containerVisual(kind: ContainerKind): { prop: P.Prop; lid?: THREE.Objec
     const colliders = proc?.colliders ?? (kind === "sack" ? [{ kind: "circle" as const, x: 0, z: 0, r: 0.4, y0: 0, y1: 0.6 }] : [{ kind: "box" as const, x: 0, z: 0, hw: 0.5, hd: 0.25, yaw: 0, y0: 0, y1: 1.8 }])
     let lid: THREE.Object3D | undefined
     if (kind === "chest") {
-      // The chest is skinned: the lid hinge is a bone, so the whole chest stays out of the static batch
+      // The chest is skinned with the lid on its own bone: as rigid parts the body joins the static batch and
+      // only the lid (under the hinge bone) stays a separate, animated object
+      rigidify(model)
       lid = model.getObjectByName("Chest_Top") ?? undefined
-      model.children[0].userData.dynamic = true
+      if (lid) lid.userData.dynamic = true
+      else model.children[0].userData.dynamic = true
     }
     return { prop: { group: model, colliders }, lid }
   }
@@ -999,6 +1002,9 @@ export function buildWorld(area: AreaDef, scene: THREE.Scene): WorldBuild {
     return false
   })
   const merged = batcher.build(root)
+  // All kit chest lids as one instanced draw per material (the lid hinges stay for the opening animation)
+  const hinges = ctx.containers.map((c) => c.lid).filter((l): l is THREE.Object3D => !!l && l.name === "Chest_Top")
+  if (hinges.length) instanceParts(hinges, root)
   const grass = buildGrass(terrain, nav, area.biome, area.seed, Math.round(area.size * area.size * 0.22))
   if (grass) root.add(grass)
   return {
