@@ -10,11 +10,12 @@ const cache = new Map<string, THREE.Texture>()
 /** Height fields (white = raised) recorded while building a colour texture, consumed by "<name>_normal". */
 const heights = new Map<string, HTMLCanvasElement>()
 
-function canvas(size: number): [HTMLCanvasElement, CanvasRenderingContext2D] {
+/** A square canvas; `readback` keeps it in CPU memory so getImageData does not stall on a GPU read. */
+function canvas(size: number, readback = false): [HTMLCanvasElement, CanvasRenderingContext2D] {
   const c = document.createElement("canvas")
   c.width = size
   c.height = size
-  const ctx = c.getContext("2d", { willReadFrequently: false })!
+  const ctx = c.getContext("2d", { willReadFrequently: readback })!
   return [c, ctx]
 }
 
@@ -499,7 +500,7 @@ function masonry(o: MasonryOpts): [HTMLCanvasElement, HTMLCanvasElement] {
   const gap = 3
   const c = noiseBase(o.seed + 7, size, o.mortar, 0.12, 16, 3)
   const ctx = c.getContext("2d")!
-  const [hc, hctx] = canvas(size)
+  const [hc, hctx] = canvas(size, true)
   hctx.fillStyle = "#000"
   hctx.fillRect(0, 0, size, size)
   const rng = new Rng(o.seed)
@@ -615,7 +616,7 @@ function cobble(): HTMLCanvasElement {
   const rowH = size / rows
   const c = noiseBase(43, size, [70, 64, 54], 0.25, 12, 4)
   const ctx = c.getContext("2d")!
-  const [hc, hctx] = canvas(size)
+  const [hc, hctx] = canvas(size, true)
   hctx.fillStyle = "#000"
   hctx.fillRect(0, 0, size, size)
   const rng = new Rng(41)
@@ -684,7 +685,7 @@ function cobble(): HTMLCanvasElement {
 function planks(): [HTMLCanvasElement, HTMLCanvasElement] {
   const size = 512
   const [c, ctx] = canvas(size)
-  const [hc, hctx] = canvas(size)
+  const [hc, hctx] = canvas(size, true)
   const rng = new Rng(91)
   const n = 6
   const w = size / n

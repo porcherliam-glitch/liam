@@ -218,12 +218,113 @@ export const Foliage = {
 }
 
 let waterMat: THREE.MeshStandardMaterial | null = null
-/** Shared water material: rippling normal map, animated by the expedition. */
+/**
+ * Shared water material: two scrolling normal-map layers, small wind waves (on tessellated planes), a Fresnel
+ * term that brightens toward the horizon (sky reflection via scene.environment, else the fog colour) and makes
+ * the surface more opaque at grazing angles.
+ */
 export function waterMaterial(): THREE.MeshStandardMaterial {
   if (waterMat) return waterMat
   const normal = tex("water_normal").clone()
   normal.repeat.set(12, 12)
   normal.needsUpdate = true
-  waterMat = new THREE.MeshStandardMaterial({ color: 0x3f6a7a, transparent: true, opacity: 0.86, roughness: 0.18, metalness: 0.35, normalMap: normal, normalScale: new THREE.Vector2(0.6, 0.6) })
+  const color = new THREE.Color(0x4a7a76).lerp(new THREE.Color(0x16303a), 0.6)
+  const m = new THREE.MeshStandardMaterial({ color, transparent: true, opacity: 0.78, roughness: 0.07, metalness: 0.15, envMapIntensity: 1.0, normalMap: normal, normalScale: new THREE.Vector2(0.8, 0.8) })
+  m.onBeforeCompile = (shader) => {
+    shader.uniforms.uTime = windUniforms.uTime
+    shader.uniforms.uWind = windUniforms.uWind
+    shader.vertexShader = shader.vertexShader
+      .replace("#include <common>", "#include <common>\nuniform float uTime;\nuniform float uWind;\nvarying vec2 vWaterUv;")
+      .replace(
+        "#include <begin_vertex>",
+        `#include <begin_vertex>
+        {
+          vWaterUv = uv;
+          vec4 wp = modelMatrix * vec4(position, 1.0);
+          float wave = (sin(wp.x * 0.9 + uTime * 1.4) * 0.035 + sin(wp.z * 1.3 + uTime * 1.1 + wp.x * 0.3) * 0.03) * (0.4 + uWind);
+          transformed += normalize(objectNormal) * wave;
+        }`,
+      )
+    shader.fragmentShader = shader.fragmentShader
+      .replace("#include <common>", "#include <common>\nuniform float uTime;\nvarying vec2 vWaterUv;")
+      .replace(
+        "vec3 mapN = texture2D( normalMap, vNormalMapUv ).xyz * 2.0 - 1.0;",
+        `vec3 mapN = normalize(
+    ( texture2D( normalMap, vWaterUv * 12.0 + uTime * vec2( 0.012, 0.008 ) ).xyz * 2.0 - 1.0 ) +
+    ( texture2D( normalMap, vWaterUv * 5.3 - uTime * vec2( 0.007, 0.004 ) ).xyz * 2.0 - 1.0 ) );`,
+      )
+      .replace(
+        "#include <opaque_fragment>",
+        `{
+  float fres = pow( 1.0 - max( dot( normal, normalize( vViewPosition ) ), 0.0 ), 3.0 );
+  diffuseColor.a *= 0.75 + 0.25 * fres;
+  #if defined( USE_FOG ) && !defined( USE_ENVMAP )
+    outgoingLight = mix( outgoingLight, fogColor * 0.85, fres * 0.55 );
+  #endif
+}
+#include <opaque_fragment>`,
+      )
+  }
+  m.customProgramCacheKey = () => "lk-water"
+  waterMat = m
   return waterMat
 }
+
+/**
+ * Height fog: the built-in exponential fog gets denser near the ground. Three parameters, shared by every
+ * material through one vector (its clone() returns itself, so the per-material uniform copies stay linked):
+ * x = fog floor height (m), y = falloff per metre above the floor, z = how strongly height shapes the fog.
+ */
+const fogParams = new THREE.Vector3(0, 0.1, 0.25)
+fogParams.clone = () => fogParams
+
+/** Height-fog controls (set from weather and biome): uFogFloor, uFogFalloff, uFogHeightMix. */
+export const fogUniforms = {
+  uFogFloor: {
+    get value() {
+      return fogParams.x
+    },
+    set value(v: number) {
+      fogParams.x = v
+    },
+  },
+  uFogFalloff: {
+    get value() {
+      return fogParams.y
+    },
+    set value(v: number) {
+      fogParams.y = v
+    },
+  },
+  uFogHeightMix: {
+    get value() {
+      return fogParams.z
+    },
+    set value(v: number) {
+      fogParams.z = v
+    },
+  },
+}
+
+function installHeightFog(): void {
+  const chunks = THREE.ShaderChunk as unknown as Record<string, string>
+  if (chunks.fog_vertex.includes("vFogY")) return
+  chunks.fog_pars_vertex = chunks.fog_pars_vertex.replace("varying float vFogDepth;", "varying float vFogDepth;\n\tvarying float vFogY;")
+  // World height from the view-space position (rigid view matrix: world = Rᵀ(mv − t)); works for instanced
+  // meshes, sprites and points alike because they all provide mvPosition.
+  chunks.fog_vertex = chunks.fog_vertex.replace("vFogDepth = - mvPosition.z;", "vFogDepth = - mvPosition.z;\n\tvFogY = dot( viewMatrix[ 1 ].xyz, mvPosition.xyz - viewMatrix[ 3 ].xyz );")
+  chunks.fog_pars_fragment = chunks.fog_pars_fragment.replace("varying float vFogDepth;", "varying float vFogDepth;\n\tvarying float vFogY;\n\tuniform vec3 uFogParams;")
+  chunks.fog_fragment = chunks.fog_fragment.replace(
+    "gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, fogFactor );",
+    `float lkFogH = exp( - max( vFogY - uFogParams.x, 0.0 ) * uFogParams.y );
+	fogFactor = clamp( fogFactor * mix( 1.0, lkFogH * 1.6, uFogParams.z ) + lkFogH * uFogParams.z * 0.12, 0.0, 1.0 );
+	gl_FragColor.rgb = mix( gl_FragColor.rgb, fogColor, fogFactor );`,
+  )
+  // Built-in materials copy their uniforms from ShaderLib at compile time: add the shared vector everywhere fog is.
+  const lib = THREE.UniformsLib.fog as Record<string, THREE.IUniform>
+  lib.uFogParams = { value: fogParams }
+  for (const shader of Object.values(THREE.ShaderLib) as { uniforms: Record<string, THREE.IUniform> }[]) {
+    if (shader.uniforms && "fogDensity" in shader.uniforms) shader.uniforms.uFogParams = { value: fogParams }
+  }
+}
+installHeightFog()
