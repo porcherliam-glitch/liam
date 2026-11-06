@@ -103,8 +103,8 @@ export class Player {
     return this.weaponMesh
   }
   private shieldMesh: THREE.Object3D | null = null
-  private torchLight: THREE.PointLight | null = null
-  private torchFlame: THREE.Object3D | null = null
+  /** Flame of a carried torch; its light comes from slot 0 of the expedition's fixed light pool. */
+  torchFlame: THREE.Object3D | null = null
   private trail: WeaponTrail | null = null
   private equipKey = ""
   private ctx!: EntityContext
@@ -241,7 +241,6 @@ export class Player {
       this.weaponMesh = m
     }
     const s = this.shield
-    this.torchLight = null
     this.torchFlame = null
     if (s && s.defId === "torch_item") {
       // A lit torch in the off hand
@@ -252,13 +251,9 @@ export class Player {
       const flame = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.22, 6), mat(null, { color: 0xffa030, emissive: 0xff8020, emissiveIntensity: 2.5 }))
       flame.position.y = 0.42
       g.add(flame)
-      const light = new THREE.PointLight(0xffa040, 10, 14, 1.4)
-      light.position.y = 0.45
-      g.add(light)
       g.rotation.x = -1.2
       this.humanoid.handL.add(g)
       this.shieldMesh = g
-      this.torchLight = light
       this.torchFlame = flame
     } else if (s && !(this.weaponStats?.twoHanded)) {
       const def = itemDef(s.defId)
@@ -271,7 +266,7 @@ export class Player {
   }
 
   get carriesTorch(): boolean {
-    return this.torchLight !== null
+    return this.torchFlame !== null
   }
 
   /** Number of usable quick slots (grows with the armoury). */
@@ -370,10 +365,9 @@ export class Player {
       this.flashTimer -= dt
       if (this.flashTimer <= 0) this.humanoid.clothMaterial.emissive.setHex(0x000000)
     }
-    if (this.torchLight) {
+    if (this.torchFlame) {
       const t = performance.now() * 0.001
-      this.torchLight.intensity = 9 + Math.sin(t * 13) * 1.5 + Math.sin(t * 29) * 1
-      this.torchFlame!.scale.setScalar(0.9 + Math.sin(t * 17) * 0.12)
+      this.torchFlame.scale.setScalar(0.9 + Math.sin(t * 17) * 0.12)
       if (ctx.rng.chance(dt * 6)) {
         const p = new THREE.Vector3()
         this.torchFlame!.getWorldPosition(p)

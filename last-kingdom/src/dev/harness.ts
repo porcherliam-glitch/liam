@@ -39,8 +39,21 @@ export function installHarness(game: Game): void {
               hour: e.sky.hour,
               weather: e.weather.kind,
               pois: e.visitedCount,
+              // Whole previous frame: shadow maps, main pass and post-processing (info is reset once per frame)
               drawCalls: game.renderer.info.render.calls,
               triangles: game.renderer.info.render.triangles,
+              programs: game.renderer.info.programs?.length ?? 0,
+              geometries: game.renderer.info.memory.geometries,
+              textures: game.renderer.info.memory.textures,
+              renderMs: Math.round(e.renderMs * 10) / 10,
+              updateMs: Math.round(e.updateMs * 10) / 10,
+              fps: e.fps,
+              daylight: Math.round(e.sky.state.daylight * 100) / 100,
+              exposure: e.sky.exposure,
+              fogDensity: e.sky.fog.density,
+              fogCulled: e.fogCulled,
+              environmentBuilds: e.sky.environmentBuilds,
+              lightning: e.weather.lightning,
             }
           : null,
       }
@@ -140,6 +153,16 @@ export function installHarness(game: Game): void {
         game.expedition.weather.setKind(k)
         game.expedition.weather.locked = true
       }
+    },
+    /** Forces a lightning strike on the next storm update. */
+    strike() {
+      if (game.expedition) game.expedition.weather.nextFlash = 0
+    },
+    /** Drops a loot sack of the given rarity next to the player (checks the loot light slot and shader stability). */
+    dropTestLoot(rarity: "common" | "uncommon" | "rare" | "epic" | "legendary" = "epic") {
+      const e = game.expedition
+      if (!e) return
+      e.dropItem(createItem("torch_item", 1, { rarity }))
     },
     setMaxFrame(v: number) {
       game.maxFrame = v
