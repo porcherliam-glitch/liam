@@ -21,8 +21,9 @@ const R = 42
 export function buildGrass(terrain: Terrain, nav: NavGrid, biome: string, seed: number, count: number): THREE.InstancedMesh | null {
   // The ring has a fixed size, so the density comes from grassOptions.count (quality); `count` (the former
   // whole-map figure) only switches grass off when it is 0.
-  // Paved city squares only get stray tufts; gravel courtyards a thin cover.
-  const share = biome === "catacombs" || count <= 0 ? 0 : biome === "city" ? 0.08 : biome === "castle" || biome === "fortress" ? 0.3 : 1
+  // Paved city squares only get stray tufts, gravel courtyards and the muddy graveyard a thin cover, the
+  // shaded forest floor a little less than open meadows.
+  const share = biome === "catacombs" || count <= 0 ? 0 : biome === "city" ? 0.08 : biome === "castle" || biome === "fortress" ? 0.3 : biome === "graveyard" ? 0.4 : biome === "forest" ? 0.7 : 1
   const cap = Math.round(grassOptions.count * share)
   const side = Math.floor(Math.sqrt(cap))
   if (side <= 0) return null
