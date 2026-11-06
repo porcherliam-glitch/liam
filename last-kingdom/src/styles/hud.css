@@ -83,6 +83,15 @@ body.any-screen .hud-enemybars {
   background: linear-gradient(180deg, #e04a4a 0%, #b02a2a 45%, #6a1010 100%);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
+.hud-bar.hp {
+  transition: transform 0.18s ease-out, filter 0.18s;
+}
+/* Short kick when the player takes a hit */
+.hud-bar.hp.hit {
+  transform: scale(1.03, 1.18);
+  filter: brightness(1.35);
+  transition: none;
+}
 .hud-bar.hp.low .fill {
   animation: pulse 0.7s infinite alternate;
 }

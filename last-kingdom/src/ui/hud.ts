@@ -45,6 +45,7 @@ interface BarSlot {
   y: number
   ghostPct: number
   holdUntil: number
+  holdFrames: number
   hitAt: number
 }
 
@@ -52,6 +53,8 @@ interface BarSlot {
 const CRIT_COLOR = "#ffd24a"
 /** How long a ghost bar keeps showing lost health before it drains (ms). */
 const GHOST_HOLD_MS = 420
+/** ...and for at least this many HUD updates, so it is also seen at very low frame rates. */
+const GHOST_HOLD_FRAMES = 3
 /** Compass strip: maximum number of markers and minimum spacing (percent of the strip width). */
 const COMPASS_MAX_MARKERS = 6
 const COMPASS_GAP_ROW1 = 6
@@ -91,6 +94,7 @@ export class Hud {
   private lastHpPct = -1
   private ghostPct = 100
   private ghostHoldUntil = 0
+  private ghostHoldFrames = 0
   /** Seeded so damage-number jitter is reproducible in screenshots. */
   private floatRng = new Rng(0x5eed)
   private recentFloats: { x: number; y: number; t: number }[] = []
@@ -165,6 +169,7 @@ export class Hud {
         y: 0,
         ghostPct: 0,
         holdUntil: 0,
+        holdFrames: 0,
         hitAt: -1e9,
       })
     }
@@ -260,28 +265,31 @@ export class Hud {
         s.maxHp = e.maxHp
         s.ghostPct = pct
         s.holdUntil = 0
+        s.holdFrames = 0
         s.hitAt = -1e9
         s.label.textContent = e.name
         setBarWidth(s.ghost, pct, false)
         setBarWidth(s.fill, pct, false)
         s.el.classList.remove("hidden")
       } else if (e.hp < s.hp - 1e-6) {
+        const before = Math.min(100, (s.hp / s.maxHp) * 100)
+        if (s.ghostPct < before) {
+          s.ghostPct = before
+          setBarWidth(s.ghost, before, false)
+        }
         s.hitAt = now
         s.holdUntil = now + GHOST_HOLD_MS
-      } else if (e.hp > s.hp + 1e-6) {
-        s.ghostPct = pct
-        setBarWidth(s.ghost, pct, false)
+        s.holdFrames = GHOST_HOLD_FRAMES
       }
-      if (e.lastHitAt !== undefined && clock !== undefined && clock - e.lastHitAt < 0.1 && now - s.hitAt > 150) {
-        s.hitAt = now
-        s.holdUntil = Math.max(s.holdUntil, now + GHOST_HOLD_MS)
-      }
+      if (e.lastHitAt !== undefined && clock !== undefined && clock - e.lastHitAt < 0.1 && now - s.hitAt > 150) s.hitAt = now
       s.hp = e.hp
       s.x = e.x
       s.y = e.y
-      if (now >= s.holdUntil && s.ghostPct > pct) {
-        s.ghostPct = pct
-        setBarWidth(s.ghost, pct, true)
+      s.holdFrames--
+      const ghost = ghostTarget(s.ghostPct, pct, now >= s.holdUntil && s.holdFrames <= 0)
+      if (ghost !== s.ghostPct) {
+        s.ghostPct = ghost
+        setBarWidth(s.ghost, ghost, true)
       }
       if (!fresh) setBarWidth(s.fill, pct, true)
       s.el.style.left = `${e.x}px`
@@ -300,6 +308,7 @@ export class Hud {
     this.updateHpGhost(hpPct)
     this.hpText.textContent = `${Math.ceil(Math.max(0, player.hp))} / ${player.maxHp}`
     this.hp.parentElement!.classList.toggle("low", hpPct < 30)
+    this.hp.parentElement!.classList.toggle("hit", player.sinceHurt < 0.12)
     this.stamina.style.width = `${Math.max(0, (player.stamina / player.maxStamina) * 100)}%`
     this.stamina.parentElement!.classList.toggle("exhausted", player.stamina < player.maxStamina * 0.2)
     // Status effects
@@ -403,17 +412,26 @@ export class Hud {
     return formatTime(seconds)
   }
 
-  /** Lost health stays visible as a pale rest for a moment, then drains; healing moves it at once. */
+  /** Lost health stays visible as a pale rest for a moment, then drains. Regeneration and healing never cut it short. */
   private updateHpGhost(hpPct: number): void {
     const now = performance.now()
-    if (this.lastHpPct < 0 || hpPct > this.lastHpPct + 1e-6) {
+    if (this.lastHpPct < 0) {
       this.ghostPct = hpPct
-      this.ghostHoldUntil = 0
       setBarWidth(this.hpGhost, hpPct, false)
-    } else if (hpPct < this.lastHpPct - 1e-6) this.ghostHoldUntil = now + GHOST_HOLD_MS
-    if (now >= this.ghostHoldUntil && this.ghostPct > hpPct) {
-      this.ghostPct = hpPct
-      setBarWidth(this.hpGhost, hpPct, true)
+    } else if (hpPct < this.lastHpPct - 1e-6) {
+      // The rest starts at the health before the hit (it may still lag below after regeneration)
+      if (this.ghostPct < this.lastHpPct) {
+        this.ghostPct = this.lastHpPct
+        setBarWidth(this.hpGhost, this.lastHpPct, false)
+      }
+      this.ghostHoldUntil = now + GHOST_HOLD_MS
+      this.ghostHoldFrames = GHOST_HOLD_FRAMES
+    }
+    this.ghostHoldFrames--
+    const ghost = ghostTarget(this.ghostPct, hpPct, now >= this.ghostHoldUntil && this.ghostHoldFrames <= 0)
+    if (ghost !== this.ghostPct) {
+      this.ghostPct = ghost
+      setBarWidth(this.hpGhost, ghost, true)
     }
     this.lastHpPct = hpPct
   }
@@ -444,15 +462,26 @@ export class Hud {
     visible.sort((a, b) => MARKER_PRIORITY[a.m.kind] - MARKER_PRIORITY[b.m.kind] || a.d - b.d)
     const shown = visible.slice(0, COMPASS_MAX_MARKERS).sort((a, b) => a.left - b.left)
     for (const v of shown) {
-      const free1 = row1.every((o) => Math.abs(o.left - v.left) >= o.gap)
-      const free2 = row2.every((l) => Math.abs(l - v.left) >= COMPASS_GAP_ROW2)
-      const second = !free1 && (free2 || row2.length < row1.length)
-      if (second) row2.push(v.left)
-      else row1.push({ left: v.left, gap: COMPASS_GAP_ROW1 })
-      parts.push(`<span class="cmark ${v.m.kind}${second ? " row2" : ""}" style="left:${v.left.toFixed(2)}%" title="${esc(v.m.label)}">${MARKER_ICON[v.m.kind]}<small>${formatDistance(v.d)}</small></span>`)
+      let left = v.left
+      const second = !row1.every((o) => Math.abs(o.left - left) >= o.gap)
+      if (second) {
+        // Row 2 is filled left to right; a marker that still collides is nudged right just far enough
+        if (row2.length) left = Math.max(left, row2[row2.length - 1] + COMPASS_GAP_ROW2)
+        row2.push(left)
+      } else row1.push({ left, gap: COMPASS_GAP_ROW1 })
+      parts.push(`<span class="cmark ${v.m.kind}${second ? " row2" : ""}" style="left:${left.toFixed(2)}%" title="${esc(v.m.label)}">${MARKER_ICON[v.m.kind]}<small>${formatDistance(v.d)}</small></span>`)
     }
     return parts.join("")
   }
+}
+
+/**
+ * Next width of a ghost bar: it follows the health up (hidden under the fill anyway, small regeneration steps are
+ * ignored) and drains down to it once the hold after a hit is over.
+ */
+function ghostTarget(ghost: number, hp: number, holdOver: boolean): number {
+  if (hp >= ghost) return hp - ghost > 0.25 ? hp : ghost
+  return holdOver ? hp : ghost
 }
 
 /** Sets a bar width either instantly or through the element's CSS transition. */

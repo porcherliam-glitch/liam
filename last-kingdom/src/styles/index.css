@@ -45,6 +45,13 @@ body {
   inset: 0;
   pointer-events: none;
 }
+/* Above the screen blood overlay (.gore-screen, z-index 4), below the loading card */
+#hud {
+  z-index: 5;
+}
+#ui {
+  z-index: 6;
+}
 #ui {
   pointer-events: none;
 }
