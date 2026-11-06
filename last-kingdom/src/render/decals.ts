@@ -6,7 +6,7 @@ import * as THREE from "three"
 import { tex } from "./textures"
 import { cosmetic } from "../core/rng"
 
-const POOL = 320
+const POOL = 1200
 
 export interface DecalOptions {
   /** Direction of the splatter on the ground; with stretch the quad is elongated along it. */
@@ -33,6 +33,10 @@ interface Slot {
   opacity: number
   color: THREE.Color
   live: boolean
+  /** Wall splats stand upright; the normal points out of the wall. */
+  wall: boolean
+  nx: number
+  nz: number
 }
 
 const _m = new THREE.Matrix4()
@@ -40,6 +44,10 @@ const _q = new THREE.Quaternion()
 const _p = new THREE.Vector3()
 const _s = new THREE.Vector3()
 const _up = new THREE.Vector3(0, 1, 0)
+const _n = new THREE.Vector3()
+const _qa = new THREE.Quaternion()
+const _t = new THREE.Vector3()
+const _basis = new THREE.Matrix4()
 const DRY = new THREE.Color(0x3c0206)
 
 export class Decals {
@@ -68,7 +76,7 @@ export class Decals {
     for (let i = 0; i < POOL; i++) {
       this.mesh.setMatrixAt(i, _m)
       this.mesh.setColorAt(i, new THREE.Color(0x7a1010))
-      this.slots.push({ x: 0, y: 0, z: 0, rot: 0, age: 999, grow: 0, sx: 1, sz: 1, life: 120, opacity: 0, color: new THREE.Color(0x7a1010), live: false })
+      this.slots.push({ x: 0, y: 0, z: 0, rot: 0, age: 999, grow: 0, sx: 1, sz: 1, life: 120, opacity: 0, color: new THREE.Color(0x7a1010), live: false, wall: false, nx: 0, nz: 0 })
     }
     scene.add(this.mesh)
   }
@@ -93,11 +101,50 @@ export class Decals {
     slot.opacity = opts.opacity ?? cosmetic.range(0.86, 1)
     slot.color.set(opts.pool ? 0x6a0309 : cosmetic.chance(0.5) ? 0xa80e16 : 0x82080e)
     slot.live = true
+    slot.wall = false
     this.write(i, slot, slot.grow > 0 ? 0.3 : 1)
+  }
+
+  /**
+   * An upright splat on a wall at height y; (nx, nz) is the wall normal. With stretch the splat runs downwards
+   * like blood trickling off the stone.
+   */
+  spawnWall(x: number, y: number, z: number, nx: number, nz: number, size = 1, stretch = 1): void {
+    if (!this.enabled) return
+    const i = this.next
+    this.next = (this.next + 1) % POOL
+    const slot = this.slots[i]
+    const len = Math.hypot(nx, nz) || 1
+    slot.nx = nx / len
+    slot.nz = nz / len
+    // Slightly off the surface; the polygon offset handles the rest
+    slot.x = x + slot.nx * (0.015 + (i % 5) * 0.002)
+    slot.z = z + slot.nz * (0.015 + (i % 5) * 0.002)
+    slot.y = y
+    const s = size * cosmetic.range(0.8, 1.25)
+    slot.sx = s
+    slot.sz = s * stretch
+    slot.rot = stretch > 1.2 ? cosmetic.range(-0.15, 0.15) : cosmetic.range(0, Math.PI * 2)
+    slot.grow = 0
+    slot.age = 0
+    slot.life = 200
+    slot.opacity = cosmetic.range(0.85, 1)
+    slot.color.set(cosmetic.chance(0.5) ? 0xa80e16 : 0x82080e)
+    slot.live = true
+    slot.wall = true
+    this.write(i, slot, 1)
   }
 
   private write(i: number, slot: Slot, k: number): void {
     _q.setFromAxisAngle(_up, slot.rot)
+    if (slot.wall) {
+      // Spin in the plane first, then a basis with the quad's X along the wall, Y on the normal and Z vertical
+      _n.set(slot.nx, 0, slot.nz)
+      _t.set(-slot.nz, 0, slot.nx)
+      _basis.makeBasis(_t, _n, _up)
+      _qa.setFromRotationMatrix(_basis)
+      _q.premultiply(_qa)
+    }
     _p.set(slot.x, slot.y, slot.z)
     _s.set(slot.sx * k, 1, slot.sz * k)
     _m.compose(_p, _q, _s)

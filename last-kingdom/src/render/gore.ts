@@ -7,6 +7,7 @@ import { cosmetic } from "../core/rng"
 import type { Humanoid } from "./humanoid"
 import type { Particles } from "./particles"
 import type { Decals } from "./decals"
+import type { Hit } from "../world/collision"
 
 export type BodyPart = "head" | "armL" | "armR" | "legL" | "legR" | "torso"
 
@@ -107,6 +108,8 @@ export class Gore {
   private screen: HTMLDivElement | null = null
   private screenBlobs: HTMLDivElement[] = []
   private screenLevel = 0
+  /** Segment cast against walls, trees and palisades (set by the expedition) for blood on vertical surfaces. */
+  wallCast: ((ax: number, ay: number, az: number, bx: number, by: number, bz: number) => Hit | null) | null = null
   /** Kills so far this run, used to make the weapon bloodier. */
   weaponBlood = 0
 
@@ -152,6 +155,37 @@ export class Gore {
       const d = 0.6 + i * 0.7 * force + cosmetic.range(0, 0.5)
       this.decals.spawn(x + dir.x * d, z + dir.z * d, 0.45 + force * 0.3, { dirX: dir.x, dirZ: dir.z, stretch: 1.6 + force })
     }
+    this.wallSplat(x, y, z, dir.x, dir.z, 1.6 + force * 1.4, 0.4 + force * 0.25)
+  }
+
+  /** Blood thrown against a wall or tree within reach of (x, y, z) in direction (dx, dz). */
+  wallSplat(x: number, y: number, z: number, dx: number, dz: number, reach: number, size: number): boolean {
+    if (!this.enabled || !this.wallCast) return false
+    const len = Math.hypot(dx, dz)
+    if (len < 1e-4) return false
+    const ux = dx / len
+    const uz = dz / len
+    const hit = this.wallCast(x, y, z, x + ux * reach, y - 0.35 * reach, z + uz * reach)
+    if (!hit || (hit.nx === 0 && hit.nz === 0)) return false
+    const c = hit.collider
+    // Thin trunks and posts would leave a splat hanging in the air
+    if (c.kind === "circle" ? c.r < 0.35 : Math.max(c.hw, c.hd) < 0.4 || c.y1 - c.y0 < 0.7) return false
+    const px = x + ux * reach * hit.t
+    const pz = z + uz * reach * hit.t
+    let py = y - 0.35 * reach * hit.t
+    const s = c.kind === "circle" ? Math.min(size, c.r * 1.3) : size
+    py = Math.min(Math.max(py, c.y0 + s * 0.4), c.y1 - s * 0.45)
+    this.decals.spawnWall(px, py, pz, hit.nx, hit.nz, s, cosmetic.range(1, 1.5))
+    // Runs trickling down from the splat
+    const runs = cosmetic.int(1, 3)
+    for (let i = 0; i < runs; i++) {
+      const w = s * cosmetic.range(0.18, 0.3)
+      const l = cosmetic.range(2.5, 5)
+      const off = cosmetic.range(-0.3, 0.3) * s
+      const ry = Math.max(c.y0 + w * l * 0.5, py - s * 0.1 - w * l * 0.5)
+      this.decals.spawnWall(px - hit.nz * off, ry, pz + hit.nx * off, hit.nx, hit.nz, w, l)
+    }
+    return true
   }
 
   /** Big burst (death, explosion). */
@@ -163,6 +197,10 @@ export class Gore {
       const a = cosmetic.range(0, Math.PI * 2)
       const d = cosmetic.range(0.4, 2.2)
       this.decals.spawn(x + Math.cos(a) * d, z + Math.sin(a) * d, cosmetic.range(0.4, 1), { dirX: Math.cos(a), dirZ: Math.sin(a), stretch: cosmetic.range(1, 2.5) })
+    }
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2 + cosmetic.range(-0.4, 0.4)
+      this.wallSplat(x, y, z, Math.cos(a), Math.sin(a), 2.8, cosmetic.range(0.5, 0.95))
     }
   }
 

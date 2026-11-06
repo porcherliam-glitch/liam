@@ -203,6 +203,7 @@ export class Expedition implements ExpeditionApi {
     this.decals.enabled = settings.gore
     this.gore = new Gore(this.scene, (x, z) => this.world.terrain.heightAt(x, z), this.particles, this.decals)
     this.gore.enabled = settings.gore
+    this.gore.wallCast = (ax, ay, az, bx, by, bz) => this.world.collision.segmentCast(ax, ay, az, bx, by, bz)
     this.player = new Player(profile, profile.loadout)
     this.skillsLuck = skillBonuses(profile.skills).lootLuck + (profile.classId === "rogue" ? 0.15 : 0) + (night ? 0.35 : 0)
     // Expedition modifiers: a third of all runs come with a twist
