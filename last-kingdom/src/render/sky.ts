@@ -154,11 +154,11 @@ const LIGHT_KEYS: LightKey[] = [
   // night
   { elev: -0.12, sun: 0xff7a3a, sunI: 0, hemiSky: 0x1c2436, hemiGround: 0x0e0f12, hemiI: 6.5, ambient: 0x141824, ambientI: 3.5, fill: 0.35, top: 0x070a14, horizon: 0x151a26, exposure: 1.0 },
   // dusk / dawn
-  { elev: -0.02, sun: 0xff7a3a, sunI: 1.2, hemiSky: 0x4a4a68, hemiGround: 0x2a2218, hemiI: 3.0, ambient: 0x1e2232, ambientI: 2.0, fill: 0.4, top: 0x1c2440, horizon: 0x9a5a3a, exposure: 1.0 },
+  { elev: -0.02, sun: 0xff7a3a, sunI: 1.2, hemiSky: 0x4a4a68, hemiGround: 0x2a2218, hemiI: 3.0, ambient: 0x1e2232, ambientI: 2.0, fill: 0.45, top: 0x1c2440, horizon: 0x9a5a3a, exposure: 1.0 },
   // morning / evening
-  { elev: 0.2, sun: 0xffc48a, sunI: 2.4, hemiSky: 0x6a7a98, hemiGround: 0x3a3426, hemiI: 1.9, ambient: 0x2e3444, ambientI: 1.2, fill: 0.5, top: 0x3a506e, horizon: 0x9aa0a8, exposure: 1.05 },
+  { elev: 0.2, sun: 0xffc48a, sunI: 2.4, hemiSky: 0x6a7a98, hemiGround: 0x3a3426, hemiI: 1.9, ambient: 0x2e3444, ambientI: 1.2, fill: 0.7, top: 0x3a506e, horizon: 0x9aa0a8, exposure: 1.05 },
   // noon
-  { elev: 0.5, sun: 0xfff0dc, sunI: 3.0, hemiSky: 0x7f90a8, hemiGround: 0x3a3a2e, hemiI: 1.6, ambient: 0x3a4050, ambientI: 1.0, fill: 0.55, top: 0x46668a, horizon: 0xa6b2bc, exposure: 1.1 },
+  { elev: 0.5, sun: 0xfff0dc, sunI: 3.0, hemiSky: 0x7f90a8, hemiGround: 0x3a3a2e, hemiI: 1.6, ambient: 0x3a4050, ambientI: 1.0, fill: 0.8, top: 0x46668a, horizon: 0xa6b2bc, exposure: 1.1 },
 ]
 
 const UP = new THREE.Vector3(0, 1, 0)
