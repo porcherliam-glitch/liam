@@ -1,7 +1,9 @@
 // Material cache. Materials are shared between meshes so draw calls can batch and memory stays low.
-// Every mat() material belongs to a "family": all of its properties except the colour. The static batcher
-// merges the meshes of one family into a single draw call and bakes each mesh's colour into vertex colours
-// (familyMaterial() supplies the shared white, vertex-coloured material).
+// Every mat() material (and every plain loaded MeshStandardMaterial) belongs to a "family": all of its
+// properties except the colour. The static batcher merges the meshes of one family into a single draw call
+// and bakes each mesh's colour into vertex colours (familyMaterial() supplies the shared white,
+// vertex-coloured material). Also here: rain wetness for ground materials, the water material and the
+// height-fog shader chunks.
 
 import * as THREE from "three"
 import { tex } from "./textures"
