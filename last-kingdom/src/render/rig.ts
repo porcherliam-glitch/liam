@@ -4,6 +4,7 @@
 // zombies and NPCs work unchanged; the Animator detects `rig` and drives an AnimationMixer instead of the procedural poses.
 
 import * as THREE from "three"
+import { mergeFlatParts, type PartClass } from "./mergeParts"
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js"
 import { clone as skeletonClone } from "three/examples/jsm/utils/SkeletonUtils.js"
 import { models } from "./assets"
@@ -32,10 +33,34 @@ export const HELMET_MODELS = ["helmets_kit"]
 const HELMETS: Record<string, string> = { kettle: "Helmet1", nasal: "Helmet1", bascinet: "Helmet3", great: "Helmet2" }
 
 /** A helmet model placed on the head socket (scaled to the base character's head). */
+const HELMET_METAL: PartClass = {
+  material: new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, metalness: 0.7, roughness: 0.35 }),
+  color: (m) => (/gold/i.test(m.name) ? m.color.clone() : m.color.clone().multiplyScalar(1.6)),
+}
+const helmetTemplates = new Map<string, THREE.Object3D | null>()
+
 function helmet(look: string): THREE.Object3D | null {
   const name = HELMETS[look]
   const src = name ? models.get("helmets_kit")?.scene.getObjectByName(name) : null
   if (!src) return null
+  // All parts of a helmet as one metal mesh (the pack gives one mesh per colour)
+  let t = helmetTemplates.get(name!)
+  if (t === undefined) {
+    const holder = new THREE.Group()
+    // Same pose as the unmerged path below: the part's own rotation, no offset, no scale
+    const copy = src.clone(true)
+    copy.position.set(0, 0, 0)
+    copy.scale.set(1, 1, 1)
+    holder.add(copy)
+    t = mergeFlatParts(holder, () => HELMET_METAL)
+    helmetTemplates.set(name!, t)
+  }
+  if (t) {
+    const h = t.clone()
+    h.scale.setScalar(0.5)
+    h.position.set(0, 0.16, 0.01)
+    return h
+  }
   const h = src.clone(true)
   h.traverse((o) => {
     const m = o as THREE.Mesh
@@ -183,14 +208,97 @@ function floatAttributes(g: THREE.BufferGeometry): THREE.BufferGeometry {
 }
 
 /** Merges skinned meshes that share a material into one mesh (fewer draw calls). */
+const looseSpheres = new Map<string, THREE.Sphere>()
+
+/** Bind-pose bounding sphere of a skinned geometry, enlarged to cover any pose of the figure. */
+function looseSphere(g: THREE.BufferGeometry): THREE.Sphere {
+  let s = looseSpheres.get(g.uuid)
+  if (!s) {
+    if (!g.boundingSphere) g.computeBoundingSphere()
+    s = g.boundingSphere!.clone()
+    s.radius *= 2
+    looseSpheres.set(g.uuid, s)
+  }
+  return s.clone()
+}
+
+function matricesClose(a: THREE.Matrix4, b: THREE.Matrix4, eps = 1e-3): boolean {
+  for (let i = 0; i < 16; i++) if (Math.abs(a.elements[i] - b.elements[i]) > eps) return false
+  return true
+}
+
+/**
+ * Moves skinned meshes whose skeletons agree on the bind pose onto one union skeleton (skin indices remapped on a
+ * copy of the geometry). Parts exported with different joint lists then share one bone texture and, with the same
+ * material, merge into one draw. Meshes with a different bind pose keep their own skeleton.
+ */
+function shareOneSkeleton(meshes: THREE.SkinnedMesh[]): void {
+  if (meshes.length < 2) return
+  const sorted = [...meshes].sort((a, b) => b.skeleton.bones.length - a.skeleton.bones.length)
+  const bind = sorted[0].bindMatrix
+  const bones: THREE.Bone[] = []
+  const inverses: THREE.Matrix4[] = []
+  const index = new Map<string, number>()
+  const members: { mesh: THREE.SkinnedMesh; map: number[] }[] = []
+  for (const m of sorted) {
+    if (!matricesClose(m.bindMatrix, bind, 1e-4)) continue
+    const map: number[] = []
+    const added = new Map<string, { bone: THREE.Bone; inverse: THREE.Matrix4; at: number }>()
+    let ok = true
+    for (let i = 0; i < m.skeleton.bones.length; i++) {
+      const bone = m.skeleton.bones[i]
+      const inverse = m.skeleton.boneInverses[i]
+      const known = index.get(bone.name)
+      if (known !== undefined) {
+        if (!matricesClose(inverses[known], inverse)) {
+          ok = false
+          break
+        }
+        map.push(known)
+        continue
+      }
+      let a = added.get(bone.name)
+      if (!a) {
+        a = { bone, inverse, at: bones.length + added.size }
+        added.set(bone.name, a)
+      }
+      map.push(a.at)
+    }
+    if (!ok) continue
+    for (const a of added.values()) {
+      index.set(a.bone.name, a.at)
+      bones[a.at] = a.bone
+      inverses[a.at] = a.inverse.clone()
+    }
+    members.push({ mesh: m, map })
+  }
+  if (members.length < 2 || members.every((x) => x.mesh.skeleton === members[0].mesh.skeleton)) return
+  const skeleton = new THREE.Skeleton(bones, inverses)
+  for (const { mesh, map } of members) {
+    if (!map.every((j, i) => j === i)) {
+      // The geometry may be shared with other templates: remap a copy
+      const g = mesh.geometry.clone()
+      const si = g.getAttribute("skinIndex") as THREE.BufferAttribute
+      const u = new Uint16Array(si.count * 4)
+      for (let v = 0; v < si.count; v++) for (let k = 0; k < 4; k++) u[v * 4 + k] = map[si.getComponent(v, k)] ?? 0
+      g.setAttribute("skinIndex", new THREE.BufferAttribute(u, 4))
+      mesh.geometry = g
+    }
+    mesh.bind(skeleton, mesh.bindMatrix.clone())
+  }
+}
+
 function mergeByMaterial(meshes: THREE.SkinnedMesh[], arm: THREE.Object3D): THREE.SkinnedMesh[] {
-  // Only parts of the same file share skin index order and bind pose, so group by skeleton and material
+  shareOneSkeleton(meshes.filter((m) => m.visible))
+  // Parts on the same skeleton share skin index order and bind pose, so group by skeleton and material
   const groups = new Map<string, THREE.SkinnedMesh[]>()
   const mats = new Map<string, THREE.Material>()
   for (const m of meshes) {
     if (!m.visible) continue
     const mat = m.material as THREE.Material
-    const key = `${m.skeleton.uuid}:${mat.uuid}`
+    // By name and texture, not by object: the loader makes a second copy of a material for primitives with
+    // vertex colours, and those colours are dropped below anyway
+    const key = `${m.skeleton.uuid}:${mat.name}:${(mat as THREE.MeshStandardMaterial).map?.uuid ?? mat.uuid}`
     const list = groups.get(key) ?? []
     list.push(m)
     groups.set(key, list)
@@ -520,9 +628,14 @@ export function buildCharacter(a: Appearance, procedural: () => Humanoid): Human
     const m = o as THREE.SkinnedMesh
     if (!m.isMesh) return
     meshes.push(m)
-    m.castShadow = true
+    // Eyes sit inside the head: their shadow costs a draw and shows nothing
+    if (/eye/i.test((m.material as THREE.Material).name ?? "")) m.userData.noShadow = true
+    m.castShadow = !m.userData.noShadow
     m.receiveShadow = true
-    m.frustumCulled = false
+    // Skinned parts are culled against a loose sphere around the bind pose that also holds lying and crawling
+    // poses (the default sphere would be the bind pose only, and switching culling off drew every enemy behind
+    // the camera too)
+    if (m.isSkinnedMesh) m.boundingSphere = looseSphere(m.geometry)
     const src = m.material as THREE.MeshStandardMaterial
     let c = seen.get(src)
     if (!c) {
@@ -580,7 +693,9 @@ export function buildCharacter(a: Appearance, procedural: () => Humanoid): Human
       const m = o as THREE.Mesh
       if (m.isMesh) {
         meshes.push(m as unknown as THREE.SkinnedMesh)
-        const mat = m.material as THREE.MeshStandardMaterial
+        // Own copy: the hit flash and the disposal belong to this character (the template is shared)
+        const mat = (m.material as THREE.MeshStandardMaterial).clone()
+        m.material = mat
         mat.emissive = flash
         mat.emissiveIntensity = 0.55
         materials.push(mat)

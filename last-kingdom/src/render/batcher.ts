@@ -1,4 +1,4 @@
-// Static batching: merges all static prop meshes of a 64 m chunk that share a material family into one mesh.
+// Static batching: merges all static prop meshes of a 96 m chunk that share a material family into one mesh.
 // Hundreds of buildings and trees then cost a few dozen draw calls instead of thousands. Meshes whose
 // materials differ only in colour (mat() families) share one white, vertex-coloured material: each mesh's
 // colour is baked into the colour attribute. Geometries stay indexed.
@@ -31,14 +31,15 @@ interface Group {
   list: Entry[]
 }
 
-/** Groups below this many triangles are merged with their neighbours into 128 m cells (fewer, still cullable draws). */
+/** Groups below this many triangles are merged with their neighbours into 192 m cells (fewer, still cullable draws). */
 const SMALL_GROUP = 1500
 
 type WithVertexColors = THREE.Material & { vertexColors?: boolean }
 
 export class StaticBatcher {
   private entries: Entry[] = []
-  private chunk = 64
+  // 96 m: in the city 17 % fewer draws than 64 m for 15 % more triangles; 128 m adds little and costs a third more
+  private chunk = 96
 
   /** Walks a placed group and records every static mesh (userData.dynamic === true is skipped). */
   addGroup(group: THREE.Object3D): void {

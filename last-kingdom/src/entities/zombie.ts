@@ -555,7 +555,7 @@ export class Zombie {
     const shadows = dist < 30
     if (shadows !== this.castsShadow && this.humanoid.rig) {
       this.castsShadow = shadows
-      for (const m of this.humanoid.rig.meshes) m.castShadow = shadows
+      for (const m of this.humanoid.rig.meshes) m.castShadow = shadows && !m.userData.noShadow
     }
     // Telegraph: visible during the wind-up of attacks and heavy abilities
     const winding = (st === "attack" && !this.attackHitDone) || (st === "ability" && (this.ability === "slam" || this.ability === "leap" || this.ability === "charge") && !this.attackHitDone)

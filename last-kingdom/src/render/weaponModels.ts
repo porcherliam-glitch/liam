@@ -1,6 +1,7 @@
 // Procedural weapon and shield meshes. Grip at the origin; blades extend along -Y (the hand's forward).
 
 import * as THREE from "three"
+import { mergeFlatParts, type PartClass } from "./mergeParts"
 import { M, mat } from "./materials"
 import { models } from "./assets"
 
@@ -24,8 +25,41 @@ const SHIELD_FILES: Record<string, [string, number]> = {
 export const WEAPON_MODELS = [...new Set([...Object.values(WEAPON_FILES), ...Object.values(SHIELD_FILES)].map((v) => v[0]))]
 
 /** A model from the weapon pack, turned to the game's convention (grip at origin, blade along -Y). */
+// Kit weapons and shields use flat colours: steel and gold read as metal, wood and leather as matte
+const METAL: PartClass = {
+  material: new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, metalness: 0.75, roughness: 0.32 }),
+  color: (m) => m.color.clone().multiplyScalar(/dark/i.test(m.name) ? 1.6 : 1.9),
+}
+const MATTE: PartClass = {
+  material: new THREE.MeshStandardMaterial({ color: 0xffffff, vertexColors: true, metalness: 0, roughness: 0.8 }),
+  color: (m) => m.color.clone().multiplyScalar(1.5),
+}
+const packTemplates = new Map<string, THREE.Group | null>()
+
 function packModel(entry: [string, number] | undefined, flip: boolean): THREE.Group | null {
   if (!entry) return null
+  const key = `${entry[0]}:${flip ? 1 : 0}`
+  let template = packTemplates.get(key)
+  if (template === undefined) {
+    template = null
+    const inst = models.instantiate(entry[0])
+    if (inst) {
+      const holder = new THREE.Group()
+      inst.scale.setScalar(entry[1])
+      if (flip) inst.rotation.z = Math.PI
+      holder.add(inst)
+      // One mesh per material class instead of one per colour; instances share geometry and materials
+      // (Gore.bloodyWeapon gives a bloodied weapon its own material copies)
+      template = mergeFlatParts(holder, (m) => (/steel|gold/i.test(m.name) ? METAL : MATTE))
+    }
+    if (models.has(entry[0])) packTemplates.set(key, template)
+  }
+  if (template) return template.clone()
+  return legacyPack(entry, flip)
+}
+
+/** The unmerged kit model (used when a part cannot be merged). */
+function legacyPack(entry: [string, number], flip: boolean): THREE.Group | null {
   const inst = models.instantiate(entry[0], { cloneMaterials: true })
   if (!inst) return null
   inst.traverse((o) => {
