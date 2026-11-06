@@ -1254,12 +1254,12 @@ export class Expedition implements ExpeditionApi {
       const p = this.flamePos[fi]
       const f = flicker(t, fi)
       // Torches hang 2.5-3.5 m up: with physical falloff (decay 2) they need this much to light the ground below
-      let intensity = 14 + 8 * f
+      let intensity = (14 + 8 * f) * (this.world.underground ? 1.25 : 1)
       if (gusty) intensity *= 0.65 + 0.35 * noise1(t * 3 + fi)
       l.intensity = intensity
       l.distance = 13
       l.color.setHSL(0.065 + 0.02 * flicker(t, fi + 50), 0.9, 0.58)
-      l.position.set(p.x + (noise1(t * 11 + fi) - 0.5) * 0.08, p.y + 0.3, p.z + (noise1(t * 11 + fi + 31) - 0.5) * 0.08)
+      l.position.set(p.x + (noise1(t * 11 + fi) - 0.5) * 0.08, p.y, p.z + (noise1(t * 11 + fi + 31) - 0.5) * 0.08)
     }
     // Flames: size follows the same noise, embers and smoke near the player
     const flames = this.world.flames
