@@ -1253,7 +1253,8 @@ export class Expedition implements ExpeditionApi {
       }
       const p = this.flamePos[fi]
       const f = flicker(t, fi)
-      let intensity = 7 + 5 * f
+      // Torches hang 2.5-3.5 m up: with physical falloff (decay 2) they need this much to light the ground below
+      let intensity = 14 + 8 * f
       if (gusty) intensity *= 0.65 + 0.35 * noise1(t * 3 + fi)
       l.intensity = intensity
       l.distance = 13

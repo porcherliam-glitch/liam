@@ -184,6 +184,10 @@ export class Weather {
     const active = Math.floor(this.rainCount * clamp(this.rain, 0, 1))
     const half = this.rainHalf
     const head = this.rainHead
+    // Camera in box coordinates: drops right in front of the lens would be long bright streaks, so they are skipped
+    const lcx = camPos.x - cx
+    const lcy = camPos.y - cy
+    const lcz = camPos.z - cz
     for (let i = 0; i < active; i++) {
       const o = i * 3
       const vel = this.rainVel[i]
@@ -203,8 +207,9 @@ export class Weather {
       head[o] = x
       head[o + 1] = y
       head[o + 2] = z
-      // Tail along the fall direction
-      const len = 0.5 + vel * 0.03
+      // Tail along the fall direction (none for drops within 1.8 m of the camera)
+      const near = (x - lcx) ** 2 + (z - lcz) ** 2 < 3.2 && Math.abs(y - lcy) < 2.5
+      const len = near ? 0 : 0.4 + vel * 0.025
       const inv = len / Math.sqrt(wx * wx + vel * vel + wz * wz)
       const q = i * 6
       arr[q] = x
@@ -216,7 +221,7 @@ export class Weather {
     }
     pos.needsUpdate = true
     this.rainLines.geometry.setDrawRange(0, active * 2)
-    ;(this.rainLines.material as THREE.LineBasicMaterial).opacity = Math.min(0.32, this.rain * 0.4)
+    ;(this.rainLines.material as THREE.LineBasicMaterial).opacity = Math.min(0.26, this.rain * 0.34)
   }
 
   private updateLightning(dt: number, camPos: THREE.Vector3, underground: boolean, heightAt?: HeightFn): void {

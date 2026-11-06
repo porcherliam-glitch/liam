@@ -433,12 +433,12 @@ export class Sky {
       this.hemi.groundColor.copy(key.hemiGround)
       // Thick fog scatters light: flatter, brighter ambient
       const fogLift = Math.max(0, fog - 0.3) / 0.7
-      this.hemi.intensity = key.hemiI * (1 - cloud * 0.2) * (1 + fogLift * 0.35) + flash * 2.0
+      this.hemi.intensity = key.hemiI * (1 - cloud * 0.2) * (1 + fogLift * 0.35) + flash * 1.5
       this.fill.intensity = key.fill
       this.ambient.color.copy(key.ambient).lerp(FLASH_COLOR, flash)
       this.ambient.intensity = key.ambientI + flash * 0.8
     }
-    this.exposure = this.underground ? 1.0 : key.exposure
+    this.exposure = this.underground ? 1.1 : key.exposure
     // Sky colours
     const top = this.cTop.copy(key.top)
     const horizon = this.cHorizon.copy(key.horizon)
