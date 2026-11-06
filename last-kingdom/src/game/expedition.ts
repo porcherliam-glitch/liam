@@ -1292,7 +1292,7 @@ export class Expedition implements ExpeditionApi {
     pulse.visible = true
     pulse.position.set(ex.site.x, ex.site.y + 0.1, ex.site.z)
     pulse.scale.setScalar(1 + phase * 0.7)
-    ;(pulse.material as THREE.MeshBasicMaterial).opacity = 0.6 * (1 - phase)
+    ;(pulse.material as THREE.MeshBasicMaterial).opacity = 0.45 * (1 - phase)
     if (this.rng.chance(dt * (this.settings.quality === "low" ? 6 : 18))) {
       this.particles.emit(ex.site.x + this.rng.range(-2, 2), ex.site.y + 0.2, ex.site.z + this.rng.range(-2, 2), { count: 1, color: 0x9fe0ff, spread: 0.1, speed: 0.3, up: 1, life: 1.8, size: 0.07, gravity: -0.6, alpha: 0.8 })
     }
