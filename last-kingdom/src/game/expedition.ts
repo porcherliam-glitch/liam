@@ -33,7 +33,8 @@ import { buildHumanoid, disposeHumanoid, type Humanoid } from "../render/humanoi
 import { Animator } from "../render/animator"
 import { skillBonuses } from "../meta/skillData"
 import { campBonuses } from "../meta/campData"
-import { mat, waterMaterial, windUniforms } from "../render/materials"
+import { fogUniforms, mat, materialQuality, setWetness, waterMaterial, windUniforms } from "../render/materials"
+import { grassOptions } from "../render/grass"
 import { kitProp } from "../render/kitProps"
 import type { PostProcess } from "../render/postprocess"
 import { RARITIES } from "../core/types"
@@ -190,6 +191,9 @@ export class Expedition implements ExpeditionApi {
   private hordeIndex = 0
   private skillsLuck: number
   private rainTimer = 0
+  /** Rain wetness of ground materials (0..1), see setWetness. */
+  private wetness = 0
+  private wetApplied = 0
   private tmpV = new THREE.Vector3()
   private inventoryHold = 0
   private inventoryHoldFrames = 0
@@ -230,6 +234,9 @@ export class Expedition implements ExpeditionApi {
     this.particles = new Particles(this.scene)
     this.particles.setViewport(window.innerHeight)
     this.particles.gore = settings.gore
+    // Quality switches read while the world is built
+    materialQuality.normalMaps = settings.quality !== "low"
+    grassOptions.count = settings.quality === "low" ? 3000 : settings.quality === "medium" ? 8000 : 14000
     this.world = buildWorld(area, this.scene)
     this.decals = new Decals(this.scene, (x, z) => this.world.terrain.heightAt(x, z))
     if (!this.world.underground) this.crows = new Crows(this.scene, area.size, area.seed)
@@ -1174,6 +1181,7 @@ export class Expedition implements ExpeditionApi {
     this.shadowAhead.z = damp(this.shadowAhead.z, fwd.z * ahead, 4, dt)
     this.sky.update(dt, focus, this.shadowAhead)
     this.weather.update(dt, camPos, this.world.underground, { forward: fwd, heightAt: this.heightAt, biome: this.world.area.biome, player: focus })
+    this.updateWetAndFog(dt)
     // Reflections: the environment map is rebaked only when light or weather changed noticeably
     this.sky.updateEnvironment(this.renderer, `${this.weather.kind}:${Math.round(this.weather.cloud * 4)}:${Math.round(this.weather.fog * 4)}`)
     this.updateThunder()
@@ -1185,8 +1193,8 @@ export class Expedition implements ExpeditionApi {
     }
     // Water ripples
     if (this.world.waters.length) {
+      // The shader scrolls the normal map itself; the wind only makes the surface choppier
       const wm = waterMaterial()
-      wm.normalMap!.offset.set(t * 0.012, t * 0.008)
       wm.normalScale.set(0.5 + this.weather.wind * 0.5, 0.5 + this.weather.wind * 0.5)
     }
     // Extraction beams pulse (kept faint so they do not wash out the sky)
@@ -1235,6 +1243,26 @@ export class Expedition implements ExpeditionApi {
       if (th.shake) this.camera.addShake(0.15)
       this.thunder.splice(i, 1)
     }
+  }
+
+  /**
+   * Ground gets wet while it rains and dries slowly afterwards; the height fog hugs the ground (lake level or
+   * valley floor) more in fog and in the forest and graveyard, and not at all underground.
+   */
+  private updateWetAndFog(dt: number): void {
+    const target = this.world.underground ? 0 : Math.min(1, this.weather.rain * 1.3)
+    const rate = target > this.wetness ? 0.08 : 0.02
+    this.wetness += Math.max(-rate * dt, Math.min(rate * dt, target - this.wetness))
+    // Material colours are only touched when the change is visible
+    if (Math.abs(this.wetness - this.wetApplied) > 0.01 || (this.wetness === 0 && this.wetApplied !== 0)) {
+      this.wetApplied = this.wetness
+      setWetness(this.wetness)
+    }
+    const biome = this.world.area.biome
+    const low = biome === "forest" || biome === "graveyard"
+    fogUniforms.uFogFloor.value = this.world.underground ? -100 : this.world.terrain.waterLevel + (low ? 0.5 : 0)
+    fogUniforms.uFogFalloff.value = this.world.underground ? 0.05 : low ? 0.16 : 0.1
+    fogUniforms.uFogHeightMix.value = this.world.underground ? 0 : Math.min(0.75, (low ? 0.4 : 0.25) + this.weather.fog * 0.35)
   }
 
   /** Assigns the fixed light pool: player torch slot, loot/extraction slot, nearest flames with noisy flicker. */
@@ -1522,6 +1550,10 @@ export class Expedition implements ExpeditionApi {
 
   dispose(): void {
     for (const u of this.unsub) u()
+    // Shared materials and fog settings outlive the expedition (camp, next run): dry and neutral again
+    setWetness(0)
+    fogUniforms.uFogHeightMix.value = 0.25
+    fogUniforms.uFogFloor.value = 0
     for (const z of this.zombies) z.dispose()
     this.zombies.length = 0
     this.player.dispose()

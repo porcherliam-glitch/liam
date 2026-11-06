@@ -38,7 +38,8 @@ main.ts → Game
 
 - Jedes Gebiet ist 280–360 m breit. Das Gelände ist eine Heightmap aus Rauschen plus Merkmalen (Einebnen, Flüsse, Seen, Straßen). `heightAt(x, z)` ist die einzige Quelle für Bodenhöhe.
 - `worldgen.ts` legt pro Biom Straßen, Gebäude, Mauern, Bäume, Gräber, Container, Fackeln, Extraktionspunkte, Hebel, Geheimtruhen mit Schlüsselgegenständen, Pestzonen und Orte (POIs) an. Alles ist deterministisch aus dem Gebiets-Seed; Beute und Gegnerplatzierung nutzen einen Laufzeit-Seed.
-- Statische Meshes werden pro 48-m-Zelle und Material zusammengefasst (`StaticBatcher`), dadurch bleiben die Draw-Calls im Bereich von einigen Hundert.
+- Statische Meshes werden pro 64-m-Zelle und Materialfamilie zusammengefasst (`StaticBatcher`): Materialien, die sich nur in der Farbe unterscheiden, teilen ein weißes Material mit Vertexfarben (`familyOf`, `familyMaterial`, `bakeColor` in `materials.ts`); kleine Gruppen wandern in 128-m-Zellen, nicht indizierte Geometrien werden verschweißt. Dadurch bleiben die Draw-Calls im Bereich von einigen Hundert.
+- Gelände (`terrain.ts`): Mehrschicht-Shader (Gras, Erde, Schlamm am Ufer, Pflaster/Kies an Straßen, Fels an Hängen), Schichten ohne Gewicht werden übersprungen; `grass.ts` füllt einen Ring von 42 m um die Kamera (Dichte aus `grassOptions.count` je Qualität). `textures.ts` erzeugt alle Texturen im Code (512 px, nahtlos) samt Normal-Maps aus Höhenfeldern (`materialQuality.normalMaps`, aus bei „niedrig“).
 - Kollision: gedrehte Boxen und Zylinder in einem Raster. Figuren sind Kreise auf der XZ-Ebene mit Höhenbereich. Die Kamera nutzt einen Segment-Cast gegen dieselben Kollider.
 - Navigation: 0,5-m-Gitter; eine Zelle ist blockiert, wenn ein Kreis mit 0,38 m Radius an ihrem Mittelpunkt einen Kollider berührt (Türen von 1,3 m bleiben offen, dünne Wände sperren), dazu Wasser und Steilhänge. A* mit Heap, einmalig angelegten, pro Suche gestempelten Arrays (keine Allokation) und Sichtlinien-Glättung; Budget von 3 Pfaden pro Frame, Gegner mit freier Sichtlinie steuern direkt.
 
@@ -49,11 +50,19 @@ main.ts → Game
 - `Animator` erkennt `humanoid.rig` und steuert einen `AnimationMixer`: Tabelle `MIX` bildet die Spiel-Clips auf die Clips der Animationsbibliothek ab; nicht schleifende Clips werden auf die Dauer des Spiel-Clips gestreckt (Trefferzeitpunkte unverändert), Zusatzdrehungen (`add`, `overlay`) werden im Figurenrahmen über ausgerichtete Elternrahmen aufgeschlagen und jedes Bild zurückgesetzt.
 - `render/weaponModels.ts`, `render/kitProps.ts`, `render/kitHouse.ts`: Waffen/Schilde, Requisiten (Truhe mit Deckel-Knochen), Natur (Bäume, Büsche, Felsen auf Zielhöhe skaliert) und Häuser aus 2-m-Modulen (Grundriss auf das Raster gerundet, Kollider aus demselben Layout, Türlücke 1,3 m). Statische Teile laufen durch den Batcher (behält Vertexfarben, wandelt glTF-Attribute in Floats).
 
+## Licht, Himmel und Wetter
+
+- `render/sky.ts`: Himmelskuppel (Radius 400) mit Verlauf, Dämmerung, Sternen, Milchstraße, Mond und Shader-Wolken; eine Lichttabelle nach Sonnenhöhe setzt Sonne/Mond (nur eine Schattenkarte), Halbkugel- und Aufhelllicht, Belichtung und Nebelfarbe. Der Schattenkasten folgt der Blickrichtung und rastet auf Texel. Das Umgebungslicht (PMREM aus der Kuppel) wird nur bei Licht- oder Wetterwechsel neu gebaut.
+- `render/weather.ts`: Regen als Liniensegmente in einer Box vor der Kamera, Blitze mit Doppelschlag und Donner nach Laufzeit, Bodennebel-Schwaden. Die Expedition macht den Boden bei Regen nass (`setWetness`) und steuert den Höhennebel (`fogUniforms`: Boden, Abfall, Anteil je Biom und Nebel).
+- `render/postprocess.ts`: Bloom in halber Auflösung, Grading je Biom (Stimmung nachts kühler und gedämpfter), Filmkorn, Vignette, Schadensrand. Alle Shader werden vor dem ersten Bild kompiliert.
+- Licht für Flammen: fester Pool aus 3/5/8 PointLights (Platz 0 Spielerfackel bzw. nächste Flamme, Platz 1 Extraktion oder epische Beute, der Rest die nächsten Flammen mit Rauschflackern); die Zahl der Lichter ändert sich nie, also auch keine Shader-Neubauten. Statische Meshes und Zombies jenseits der Nebelgrenze werden ausgeblendet.
+
 ## Gore
 
 - `render/gore.ts` (`Gore`, über `EntityContext.gore`): `spray` (gerichteter Kegel + gestreckte Bodenflecken), `burst`, `pool` (wachsende Lache), `drip`, `stain` (Körper röten), `bloodyWeapon`, `splatScreen` (SVG-Spritzer im DOM), `sever` (Körperteil aus den gehäuteten Ecken backen, Knochen auf 0 skalieren, Fleischkappe + Knochenstumpf, pulsierende Fontäne), `amputate` (alte Wunde), `explode` (alle Teile + Brocken). Gibs haben einfache Physik (Schwerkraft, Abprall, Blutspur), höchstens 140, 70 s Lebensdauer.
-- `render/decals.ts`: ein `InstancedMesh` mit 320 Flecken und Deckkraft pro Instanz (`onBeforeCompile`), Flecken trocknen nach und verblassen nach Minuten. `render/particles.ts` hat `spray()` für Kegel entlang einer Richtung (4000 Partikel).
+- `render/decals.ts`: ein `InstancedMesh` mit 1200 Flecken und Deckkraft pro Instanz (`onBeforeCompile`), Flecken trocknen nach und verblassen nach Minuten. `spawnWall` stellt Flecken aufrecht an Wände (Basis aus Wandnormale, Längsachse senkrecht für herablaufende Streifen); `Gore.wallSplat` findet die Wand per Segment-Cast der Kollision (`Gore.wallCast`) und lässt dünne Pfosten und Stämme aus. `render/particles.ts` hat `spray()` für Kegel entlang einer Richtung (4000 Partikel).
 - Zombies wählen beim Tod je nach letztem Treffer (kritisch/schwer/Overkill) Zerplatzen, Enthauptung, Arm oder Bein; kritische schwere Treffer reißen auch lebenden Gegnern einen Arm ab.
+- Kriecher: Schwere Treffer können Wanderern und Sprintern ein Bein abtrennen, ohne sie zu töten (`Zombie.startCrawling`). Der Animator spielt dann über `Animator.remap = CRAWL_REMAP` Kriech-Clips statt der stehenden: `Swim_Fwd_Loop` aus der Animationsbibliothek, flach am Boden und per `lift` angehoben (Beckenhöhe im Z-oben-Rahmen des Wurzelknochens), Kopf per Zusatzdrehung gehoben. Kriecher sind langsamer und ziehen eine Schleifspur (`Gore.smear`).
 
 ## Figuren
 

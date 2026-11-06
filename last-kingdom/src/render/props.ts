@@ -227,7 +227,7 @@ export function church(opts: { w?: number; d?: number; towerH?: number; ruined?:
   cols.push(boxCol(0, -d / 2, w / 2, t / 2, 0, h), boxCol(-w / 2, 0, t / 2, d / 2, 0, h), boxCol(w / 2, 0, t / 2, d / 2, 0, h))
   cols.push(boxCol(-w / 2 + side / 2, d / 2, side / 2, t / 2, 0, h), boxCol(w / 2 - side / 2, d / 2, side / 2, t / 2, 0, h), boxCol(0, d / 2, doorW / 2 + 0.15, t / 2, 3.2, h))
   // Buttresses and tall windows
-  const win = mat(null, { color: 0x1a1830, emissive: 0x100a20 })
+  const win = mat("stained", { color: 0xd8d0e0, emissive: 0x2a1830, roughness: 0.3 })
   for (let z = -d / 2 + 3; z < d / 2 - 2; z += 4) {
     for (const s of [-1, 1]) {
       g.add(box(0.8, 4, 0.8, stone, (s * (w / 2 + 0.3)), 2, z))
@@ -598,7 +598,7 @@ export function marketStall(seed = 1): Prop {
   g.add(box(2.6, 0.08, 1.0, w, 0, 0.9, 0))
   for (const [x, z] of [[-1.2, -0.4], [1.2, -0.4], [-1.2, 0.4], [1.2, 0.4]]) g.add(box(0.1, 0.9, 0.1, M.timber(), x, 0.45, z))
   for (const [x, z] of [[-1.2, -0.5], [1.2, -0.5], [-1.2, 0.5], [1.2, 0.5]]) g.add(box(0.1, 2.4, 0.1, M.timber(), x, 1.2, z))
-  const canopy = box(3.0, 0.06, 1.6, mat("cloth", { color: [0x8a3a3a, 0x3a5a8a, 0x6a6a2a][rng.int(0, 2)] }), 0, 2.4, 0)
+  const canopy = box(3.0, 0.06, 1.6, mat("awning", { color: [0xffffff, 0xb8c8ff, 0xffe0a0][rng.int(0, 2)] }), 0, 2.4, 0)
   canopy.rotation.x = 0.15
   g.add(canopy)
   return { group: g, colliders: [boxCol(0, 0, 1.3, 0.5, 0, 1.0)], spots: [{ x: 0, z: 0.9, kind: "loot" }] }
