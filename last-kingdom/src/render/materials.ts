@@ -87,12 +87,14 @@ function refreshFamily(m: THREE.MeshStandardMaterial): void {
 
 /**
  * Family key of a material: every property that affects the shader or its uniforms except the colour, read
- * from the live material (so clones that were changed afterwards fall into their own family). Null for
- * materials that must keep their own draw call: not made by mat(), or glowing (emissive).
+ * from the live material (so clones that were changed afterwards fall into their own family). Covers mat()
+ * materials and plain loaded ones (the kit props' glTF materials often differ only in colour). Null for
+ * materials that must keep their own draw call: other types, custom shader hooks outside mat(), or glowing.
  */
 export function familyOf(material: THREE.Material): string | null {
   const m = material as THREE.MeshStandardMaterial
-  if (!m.isMeshStandardMaterial || m.type !== "MeshStandardMaterial" || !("family" in m.userData)) return null
+  if (!m.isMeshStandardMaterial || m.type !== "MeshStandardMaterial" || m.userData.familyShared) return null
+  if (!("family" in m.userData) && Object.prototype.hasOwnProperty.call(m, "onBeforeCompile")) return null
   if (m.emissive.getHex() !== 0 || m.emissiveMap) return null
   const id = (t: THREE.Texture | null) => (t ? t.uuid : null)
   return JSON.stringify([
@@ -118,6 +120,7 @@ export function familyMaterial(material: THREE.Material): THREE.Material {
     if (Object.prototype.hasOwnProperty.call(m, "onBeforeCompile")) f.onBeforeCompile = m.onBeforeCompile
     if (Object.prototype.hasOwnProperty.call(m, "customProgramCacheKey")) f.customProgramCacheKey = m.customProgramCacheKey
     delete f.userData.family
+    f.userData.familyShared = true
     if (ground.has(m)) markGround(f)
     families.set(key, f)
   }

@@ -171,6 +171,9 @@ export class Terrain {
     const dark = new THREE.Color(0x3a4030)
     const mudC = new THREE.Color(0x4a3e30)
     const dirtAmount = b === "catacombs" ? 0 : b === "city" ? 0.35 : b === "castle" || b === "fortress" ? 0.6 : 1
+    // The muted base colours and textures are darker than the former saturated ones: this gain keeps the
+    // ground at roughly 80 % of its old brightness while the saturation drops.
+    const gain = b === "village" ? 1.6 : b === "forest" ? 1.5 : b === "monastery" ? 1.45 : b === "graveyard" ? 1.3 : 1
     const roads = this.features.filter((f) => f.kind === "road")
     const tmp = new THREE.Color()
     for (let j = 0; j < w; j++) {
@@ -186,8 +189,10 @@ export class Terrain {
         // Macro tint: large soft patches toward a dark olive, wet mud along the water
         const nm = this.noise.fbm(x * 0.03 + 11, z * 0.03 + 5, 3) * 0.5 + 0.5
         tmp.copy(base).lerp(dark, nm * 0.45)
-        const wet = h < this.waterLevel + 1.2 ? smoothstep(this.waterLevel + 1.2, this.waterLevel, h) : 0
-        if (wet > 0) tmp.lerp(mudC, wet)
+        // Only the last half metre above the water line: flattened ground at height 0 stays dry
+        const wet = h < this.waterLevel + 0.5 ? smoothstep(this.waterLevel + 0.5, this.waterLevel - 0.2, h) : 0
+        if (wet > 0) tmp.lerp(mudC, wet * 0.8)
+        tmp.multiplyScalar(gain)
         this.colors[k * 3] = tmp.r
         this.colors[k * 3 + 1] = tmp.g
         this.colors[k * 3 + 2] = tmp.b
@@ -213,7 +218,7 @@ export class Terrain {
         roadDist[k] = clamp(signed, -99, 99)
         // Bare patches where the (roughly ±0.5) fbm peaks: about a fifth of the open ground
         const dn = this.noise.fbm(x * 0.02 + 37, z * 0.02 - 13, 3) * 0.5 + 0.5
-        const dirt = Math.min(1, smoothstep(0.58, 0.8, dn) * dirtAmount + (b === "catacombs" ? 0 : wet))
+        const dirt = Math.min(1, smoothstep(0.58, 0.8, dn) * dirtAmount + (b === "catacombs" ? 0 : wet * 0.8))
         road = Math.min(1, road)
         this.layers[k * 4] = 1 - Math.max(rock, road, dirt)
         this.layers[k * 4 + 1] = dirt
@@ -221,7 +226,7 @@ export class Terrain {
         this.layers[k * 4 + 3] = road
       }
     }
-    const material = this.buildMaterial(base.clone().lerp(dark, 0.5 * 0.45))
+    const material = this.buildMaterial(base.clone().lerp(dark, 0.5 * 0.45).multiplyScalar(gain))
     const group = new THREE.Group()
     group.name = "terrain"
     const T = 4

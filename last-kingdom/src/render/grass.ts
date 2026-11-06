@@ -19,8 +19,10 @@ export const grassOptions = { count: 8000 }
 const R = 42
 
 export function buildGrass(terrain: Terrain, nav: NavGrid, biome: string, seed: number, count: number): THREE.InstancedMesh | null {
-  const cap = biome === "catacombs" ? 0 : biome === "city" || biome === "castle" || biome === "fortress" ? Math.round(grassOptions.count * 0.375) : grassOptions.count
-  const side = Math.floor(Math.sqrt(Math.min(count, cap)))
+  // The ring has a fixed size, so the density comes from grassOptions.count (quality); `count` (the former
+  // whole-map figure) only switches grass off when it is 0.
+  const cap = biome === "catacombs" || count <= 0 ? 0 : biome === "city" || biome === "castle" || biome === "fortress" ? Math.round(grassOptions.count * 0.375) : grassOptions.count
+  const side = Math.floor(Math.sqrt(cap))
   if (side <= 0) return null
   const n = side * side
   const cell = (2 * R) / side
