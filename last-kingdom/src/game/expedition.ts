@@ -451,13 +451,8 @@ export class Expedition implements ExpeditionApi {
     const y = this.world.terrain.heightAt(x, z)
     g.position.set(x, y, z)
     this.scene.add(g)
-    let light: THREE.PointLight | undefined
-    if (best >= 3) {
-      light = new THREE.PointLight(glowColor, 3, 8)
-      light.position.y = 1
-      g.add(light)
-    }
-    const p: Pickup = { items, gold, object: g, x, z, y, light }
+    // No PointLight per pickup: the nearest epic drop borrows a slot of the fixed light pool instead
+    const p: Pickup = { items, gold, object: g, x, z, y, glow: glowColor, rarity: best }
     this.pickups.push(p)
     return p
   }
@@ -471,7 +466,7 @@ export class Expedition implements ExpeditionApi {
     g.add(shaft)
     g.position.set(x, this.world.terrain.heightAt(x, z), z)
     this.scene.add(g)
-    this.pickups.push({ items: [item], gold: 0, object: g, x, z, y, auto: true })
+    this.pickups.push({ items: [item], gold: 0, object: g, x, z, y, glow: 0xd8d0b0, rarity: 0, auto: true })
   }
 
   private summon(x: number, z: number, typeId: string, count: number): void {
