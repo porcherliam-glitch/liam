@@ -285,14 +285,15 @@ export function buildShield(kind: string): THREE.Group {
 export function buildProjectile(kind: "arrow" | "bolt"): THREE.Group {
   const g = new THREE.Group()
   const len = kind === "arrow" ? 0.75 : 0.45
-  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.006, 0.006, len, 5), mat(null, { color: 0x8a6a40 }))
+  // Thicker than a real shaft so arrows read on screen, also when they stick in a body
+  const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, len, 5), mat(null, { color: 0x8a6a40 }))
   shaft.rotation.x = Math.PI / 2
   g.add(shaft)
-  const tip = new THREE.Mesh(new THREE.ConeGeometry(0.014, 0.06, 5), M.metalDark())
+  const tip = new THREE.Mesh(new THREE.ConeGeometry(0.022, 0.07, 5), M.metalDark())
   tip.rotation.x = Math.PI / 2
   tip.position.z = len / 2 + 0.03
   g.add(tip)
-  const fl = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.002, 0.08), mat(null, { color: 0xdddddd, side: THREE.DoubleSide }))
+  const fl = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.003, 0.11), mat(null, { color: 0xdddddd, side: THREE.DoubleSide }))
   fl.position.z = -len / 2 + 0.05
   g.add(fl)
   const fl2 = fl.clone()

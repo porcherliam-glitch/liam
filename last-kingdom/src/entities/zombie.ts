@@ -53,6 +53,10 @@ export class Zombie {
   private lostArm = false
   /** Lost a leg: drags itself along on the belly, slower and lower. */
   crawling = false
+  /** Where the last blow landed: a head hit decides how the body comes apart. */
+  private lastHitZone: HitZone = "body"
+  /** Arrows and bolts stuck in the body (they stay on the corpse and go with it). */
+  private stuck: THREE.Object3D[] = []
   private mutilations = 0
   private animAcc = 0
   private animFrame = 0
@@ -802,6 +806,44 @@ export class Zombie {
     return ang < 0.9 && this.rng.chance(this.isBoss ? 0.55 : 0.4)
   }
 
+  /** Centre of the head in world space (between the head bone and the top of the skull). */
+  headCentre(out: THREE.Vector3): THREE.Vector3 {
+    this.humanoid.bones.head.getWorldPosition(out)
+    this.humanoid.headTop.getWorldPosition(_zB)
+    return out.add(_zB).multiplyScalar(0.5)
+  }
+
+  /**
+   * Which part of the body a projectile flying from a to b hits, if any: the head (a small sphere at the skull),
+   * otherwise the torso (a sphere at chest height, or a capsule along the back of a crawler).
+   */
+  projectileHit(a: THREE.Vector3, b: THREE.Vector3): "head" | "body" | null {
+    const s = this.type.scale
+    // Broad phase on the ground plane
+    if (segPointDist2(a.x, 0, a.z, b.x, 0, b.z, this.pos.x, 0, this.pos.z) > (2.4 * s) ** 2) return null
+    this.headCentre(_zA)
+    const rh = (this.isBoss ? 0.2 : 0.17) * s
+    if (segPointDist2(a.x, a.y, a.z, b.x, b.y, b.z, _zA.x, _zA.y, _zA.z) <= rh * rh) return "head"
+    if (this.crawling) {
+      this.humanoid.bones.hips.getWorldPosition(_zA)
+      this.humanoid.bones.chest.getWorldPosition(_zB)
+      const r = 0.36 * s
+      return segSegDist2(a, b, _zA, _zB) <= r * r ? "body" : null
+    }
+    const r = 0.55 * s
+    return segPointDist2(a.x, a.y, a.z, b.x, b.y, b.z, this.pos.x, this.pos.y + 1.1 * s, this.pos.z) <= r * r ? "body" : null
+  }
+
+  /** Leaves a projectile stuck in the body: in the skull for head hits, else in the chest. */
+  embed(projectile: THREE.Object3D, zone: HitZone): void {
+    const bone = zone === "body" ? this.humanoid.bones.chest : this.humanoid.bones.head
+    bone.updateWorldMatrix(true, false)
+    bone.attach(projectile)
+    this.stuck.push(projectile)
+    // A pincushion has its limits: the oldest shaft falls out
+    if (this.stuck.length > 6) disposeObject(this.stuck.shift()!)
+  }
+
   private get canCrawl(): boolean {
     return !this.isBoss && (this.type.kind === "walker" || this.type.kind === "sprinter") && !this.type.abilities?.includes("sword")
   }
@@ -813,16 +855,24 @@ export class Zombie {
     if (this.state === "attack" || this.state === "stagger") this.setState(this.alerted ? "chase" : "idle")
   }
 
-  takeHit(damage: number, crit: boolean, impact: number, heavy: boolean, fromX: number, fromZ: number, lifeOnHit = 0, blocked = false): void {
+  takeHit(damage: number, crit: boolean, impact: number, heavy: boolean, fromX: number, fromZ: number, lifeOnHit = 0, blocked = false, zone: HitZone = "body"): void {
     if (this.dead) return
     const ctx = this.ctx
     this.hp -= damage
     this.lastHitAt = ctx.time
     this.lastKnown = { x: ctx.player.pos.x, z: ctx.player.pos.z }
     this.alert = 1
-    const hx = this.pos.x
-    const hy = this.pos.y + 1.1 * this.type.scale
-    const hz = this.pos.z
+    this.lastHitZone = zone
+    // Blood comes out where the blow landed: the head, the chest, or low for a crawler on the ground
+    let hx = this.pos.x
+    let hy = this.pos.y + (this.crawling ? 0.35 : 1.1) * this.type.scale
+    let hz = this.pos.z
+    if (zone !== "body") {
+      this.headCentre(_zA)
+      hx = _zA.x
+      hy = _zA.y
+      hz = _zA.z
+    }
     const hpBefore = this.hp + damage
     const fd = Math.hypot(this.pos.x - fromX, this.pos.z - fromZ) || 1
     const dir = new THREE.Vector3((this.pos.x - fromX) / fd, 0.15, (this.pos.z - fromZ) / fd)
@@ -836,6 +886,12 @@ export class Zombie {
       // Blood sprays out of the wound, away from the attacker, and stains the body
       ctx.gore.spray(hx, hy, hz, dir, crit ? 34 : heavy ? 24 : 14, crit ? 1.5 : heavy ? 1.25 : 0.9)
       ctx.gore.stain(this.humanoid, crit ? 0.08 : 0.04)
+      if (zone !== "body") {
+        // A shot through the skull: a second, wider spray out of the back of the head
+        ctx.gore.spray(hx, hy, hz, dir, zone === "headBurst" ? 40 : 22, zone === "headBurst" ? 1.8 : 1.3)
+        ctx.gore.stain(this.humanoid, 0.06)
+        ctx.floatText(hx, hy + 0.5, hz, "Kopftreffer!", "#ffd24a")
+      }
       // Crushing blows tear an arm off without killing (the zombie keeps coming)
       if (this.hp > 0 && crit && heavy && !this.isBoss && !this.lostArm && this.rng.chance(0.3)) {
         this.lostArm = true
@@ -920,7 +976,15 @@ export class Zombie {
     const big = this.type.kind === "brute" || this.isBoss
     const r = cosmetic.next()
     if (!g.enabled) return
-    if (!this.isBoss && hard && (h.overkill > 25 || (this.type.kind === "brute" && r < 0.25)) && r < 0.45) {
+    if (!this.isBoss && this.lastHitZone !== "body") {
+      // Killed by a shot to the head: an arrow takes the head off, a bolt bursts it
+      this.headCentre(_zA)
+      if (this.lastHitZone === "headBurst") {
+        g.sever(this.humanoid, "head", dir, 0.6, true)
+        g.chunks(_zA.x, _zA.y, _zA.z, dir, 9)
+        g.burst(_zA.x, _zA.y, _zA.z, 55)
+      } else g.sever(this.humanoid, "head", dir, 1.6)
+    } else if (!this.isBoss && hard && (h.overkill > 25 || (this.type.kind === "brute" && r < 0.25)) && r < 0.45) {
       // Overkill: the body bursts into pieces
       g.explode(this.humanoid, dir, big ? 1.1 : 1.5)
     } else if (r < (hard ? 0.45 : 0.25)) {
@@ -959,10 +1023,75 @@ export class Zombie {
   }
 
   dispose(): void {
+    for (const o of this.stuck) disposeObject(o)
+    this.stuck.length = 0
     disposeHumanoid(this.humanoid)
     this.eyes.geometry.dispose()
     this.telegraph.geometry.dispose()
     ;(this.telegraph.material as THREE.Material).dispose()
     this.group.removeFromParent()
   }
+}
+
+export type HitZone = "body" | "head" | "headBurst"
+
+const _zA = new THREE.Vector3()
+const _zB = new THREE.Vector3()
+
+/** Removes an object and frees its geometries (materials are shared). */
+function disposeObject(o: THREE.Object3D): void {
+  o.removeFromParent()
+  o.traverse((c) => {
+    const m = c as THREE.Mesh
+    if (m.isMesh) m.geometry.dispose()
+  })
+}
+
+/** Squared distance between segment a-b and point p. */
+function segPointDist2(ax: number, ay: number, az: number, bx: number, by: number, bz: number, px: number, py: number, pz: number): number {
+  const dx = bx - ax
+  const dy = by - ay
+  const dz = bz - az
+  const len2 = dx * dx + dy * dy + dz * dz
+  let t = len2 > 0 ? ((px - ax) * dx + (py - ay) * dy + (pz - az) * dz) / len2 : 0
+  t = Math.max(0, Math.min(1, t))
+  const x = ax + dx * t - px
+  const y = ay + dy * t - py
+  const z = az + dz * t - pz
+  return x * x + y * y + z * z
+}
+
+/** Squared distance between segments p1-q1 and p2-q2 (closest points, clamped to both segments). */
+function segSegDist2(p1: THREE.Vector3, q1: THREE.Vector3, p2: THREE.Vector3, q2: THREE.Vector3): number {
+  const d1x = q1.x - p1.x, d1y = q1.y - p1.y, d1z = q1.z - p1.z
+  const d2x = q2.x - p2.x, d2y = q2.y - p2.y, d2z = q2.z - p2.z
+  const rx = p1.x - p2.x, ry = p1.y - p2.y, rz = p1.z - p2.z
+  const a = d1x * d1x + d1y * d1y + d1z * d1z
+  const e = d2x * d2x + d2y * d2y + d2z * d2z
+  const f = d2x * rx + d2y * ry + d2z * rz
+  let s = 0
+  let t = 0
+  if (a <= 1e-9 && e <= 1e-9) return rx * rx + ry * ry + rz * rz
+  if (a <= 1e-9) t = Math.max(0, Math.min(1, f / e))
+  else {
+    const c = d1x * rx + d1y * ry + d1z * rz
+    if (e <= 1e-9) s = Math.max(0, Math.min(1, -c / a))
+    else {
+      const b = d1x * d2x + d1y * d2y + d1z * d2z
+      const denom = a * e - b * b
+      s = denom > 1e-9 ? Math.max(0, Math.min(1, (b * f - c * e) / denom)) : 0
+      t = (b * s + f) / e
+      if (t < 0) {
+        t = 0
+        s = Math.max(0, Math.min(1, -c / a))
+      } else if (t > 1) {
+        t = 1
+        s = Math.max(0, Math.min(1, (b - c) / a))
+      }
+    }
+  }
+  const x = p1.x + d1x * s - (p2.x + d2x * t)
+  const y = p1.y + d1y * s - (p2.y + d2y * t)
+  const z = p1.z + d1z * s - (p2.z + d2z * t)
+  return x * x + y * y + z * z
 }

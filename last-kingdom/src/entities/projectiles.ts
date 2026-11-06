@@ -50,23 +50,31 @@ export class Projectiles {
       }
       p.vel.y -= 9.81 * 0.55 * dt
       const next = p.pos.clone().addScaledVector(p.vel, dt)
-      // Enemy hits: segment vs capsule-ish (sphere at chest height)
+      // Enemy hits: the skull first (headshot), then the torso (see Zombie.projectileHit)
       let hitEnemy = false
       for (const z of ctx.zombies) {
         if (z.dead) continue
-        const cx = z.pos.x
-        const cz = z.pos.z
-        const cy = z.pos.y + 1.1 * z.type.scale
-        const r = 0.55 * z.type.scale
-        if (segSphere(p.pos, next, cx, cy, cz, r)) {
-          z.takeHit(p.damage, p.crit, p.impact, false, p.pos.x, p.pos.z, p.lifeOnHit)
-          hitEnemy = true
-          break
-        }
+        const where = z.projectileHit(p.pos, next)
+        if (!where) continue
+        // A headshot hurts far more; a bolt (or a critical arrow) bursts the skull when it kills
+        const zone = where === "body" ? "body" : p.ammoId === "bolt" || p.crit ? "headBurst" : "head"
+        const damage = where === "head" ? Math.round(p.damage * HEADSHOT) : p.damage
+        z.takeHit(damage, p.crit || where === "head", p.impact * (where === "head" ? 1.5 : 1), false, p.pos.x, p.pos.z, p.lifeOnHit, false, zone)
+        // The shaft stays in the body, tip a little past the point of closest approach
+        if (!(where === "head" && z.dead)) {
+          const dir = _d.copy(p.vel).normalize()
+          const len = p.ammoId === "arrow" ? 0.75 : 0.45
+          closestOnSegment(p.pos, next, where === "head" ? z.headCentre(_c) : _c.set(z.pos.x, z.pos.y + (z.crawling ? 0.35 : 1.1) * z.type.scale, z.pos.z), p.mesh.position)
+          p.mesh.position.addScaledVector(dir, 0.1 - len / 2)
+          p.mesh.lookAt(_c.copy(p.mesh.position).add(dir))
+          z.embed(p.mesh, zone)
+          this.list.splice(i, 1)
+        } else this.remove(i)
+        hitEnemy = true
+        break
       }
       if (hitEnemy) {
         ctx.audio.play("arrow_hit", { x: next.x, y: next.y, z: next.z })
-        this.remove(i)
         continue
       }
       // World hits
@@ -114,18 +122,18 @@ export class Projectiles {
   }
 }
 
-function segSphere(a: THREE.Vector3, b: THREE.Vector3, cx: number, cy: number, cz: number, r: number): boolean {
+/** Damage factor of a shot to the head. */
+const HEADSHOT = 1.75
+const _d = new THREE.Vector3()
+const _c = new THREE.Vector3()
+
+/** Point of segment a-b closest to p, written to out. */
+function closestOnSegment(a: THREE.Vector3, b: THREE.Vector3, p: THREE.Vector3, out: THREE.Vector3): THREE.Vector3 {
   const dx = b.x - a.x
   const dy = b.y - a.y
   const dz = b.z - a.z
-  const fx = a.x - cx
-  const fy = a.y - cy
-  const fz = a.z - cz
   const len2 = dx * dx + dy * dy + dz * dz
-  let t = len2 > 0 ? -(fx * dx + fy * dy + fz * dz) / len2 : 0
+  let t = len2 > 0 ? ((p.x - a.x) * dx + (p.y - a.y) * dy + (p.z - a.z) * dz) / len2 : 0
   t = Math.max(0, Math.min(1, t))
-  const px = fx + dx * t
-  const py = fy + dy * t
-  const pz = fz + dz * t
-  return px * px + py * py + pz * pz <= r * r
+  return out.set(a.x + dx * t, a.y + dy * t, a.z + dz * t)
 }
