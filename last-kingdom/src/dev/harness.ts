@@ -151,6 +151,7 @@ export function installHarness(game: Game): void {
     setWeather(k: WeatherKind) {
       if (game.expedition) {
         game.expedition.weather.setKind(k)
+        game.expedition.weather.snap()
         game.expedition.weather.locked = true
       }
     },

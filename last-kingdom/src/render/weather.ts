@@ -130,6 +130,15 @@ export class Weather {
     events.emit("weatherChanged", { weather: kind })
   }
 
+  /** Jumps to the current kind's cloud, fog, rain and wind instead of easing there (tests, screenshots). */
+  snap(): void {
+    const t = TARGETS[this.kind]
+    this.cloud = t.cloud
+    this.fog = t.fog
+    this.rain = t.rain
+    this.wind = t.wind
+  }
+
   update(dt: number, camPos: THREE.Vector3, underground: boolean, opts: WeatherUpdateOpts = {}): void {
     if (!this.locked) {
       this.nextChange -= dt
