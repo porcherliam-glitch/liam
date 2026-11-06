@@ -7,6 +7,7 @@ import * as THREE from "three"
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js"
 import { clone as skeletonClone } from "three/examples/jsm/utils/SkeletonUtils.js"
 import { models } from "./assets"
+import { kitProp } from "./kitProps"
 import type { Appearance, BoneName, Humanoid } from "./humanoid"
 import { Rng } from "../core/rng"
 
@@ -431,7 +432,25 @@ function template(spec: CharacterSpec, procedural: () => Humanoid) {
 }
 
 /** Chooses outfit, hair and colours from the procedural appearance. */
+/** Boss looks: outfit, hood, beard, cloth and skin colour per boss. */
+const BOSS_LOOKS: Partial<Record<string, Partial<CharacterSpec>>> = {
+  elder: { outfit: "peasant", hair: "long", beard: true, clothTint: 0x6a8a6a, skinTint: 0xb8b8a0 },
+  huntsman: { outfit: "ranger", hood: true, clothTint: 0x9a6a4a, skinTint: 0xa0907a },
+  castellan: { outfit: "ranger", pauldrons: true, clothTint: 0x8a8e98, skinTint: 0x9aa090 },
+  gravedigger: { outfit: "ranger", hood: true, clothTint: 0x5a5a48, skinTint: 0x8f9a80 },
+  abbot: { outfit: "ranger", hood: true, clothTint: 0x5a3a5a, skinTint: 0xb0a8a0 },
+  bonelord: { outfit: "ranger", pauldrons: true, clothTint: 0x4a4a4a, skinTint: 0xe8e0c8, hair: "none" },
+  queen: { outfit: "ranger", hood: true, female: true, clothTint: 0x9a4a8a, skinTint: 0xc0b0b8 },
+  marshal: { outfit: "ranger", pauldrons: true, clothTint: 0x4a5a7a, skinTint: 0x9aa090 },
+}
+
 export function specFromAppearance(a: Appearance): CharacterSpec {
+  const boss = a.boss !== "none" ? BOSS_LOOKS[a.boss] : undefined
+  if (boss) return { ...baseSpec(a), ...boss, brows: false }
+  return baseSpec(a)
+}
+
+function baseSpec(a: Appearance): CharacterSpec {
   const rng = new Rng(a.seed * 7 + 3)
   const armoured = a.armored || a.armor === "chain" || a.armor === "brigandine" || a.armor === "plate" || a.armor === "leather" || a.armor === "gambeson"
   const outfit: CharacterSpec["outfit"] = armoured || a.helmet === "hood" ? "ranger" : "peasant"
@@ -528,6 +547,23 @@ export function buildCharacter(a: Appearance, procedural: () => Humanoid): Human
     m.material = c
   })
   const cloth = materials.find((m) => /peasant|ranger/i.test(m.name)) ?? materials[0]
+  if (a.boss === "marshal" || a.boss === "castellan") {
+    const banner = kitProp(a.boss === "marshal" ? "Banner_1" : "Banner_2", 0.55)
+    const back = body.getObjectByName("socket_back")
+    if (banner && back) {
+      banner.position.set(0, -0.6, -0.05)
+      back.add(banner)
+    }
+  }
+  if (a.boss === "gravedigger") {
+    const scythe = models.instantiate("wpn_scythe", { cloneMaterials: true })
+    const hand = body.getObjectByName("socket_handR")
+    if (scythe && hand) {
+      scythe.rotation.z = Math.PI
+      scythe.scale.setScalar(1.3)
+      hand.add(scythe)
+    }
+  }
   const helm = a.helmet !== "none" && a.helmet !== "hood" ? helmet(a.helmet) : null
   if (helm) {
     const head = body.getObjectByName("socket_head")
