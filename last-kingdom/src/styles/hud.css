@@ -310,7 +310,8 @@ body.any-screen .hud-enemybars {
   width: 2px;
   margin-left: -1px;
   height: 100%;
-  background: linear-gradient(180deg, var(--gold), rgba(217, 166, 58, 0.15));
+  /* Strong at the pointer, faint further down so it does not strike through letters */
+  background: linear-gradient(180deg, var(--gold), rgba(217, 166, 58, 0.12) 45%, rgba(217, 166, 58, 0.12) 80%, rgba(217, 166, 58, 0.5));
   z-index: 1;
 }
 .hud-compass-strip {
