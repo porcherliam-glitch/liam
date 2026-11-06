@@ -110,8 +110,9 @@ export function buildGrass(terrain: Terrain, nav: NavGrid, biome: string, seed: 
         recoloured = true
       }
       const s = curS[i] * smoothstep(R, R * 0.6, Math.hypot(x - cx, z - cz))
-      const sx = s * 1.1
-      const sy = s * 0.8
+      // Knee-high at most: the ring is dense, so the blades are a little smaller than the former scattered tufts
+      const sx = s * 0.9
+      const sy = s * 0.62
       const o = i * 16
       matrices[o] = cosA[i] * sx
       matrices[o + 1] = 0
