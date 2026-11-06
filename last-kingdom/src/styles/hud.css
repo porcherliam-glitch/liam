@@ -404,8 +404,16 @@ body.any-screen .hud-enemybars {
   bottom: 110px;
   left: 50%;
   transform: translateX(-50%);
-  width: 520px;
+  /* narrow enough to stay clear of the ability and quick slots on the right */
+  width: min(480px, 100vw - 2 * 400px);
+  min-width: 300px;
   text-align: center;
+}
+@media (max-width: 1100px) {
+  .hud-boss {
+    bottom: 160px;
+    width: 56vw;
+  }
 }
 .hud-boss-name {
   font-family: var(--font-head);
