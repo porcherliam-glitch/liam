@@ -416,6 +416,7 @@ export class Gore {
       g.computeVertexNormals()
       const mat = (mesh.material as THREE.MeshStandardMaterial).clone()
       mat.emissive = new THREE.Color(0x000000)
+      mat.vertexColors = false
       owned.push(mat)
       const m = new THREE.Mesh(g, mat)
       m.castShadow = true

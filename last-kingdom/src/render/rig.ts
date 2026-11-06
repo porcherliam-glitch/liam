@@ -333,6 +333,14 @@ function template(spec: CharacterSpec, procedural: () => Humanoid) {
     }
   }
   mergeByMaterial(skinned.filter((m) => m.parent && (m as THREE.SkinnedMesh).isSkinnedMesh), parent)
+  // The outfits carry white vertex colours; merged and baked meshes drop them, and a material that still expects
+  // vertex colours then reads black. They add nothing, so switch them off everywhere.
+  group.traverse((o) => {
+    const m = o as THREE.Mesh
+    if (!m.isMesh) return
+    for (const mat of (Array.isArray(m.material) ? m.material : [m.material]) as THREE.MeshStandardMaterial[]) mat.vertexColors = false
+    if (m.geometry.getAttribute("color")) m.geometry.deleteAttribute("color")
+  })
 
   // Reference pose: first frame of the idle loop (arms hanging), used to align sockets and overlays
   const anims = models.get("anims_ual")!
