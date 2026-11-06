@@ -34,6 +34,7 @@ import { Animator } from "../render/animator"
 import { skillBonuses } from "../meta/skillData"
 import { campBonuses } from "../meta/campData"
 import { mat, waterMaterial, windUniforms } from "../render/materials"
+import { kitProp } from "../render/kitProps"
 import type { PostProcess } from "../render/postprocess"
 import { RARITIES } from "../core/types"
 
@@ -83,6 +84,32 @@ export interface ExpeditionCallbacks {
   onEnd: (result: { success: boolean; extractionName?: string; cause?: string }) => void
   openPause: () => void
   openInventory: () => void
+}
+
+// Loot beams: a soft light column fading upwards (additive, shared per colour)
+const BEAM_GEO = new THREE.CylinderGeometry(0.06, 0.22, 2.2, 10, 1, true)
+let beamTex: THREE.Texture | null = null
+const beamMats = new Map<string, THREE.MeshBasicMaterial>()
+function beamMaterial(color: number, opacity: number): THREE.MeshBasicMaterial {
+  const key = `${color}:${opacity}`
+  let m = beamMats.get(key)
+  if (m) return m
+  if (!beamTex) {
+    const c = document.createElement("canvas")
+    c.width = 4
+    c.height = 64
+    const ctx = c.getContext("2d")!
+    const grad = ctx.createLinearGradient(0, 0, 0, 64)
+    grad.addColorStop(0, "rgba(0,0,0,1)")
+    grad.addColorStop(0.55, "rgba(90,90,90,1)")
+    grad.addColorStop(1, "rgba(255,255,255,1)")
+    ctx.fillStyle = grad
+    ctx.fillRect(0, 0, 4, 64)
+    beamTex = new THREE.CanvasTexture(c)
+  }
+  m = new THREE.MeshBasicMaterial({ color, map: beamTex, transparent: true, opacity, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, fog: true })
+  beamMats.set(key, m)
+  return m
 }
 
 export class Expedition implements ExpeditionApi {
@@ -438,15 +465,32 @@ export class Expedition implements ExpeditionApi {
 
   private createPickup(x: number, z: number, items: ItemInstance[], gold: number): Pickup {
     const g = new THREE.Group()
-    const sack = new THREE.Mesh(new THREE.SphereGeometry(0.28, 8, 6), mat("cloth", { color: 0x8a7a5a }))
-    sack.scale.set(1, 0.8, 1)
-    sack.position.y = 0.24
-    sack.castShadow = true
-    g.add(sack)
+    // A pouch for a few things, a sack for a bigger haul (the kit's sack is 0.8 m, the pouch 0.16 m tall)
+    const bag = items.length > 2 ? kitProp("Bag", 0.6) : kitProp("Pouch_Large", 1.8)
+    if (bag) {
+      bag.rotation.y = Math.random() * Math.PI * 2
+      g.add(bag)
+    } else {
+      const sack = new THREE.Mesh(new THREE.SphereGeometry(0.28, 8, 6), mat("cloth", { color: 0x8a7a5a }))
+      sack.scale.set(1, 0.8, 1)
+      sack.position.y = 0.24
+      sack.castShadow = true
+      g.add(sack)
+    }
+    if (gold > 0) {
+      const coins = kitProp(gold > 40 ? "Coin_Pile_2" : "Coin_Pile", 1.6)
+      if (coins) {
+        coins.position.set(0.36, 0, 0.14)
+        coins.rotation.y = Math.random() * Math.PI * 2
+        g.add(coins)
+      }
+    }
     const best = items.reduce((m, i) => Math.max(m, RARITIES.indexOf(i.rarity)), 0)
     const glowColor = best >= 4 ? 0xf0a63a : best >= 3 ? 0xb36be8 : best >= 2 ? 0x4f9de8 : best >= 1 ? 0x6fbf5a : 0xd8d0b0
-    const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.3, 2.2, 8, 1, true), new THREE.MeshBasicMaterial({ color: glowColor, transparent: true, opacity: 0.35, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }))
-    beam.position.y = 1.2
+    const beam = new THREE.Mesh(BEAM_GEO, beamMaterial(glowColor, best >= 2 ? 0.55 : 0.3))
+    beam.position.y = best >= 2 ? 1.6 : 0.9
+    beam.scale.y = best >= 2 ? 1.4 : 0.8
+    beam.renderOrder = 2
     g.add(beam)
     const y = this.world.terrain.heightAt(x, z)
     g.position.set(x, y, z)
