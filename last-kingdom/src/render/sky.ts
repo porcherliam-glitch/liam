@@ -159,33 +159,60 @@ const LIGHT_KEYS: LightKey[] = [
   { elev: 0.5, sun: 0xfff0dc, sunI: 2.8, hemiSky: 0x7f90a8, hemiGround: 0x3a3a2e, hemiI: 0.55, ambient: 0x3a4050, ambientI: 0.15, fill: 0.22, top: 0x44607c, horizon: 0xaab2b8, exposure: 1.05 },
 ]
 
+const UP = new THREE.Vector3(0, 1, 0)
 const MOON_COLOR = new THREE.Color(0x6f85b8)
 const MOON_INTENSITY = 0.55
 
-function lerpKeys(elev: number): LightKey {
+/** Keyframe colours as THREE.Color, built once. */
+interface KeyColors {
+  sun: THREE.Color
+  hemiSky: THREE.Color
+  hemiGround: THREE.Color
+  ambient: THREE.Color
+  top: THREE.Color
+  horizon: THREE.Color
+}
+const KEY_COLORS: KeyColors[] = LIGHT_KEYS.map((k) => ({ sun: new THREE.Color(k.sun), hemiSky: new THREE.Color(k.hemiSky), hemiGround: new THREE.Color(k.hemiGround), ambient: new THREE.Color(k.ambient), top: new THREE.Color(k.top), horizon: new THREE.Color(k.horizon) }))
+
+/** Interpolated light state for one sun elevation (reused every frame, no allocations). */
+interface LightState extends KeyColors {
+  sunI: number
+  hemiI: number
+  ambientI: number
+  fill: number
+  exposure: number
+}
+
+function lerpKeys(elev: number, out: LightState): LightState {
   const keys = LIGHT_KEYS
-  if (elev <= keys[0].elev) return keys[0]
-  if (elev >= keys[keys.length - 1].elev) return keys[keys.length - 1]
   let i = 0
-  while (elev > keys[i + 1].elev) i++
+  let t = 0
+  if (elev <= keys[0].elev) {
+    i = 0
+    t = 0
+  } else if (elev >= keys[keys.length - 1].elev) {
+    i = keys.length - 2
+    t = 1
+  } else {
+    while (elev > keys[i + 1].elev) i++
+    t = (elev - keys[i].elev) / (keys[i + 1].elev - keys[i].elev)
+  }
   const a = keys[i]
   const b = keys[i + 1]
-  const t = (elev - a.elev) / (b.elev - a.elev)
-  const c = (x: number, y: number) => new THREE.Color(x).lerp(new THREE.Color(y), t).getHex()
-  return {
-    elev,
-    sun: c(a.sun, b.sun),
-    sunI: lerp(a.sunI, b.sunI, t),
-    hemiSky: c(a.hemiSky, b.hemiSky),
-    hemiGround: c(a.hemiGround, b.hemiGround),
-    hemiI: lerp(a.hemiI, b.hemiI, t),
-    ambient: c(a.ambient, b.ambient),
-    ambientI: lerp(a.ambientI, b.ambientI, t),
-    fill: lerp(a.fill, b.fill, t),
-    top: c(a.top, b.top),
-    horizon: c(a.horizon, b.horizon),
-    exposure: lerp(a.exposure, b.exposure, t),
-  }
+  const ca = KEY_COLORS[i]
+  const cb = KEY_COLORS[i + 1]
+  out.sun.lerpColors(ca.sun, cb.sun, t)
+  out.hemiSky.lerpColors(ca.hemiSky, cb.hemiSky, t)
+  out.hemiGround.lerpColors(ca.hemiGround, cb.hemiGround, t)
+  out.ambient.lerpColors(ca.ambient, cb.ambient, t)
+  out.top.lerpColors(ca.top, cb.top, t)
+  out.horizon.lerpColors(ca.horizon, cb.horizon, t)
+  out.sunI = lerp(a.sunI, b.sunI, t)
+  out.hemiI = lerp(a.hemiI, b.hemiI, t)
+  out.ambientI = lerp(a.ambientI, b.ambientI, t)
+  out.fill = lerp(a.fill, b.fill, t)
+  out.exposure = lerp(a.exposure, b.exposure, t)
+  return out
 }
 
 /** Spherical interpolation between two unit vectors. */
@@ -232,8 +259,16 @@ export class Sky {
   private envAge = 0
   private tmpDir = new THREE.Vector3()
   private tmpMoon = new THREE.Vector3()
+  private tmpLight = new THREE.Vector3()
   private tmpFocus = new THREE.Vector3()
+  private tmpSide = new THREE.Vector3()
+  private tmpSnapX = new THREE.Vector3()
+  private tmpSnapY = new THREE.Vector3()
   private tmpColor = new THREE.Color()
+  private cTop = new THREE.Color()
+  private cMid = new THREE.Color()
+  private cHorizon = new THREE.Color()
+  private key: LightState = { sun: new THREE.Color(), hemiSky: new THREE.Color(), hemiGround: new THREE.Color(), ambient: new THREE.Color(), top: new THREE.Color(), horizon: new THREE.Color(), sunI: 0, hemiI: 0, ambientI: 0, fill: 0, exposure: 1 }
 
   constructor(
     private scene: THREE.Scene,
@@ -290,7 +325,9 @@ export class Sky {
     }
     const defines = { CLOUD_OCTAVES: quality === "low" ? 3 : 4, CLOUD_LAYERS: quality === "low" ? 1 : 2 }
     const mat = new THREE.ShaderMaterial({ uniforms: this.uniforms, defines, vertexShader: skyVert, fragmentShader: skyFrag, side: THREE.BackSide, depthWrite: false, fog: false })
-    this.dome = new THREE.Mesh(new THREE.SphereGeometry(900, 24, 12), mat)
+    // Radius inside every camera's far plane (the camp camera stops at 500 m); it never writes depth, so nearer
+    // and farther scenery is drawn over it either way
+    this.dome = new THREE.Mesh(new THREE.SphereGeometry(400, 24, 12), mat)
     this.dome.frustumCulled = false
     this.dome.renderOrder = -10
     this.scene.add(this.dome)
@@ -317,9 +354,17 @@ export class Sky {
     return { hour: t, sunElevation: elev, daylight: clamp(smoothstep(-0.1, 0.22, elev), 0, 1) }
   }
 
-  /** Distance beyond which the fog hides everything (4 % remaining contrast). */
-  get fogCut(): number {
-    return Math.sqrt(-Math.log(this.flash > 0 ? 0.02 : 0.04)) / Math.max(1e-4, this.fog.density)
+  /**
+   * Distance beyond which the fog hides everything. Objects farther away can be skipped.
+   * @param contrast remaining contrast that still counts as visible (4 % by default, 2 % in storms because lightning lights up silhouettes)
+   */
+  fogCut(contrast = 0.04): number {
+    return Math.sqrt(-Math.log(contrast)) / Math.max(1e-4, this.fog.density)
+  }
+
+  /** Current zenith colour of the dome (backdrops blend toward it). */
+  get topColor(): THREE.Color {
+    return this.uniforms.uTop.value as THREE.Color
   }
 
   /** Points the fill light from the camera toward the focus. */
@@ -345,23 +390,25 @@ export class Sky {
     const day = s.daylight
     const cloud = this.cloudiness
     const fog = this.fogBoost
-    const key = lerpKeys(s.sunElevation)
-    const shadowFocus = this.tmpFocus.copy(focus)
-    if (forward) {
-      shadowFocus.x += forward.x
-      shadowFocus.z += forward.z
-    }
+    const key = lerpKeys(s.sunElevation, this.key)
     // Moon: opposite the sun, kept above the horizon
     const moonDir = this.tmpMoon.copy(sunDir).multiplyScalar(-1)
     moonDir.y = Math.abs(moonDir.y) * 0.8 + 0.2
     moonDir.normalize()
     // Night: the key light slides onto the moon so one shadow map serves both
     const nightMix = 1 - smoothstep(0.2, 0.35, day)
-    const lightDir = slerp(sunDir, moonDir, nightMix, new THREE.Vector3())
+    const lightDir = slerp(sunDir, moonDir, nightMix, this.tmpLight)
+    // Shadow box: centred ahead of the camera, moved in whole shadow-map texels so edges do not shimmer
+    const shadowFocus = this.tmpFocus.copy(focus)
+    if (forward) {
+      shadowFocus.x += forward.x
+      shadowFocus.z += forward.z
+    }
+    this.snapToTexels(shadowFocus, lightDir)
     const sunI = key.sunI * (1 - cloud * 0.75)
     const moonI = MOON_INTENSITY * (1 - cloud * 0.5)
     this.sun.intensity = this.underground ? 0 : lerp(sunI, moonI, nightMix)
-    this.sun.color.setHex(key.sun).lerp(MOON_COLOR, nightMix)
+    this.sun.color.copy(key.sun).lerp(MOON_COLOR, nightMix)
     this.sun.position.copy(shadowFocus).addScaledVector(lightDir, 80)
     this.sun.target.position.copy(shadowFocus)
     this.sun.target.updateMatrixWorld()
@@ -378,25 +425,26 @@ export class Sky {
       this.ambient.intensity = 1.8
       this.ambient.color.setHex(0x5a5270)
     } else {
-      this.hemi.color.setHex(key.hemiSky)
-      this.hemi.groundColor.setHex(key.hemiGround)
+      this.hemi.color.copy(key.hemiSky)
+      this.hemi.groundColor.copy(key.hemiGround)
+      // Thick fog scatters light: flatter, brighter ambient
       const fogLift = Math.max(0, fog - 0.3) / 0.7
-      this.hemi.intensity = key.hemiI * (1 - cloud * 0.2) + fogLift * 0.35 + flash * 2.0
+      this.hemi.intensity = key.hemiI * (1 - cloud * 0.2) + fogLift * 0.35 * (0.3 + 0.7 * day) + flash * 2.0
       this.fill.intensity = key.fill
       this.ambient.intensity = key.ambientI + flash * 0.8
-      this.ambient.color.setHex(key.ambient)
+      this.ambient.color.copy(key.ambient)
     }
     this.exposure = this.underground ? 1.0 : key.exposure
     // Sky colours
-    const top = new THREE.Color(key.top)
-    const horizon = new THREE.Color(key.horizon)
+    const top = this.cTop.copy(key.top)
+    const horizon = this.cHorizon.copy(key.horizon)
     if (cloud > 0) {
       const dayScale = 0.12 + 0.88 * day
       top.lerp(this.tmpColor.setHex(0x4a505a).multiplyScalar(dayScale), cloud)
       horizon.lerp(this.tmpColor.setHex(0x6a6e74).multiplyScalar(dayScale), cloud)
     }
     const dusk = this.underground ? 0 : smoothstep(0.25, 0, Math.abs(s.sunElevation)) * (1 - cloud * 0.7)
-    const mid = horizon.clone().lerp(top, 0.45).lerp(this.tmpColor.setHex(0x6a4a5a), dusk * 0.6)
+    const mid = this.cMid.copy(horizon).lerp(top, 0.45).lerp(this.tmpColor.setHex(0x6a4a5a), dusk * 0.6)
     if (this.underground) {
       top.setHex(0x030305)
       horizon.setHex(0x08070a)
@@ -416,7 +464,7 @@ export class Sky {
     u.uTime.value = this.time
     ;(u.uMoonDir.value as THREE.Vector3).copy(moonDir)
     // Crescent: a second disc shifted sideways (perpendicular to the moon direction) shades part of the first
-    const side = new THREE.Vector3(-moonDir.z, 0, moonDir.x).normalize()
+    const side = this.tmpSide.set(-moonDir.z, 0, moonDir.x).normalize()
     ;(u.uMoonDir2.value as THREE.Vector3).copy(moonDir).addScaledVector(side, 0.014).normalize()
     u.uMoonVis.value = this.underground ? 0 : (1 - day) * (1 - cloud * 0.9)
     u.uCloud.value = this.underground ? 0 : cloud
@@ -427,15 +475,28 @@ export class Sky {
     u.uFlash.value = flash
     this.dome.position.copy(focus)
     // Fog: tinted by the horizon, grey and dense in foggy weather, a little denser at night
-    const fogCol = horizon.clone().lerp(this.tmpColor.setHex(0x202228), 0.25)
+    const fogCol = this.fog.color.copy(horizon).lerp(this.tmpColor.setHex(0x202228), 0.25)
     if (fog > 0.3) fogCol.lerp(this.tmpColor.setHex(0x3a4250).multiplyScalar(0.45 + 0.55 * day), fog * 0.6)
     if (this.underground) fogCol.setHex(0x0c0a10)
-    this.fog.color.copy(fogCol)
     ;(u.uFogColor.value as THREE.Color).copy(fogCol)
     this.fog.density = this.underground ? 0.009 : 0.0035 + fog * 0.018 + cloud * 0.0015 + (1 - day) * 0.002
     this.scene.background = null
     this.scene.environmentIntensity = this.underground ? 0.08 : 0.2 + 0.15 * day
     this.envAge += dt
+  }
+
+  /** Moves a shadow-box centre so the shadow camera shifts in whole texels across the light's view plane. */
+  private snapToTexels(p: THREE.Vector3, lightDir: THREE.Vector3): void {
+    const cam = this.sun.shadow.camera
+    const texel = (cam.right - cam.left) / this.sun.shadow.mapSize.x
+    // Same basis as Matrix4.lookAt for a camera looking along -lightDir with +Y up
+    const x = this.tmpSnapX.crossVectors(UP, lightDir)
+    if (x.lengthSq() < 1e-8) return
+    x.normalize()
+    const y = this.tmpSnapY.crossVectors(lightDir, x)
+    const a = p.dot(x)
+    const b = p.dot(y)
+    p.addScaledVector(x, Math.round(a / texel) * texel - a).addScaledVector(y, Math.round(b / texel) * texel - b)
   }
 
   /**

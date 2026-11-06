@@ -121,7 +121,35 @@ export class Expedition implements ExpeditionApi {
   private unsub: (() => void)[] = []
   private spawnTimer = 20
   private flickerTime = 0
-  private torchLights: THREE.PointLight[] = []
+  /**
+   * Fixed pool of point lights, created once with the world and never added or removed afterwards (a changing light
+   * count recompiles every lit shader). Slot 0: the player's torch (free for flames while none is carried),
+   * slot 1: epic loot glow or the extraction circle (free for flames otherwise), the rest: nearest flames.
+   */
+  private lights: THREE.PointLight[] = []
+  /** World positions of the static flames, cached once. */
+  private flamePos: THREE.Vector3[] = []
+  /** Flame indices sorted by distance to the player (refreshed every few frames). */
+  private flameOrder: number[] = []
+  private flameDist: Float32Array = new Float32Array(0)
+  private envFrame = 0
+  /** Damped look-ahead of the shadow box (camera forward x 15 m, 8 m while locked on). */
+  private shadowAhead = { x: 0, z: 0 }
+  /** Thunder claps waiting for the sound to arrive (seconds of environment time). */
+  private thunder: { at: number; volume: number; shake: boolean }[] = []
+  private lastStrike = 0
+  /** Static meshes that may be skipped when the fog hides them. */
+  private cullables: { mesh: THREE.Object3D; center: THREE.Vector3; radius: number }[] = []
+  private cullCut = Infinity
+  private fogHidden = new WeakSet<Zombie>()
+  private renderMsAvg = 0
+  private updateMsAvg = 0
+  private lastRenderMs = 0
+  /** Expanding ring around the extraction circle while channelling. */
+  private extractionPulse: THREE.Mesh
+  /** Sample objects compiled before the first frame; kept so their shader programs stay cached. */
+  private warmupObjects: THREE.Object3D | null = null
+  private heightAt = (x: number, z: number): number => this.world.terrain.heightAt(x, z)
   private visitedPois = new Set<string>()
   private explorePoints = new Set<string>()
   private treasureChest: ContainerSite | null = null
@@ -166,11 +194,12 @@ export class Expedition implements ExpeditionApi {
     this.camera = new ThirdPersonCamera(settings.fov, window.innerWidth / window.innerHeight)
     this.camera.shakeEnabled = settings.cameraShake
     this.camera.targetDistance = this.camera.distance = settings.cameraDistance
-    this.sky = new Sky(this.scene, settings.shadows)
+    // No shadow pass under ground: the catacombs are lit by torches only
+    this.sky = new Sky(this.scene, settings.shadows && area.biome !== "catacombs", settings.quality)
     this.sky.underground = area.biome === "catacombs"
     this.sky.hour = night ? 22.5 : this.rng.pick([7, 9, 12, 15, 17, 19, 21, 23, 2])
     if (night) this.sky.speed = 0.4
-    this.weather = new Weather(this.scene, this.sky, area.seed ^ Date.now(), area.biome === "forest" ? "fog" : area.biome === "graveyard" ? (this.rng.chance(0.5) ? "fog" : "overcast") : undefined)
+    this.weather = new Weather(this.scene, this.sky, area.seed ^ Date.now(), area.biome === "forest" ? "fog" : area.biome === "graveyard" ? (this.rng.chance(0.5) ? "fog" : "overcast") : undefined, settings.quality)
     this.particles = new Particles(this.scene)
     this.particles.setViewport(window.innerHeight)
     this.particles.gore = settings.gore
@@ -253,7 +282,12 @@ export class Expedition implements ExpeditionApi {
     this.projectiles.bind(this.ctx)
     this.populate()
     this.setupMissions()
-    this.setupTorches()
+    this.setupLights()
+    this.extractionPulse = new THREE.Mesh(new THREE.RingGeometry(2.4, 2.75, 48), new THREE.MeshBasicMaterial({ color: 0x9fe0ff, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }))
+    this.extractionPulse.rotation.x = -Math.PI / 2
+    this.extractionPulse.visible = false
+    this.scene.add(this.extractionPulse)
+    this.collectCullables()
     this.subscribe()
     this.hud.show(true)
     this.audio.setMusic("calm")
@@ -271,6 +305,11 @@ export class Expedition implements ExpeditionApi {
       ]
     }
     if (area.danger >= 3) events.emit("toast", { text: `Gefahr ${"☠".repeat(area.danger)} – ${area.hazards[0]}`, kind: "warn" })
+    // Light, sky, environment map and colour grade before the first frame, then compile every shader up front
+    post.setGrade(area.biome)
+    this.camera.update(0, this.player.pos, this.player.height, this.world.collision, this.world.terrain, null)
+    this.updateEnvironment(0)
+    this.warmUp()
   }
 
   // ---- setup -----------------------------------------------------------------------------------
@@ -366,14 +405,53 @@ export class Expedition implements ExpeditionApi {
     this.survivor = { humanoid: h, animator: anim, pos, yaw: 0, following: false, rescued: false, walkPhase: 0 }
   }
 
-  private setupTorches(): void {
-    const count = this.settings.quality === "low" ? 4 : this.settings.quality === "medium" ? 6 : 10
+  private setupLights(): void {
+    const count = this.settings.quality === "low" ? 3 : this.settings.quality === "medium" ? 5 : 8
     for (let i = 0; i < count; i++) {
-      const l = new THREE.PointLight(0xff9a40, 0, 16, 1.6)
+      const l = new THREE.PointLight(0xff9a40, 0, 13, 2)
       l.castShadow = false
       this.scene.add(l)
-      this.torchLights.push(l)
+      this.lights.push(l)
     }
+    for (const f of this.world.flames) this.flamePos.push(f.getWorldPosition(new THREE.Vector3()))
+    this.flameDist = new Float32Array(this.flamePos.length)
+    this.flameOrder = this.flamePos.map((_, i) => i)
+  }
+
+  /** Slot of the pool reserved for the player's torch (player.ts moves its own light here later). */
+  get torchLight(): THREE.PointLight {
+    return this.lights[0]
+  }
+
+  /** Records static world meshes for fog culling: merged batches and other plain meshes directly under the root. */
+  private collectCullables(): void {
+    const root = this.world.root
+    const terrain = this.world.terrain.mesh
+    const add = (o: THREE.Object3D) => {
+      const m = o as THREE.Mesh
+      if (!m.isMesh || (m as THREE.Mesh & { isInstancedMesh?: boolean }).isInstancedMesh || o === terrain || o.userData.dynamic || !o.visible) return
+      if (!m.geometry.boundingSphere) m.geometry.computeBoundingSphere()
+      if (!m.geometry.boundingSphere) return
+      o.updateWorldMatrix(true, false)
+      const sphere = m.geometry.boundingSphere.clone().applyMatrix4(o.matrixWorld)
+      this.cullables.push({ mesh: o, center: sphere.center, radius: sphere.radius })
+    }
+    for (const o of root.children) add(o)
+    // Batches the static batcher may tag deeper in the tree
+    root.traverse((o) => {
+      if (o.parent !== root && o.userData.merged === true) add(o)
+    })
+  }
+
+  /** Compiles all shaders (world, figures, a loot sack and its beam) before the first frame. */
+  private warmUp(): void {
+    const sample = this.pickupVisual(0xb36be8)
+    sample.position.copy(this.player.pos)
+    this.scene.add(sample)
+    this.post.compile(this.scene, this.camera.camera)
+    sample.removeFromParent()
+    // Not disposed: the materials keep their compiled programs alive for the first real drop
+    this.warmupObjects = sample
   }
 
   private subscribe(): void {
@@ -440,18 +518,24 @@ export class Expedition implements ExpeditionApi {
     this.createPickup(x, z, loot.items, loot.gold)
   }
 
-  private createPickup(x: number, z: number, items: ItemInstance[], gold: number): Pickup {
+  /** Loot sack with a coloured beam. */
+  private pickupVisual(glowColor: number): THREE.Group {
     const g = new THREE.Group()
     const sack = new THREE.Mesh(new THREE.SphereGeometry(0.28, 8, 6), mat("cloth", { color: 0x8a7a5a }))
     sack.scale.set(1, 0.8, 1)
     sack.position.y = 0.24
     sack.castShadow = true
     g.add(sack)
-    const best = items.reduce((m, i) => Math.max(m, RARITIES.indexOf(i.rarity)), 0)
-    const glowColor = best >= 4 ? 0xf0a63a : best >= 3 ? 0xb36be8 : best >= 2 ? 0x4f9de8 : best >= 1 ? 0x6fbf5a : 0xd8d0b0
     const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.3, 2.2, 8, 1, true), new THREE.MeshBasicMaterial({ color: glowColor, transparent: true, opacity: 0.35, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide }))
     beam.position.y = 1.2
     g.add(beam)
+    return g
+  }
+
+  private createPickup(x: number, z: number, items: ItemInstance[], gold: number): Pickup {
+    const best = items.reduce((m, i) => Math.max(m, RARITIES.indexOf(i.rarity)), 0)
+    const glowColor = best >= 4 ? 0xf0a63a : best >= 3 ? 0xb36be8 : best >= 2 ? 0x4f9de8 : best >= 1 ? 0x6fbf5a : 0xd8d0b0
+    const g = this.pickupVisual(glowColor)
     const y = this.world.terrain.heightAt(x, z)
     g.position.set(x, y, z)
     this.scene.add(g)
@@ -733,6 +817,36 @@ export class Expedition implements ExpeditionApi {
 
   update(dt: number): void {
     if (this.ended) return
+    const t0 = performance.now()
+    this.lastRenderMs = 0
+    this.tick(dt)
+    // Running averages over ~30 frames for the harness (simulation without the render call, and the render call)
+    this.updateMsAvg += (performance.now() - t0 - this.lastRenderMs - this.updateMsAvg) / 30
+    this.renderMsAvg += (this.lastRenderMs - this.renderMsAvg) / 30
+  }
+
+  /** Average milliseconds per frame spent in the render call (main pass, shadows and post-processing). */
+  get renderMs(): number {
+    return this.renderMsAvg
+  }
+
+  /** Average milliseconds per frame spent simulating (everything except the render call). */
+  get updateMs(): number {
+    return this.updateMsAvg
+  }
+
+  get fps(): number {
+    return this.fpsCounter.value
+  }
+
+  /** Number of static meshes currently skipped because the fog hides them. */
+  get fogCulled(): number {
+    let n = 0
+    for (const c of this.cullables) if (!c.mesh.visible) n++
+    return n
+  }
+
+  private tick(dt: number): void {
     this.fpsCounter.frames++
     this.fpsCounter.time += dt
     if (this.fpsCounter.time >= 0.5) {
@@ -867,7 +981,6 @@ export class Expedition implements ExpeditionApi {
     this.audio.setMusic(bossNear ? "boss" : threats > 0 ? "tension" : "calm")
     this.audio.setListener(this.camera.camera.position.x, this.camera.camera.position.y, this.camera.camera.position.z, this.camera.yaw)
     this.audio.updateAmbience(dt, this.weather.wind, this.weather.rain, this.sky.state.daylight < 0.3, this.world.underground, this.tension)
-    if (this.weather.lightning > 0.99) this.audio.play("thunder", { volume: 0.7 })
     this.renderFrame(dt)
   }
 
@@ -1003,66 +1116,211 @@ export class Expedition implements ExpeditionApi {
 
   private updateEnvironment(dt: number): void {
     this.flickerTime += dt
-    windUniforms.uTime.value = this.flickerTime
+    this.envFrame++
+    const t = this.flickerTime
+    windUniforms.uTime.value = t
     windUniforms.uWind.value = 0.2 + this.weather.wind * 1.2
     const focus = this.player.pos
-    this.sky.update(dt, focus)
-    this.weather.update(dt, this.camera.camera.position, this.world.underground)
-    // Torch lights: assign the pool to the nearest flames
-    const flames = this.world.flames
-    if (flames.length) {
-      const sorted = flames
-        .map((f) => {
-          f.getWorldPosition(this.tmpV)
-          return { f, d: this.tmpV.distanceToSquared(focus), x: this.tmpV.x, y: this.tmpV.y, z: this.tmpV.z }
-        })
-        .sort((a, b) => a.d - b.d)
-      for (let i = 0; i < this.torchLights.length; i++) {
-        const l = this.torchLights[i]
-        const s = sorted[i]
-        if (!s || s.d > 60 * 60) {
-          l.intensity = 0
-          continue
-        }
-        l.position.set(s.x, s.y + 0.3, s.z)
-        l.intensity = 9 + Math.sin(this.flickerTime * 13 + i) * 2 + Math.sin(this.flickerTime * 29 + i * 3) * 1.2
-      }
-      for (let i = 0; i < Math.min(14, sorted.length); i++) {
-        const s = sorted[i]
-        s.f.scale.setScalar(0.9 + Math.sin(this.flickerTime * 17 + i * 2) * 0.12)
-        if (s.d < 40 * 40 && this.rng.chance(dt * 4)) this.particles.embers(s.x, s.y + 0.2, s.z, 1)
-        if (s.d < 40 * 40 && this.rng.chance(dt * 0.8)) this.particles.smoke(s.x, s.y + 0.4, s.z, 1)
-      }
-    }
+    const camPos = this.camera.camera.position
+    // Shadow box ahead of the camera so the visible ground gets the shadow-map resolution
+    const fwd = this.camera.forward()
+    const ahead = this.player.lockTarget ? 8 : 15
+    this.shadowAhead.x = damp(this.shadowAhead.x, fwd.x * ahead, 4, dt)
+    this.shadowAhead.z = damp(this.shadowAhead.z, fwd.z * ahead, 4, dt)
+    this.sky.update(dt, focus, this.shadowAhead)
+    this.weather.update(dt, camPos, this.world.underground, { forward: fwd, heightAt: this.heightAt, biome: this.world.area.biome, player: focus })
+    // Reflections: the environment map is rebaked only when light or weather changed noticeably
+    this.sky.updateEnvironment(this.renderer, `${this.weather.kind}:${Math.round(this.weather.cloud * 4)}:${Math.round(this.weather.fog * 4)}`)
+    this.updateThunder()
+    this.updateLights(dt)
     // Banners sway with the wind
     for (let i = 0; i < this.world.banners.length; i++) {
       const b = this.world.banners[i]
-      b.rotation.y = Math.sin(this.flickerTime * (1.5 + this.weather.wind * 2) + i) * 0.25 * (0.3 + this.weather.wind)
+      b.rotation.y = Math.sin(t * (1.5 + this.weather.wind * 2) + i) * 0.25 * (0.3 + this.weather.wind)
     }
     // Water ripples
     if (this.world.waters.length) {
       const wm = waterMaterial()
-      wm.normalMap!.offset.set(this.flickerTime * 0.012, this.flickerTime * 0.008)
+      wm.normalMap!.offset.set(t * 0.012, t * 0.008)
       wm.normalScale.set(0.5 + this.weather.wind * 0.5, 0.5 + this.weather.wind * 0.5)
     }
-    // Extraction beams pulse
+    // Extraction beams pulse (kept faint so they do not wash out the sky)
     for (const e of this.world.extractions) {
       const m = e.beam.material as THREE.MeshBasicMaterial
-      m.opacity = e.active ? 0.18 + Math.sin(this.flickerTime * 2) * 0.06 : 0.05
+      m.opacity = e.active ? 0.16 + Math.sin(t * 2) * 0.05 : 0.05
       m.color.setHex(e.active ? 0x6fd0ff : 0x8a6a40)
     }
-    // Rain splashes near the player
-    if (this.weather.rain > 0.3) {
+    this.updateExtractionVisual(dt)
+    // Rain: small splashes around the player
+    if (this.weather.rain > 0.3 && !this.world.underground) {
       this.rainTimer -= dt
       if (this.rainTimer <= 0) {
-        this.rainTimer = 0.08
-        const x = focus.x + this.rng.range(-6, 6)
-        const z = focus.z + this.rng.range(-6, 6)
-        this.particles.emit(x, this.world.terrain.heightAt(x, z) + 0.05, z, { count: 1, color: 0xa0b8d0, spread: 0.3, speed: 0.8, life: 0.25, size: 0.12, gravity: 4, alpha: 0.5 })
+        this.rainTimer = 0.06
+        for (let i = 0; i < 2; i++) {
+          const x = focus.x + this.rng.range(-6, 6)
+          const z = focus.z + this.rng.range(-6, 6)
+          this.particles.emit(x, this.world.terrain.heightAt(x, z) + 0.03, z, { count: 1, color: 0xcfe0f0, spread: 0.2, speed: 1.4, up: 2, life: 0.3, size: 0.06, gravity: 12, alpha: 0.6 })
+        }
       }
     }
-    // Gore setting: particles are tinted grey instead of red if blood is disabled
-    void this.settings
+    // Distant backdrops (if the world provides them) take on the fog and sky colour
+    const backdrops = (this.world as { backdrops?: THREE.Mesh[] }).backdrops
+    if (backdrops) {
+      for (const b of backdrops) {
+        const bm = b.material as THREE.MeshBasicMaterial
+        if (!bm || !bm.color) continue
+        if (b.userData.backdrop === "far") bm.color.copy(this.sky.fog.color).lerp(this.sky.topColor, 0.22)
+        else if (b.userData.backdrop === "near") bm.color.copy(this.sky.fog.color).lerp(NEAR_BACKDROP, 0.35)
+      }
+    }
+    this.updateFogCulling()
+  }
+
+  /** Plays thunder once the sound of a strike has travelled to the player. */
+  private updateThunder(): void {
+    const st = this.weather.strike
+    if (st && st.id !== this.lastStrike) {
+      this.lastStrike = st.id
+      this.thunder.push({ at: this.flickerTime + st.dist / 340 + 0.2, volume: lerp(0.9, 0.5, clamp((st.dist - 40) / 80, 0, 1)), shake: st.dist < 60 })
+    }
+    for (let i = this.thunder.length - 1; i >= 0; i--) {
+      const th = this.thunder[i]
+      if (this.flickerTime < th.at) continue
+      this.audio.play("thunder", { volume: th.volume })
+      if (th.shake) this.camera.addShake(0.15)
+      this.thunder.splice(i, 1)
+    }
+  }
+
+  /** Assigns the fixed light pool: player torch slot, loot/extraction slot, nearest flames with noisy flicker. */
+  private updateLights(dt: number): void {
+    const t = this.flickerTime
+    const focus = this.player.pos
+    const lights = this.lights
+    // Re-sort the flames by distance every few frames (they never move)
+    const n = this.flamePos.length
+    if (n && (this.envFrame % 6 === 1 || dt === 0)) {
+      for (let i = 0; i < n; i++) this.flameDist[i] = this.flamePos[i].distanceToSquared(focus)
+      this.flameOrder.sort((a, b) => this.flameDist[a] - this.flameDist[b])
+    }
+    let slot = 0
+    // Slot 0: the player's torch brings its own light for now; while none is carried the slot lights a flame
+    if (this.player.carriesTorch) {
+      lights[0].intensity = 0
+      slot = 1
+    }
+    // Slot 1: extraction circle while channelling, else the nearest epic or better loot
+    const special = lights.length > 1 ? lights[1] : null
+    let specialUsed = false
+    if (special) {
+      const ex = this.extracting
+      if (ex) {
+        special.position.set(ex.site.x, ex.site.y + 1.2, ex.site.z)
+        special.color.setHex(0x6fd0ff)
+        special.intensity = 4 * (0.85 + 0.15 * Math.sin(t * 6))
+        special.distance = 8
+        specialUsed = true
+      } else {
+        let best: Pickup | null = null
+        let bestD = 30 * 30
+        for (const pk of this.pickups) {
+          if (pk.rarity < 3) continue
+          const d = (pk.x - focus.x) ** 2 + (pk.z - focus.z) ** 2
+          if (d < bestD) {
+            bestD = d
+            best = pk
+          }
+        }
+        if (best) {
+          special.position.set(best.x, best.y + 1, best.z)
+          special.color.setHex(best.glow)
+          special.intensity = 3
+          special.distance = 8
+          specialUsed = true
+        }
+      }
+    }
+    const gusty = this.weather.wind > 0.55 && !this.world.underground
+    let k = 0
+    for (; slot < lights.length; slot++) {
+      if (slot === 1 && specialUsed) continue
+      const l = lights[slot]
+      const fi = k < n ? this.flameOrder[k] : -1
+      k++
+      if (fi < 0 || this.flameDist[fi] > 60 * 60) {
+        l.intensity = 0
+        continue
+      }
+      const p = this.flamePos[fi]
+      const f = flicker(t, fi)
+      let intensity = 7 + 5 * f
+      if (gusty) intensity *= 0.65 + 0.35 * noise1(t * 3 + fi)
+      l.intensity = intensity
+      l.distance = 13
+      l.color.setHSL(0.065 + 0.02 * flicker(t, fi + 50), 0.9, 0.58)
+      l.position.set(p.x + (noise1(t * 11 + fi) - 0.5) * 0.08, p.y + 0.3, p.z + (noise1(t * 11 + fi + 31) - 0.5) * 0.08)
+    }
+    // Flames: size follows the same noise, embers and smoke near the player
+    const flames = this.world.flames
+    for (let i = 0; i < Math.min(14, n); i++) {
+      const fi = this.flameOrder[i]
+      const p = this.flamePos[fi]
+      flames[fi].scale.setScalar(0.85 + 0.3 * flicker(t, fi))
+      if (this.flameDist[fi] > 40 * 40) continue
+      if (this.rng.chance(dt * 3)) this.particles.embers(p.x, p.y + 0.2, p.z, 1)
+      if (this.rng.chance(dt * 0.8)) this.particles.smoke(p.x, p.y + 0.4, p.z, 1)
+    }
+  }
+
+  /** Progress arc (if the world built one), an expanding pulse ring and rising motes while extracting. */
+  private updateExtractionVisual(dt: number): void {
+    const ex = this.extracting
+    for (const e of this.world.extractions) {
+      const ring = (e as { progressRing?: THREE.Mesh }).progressRing
+      if (!ring) continue
+      const on = ex !== null && ex.site === e
+      ring.visible = on
+      if (on) ring.geometry.setDrawRange(0, Math.floor(clamp(ex.progress, 0, 1) * 64) * 6)
+    }
+    const pulse = this.extractionPulse
+    if (!ex) {
+      pulse.visible = false
+      return
+    }
+    const phase = (this.flickerTime % 0.9) / 0.9
+    pulse.visible = true
+    pulse.position.set(ex.site.x, ex.site.y + 0.1, ex.site.z)
+    pulse.scale.setScalar(1 + phase * 0.7)
+    ;(pulse.material as THREE.MeshBasicMaterial).opacity = 0.6 * (1 - phase)
+    if (this.rng.chance(dt * (this.settings.quality === "low" ? 6 : 18))) {
+      this.particles.emit(ex.site.x + this.rng.range(-2, 2), ex.site.y + 0.2, ex.site.z + this.rng.range(-2, 2), { count: 1, color: 0x9fe0ff, spread: 0.1, speed: 0.3, up: 1, life: 1.8, size: 0.07, gravity: -0.6, alpha: 0.8 })
+    }
+  }
+
+  /** Skips static batches and zombies the fog has swallowed completely (checked every 10 frames / every frame). */
+  private updateFogCulling(): void {
+    const cam = this.camera.camera.position
+    if (this.envFrame % 10 === 1) {
+      // Lightning lights up silhouettes: keep a little more in storms so nothing pops in with a flash
+      this.cullCut = this.world.underground ? Infinity : this.sky.fogCut(this.weather.kind === "storm" ? 0.02 : 0.04)
+      for (const c of this.cullables) c.mesh.visible = c.center.distanceTo(cam) - c.radius < this.cullCut
+    }
+    // Zombies set their own visibility every update; hide those beyond the fog, restore only the ones hidden here
+    const zCut = Math.min(140, this.cullCut)
+    const zCut2 = zCut * zCut
+    const p = this.player.pos
+    for (const z of this.zombies) {
+      const d2 = (z.pos.x - p.x) ** 2 + (z.pos.z - p.z) ** 2
+      if (d2 > zCut2) {
+        if (z.group.visible) {
+          z.group.visible = false
+          this.fogHidden.add(z)
+        }
+      } else if (this.fogHidden.has(z)) {
+        z.group.visible = true
+        this.fogHidden.delete(z)
+      }
+    }
   }
 
   private renderFrame(dt: number): void {
@@ -1070,8 +1328,16 @@ export class Expedition implements ExpeditionApi {
     this.camera.update(dt, this.player.pos, this.player.height, this.world.collision, this.world.terrain, lock ? lock.pos : null)
     this.sky.dome.position.copy(this.camera.camera.position)
     this.sky.setFill(this.camera.camera.position, this.player.pos)
-    this.post.setDamage(Math.max(0, 1 - this.player.sinceHurt * 1.5) * 0.6 + (this.player.hp < this.player.maxHp * 0.3 && !this.player.dead ? 0.2 + Math.sin(performance.now() * 0.006) * 0.12 : 0))
+    // Red edge: a short sharp peak right after a hit, a softer tail, and a pulse at low health
+    const hurt = this.player.sinceHurt
+    const hitPeak = hurt < 0.4 ? 0.6 * (1 - hurt / 0.4) ** 2 : 0
+    const lowHp = this.player.hp < this.player.maxHp * 0.3 && !this.player.dead ? 0.2 + Math.sin(performance.now() * 0.006) * 0.12 : 0
+    this.post.setDamage(Math.max(hitPeak, Math.max(0, 1 - hurt * 1.5) * 0.45) + lowHp)
+    this.renderer.toneMappingExposure = this.sky.exposure
+    this.post.setMood(this.sky.state.daylight, this.world.underground)
+    const r0 = performance.now()
     this.post.render(this.scene, this.camera.camera)
+    this.lastRenderMs += performance.now() - r0
     // HUD
     const markers: CompassMarker[] = []
     for (const e of this.world.extractions) markers.push({ x: e.x, z: e.z, label: e.def.name, kind: "extraction" })
@@ -1152,7 +1418,7 @@ export class Expedition implements ExpeditionApi {
     this.camera.setFov(this.settings.fov)
     this.camera.targetDistance = this.settings.cameraDistance
     this.camera.shakeEnabled = this.settings.cameraShake
-    this.sky.setShadows(this.settings.shadows)
+    this.sky.setShadows(this.settings.shadows && !this.world.underground)
     this.decals.enabled = this.settings.gore
     this.particles.gore = this.settings.gore
     this.gore.enabled = this.settings.gore
@@ -1168,6 +1434,7 @@ export class Expedition implements ExpeditionApi {
     if (this.ended) return
     this.ended = true
     this.extracting = null
+    this.thunder.length = 0
     this.hud.show(false)
     this.callbacks.onEnd({ success, extractionName, cause })
   }
@@ -1205,6 +1472,16 @@ export class Expedition implements ExpeditionApi {
     this.gore.dispose()
     this.crows?.dispose()
     this.weather.dispose()
+    this.sky.dispose()
+    this.extractionPulse.geometry.dispose()
+    ;(this.extractionPulse.material as THREE.Material).dispose()
+    if (this.warmupObjects) {
+      this.warmupObjects.traverse((o) => {
+        const m = o as THREE.Mesh
+        if (m.isMesh) m.geometry.dispose()
+      })
+      this.warmupObjects = null
+    }
     if (this.survivor) disposeHumanoid(this.survivor.humanoid)
     for (const p of this.pickups) p.object.removeFromParent()
     for (const h of this.hazards) h.mesh?.removeFromParent()
@@ -1213,6 +1490,9 @@ export class Expedition implements ExpeditionApi {
     this.scene.clear()
   }
 }
+
+/** Tint for near backdrop hills: dark green that sinks into the fog. */
+const NEAR_BACKDROP = new THREE.Color(0x1a2418)
 
 function containerLabel(c: ContainerSite): string {
   return { chest: "Truhe öffnen", crate: "Kiste durchsuchen", barrel: "Fass durchsuchen", sack: "Sack durchsuchen", corpse: "Leiche durchsuchen", herb: "Kräuter sammeln", woodpile: "Holz nehmen", bones: "Knochen sammeln", scrap: "Eisen sammeln", cupboard: "Schrank durchsuchen" }[c.kind]

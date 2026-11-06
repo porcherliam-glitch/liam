@@ -41,7 +41,8 @@ const GradeShader = {
       col = mix(vec3(l), col, uSaturation);
       // Split toning: cool shadows, warm highlights
       col *= mix(uShadowTint, uHighlightTint, smoothstep(0.15, 0.75, l));
-      // Gentle S-curve
+      // Gentle S-curve (on clamped values: the curve folds negative inputs back up)
+      col = clamp(col, 0.0, 1.0);
       col = mix(col, col * col * (3.0 - 2.0 * col), 0.3);
       // Film grain, weaker in the highlights
       col += (hash(floor(vUv * uResolution) + uTime) - 0.5) * uGrain * (1.0 - l * 0.6);
@@ -109,13 +110,14 @@ export class PostProcess {
     this.renderPass = new RenderPass(scene, camera)
     this.composer.addPass(this.renderPass)
     this.bloomBase = quality === "high" ? 0.34 : 0.26
-    this.bloom = new UnrealBloomPass(new THREE.Vector2(size.x / 2, size.y / 2), this.bloomBase, 0.38, 1.15)
+    // Threshold above 1 (HDR target): only flames, beacons and glowing eyes bloom, not sunlit walls
+    this.bloom = new UnrealBloomPass(new THREE.Vector2((size.x * pr) / 2, (size.y * pr) / 2), this.bloomBase, 0.38, 1.15)
     this.composer.addPass(this.bloom)
     this.composer.addPass(new OutputPass())
     this.grade = new ShaderPass(GradeShader)
     this.composer.addPass(this.grade)
-    // addPass sizes every pass to the full frame: bloom works at half resolution
-    this.bloom.setSize(size.x / 2, size.y / 2)
+    // addPass sizes every pass to the full frame: bloom works at half resolution (its own mip chain halves again)
+    this.bloom.setSize((size.x * pr) / 2, (size.y * pr) / 2)
     const noGrain = typeof window !== "undefined" && window.location.search.includes("nograin")
     this.grainAmount = noGrain ? 0 : 0.035
     this.grade.uniforms.uGrain.value = this.grainAmount
@@ -169,9 +171,21 @@ export class PostProcess {
   }
 
   resize(w: number, h: number): void {
+    const pr = this.renderer.getPixelRatio()
     this.composer?.setSize(w, h)
-    this.bloom?.setSize(w / 2, h / 2)
-    if (this.grade) this.grade.uniforms.uResolution.value.set(w * this.renderer.getPixelRatio(), h * this.renderer.getPixelRatio())
+    this.bloom?.setSize((w * pr) / 2, (h * pr) / 2)
+    if (this.grade) this.grade.uniforms.uResolution.value.set(w * pr, h * pr)
+  }
+
+  /**
+   * Compiles every material of a scene for the target the composer renders into (tone mapping and output colour
+   * space differ between the screen and the HDR target), so the first frame and first loot drop do not stall.
+   */
+  compile(scene: THREE.Scene, camera: THREE.Camera): void {
+    const prev = this.renderer.getRenderTarget()
+    if (this.enabled && this.composer) this.renderer.setRenderTarget(this.composer.renderTarget1)
+    this.renderer.compile(scene, camera)
+    this.renderer.setRenderTarget(prev)
   }
 
   render(scene: THREE.Scene, camera: THREE.Camera): void {

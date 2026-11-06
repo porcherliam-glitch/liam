@@ -29,6 +29,7 @@ import { models } from "../render/assets"
 import { RIG_MODELS, RIG_TEXTURES } from "../render/rig"
 import { WEAPON_MODELS } from "../render/weaponModels"
 import { PROP_MODELS } from "../render/kitProps"
+import type { Sky } from "../render/sky"
 
 export const VERSION = "1.0.0"
 
@@ -53,6 +54,9 @@ export class Game implements GameApi {
   /** Tests can raise this to let the simulation catch up when rendering is slow. */
   maxFrame = 0.05
   private loading = false
+  /** Camp look (neutral grade, exposure, reflections) applied since the last expedition. */
+  private campLook = false
+  private campEnvironment = false
   private unsub: (() => void)[] = []
   /** Resolves once the character models are loaded (or failed: then the procedural bodies are used). */
   readonly modelsReady: Promise<void>
@@ -62,8 +66,10 @@ export class Game implements GameApi {
     this.renderer.shadowMap.enabled = this.settings.shadows
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping
-    this.renderer.toneMappingExposure = 1.15
+    this.renderer.toneMappingExposure = 1.0
     this.renderer.outputColorSpace = THREE.SRGBColorSpace
+    // Statistics cover the whole frame (shadow maps, main pass, post-processing): reset once per frame in frame()
+    this.renderer.info.autoReset = false
     this.input = new Input(canvas)
     this.ui = new UI(this.input, this.audio)
     this.campScene = new CampScene(this.settings.shadows)
@@ -113,7 +119,11 @@ export class Game implements GameApi {
     this.input.vibration = s.vibration
     this.input.deadzone = s.deadzone
     this.renderer.shadowMap.enabled = s.shadows
-    this.renderer.setPixelRatio(s.quality === "low" ? Math.min(1, window.devicePixelRatio) : s.quality === "medium" ? Math.min(1.25, window.devicePixelRatio) : Math.min(1.5, window.devicePixelRatio))
+    // Soft (Poisson) filtering only on high; plain PCF is cheaper and still smooth with shadow.radius
+    this.renderer.shadowMap.type = s.quality === "high" ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap
+    // Very large screens on high get a lower cap so the frame stays within the pixel budget
+    const highCap = window.innerWidth * window.innerHeight > 2.3e6 ? 1.25 : 1.5
+    this.renderer.setPixelRatio(s.quality === "low" ? Math.min(1, window.devicePixelRatio) : s.quality === "medium" ? Math.min(1.25, window.devicePixelRatio) : Math.min(highCap, window.devicePixelRatio))
     if (this.post) {
       this.post.setup(this.campScene.scene, this.campScene.camera, s.quality)
       this.post.resize(window.innerWidth, window.innerHeight)
@@ -237,6 +247,7 @@ export class Game implements GameApi {
     }
     this.state = "expedition"
     this.loading = true
+    this.campLook = false
     setTimeout(async () => {
       await this.modelsReady
       if (this.state !== "expedition" || !this.profile || this.expedition) return
@@ -400,6 +411,7 @@ export class Game implements GameApi {
     if (!this.running) return
     const rawDt = Math.min(this.maxFrame, Math.max(0.001, (now - this.last) / 1000))
     this.last = now
+    this.renderer.info.reset()
     this.input.update(rawDt)
     this.ui.update(rawDt)
     if (this.state === "expedition" && this.loading) {
@@ -409,12 +421,28 @@ export class Game implements GameApi {
       // Keep the pointer captured during play
       if (this.ui.depth === 0 && this.input.wantPointerLock && !this.input.locked && this.input.anyKeyThisFrame) this.input.requestLock()
     } else {
+      if (!this.campLook) {
+        this.campLook = true
+        this.post.setGrade("camp")
+        this.post.setMood(1, false)
+      }
+      this.renderer.toneMappingExposure = 1.0
       this.campScene.update(rawDt, (sc, cam) => this.post.render(sc, cam))
+      this.bakeCampEnvironment()
       this.audio.setListener(0, 2, 0, 0)
       this.audio.updateAmbience(rawDt, 0.3, 0, true, false, 0)
     }
     this.input.endFrame()
     requestAnimationFrame(this.frame)
+  }
+
+  /** Reflections for the camp figure: baked once from the camp's own sky after its first update. */
+  private bakeCampEnvironment(): void {
+    if (this.campEnvironment) return
+    this.campEnvironment = true
+    // The camp keeps its sky private until it exposes it; the field exists at runtime either way
+    const sky = (this.campScene as unknown as { sky?: Sky }).sky
+    if (sky && typeof sky.buildEnvironment === "function") sky.buildEnvironment(this.renderer)
   }
 
   /** Expedition accessor for the UI contract. */
