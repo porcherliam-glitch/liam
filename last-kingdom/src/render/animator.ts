@@ -460,6 +460,8 @@ class MixerDriver {
   private spec: MixSpec | null = null
   private clipDuration = 1
   /** Bones touched by the additive layer last frame and their pose before it (bones without a track keep it). */
+  /** Per-character tempo so a crowd does not walk in lockstep. */
+  private jitter = 0.85 + Math.random() * 0.3
   private saved = new Map<THREE.Bone, THREE.Quaternion>()
   private touched: THREE.Bone[] = []
   constructor(private rig: CharacterRig) {
@@ -477,7 +479,8 @@ class MixerDriver {
     action.reset()
     action.setLoop(loop ? THREE.LoopRepeat : THREE.LoopOnce, Infinity)
     action.clampWhenFinished = !loop
-    action.time = from
+    // Loops start at a random point of their cycle, one-shots at the start of their segment
+    action.time = loop ? Math.random() * clip.duration : from
     // Non-looping clips are stretched to the game clip's duration so gameplay timing (hit frames, combos) is unchanged
     action.timeScale = loop ? (spec.rate ?? 1) * speed : (this.clipDuration / Math.max(0.05, gameDuration)) * speed
     if (this.action && this.action !== action) {
@@ -494,7 +497,7 @@ class MixerDriver {
     if (this.action && loop && this.spec) {
       // Walk cycles follow the movement speed like the procedural cycles did
       const move = ctx.speed > 0 ? 0.55 + ctx.speed * 0.6 : 1
-      this.action.timeScale = (this.spec.rate ?? 1) * speed * (/walk|run|sprint|strafe/.test(this.spec.clip) ? move : 1)
+      this.action.timeScale = (this.spec.rate ?? 1) * speed * this.jitter * (/walk|run|sprint|strafe/i.test(this.spec.clip) ? move : 1)
     }
     // Undo last frame's additive rotations first: bones without an animation track would otherwise accumulate them
     for (const bone of this.touched) bone.quaternion.copy(this.saved.get(bone)!)

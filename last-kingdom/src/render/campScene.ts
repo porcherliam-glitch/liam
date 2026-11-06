@@ -3,6 +3,7 @@
 import * as THREE from "three"
 import { Sky } from "./sky"
 import * as P from "./props"
+import { kitProp } from "./kitProps"
 import { StaticBatcher, disposeMeshes } from "./batcher"
 import { buildHumanoid, disposeHumanoid, type Humanoid } from "./humanoid"
 import { Animator } from "./animator"
@@ -106,6 +107,34 @@ export class CampScene {
       for (let i = 0; i < 3; i++) add(P.palisade(8), -16 + i * 16, 16, 0)
       if (lv("defense") >= 2) add(P.tower(2, 7), 20, 14)
       if (lv("defense") >= 3) add(P.tower(2, 7), -20, 14)
+    }
+    // Kit props bring the camp to life: training dummy and weapon stand from the start, workshop pieces with the buildings
+    const kit = (name: string, x: number, z: number, yaw = 0, scale = 1) => {
+      const k = kitProp(name, scale)
+      if (k) add({ group: k, colliders: [] }, x, z, yaw)
+    }
+    kit("Dummy", -4.5, -3.5, 0.6)
+    kit("WeaponStand", 4.5, 3.8, -2.4)
+    kit("Bench", -2.6, 2.6, 0.9)
+    kit("Barrel", -8.2, 3.2, 0.3)
+    kit("Bucket_Wooden_1", -1.6, 3.4, 0.4)
+    kit("Crate_Wooden", 8.6, 4.5, 0.2)
+    if (lv("smithy") > 0) {
+      kit("Anvil", -8.8, -5.2, 0.4)
+      kit("Workbench", -11.5, -4.2, 0.9)
+    }
+    if (lv("alchemy") > 0) {
+      kit("Cauldron", 1.5, -5.5, 0)
+      kit("Shelf_Simple", 0, -7.4, 0)
+    }
+    if (lv("merchant") > 0) kit("Stall_Cart_Empty", 6, -2, -0.3)
+    if (lv("storage") > 0) {
+      kit("Barrel_Apples", 11.6, -4.4, 0.6)
+      kit("FarmCrate_Carrot", 9.2, -6, 1.2)
+    }
+    if (lv("defense") > 0) {
+      kit("Banner_1", -5, 15, 0, 0.9)
+      kit("Banner_2", 5, 15, 0, 0.9)
     }
     this.merged = batcher.build(this.scene)
     // Hero by the fire
