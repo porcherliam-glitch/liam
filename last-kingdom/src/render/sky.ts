@@ -112,7 +112,7 @@ void main() {
     float m = dot(d, uMoonDir);
     float disc = smoothstep(0.99935, 0.99965, m);
     float shade = smoothstep(0.99935, 0.99965, dot(d, uMoonDir2));
-    col += vec3(0.85, 0.9, 1.0) * (max(disc - shade * 0.9, 0.0) * 1.6 + pow(max(m, 0.0), 64.0) * 0.10) * uMoonVis;
+    col += vec3(0.85, 0.9, 1.0) * (max(disc - shade * 0.9, 0.0) * 1.6 + pow(max(m, 0.0), 64.0) * 0.05 + pow(max(m, 0.0), 900.0) * 0.12) * uMoonVis;
   }
   // Cloud shading: lit toward the sun, thin edges lighter
   vec3 cloudCol = mix(uCloudDark, uCloudLit, clamp(pow(sd, 2.0) * 0.55 + 0.45 + (1.0 - cov) * 0.25, 0.0, 1.0));
@@ -148,20 +148,24 @@ interface LightKey {
   exposure: number
 }
 
+// The colours are perceived (sRGB) tints; most of them are dark in linear space, so the hemisphere and ambient
+// intensities are large to give an unlit side about a quarter to a third of the lit side.
 const LIGHT_KEYS: LightKey[] = [
   // night
-  { elev: -0.12, sun: 0xff7a3a, sunI: 0, hemiSky: 0x1c2436, hemiGround: 0x0e0f12, hemiI: 0.22, ambient: 0x141824, ambientI: 0.12, fill: 0.12, top: 0x070a14, horizon: 0x151a26, exposure: 0.85 },
+  { elev: -0.12, sun: 0xff7a3a, sunI: 0, hemiSky: 0x1c2436, hemiGround: 0x0e0f12, hemiI: 6.5, ambient: 0x141824, ambientI: 3.5, fill: 0.35, top: 0x070a14, horizon: 0x151a26, exposure: 1.0 },
   // dusk / dawn
-  { elev: -0.02, sun: 0xff7a3a, sunI: 0.9, hemiSky: 0x4a4a68, hemiGround: 0x2a2218, hemiI: 0.34, ambient: 0x1e2232, ambientI: 0.13, fill: 0.15, top: 0x1c2440, horizon: 0x9a5a3a, exposure: 0.95 },
+  { elev: -0.02, sun: 0xff7a3a, sunI: 1.2, hemiSky: 0x4a4a68, hemiGround: 0x2a2218, hemiI: 3.0, ambient: 0x1e2232, ambientI: 2.0, fill: 0.4, top: 0x1c2440, horizon: 0x9a5a3a, exposure: 1.0 },
   // morning / evening
-  { elev: 0.2, sun: 0xffc48a, sunI: 2.0, hemiSky: 0x6a7a98, hemiGround: 0x3a3426, hemiI: 0.46, ambient: 0x2e3444, ambientI: 0.14, fill: 0.18, top: 0x3a506e, horizon: 0x9aa0a8, exposure: 1.0 },
+  { elev: 0.2, sun: 0xffc48a, sunI: 2.4, hemiSky: 0x6a7a98, hemiGround: 0x3a3426, hemiI: 1.9, ambient: 0x2e3444, ambientI: 1.2, fill: 0.5, top: 0x3a506e, horizon: 0x9aa0a8, exposure: 1.05 },
   // noon
-  { elev: 0.5, sun: 0xfff0dc, sunI: 2.8, hemiSky: 0x7f90a8, hemiGround: 0x3a3a2e, hemiI: 0.55, ambient: 0x3a4050, ambientI: 0.15, fill: 0.22, top: 0x44607c, horizon: 0xaab2b8, exposure: 1.05 },
+  { elev: 0.5, sun: 0xfff0dc, sunI: 3.0, hemiSky: 0x7f90a8, hemiGround: 0x3a3a2e, hemiI: 1.6, ambient: 0x3a4050, ambientI: 1.0, fill: 0.55, top: 0x46668a, horizon: 0xa6b2bc, exposure: 1.1 },
 ]
 
 const UP = new THREE.Vector3(0, 1, 0)
 const MOON_COLOR = new THREE.Color(0x6f85b8)
-const MOON_INTENSITY = 0.55
+const MOON_INTENSITY = 1.3
+/** Lightning tints the sky light blue-white for a moment. */
+const FLASH_COLOR = new THREE.Color(0xc8d8ff)
 
 /** Keyframe colours as THREE.Color, built once. */
 interface KeyColors {
@@ -425,14 +429,14 @@ export class Sky {
       this.ambient.intensity = 1.8
       this.ambient.color.setHex(0x5a5270)
     } else {
-      this.hemi.color.copy(key.hemiSky)
+      this.hemi.color.copy(key.hemiSky).lerp(FLASH_COLOR, flash)
       this.hemi.groundColor.copy(key.hemiGround)
       // Thick fog scatters light: flatter, brighter ambient
       const fogLift = Math.max(0, fog - 0.3) / 0.7
-      this.hemi.intensity = key.hemiI * (1 - cloud * 0.2) + fogLift * 0.35 * (0.3 + 0.7 * day) + flash * 2.0
+      this.hemi.intensity = key.hemiI * (1 - cloud * 0.2) * (1 + fogLift * 0.35) + flash * 2.0
       this.fill.intensity = key.fill
+      this.ambient.color.copy(key.ambient).lerp(FLASH_COLOR, flash)
       this.ambient.intensity = key.ambientI + flash * 0.8
-      this.ambient.color.copy(key.ambient)
     }
     this.exposure = this.underground ? 1.0 : key.exposure
     // Sky colours
@@ -459,7 +463,8 @@ export class Sky {
     ;(u.uSunDir.value as THREE.Vector3).copy(sunDir)
     ;(u.uSunColor.value as THREE.Color).setHSL(0.08, 0.7, 0.7).multiplyScalar(this.underground ? 0 : day * (1 - cloud * 0.85))
     u.uSunSize.value = 1 + cloud * 3
-    u.uStars.value = this.underground ? 0 : (1 - day) * (1 - cloud)
+    // Stars come out once the afterglow has faded
+    u.uStars.value = this.underground ? 0 : (1 - smoothstep(0.05, 0.55, day)) * (1 - cloud)
     u.uFogMix.value = 0.3 + fog * 0.65
     u.uTime.value = this.time
     ;(u.uMoonDir.value as THREE.Vector3).copy(moonDir)

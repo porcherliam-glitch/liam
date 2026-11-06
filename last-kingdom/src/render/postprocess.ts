@@ -16,10 +16,10 @@ const GradeShader = {
     uVignette: { value: 0.55 },
     uContrast: { value: 1.14 },
     uLift: { value: new THREE.Vector3(0.015, 0.018, 0.03) },
-    uGain: { value: new THREE.Vector3(1.0, 0.97, 0.93) },
+    uGain: { value: new THREE.Vector3(1.0, 0.98, 0.95) },
     uSaturation: { value: 0.78 },
     uShadowTint: { value: new THREE.Vector3(0.6, 0.66, 0.8) },
-    uHighlightTint: { value: new THREE.Vector3(1.0, 0.94, 0.84) },
+    uHighlightTint: { value: new THREE.Vector3(1.0, 0.96, 0.9) },
     uGrain: { value: 0.035 },
     uTime: { value: 0 },
     uResolution: { value: new THREE.Vector2(1280, 720) },
@@ -36,14 +36,17 @@ const GradeShader = {
     void main() {
       vec4 c = texture2D(tDiffuse, vUv);
       vec3 col = uLift + c.rgb * uGain;
-      col = (col - 0.5) * uContrast + 0.5;
+      // Contrast as a power curve around a low pivot: the scenes are mostly dark, and a linear contrast around 0.5
+      // would crush everything below it to black
+      col = pow(max(col, 0.0) / 0.4, vec3(uContrast)) * 0.4;
       float l = dot(col, vec3(0.299, 0.587, 0.114));
       col = mix(vec3(l), col, uSaturation);
-      // Split toning: cool shadows, warm highlights
-      col *= mix(uShadowTint, uHighlightTint, smoothstep(0.15, 0.75, l));
-      // Gentle S-curve (on clamped values: the curve folds negative inputs back up)
+      // Split toning: cool shadows, warm highlights; the tints are normalised so they shift hue, not brightness
+      vec3 tint = mix(uShadowTint, uHighlightTint, smoothstep(0.15, 0.75, l));
+      col *= tint / dot(tint, vec3(0.299, 0.587, 0.114));
+      // Gentle S-curve on the upper range (on clamped values: the curve folds negative inputs back up)
       col = clamp(col, 0.0, 1.0);
-      col = mix(col, col * col * (3.0 - 2.0 * col), 0.3);
+      col = mix(col, col * col * (3.0 - 2.0 * col), 0.3 * smoothstep(0.1, 0.5, l));
       // Film grain, weaker in the highlights
       col += (hash(floor(vUv * uResolution) + uTime) - 0.5) * uGrain * (1.0 - l * 0.6);
       vec2 d = vUv - 0.5;
@@ -65,7 +68,8 @@ interface GradePreset {
   highlightTint: [number, number, number]
 }
 
-const BASE_PRESET: GradePreset = { sat: 0.78, contrast: 1.14, vignette: 0.55, lift: [0.015, 0.018, 0.03], gain: [1.0, 0.97, 0.93], shadowTint: [0.6, 0.66, 0.8], highlightTint: [1.0, 0.94, 0.84] }
+// Highlights only slightly warm: a stronger tint turns a clear noon sky beige
+const BASE_PRESET: GradePreset = { sat: 0.78, contrast: 1.14, vignette: 0.55, lift: [0.015, 0.018, 0.03], gain: [1.0, 0.98, 0.95], shadowTint: [0.6, 0.66, 0.8], highlightTint: [1.0, 0.96, 0.9] }
 
 const PRESETS: Record<string, Partial<GradePreset>> = {
   village: { sat: 0.82, shadowTint: [0.62, 0.68, 0.8] },

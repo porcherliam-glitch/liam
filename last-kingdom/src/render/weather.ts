@@ -154,7 +154,7 @@ export class Weather {
     this.sky.flash = underground ? 0 : this.lightning
     // Ground fog: weather fog plus a biome baseline, stronger at night
     const base = GROUND_FOG_BASE[opts.biome ?? ""] ?? 0
-    const daylight = this.sky.state.daylight
+    const daylight = underground ? 0 : this.sky.state.daylight
     const fogAmt = (underground ? 0 : this.fog) * 0.32 + base
     const target = fogAmt * (1 - daylight * 0.5)
     this.groundFog.update(dt, opts.player ?? camPos, camPos, this.wind, this.windDir, target, this.sky.fog.color, opts.heightAt)
