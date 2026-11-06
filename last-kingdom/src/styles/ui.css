@@ -94,6 +94,9 @@
   position: absolute;
   bottom: 7vh;
   right: 3vw;
+  /* .screen > * would stretch it to full width and push the start off screen */
+  width: auto;
+  text-align: right;
   color: var(--muted);
   font-size: 0.8rem;
 }

@@ -320,6 +320,15 @@ body.any-screen .hud-enemybars {
   line-height: 1;
   white-space: nowrap;
 }
+/* The marker kinds share class names with menu cards (.mission); keep those styles out of the compass */
+#hud .cmark {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  cursor: default;
+}
 .cmark small {
   margin-top: 1px;
   font-size: 0.58rem;
