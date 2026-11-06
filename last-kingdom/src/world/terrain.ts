@@ -350,10 +350,12 @@ ${twoScale ? "  return mix(texture2D(t, uv * 0.08).rgb, texture2D(t, uv).rgb, 0.
   lw /= max(lw.x + lw.y + lw.z + lw.w, 1e-3);
   float shade = clamp(dot(vColor, vec3(0.2126, 0.7152, 0.0722)) / uShadeRef, 0.45, 1.25);
   float rut = 1.0 - 0.15 * (1.0 - smoothstep(0.08, 0.3, abs(abs(vRoad) - 0.55)));
-  vec3 ground = lkLayer(map, vMapUv) * vColor * lw.x
-    + lkLayer(uMapDirt, vMapUv) * shade * lw.y
-    + lkLayer(uMapRock, vMapUv * 0.7) * shade * lw.z
-    + lkLayer(uMapRoad, vMapUv) * shade * rut * lw.w;
+  // Layers with (almost) no weight are skipped: most pixels sample only one or two textures.
+  vec3 ground = vec3(0.0);
+  if (lw.x > 0.004) ground += lkLayer(map, vMapUv) * vColor * lw.x;
+  if (lw.y > 0.004) ground += lkLayer(uMapDirt, vMapUv) * shade * lw.y;
+  if (lw.z > 0.004) ground += lkLayer(uMapRock, vMapUv * 0.7) * shade * lw.z;
+  if (lw.w > 0.004) ground += lkLayer(uMapRoad, vMapUv) * shade * rut * lw.w;
   diffuseColor.rgb *= ground;
 }`,
         )
