@@ -45,6 +45,13 @@ body {
   inset: 0;
   pointer-events: none;
 }
+/* Above the screen blood overlay (.gore-screen, z-index 4), below the loading card */
+#hud {
+  z-index: 5;
+}
+#ui {
+  z-index: 6;
+}
 #ui {
   pointer-events: none;
 }
@@ -73,6 +80,23 @@ h1.good {
 }
 h1.bad {
   color: var(--bad);
+  font-size: 3.4rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-shadow: 0 0 34px rgba(200, 20, 10, 0.55), 0 4px 16px #000;
+  animation: titlein 1.2s ease-out both;
+}
+@keyframes titlein {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+    letter-spacing: 0.4em;
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    letter-spacing: 0.14em;
+  }
 }
 h2 {
   font-size: 1.25rem;
@@ -113,14 +137,40 @@ p {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(ellipse at center, #1a1512 0%, #0b0a0c 70%);
+  background: radial-gradient(ellipse at 50% 45%, transparent 25%, rgba(5, 3, 4, 0.85) 100%), radial-gradient(ellipse at 50% 60%, #241a12 0%, #0b0a0c 70%);
   z-index: 50;
 }
 .loading-box {
   text-align: center;
+  padding: 0 24px;
 }
 .loading-box h1 {
   font-size: 3rem;
+  letter-spacing: 0.12em;
+  color: #e9c56a;
+  animation: glow 2s ease-in-out infinite alternate;
+}
+.loading-box h1::after {
+  content: "";
+  display: block;
+  width: 220px;
+  height: 1px;
+  margin: 14px auto 0;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+}
+.loading-box p {
+  color: var(--muted);
+  font-family: var(--font-head);
+  font-style: italic;
+  font-size: 1.05rem;
+}
+@keyframes glow {
+  from {
+    text-shadow: 0 0 18px rgba(217, 166, 58, 0.15), 0 4px 14px #000;
+  }
+  to {
+    text-shadow: 0 0 40px rgba(255, 130, 40, 0.55), 0 0 12px rgba(255, 200, 120, 0.25), 0 4px 14px #000;
+  }
 }
 body.menu-open #game {
   filter: brightness(0.7) saturate(0.8);

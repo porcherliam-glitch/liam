@@ -23,7 +23,7 @@ export class MainMenuScreen implements Screen {
   render(): string {
     const profiles = this.game.listProfiles()
     const last = profiles.filter((p): p is NonNullable<typeof p> => !!p).sort((a, b) => b.updatedAt - a.updatedAt)[0]
-    return `<div class="title-wrap"><h1 class="title">THE LAST KINGDOM</h1><div class="subtitle">Ein Königreich der Toten. Geh hinein. Komm lebend heraus.</div></div>
+    return `<div class="title-wrap"><h1 class="title"><span>THE LAST</span> <span>KINGDOM</span></h1><div class="subtitle">Ein Königreich der Toten. Geh hinein. Komm lebend heraus.</div>${embers()}</div>
       <nav class="menu-list">
         ${last ? `<button class="btn big" data-focus data-action="continue" data-slot="${last.slot}">Fortsetzen – ${esc(last.name)} (Stufe ${last.level})</button>` : ""}
         <button class="btn big" data-focus data-action="characters">Charaktere</button>
@@ -58,6 +58,20 @@ export class MainMenuScreen implements Screen {
   hints() {
     return [{ action: "confirm" as const, label: "Auswählen" }]
   }
+}
+
+/** Glowing embers drifting up behind the main menu. Seeded, so every visit (and every screenshot) looks the same. */
+function embers(): string {
+  const rng = new Rng(0xe3be5)
+  const out: string[] = []
+  for (let i = 0; i < 14; i++) {
+    const dur = rng.range(6, 11)
+    const size = rng.range(3, 5)
+    // Mostly from the left half, where the camp fire burns
+    const left = rng.chance(0.7) ? rng.range(4, 48) : rng.range(48, 96)
+    out.push(`<span class="ember" style="left:${left.toFixed(1)}%;width:${size.toFixed(1)}px;height:${size.toFixed(1)}px;--drift:${rng.range(-60, 60).toFixed(0)}px;animation-duration:${dur.toFixed(2)}s;animation-delay:${(-rng.range(0, dur)).toFixed(2)}s"></span>`)
+  }
+  return `<div class="embers" aria-hidden="true">${out.join("")}</div>`
 }
 
 export class HelpScreen implements Screen {
@@ -411,18 +425,24 @@ export interface RunSummary {
 
 export class ResultsScreen implements Screen {
   name = "results"
-  constructor(private game: GameApi, private summary: RunSummary) {}
+  readonly classes: string[]
+  private countFrame = 0
+  constructor(private game: GameApi, private summary: RunSummary) {
+    this.classes = summary.success ? ["won"] : ["dead"]
+  }
   render(): string {
     const s = this.summary
-    const list = (items: ItemInstance[]) => (items.length ? `<ul class="loot-list">${items.map((i) => `<li style="color:${RARITY_INFO[i.rarity].color}">${esc(displayName(i))}${i.qty > 1 ? ` ×${i.qty}` : ""}</li>`).join("")}</ul>` : `<div class="dim">–</div>`)
+    // Rendered with the final values; onShow counts them up from zero.
+    const num = (v: number) => `<span data-count="${v}">${v}</span>`
+    const list = (items: ItemInstance[]) => (items.length ? `<ul class="loot-list">${items.map((i, n) => `<li style="color:${RARITY_INFO[i.rarity].color};--i:${n}">${esc(displayName(i))}${i.qty > 1 ? ` ×${i.qty}` : ""}</li>`).join("")}</ul>` : `<div class="dim">–</div>`)
     const p = this.game.profile!
     return `<h1 class="${s.success ? "good" : "bad"}">${s.success ? "Extraktion erfolgreich" : "Gefallen"}</h1>
-      <div class="dim">${esc(s.areaName)}${s.success ? ` · ${esc(s.extractionName ?? "")}` : ` · ${esc(s.cause ?? "")}`} · ${formatTime(s.elapsed)}</div>
+      <div class="dim results-sub">${esc(s.areaName)}${s.success ? ` · ${esc(s.extractionName ?? "")}` : ` · ${esc(s.cause ?? "")}`} · ${formatTime(s.elapsed)}</div>
       <div class="results">
         <div class="panel"><h2>Ausbeute</h2>
-          <div class="stat"><span>Gegner erledigt</span><b>${s.kills}${s.bossKills ? ` (davon ${s.bossKills} Boss)` : ""}</b></div>
-          <div class="stat"><span>Erfahrung</span><b>+${s.xp}${s.levelsGained ? ` · ${s.levelsGained} Stufe(n) aufgestiegen!` : ""}</b></div>
-          <div class="stat"><span>Gold</span><b>${s.success ? "+" : "verloren: "}${s.gold}</b></div>
+          <div class="stat"><span>Gegner erledigt</span><b>${num(s.kills)}${s.bossKills ? ` (davon ${s.bossKills} Boss)` : ""}</b></div>
+          <div class="stat"><span>Erfahrung</span><b>+${num(s.xp)}${s.levelsGained ? ` · ${s.levelsGained} Stufe(n) aufgestiegen!` : ""}</b></div>
+          <div class="stat"><span>Gold</span><b>${s.success ? "+" : "verloren: "}${num(s.gold)}</b></div>
           <div class="stat"><span>Stufe</span><b>${p.level} ${bar(p.xp, xpForLevel(p.level), "xp")}</b></div>
           ${s.missionsDone.length ? `<div class="stat"><span>Missionen erfüllt</span><b>${s.missionsDone.map((m) => esc(m.title)).join(", ")}</b></div>` : ""}
         </div>
@@ -431,10 +451,37 @@ export class ResultsScreen implements Screen {
       </div>
       <button class="btn big" data-focus data-action="camp">Zurück ins Lager</button>`
   }
+  onShow(el: HTMLElement): void {
+    if (!this.summary.success) document.body.classList.add("dead")
+    // Count the numbers up from zero (ease-out, 0.8 s)
+    const nums = Array.from(el.querySelectorAll<HTMLElement>("[data-count]")).map((n) => ({ el: n, target: Number(n.dataset.count) || 0 }))
+    if (!nums.length) return
+    for (const n of nums) n.el.textContent = "0"
+    const start = performance.now()
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - start) / 800)
+      const k = 1 - (1 - t) ** 3
+      for (const n of nums) if (n.el.isConnected) n.el.textContent = String(Math.round(n.target * k))
+      this.countFrame = t < 1 ? requestAnimationFrame(tick) : 0
+    }
+    this.countFrame = requestAnimationFrame(tick)
+  }
+  onHide(): void {
+    this.finishCount()
+    document.body.classList.remove("dead")
+  }
+  /** Stops the count-up and shows the final values. */
+  private finishCount(): void {
+    if (this.countFrame) cancelAnimationFrame(this.countFrame)
+    this.countFrame = 0
+    document.querySelectorAll<HTMLElement>(".screen-results [data-count]").forEach((n) => (n.textContent = n.dataset.count ?? n.textContent))
+  }
   onAction(): void {
+    this.finishCount()
     this.game.goToCamp()
   }
   onBack(): void {
+    this.finishCount()
     this.game.goToCamp()
   }
   hints() {

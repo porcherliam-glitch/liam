@@ -3,6 +3,16 @@
   font-family: var(--font-body);
   color: var(--text);
   text-shadow: 0 1px 3px #000;
+  transition: opacity 0.2s, filter 0.2s;
+}
+/* A menu or overlay is open: the HUD steps back instead of shining through the panels. */
+body.any-screen #hud {
+  opacity: 0.25;
+  filter: blur(1.5px);
+}
+body.any-screen .hud-floats,
+body.any-screen .hud-enemybars {
+  display: none;
 }
 .hud-vitals {
   position: absolute;
@@ -16,27 +26,71 @@
 .hud-hp {
   position: relative;
 }
+/* Gold diamonds capping both ends of the health bar */
+.hud-hp::before,
+.hud-hp::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  width: 10px;
+  height: 10px;
+  z-index: 2;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M5 .7L9.3 5 5 9.3.7 5z' fill='%23160f0b' stroke='%238a6a28' stroke-width='1.3'/%3E%3Cpath d='M5 3.2L6.8 5 5 6.8 3.2 5z' fill='%23d9a63a'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+  filter: drop-shadow(0 1px 1px #000);
+}
+.hud-hp::before {
+  left: -5px;
+}
+.hud-hp::after {
+  right: -5px;
+}
 .hud-hp-text {
   position: absolute;
-  right: 8px;
-  top: -1px;
-  font-size: 0.8rem;
+  right: 10px;
+  top: 0;
+  z-index: 1;
+  font-size: 0.78rem;
   font-weight: bold;
+  line-height: 16px;
+  letter-spacing: 0.02em;
 }
 .hud-bar {
+  position: relative;
   height: 16px;
-  background: rgba(10, 8, 8, 0.75);
-  border: 1px solid #5a4a30;
+  background: linear-gradient(180deg, #141010, #0a0808);
+  border: 1px solid #6a5636;
   border-radius: 2px;
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+  box-shadow: inset 0 1px 0 rgba(255, 235, 200, 0.12), inset 0 -2px 4px rgba(0, 0, 0, 0.6), 0 2px 8px rgba(0, 0, 0, 0.6);
 }
 .hud-bar .fill {
+  position: relative;
   height: 100%;
   transition: width 0.12s;
 }
+/* Pale rest of recently lost health; hud.ts holds it briefly, then lets it drain. */
+.hud-bar .ghost {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  background: #ffd27a;
+  opacity: 0.6;
+  transition: width 0.6s ease-out;
+}
 .hud-bar.hp .fill {
-  background: linear-gradient(180deg, #c43a3a, #7a1414);
+  background: linear-gradient(180deg, #e04a4a 0%, #b02a2a 45%, #6a1010 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
+}
+.hud-bar.hp {
+  transition: transform 0.18s ease-out, filter 0.18s;
+}
+/* Short kick when the player takes a hit */
+.hud-bar.hp.hit {
+  transform: scale(1.03, 1.18);
+  filter: brightness(1.35);
+  transition: none;
 }
 .hud-bar.hp.low .fill {
   animation: pulse 0.7s infinite alternate;
@@ -54,18 +108,25 @@
   width: 85%;
 }
 .hud-bar.stamina .fill {
-  background: linear-gradient(180deg, #8fc46a, #4a7a2a);
+  background: linear-gradient(180deg, #a6d47e 0%, #6a9a3e 50%, #3a5a1e 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 .hud-bar.stamina.exhausted .fill {
-  background: #8a6a28;
+  background: #8a3a28;
+  animation: stamflash 0.5s 2;
+}
+@keyframes stamflash {
+  50% {
+    filter: brightness(1.6);
+  }
 }
 .hud-bar.dur {
-  height: 5px;
-  width: 160px;
-  margin-top: 3px;
+  height: 6px;
+  width: 200px;
+  margin-top: 4px;
 }
 .hud-bar.dur .fill {
-  background: #b0a080;
+  background: linear-gradient(180deg, #d0c098, #8a7a58);
 }
 .hud-bar.dur.low .fill {
   background: var(--bad);
@@ -75,7 +136,8 @@
   border-color: #8a2a2a;
 }
 .hud-bar.boss .fill {
-  background: linear-gradient(180deg, #d84a2a, #6a1a0a);
+  background: linear-gradient(180deg, #e05a3a 0%, #a8301a 45%, #5a140a 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 .hud-bar.extract {
   height: 10px;
@@ -118,7 +180,8 @@
 }
 .wname {
   font-family: var(--font-head);
-  font-size: 1.1rem;
+  font-size: 1.15rem;
+  letter-spacing: 0.03em;
 }
 .ammo {
   font-size: 0.85rem;
@@ -129,34 +192,70 @@
   right: 22px;
   bottom: 82px;
   display: flex;
-  gap: 6px;
+  gap: 8px;
 }
-.qslot {
+.qslot,
+.hud-ability {
+  position: relative;
   width: 64px;
-  height: 58px;
-  background: rgba(10, 8, 8, 0.7);
-  border: 1px solid #5a4a30;
+  height: 60px;
+  background: radial-gradient(ellipse at 50% 38%, rgba(70, 54, 34, 0.5), rgba(10, 8, 8, 0.82) 72%);
+  border: 1px solid #6a5636;
   border-radius: 3px;
+  box-shadow: inset 0 1px 0 rgba(255, 235, 200, 0.1), inset 0 0 10px rgba(0, 0, 0, 0.7), 0 2px 8px rgba(0, 0, 0, 0.6);
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  padding: 3px;
-  position: relative;
+  justify-content: flex-end;
+  padding: 3px 3px 2px;
 }
-.qslot.empty {
-  opacity: 0.5;
+/* Key / button badge sits on the top-left corner */
+.qslot > .glyph,
+.hud-ability > .glyph {
+  position: absolute;
+  left: -7px;
+  top: -9px;
+  transform: scale(0.82);
+  transform-origin: top left;
+  z-index: 1;
 }
-.qslot.locked {
-  opacity: 0.35;
-  border-style: dashed;
+.qicon {
+  width: 26px;
+  height: 26px;
+  margin: auto 0 3px;
+  color: var(--rar, #e6dcc6);
+  filter: drop-shadow(0 1px 2px #000);
+}
+.qicon svg {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 .qname {
-  font-size: 0.66rem;
+  width: 100%;
+  font-size: 0.62rem;
+  line-height: 1.2;
   text-align: center;
-  line-height: 1.1;
+  white-space: nowrap;
   overflow: hidden;
-  max-height: 2.2em;
+  text-overflow: ellipsis;
+  color: #d8ccb2;
+}
+.qslot.empty {
+  opacity: 0.55;
+}
+.qslot.empty .qname {
+  color: var(--muted);
+}
+.qslot.locked {
+  opacity: 0.38;
+  border-style: dashed;
+}
+.qslot.locked .qicon {
+  width: 20px;
+  height: 20px;
+  margin-bottom: 5px;
+  color: var(--muted);
 }
 .qslot .qty {
   position: absolute;
@@ -179,24 +278,41 @@
   gap: 8px;
   font-size: 0.95rem;
 }
+/* Compass: rows 1 (icon over distance) and 2 (inline, for markers that would overlap) never share a band. */
 .hud-compass {
   position: absolute;
   top: 14px;
   left: 50%;
   transform: translateX(-50%);
   width: 420px;
-  height: 30px;
-  background: linear-gradient(90deg, transparent, rgba(10, 8, 8, 0.7) 15%, rgba(10, 8, 8, 0.7) 85%, transparent);
+  height: 38px;
+  background: linear-gradient(90deg, transparent, rgba(217, 166, 58, 0.5) 18%, rgba(217, 166, 58, 0.5) 82%, transparent) top / 100% 1px no-repeat,
+    linear-gradient(90deg, transparent, rgba(217, 166, 58, 0.3) 18%, rgba(217, 166, 58, 0.3) 82%, transparent) bottom / 100% 1px no-repeat,
+    linear-gradient(90deg, transparent, rgba(10, 8, 8, 0.72) 15%, rgba(10, 8, 8, 0.72) 85%, transparent);
   overflow: hidden;
+}
+.hud-compass::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 0;
+  margin-left: -6px;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 6px solid var(--gold);
+  z-index: 2;
 }
 .hud-compass::after {
   content: "";
   position: absolute;
   left: 50%;
   top: 0;
-  width: 1px;
+  width: 2px;
+  margin-left: -1px;
   height: 100%;
-  background: var(--gold);
+  /* Strong at the pointer, faint further down so it does not strike through letters */
+  background: linear-gradient(180deg, var(--gold), rgba(217, 166, 58, 0.12) 45%, rgba(217, 166, 58, 0.12) 80%, rgba(217, 166, 58, 0.5));
+  z-index: 1;
 }
 .hud-compass-strip {
   position: relative;
@@ -205,21 +321,50 @@
 }
 .cmark {
   position: absolute;
-  top: 4px;
+  top: 2px;
   transform: translateX(-50%);
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   display: flex;
   flex-direction: column;
   align-items: center;
   line-height: 1;
+  white-space: nowrap;
+}
+/* The marker kinds share class names with menu cards (.mission); keep those styles out of the compass */
+#hud .cmark {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  cursor: default;
 }
 .cmark small {
-  font-size: 0.6rem;
+  margin-top: 1px;
+  font-size: 0.58rem;
   color: var(--muted);
 }
+.cmark.row2 {
+  top: 25px;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 2px;
+  font-size: 0.68rem;
+}
+.cmark.row2 small {
+  margin-top: 0;
+  font-size: 0.54rem;
+}
 .cmark.card {
+  top: 8px;
   color: var(--muted);
+  font-family: var(--font-head);
   font-weight: bold;
+  font-size: 0.8rem;
+  letter-spacing: 0.04em;
+}
+.cmark.card.north {
+  color: #e6b04a;
 }
 .cmark.extraction {
   color: #8fd8ff;
@@ -246,7 +391,7 @@
   display: flex;
   justify-content: space-between;
   gap: 10px;
-  background: rgba(10, 8, 8, 0.6);
+  background: linear-gradient(90deg, rgba(10, 8, 8, 0.75), rgba(10, 8, 8, 0.5));
   border-left: 3px solid #7fb0e0;
   padding: 4px 8px;
   font-size: 0.85rem;
@@ -259,8 +404,16 @@
   bottom: 110px;
   left: 50%;
   transform: translateX(-50%);
-  width: 520px;
+  /* narrow enough to stay clear of the ability and quick slots on the right */
+  width: min(480px, 100vw - 2 * 400px);
+  min-width: 300px;
   text-align: center;
+}
+@media (max-width: 1100px) {
+  .hud-boss {
+    bottom: 160px;
+    width: 56vw;
+  }
 }
 .hud-boss-name {
   font-family: var(--font-head);
@@ -289,7 +442,7 @@
 }
 .hud-extraction {
   position: absolute;
-  top: 60px;
+  top: 58px;
   left: 50%;
   transform: translateX(-50%);
   text-align: center;
@@ -325,25 +478,60 @@ body.no-gore .hud-vignette {
 .float {
   position: absolute;
   font-weight: bold;
-  font-size: 1.1rem;
+  font-size: 1rem;
+  white-space: nowrap;
   transform: translate(-50%, -50%);
-  animation: floatup 0.9s ease-out forwards;
-  text-shadow: 0 1px 3px #000, 0 0 6px rgba(0, 0, 0, 0.8);
+  animation: floatup 0.95s ease-out forwards;
+  text-shadow: 0 1px 2px #000, 0 0 6px rgba(0, 0, 0, 0.85);
+}
+.float.crit {
+  z-index: 1;
+  font-family: var(--font-head);
+  font-size: 1.6rem;
+  letter-spacing: 0.02em;
+  animation: critpop 1.15s cubic-bezier(0.2, 0.8, 0.3, 1) forwards;
+  text-shadow: 0 2px 3px #000, 0 0 2px #000, 0 0 14px rgba(255, 160, 40, 0.7);
 }
 @keyframes floatup {
-  from {
-    opacity: 1;
-    margin-top: 0;
-  }
-  to {
+  0% {
     opacity: 0;
-    margin-top: -50px;
+    transform: translate(-50%, -50%) scale(0.8);
+  }
+  12% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.08);
+  }
+  28% {
+    transform: translate(-50%, calc(-50% - 8px)) scale(1);
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% - 46px)) scale(1);
+  }
+}
+@keyframes critpop {
+  0% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.6);
+  }
+  20% {
+    transform: translate(-50%, -50%) scale(1);
+  }
+  65% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, calc(-50% - 60px)) scale(1);
   }
 }
 .hud-fps {
   position: absolute;
-  left: 10px;
-  top: 10px;
+  right: 22px;
+  top: 14px;
   font-size: 0.8rem;
   color: var(--muted);
 }
@@ -360,22 +548,19 @@ body.no-gore .hud-vignette {
   right: 310px;
   bottom: 82px;
   width: 76px;
-  height: 58px;
-  background: rgba(10, 8, 8, 0.7);
-  border: 1px solid #5a4a30;
-  border-radius: 3px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: space-between;
-  padding: 3px;
-  position: absolute;
   opacity: 0.6;
+}
+.hud-ability .qicon {
+  color: #c9b7ff;
 }
 .hud-ability.ready {
   opacity: 1;
   border-color: var(--gold);
-  box-shadow: 0 0 10px rgba(217, 166, 58, 0.4);
+  box-shadow: inset 0 1px 0 rgba(255, 235, 200, 0.1), inset 0 0 10px rgba(0, 0, 0, 0.7), 0 0 10px rgba(217, 166, 58, 0.4);
+}
+.hud-ability.ready .qicon {
+  color: #ffd27a;
+  filter: drop-shadow(0 0 4px rgba(255, 190, 70, 0.7)) drop-shadow(0 1px 2px #000);
 }
 .hud-ability .cd {
   position: absolute;
@@ -419,23 +604,36 @@ body.no-gore .hud-vignette {
 }
 .ebar {
   position: absolute;
-  width: 90px;
+  width: 96px;
   transform: translate(-50%, -100%);
   text-align: center;
 }
 .ebar-name {
-  font-size: 0.68rem;
+  margin-bottom: 1px;
+  font-size: 0.78rem;
   color: #e6dcc6;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  text-shadow: 0 1px 2px #000, 0 0 4px rgba(0, 0, 0, 0.8);
 }
 .hud-bar.enemy {
-  height: 5px;
+  height: 6px;
   border-color: #6a2a2a;
+  transition: transform 0.15s ease-out, filter 0.15s;
+}
+/* Kick on a fresh hit: snaps big, eases back */
+.ebar.hit .hud-bar.enemy {
+  transform: scale(1.1);
+  filter: brightness(1.6);
+  transition: none;
 }
 .hud-bar.enemy .fill {
-  background: #c43a3a;
+  background: linear-gradient(180deg, #e04a4a, #8a1a1a);
+  transition: width 0.08s;
+}
+.hud-bar.enemy .ghost {
+  transition: width 0.5s ease-out;
 }
 
 .hud-mousehint {

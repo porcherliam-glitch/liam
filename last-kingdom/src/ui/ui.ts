@@ -23,6 +23,8 @@ export interface Screen {
   update?(dt: number): void
   /** Overlay screens leave the HUD visible underneath. */
   overlay?: boolean
+  /** Extra CSS classes for the screen element (e.g. "dead" for the death screen). */
+  classes?: string[]
   /** Element to focus first (selector). */
   initialFocus?: string
   /** Hint bar entries. */
@@ -70,6 +72,7 @@ export class UI {
     this.input.consumeAll()
     const el = document.createElement("div")
     el.className = `screen screen-${screen.name}`
+    if (screen.classes?.length) el.classList.add(...screen.classes)
     el.dataset.screen = screen.name
     el.innerHTML = screen.render()
     this.root.insertBefore(el, this.hintBar)

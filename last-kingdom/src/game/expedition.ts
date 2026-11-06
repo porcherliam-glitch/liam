@@ -1446,17 +1446,18 @@ export class Expedition implements ExpeditionApi {
       this.audio.play("bell", { volume: 0.6 })
     }
     // Health bars over enemies hit in the last seconds
-    const bars: { x: number; y: number; name: string; hp: number; maxHp: number; d: number }[] = []
+    const bars: { x: number; y: number; name: string; hp: number; maxHp: number; d: number; lastHitAt: number }[] = []
     for (const z of this.zombies) {
       if (z.dead || z === lock || this.elapsed - z.lastHitAt > 4) continue
       const d = z.pos.distanceTo(this.player.pos)
       if (d > 30) continue
-      const v = new THREE.Vector3(z.pos.x, z.pos.y + 2.1 * z.type.scale, z.pos.z).project(this.camera.camera)
+      // Crawlers lie on the ground: their bar hangs lower
+      const v = new THREE.Vector3(z.pos.x, z.pos.y + (z.crawling ? 0.9 : 2.1) * z.type.scale, z.pos.z).project(this.camera.camera)
       if (v.z > 1 || Math.abs(v.x) > 1 || Math.abs(v.y) > 1) continue
-      bars.push({ x: ((v.x + 1) / 2) * window.innerWidth, y: ((1 - v.y) / 2) * window.innerHeight, name: z.type.name, hp: z.hp, maxHp: z.maxHp, d })
+      bars.push({ x: ((v.x + 1) / 2) * window.innerWidth, y: ((1 - v.y) / 2) * window.innerHeight, name: z.type.name, hp: z.hp, maxHp: z.maxHp, d, lastHitAt: z.lastHitAt })
     }
     bars.sort((a, b) => a.d - b.d)
-    this.hud.updateEnemyBars(bars.slice(0, 8))
+    this.hud.updateEnemyBars(bars.slice(0, 8), this.elapsed)
     // Marker above the interactable the prompt refers to
     if (this.lastPrompt) {
       const it = this.lastPrompt

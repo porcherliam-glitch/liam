@@ -14,31 +14,89 @@
   max-width: 1400px;
   width: 100%;
 }
+/* Main menu: title and menu on the right, the camp fire (left) stays visible; vignette and rising embers. */
 .screen-main {
   justify-content: center;
-  background: linear-gradient(180deg, rgba(8, 6, 8, 0.3), rgba(8, 6, 8, 0.8));
+  align-items: flex-end;
+  padding-right: 8vw;
+  background: radial-gradient(ellipse at 50% 45%, transparent 25%, rgba(5, 3, 4, 0.85) 100%), linear-gradient(90deg, transparent 40%, rgba(5, 3, 4, 0.5) 100%);
 }
 .title-wrap {
   text-align: center;
   margin-bottom: 3vh;
 }
+.screen-main .title-wrap {
+  text-align: right;
+}
 .title {
-  font-size: clamp(2.4rem, 7vw, 5.2rem);
-  letter-spacing: 0.18em;
+  font-size: clamp(2.4rem, 6.4vw, 5.6rem);
+  line-height: 1;
+  letter-spacing: 0.16em;
+  margin: 0 -0.16em 0 0;
   color: #e9c56a;
-  text-shadow: 0 0 30px rgba(217, 166, 58, 0.35), 0 4px 18px #000;
-  margin: 0;
+  text-shadow: 0 0 60px rgba(255, 120, 40, 0.25), 0 0 26px rgba(217, 166, 58, 0.3), 0 4px 18px #000;
+}
+.title span {
+  display: block;
+}
+/* Ornament under the title: a gold line running into a diamond */
+.title::after {
+  content: "";
+  display: block;
+  width: min(420px, 80%);
+  height: 14px;
+  margin: 10px 0.16em 6px auto;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 420 14' preserveAspectRatio='none'%3E%3Cdefs%3E%3ClinearGradient id='g'%3E%3Cstop offset='0' stop-color='%23d9a63a' stop-opacity='0'/%3E%3Cstop offset='1' stop-color='%23d9a63a'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect x='0' y='6.5' width='396' height='1' fill='url(%23g)'/%3E%3Cpath d='M406 1l6 6-6 6-6-6z' fill='%23d9a63a'/%3E%3Ccircle cx='417' cy='7' r='1.6' fill='%23d9a63a'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+  filter: drop-shadow(0 1px 2px #000);
 }
 .subtitle {
   color: var(--muted);
   font-style: italic;
   font-family: var(--font-head);
   font-size: 1.1rem;
+  text-shadow: 0 1px 4px #000;
+}
+.embers {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.ember {
+  position: absolute;
+  bottom: 0;
+  border-radius: 50%;
+  background: #ff8a3a;
+  box-shadow: 0 0 6px 2px rgba(255, 110, 30, 0.65);
+  opacity: 0;
+  animation: emberrise 8s linear infinite;
+}
+@keyframes emberrise {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(1);
+  }
+  12% {
+    opacity: 0.8;
+  }
+  50% {
+    transform: translate(var(--drift, 0px), -45vh) scale(0.85);
+  }
+  80% {
+    opacity: 0.55;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(var(--drift, 0px) * -0.4), -92vh) scale(0.45);
+  }
 }
 .version {
   position: absolute;
   bottom: 7vh;
   right: 3vw;
+  /* .screen > * would stretch it to full width and push the start off screen */
+  width: auto;
+  text-align: right;
   color: var(--muted);
   font-size: 0.8rem;
 }
@@ -67,13 +125,16 @@
   font-size: 0.85rem;
 }
 .btn {
+  position: relative;
   font-family: var(--font-head);
   font-size: 1.05rem;
   letter-spacing: 0.05em;
   color: var(--text);
-  background: linear-gradient(180deg, #2a221c, #171210);
+  text-shadow: 0 1px 2px #000;
+  background: linear-gradient(180deg, #332a22, #1a1411 60%, #120e0c);
   border: 1px solid var(--panel-border);
   border-radius: 3px;
+  box-shadow: inset 0 1px 0 rgba(255, 230, 180, 0.12), 0 2px 6px #000;
   padding: 10px 18px;
   cursor: pointer;
   text-align: center;
@@ -109,6 +170,30 @@
   box-shadow: 0 0 0 1px var(--focus), 0 0 18px rgba(243, 199, 90, 0.35);
   outline: none;
 }
+.btn.focused {
+  color: #fff1d0;
+  background: linear-gradient(180deg, #4a3a28, #261c15 60%, #18120e);
+  box-shadow: inset 0 1px 0 rgba(255, 230, 180, 0.2), 0 0 0 1px var(--focus), 0 0 18px rgba(243, 199, 90, 0.35);
+}
+/* Arrow in front of the focused entry of a menu column (CSS shape, no font needed) */
+.menu-list .btn.focused::before,
+.screen > .btn.focused::before {
+  content: "";
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  width: 9px;
+  height: 12px;
+  margin-top: -6px;
+  background: var(--gold);
+  clip-path: polygon(0 0, 100% 50%, 0 100%, 32% 50%);
+}
+.menu-list.compact .btn.focused::before {
+  left: 9px;
+  width: 7px;
+  height: 10px;
+  margin-top: -5px;
+}
 .screen > .btn {
   width: auto;
   min-width: 220px;
@@ -128,15 +213,38 @@
   margin: 0 0 6px;
   gap: 6px;
 }
+/* Leather panels: double frame (border + faint gold outline), gold corner brackets, fine diagonal grain.
+   Corners are background layers, so they stay on the frame when the panel content scrolls. */
 .panel {
   min-height: 0;
   min-width: 0;
-  background: var(--panel);
-  border: 1px solid var(--panel-border);
-  border-radius: 4px;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cpath d='M1 13V1h12' fill='none' stroke='%238a6a28' stroke-width='2'/%3E%3Cpath d='M4 4h2.5v2.5H4z' fill='%23d9a63a' fill-opacity='.75'/%3E%3C/svg%3E") left 3px top 3px / 14px 14px no-repeat,
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cg transform='rotate(90 7 7)'%3E%3Cpath d='M1 13V1h12' fill='none' stroke='%238a6a28' stroke-width='2'/%3E%3Cpath d='M4 4h2.5v2.5H4z' fill='%23d9a63a' fill-opacity='.75'/%3E%3C/g%3E%3C/svg%3E") right 3px top 3px / 14px 14px no-repeat,
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cg transform='rotate(270 7 7)'%3E%3Cpath d='M1 13V1h12' fill='none' stroke='%238a6a28' stroke-width='2'/%3E%3Cpath d='M4 4h2.5v2.5H4z' fill='%23d9a63a' fill-opacity='.75'/%3E%3C/g%3E%3C/svg%3E") left 3px bottom 3px / 14px 14px no-repeat,
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 14 14'%3E%3Cg transform='rotate(180 7 7)'%3E%3Cpath d='M1 13V1h12' fill='none' stroke='%238a6a28' stroke-width='2'/%3E%3Cpath d='M4 4h2.5v2.5H4z' fill='%23d9a63a' fill-opacity='.75'/%3E%3C/g%3E%3C/svg%3E") right 3px bottom 3px / 14px 14px no-repeat,
+    radial-gradient(ellipse at 30% 0%, rgba(80, 60, 36, 0.18), transparent 60%),
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.012) 0 2px, transparent 2px 5px),
+    linear-gradient(180deg, rgba(24, 19, 16, 0.95), rgba(14, 11, 10, 0.96));
+  border: 1px solid #4a3a28;
+  outline: 1px solid rgba(217, 166, 58, 0.18);
+  outline-offset: 3px;
+  border-radius: 2px;
   padding: 12px 16px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  box-shadow: inset 0 1px 0 rgba(255, 230, 180, 0.06), inset 0 0 40px rgba(0, 0, 0, 0.4), 0 10px 40px rgba(0, 0, 0, 0.55);
   overflow: auto;
+}
+/* Short gold stroke at the start of every heading rule */
+h2 {
+  position: relative;
+}
+h2::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: -1px;
+  width: 40px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--gold), rgba(217, 166, 58, 0));
 }
 .stat {
   display: flex;
@@ -278,11 +386,11 @@
   background: #3a3a40;
   border-color: #777;
 }
-/* toasts */
+/* toasts: in play above the quick slots (clear of compass, mission list and FPS), in menus above the hint bar */
 .toasts {
   position: absolute;
-  right: 18px;
-  top: 60px;
+  right: 22px;
+  bottom: 158px;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -290,15 +398,27 @@
   z-index: 6;
   pointer-events: none;
 }
+body.any-screen .toasts {
+  right: 18px;
+  bottom: 64px;
+}
 .toast {
-  background: rgba(14, 12, 12, 0.88);
+  background: linear-gradient(90deg, rgba(22, 18, 15, 0.94), rgba(12, 10, 10, 0.9));
+  border: 1px solid rgba(106, 86, 54, 0.6);
   border-left: 3px solid var(--gold);
   padding: 7px 12px;
   border-radius: 2px;
   font-size: 0.92rem;
   max-width: 420px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
   transition: opacity 0.6s, transform 0.6s;
+  animation: toastin 0.25s ease-out;
+}
+@keyframes toastin {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
 }
 .toast.fade {
   opacity: 0;
@@ -729,6 +849,8 @@ input.text:focus {
   overflow: auto;
   max-height: 78vh;
   margin-bottom: 10px;
+  /* room for the panels' outer frame line */
+  padding: 4px;
 }
 .mission {
   border: 1px solid var(--panel-border);
@@ -834,9 +956,33 @@ input.text:focus {
 .results {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
+  gap: 14px;
   max-width: 1100px;
-  margin-bottom: 14px;
+  margin: 10px 0 16px;
+}
+.screen-results > h1,
+.screen-results > .results-sub {
+  text-align: center;
+}
+.screen-results.won > h1 {
+  text-shadow: 0 0 30px rgba(127, 196, 106, 0.35), 0 2px 12px #000;
+}
+.loot-list li {
+  animation: fadein 0.4s both;
+  animation-delay: calc(min(var(--i, 0), 16) * 60ms);
+}
+@keyframes fadein {
+  from {
+    opacity: 0;
+    transform: translateX(-6px);
+  }
+}
+/* Death: drained, darkened scene behind a blood-red vignette */
+body.menu-open.dead #game {
+  filter: grayscale(0.7) brightness(0.45) contrast(1.1);
+}
+.screen.dead {
+  background: radial-gradient(ellipse at center, transparent 35%, rgba(110, 8, 8, 0.75) 100%), linear-gradient(180deg, rgba(8, 6, 8, 0.35), rgba(8, 6, 8, 0.75));
 }
 /* run map */
 .runmap-wrap {
@@ -933,4 +1079,16 @@ canvas.runmap {
   flex: 0 0 260px;
   border: 1px solid var(--panel-border);
   border-radius: 3px;
+}
+
+/* Same leather look for the other framed boxes (character slots, help, settings, key bindings, skill branches) */
+.slot,
+.help-body,
+.settings,
+.bindings,
+.branch {
+  background: radial-gradient(ellipse at 30% 0%, rgba(80, 60, 36, 0.16), transparent 60%), repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.012) 0 2px, transparent 2px 5px), linear-gradient(180deg, rgba(24, 19, 16, 0.95), rgba(14, 11, 10, 0.96));
+  outline: 1px solid rgba(217, 166, 58, 0.14);
+  outline-offset: 3px;
+  box-shadow: inset 0 1px 0 rgba(255, 230, 180, 0.06), 0 10px 30px rgba(0, 0, 0, 0.5);
 }
