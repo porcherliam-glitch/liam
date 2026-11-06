@@ -47,7 +47,19 @@ export function itemIcon(kind: string, weaponClass?: string): string {
   else if (kind === "remedy") key = "potion"
   else if (kind === "quest") key = "key"
   const path = SVG[key] ?? SVG.material
-  return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">${path}</svg>`
+  return `${SVG_OPEN}${path}</svg>`
+}
+
+const SVG_OPEN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">'
+
+/** Lightning bolt for the active ability slot. */
+export function abilityIcon(): string {
+  return `${SVG_OPEN}<path d="M13 2L5 13.5h6L10 22l9-12h-6.2z"/></svg>`
+}
+
+/** Padlock for locked quick slots. */
+export function lockIcon(): string {
+  return `${SVG_OPEN}<rect x="5.5" y="11" width="13" height="9" rx="1.5"/><path d="M8.5 11V8a3.5 3.5 0 0 1 7 0v3M12 14.5v2"/></svg>`
 }
 
 export function itemDetails(item: ItemInstance | null, compare?: ItemInstance | null, opts: { sellPrice?: number; buyPrice?: number } = {}): string {

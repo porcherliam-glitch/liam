@@ -12,6 +12,8 @@ import { formatTime } from "../core/math"
 import type { Input } from "../input/input"
 import { glyph } from "../input/glyphs"
 import { RARITY_INFO } from "../core/types"
+import { Rng } from "../core/rng"
+import { abilityIcon, itemIcon, lockIcon } from "./screens/common"
 
 export interface CompassMarker {
   x: number
@@ -20,9 +22,48 @@ export interface CompassMarker {
   kind: "extraction" | "mission" | "boss" | "poi"
 }
 
+/** Enemy health bar entry. lastHitAt and the clock passed to updateEnemyBars share a time base; without them hits are detected from health drops. */
+export interface EnemyBarInfo {
+  x: number
+  y: number
+  name: string
+  hp: number
+  maxHp: number
+  lastHitAt?: number
+}
+
+interface BarSlot {
+  el: HTMLElement
+  fill: HTMLElement
+  ghost: HTMLElement
+  label: HTMLElement
+  active: boolean
+  name: string
+  maxHp: number
+  hp: number
+  x: number
+  y: number
+  ghostPct: number
+  holdUntil: number
+  hitAt: number
+}
+
+/** Colour zombie.ts uses for critical hits (player.ts also uses it for a perfect block). */
+const CRIT_COLOR = "#ffd24a"
+/** How long a ghost bar keeps showing lost health before it drains (ms). */
+const GHOST_HOLD_MS = 420
+/** Compass strip: maximum number of markers and minimum spacing (percent of the strip width). */
+const COMPASS_MAX_MARKERS = 6
+const COMPASS_GAP_ROW1 = 6
+const COMPASS_GAP_CARDINAL = 5
+const COMPASS_GAP_ROW2 = 8
+const MARKER_PRIORITY: Record<CompassMarker["kind"], number> = { boss: 0, mission: 1, extraction: 2, poi: 3 }
+const MARKER_ICON: Record<CompassMarker["kind"], string> = { extraction: "⬆", boss: "☠", mission: "◆", poi: "•" }
+
 export class Hud {
   readonly el: HTMLElement
   private hp: HTMLElement
+  private hpGhost: HTMLElement
   private hpText: HTMLElement
   private stamina: HTMLElement
   private weapon: HTMLElement
@@ -46,13 +87,19 @@ export class Hud {
   private mouseHint: HTMLElement
   private hitDir: HTMLElement
   private imarker: HTMLElement
-  private barPool: HTMLElement[] = []
+  private barPool: BarSlot[] = []
+  private lastHpPct = -1
+  private ghostPct = 100
+  private ghostHoldUntil = 0
+  /** Seeded so damage-number jitter is reproducible in screenshots. */
+  private floatRng = new Rng(0x5eed)
+  private recentFloats: { x: number; y: number; t: number }[] = []
 
   constructor(private input: Input) {
     this.el = document.getElementById("hud")!
     this.el.innerHTML = `
       <div class="hud-vitals">
-        <div class="hud-hp"><div class="hud-bar hp"><div class="fill"></div></div><span class="hud-hp-text"></span></div>
+        <div class="hud-hp"><div class="hud-bar hp"><div class="ghost"></div><div class="fill"></div></div><span class="hud-hp-text"></span></div>
         <div class="hud-bar stamina"><div class="fill"></div></div>
         <div class="hud-status"></div>
       </div>
@@ -77,6 +124,7 @@ export class Hud {
       <div class="hud-enemybars"></div>`
     const q = (s: string) => this.el.querySelector<HTMLElement>(s)!
     this.hp = q(".hud-bar.hp .fill")
+    this.hpGhost = q(".hud-bar.hp .ghost")
     this.hpText = q(".hud-hp-text")
     this.stamina = q(".hud-bar.stamina .fill")
     this.weapon = q(".hud-weapon")
@@ -102,9 +150,23 @@ export class Hud {
     for (let i = 0; i < 8; i++) {
       const b = document.createElement("div")
       b.className = "ebar hidden"
-      b.innerHTML = `<div class="ebar-name"></div><div class="hud-bar enemy"><div class="fill"></div></div>`
+      b.innerHTML = `<div class="ebar-name"></div><div class="hud-bar enemy"><div class="ghost"></div><div class="fill"></div></div>`
       this.enemyBars.appendChild(b)
-      this.barPool.push(b)
+      this.barPool.push({
+        el: b,
+        fill: b.querySelector<HTMLElement>(".fill")!,
+        ghost: b.querySelector<HTMLElement>(".ghost")!,
+        label: b.querySelector<HTMLElement>(".ebar-name")!,
+        active: false,
+        name: "",
+        maxHp: 0,
+        hp: 0,
+        x: 0,
+        y: 0,
+        ghostPct: 0,
+        holdUntil: 0,
+        hitAt: -1e9,
+      })
     }
   }
 
@@ -143,20 +205,88 @@ export class Hud {
     setTimeout(() => this.bossIntro.classList.add("hidden"), 4200)
   }
 
-  /** Small health bars over recently hit enemies (screen positions). */
-  updateEnemyBars(list: { x: number; y: number; name: string; hp: number; maxHp: number }[]): void {
-    for (let i = 0; i < this.barPool.length; i++) {
-      const b = this.barPool[i]
+  /**
+   * Small health bars over recently hit enemies (screen positions). A bar follows its enemy from frame to frame
+   * (same name and max health, nearest screen position), so the ghost rest and the hit kick stay on the right bar.
+   */
+  updateEnemyBars(list: EnemyBarInfo[], clock?: number): void {
+    const now = performance.now()
+    const pool = this.barPool
+    const count = Math.min(list.length, pool.length)
+    const assigned = new Array<number>(count).fill(-1)
+    const used = new Set<number>()
+    for (let i = 0; i < count; i++) {
       const e = list[i]
-      if (!e) {
-        b.classList.add("hidden")
-        continue
+      let best = -1
+      let bestD = 140 * 140
+      for (let j = 0; j < pool.length; j++) {
+        const s = pool[j]
+        if (!s.active || used.has(j) || s.name !== e.name || s.maxHp !== e.maxHp) continue
+        const d = (s.x - e.x) ** 2 + (s.y - e.y) ** 2
+        if (d < bestD) {
+          bestD = d
+          best = j
+        }
       }
-      b.classList.remove("hidden")
-      b.style.left = `${e.x}px`
-      b.style.top = `${e.y}px`
-      ;(b.querySelector(".ebar-name") as HTMLElement).textContent = e.name
-      ;(b.querySelector(".fill") as HTMLElement).style.width = `${Math.max(0, (e.hp / e.maxHp) * 100)}%`
+      if (best >= 0) {
+        used.add(best)
+        assigned[i] = best
+      }
+    }
+    for (let i = 0; i < count; i++) {
+      if (assigned[i] >= 0) continue
+      let free = pool.findIndex((s, j) => !used.has(j) && !s.active)
+      if (free < 0) free = pool.findIndex((_, j) => !used.has(j))
+      if (free < 0) continue
+      used.add(free)
+      assigned[i] = free
+      pool[free].active = false
+    }
+    for (let j = 0; j < pool.length; j++) {
+      if (used.has(j) || !pool[j].active) continue
+      pool[j].active = false
+      pool[j].el.classList.add("hidden")
+    }
+    for (let i = 0; i < count; i++) {
+      if (assigned[i] < 0) continue
+      const e = list[i]
+      const s = pool[assigned[i]]
+      const pct = e.maxHp > 0 ? Math.max(0, Math.min(100, (e.hp / e.maxHp) * 100)) : 0
+      const fresh = !s.active
+      if (fresh) {
+        // Fresh bar: no ghost rest, no kick
+        s.active = true
+        s.name = e.name
+        s.maxHp = e.maxHp
+        s.ghostPct = pct
+        s.holdUntil = 0
+        s.hitAt = -1e9
+        s.label.textContent = e.name
+        setBarWidth(s.ghost, pct, false)
+        setBarWidth(s.fill, pct, false)
+        s.el.classList.remove("hidden")
+      } else if (e.hp < s.hp - 1e-6) {
+        s.hitAt = now
+        s.holdUntil = now + GHOST_HOLD_MS
+      } else if (e.hp > s.hp + 1e-6) {
+        s.ghostPct = pct
+        setBarWidth(s.ghost, pct, false)
+      }
+      if (e.lastHitAt !== undefined && clock !== undefined && clock - e.lastHitAt < 0.1 && now - s.hitAt > 150) {
+        s.hitAt = now
+        s.holdUntil = Math.max(s.holdUntil, now + GHOST_HOLD_MS)
+      }
+      s.hp = e.hp
+      s.x = e.x
+      s.y = e.y
+      if (now >= s.holdUntil && s.ghostPct > pct) {
+        s.ghostPct = pct
+        setBarWidth(s.ghost, pct, true)
+      }
+      if (!fresh) setBarWidth(s.fill, pct, true)
+      s.el.style.left = `${e.x}px`
+      s.el.style.top = `${e.y}px`
+      s.el.classList.toggle("hit", now - s.hitAt < 100)
     }
   }
 
@@ -167,6 +297,7 @@ export class Hud {
   update(player: Player, opts: { prompt: string | null; promptAction?: "interact"; markers: CompassMarker[]; cameraYaw: number; missions: MissionDef[]; boss: Zombie | null; extraction: { name: string; progress: number } | null; hour: number; weather: string; fps: number | null; lockScreen: { x: number; y: number; visible: boolean } }): void {
     const hpPct = Math.max(0, (player.hp / player.maxHp) * 100)
     this.hp.style.width = `${hpPct}%`
+    this.updateHpGhost(hpPct)
     this.hpText.textContent = `${Math.ceil(Math.max(0, player.hp))} / ${player.maxHp}`
     this.hp.parentElement!.classList.toggle("low", hpPct < 30)
     this.stamina.style.width = `${Math.max(0, (player.stamina / player.maxStamina) * 100)}%`
@@ -196,15 +327,16 @@ export class Hud {
         const it = player.inventory.equipment[s]
         const def = it ? itemDef(it.defId) : null
         const g = glyph(`quick${i + 1}` as "quick1", this.input.bindings, this.input.device)
-        if (i >= player.quickSlotCount) return `<div class="qslot locked" title="Waffenkammer ausbauen">${g}<div class="qname">gesperrt</div></div>`
-        return `<div class="qslot ${it ? "" : "empty"}">${g}<div class="qname">${def ? esc(def.name) : "–"}</div>${it && def && def.stack > 1 ? `<div class="qty">${it.qty}</div>` : ""}</div>`
+        if (i >= player.quickSlotCount) return `<div class="qslot locked" title="Waffenkammer ausbauen">${g}<div class="qicon">${lockIcon()}</div><div class="qname">gesperrt</div></div>`
+        if (!it || !def) return `<div class="qslot empty">${g}<div class="qicon"></div><div class="qname">leer</div></div>`
+        return `<div class="qslot" style="--rar:${RARITY_INFO[it.rarity].color}" title="${esc(def.name)}">${g}<div class="qicon">${itemIcon(def.kind, def.weapon?.weaponClass)}</div><div class="qname">${esc(def.name)}</div>${def.stack > 1 ? `<div class="qty">${it.qty}</div>` : ""}</div>`
       }).join("")
     }
     // Active ability
     if (player.ability) {
       this.ability.classList.remove("hidden")
       const cd = player.abilityCooldown
-      this.ability.innerHTML = `${this.input.device === "keyboard" ? glyph("ability", this.input.bindings, "keyboard") : `<span class="glyph pad xy">Y</span>`}<div class="qname">${esc(player.ability.name)}</div>${cd > 0 ? `<div class="cd">${Math.ceil(cd)} s</div>` : ""}`
+      this.ability.innerHTML = `${this.input.device === "keyboard" ? glyph("ability", this.input.bindings, "keyboard") : `<span class="glyph pad xy">Y</span>`}<div class="qicon">${abilityIcon()}</div><div class="qname">${esc(player.ability.name)}</div>${cd > 0 ? `<div class="cd">${Math.ceil(cd)} s</div>` : ""}`
       this.ability.classList.toggle("ready", cd <= 0)
     } else this.ability.classList.add("hidden")
     // Prompt
@@ -213,27 +345,7 @@ export class Hud {
       this.prompt.innerHTML = `${glyph("interact", this.input.bindings, this.input.device)} ${esc(opts.prompt)}`
     } else this.prompt.classList.add("hidden")
     // Compass: 360° strip, markers placed by relative bearing
-    const parts: string[] = []
-    const yaw = opts.cameraYaw
-    for (let deg = 0; deg < 360; deg += 45) {
-      const rel = relBearing((deg * Math.PI) / 180, yaw)
-      if (Math.abs(rel) < Math.PI / 2.2) {
-        const label = ["N", "NO", "O", "SO", "S", "SW", "W", "NW"][deg / 45]
-        parts.push(`<span class="cmark card" style="left:${50 + (rel / (Math.PI / 2.2)) * 50}%">${label}</span>`)
-      }
-    }
-    for (const m of opts.markers) {
-      const dx = m.x - player.pos.x
-      const dz = m.z - player.pos.z
-      const bearing = Math.atan2(dx, dz)
-      // Our compass: facing +Z is "north"
-      const rel = relBearing(bearing, yaw)
-      if (Math.abs(rel) < Math.PI / 2.2) {
-        const d = Math.round(Math.hypot(dx, dz))
-        parts.push(`<span class="cmark ${m.kind}" style="left:${50 + (rel / (Math.PI / 2.2)) * 50}%" title="${esc(m.label)}">${m.kind === "extraction" ? "⬆" : m.kind === "boss" ? "☠" : m.kind === "mission" ? "◆" : "•"}<small>${d}m</small></span>`)
-      }
-    }
-    this.compass.innerHTML = parts.join("")
+    this.compass.innerHTML = this.compassMarkup(player, opts.markers, opts.cameraYaw)
     // Missions
     this.missions.innerHTML = opts.missions.filter((m) => m.status === "active").map((m) => `<div class="mtrack ${m.progress >= m.goal ? "done" : ""}"><span>${esc(m.title)}</span><b>${missionProgressText(m)}</b></div>`).join("")
     // Boss
@@ -262,22 +374,97 @@ export class Hud {
     this.clock.textContent = `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")} · ${opts.weather}`
   }
 
-  /** Floating damage text projected to screen coordinates. */
+  /** Floating damage text projected to screen coordinates. Crits pop; normal hits scatter so numbers do not stack. */
   floatText(x: number, y: number, text: string, color: string): void {
+    const crit = color.toLowerCase() === CRIT_COLOR
+    const now = performance.now()
+    let ox = this.floatRng.range(-14, 14)
+    let oy = this.floatRng.range(-8, 8)
+    // Lift a number that spawns on top of a still fresh one
+    this.recentFloats = this.recentFloats.filter((f) => now - f.t < 380)
+    const near = this.recentFloats.filter((f) => Math.abs(f.x - x) < 34 && Math.abs(f.y - y) < 26).length
+    if (near > 0) {
+      oy -= near * 17
+      ox += (near % 2 ? 1 : -1) * 10
+    }
+    this.recentFloats.push({ x, y, t: now })
     const el = document.createElement("div")
-    el.className = "float"
+    el.className = crit ? "float crit" : "float"
     el.textContent = text
-    el.style.left = `${x}px`
-    el.style.top = `${y}px`
+    el.style.left = `${x + ox}px`
+    el.style.top = `${y + oy}px`
     el.style.color = color
     this.floats.appendChild(el)
     while (this.floats.children.length > 24) this.floats.firstChild?.remove()
-    setTimeout(() => el.remove(), 900)
+    setTimeout(() => el.remove(), crit ? 1150 : 950)
   }
 
   timeLabel(seconds: number): string {
     return formatTime(seconds)
   }
+
+  /** Lost health stays visible as a pale rest for a moment, then drains; healing moves it at once. */
+  private updateHpGhost(hpPct: number): void {
+    const now = performance.now()
+    if (this.lastHpPct < 0 || hpPct > this.lastHpPct + 1e-6) {
+      this.ghostPct = hpPct
+      this.ghostHoldUntil = 0
+      setBarWidth(this.hpGhost, hpPct, false)
+    } else if (hpPct < this.lastHpPct - 1e-6) this.ghostHoldUntil = now + GHOST_HOLD_MS
+    if (now >= this.ghostHoldUntil && this.ghostPct > hpPct) {
+      this.ghostPct = hpPct
+      setBarWidth(this.hpGhost, hpPct, true)
+    }
+    this.lastHpPct = hpPct
+  }
+
+  /** Cardinal letters plus up to six markers; a marker that would overlap its neighbour moves to a second row. */
+  private compassMarkup(player: Player, markers: CompassMarker[], yaw: number): string {
+    const span = Math.PI / 2.2
+    const toLeft = (rel: number) => 50 + (rel / span) * 50
+    const parts: string[] = []
+    const row1: { left: number; gap: number }[] = []
+    const row2: number[] = []
+    for (let deg = 0; deg < 360; deg += 45) {
+      const rel = relBearing((deg * Math.PI) / 180, yaw)
+      if (Math.abs(rel) >= span) continue
+      const left = toLeft(rel)
+      row1.push({ left, gap: COMPASS_GAP_CARDINAL })
+      parts.push(`<span class="cmark card${deg === 0 ? " north" : ""}" style="left:${left.toFixed(2)}%">${["N", "NO", "O", "SO", "S", "SW", "W", "NW"][deg / 45]}</span>`)
+    }
+    const visible: { m: CompassMarker; left: number; d: number }[] = []
+    for (const m of markers) {
+      const dx = m.x - player.pos.x
+      const dz = m.z - player.pos.z
+      // Our compass: facing +Z is "north"
+      const rel = relBearing(Math.atan2(dx, dz), yaw)
+      if (Math.abs(rel) < span) visible.push({ m, left: toLeft(rel), d: Math.hypot(dx, dz) })
+    }
+    // Most important and nearest first, then laid out left to right
+    visible.sort((a, b) => MARKER_PRIORITY[a.m.kind] - MARKER_PRIORITY[b.m.kind] || a.d - b.d)
+    const shown = visible.slice(0, COMPASS_MAX_MARKERS).sort((a, b) => a.left - b.left)
+    for (const v of shown) {
+      const free1 = row1.every((o) => Math.abs(o.left - v.left) >= o.gap)
+      const free2 = row2.every((l) => Math.abs(l - v.left) >= COMPASS_GAP_ROW2)
+      const second = !free1 && (free2 || row2.length < row1.length)
+      if (second) row2.push(v.left)
+      else row1.push({ left: v.left, gap: COMPASS_GAP_ROW1 })
+      parts.push(`<span class="cmark ${v.m.kind}${second ? " row2" : ""}" style="left:${v.left.toFixed(2)}%" title="${esc(v.m.label)}">${MARKER_ICON[v.m.kind]}<small>${formatDistance(v.d)}</small></span>`)
+    }
+    return parts.join("")
+  }
+}
+
+/** Sets a bar width either instantly or through the element's CSS transition. */
+function setBarWidth(el: HTMLElement, pct: number, animate: boolean): void {
+  el.style.transition = animate ? "" : "none"
+  el.style.width = `${pct}%`
+}
+
+/** "165m" below 950 m, from there "1,0 km". */
+export function formatDistance(d: number): string {
+  if (d < 950) return `${Math.round(d)}m`
+  return `${(Math.round(d / 100) / 10).toFixed(1).replace(".", ",")} km`
 }
 
 function relBearing(bearing: number, yaw: number): number {
