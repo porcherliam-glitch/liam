@@ -73,6 +73,7 @@ export function mergeFlatParts(root: THREE.Object3D, classify: (m: THREE.MeshSta
     merged.computeBoundingSphere()
     const mesh = new THREE.Mesh(merged, cls.material)
     mesh.castShadow = true
+    mesh.receiveShadow = true
     out.add(mesh)
   }
   return out

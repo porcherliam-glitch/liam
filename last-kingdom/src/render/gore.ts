@@ -326,7 +326,8 @@ export class Gore {
    * Cuts a body part off a glTF character: the part flies away as a baked mesh, the stump gets a flesh cap
    * and spurts blood. Returns false for procedural bodies (they only get chunks).
    */
-  sever(h: Humanoid, part: BodyPart, dir: THREE.Vector3, force = 1, fountain = true): boolean {
+  /** Cuts a part off; with gib = false the part does not fly off whole (it burst: the caller adds chunks). */
+  sever(h: Humanoid, part: BodyPart, dir: THREE.Vector3, force = 1, fountain = true, gibbed = true): boolean {
     if (!this.enabled) return false
     const rig = h.rig
     if (!rig) {
@@ -337,7 +338,7 @@ export class Gore {
     const rootBone = rig.bones.get(PART_BONES[part][0])
     if (!rootBone || rootBone.scale.x < 0.01) return false
     h.root.updateMatrixWorld(true)
-    const gib = this.bake(h, part)
+    const gib = gibbed ? this.bake(h, part) : null
     rootBone.getWorldPosition(_v)
     if (gib) {
       gib.mesh.position.add(_v)
@@ -474,8 +475,11 @@ export class Gore {
       const remap = new Map<number, number>()
       const positions: number[] = []
       const uvs: number[] = []
+      const cols: number[] = []
       const tris: number[] = []
       const uv = geo.getAttribute("uv")
+      // Merged equipment (helmets) keeps its colours in vertex colours on a white material
+      const col = (mesh.material as THREE.MeshStandardMaterial).vertexColors ? geo.getAttribute("color") : undefined
       mesh.updateMatrixWorld(true)
       for (let t = 0; t < index.count; t += 3) {
         const a = index.getX(t)
@@ -492,6 +496,7 @@ export class Gore {
             positions.push(pos.x, pos.y, pos.z)
             radius = Math.max(radius, Math.min(0.5, pos.length() * 0.6))
             if (uv) uvs.push(uv.getX(v), uv.getY(v))
+            if (col) cols.push(col.getX(v), col.getY(v), col.getZ(v))
           }
           tris.push(n)
         }
@@ -500,11 +505,12 @@ export class Gore {
       const g = new THREE.BufferGeometry()
       g.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3))
       if (uvs.length) g.setAttribute("uv", new THREE.Float32BufferAttribute(uvs, 2))
+      if (cols.length) g.setAttribute("color", new THREE.Float32BufferAttribute(cols, 3))
       g.setIndex(tris)
       g.computeVertexNormals()
       const mat = (mesh.material as THREE.MeshStandardMaterial).clone()
       mat.emissive = new THREE.Color(0x000000)
-      mat.vertexColors = false
+      mat.vertexColors = cols.length > 0
       owned.push(mat)
       const m = new THREE.Mesh(g, mat)
       m.castShadow = true

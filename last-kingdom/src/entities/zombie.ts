@@ -806,6 +806,12 @@ export class Zombie {
     return ang < 0.9 && this.rng.chance(this.isBoss ? 0.55 : 0.4)
   }
 
+  /** True once the head has been cut off or burst (its bone is collapsed). */
+  get headGone(): boolean {
+    const b = this.humanoid.rig?.bones.get("Head")
+    return !!b && b.scale.x < 0.01
+  }
+
   /** Centre of the head in world space (between the head bone and the top of the skull). */
   headCentre(out: THREE.Vector3): THREE.Vector3 {
     this.humanoid.bones.head.getWorldPosition(out)
@@ -980,7 +986,8 @@ export class Zombie {
       // Killed by a shot to the head: an arrow takes the head off, a bolt bursts it
       this.headCentre(_zA)
       if (this.lastHitZone === "headBurst") {
-        g.sever(this.humanoid, "head", dir, 0.6, true)
+        // No whole head flies off: it bursts into chunks and a cloud of blood
+        g.sever(this.humanoid, "head", dir, 0.6, true, false)
         g.chunks(_zA.x, _zA.y, _zA.z, dir, 9)
         g.burst(_zA.x, _zA.y, _zA.z, 55)
       } else g.sever(this.humanoid, "head", dir, 1.6)

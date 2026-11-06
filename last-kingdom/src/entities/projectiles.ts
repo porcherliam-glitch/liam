@@ -56,17 +56,26 @@ export class Projectiles {
         if (z.dead) continue
         const where = z.projectileHit(p.pos, next)
         if (!where) continue
+        // Where the shaft would sit, taken before the hit: the knockback in takeHit moves the zombie's position
+        // but not its bones until its next update. The skull centre, the chest, or the back of a crawler.
+        const dir = _d.copy(p.vel).normalize()
+        const anchor = where === "head" ? z.headCentre(_a) : z.crawling ? closestOnSegmentToLine(z.humanoid.bones.hips.getWorldPosition(_a), z.humanoid.bones.chest.getWorldPosition(_b), p.pos, dir, _a) : z.humanoid.bones.chest.getWorldPosition(_a)
+        // Projection on the whole flight line (independent of the frame step) and how far the shot passes from it
+        const along = _c.copy(anchor).sub(p.pos).dot(dir)
+        _c.copy(p.pos).addScaledVector(dir, along)
+        const miss = _c.distanceTo(anchor)
         // A headshot hurts far more; a bolt (or a critical arrow) bursts the skull when it kills
         const zone = where === "body" ? "body" : p.ammoId === "bolt" || p.crit ? "headBurst" : "head"
         const damage = where === "head" ? Math.round(p.damage * HEADSHOT) : p.damage
         z.takeHit(damage, p.crit || where === "head", p.impact * (where === "head" ? 1.5 : 1), false, p.pos.x, p.pos.z, p.lifeOnHit, false, zone)
-        // The shaft stays in the body, tip a little past the point of closest approach
-        if (!(where === "head" && z.dead)) {
-          const dir = _d.copy(p.vel).normalize()
+        // The shaft stays in the body with its tip a little past the line's closest point to the anchor; grazing
+        // shots and arrows in a head that is gone fall away
+        const limit = (where === "head" ? 0.14 : z.crawling ? 0.3 : 0.24) * z.type.scale
+        if (miss <= limit && !(where === "head" && z.headGone)) {
           const len = p.ammoId === "arrow" ? 0.75 : 0.45
-          closestOnSegment(p.pos, next, where === "head" ? z.headCentre(_c) : _c.set(z.pos.x, z.pos.y + (z.crawling ? 0.35 : 1.1) * z.type.scale, z.pos.z), p.mesh.position)
-          p.mesh.position.addScaledVector(dir, 0.1 - len / 2)
-          p.mesh.lookAt(_c.copy(p.mesh.position).add(dir))
+          // The tip sits len/2 + 0.07 in front of the mesh origin
+          p.mesh.position.copy(_c).addScaledVector(dir, 0.1 - len / 2 - 0.07)
+          p.mesh.lookAt(_b.copy(p.mesh.position).add(dir))
           z.embed(p.mesh, zone)
           this.list.splice(i, 1)
         } else this.remove(i)
@@ -126,14 +135,23 @@ export class Projectiles {
 const HEADSHOT = 1.75
 const _d = new THREE.Vector3()
 const _c = new THREE.Vector3()
+const _a = new THREE.Vector3()
+const _b = new THREE.Vector3()
 
-/** Point of segment a-b closest to p, written to out. */
-function closestOnSegment(a: THREE.Vector3, b: THREE.Vector3, p: THREE.Vector3, out: THREE.Vector3): THREE.Vector3 {
-  const dx = b.x - a.x
-  const dy = b.y - a.y
-  const dz = b.z - a.z
-  const len2 = dx * dx + dy * dy + dz * dz
-  let t = len2 > 0 ? ((p.x - a.x) * dx + (p.y - a.y) * dy + (p.z - a.z) * dz) / len2 : 0
-  t = Math.max(0, Math.min(1, t))
-  return out.set(a.x + dx * t, a.y + dy * t, a.z + dz * t)
+/** Point of segment a-b closest to the line through p along the unit vector d, written to out (may alias a). */
+function closestOnSegmentToLine(a: THREE.Vector3, b: THREE.Vector3, p: THREE.Vector3, d: THREE.Vector3, out: THREE.Vector3): THREE.Vector3 {
+  const ux = b.x - a.x
+  const uy = b.y - a.y
+  const uz = b.z - a.z
+  const wx = a.x - p.x
+  const wy = a.y - p.y
+  const wz = a.z - p.z
+  const uu = ux * ux + uy * uy + uz * uz
+  const ud = ux * d.x + uy * d.y + uz * d.z
+  const uw = ux * wx + uy * wy + uz * wz
+  const dw = d.x * wx + d.y * wy + d.z * wz
+  const denom = uu - ud * ud
+  const s = denom > 1e-9 ? Math.max(0, Math.min(1, (ud * dw - uw) / denom)) : 0
+  return out.set(a.x + ux * s, a.y + uy * s, a.z + uz * s)
 }
+

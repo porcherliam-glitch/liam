@@ -38,7 +38,8 @@ const packTemplates = new Map<string, THREE.Group | null>()
 
 function packModel(entry: [string, number] | undefined, flip: boolean): THREE.Group | null {
   if (!entry) return null
-  const key = `${entry[0]}:${flip ? 1 : 0}`
+  // The scale is baked into the merged geometry, so it is part of the key
+  const key = `${entry[0]}:${entry[1]}:${flip ? 1 : 0}`
   let template = packTemplates.get(key)
   if (template === undefined) {
     template = null
