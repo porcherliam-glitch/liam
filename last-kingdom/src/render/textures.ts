@@ -398,11 +398,16 @@ function build(name: string): THREE.Texture {
       const n = new Noise2D(251)
       const [c, ctx] = canvas(size)
       const img = ctx.createImageData(size, size)
-      const h = (x: number, y: number) => {
-        const u = (x / size) * 5
-        const v = (y / size) * 5
-        return (n.fbm(u, v, 4) + n.fbm(u + 5, v, 4) + n.fbm(u, v + 5, 4) + n.fbm(u + 5, v + 5, 4)) / 4
+      // Height sampled once per pixel (not four times per derivative); neighbours wrap around
+      const grid = new Float32Array(size * size)
+      for (let y = 0; y < size; y++) {
+        for (let x = 0; x < size; x++) {
+          const u = (x / size) * 5
+          const v = (y / size) * 5
+          grid[y * size + x] = (n.fbm(u, v, 4) + n.fbm(u + 5, v, 4) + n.fbm(u, v + 5, 4) + n.fbm(u + 5, v + 5, 4)) / 4
+        }
       }
+      const h = (x: number, y: number) => grid[((y + size) % size) * size + ((x + size) % size)]
       for (let y = 0; y < size; y++) {
         for (let x = 0; x < size; x++) {
           const dx = (h(x + 1, y) - h(x - 1, y)) * 6
