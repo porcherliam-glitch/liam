@@ -3,7 +3,10 @@
 //
 // Conventions: the character faces +Z. Negative X rotation moves limbs forward; arms hang along -Y.
 
+import * as THREE from "three"
 import type { BoneName, Humanoid } from "./humanoid"
+import type { CharacterRig } from "./rig"
+import { models } from "./assets"
 import { lerp } from "../core/math"
 
 export type Pose = Partial<Record<BoneName, [number, number, number]>> & {
@@ -368,6 +371,167 @@ export const CLIPS: Record<string, Clip> = {
   })),
 }
 
+// ---- glTF characters: game clip names mapped onto the animation library -------------------------------------
+
+interface MixSpec {
+  /** Clip name in the animation library. */
+  clip: string
+  /** Portion of the clip to play (0..1), e.g. only the swing of an attack. */
+  from?: number
+  to?: number
+  /** Playback speed factor for loops (walk cycles follow movement speed on top of this). */
+  rate?: number
+  /** Additive pose in the character frame (radians, same conventions as the procedural clips). */
+  add?: Pose
+}
+
+const ZOMBIE_ARMS: Pose = { upperArmL: [-1.15, 0, -0.12], upperArmR: [-1.25, 0, 0.12], forearmL: [-0.35, 0, 0], forearmR: [-0.25, 0, 0], spine: [0.22, 0, 0], neck: [0.2, 0, 0.12], head: [0.12, 0.1, 0.18] }
+const MIX: Record<string, MixSpec> = {
+  rest: { clip: "Idle_Loop" },
+  idle: { clip: "Idle_Loop" },
+  combat_idle: { clip: "Sword_Idle" },
+  walk: { clip: "Walk_Loop" },
+  run: { clip: "Jog_Fwd_Loop" },
+  sprint: { clip: "Sprint_Loop" },
+  strafe: { clip: "Walk_Loop", rate: 0.9 },
+  jump: { clip: "Jump_Start" },
+  fall: { clip: "Jump_Loop" },
+  land: { clip: "Jump_Land" },
+  dodge: { clip: "Roll" },
+  slash_r: { clip: "Sword_Attack", from: 0.05, to: 0.85 },
+  slash_l: { clip: "Sword_Attack", from: 0.05, to: 0.85, add: { chest: [0, -0.35, 0] } },
+  overhead: { clip: "Sword_Attack", from: 0, to: 0.9, add: { chest: [0.15, 0, 0] } },
+  thrust: { clip: "Punch_Jab" },
+  chop: { clip: "Sword_Attack", from: 0, to: 0.9, add: { spine: [0.15, 0, 0] } },
+  heavy_overhead: { clip: "Sword_Attack", add: { spine: [0.2, 0, 0], chest: [0.1, 0, 0] } },
+  heavy_spin: { clip: "Sword_Attack", add: { hips: [0, 0.4, 0] } },
+  lunge: { clip: "Punch_Cross" },
+  bow_draw: { clip: "Pistol_Aim_Neutral" },
+  bow_release: { clip: "Pistol_Shoot" },
+  crossbow_aim: { clip: "Pistol_Aim_Neutral" },
+  crossbow_reload: { clip: "Pistol_Reload" },
+  block: { clip: "Sword_Idle", add: { upperArmL: [-1.0, 0, -0.4], forearmL: [-1.0, 0, 0] } },
+  block_weapon: { clip: "Sword_Idle", add: { upperArmR: [-1.0, 0, 0.3], forearmR: [-0.9, 0, 0] } },
+  block_hit: { clip: "Hit_Chest", from: 0, to: 0.6, add: { upperArmL: [-1.0, 0, -0.4], forearmL: [-1.0, 0, 0] } },
+  hit: { clip: "Hit_Chest" },
+  stagger: { clip: "Hit_Head" },
+  death_back: { clip: "Death01" },
+  death_front: { clip: "Death01" },
+  interact: { clip: "Interact" },
+  use_item: { clip: "Interact" },
+  z_idle: { clip: "Idle_Loop", rate: 0.6, add: { ...ZOMBIE_ARMS, upperArmL: [-0.5, 0, -0.1], upperArmR: [-0.3, 0, 0.1] } },
+  z_walk: { clip: "Walk_Loop", rate: 0.7, add: ZOMBIE_ARMS },
+  z_run: { clip: "Sprint_Loop", add: { upperArmL: [-0.9, 0, -0.1], upperArmR: [-1.0, 0, 0.1], spine: [0.3, 0, 0], neck: [0.1, 0, 0] } },
+  z_attack: { clip: "Punch_Cross", add: { spine: [0.2, 0, 0] } },
+  z_bite: { clip: "Punch_Jab", add: { spine: [0.35, 0, 0], neck: [0.25, 0, 0], head: [0.2, 0, 0] } },
+  brute_slam: { clip: "Sword_Attack", add: { spine: [0.25, 0, 0], upperArmL: [-0.6, 0, 0] } },
+  knight_swing: { clip: "Sword_Attack" },
+  knight_block: { clip: "Sword_Idle", add: { upperArmL: [-1.0, 0, -0.4], forearmL: [-1.0, 0, 0] } },
+  roar: { clip: "Spell_Simple_Enter", add: { neck: [-0.4, 0, 0], head: [-0.3, 0, 0], chest: [-0.2, 0, 0] } },
+  leap: { clip: "Jump_Start" },
+  sit_hurt: { clip: "Sitting_Idle_Loop" },
+}
+
+const _q = new THREE.Quaternion()
+const _e = new THREE.Euler()
+const _c = new THREE.Quaternion()
+const clipCache = new Map<string, THREE.AnimationClip>()
+
+/** Library clip, with the pelvis translation scaled for smaller or bigger skeletons. */
+function libraryClip(name: string, pelvisRatio: number): THREE.AnimationClip | null {
+  const key = `${name}@${pelvisRatio.toFixed(3)}`
+  const hit = clipCache.get(key)
+  if (hit) return hit
+  const src = models.get("anims_ual")?.animations.find((c) => c.name === name)
+  if (!src) return null
+  let clip = src
+  if (Math.abs(pelvisRatio - 1) > 0.01) {
+    clip = src.clone()
+    for (const t of clip.tracks) if (t.name.endsWith(".position")) for (let i = 0; i < t.values.length; i++) t.values[i] *= pelvisRatio
+  }
+  clipCache.set(key, clip)
+  return clip
+}
+
+/** Drives a glTF skeleton: one AnimationMixer, crossfades, additive overlays in the character frame. */
+class MixerDriver {
+  private mixer: THREE.AnimationMixer
+  private action: THREE.AnimationAction | null = null
+  private spec: MixSpec | null = null
+  private clipDuration = 1
+  /** Bones touched by the additive layer last frame and their pose before it (bones without a track keep it). */
+  private saved = new Map<THREE.Bone, THREE.Quaternion>()
+  private touched: THREE.Bone[] = []
+  constructor(private rig: CharacterRig) {
+    this.mixer = new THREE.AnimationMixer(rig.root)
+  }
+
+  play(name: string, gameDuration: number, loop: boolean, speed: number, blend: number): void {
+    const spec = MIX[name] ?? MIX.idle
+    const clip = libraryClip(spec.clip, this.rig.pelvisRatio) ?? libraryClip("Idle_Loop", this.rig.pelvisRatio)
+    if (!clip) return
+    const action = this.mixer.clipAction(clip)
+    const from = (spec.from ?? 0) * clip.duration
+    const to = (spec.to ?? 1) * clip.duration
+    this.clipDuration = Math.max(0.05, to - from)
+    action.reset()
+    action.setLoop(loop ? THREE.LoopRepeat : THREE.LoopOnce, Infinity)
+    action.clampWhenFinished = !loop
+    action.time = from
+    // Non-looping clips are stretched to the game clip's duration so gameplay timing (hit frames, combos) is unchanged
+    action.timeScale = loop ? (spec.rate ?? 1) * speed : (this.clipDuration / Math.max(0.05, gameDuration)) * speed
+    if (this.action && this.action !== action) {
+      action.enabled = true
+      action.setEffectiveWeight(1)
+      action.crossFadeFrom(this.action, Math.max(0.05, blend), false)
+    }
+    action.play()
+    this.action = action
+    this.spec = spec
+  }
+
+  update(dt: number, ctx: ClipContext, loop: boolean, speed: number, overlay: Pose | null, overlayWeight: number): void {
+    if (this.action && loop && this.spec) {
+      // Walk cycles follow the movement speed like the procedural cycles did
+      const move = ctx.speed > 0 ? 0.55 + ctx.speed * 0.6 : 1
+      this.action.timeScale = (this.spec.rate ?? 1) * speed * (/walk|run|sprint|strafe/.test(this.spec.clip) ? move : 1)
+    }
+    // Undo last frame's additive rotations first: bones without an animation track would otherwise accumulate them
+    for (const bone of this.touched) bone.quaternion.copy(this.saved.get(bone)!)
+    this.touched.length = 0
+    this.mixer.update(dt)
+    if (this.spec?.add) this.applyAdditive(this.spec.add, 1)
+    if (overlay) this.applyAdditive(overlay, overlayWeight)
+  }
+
+  private applyAdditive(pose: Pose, weight: number): void {
+    const rig = this.rig
+    for (const k of Object.keys(pose)) {
+      if (k === "rootY" || k === "rootPitch" || k === "rootRoll") continue
+      const r = pose[k as BoneName]
+      if (!r) continue
+      const bone = rig.bones.get(rig.map[k as BoneName])
+      const c = bone && rig.align.get(bone.name)
+      if (!bone || !c) continue
+      _e.set(r[0] * weight, r[1] * weight, r[2] * weight)
+      _q.setFromEuler(_e)
+      // rotation given in the character frame, expressed in the parent's local frame: C^-1 * q * C
+      _c.copy(c).invert().multiply(_q).multiply(c)
+      if (!this.touched.includes(bone)) {
+        let q = this.saved.get(bone)
+        if (!q) this.saved.set(bone, (q = new THREE.Quaternion()))
+        q.copy(bone.quaternion)
+        this.touched.push(bone)
+      }
+      bone.quaternion.premultiply(_c)
+    }
+    if (pose.rootPitch || pose.rootRoll) {
+      _e.set((pose.rootPitch ?? 0) * weight, 0, (pose.rootRoll ?? 0) * weight)
+      rig.root.quaternion.setFromEuler(_e)
+    } else rig.root.quaternion.identity()
+  }
+}
+
 export class Animator {
   private current = "idle"
   private time = 0
@@ -382,7 +546,14 @@ export class Animator {
   /** Blend weight of the overlay. */
   overlayWeight = 1
 
-  constructor(private humanoid: Humanoid) {}
+  private mix: MixerDriver | null = null
+
+  constructor(private humanoid: Humanoid) {
+    if (humanoid.rig) {
+      this.mix = new MixerDriver(humanoid.rig)
+      this.mix.play("idle", CLIPS.idle.duration, true, 1, 0)
+    }
+  }
 
   get name(): string {
     return this.current
@@ -410,6 +581,7 @@ export class Animator {
     this.current = name
     this.time = 0
     this.speed = opts.speed ?? 1
+    this.mix?.play(name, CLIPS[name].duration, CLIPS[name].loop, this.speed, this.blendDuration)
   }
 
   update(dt: number): void {
@@ -417,6 +589,10 @@ export class Animator {
     this.time += dt * this.speed
     this.ctx.time += dt
     if (clip.loop && this.time > clip.duration * 1000) this.time -= clip.duration * 1000
+    if (this.mix) {
+      this.mix.update(dt, this.ctx, clip.loop, this.speed, this.overlay, this.overlayWeight)
+      return
+    }
     const t = clip.loop ? this.time : Math.min(this.time, clip.duration)
     let pose = clip.sample(t, this.ctx)
     if (this.prevPose && this.blendT < 1) {

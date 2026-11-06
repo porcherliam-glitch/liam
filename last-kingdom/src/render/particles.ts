@@ -4,7 +4,7 @@ import * as THREE from "three"
 import { cosmetic } from "../core/rng"
 import { tex } from "./textures"
 
-const MAX = 1500
+const MAX = 4000
 
 interface P {
   life: number
@@ -83,6 +83,38 @@ export class Particles {
       this.pos[idx * 3 + 1] = y + cosmetic.range(-0.1, 0.1)
       this.pos[idx * 3 + 2] = z + cosmetic.range(-0.1, 0.1)
       const v = cosmetic.range(0.75, 1.1)
+      this.col[idx * 4] = c.r * v
+      this.col[idx * 4 + 1] = c.g * v
+      this.col[idx * 4 + 2] = c.b * v
+      this.col[idx * 4 + 3] = opts.alpha ?? 1
+      this.sizes[idx] = p.size
+    }
+  }
+
+  /** Cone-shaped emission along a direction (blood sprays, arterial spurts). */
+  spray(x: number, y: number, z: number, dx: number, dy: number, dz: number, opts: { count: number; color: number; cone: number; speed: number; life: number; size: number; gravity?: number; drag?: number; alpha?: number }): void {
+    const c = new THREE.Color(this.gore || opts.color === 0x6a6a66 ? opts.color : 0x6a6a66)
+    const len = Math.hypot(dx, dy, dz) || 1
+    for (let i = 0; i < opts.count; i++) {
+      const idx = this.free.pop()
+      if (idx === undefined) return
+      const p = this.parts[idx]
+      const sp = opts.speed * cosmetic.range(0.45, 1.25)
+      const vx = dx / len + cosmetic.range(-opts.cone, opts.cone)
+      const vy = dy / len + cosmetic.range(-opts.cone, opts.cone) * 0.7
+      const vz = dz / len + cosmetic.range(-opts.cone, opts.cone)
+      const vl = Math.hypot(vx, vy, vz) || 1
+      p.vx = (vx / vl) * sp
+      p.vy = (vy / vl) * sp
+      p.vz = (vz / vl) * sp
+      p.life = p.maxLife = opts.life * cosmetic.range(0.6, 1.3)
+      p.gravity = opts.gravity ?? 9
+      p.size = opts.size * cosmetic.range(0.6, 1.5)
+      p.drag = opts.drag ?? 0.6
+      this.pos[idx * 3] = x
+      this.pos[idx * 3 + 1] = y
+      this.pos[idx * 3 + 2] = z
+      const v = cosmetic.range(0.7, 1.15)
       this.col[idx * 4] = c.r * v
       this.col[idx * 4 + 1] = c.g * v
       this.col[idx * 4 + 2] = c.b * v

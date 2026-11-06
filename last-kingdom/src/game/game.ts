@@ -25,6 +25,10 @@ import { events } from "../core/events"
 import { itemDef } from "../items/itemData"
 import { createItem } from "../items/items"
 import { checkAchievements } from "../meta/achievements"
+import { models } from "../render/assets"
+import { RIG_MODELS, RIG_TEXTURES } from "../render/rig"
+import { WEAPON_MODELS } from "../render/weaponModels"
+import { PROP_MODELS } from "../render/kitProps"
 
 export const VERSION = "1.0.0"
 
@@ -50,6 +54,8 @@ export class Game implements GameApi {
   maxFrame = 0.05
   private loading = false
   private unsub: (() => void)[] = []
+  /** Resolves once the character models are loaded (or failed: then the procedural bodies are used). */
+  readonly modelsReady: Promise<void>
 
   constructor(private canvas: HTMLCanvasElement) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: this.settings.quality !== "low", powerPreference: "high-performance" })
@@ -64,6 +70,12 @@ export class Game implements GameApi {
     this.post = new PostProcess(this.renderer)
     this.post.setup(this.campScene.scene, this.campScene.camera, this.settings.quality)
     this.applySettings()
+    // Character models load in the background; the camp hero is rebuilt once they are there
+    this.modelsReady = models.preload([...RIG_MODELS, ...WEAPON_MODELS, ...PROP_MODELS]).then(() => {
+      for (const id of RIG_TEXTURES) new Image().src = models.textureUrl(id) ?? ""
+      ;(window as unknown as { __MODELS_READY__: boolean }).__MODELS_READY__ = true
+      if (this.state !== "expedition") this.campScene.build(this.profile)
+    })
     window.addEventListener("resize", () => this.resize())
     this.resize()
     const unlock = () => this.audio.unlock()
@@ -225,8 +237,9 @@ export class Game implements GameApi {
     }
     this.state = "expedition"
     this.loading = true
-    setTimeout(() => {
-      if (this.state !== "expedition" || !this.profile) return
+    setTimeout(async () => {
+      await this.modelsReady
+      if (this.state !== "expedition" || !this.profile || this.expedition) return
       this.expedition = new Expedition(this.profile, areaId, this.input, this.audio, this.settings, this.ui, this.renderer, this.post, {
         onEnd: (r) => this.onExpeditionEnd(r),
         openPause: () => this.openPause(),
