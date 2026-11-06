@@ -2,6 +2,7 @@
 // Local space: +Z is the front (door side). Pivot on the ground at the centre.
 
 import * as THREE from "three"
+import { flameMesh } from "./flame"
 import { Rng } from "../core/rng"
 import type { Collider } from "../world/collision"
 import { M, mat } from "./materials"
@@ -612,7 +613,8 @@ export function torchPost(): Prop & { flame: THREE.Object3D } {
   const flame = new THREE.Group()
   flame.userData.dynamic = true
   flame.position.set(0, 2.95, 0)
-  const fm = mesh(new THREE.ConeGeometry(0.12, 0.35, 6), M.glow(0xffa030, 2), 0, 0.1, 0, false, false)
+  const fm = flameMesh(0.34, 0.6)
+  fm.position.y = -0.08
   flame.add(fm)
   g.add(flame)
   return { group: g, colliders: [circleCol(0, 0, 0.12, 0, 2.6)], flame }
@@ -633,7 +635,15 @@ export function campfire(): Prop & { flame: THREE.Object3D } {
   const flame = new THREE.Group()
   flame.userData.dynamic = true
   flame.position.y = 0.3
-  flame.add(mesh(new THREE.ConeGeometry(0.3, 0.8, 7), M.glow(0xff9020, 2), 0, 0.3, 0, false, false))
+  // A big flame and two smaller tongues around it
+  const fm = flameMesh(1.05, 1.45)
+  fm.position.y = -0.22
+  flame.add(fm)
+  for (const [x, z, w, h] of [[0.22, 0.1, 0.55, 0.9], [-0.2, -0.12, 0.5, 0.8]]) {
+    const t = flameMesh(w, h)
+    t.position.set(x, -0.22, z)
+    flame.add(t)
+  }
   g.add(flame)
   return { group: g, colliders: [circleCol(0, 0, 0.7, 0, 0.5)], flame }
 }

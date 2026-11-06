@@ -55,6 +55,7 @@ main.ts → Game
 - `render/sky.ts`: Himmelskuppel (Radius 400) mit Verlauf, Dämmerung, Sternen, Milchstraße, Mond und Shader-Wolken; eine Lichttabelle nach Sonnenhöhe setzt Sonne/Mond (nur eine Schattenkarte), Halbkugel- und Aufhelllicht, Belichtung und Nebelfarbe. Der Schattenkasten folgt der Blickrichtung und rastet auf Texel. Das Umgebungslicht (PMREM aus der Kuppel) wird nur bei Licht- oder Wetterwechsel neu gebaut.
 - `render/weather.ts`: Regen als Liniensegmente in einer Box vor der Kamera, Blitze mit Doppelschlag und Donner nach Laufzeit, Bodennebel-Schwaden. Die Expedition macht den Boden bei Regen nass (`setWetness`) und steuert den Höhennebel (`fogUniforms`: Boden, Abfall, Anteil je Biom und Nebel).
 - `render/postprocess.ts`: Bloom in halber Auflösung, Grading je Biom (Stimmung nachts kühler und gedämpfter), Filmkorn, Vignette, Schadensrand. Alle Shader werden vor dem ersten Bild kompiliert.
+- Flammen (`render/flame.ts`): drei gekreuzte Quads mit einem Flammen-Shader (Rauschen, Teardrop-Form, Farbverlauf rot–orange–gelb, Flackern aus der Weltposition), additiv und bewusst unter der Bloom-Schwelle; das Leuchten kommt aus einem weichen Sprite-Schein. Eine Geometrie und ein Material für alle Fackeln, das Lagerfeuer und die Fackel in der Hand.
 - Licht für Flammen: fester Pool aus 3/5/8 PointLights (Platz 0 Spielerfackel bzw. nächste Flamme, Platz 1 Extraktion oder epische Beute, der Rest die nächsten Flammen mit Rauschflackern); die Zahl der Lichter ändert sich nie, also auch keine Shader-Neubauten. Statische Meshes und Zombies jenseits der Nebelgrenze werden ausgeblendet.
 
 ## Gore
@@ -63,6 +64,7 @@ main.ts → Game
 - `render/decals.ts`: ein `InstancedMesh` mit 1200 Flecken und Deckkraft pro Instanz (`onBeforeCompile`), Flecken trocknen nach und verblassen nach Minuten. `spawnWall` stellt Flecken aufrecht an Wände (Basis aus Wandnormale, Längsachse senkrecht für herablaufende Streifen); `Gore.wallSplat` findet die Wand per Segment-Cast der Kollision (`Gore.wallCast`) und lässt dünne Pfosten und Stämme aus. `render/particles.ts` hat `spray()` für Kegel entlang einer Richtung (4000 Partikel).
 - Zombies wählen beim Tod je nach letztem Treffer (kritisch/schwer/Overkill) Zerplatzen, Enthauptung, Arm oder Bein; kritische schwere Treffer reißen auch lebenden Gegnern einen Arm ab.
 - Kriecher: Schwere Treffer können Wanderern und Sprintern ein Bein abtrennen, ohne sie zu töten (`Zombie.startCrawling`). Der Animator spielt dann über `Animator.remap = CRAWL_REMAP` Kriech-Clips statt der stehenden: `Swim_Fwd_Loop` aus der Animationsbibliothek, flach am Boden und per `lift` angehoben (Beckenhöhe im Z-oben-Rahmen des Wurzelknochens), Kopf per Zusatzdrehung gehoben. Kriecher sind langsamer und ziehen eine Schleifspur (`Gore.smear`).
+- Waffe: `bloodyWeapon` färbt die Klinge (eigene Materialkopie mit gemerkter Grundfarbe und Rauheit), `weaponDrips` lässt eine blutige Klinge tropfen, `rinseWeapon` wäscht sie im Regen langsam sauber.
 
 ## Figuren
 

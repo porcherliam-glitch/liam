@@ -12,6 +12,7 @@ import type { Hit } from "../world/collision"
 export type BodyPart = "head" | "armL" | "armR" | "legL" | "legR" | "torso"
 
 /** Skeleton bones that make up each body part (glTF rig). The first entry is the bone that gets collapsed. */
+const BLOOD_DRY = new THREE.Color(0x4a0004)
 const PART_BONES: Record<BodyPart, string[]> = {
   head: ["Head"],
   armL: ["upperarm_l", "lowerarm_l", "hand_l"],
@@ -222,6 +223,26 @@ export class Gore {
     this.decals.spawn(x, z, cosmetic.range(0.28, 0.4), { dirX: dx, dirZ: dz, stretch: cosmetic.range(2.6, 3.6), opacity: cosmetic.range(0.6, 0.8) })
   }
 
+  private dripClock = 0
+  private readonly _box = new THREE.Box3()
+
+  /** A bloody blade drips: drops fall from it now and then and leave small spots (call every frame). */
+  weaponDrips(weapon: THREE.Object3D | null, dt: number): void {
+    if (!this.enabled || !weapon || this.weaponBlood < 0.12 || !weapon.visible) return
+    this.dripClock -= dt
+    if (this.dripClock > 0) return
+    // More blood, more drops: every 0.25-1.6 s
+    this.dripClock = cosmetic.range(0.25, 0.5) / Math.max(0.3, this.weaponBlood) + cosmetic.range(0, 0.4)
+    this._box.setFromObject(weapon)
+    if (this._box.isEmpty()) return
+    const b = this._box
+    const x = cosmetic.range(b.min.x, b.max.x)
+    const z = cosmetic.range(b.min.z, b.max.z)
+    const y = cosmetic.range(b.min.y, (b.min.y + b.max.y) / 2)
+    this.particles.spray(x, y, z, 0, -1, 0, { count: 2, color: BLOOD, cone: 0.2, speed: 0.4, life: 0.7, size: 0.07, gravity: 14 })
+    if (cosmetic.chance(0.5)) this.decals.spawn(x, z, cosmetic.range(0.1, 0.2), { opacity: 0.85 })
+  }
+
   /** Red splatter across the screen; strength 0..1. */
   splatScreen(strength: number): void {
     if (!this.enabled || !this.screen) return
@@ -250,15 +271,38 @@ export class Gore {
   bloodyWeapon(weapon: THREE.Object3D | null): void {
     if (!this.enabled || !weapon) return
     this.weaponBlood = Math.min(1, this.weaponBlood + 0.12)
+    this.tintWeapon(weapon)
+  }
+
+  private rinsed = 0
+
+  /** Rain slowly washes the blade clean (amount per second at full rain). */
+  rinseWeapon(weapon: THREE.Object3D | null, rain: number, dt: number): void {
+    if (!weapon || this.weaponBlood <= 0 || rain < 0.2) return
+    const d = Math.min(this.weaponBlood, rain * dt * 0.02)
+    this.weaponBlood -= d
+    this.rinsed += d
+    // Re-tinting walks the weapon's materials: only once the colour changed visibly
+    if (this.rinsed > 0.03 || this.weaponBlood === 0) {
+      this.rinsed = 0
+      this.tintWeapon(weapon)
+    }
+  }
+
+  private tintWeapon(weapon: THREE.Object3D): void {
     weapon.traverse((o) => {
       const m = o as THREE.Mesh
       if (!m.isMesh) return
       const mats = (Array.isArray(m.material) ? m.material : [m.material]) as THREE.MeshStandardMaterial[]
       const out = mats.map((mat) => {
-        const own = mat.userData.bloodBase ? mat : mat.clone()
-        if (!own.userData.bloodBase) own.userData.bloodBase = own.color.getHex()
-        own.color.setHex(own.userData.bloodBase as number).lerp(new THREE.Color(0x4a0004), this.weaponBlood * 0.75)
-        own.roughness = Math.max(0.2, (own.roughness ?? 0.6) * (1 - this.weaponBlood * 0.3))
+        // Own copy per weapon, remembering the clean colour and roughness (black colours count as set too)
+        const own = "bloodBase" in mat.userData ? mat : mat.clone()
+        if (!("bloodBase" in own.userData)) {
+          own.userData.bloodBase = own.color.getHex()
+          own.userData.bloodRough = own.roughness ?? 0.6
+        }
+        own.color.setHex(own.userData.bloodBase as number).lerp(BLOOD_DRY, this.weaponBlood * 0.75)
+        own.roughness = Math.max(0.2, (own.userData.bloodRough as number) * (1 - this.weaponBlood * 0.3))
         return own
       })
       m.material = Array.isArray(m.material) ? out : out[0]

@@ -1,6 +1,7 @@
 // The player: third-person movement, stamina, melee combos, blocking, dodging, ranged weapons, consumables.
 
 import * as THREE from "three"
+import { flameMesh } from "../render/flame"
 import type { EntityContext } from "./context"
 import { buildHumanoid, disposeHumanoid, type ArmorLook, type HelmetLook, type Humanoid } from "../render/humanoid"
 import { Animator } from "../render/animator"
@@ -248,8 +249,9 @@ export class Player {
       const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.025, 0.5, 6), mat("timber"))
       stick.position.y = 0.1
       g.add(stick)
-      const flame = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.22, 6), mat(null, { color: 0xffa030, emissive: 0xff8020, emissiveIntensity: 2.5 }))
-      flame.position.y = 0.42
+      const flame = new THREE.Group()
+      flame.position.y = 0.33
+      flame.add(flameMesh(0.18, 0.34))
       g.add(flame)
       g.rotation.x = -1.2
       this.humanoid.handL.add(g)

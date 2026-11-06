@@ -8,7 +8,7 @@ import { StaticBatcher, disposeMeshes } from "./batcher"
 import { buildHumanoid, disposeHumanoid, type Humanoid } from "./humanoid"
 import { Animator } from "./animator"
 import { Particles } from "./particles"
-import { mat } from "./materials"
+import { mat, windUniforms } from "./materials"
 import { Rng } from "../core/rng"
 import type { Profile } from "../core/types"
 
@@ -173,6 +173,8 @@ export class CampScene {
     this.sky.setFill(this.camera.position, new THREE.Vector3(0, 1, 0))
     this.fireLight.intensity = 11 + Math.sin(this.t * 13) * 2 + Math.sin(this.t * 31) * 1.3
     for (const f of this.flames) f.scale.setScalar(0.9 + Math.sin(this.t * 17 + f.id) * 0.12)
+    // The flame shader and the wind sway of grass and leaves run on this clock
+    windUniforms.uTime.value = this.t
     if (Math.random() < dt * 6) this.particles.embers(0, 0.5, 0, 1)
     if (Math.random() < dt * 1.5) this.particles.smoke(0, 0.9, 0, 1)
     this.particles.update(dt)

@@ -979,6 +979,8 @@ export class Expedition implements ExpeditionApi {
     this.particles.update(dt)
     this.decals.update(dt)
     this.gore.update(dt)
+    this.gore.weaponDrips(this.player.weaponObject, dt)
+    if (!this.world.underground) this.gore.rinseWeapon(this.player.weaponObject, this.weather.rain, dt)
     if (this.crows) {
       this.crows.update(dt)
       this.crows.visible = this.sky.state.daylight > 0.2 && this.weather.fog < 0.6
