@@ -105,7 +105,8 @@ for (const h of ["Hair_Beard", "Hair_Buzzed", "Hair_SimpleParted", "Hair_Long", 
   }
   const ual = findUal(ST + "animation-library/raw")
   const doc = await io.read(ual)
-  const drop = /^(Driving|Swim|Dance|Sitting_Talking|Idle_Talking|A_TPose|Push_Loop|Fixing)/
+  // Swim_Fwd_Loop stays: flat on the ground it is the crawl of legless zombies
+  const drop = /^(Driving|Swim_Idle|Dance|Sitting_Talking|Idle_Talking|A_TPose|Push_Loop|Fixing)/
   for (const anim of doc.getRoot().listAnimations()) {
     if (drop.test(anim.getName())) { anim.dispose(); continue }
     for (const ch of anim.listChannels()) {

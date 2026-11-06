@@ -129,6 +129,50 @@ function walkCycle(ctx: ClipContext, amp: number, lean: number, bob: number, arm
   }
 }
 
+/** Belly-down crawl: body pitched flat, head up, arms reaching forward in turn (amp 0 = resting). */
+function crawlPose(p: number, amp: number): Pose {
+  const s = Math.sin(p)
+  return {
+    rootY: -0.8,
+    rootPitch: F * 1.42,
+    spine: [-F * 0.15, s * 0.08 * amp, 0],
+    chest: [-F * 0.15, s * 0.1 * amp, 0],
+    neck: [-F * 0.4, 0, 0],
+    head: [-F * 0.6, 0, s * 0.1],
+    upperArmL: [F * (2.3 + s * 0.6 * amp), 0, -0.35],
+    upperArmR: [F * (2.3 - s * 0.6 * amp), 0, 0.35],
+    forearmL: [F * (0.3 + Math.max(0, -s) * 0.9 * amp), 0, 0],
+    forearmR: [F * (0.3 + Math.max(0, s) * 0.9 * amp), 0, 0],
+    thighL: [-F * 0.05, 0, 0.12],
+    thighR: [-F * 0.05, 0, -0.12],
+    shinL: [-F * 0.25 * (1 + s * amp), 0, 0],
+    shinR: [-F * 0.25 * (1 - s * amp), 0, 0],
+  }
+}
+
+/** Animation names a legless crawler plays instead of the standing ones. */
+export const CRAWL_REMAP: Record<string, string> = {
+  idle: "z_crawl_idle",
+  combat_idle: "z_crawl_idle",
+  z_idle: "z_crawl_idle",
+  knight_block: "z_crawl_idle",
+  roar: "z_crawl_idle",
+  walk: "z_crawl",
+  run: "z_crawl",
+  sprint: "z_crawl",
+  z_walk: "z_crawl",
+  z_run: "z_crawl",
+  z_attack: "z_crawl_attack",
+  z_bite: "z_crawl_attack",
+  brute_slam: "z_crawl_attack",
+  knight_swing: "z_crawl_attack",
+  leap: "z_crawl_attack",
+  hit: "z_crawl_hit",
+  stagger: "z_crawl_hit",
+  death_back: "z_crawl_death",
+  death_front: "z_crawl_death",
+}
+
 export const CLIPS: Record<string, Clip> = {
   rest: proc(() => REST),
   idle: proc((t) => ({
@@ -356,6 +400,24 @@ export const CLIPS: Record<string, Clip> = {
     { t: 0.7, pose: { upperArmR: [F * 1.2, 0, 0.4], upperArmL: [F * 1.2, 0, -0.4], spine: [F * 0.7, 0, 0], chest: [F * 0.3, 0, 0], thighL: [F * 0.9, 0, 0.1], thighR: [F * 0.9, 0, -0.1], shinL: [-F * 1.2, 0, 0], shinR: [-F * 1.2, 0, 0], rootY: -0.3 } },
     { t: 1, pose: { ...ZOMBIE_STANCE } },
   ]),
+  // ---- legless crawlers: flat on the belly, pulling themselves along with the arms ----
+  z_crawl: proc((_, ctx) => crawlPose(ctx.phase, 1)),
+  z_crawl_idle: proc((t) => crawlPose(t * 0.8, 0.25)),
+  z_crawl_attack: keyed(0.75, [
+    { t: 0, pose: crawlPose(0, 0.3) },
+    { t: 0.4, pose: { ...crawlPose(0, 0.3), rootPitch: F * 1.0, rootY: -0.62, chest: [-F * 0.4, 0, 0], head: [-F * 0.5, 0, 0], upperArmL: [F * 2.6, 0, -0.5], upperArmR: [F * 2.6, 0, 0.5] } },
+    { t: 0.6, pose: { ...crawlPose(0, 0.3), head: [-F * 1.2, 0, 0], upperArmL: [F * 1.6, 0, -0.2], upperArmR: [F * 1.6, 0, 0.2] } },
+    { t: 1, pose: crawlPose(0, 0.3) },
+  ]),
+  z_crawl_hit: keyed(0.35, [
+    { t: 0, pose: crawlPose(0, 0.3) },
+    { t: 0.3, pose: { ...crawlPose(0, 0.3), rootRoll: 0.2, head: [-F * 0.2, 0.3, 0] } },
+    { t: 1, pose: crawlPose(0, 0.3) },
+  ]),
+  z_crawl_death: keyed(0.8, [
+    { t: 0, pose: crawlPose(0, 0.3) },
+    { t: 1, pose: { ...crawlPose(1.2, 0.6), rootY: -0.88, head: [F * 0.2, 0.6, 0], upperArmL: [F * 2.8, 0, -0.9], upperArmR: [F * 1.4, 0, 0.6] } },
+  ]),
   sit_hurt: proc((t) => ({
     thighL: [F * 1.5, 0, 0.3],
     thighR: [F * 1.5, 0, -0.3],
@@ -383,8 +445,11 @@ interface MixSpec {
   rate?: number
   /** Additive pose in the character frame (radians, same conventions as the procedural clips). */
   add?: Pose
+  /** Metres added to the pelvis height (the swim cycle lies below the water line, i.e. under the ground). */
+  lift?: number
 }
 
+const CRAWL_HEAD: Pose = { neck: [-0.35, 0, 0], head: [-0.45, 0, 0] }
 const ZOMBIE_ARMS: Pose = { upperArmL: [-1.15, 0, -0.12], upperArmR: [-1.25, 0, 0.12], forearmL: [-0.35, 0, 0], forearmR: [-0.25, 0, 0], spine: [0.22, 0, 0], neck: [0.2, 0, 0.12], head: [0.12, 0.1, 0.18] }
 const MIX: Record<string, MixSpec> = {
   rest: { clip: "Idle_Loop" },
@@ -430,6 +495,12 @@ const MIX: Record<string, MixSpec> = {
   roar: { clip: "Spell_Simple_Enter", add: { neck: [-0.4, 0, 0], head: [-0.3, 0, 0], chest: [-0.2, 0, 0] } },
   leap: { clip: "Jump_Start" },
   sit_hurt: { clip: "Sitting_Idle_Loop" },
+  // Legless crawlers: the freestyle swim cycle lies flat, lifted out of the ground, head raised to look ahead
+  z_crawl: { clip: "Swim_Fwd_Loop", rate: 0.5, lift: 0.2, add: CRAWL_HEAD },
+  z_crawl_idle: { clip: "Swim_Fwd_Loop", rate: 0.12, lift: 0.2, add: CRAWL_HEAD },
+  z_crawl_attack: { clip: "Swim_Fwd_Loop", from: 0.1, to: 0.6, lift: 0.26, add: { ...CRAWL_HEAD, spine: [-0.25, 0, 0], chest: [-0.25, 0, 0], head: [-0.7, 0, 0] } },
+  z_crawl_hit: { clip: "Swim_Fwd_Loop", from: 0.55, to: 0.75, lift: 0.2, add: { ...CRAWL_HEAD, chest: [0, 0, 0.25] } },
+  z_crawl_death: { clip: "Swim_Fwd_Loop", from: 0.2, to: 0.32, lift: 0.12, add: { head: [0.2, 0.5, 0] } },
 }
 
 const _q = new THREE.Quaternion()
@@ -438,16 +509,21 @@ const _c = new THREE.Quaternion()
 const clipCache = new Map<string, THREE.AnimationClip>()
 
 /** Library clip, with the pelvis translation scaled for smaller or bigger skeletons. */
-function libraryClip(name: string, pelvisRatio: number): THREE.AnimationClip | null {
-  const key = `${name}@${pelvisRatio.toFixed(3)}`
+function libraryClip(name: string, pelvisRatio: number, lift = 0): THREE.AnimationClip | null {
+  const key = `${name}@${pelvisRatio.toFixed(3)}+${lift}`
   const hit = clipCache.get(key)
   if (hit) return hit
   const src = models.get("anims_ual")?.animations.find((c) => c.name === name)
   if (!src) return null
   let clip = src
-  if (Math.abs(pelvisRatio - 1) > 0.01) {
+  if (Math.abs(pelvisRatio - 1) > 0.01 || lift) {
     clip = src.clone()
-    for (const t of clip.tracks) if (t.name.endsWith(".position")) for (let i = 0; i < t.values.length; i++) t.values[i] *= pelvisRatio
+    for (const t of clip.tracks) {
+      if (!t.name.endsWith(".position")) continue
+      for (let i = 0; i < t.values.length; i++) t.values[i] *= pelvisRatio
+      // The pelvis moves in the root bone's Z-up frame: its third component is the height
+      if (lift && t.name.startsWith("pelvis.")) for (let i = 2; i < t.values.length; i += 3) t.values[i] += lift * pelvisRatio
+    }
   }
   clipCache.set(key, clip)
   return clip
@@ -470,7 +546,7 @@ class MixerDriver {
 
   play(name: string, gameDuration: number, loop: boolean, speed: number, blend: number): void {
     const spec = MIX[name] ?? MIX.idle
-    const clip = libraryClip(spec.clip, this.rig.pelvisRatio) ?? libraryClip("Idle_Loop", this.rig.pelvisRatio)
+    const clip = libraryClip(spec.clip, this.rig.pelvisRatio, spec.lift) ?? libraryClip("Idle_Loop", this.rig.pelvisRatio)
     if (!clip) return
     const action = this.mixer.clipAction(clip)
     const from = (spec.from ?? 0) * clip.duration
@@ -497,7 +573,7 @@ class MixerDriver {
     if (this.action && loop && this.spec) {
       // Walk cycles follow the movement speed like the procedural cycles did
       const move = ctx.speed > 0 ? 0.55 + ctx.speed * 0.6 : 1
-      this.action.timeScale = (this.spec.rate ?? 1) * speed * this.jitter * (/walk|run|sprint|strafe/i.test(this.spec.clip) ? move : 1)
+      this.action.timeScale = (this.spec.rate ?? 1) * speed * this.jitter * (/walk|run|sprint|strafe|swim_fwd/i.test(this.spec.clip) ? move : 1)
     }
     // Undo last frame's additive rotations first: bones without an animation track would otherwise accumulate them
     for (const bone of this.touched) bone.quaternion.copy(this.saved.get(bone)!)
@@ -548,6 +624,8 @@ export class Animator {
   overlay: Pose | null = null
   /** Blend weight of the overlay. */
   overlayWeight = 1
+  /** Substitute clips (e.g. CRAWL_REMAP for a zombie that lost a leg). */
+  remap: Record<string, string> | null = null
 
   private mix: MixerDriver | null = null
 
@@ -573,6 +651,7 @@ export class Animator {
   }
 
   play(name: string, opts: { restart?: boolean; speed?: number; blend?: number } = {}): void {
+    name = this.remap?.[name] ?? name
     if (!CLIPS[name]) throw new Error(`unknown clip ${name}`)
     if (this.current === name && !opts.restart) {
       if (opts.speed !== undefined) this.speed = opts.speed

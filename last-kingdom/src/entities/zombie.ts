@@ -6,7 +6,7 @@ import { cosmetic } from "../core/rng"
 import type { EntityContext } from "./context"
 import type { ZombieTypeDef } from "../core/types"
 import { buildHumanoid, disposeHumanoid, type Appearance, type Humanoid } from "../render/humanoid"
-import { Animator } from "../render/animator"
+import { Animator, CRAWL_REMAP } from "../render/animator"
 import { buildShield, buildWeapon } from "../render/weaponModels"
 import { angleDelta, clamp, turnToward } from "../core/math"
 import { staggers } from "./combat"
@@ -51,6 +51,8 @@ export class Zombie {
   private pooled = false
   private dripTimer = 0
   private lostArm = false
+  /** Lost a leg: drags itself along on the belly, slower and lower. */
+  crawling = false
   private mutilations = 0
   private animAcc = 0
   private animFrame = 0
@@ -178,6 +180,10 @@ export class Zombie {
     if (!this.isBoss && this.type.kind !== "knight" && this.rng.chance(0.12)) {
       this.lostArm = true
       ctx.gore.amputate(this.humanoid, this.rng.chance(0.5) ? "armL" : "armR")
+    }
+    if (this.canCrawl && ctx.gore.enabled && this.rng.chance(0.06)) {
+      ctx.gore.amputate(this.humanoid, this.rng.chance(0.5) ? "legL" : "legR")
+      this.startCrawling()
     }
     this.circleDir = this.rng.chance(0.5) ? 1 : -1
     this.groanTimer = this.rng.range(3, 12)
@@ -423,9 +429,10 @@ export class Zombie {
 
     // ---- steering and movement ----
     let moved = 0
+    if (this.crawling) moveSpeed *= this.type.kind === "sprinter" ? 0.45 : 0.55
     if (holdRing) {
       // Keep arm's length and drift sideways around the player, always facing them; the group stays readable
-      moveSpeed = this.type.wanderSpeed
+      moveSpeed = this.type.wanderSpeed * (this.crawling ? 0.55 : 1)
       const ring = this.type.attackRange + 0.1
       const ax = dist > 0.01 ? (this.pos.x - p.pos.x) / dist : -Math.sin(this.yaw)
       const az = dist > 0.01 ? (this.pos.z - p.pos.z) / dist : -Math.cos(this.yaw)
@@ -481,8 +488,14 @@ export class Zombie {
         const faceDot = Math.cos(angleDelta(this.yaw, wantYaw))
         const sp = moveSpeed * Math.max(0.3, faceDot)
         moved = this.tryMove(Math.sin(this.yaw) * sp * dt, Math.cos(this.yaw) * sp * dt)
-        // Wounded enemies leave a trail of blood
-        if (this.hp < this.maxHp * 0.6 && moved > 0.001) {
+        // Crawlers drag a smear of blood behind them, wounded enemies leave drips
+        if (this.crawling && moved > 0.001) {
+          this.dripTimer -= dt
+          if (this.dripTimer <= 0) {
+            this.dripTimer = 0.3
+            ctx.gore.smear(this.pos.x - Math.sin(this.yaw) * 0.5, this.pos.z - Math.cos(this.yaw) * 0.5, Math.sin(this.yaw), Math.cos(this.yaw))
+          }
+        } else if (this.hp < this.maxHp * 0.6 && moved > 0.001) {
           this.dripTimer -= dt
           if (this.dripTimer <= 0) {
             this.dripTimer = this.hp < this.maxHp * 0.3 ? 0.25 : 0.55
@@ -789,6 +802,17 @@ export class Zombie {
     return ang < 0.9 && this.rng.chance(this.isBoss ? 0.55 : 0.4)
   }
 
+  private get canCrawl(): boolean {
+    return !this.isBoss && (this.type.kind === "walker" || this.type.kind === "sprinter") && !this.type.abilities?.includes("sword")
+  }
+
+  private startCrawling(): void {
+    this.crawling = true
+    this.animator.remap = CRAWL_REMAP
+    this.animator.play("z_idle", { restart: true })
+    if (this.state === "attack" || this.state === "stagger") this.setState(this.alerted ? "chase" : "idle")
+  }
+
   takeHit(damage: number, crit: boolean, impact: number, heavy: boolean, fromX: number, fromZ: number, lifeOnHit = 0, blocked = false): void {
     if (this.dead) return
     const ctx = this.ctx
@@ -816,6 +840,12 @@ export class Zombie {
       if (this.hp > 0 && crit && heavy && !this.isBoss && !this.lostArm && this.rng.chance(0.3)) {
         this.lostArm = true
         ctx.gore.sever(this.humanoid, this.rng.chance(0.5) ? "armL" : "armR", dir, 1)
+      } else if (this.hp > 0 && heavy && this.canCrawl && !this.crawling && this.rng.chance(crit ? 0.3 : this.hp < this.maxHp * 0.5 ? 0.18 : 0.08)) {
+        // A leg cut off at the knee or hip: the zombie goes down and keeps crawling after the player
+        if (ctx.gore.sever(this.humanoid, this.rng.chance(0.5) ? "legL" : "legR", dir, 1)) {
+          ctx.gore.pool(this.pos.x, this.pos.z, 1.2)
+          this.startCrawling()
+        }
       }
       ctx.audio.play(this.type.armor > 10 ? "hit_metal" : "hit_flesh", { x: hx, y: hy, z: hz, pitch: 0.9 + Math.random() * 0.2 })
       if (crit) ctx.audio.play("crit", { x: hx, y: hy, z: hz })

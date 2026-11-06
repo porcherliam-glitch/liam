@@ -216,6 +216,12 @@ export class Gore {
     this.decals.spawn(x, z, cosmetic.range(0.15, 0.32), { opacity: 0.8 })
   }
 
+  /** Long smear along (dx, dz), e.g. behind a crawling body. */
+  smear(x: number, z: number, dx: number, dz: number): void {
+    if (!this.enabled) return
+    this.decals.spawn(x, z, cosmetic.range(0.28, 0.4), { dirX: dx, dirZ: dz, stretch: cosmetic.range(2.6, 3.6), opacity: cosmetic.range(0.6, 0.8) })
+  }
+
   /** Red splatter across the screen; strength 0..1. */
   splatScreen(strength: number): void {
     if (!this.enabled || !this.screen) return
