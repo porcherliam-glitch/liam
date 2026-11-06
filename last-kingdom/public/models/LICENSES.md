@@ -10,6 +10,7 @@ Die Modelle wurden mit gltf-transform (Vereinfachung, WebP-Texturen 512 px, mesh
 | `head_*.glb` (Köpfe aus den Basiskörpern geschnitten), `hair_*.glb` | Universal Base Characters (Standard) | Quaternius | https://quaternius.itch.io/universal-base-characters | CC0 1.0 |
 | `anims_ual.glb` (34 Bewegungen, nur Skelett) | Universal Animation Library (Standard) | Quaternius | https://quaternius.itch.io/universal-animation-library | CC0 1.0 |
 | `wpn_*.glb` (Schwerter, Äxte, Hämmer, Speer, Dolche, Bögen, Schilde) | Medieval Weapons Pack | Quaternius | https://quaternius.itch.io/lowpoly-medieval-weapons | CC0 1.0 |
+| `nature_kit.glb` (Laub- und Nadelbäume, Birken, Weiden, tote Bäume, Büsche, Felsen, Stümpfe, Pflanzen) | Ultimate Nature Pack | Quaternius | https://quaternius.itch.io/150-lowpoly-nature-models | CC0 1.0 |
 | `props_kit.glb` (Truhe, Kisten, Fässer, Säcke, Regale, Marktstände u. a.) | Fantasy Props MegaKit (Standard) | Quaternius | https://quaternius.itch.io/fantasy-props-megakit | CC0 1.0 |
 
 Belege: Jede Paketseite auf itch.io und quaternius.com nennt „CC0“ bzw. verlinkt https://creativecommons.org/publicdomain/zero/1.0/; die Archive enthalten `License_Standard.txt` mit demselben Text.

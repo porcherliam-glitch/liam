@@ -5,6 +5,7 @@ import * as THREE from "three"
 import { Rng } from "../core/rng"
 import type { Collider } from "../world/collision"
 import { M, mat } from "./materials"
+import { kitNature } from "./kitProps"
 
 export interface Prop {
   group: THREE.Group
@@ -338,9 +339,19 @@ export function gatehouse(opening = 4, h = 7, opts: { portcullis?: boolean; dark
   return { group: g, colliders: cols }
 }
 
+const NATURE_TREES: Record<string, { names: string[]; h: number; trunk: number }> = {
+  pine: { names: ["PineTree_1", "PineTree_2", "PineTree_3", "PineTree_4", "PineTree_5"], h: 10, trunk: 0.35 },
+  oak: { names: ["CommonTree_1", "CommonTree_2", "CommonTree_3", "CommonTree_4", "CommonTree_5"], h: 8.5, trunk: 0.5 },
+  birch: { names: ["BirchTree_1", "BirchTree_2", "BirchTree_3"], h: 9, trunk: 0.2 },
+  dead: { names: ["CommonTree_Dead_1", "CommonTree_Dead_2", "CommonTree_Dead_3", "BirchTree_Dead_1", "Willow_Dead_1", "Willow_Dead_2", "Willow_Dead_3"], h: 7, trunk: 0.4 },
+}
+
 export function tree(kind: "pine" | "oak" | "dead" | "birch", size = 1, seed = 1): Prop {
-  const g = new THREE.Group()
   const rng = new Rng(seed)
+  const spec = NATURE_TREES[kind]
+  const kit = kitNature(spec.names[Math.abs(seed) % spec.names.length], spec.h * size * rng.range(0.9, 1.1), rng.range(0, Math.PI * 2))
+  if (kit) return { group: kit, colliders: [circleCol(0, 0, spec.trunk * size, 0, spec.h * size)] }
+  const g = new THREE.Group()
   const bark = M.bark()
   if (kind === "pine") {
     const h = 9 * size
@@ -403,6 +414,8 @@ export function tree(kind: "pine" | "oak" | "dead" | "birch", size = 1, seed = 1
 }
 
 export function bush(size = 1, seed = 1, dead = false): Prop {
+  const kit = kitNature(dead ? ["Plant_3", "Willow_Dead_3"][seed % 2] : ["Bush_1", "Bush_2", "BushBerries_1", "BushBerries_2", "Plant_1"][Math.abs(seed) % 5], 1.25 * size, seed * 1.7)
+  if (kit) return { group: kit, colliders: [] }
   const g = new THREE.Group()
   const rng = new Rng(seed)
   const leaves = dead ? M.leavesDead() : M.leaves()
@@ -414,6 +427,8 @@ export function bush(size = 1, seed = 1, dead = false): Prop {
 }
 
 export function rock(size = 1, seed = 1): Prop {
+  const kitRock = kitNature(["Rock_2", "Rock_3", "Rock_5", "Rock_6", "Rock_7", "Rock_Moss_2", "Rock_Moss_3", "Rock_Moss_5"][Math.abs(seed) % 8], 1.15 * size, seed * 2.3)
+  if (kitRock) return { group: kitRock, colliders: [circleCol(0, 0, size * 0.85, 0, size)] }
   const rng = new Rng(seed)
   const geo = new THREE.IcosahedronGeometry(size, 1)
   const pos = geo.attributes.position

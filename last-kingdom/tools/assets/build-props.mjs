@@ -6,17 +6,20 @@ const require = createRequire(T)
 const { NodeIO, Document } = require("@gltf-transform/core")
 const { ALL_EXTENSIONS, EXTMeshoptCompression } = require("@gltf-transform/extensions")
 const F = require("@gltf-transform/functions")
-const { MeshoptEncoder, MeshoptDecoder } = require("meshoptimizer")
+const { MeshoptEncoder, MeshoptDecoder, MeshoptSimplifier } = require("meshoptimizer")
 const sharp = require("sharp")
 await MeshoptEncoder.ready
 await MeshoptDecoder.ready
+await MeshoptSimplifier.ready
+const SIMPLIFY = parseFloat(process.env.SIMPLIFY ?? "0")
 const io = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ "meshopt.encoder": MeshoptEncoder, "meshopt.decoder": MeshoptDecoder })
 const [srcDir, outFile, ...names] = process.argv.slice(2)
 const target = new Document()
 target.createBuffer()
 const scene = target.createScene("props")
 for (const name of names) {
-  const doc = await io.read(join(srcDir, name + ".gltf"))
+  const { existsSync } = await import("node:fs")
+  const doc = await io.read(join(srcDir, name + (existsSync(join(srcDir, name + ".gltf")) ? ".gltf" : ".glb")))
   // Wrap each source scene in one named node, then merge into the target
   const s = doc.getRoot().listScenes()[0]
   const wrap = doc.createNode(name)
@@ -35,6 +38,7 @@ await target.transform(
   F.dedup(),
   F.prune(),
   F.weld(),
+  ...(SIMPLIFY ? [F.simplify({ simplifier: MeshoptSimplifier, ratio: SIMPLIFY, error: 0.01, lockBorder: false })] : []),
   F.textureCompress({ encoder: sharp, targetFormat: "webp", resize: [512, 512], quality: 80 }),
 )
 target.createExtension(EXTMeshoptCompression).setRequired(true).setEncoderOptions({ method: EXTMeshoptCompression.EncoderMethod.FILTER })
