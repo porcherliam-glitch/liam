@@ -26,9 +26,10 @@ import { itemDef } from "../items/itemData"
 import { createItem } from "../items/items"
 import { checkAchievements } from "../meta/achievements"
 import { models } from "../render/assets"
-import { RIG_MODELS, RIG_TEXTURES } from "../render/rig"
+import { HELMET_MODELS, RIG_MODELS, RIG_TEXTURES } from "../render/rig"
 import { WEAPON_MODELS } from "../render/weaponModels"
 import { PROP_MODELS } from "../render/kitProps"
+import { HOUSE_MODELS } from "../render/kitHouse"
 
 export const VERSION = "1.0.0"
 
@@ -71,7 +72,7 @@ export class Game implements GameApi {
     this.post.setup(this.campScene.scene, this.campScene.camera, this.settings.quality)
     this.applySettings()
     // Character models load in the background; the camp hero is rebuilt once they are there
-    this.modelsReady = models.preload([...RIG_MODELS, ...WEAPON_MODELS, ...PROP_MODELS]).then(() => {
+    this.modelsReady = models.preload([...RIG_MODELS, ...HELMET_MODELS, ...WEAPON_MODELS, ...PROP_MODELS, ...HOUSE_MODELS]).then(() => {
       for (const id of RIG_TEXTURES) new Image().src = models.textureUrl(id) ?? ""
       ;(window as unknown as { __MODELS_READY__: boolean }).__MODELS_READY__ = true
       if (this.state !== "expedition") this.campScene.build(this.profile)

@@ -10,6 +10,9 @@ import { NavGrid } from "./nav"
 import { StaticBatcher, disposeMeshes } from "../render/batcher"
 import * as P from "../render/props"
 import { kitProp } from "../render/kitProps"
+import { tex } from "../render/textures"
+import { bakedCorpse } from "../render/rig"
+import { buildHumanoid } from "../render/humanoid"
 import { M, mat } from "../render/materials"
 import { buildGrass } from "../render/grass"
 
@@ -150,6 +153,21 @@ function scatter(ctx: Ctx, count: number, radius: number, make: (rng: Rng, i: nu
   return placed
 }
 
+let corpseCounter = 0
+let _corpseBloodGeo: THREE.BufferGeometry | null = null
+let _corpseBloodMat: THREE.Material | null = null
+function corpseBloodGeo(): THREE.BufferGeometry {
+  if (!_corpseBloodGeo) {
+    _corpseBloodGeo = new THREE.PlaneGeometry(1, 1)
+    _corpseBloodGeo.rotateX(-Math.PI / 2)
+  }
+  return _corpseBloodGeo
+}
+function corpseBloodMat(): THREE.Material {
+  if (!_corpseBloodMat) _corpseBloodMat = new THREE.MeshBasicMaterial({ map: tex("blood"), color: 0x5a0408, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 })
+  return _corpseBloodMat
+}
+
 function containerVisual(kind: ContainerKind): { prop: P.Prop; lid?: THREE.Object3D } {
   // Kit models where available; colliders stay those of the procedural props so navigation is unchanged
   const kit: Partial<Record<ContainerKind, [string, number]>> = { chest: ["Chest_Wood", 0.85], crate: ["Crate_Wooden", 1.05], barrel: ["Barrel", 1.05], sack: ["Bag", 1.05], cupboard: ["Bookcase_2", 0.7] }
@@ -185,6 +203,17 @@ function containerVisual(kind: ContainerKind): { prop: P.Prop; lid?: THREE.Objec
       return { prop: { group: g, colliders: [{ kind: "circle", x: 0, z: 0, r: 0.4, y0: 0, y1: 0.6 }] } }
     }
     case "corpse": {
+      // A real dead villager when the character models are there, lying in a pool of blood
+      const seed = ++corpseCounter
+      const dead = bakedCorpse(seed, seed % 3 === 1, () => buildHumanoid({}, { procedural: true }))
+      if (dead) {
+        const blood = new THREE.Mesh(corpseBloodGeo(), corpseBloodMat())
+        blood.position.y = 0.03
+        blood.rotation.y = seed * 1.3
+        blood.scale.setScalar(1.4 + (seed % 4) * 0.25)
+        dead.add(blood)
+        return { prop: { group: dead, colliders: [] } }
+      }
       const g = new THREE.Group()
       const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.3, 1.7), mat("cloth", { color: 0x3a3028 }))
       body.position.y = 0.15

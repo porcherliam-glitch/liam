@@ -42,9 +42,22 @@ main.ts → Game
 - Kollision: gedrehte Boxen und Zylinder in einem Raster. Figuren sind Kreise auf der XZ-Ebene mit Höhenbereich. Die Kamera nutzt einen Segment-Cast gegen dieselben Kollider.
 - Navigation: 0,5-m-Gitter; eine Zelle ist blockiert, wenn ein Kreis mit 0,38 m Radius an ihrem Mittelpunkt einen Kollider berührt (Türen von 1,3 m bleiben offen, dünne Wände sperren), dazu Wasser und Steilhänge. A* mit Heap, einmalig angelegten, pro Suche gestempelten Arrays (keine Allokation) und Sichtlinien-Glättung; Budget von 3 Pfaden pro Frame, Gegner mit freier Sichtlinie steuern direkt.
 
+## Modelle (CC0)
+
+- `render/assets.ts` (`models`): lädt GLB-Dateien aus `public/models/` (meshopt-komprimiert, Texturen WebP) einmal beim Start (`Game.modelsReady`); die Einzeldatei bettet sie als Base64 ein (`window.__LK_MODELS`). Expeditionen warten auf das Laden, das Menü nicht. Fehlende Modelle melden sich in `models.failed`, dann gilt der prozedurale Fallback.
+- `render/rig.ts`: Figuren aus Outfit + Kopf + Haaren auf einem 65-Knochen-Skelett. Vorlagen pro Kombination werden einmal gebaut (Teile pro Material zusammengefasst, Sockel für Waffe/Schild/Augen/Rücken an der prozeduralen Figur ausgerichtet) und per `SkeletonUtils.clone` vervielfältigt; Materialien pro Figur (Tönung, Blut, Trefferblitz über eine gemeinsame Emissionsfarbe). `bakedCorpse()` backt eine liegende Leiche zu statischen Meshes.
+- `Animator` erkennt `humanoid.rig` und steuert einen `AnimationMixer`: Tabelle `MIX` bildet die Spiel-Clips auf die Clips der Animationsbibliothek ab; nicht schleifende Clips werden auf die Dauer des Spiel-Clips gestreckt (Trefferzeitpunkte unverändert), Zusatzdrehungen (`add`, `overlay`) werden im Figurenrahmen über ausgerichtete Elternrahmen aufgeschlagen und jedes Bild zurückgesetzt.
+- `render/weaponModels.ts`, `render/kitProps.ts`, `render/kitHouse.ts`: Waffen/Schilde, Requisiten (Truhe mit Deckel-Knochen), Natur (Bäume, Büsche, Felsen auf Zielhöhe skaliert) und Häuser aus 2-m-Modulen (Grundriss auf das Raster gerundet, Kollider aus demselben Layout, Türlücke 1,3 m). Statische Teile laufen durch den Batcher (behält Vertexfarben, wandelt glTF-Attribute in Floats).
+
+## Gore
+
+- `render/gore.ts` (`Gore`, über `EntityContext.gore`): `spray` (gerichteter Kegel + gestreckte Bodenflecken), `burst`, `pool` (wachsende Lache), `drip`, `stain` (Körper röten), `bloodyWeapon`, `splatScreen` (SVG-Spritzer im DOM), `sever` (Körperteil aus den gehäuteten Ecken backen, Knochen auf 0 skalieren, Fleischkappe + Knochenstumpf, pulsierende Fontäne), `amputate` (alte Wunde), `explode` (alle Teile + Brocken). Gibs haben einfache Physik (Schwerkraft, Abprall, Blutspur), höchstens 140, 70 s Lebensdauer.
+- `render/decals.ts`: ein `InstancedMesh` mit 320 Flecken und Deckkraft pro Instanz (`onBeforeCompile`), Flecken trocknen nach und verblassen nach Minuten. `render/particles.ts` hat `spray()` für Kegel entlang einer Richtung (4000 Partikel).
+- Zombies wählen beim Tod je nach letztem Treffer (kritisch/schwer/Overkill) Zerplatzen, Enthauptung, Arm oder Bein; kritische schwere Treffer reißen auch lebenden Gegnern einen Arm ab.
+
 ## Figuren
 
-- `buildHumanoid()` erzeugt eine `SkinnedMesh` mit 17 Knochen aus Kapseln, Kugeln und Boxen; Stoff/Haut und Metall liegen in zwei Materialgruppen (zwei Draw-Calls pro Figur). Aussehen (Haut, Kleidung, Rüstung, Helm, Größe, Masse, Untot, Boss-Silhouette, Figur, Robe) wird per Parameter bestimmt; der Spieler wird beim Wechsel der Ausrüstung neu gebaut. Trefferblitze setzen die Emissionsfarbe des Stoffmaterials.
+- `buildHumanoid()` liefert die glTF-Figur aus `rig.ts`, wenn die Modelle geladen sind; sonst erzeugt es eine `SkinnedMesh` mit 17 Knochen aus Kapseln, Kugeln und Boxen; Stoff/Haut und Metall liegen in zwei Materialgruppen (zwei Draw-Calls pro Figur). Aussehen (Haut, Kleidung, Rüstung, Helm, Größe, Masse, Untot, Boss-Silhouette, Figur, Robe) wird per Parameter bestimmt; der Spieler wird beim Wechsel der Ausrüstung neu gebaut. Trefferblitze setzen die Emissionsfarbe des Stoffmaterials.
 - `Animator` mischt Clips: prozedurale Laufzyklen (Phase aus zurückgelegter Strecke) und Keyframe-Clips (Angriffe, Blocken, Treffer, Tod, Zombie-Angriffe, Boss-Fähigkeiten). Übergänge werden geblendet.
 - Angriffe: pro Waffengattung eine Kombofolge mit Trefferzeitpunkt (`hitAt`); zum Zeitpunkt werden Gegner im Bogen vor dem Spieler getroffen (`performMeleeHit`). Treffer lösen Trefferpause (`hitStop`), Trefferblitz und Blutspuren aus. Ein Block, der weniger als 0,22 s vor dem Treffer gehoben wurde, ist ein perfekter Block. Fernkampf spawnt Projektile mit Ballistik.
 

@@ -441,8 +441,11 @@ function computeBindPositions(): Record<BoneName, [number, number, number]> {
 
 export function disposeHumanoid(h: Humanoid): void {
   if (h.rig) {
-    // Geometry is shared with the template; only the per-instance materials belong to this character
+    // Geometry is shared with the template; materials and skeletons (bone textures) belong to this character
     for (const m of h.rig.materials) m.dispose()
+    const skeletons = new Set<THREE.Skeleton>()
+    for (const m of h.rig.meshes) if ((m as THREE.SkinnedMesh).isSkinnedMesh) skeletons.add(m.skeleton)
+    for (const s of skeletons) s.dispose()
     h.root.removeFromParent()
     return
   }

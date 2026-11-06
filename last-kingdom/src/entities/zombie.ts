@@ -28,7 +28,7 @@ export class Zombie {
   dead = false
   sleeping = false
   readonly group = new THREE.Group()
-  private humanoid: Humanoid
+  humanoid: Humanoid
   readonly animator: Animator
   private ctx!: EntityContext
   private rng: Rng
@@ -51,6 +51,7 @@ export class Zombie {
   private pooled = false
   private dripTimer = 0
   private lostArm = false
+  private mutilations = 0
   private animAcc = 0
   private animFrame = 0
   private castsShadow = true
@@ -905,6 +906,22 @@ export class Zombie {
     const d = Math.hypot(p.pos.x - cx, p.pos.z - cz)
     if (d < 3) g.splatScreen(hard ? 0.9 : 0.5 * (1 - d / 3) + 0.2)
     if (d < 4) g.bloodyWeapon(p.weaponObject)
+  }
+
+  /** A blow on the corpse: cuts off what is left, a heavy blow bursts it. */
+  mutilate(dir: THREE.Vector3, heavy: boolean): void {
+    const g = this.ctx.gore
+    const p = this.group.position
+    g.spray(p.x, p.y + 0.4, p.z, dir, heavy ? 30 : 18, heavy ? 1.3 : 0.9)
+    this.ctx.audio.play("hit_flesh", { x: p.x, y: p.y + 0.4, z: p.z, pitch: 0.7 + Math.random() * 0.2 })
+    this.mutilations++
+    if (heavy && this.mutilations >= 2) {
+      g.explode(this.humanoid, dir, 1.2)
+      return
+    }
+    const parts = ["head", "armL", "armR", "legL", "legR"] as const
+    for (const part of parts.slice().sort(() => cosmetic.next() - 0.5)) if (g.sever(this.humanoid, part, dir, heavy ? 1.2 : 0.8, false)) return
+    g.chunks(p.x, p.y + 0.3, p.z, dir, heavy ? 6 : 3)
   }
 
   get finished(): boolean {

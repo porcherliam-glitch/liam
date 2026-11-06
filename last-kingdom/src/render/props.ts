@@ -6,6 +6,7 @@ import { Rng } from "../core/rng"
 import type { Collider } from "../world/collision"
 import { M, mat } from "./materials"
 import { kitNature } from "./kitProps"
+import { kitHouse } from "./kitHouse"
 
 export interface Prop {
   group: THREE.Group
@@ -74,6 +75,8 @@ export interface HouseOpts {
 }
 
 export function house(opts: HouseOpts = {}): Prop {
+  const kit = kitHouse(opts)
+  if (kit) return kit
   const w = opts.w ?? 7
   const d = opts.d ?? 6
   const h = opts.h ?? (opts.tall ? 5.5 : 3.2)

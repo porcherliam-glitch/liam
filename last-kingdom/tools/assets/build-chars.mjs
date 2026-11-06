@@ -31,7 +31,9 @@ async function finish(doc, name, opts = {}) {
     F.weld(),
     ...(opts.simplify ? [F.simplify({ simplifier: MeshoptSimplifier, ratio: opts.simplify, error: opts.error ?? 0.006, lockBorder: false })] : []),
     F.textureCompress({ encoder: sharp, targetFormat: "webp", resize: [tex, tex], quality: 82 }),
-    F.quantize({ quantizePosition: 14, quantizeNormal: 10, quantizeTexcoord: 12 }),
+    // Positions stay float: quantising them gives every skinned mesh its own skin (compensated bind matrices),
+    // which breaks skeleton sharing and merging at runtime
+    F.quantize({ pattern: /^(NORMAL|TEXCOORD_\d|TANGENT)$/, quantizeNormal: 10, quantizeTexcoord: 12 }),
   )
   doc.createExtension(EXTMeshoptCompression).setRequired(true).setEncoderOptions({ method: EXTMeshoptCompression.EncoderMethod.QUANTIZE })
   const file = join(OUT, name + ".glb")

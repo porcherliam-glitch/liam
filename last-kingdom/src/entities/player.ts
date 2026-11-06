@@ -780,6 +780,19 @@ export class Player {
       this.wearWeapon(a.heavy, candidates[0].z.type.armor)
       this.addMastery(a.heavy ? 4 : 2)
     }
+    // Corpses in reach can be hacked apart further
+    if (this.ctx.gore.enabled) {
+      for (const z of this.ctx.zombies) {
+        if (!z.dead || z.finished || !z.humanoid.root.visible) continue
+        const dx = z.pos.x - this.pos.x
+        const dz = z.pos.z - this.pos.z
+        const d = Math.hypot(dx, dz)
+        if (d > range + 0.4 || Math.abs(angleDelta(facing, Math.atan2(dx, dz))) > arc / 2 + 0.3) continue
+        const dir = new THREE.Vector3(dx / (d || 1), 0.4, dz / (d || 1))
+        z.mutilate(dir, a.heavy)
+        any = true
+      }
+    }
   }
 
   private wearWeapon(heavy: boolean, targetArmor: number): void {
@@ -1153,6 +1166,7 @@ export class Player {
       const back = new THREE.Vector3(-Math.sin(this.yaw), 0.2, -Math.cos(this.yaw))
       this.ctx.gore.spray(this.pos.x, this.pos.y + 1.2, this.pos.z, back, heavy ? 22 : 12, heavy ? 1.2 : 0.8)
       if (amount >= 10) this.ctx.gore.splatScreen(Math.min(0.75, amount / 45))
+      this.ctx.gore.stain(this.humanoid, Math.min(0.08, amount / 400))
     }
     events.emit("playerDamaged", { amount, hp: this.hp, source })
     if (react) {

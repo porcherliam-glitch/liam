@@ -63,6 +63,8 @@ export class StaticBatcher {
         g.applyMatrix4(e.matrix)
         geos.push(g)
       }
+      // Mixed 16/32-bit index arrays cannot be merged: widen them all
+      if (geos.some((g) => g.index!.array instanceof Uint32Array)) for (const g of geos) if (!(g.index!.array instanceof Uint32Array)) g.setIndex(new THREE.BufferAttribute(Uint32Array.from(g.index!.array), 1))
       const merged = mergeGeometries(geos, false)
       for (const g of geos) g.dispose()
       if (!merged) continue
@@ -109,10 +111,13 @@ function normalizeAttributes(g: THREE.BufferGeometry, keepColor = false): void {
     const n = g.attributes.position.count
     g.setAttribute("uv", new THREE.BufferAttribute(new Float32Array(n * 2), 2))
   }
-  if (g.index) {
-    const ng = g.toNonIndexed()
-    g.copy(ng)
-    ng.dispose()
+  // Keep geometry indexed (three primitives and glTF meshes are); give non-indexed ones a sequential index.
+  // De-indexing everything tripled the vertex memory once models with thousands of triangles were merged.
+  if (!g.index) {
+    const n = g.attributes.position.count
+    const idx = n > 65535 ? new Uint32Array(n) : new Uint16Array(n)
+    for (let i = 0; i < n; i++) idx[i] = i
+    g.setIndex(new THREE.BufferAttribute(idx, 1))
   }
 }
 

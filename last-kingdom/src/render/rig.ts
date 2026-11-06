@@ -25,6 +25,31 @@ export const RIG_MODELS = [
   "anims_ual",
 ]
 export const RIG_TEXTURES = ["tex_peasant_2", "tex_ranger_3"]
+export const HELMET_MODELS = ["helmets_kit"]
+
+/** Procedural helmet look → helmet model from the CC0 knight pack (Quaternius). */
+const HELMETS: Record<string, string> = { kettle: "Helmet1", nasal: "Helmet1", bascinet: "Helmet3", great: "Helmet2" }
+
+/** A helmet model placed on the head socket (scaled to the base character's head). */
+function helmet(look: string): THREE.Object3D | null {
+  const name = HELMETS[look]
+  const src = name ? models.get("helmets_kit")?.scene.getObjectByName(name) : null
+  if (!src) return null
+  const h = src.clone(true)
+  h.traverse((o) => {
+    const m = o as THREE.Mesh
+    if (!m.isMesh) return
+    m.castShadow = true
+    const mat = (m.material as THREE.MeshStandardMaterial).clone()
+    if (!/gold/i.test(mat.name)) mat.color.multiplyScalar(1.6)
+    mat.metalness = 0.7
+    mat.roughness = 0.35
+    m.material = mat
+  })
+  h.scale.setScalar(0.5)
+  h.position.set(0, 0.16, 0.01)
+  return h
+}
 
 /** Procedural bone name → skeleton bone. Limbs are matched by side (procedural "L" bones sit at -X). */
 const SIDE_NEG = { upperArm: "upperarm", forearm: "lowerarm", hand: "hand", thigh: "thigh", shin: "calf", foot: "foot" }
@@ -87,6 +112,73 @@ function rebind(mesh: THREE.SkinnedMesh, bones: Map<string, THREE.Bone>): void {
   const src = mesh.skeleton
   const list = src.bones.map((b) => bones.get(b.name) ?? b)
   mesh.bind(new THREE.Skeleton(list, src.boneInverses.map((m) => m.clone())), mesh.bindMatrix.clone())
+}
+
+/** SkeletonUtils.clone gives every skinned mesh its own skeleton copy; restore the sharing of the template. */
+function shareClonedSkeletons(template: THREE.Object3D, copy: THREE.Object3D): void {
+  const src: THREE.Object3D[] = []
+  const dst: THREE.Object3D[] = []
+  template.traverse((o) => src.push(o))
+  copy.traverse((o) => dst.push(o))
+  const byTemplate = new Map<string, THREE.Skeleton>()
+  for (let i = 0; i < src.length && i < dst.length; i++) {
+    const a = src[i] as THREE.SkinnedMesh
+    const b = dst[i] as THREE.SkinnedMesh
+    if (!a.isSkinnedMesh || !b.isSkinnedMesh) continue
+    const shared = byTemplate.get(a.skeleton.uuid)
+    if (shared) b.bind(shared, b.bindMatrix)
+    else byTemplate.set(a.skeleton.uuid, b.skeleton)
+  }
+}
+
+/** Bone names and bind matrices: meshes with the same signature can share one Skeleton. */
+function skeletonSignature(sk: THREE.Skeleton): string {
+  let sig = sk.bones.map((b) => b.name).join(",")
+  for (const m of sk.boneInverses) sig += m.elements.map((v) => v.toFixed(4)).join(",")
+  return sig
+}
+
+/** Rebinds meshes whose skins are identical to one shared Skeleton on the given bones. */
+function unifySkeletons(meshes: THREE.SkinnedMesh[], bones: Map<string, THREE.Bone>): void {
+  const shared = new Map<string, THREE.Skeleton>()
+  for (const m of meshes) {
+    const sig = skeletonSignature(m.skeleton)
+    let sk = shared.get(sig)
+    if (!sk) {
+      sk = new THREE.Skeleton(m.skeleton.bones.map((b) => bones.get(b.name) ?? b), m.skeleton.boneInverses.map((x) => x.clone()))
+      shared.set(sig, sk)
+    }
+    m.bind(sk, m.bindMatrix.clone())
+  }
+}
+
+/** Index of the only bone a skinned mesh depends on, or null when it is weighted to several bones. */
+function singleBone(m: THREE.SkinnedMesh): number | null {
+  const si = m.geometry.getAttribute("skinIndex")
+  const sw = m.geometry.getAttribute("skinWeight")
+  if (!si || !sw) return null
+  let bone = -1
+  for (let v = 0; v < si.count; v++) {
+    for (let k = 0; k < 4; k++) {
+      if (sw.getComponent(v, k) < 0.01) continue
+      const b = si.getComponent(v, k)
+      if (bone === -1) bone = b
+      else if (b !== bone) return null
+    }
+  }
+  return bone >= 0 ? bone : null
+}
+
+/** Plain Float32 attributes (quantised glTF data cannot be transformed or merged in place). */
+function floatAttributes(g: THREE.BufferGeometry): THREE.BufferGeometry {
+  for (const name of Object.keys(g.attributes)) {
+    const a = g.getAttribute(name) as THREE.BufferAttribute
+    if (a.array instanceof Float32Array && !a.normalized) continue
+    const f = new Float32Array(a.count * a.itemSize)
+    for (let i = 0; i < a.count; i++) for (let k = 0; k < a.itemSize; k++) f[i * a.itemSize + k] = a.getComponent(i, k)
+    g.setAttribute(name, new THREE.BufferAttribute(f, a.itemSize))
+  }
+  return g
 }
 
 /** Merges skinned meshes that share a material into one mesh (fewer draw calls). */
@@ -167,6 +259,8 @@ function template(spec: CharacterSpec, procedural: () => Humanoid) {
   group.traverse((o) => {
     if ((o as THREE.SkinnedMesh).isSkinnedMesh) skinned.push(o as THREE.SkinnedMesh)
   })
+  // glTF loading gives every mesh its own Skeleton even when they share one skin: share it again
+  unifySkeletons(skinned, bones)
   // Optional parts of the ranger outfit
   for (const m of [...skinned]) {
     const n = m.name.toLowerCase()
@@ -178,6 +272,10 @@ function template(spec: CharacterSpec, procedural: () => Humanoid) {
   // The armature node: multi-material meshes come as groups below it, single ones directly
   let parent: THREE.Object3D = skinned[0].parent!
   while (parent.parent && parent.parent !== group && !(parent as THREE.Object3D & { isBone?: boolean }).isBone && !parent.children.some((c) => (c as THREE.Bone).isBone)) parent = parent.parent
+  // Parts that hang on one bone only (hair, beard, brows, eyes) become plain meshes on that bone; the rest of a
+  // part file shares one rebuilt skeleton. Every Skeleton costs a bone texture and a matrix update per frame.
+  const rigid = new Map<THREE.Bone, Map<THREE.Material, THREE.BufferGeometry[]>>()
+  const rigidMats = new Map<string, THREE.Material>()
   const addPart = (id: string) => {
     const part = models.instantiate(id)
     if (!part) return
@@ -185,11 +283,37 @@ function template(spec: CharacterSpec, procedural: () => Humanoid) {
     part.traverse((o) => {
       if ((o as THREE.SkinnedMesh).isSkinnedMesh) meshes.push(o as THREE.SkinnedMesh)
     })
+    const skeletons = new Map<string, THREE.Skeleton>()
     for (const m of meshes) {
-      // Keep the world placement of the part when moving it next to the outfit meshes
       m.updateMatrixWorld(true)
+      if (!spec.brows && /^eyebrows$/i.test(m.name)) continue
+      const single = singleBone(m)
+      const target = single !== null ? bones.get(m.skeleton.bones[single].name) : undefined
+      if (single !== null && target) {
+        // Bake the bind transform: world = boneWorld * boneInverse * bindMatrix * v
+        const g = m.geometry.clone()
+        for (const name of Object.keys(g.attributes)) if (!["position", "normal", "uv"].includes(name)) g.deleteAttribute(name)
+        floatAttributes(g)
+        g.applyMatrix4(m.skeleton.boneInverses[single].clone().multiply(m.bindMatrix))
+        // Hair, beard and brows come from different files with their own copy of the same material: one is enough
+        const srcMat = m.material as THREE.Material
+        const mat = rigidMats.get(srcMat.name) ?? srcMat
+        rigidMats.set(srcMat.name, mat)
+        const byMat = rigid.get(target) ?? new Map<THREE.Material, THREE.BufferGeometry[]>()
+        const list = byMat.get(mat) ?? []
+        list.push(g)
+        byMat.set(mat, list)
+        rigid.set(target, byMat)
+        continue
+      }
       parent.add(m)
-      rebind(m, bones)
+      const sig = skeletonSignature(m.skeleton)
+      let sk = skeletons.get(sig)
+      if (!sk) {
+        sk = new THREE.Skeleton(m.skeleton.bones.map((b) => bones.get(b.name) ?? b), m.skeleton.boneInverses.map((x) => x.clone()))
+        skeletons.set(sig, sk)
+      }
+      m.bind(sk, m.bindMatrix.clone())
       skinned.push(m)
     }
   }
@@ -197,9 +321,17 @@ function template(spec: CharacterSpec, procedural: () => Humanoid) {
   if (spec.hair !== "none") addPart(`hair_${spec.hair}`)
   if (spec.beard && !spec.female) addPart("hair_beard")
   if (spec.brows) addPart(spec.female ? "hair_eyebrows_female" : "hair_eyebrows_regular")
-  // The head file brings eyes and brows as separate meshes; drop brows when not wanted
-  if (!spec.brows) for (const m of [...skinned]) if (/^eyebrows$/i.test(m.name)) m.removeFromParent()
-  mergeByMaterial(skinned.filter((m) => m.parent), parent)
+  for (const [bone, byMat] of rigid) {
+    for (const [mat, geos] of byMat) {
+      const merged = geos.length === 1 ? geos[0] : mergeGeometries(geos, false)
+      if (!merged) continue
+      const mesh = new THREE.Mesh(merged, mat)
+      mesh.name = `rigid_${(mat as THREE.Material).name}`
+      bone.add(mesh)
+      skinned.push(mesh as unknown as THREE.SkinnedMesh)
+    }
+  }
+  mergeByMaterial(skinned.filter((m) => m.parent && (m as THREE.SkinnedMesh).isSkinnedMesh), parent)
 
   // Reference pose: first frame of the idle loop (arms hanging), used to align sockets and overlays
   const anims = models.get("anims_ual")!
@@ -345,6 +477,7 @@ export function buildCharacter(a: Appearance, procedural: () => Humanoid): Human
   const t = template(spec, procedural)
   const root = new THREE.Group()
   const body = skeletonClone(t.group) as THREE.Group
+  shareClonedSkeletons(t.group, body)
   root.add(body)
   // Bulky bodies are mostly bigger, only a little wider (non-uniform scale on a posed skeleton shears the limbs)
   const big = spec.scale * (1 + (spec.bulk - 1) * 0.55)
@@ -358,7 +491,7 @@ export function buildCharacter(a: Appearance, procedural: () => Humanoid): Human
   const meshes: THREE.SkinnedMesh[] = []
   body.traverse((o) => {
     const m = o as THREE.SkinnedMesh
-    if (!m.isSkinnedMesh) return
+    if (!m.isMesh) return
     meshes.push(m)
     m.castShadow = true
     m.receiveShadow = true
@@ -371,6 +504,9 @@ export function buildCharacter(a: Appearance, procedural: () => Humanoid): Human
       const isCloth = /peasant|ranger/i.test(src.name)
       if (isSkin) c.color.multiply(new THREE.Color(spec.skinTint))
       if (isCloth) {
+        // The outfit ORM map marks buckles and studs as metal; at full metalness the cloth turns black without
+        // a bright environment, so the metal parts keep only a part of it
+        c.metalness = Math.min(c.metalness, 0.4)
         c.color.multiply(new THREE.Color(spec.clothTint))
         if (spec.clothVariant === 1) {
           const v = variantTexture(spec.outfit === "peasant" ? "tex_peasant_2" : "tex_ranger_3", c.map)
@@ -392,6 +528,21 @@ export function buildCharacter(a: Appearance, procedural: () => Humanoid): Human
     m.material = c
   })
   const cloth = materials.find((m) => /peasant|ranger/i.test(m.name)) ?? materials[0]
+  const helm = a.helmet !== "none" && a.helmet !== "hood" ? helmet(a.helmet) : null
+  if (helm) {
+    const head = body.getObjectByName("socket_head")
+    head?.add(helm)
+    helm.traverse((o) => {
+      const m = o as THREE.Mesh
+      if (m.isMesh) {
+        meshes.push(m as unknown as THREE.SkinnedMesh)
+        const mat = m.material as THREE.MeshStandardMaterial
+        mat.emissive = flash
+        mat.emissiveIntensity = 0.55
+        materials.push(mat)
+      }
+    })
+  }
   const socket = (name: string) => body.getObjectByName(name) ?? body
   const procBones = {} as Record<BoneName, THREE.Bone>
   for (const [k, v] of Object.entries(t.map)) procBones[k as BoneName] = (bones.get(v) ?? bones.get("pelvis")) as THREE.Bone
@@ -411,4 +562,71 @@ export function buildCharacter(a: Appearance, procedural: () => Humanoid): Human
     metalMaterial: cloth,
     rig,
   }
+}
+
+const corpseCache = new Map<string, THREE.Group>()
+
+/**
+ * A dead body lying on the ground: a character posed with the last frame of the death animation and baked into
+ * static meshes (shared geometry and materials, so the static batcher can merge them). Null while models load.
+ */
+export function bakedCorpse(seed: number, female: boolean, procedural: () => Humanoid): THREE.Group | null {
+  if (!rigReady()) return null
+  const variant = `${female ? "f" : "m"}${seed % 3}`
+  let tpl = corpseCache.get(variant)
+  if (!tpl) {
+    const spec = specFromAppearance({ skin: 0xc8a888, shirt: [0x6b5a3a, 0x4a5a6a, 0x7a3a2a][seed % 3], pants: 0x4a3c2a, boots: 0x2a1e14, hair: 0x3a2a1a, armor: "none", helmet: "none", undead: false, scale: 1, bulk: 1, armored: false, seed, boss: "none", female, robe: false })
+    spec.skinTint = 0xb8b0a8
+    const t = template(spec, procedural)
+    const body = skeletonClone(t.group) as THREE.Group
+    const death = models.get("anims_ual")?.animations.find((c) => c.name === "Death01")
+    if (death) {
+      const mixer = new THREE.AnimationMixer(body)
+      const a = mixer.clipAction(death)
+      a.setLoop(THREE.LoopOnce, 1)
+      a.clampWhenFinished = true
+      a.play()
+      mixer.update(death.duration)
+    }
+    body.updateMatrixWorld(true)
+    const inv = body.matrixWorld.clone().invert()
+    tpl = new THREE.Group()
+    const pos = new THREE.Vector3()
+    body.traverse((o) => {
+      const m = o as THREE.SkinnedMesh
+      if (!m.isSkinnedMesh || !m.visible) return
+      const src = m.geometry
+      const n = src.getAttribute("position").count
+      const out = new Float32Array(n * 3)
+      const rel = inv.clone().multiply(m.matrixWorld)
+      for (let i = 0; i < n; i++) {
+        m.getVertexPosition(i, pos)
+        pos.applyMatrix4(rel)
+        out[i * 3] = pos.x
+        out[i * 3 + 1] = pos.y
+        out[i * 3 + 2] = pos.z
+      }
+      const g = new THREE.BufferGeometry()
+      g.setAttribute("position", new THREE.BufferAttribute(out, 3))
+      const uv = src.getAttribute("uv")
+      if (uv) {
+        const f = new Float32Array(uv.count * 2)
+        for (let i = 0; i < uv.count; i++) {
+          f[i * 2] = uv.getX(i)
+          f[i * 2 + 1] = uv.getY(i)
+        }
+        g.setAttribute("uv", new THREE.BufferAttribute(f, 2))
+      }
+      if (src.index) g.setIndex(src.index.clone())
+      g.computeVertexNormals()
+      const mat = (m.material as THREE.MeshStandardMaterial).clone()
+      if (/regular|superhero/i.test(mat.name)) mat.color.multiply(new THREE.Color(0xb8b0a8))
+      const mesh = new THREE.Mesh(g, mat)
+      mesh.castShadow = true
+      mesh.receiveShadow = true
+      tpl!.add(mesh)
+    })
+    corpseCache.set(variant, tpl)
+  }
+  return tpl.clone(true)
 }

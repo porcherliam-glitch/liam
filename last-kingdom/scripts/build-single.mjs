@@ -5,7 +5,7 @@ import { join } from "node:path"
 import { fileURLToPath } from "node:url"
 
 const ROOT = fileURLToPath(new URL("../", import.meta.url))
-const DIST = join(ROOT, "dist")
+const DIST = process.env.LK_DIST ?? join(ROOT, "dist")
 const OUT = join(ROOT, "TheLastKingdom.html")
 
 let html = await readFile(join(DIST, "index.html"), "utf8")

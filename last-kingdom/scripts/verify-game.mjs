@@ -22,7 +22,8 @@ try {
     console.log(`  Bildschirm ${a}: ${s.screen}`)
     await g.shot(`03-${a}.png`)
     await g.page.keyboard.press("Escape")
-    await g.page.waitForTimeout(150)
+    // Under load the menu can take a few frames to close
+    await g.page.waitForFunction(() => window.__lastKingdom.snapshot().screen === "camp", null, { timeout: 15000 }).catch(() => {})
   }
   s = await g.snapshot()
   g.check(s.screen === "camp", "Zurück im Lager")

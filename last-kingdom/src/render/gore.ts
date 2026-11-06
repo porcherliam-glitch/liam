@@ -50,26 +50,47 @@ const _v = new THREE.Vector3()
 const _w = new THREE.Vector3()
 const _q = new THREE.Quaternion()
 
-/** An irregular blood splatter as an SVG data URL: a blob with spikes, droplets and a darker core. */
+/** An irregular blood splatter as an SVG data URL: a smooth liquid blob with a few tendrils, droplets and runs. */
 function splatSvg(seed: number): string {
   let r = seed * 9301 + 49297
   const rnd = () => ((r = (r * 9301 + 49297) % 233280) / 233280)
-  const pts: string[] = []
-  const n = 22
+  const n = 40
+  const ph = [rnd() * 6, rnd() * 6, rnd() * 6]
+  const tendrils = [rnd() * n, rnd() * n, rnd() * n].map(Math.floor)
+  const pts: [number, number][] = []
   for (let i = 0; i < n; i++) {
     const a = (i / n) * Math.PI * 2
-    const spike = rnd() < 0.35 ? 1.25 + rnd() * 0.6 : 0.7 + rnd() * 0.3
-    const rad = 28 * spike
-    pts.push(`${(50 + Math.cos(a) * rad).toFixed(1)},${(50 + Math.sin(a) * rad).toFixed(1)}`)
+    // Smooth wobble plus a few thin tendrils
+    let rad = 24 + Math.sin(a * 3 + ph[0]) * 3.5 + Math.sin(a * 5 + ph[1]) * 2.2 + Math.sin(a * 9 + ph[2]) * 1.2
+    for (const t of tendrils) if (Math.abs(i - t) < 1) rad += 12 + rnd() * 8
+    pts.push([50 + Math.cos(a) * rad, 50 + Math.sin(a) * rad])
+  }
+  // Closed path through the midpoints with quadratic curves: no hard corners
+  const mid = (p: [number, number], q: [number, number]) => [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2]
+  let d = `M${mid(pts[n - 1], pts[0]).map((v) => v.toFixed(1)).join(",")}`
+  for (let i = 0; i < n; i++) {
+    const m = mid(pts[i], pts[(i + 1) % n])
+    d += ` Q${pts[i][0].toFixed(1)},${pts[i][1].toFixed(1)} ${m[0].toFixed(1)},${m[1].toFixed(1)}`
   }
   let drops = ""
-  for (let i = 0; i < 9; i++) {
+  for (let i = 0; i < 11; i++) {
     const a = rnd() * Math.PI * 2
-    const d = 34 + rnd() * 14
-    drops += `<circle cx="${(50 + Math.cos(a) * d).toFixed(1)}" cy="${(50 + Math.sin(a) * d).toFixed(1)}" r="${(1 + rnd() * 3.2).toFixed(1)}"/>`
+    const dist = 32 + rnd() * 16
+    drops += `<ellipse cx="${(50 + Math.cos(a) * dist).toFixed(1)}" cy="${(50 + Math.sin(a) * dist).toFixed(1)}" rx="${(0.8 + rnd() * 2.6).toFixed(1)}" ry="${(0.8 + rnd() * 2.2).toFixed(1)}"/>`
   }
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><radialGradient id="g"><stop offset="0" stop-color="#3a0003"/><stop offset="0.6" stop-color="#6a0008"/><stop offset="1" stop-color="#8a0a0e"/></radialGradient></defs><g fill="url(#g)"><polygon points="${pts.join(" ")}"/>${drops}</g></svg>`
+  // Runs: blood running down from the lower edge
+  for (let i = 0; i < 3; i++) {
+    const x = 36 + rnd() * 28
+    const len = 10 + rnd() * 20
+    drops += `<rect x="${x.toFixed(1)}" y="62" width="${(1.4 + rnd() * 1.6).toFixed(1)}" height="${len.toFixed(1)}" rx="1"/><circle cx="${(x + 1).toFixed(1)}" cy="${(62 + len).toFixed(1)}" r="${(1.6 + rnd()).toFixed(1)}"/>`
+  }
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><radialGradient id="g" cx="0.45" cy="0.42"><stop offset="0" stop-color="#2a0002"/><stop offset="0.55" stop-color="#560006"/><stop offset="1" stop-color="#7a060c"/></radialGradient></defs><g fill="url(#g)" fill-opacity="0.92"><path d="${d} Z"/>${drops}</g><ellipse cx="42" cy="38" rx="7" ry="3.5" fill="#ffffff" fill-opacity="0.08"/></svg>`
   return `data:image/svg+xml;base64,${btoa(svg)}`
+}
+
+function ancestorBone(o: THREE.Object3D): THREE.Bone | null {
+  for (let p = o.parent; p; p = p.parent) if ((p as THREE.Bone).isBone) return p as THREE.Bone
+  return null
 }
 
 export class Gore {
@@ -338,11 +359,14 @@ export class Gore {
       const skinIndex = geo.getAttribute("skinIndex")
       const skinWeight = geo.getAttribute("skinWeight")
       const index = geo.getIndex()
-      if (!skinIndex || !skinWeight || !index) continue
-      const bones = mesh.skeleton.bones
+      if (!index) continue
+      const rigidBone = !mesh.isSkinnedMesh ? ancestorBone(mesh) : null
+      if (!mesh.isSkinnedMesh && !(rigidBone && names.has(rigidBone.name))) continue
+      const bones = mesh.isSkinnedMesh ? mesh.skeleton.bones : []
       const inPart = new Uint8Array(geo.getAttribute("position").count)
-      let any = false
-      for (let v = 0; v < inPart.length; v++) {
+      let any = !mesh.isSkinnedMesh
+      if (!mesh.isSkinnedMesh) inPart.fill(1)
+      for (let v = 0; mesh.isSkinnedMesh && skinIndex && skinWeight && v < inPart.length; v++) {
         let best = 0
         let bw = -1
         for (let k = 0; k < 4; k++) {

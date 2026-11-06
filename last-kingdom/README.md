@@ -2,7 +2,7 @@
 
 Ein düsteres Mittelalter-Zombie-Extraction-Spiel in 3D, das komplett im Browser läuft. Ein Königreich ist an einer Seuche zugrunde gegangen; du bist ein Überlebender, der aus dem sicheren Lager heraus Expeditionen in acht verseuchte Gebiete unternimmt: Beute finden, Missionen erfüllen, lebend extrahieren, das Lager ausbauen, stärker werden.
 
-Alles im Spiel wird prozedural erzeugt: 3D-Modelle, Texturen, Animationen und Geräusche entstehen beim Start im Browser. Es werden keine Dateien aus dem Internet geladen, nichts installiert und keine fremden Assets verwendet.
+Figuren, Waffen, Häuser, Bäume und Requisiten sind echte 3D-Modelle aus kostenlosen CC0-Paketen (Quaternius, gemeinfrei, siehe `public/models/LICENSES.md`); Texturen von Gelände und Himmel, Geräusche und Musik entstehen im Browser. Zur Laufzeit wird nichts aus dem Internet geladen: Die Einzeldatei enthält alle Modelle.
 
 ## Spielen
 
@@ -69,10 +69,11 @@ Alle Menüs sind vollständig mit dem Controller bedienbar (Steuerkreuz/Stick zu
 - **Inventar:** Rucksack mit Plätzen und Gewichtslimit, Ausrüstung (Waffe, Schild, Helm, Rüstung, 1–4 Schnellzugriffe), Lagerkiste im Camp, Vergleich mit der ausgerüsteten Ausrüstung, Händler mit Ruf und Rabatt.
 - **Fortschritt:** Stufen bis 40, Fähigkeitenbaum mit drei Zweigen (Krieger, Waldläufer, Überlebender) à 6 Knoten, je eine aktive Fähigkeit pro Zweig (Kriegsschrei, Adrenalin, Notverband), Händler-Ruf, Waffenbeherrschung.
 
-- **Grafik:** prozedurale Figuren mit zwei Materialgruppen (Stoff/Haut und Metall), Gesichter, Untoten-Verschleiß, acht Boss-Silhouetten; Tag/Nacht mit Wolken und Sternen, Nebel, Regen, Sturm mit Blitzen, Wind in Bäumen und Gras, Bodenbewuchs, Wasser mit Wellen, Blutspuren, Bloom, Vignette und Kantenglättung (abschaltbar über die Grafikqualität).
+- **Gore (Einstellung „Blut“):** Köpfe, Arme und Beine werden abgetrennt und fliegen mit Physik davon, Stümpfe spritzen pulsierend Blut, harte Treffer lassen Gegner zerplatzen (Fleischbrocken, Gedärme, Knochensplitter). Jeder Treffer spritzt in Schlagrichtung, Blut färbt Kleidung und Klinge, Pfützen wachsen unter Leichen, verwundete Gegner hinterlassen Blutspuren, nahe Kills spritzen auf den Bildschirm. Manche Untote laufen schon mit fehlendem Arm herum, und in den Gebieten liegen tote Dorfbewohner in ihrem Blut.
+- **Grafik:** 3D-Figuren mit Outfits (Bauer, Waldläufer), Köpfen, Frisuren und 34 Bewegungsabläufen, Häuser aus einem Fachwerk-Baukasten (Wände, Fenster, Türen, Ziegeldächer, Schornsteine), Bäume, Büsche und Felsen, Truhen, Kisten, Fässer, Waffen und Schilde als Modelle; Tag/Nacht mit Wolken und Sternen, Nebel, Regen, Sturm mit Blitzen, Wind in Bäumen und Gras, Bodenbewuchs, Wasser mit Wellen, Blutspuren, Bloom, Vignette und Kantenglättung (abschaltbar über die Grafikqualität).
 
 Die Architektur ist in [ARCHITEKTUR.md](ARCHITEKTUR.md) beschrieben.
 
 ## Lizenz der Inhalte
 
-Alle Modelle, Texturen, Animationen und Klänge werden im Code erzeugt; es gibt keine Fremd-Assets. Einzige Abhängigkeit zur Laufzeit ist [Three.js](https://threejs.org) (MIT-Lizenz).
+Die 3D-Modelle und Bewegungsabläufe stammen aus kostenlosen Paketen von [Quaternius](https://quaternius.com) unter **CC0 1.0** (gemeinfrei; Liste mit Quellen in `public/models/LICENSES.md`, Aufbereitung in `tools/assets/`). Gelände- und Himmelstexturen, Partikel, Klänge und Musik werden im Code erzeugt. Einzige Abhängigkeit zur Laufzeit ist [Three.js](https://threejs.org) (MIT-Lizenz). Fehlt ein Modell, fällt das Spiel auf die prozeduralen Figuren und Gebäude zurück.
