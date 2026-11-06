@@ -117,6 +117,16 @@ function noiseCanvas(seed: number, size: number, base: [number, number, number],
   return c
 }
 
+/** Low-frequency noise for a large canvas: computed at half resolution and scaled up (saves ~75 % of the work). */
+function noiseBase(seed: number, size: number, base: [number, number, number], variation: number, cells: number, octaves: number): HTMLCanvasElement {
+  if (size <= 256) return noiseCanvas(seed, size, base, variation, cells, cells, octaves)
+  const small = noiseCanvas(seed, size / 2, base, variation, cells, cells, octaves)
+  const [c, ctx] = canvas(size)
+  ctx.imageSmoothingQuality = "high"
+  ctx.drawImage(small, 0, 0, size, size)
+  return c
+}
+
 function speckle(ctx: CanvasRenderingContext2D, size: number, rng: Rng, count: number, color: () => string, radius: [number, number]) {
   for (let i = 0; i < count; i++) {
     ctx.fillStyle = color()
@@ -487,7 +497,7 @@ function masonry(o: MasonryOpts): [HTMLCanvasElement, HTMLCanvasElement] {
   const size = 512
   const rowH = 64
   const gap = 3
-  const c = noiseCanvas(o.seed + 7, size, o.mortar, 0.12, 16, 16, 3)
+  const c = noiseBase(o.seed + 7, size, o.mortar, 0.12, 16, 3)
   const ctx = c.getContext("2d")!
   const [hc, hctx] = canvas(size)
   hctx.fillStyle = "#000"
@@ -603,7 +613,7 @@ function cobble(): HTMLCanvasElement {
   const size = 512
   const rows = 8
   const rowH = size / rows
-  const c = noiseCanvas(43, size, [70, 64, 54], 0.25, 12, 12, 4)
+  const c = noiseBase(43, size, [70, 64, 54], 0.25, 12, 4)
   const ctx = c.getContext("2d")!
   const [hc, hctx] = canvas(size)
   hctx.fillStyle = "#000"
@@ -793,7 +803,7 @@ function roofTiles(): HTMLCanvasElement {
   const rows = 12
   const tw = size / cols
   const th = size / rows
-  const c = noiseCanvas(104, size, [58, 40, 32], 0.2, 8, 8, 3)
+  const c = noiseBase(104, size, [58, 40, 32], 0.2, 8, 3)
   const ctx = c.getContext("2d")!
   const rng = new Rng(101)
   interface Tile { hue: number; sat: number; l: number; missing: boolean; dx: number; dy: number; rot: number; moss: [number, number, number][] }
@@ -1132,10 +1142,12 @@ function overlayNoise(ctx: CanvasRenderingContext2D, size: number, seed: number,
 
 /** Like overlayNoise but with the fast tileable lattice noise (used by the 512 px textures). */
 function overlayFast(ctx: CanvasRenderingContext2D, size: number, seed: number, strength: number, cellsX: number, cellsY: number, octaves: number) {
-  const n = noiseCanvas(seed, size, [128, 128, 128], 0.9, cellsX, cellsY, octaves)
+  // Large textures: half-resolution noise scaled up (the overlay is low-frequency anyway)
+  const res = size > 256 ? size / 2 : size
+  const n = noiseCanvas(seed, res, [128, 128, 128], 0.9, cellsX, cellsY, octaves - (res < size ? 1 : 0))
   ctx.globalCompositeOperation = "overlay"
   ctx.globalAlpha = strength
-  ctx.drawImage(n, 0, 0)
+  ctx.drawImage(n, 0, 0, size, size)
   ctx.globalAlpha = 1
   ctx.globalCompositeOperation = "source-over"
 }
