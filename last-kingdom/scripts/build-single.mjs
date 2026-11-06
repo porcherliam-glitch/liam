@@ -28,9 +28,10 @@ let embedded = 0
 let embeddedBytes = 0
 if (existsSync(modelsDir)) {
   const map = {}
-  for (const file of (await readdir(modelsDir)).filter((f) => f.endsWith(".glb")).sort()) {
+  for (const file of (await readdir(modelsDir)).filter((f) => f.endsWith(".glb") || f.endsWith(".webp")).sort()) {
     const buf = await readFile(join(modelsDir, file))
-    map[file.replace(/\.glb$/, "")] = `data:model/gltf-binary;base64,${buf.toString("base64")}`
+    const mime = file.endsWith(".webp") ? "image/webp" : "model/gltf-binary"
+    map[file.replace(/\.(glb|webp)$/, "")] = `data:${mime};base64,${buf.toString("base64")}`
     embedded++
     embeddedBytes += buf.length
   }

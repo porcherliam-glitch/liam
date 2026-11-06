@@ -98,6 +98,10 @@ export class Player {
   private humanoid!: Humanoid
   animator!: Animator
   private weaponMesh: THREE.Object3D | null = null
+  /** The weapon in hand (for blood on the blade). */
+  get weaponObject(): THREE.Object3D | null {
+    return this.weaponMesh
+  }
   private shieldMesh: THREE.Object3D | null = null
   private torchLight: THREE.PointLight | null = null
   private torchFlame: THREE.Object3D | null = null
@@ -1144,6 +1148,12 @@ export class Player {
     if (this.state === "dead" || amount <= 0) return
     this.hp -= amount
     this.sinceHurt = 0
+    if (react && this.ctx) {
+      // The player bleeds too, and hard hits splash the screen
+      const back = new THREE.Vector3(-Math.sin(this.yaw), 0.2, -Math.cos(this.yaw))
+      this.ctx.gore.spray(this.pos.x, this.pos.y + 1.2, this.pos.z, back, heavy ? 22 : 12, heavy ? 1.2 : 0.8)
+      if (amount >= 10) this.ctx.gore.splatScreen(Math.min(0.75, amount / 45))
+    }
     events.emit("playerDamaged", { amount, hp: this.hp, source })
     if (react) {
       this.humanoid.clothMaterial.emissive.setHex(0xff2020)

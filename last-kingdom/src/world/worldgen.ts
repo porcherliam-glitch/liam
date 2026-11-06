@@ -9,6 +9,7 @@ import { Terrain, type TerrainFeature } from "./terrain"
 import { NavGrid } from "./nav"
 import { StaticBatcher, disposeMeshes } from "../render/batcher"
 import * as P from "../render/props"
+import { kitProp } from "../render/kitProps"
 import { M, mat } from "../render/materials"
 import { buildGrass } from "../render/grass"
 
@@ -150,6 +151,21 @@ function scatter(ctx: Ctx, count: number, radius: number, make: (rng: Rng, i: nu
 }
 
 function containerVisual(kind: ContainerKind): { prop: P.Prop; lid?: THREE.Object3D } {
+  // Kit models where available; colliders stay those of the procedural props so navigation is unchanged
+  const kit: Partial<Record<ContainerKind, [string, number]>> = { chest: ["Chest_Wood", 0.85], crate: ["Crate_Wooden", 1.05], barrel: ["Barrel", 1.05], sack: ["Bag", 1.05], cupboard: ["Bookcase_2", 0.7] }
+  const k = kit[kind]
+  const model = k ? kitProp(k[0], k[1]) : null
+  if (model && k) {
+    const proc = kind === "chest" ? P.chest() : kind === "crate" ? P.crate(0.9) : kind === "barrel" ? P.barrel() : null
+    const colliders = proc?.colliders ?? (kind === "sack" ? [{ kind: "circle" as const, x: 0, z: 0, r: 0.4, y0: 0, y1: 0.6 }] : [{ kind: "box" as const, x: 0, z: 0, hw: 0.5, hd: 0.25, yaw: 0, y0: 0, y1: 1.8 }])
+    let lid: THREE.Object3D | undefined
+    if (kind === "chest") {
+      // The chest is skinned: the lid hinge is a bone, so the whole chest stays out of the static batch
+      lid = model.getObjectByName("Chest_Top") ?? undefined
+      model.children[0].userData.dynamic = true
+    }
+    return { prop: { group: model, colliders }, lid }
+  }
   switch (kind) {
     case "chest": {
       const c = P.chest()

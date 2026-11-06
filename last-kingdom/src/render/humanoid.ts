@@ -6,6 +6,7 @@ import * as THREE from "three"
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js"
 import { Rng } from "../core/rng"
 import { mat } from "./materials"
+import { buildCharacter, type CharacterRig } from "./rig"
 
 export type BoneName =
   | "hips"
@@ -91,6 +92,8 @@ export interface Humanoid {
   /** Material of the cloth/skin group: used for hit flashes. */
   clothMaterial: THREE.MeshStandardMaterial
   metalMaterial: THREE.MeshStandardMaterial
+  /** Set for glTF characters: the Animator drives this skeleton with an AnimationMixer. */
+  rig?: CharacterRig
 }
 
 // Bind pose joint positions relative to the parent bone (metres, for a 1.8 m figure).
@@ -150,8 +153,13 @@ const LEATHER = 0x5a3e28
 const CHAIN = 0x8a8e96
 const GOLD = 0xd8a640
 
-export function buildHumanoid(app: Partial<Appearance> = {}): Humanoid {
+export function buildHumanoid(app: Partial<Appearance> = {}, opts: { procedural?: boolean } = {}): Humanoid {
   const a: Appearance = { ...DEFAULT_APPEARANCE, ...app }
+  if (!opts.procedural) {
+    // Prefer the glTF characters; the procedural body stays as fallback (models missing or failed to load)
+    const c = buildCharacter(a, () => buildHumanoid({ ...a, scale: 1, bulk: 1 }, { procedural: true }))
+    if (c) return c
+  }
   const rng = new Rng(a.seed)
   const bulk = a.bulk
   const shoulder = a.female ? 0.9 : 1
@@ -432,6 +440,12 @@ function computeBindPositions(): Record<BoneName, [number, number, number]> {
 }
 
 export function disposeHumanoid(h: Humanoid): void {
+  if (h.rig) {
+    // Geometry is shared with the template; only the per-instance materials belong to this character
+    for (const m of h.rig.materials) m.dispose()
+    h.root.removeFromParent()
+    return
+  }
   h.mesh.geometry.dispose()
   h.clothMaterial.dispose()
   h.metalMaterial.dispose()

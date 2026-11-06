@@ -3,6 +3,7 @@
 import type * as THREE from "three"
 import type { WorldBuild } from "../world/worldgen"
 import type { Particles } from "../render/particles"
+import type { Gore } from "../render/gore"
 import type { AudioEngine } from "../audio/audio"
 import type { Input } from "../input/input"
 import type { ThirdPersonCamera } from "../render/camera"
@@ -18,6 +19,8 @@ export interface EntityContext {
   scene: THREE.Scene
   world: WorldBuild
   particles: Particles
+  /** Dismemberment, gibs, blood sprays and pools. */
+  gore: Gore
   audio: AudioEngine
   input: Input
   camera: ThirdPersonCamera

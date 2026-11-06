@@ -38,6 +38,13 @@ class ModelLibrary {
     return inline ?? `./models/${id}.glb`
   }
 
+  /** URL of a standalone texture (public/models/<id>.webp or inlined data), or null when unknown. */
+  textureUrl(id: string): string | null {
+    const inline = typeof window !== "undefined" ? window.__LK_MODELS?.[id] : undefined
+    if (inline) return inline
+    return `./models/${id}.webp`
+  }
+
   has(id: string): boolean {
     return this.loaded.has(id)
   }

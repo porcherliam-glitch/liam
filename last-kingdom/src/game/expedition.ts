@@ -10,6 +10,7 @@ import { buildWorld, type ContainerSite, type ExtractionSite, type WorldBuild } 
 import { areaDef } from "../world/areas"
 import { Particles } from "../render/particles"
 import { Decals } from "../render/decals"
+import { Gore } from "../render/gore"
 import { Crows } from "../render/crows"
 import { Sky } from "../render/sky"
 import { Weather, WEATHER_NAMES } from "../render/weather"
@@ -92,6 +93,7 @@ export class Expedition implements ExpeditionApi {
   readonly projectiles = new Projectiles()
   readonly particles: Particles
   readonly decals: Decals
+  readonly gore: Gore
   private crows: Crows | null = null
   readonly sky: Sky
   readonly weather: Weather
@@ -172,6 +174,8 @@ export class Expedition implements ExpeditionApi {
     this.decals = new Decals(this.scene, (x, z) => this.world.terrain.heightAt(x, z))
     if (!this.world.underground) this.crows = new Crows(this.scene, area.size, area.seed)
     this.decals.enabled = settings.gore
+    this.gore = new Gore(this.scene, (x, z) => this.world.terrain.heightAt(x, z), this.particles, this.decals)
+    this.gore.enabled = settings.gore
     this.player = new Player(profile, profile.loadout)
     this.skillsLuck = skillBonuses(profile.skills).lootLuck + (profile.classId === "rogue" ? 0.15 : 0) + (night ? 0.35 : 0)
     // Expedition modifiers: a third of all runs come with a twist
@@ -213,6 +217,7 @@ export class Expedition implements ExpeditionApi {
       scene: this.scene,
       world: this.world,
       particles: this.particles,
+      gore: this.gore,
       audio,
       input,
       camera: this.camera,
@@ -382,7 +387,6 @@ export class Expedition implements ExpeditionApi {
           this.audio.play("mission_done")
           if (!this.profile.clearedBosses.includes(this.areaId)) this.profile.clearedBosses.push(this.areaId)
         }
-        if (this.settings.gore) this.decals.spawn(e.x, e.z, 1.6)
         const lifeOnKill = skillBonuses(this.profile.skills).lifeOnKill
         if (lifeOnKill) this.player.heal(lifeOnKill, true)
         for (const m of this.missions) {
@@ -392,7 +396,7 @@ export class Expedition implements ExpeditionApi {
         }
       }),
       events.on("enemyHit", (e) => {
-        if (e.damage > 0 && this.settings.gore) this.decals.spawn(e.x, e.z, 0.6)
+        if (e.damage > 0 && this.settings.gore) this.decals.spawn(e.x, e.z, 0.4 + Math.min(0.6, e.damage / 80))
       }),
       events.on("playerDied", (e) => {
         this.audio.setMusic("none")
@@ -808,6 +812,7 @@ export class Expedition implements ExpeditionApi {
     this.projectiles.update(dt)
     this.particles.update(dt)
     this.decals.update(dt)
+    this.gore.update(dt)
     if (this.crows) {
       this.crows.update(dt)
       this.crows.visible = this.sky.state.daylight > 0.2 && this.weather.fog < 0.6
@@ -1151,6 +1156,7 @@ export class Expedition implements ExpeditionApi {
     this.sky.setShadows(this.settings.shadows)
     this.decals.enabled = this.settings.gore
     this.particles.gore = this.settings.gore
+    this.gore.enabled = this.settings.gore
   }
 
   // ---- ending ----------------------------------------------------------------------------------------
@@ -1197,6 +1203,7 @@ export class Expedition implements ExpeditionApi {
     this.projectiles.dispose()
     this.particles.dispose()
     this.decals.dispose()
+    this.gore.dispose()
     this.crows?.dispose()
     this.weather.dispose()
     if (this.survivor) disposeHumanoid(this.survivor.humanoid)

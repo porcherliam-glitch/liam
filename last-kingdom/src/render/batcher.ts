@@ -59,7 +59,7 @@ export class StaticBatcher {
       for (const e of list) {
         const g = e.geometry.clone()
         // Merge needs identical attribute sets: drop the ones that differ.
-        normalizeAttributes(g)
+        normalizeAttributes(g, !!(list[0].material as THREE.Material & { vertexColors?: boolean }).vertexColors)
         g.applyMatrix4(e.matrix)
         geos.push(g)
       }
@@ -88,9 +88,22 @@ function hasDynamicParent(o: THREE.Object3D, root: THREE.Object3D): boolean {
   return false
 }
 
-function normalizeAttributes(g: THREE.BufferGeometry): void {
-  const keep = ["position", "normal", "uv"]
+function normalizeAttributes(g: THREE.BufferGeometry, keepColor = false): void {
+  const keep = keepColor ? ["position", "normal", "uv", "color"] : ["position", "normal", "uv"]
   for (const name of Object.keys(g.attributes)) if (!keep.includes(name)) g.deleteAttribute(name)
+  // glTF models may carry integer/normalised or 4-component attributes: bring everything to plain floats
+  for (const name of Object.keys(g.attributes)) {
+    const a = g.getAttribute(name) as THREE.BufferAttribute
+    const size = name === "color" ? 3 : a.itemSize
+    if (a.array instanceof Float32Array && a.itemSize === size && !a.normalized) continue
+    const f = new Float32Array(a.count * size)
+    for (let i = 0; i < a.count; i++) for (let k = 0; k < size; k++) f[i * size + k] = a.getComponent(i, k)
+    g.setAttribute(name, new THREE.BufferAttribute(f, size))
+  }
+  if (keepColor && !g.attributes.color) {
+    const n = g.attributes.position.count
+    g.setAttribute("color", new THREE.BufferAttribute(new Float32Array(n * 3).fill(1), 3))
+  }
   if (!g.attributes.normal) g.computeVertexNormals()
   if (!g.attributes.uv) {
     const n = g.attributes.position.count

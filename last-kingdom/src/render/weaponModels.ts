@@ -2,6 +2,54 @@
 
 import * as THREE from "three"
 import { M, mat } from "./materials"
+import { models } from "./assets"
+
+/** CC0 weapon models (Quaternius, Medieval Weapons). Game model id → [file, scale]. Crossbows stay procedural. */
+const WEAPON_FILES: Record<string, [string, number]> = {
+  longsword_1: ["wpn_sword", 1], longsword_2: ["wpn_sword_2", 1.02], longsword_3: ["wpn_sword_big", 0.95], longsword_4: ["wpn_sword_golden", 1.05],
+  shortsword_1: ["wpn_sword", 0.75], shortsword_2: ["wpn_sword_2", 0.75], shortsword_3: ["wpn_dagger_2", 1.45],
+  greatsword_1: ["wpn_sword_big", 1.15], greatsword_2: ["wpn_claymore", 1.05], greatsword_3: ["wpn_claymore", 1.18],
+  battleaxe_1: ["wpn_axe_small", 1.3], battleaxe_2: ["wpn_axe", 1.05], battleaxe_3: ["wpn_axe_double", 0.95],
+  mace_1: ["wpn_hammer_small", 0.95], mace_2: ["wpn_hammer_small", 1.08], mace_3: ["wpn_hammer_double", 0.9],
+  spear_1: ["wpn_spear", 1], spear_2: ["wpn_spear", 1.08], spear_3: ["wpn_spear", 1.15],
+  dagger_1: ["wpn_dagger", 1], dagger_2: ["wpn_dagger_2", 1], dagger_3: ["wpn_dagger_2", 1.1],
+  bow_1: ["wpn_bow_wooden", 1.05], bow_2: ["wpn_bow_wooden2", 1.2], bow_3: ["wpn_bow_golden", 1.2],
+}
+const SHIELD_FILES: Record<string, [string, number]> = {
+  round: ["wpn_shield_round", 1], shield_round: ["wpn_shield_round", 1], shield_wood: ["wpn_shield_round", 1],
+  kite: ["wpn_shield_heater", 1.05], shield_kite: ["wpn_shield_heater", 1.05],
+  heater: ["wpn_shield_heater_2", 1.05], shield_heater: ["wpn_shield_heater_2", 1.05],
+  tower: ["wpn_shield_celtic_golden", 1.35], shield_tower: ["wpn_shield_celtic_golden", 1.35],
+}
+export const WEAPON_MODELS = [...new Set([...Object.values(WEAPON_FILES), ...Object.values(SHIELD_FILES)].map((v) => v[0]))]
+
+/** A model from the weapon pack, turned to the game's convention (grip at origin, blade along -Y). */
+function packModel(entry: [string, number] | undefined, flip: boolean): THREE.Group | null {
+  if (!entry) return null
+  const inst = models.instantiate(entry[0], { cloneMaterials: true })
+  if (!inst) return null
+  inst.traverse((o) => {
+    const m = o as THREE.Mesh
+    if (!m.isMesh) return
+    m.castShadow = true
+    const mat = m.material as THREE.MeshStandardMaterial
+    // The pack uses dark flat colours; lift them and make the steel read as metal
+    if (/steel|gold/i.test(mat.name)) {
+      mat.color.multiplyScalar(/dark/i.test(mat.name) ? 1.6 : 1.9)
+      mat.metalness = 0.75
+      mat.roughness = 0.32
+    } else {
+      mat.color.multiplyScalar(1.5)
+      mat.roughness = 0.8
+      mat.metalness = 0
+    }
+  })
+  const g = new THREE.Group()
+  inst.scale.setScalar(entry[1])
+  if (flip) inst.rotation.z = Math.PI
+  g.add(inst)
+  return g
+}
 
 function box(w: number, h: number, d: number, material: THREE.Material, x = 0, y = 0, z = 0): THREE.Mesh {
   const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material)
@@ -39,6 +87,8 @@ function blade(length: number, width: number, thick: number, material: THREE.Mat
 }
 
 export function buildWeapon(model: string): THREE.Group {
+  const pack = packModel(WEAPON_FILES[model], !model.startsWith("bow"))
+  if (pack) return pack
   const g = new THREE.Group()
   const [cls, tierStr] = model.split("_")
   const tier = parseInt(tierStr ?? "1", 10) || 1
@@ -175,6 +225,8 @@ export function buildWeapon(model: string): THREE.Group {
 }
 
 export function buildShield(kind: string): THREE.Group {
+  const pack = packModel(SHIELD_FILES[kind], false)
+  if (pack) return pack
   const g = new THREE.Group()
   const planks = mat("planks", { color: 0xc8b090 })
   const rim = M.metalDark()

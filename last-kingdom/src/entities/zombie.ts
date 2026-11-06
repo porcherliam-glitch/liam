@@ -2,6 +2,7 @@
 // stagger and death. Bosses add abilities (summon, charge, leap, slam, plague) and phases.
 
 import * as THREE from "three"
+import { cosmetic } from "../core/rng"
 import type { EntityContext } from "./context"
 import type { ZombieTypeDef } from "../core/types"
 import { buildHumanoid, disposeHumanoid, type Appearance, type Humanoid } from "../render/humanoid"
@@ -45,6 +46,14 @@ export class Zombie {
   private groanTimer = 0
   private walkPhase = 0
   private deathTimer = 0
+  /** Last hit, used to pick how the body comes apart. */
+  private lastHit = { dx: 0, dz: 1, crit: false, heavy: false, overkill: 0 }
+  private pooled = false
+  private dripTimer = 0
+  private lostArm = false
+  private animAcc = 0
+  private animFrame = 0
+  private castsShadow = true
   private alert = 0
   private abilityCooldowns: Record<string, number> = {}
   private ability: string | null = null
@@ -163,6 +172,12 @@ export class Zombie {
     ctx.scene.add(this.group)
     this.group.position.copy(this.pos)
     this.perceptionTimer = this.rng.range(0, 0.3)
+    // Old wounds: blood-soaked clothes, now and then a missing arm
+    ctx.gore.stain(this.humanoid, this.rng.range(0.08, 0.28))
+    if (!this.isBoss && this.type.kind !== "knight" && this.rng.chance(0.12)) {
+      this.lostArm = true
+      ctx.gore.amputate(this.humanoid, this.rng.chance(0.5) ? "armL" : "armR")
+    }
     this.circleDir = this.rng.chance(0.5) ? 1 : -1
     this.groanTimer = this.rng.range(3, 12)
     this.lastPos = { x: this.pos.x, z: this.pos.z }
@@ -246,9 +261,14 @@ export class Zombie {
     if (this.dead) {
       this.deathTimer += dt
       this.animator.update(dt)
-      if (this.deathTimer > 14) {
+      if (!this.pooled && this.deathTimer > 1.1) {
+        // A pool of blood spreads under the corpse once it lies on the ground
+        this.pooled = true
+        ctx.gore.pool(this.pos.x + this.lastHit.dx * 0.6, this.pos.z + this.lastHit.dz * 0.6, (this.isBoss ? 3.2 : this.type.kind === "brute" ? 2.6 : 1.9) * this.type.scale)
+      }
+      if (this.deathTimer > 40) {
         // sink into the ground
-        this.group.position.y = this.pos.y - (this.deathTimer - 14) * 0.25
+        this.group.position.y = this.pos.y - (this.deathTimer - 40) * 0.25
       }
       return
     }
@@ -460,6 +480,14 @@ export class Zombie {
         const faceDot = Math.cos(angleDelta(this.yaw, wantYaw))
         const sp = moveSpeed * Math.max(0.3, faceDot)
         moved = this.tryMove(Math.sin(this.yaw) * sp * dt, Math.cos(this.yaw) * sp * dt)
+        // Wounded enemies leave a trail of blood
+        if (this.hp < this.maxHp * 0.6 && moved > 0.001) {
+          this.dripTimer -= dt
+          if (this.dripTimer <= 0) {
+            this.dripTimer = this.hp < this.maxHp * 0.3 ? 0.25 : 0.55
+            ctx.gore.drip(this.pos.x, this.pos.z)
+          }
+        }
         const before = this.walkPhase
         this.walkPhase += (moved / (this.type.kind === "sprinter" ? 1.0 : 0.7)) * Math.PI
         // A footstep each half cycle when close to the player (heavy for brutes)
@@ -498,7 +526,19 @@ export class Zombie {
     }
     a.ctx.phase = this.walkPhase
     a.ctx.speed = clamp(moveSpeed / 4, 0.5, 1.3)
-    a.update(dt)
+    // Animation and shadow level of detail: far enemies animate at a lower rate and cast no shadows
+    this.animAcc += dt
+    this.animFrame++
+    const every = dist > 60 ? 3 : dist > 32 ? 2 : 1
+    if (this.animFrame % every === 0 || st === "attack" || st === "ability") {
+      a.update(this.animAcc)
+      this.animAcc = 0
+    }
+    const shadows = dist < 30
+    if (shadows !== this.castsShadow && this.humanoid.rig) {
+      this.castsShadow = shadows
+      for (const m of this.humanoid.rig.meshes) m.castShadow = shadows
+    }
     // Telegraph: visible during the wind-up of attacks and heavy abilities
     const winding = (st === "attack" && !this.attackHitDone) || (st === "ability" && (this.ability === "slam" || this.ability === "leap" || this.ability === "charge") && !this.attackHitDone)
     this.telegraph.visible = winding
@@ -758,13 +798,24 @@ export class Zombie {
     const hx = this.pos.x
     const hy = this.pos.y + 1.1 * this.type.scale
     const hz = this.pos.z
+    const hpBefore = this.hp + damage
+    const fd = Math.hypot(this.pos.x - fromX, this.pos.z - fromZ) || 1
+    const dir = new THREE.Vector3((this.pos.x - fromX) / fd, 0.15, (this.pos.z - fromZ) / fd)
+    this.lastHit = { dx: dir.x, dz: dir.z, crit, heavy, overkill: damage - hpBefore }
     if (!blocked) {
       // Hit flash on the body material
       this.humanoid.clothMaterial.emissive.setHex(crit ? 0xffd080 : 0xff6040)
       this.humanoid.clothMaterial.emissiveIntensity = 0.55
       this.flashTimer = 0.09
       ctx.hitStop(heavy ? 0.07 : 0.035)
-      ctx.particles.blood(hx, hy, hz, crit ? 22 : 12)
+      // Blood sprays out of the wound, away from the attacker, and stains the body
+      ctx.gore.spray(hx, hy, hz, dir, crit ? 34 : heavy ? 24 : 14, crit ? 1.5 : heavy ? 1.25 : 0.9)
+      ctx.gore.stain(this.humanoid, crit ? 0.08 : 0.04)
+      // Crushing blows tear an arm off without killing (the zombie keeps coming)
+      if (this.hp > 0 && crit && heavy && !this.isBoss && !this.lostArm && this.rng.chance(0.3)) {
+        this.lostArm = true
+        ctx.gore.sever(this.humanoid, this.rng.chance(0.5) ? "armL" : "armR", dir, 1)
+      }
       ctx.audio.play(this.type.armor > 10 ? "hit_metal" : "hit_flesh", { x: hx, y: hy, z: hz, pitch: 0.9 + Math.random() * 0.2 })
       if (crit) ctx.audio.play("crit", { x: hx, y: hy, z: hz })
     }
@@ -810,9 +861,10 @@ export class Zombie {
     this.hp = 0
     this.state = "dead"
     this.deathTimer = 0
+    this.humanoid.clothMaterial.emissive.setHex(0x000000)
     this.animator.play(Math.random() < 0.5 ? "death_back" : "death_front", { restart: true })
+    this.gore()
     this.ctx.audio.play("zombie_die", { x: this.pos.x, y: this.pos.y + 1, z: this.pos.z, pitch: this.type.kind === "brute" || this.isBoss ? 0.6 : 0.9 + Math.random() * 0.3 })
-    this.ctx.particles.blood(this.pos.x, this.pos.y + 1, this.pos.z, 20)
     this.eyes.visible = false
     this.telegraph.visible = false
     events.emit("enemyKilled", { typeId: this.type.id, x: this.pos.x, z: this.pos.z, boss: this.isBoss, special: this.special ? this.type.id : undefined })
@@ -823,8 +875,40 @@ export class Zombie {
     }
   }
 
+  /** How the body comes apart depends on the killing blow: decapitation, lost limbs or bursting into pieces. */
+  private gore(): void {
+    const ctx = this.ctx
+    const g = ctx.gore
+    const h = this.lastHit
+    const dir = new THREE.Vector3(h.dx, 0.25, h.dz).normalize()
+    const cx = this.pos.x
+    const cy = this.pos.y + 1.1 * this.type.scale
+    const cz = this.pos.z
+    g.burst(cx, cy, cz, this.isBoss ? 80 : 40)
+    const hard = h.crit || h.heavy
+    const big = this.type.kind === "brute" || this.isBoss
+    const r = cosmetic.next()
+    if (!g.enabled) return
+    if (!this.isBoss && hard && (h.overkill > 25 || (this.type.kind === "brute" && r < 0.25)) && r < 0.45) {
+      // Overkill: the body bursts into pieces
+      g.explode(this.humanoid, dir, big ? 1.1 : 1.5)
+    } else if (r < (hard ? 0.45 : 0.25)) {
+      g.sever(this.humanoid, "head", dir, hard ? 1.4 : 1)
+    } else if (r < (hard ? 0.75 : 0.45)) {
+      g.sever(this.humanoid, cosmetic.chance(0.5) ? "armL" : "armR", dir, 1.1)
+      if (hard && cosmetic.chance(0.5)) g.sever(this.humanoid, "head", dir, 1)
+    } else if (r < (hard ? 0.9 : 0.55)) {
+      g.sever(this.humanoid, cosmetic.chance(0.5) ? "legL" : "legR", dir, 0.9)
+    }
+    // Close kills paint the screen and the weapon
+    const p = ctx.player
+    const d = Math.hypot(p.pos.x - cx, p.pos.z - cz)
+    if (d < 3) g.splatScreen(hard ? 0.9 : 0.5 * (1 - d / 3) + 0.2)
+    if (d < 4) g.bloodyWeapon(p.weaponObject)
+  }
+
   get finished(): boolean {
-    return this.dead && this.deathTimer > 18
+    return this.dead && this.deathTimer > 46
   }
 
   dispose(): void {
