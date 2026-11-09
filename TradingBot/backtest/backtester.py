@@ -3,8 +3,10 @@ import numpy as np, pandas as pd
 
 MIN_PER_DAY = 23 * 60  # trading day 00:00-22:59 German time
 
-def load(path):
-    df = pd.read_pickle(path)
+def load(path_or_df):
+    """Day x minute grids (German time, 00:00-22:59, Mon-Fri) from a pickle path or a DataFrame
+    with columns de (German time), o, h, l, c, gap."""
+    df = pd.read_pickle(path_or_df) if isinstance(path_or_df, str) else path_or_df.copy()
     df["day"] = df.de.dt.normalize()
     df["mi"] = df.de.dt.hour * 60 + df.de.dt.minute
     df = df[(df.mi < MIN_PER_DAY) & (df.de.dt.weekday < 5)]
