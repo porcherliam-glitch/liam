@@ -2,9 +2,27 @@
 
 Ein Expert Advisor (EA) für MetaTrader 5. Er entscheidet **nur einmal am Tag, um 13:15 Uhr deutscher Zeit**, ob er Gold kauft, verkauft oder nichts tut. Spätestens um **22:45 Uhr** schließt er den Trade.
 
-> **Wichtig:** Das ist kein Geldautomat. Der Test über 17 Jahre zeigt einen **kleinen** Vorteil, der statistisch **nicht bewiesen** ist (Abschnitt 2.2). Es gab auch Verlustjahre, zuletzt 2025. Zuerst im Strategietester prüfen, dann auf einem **Demokonto** oder im **Signal-Modus** laufen lassen. Nur Geld einsetzen, dessen Verlust du verkraften kannst. Das hier ist keine Anlageberatung.
+## Kurzfassung (ehrlich)
 
-**Version 1.10** (aktuell): neuer Signal-Modus ohne Orders, Handy-Benachrichtigungen, Protokoll-Datei und eine Live-Kontrolle, die das echte Ergebnis mit dem Backtest vergleicht.
+| Frage | Antwort |
+|---|---|
+| Funktioniert die Regel? | In **20 Jahren Gold-Daten** aus zwei Quellen positiv, auch in **zwei Zeiträumen, die bei der Entwicklung nie angesehen wurden** (2006–2009 und 2026). Bewiesen ist sie damit nicht: Die Rechnung lässt etwa 5–7 % Wahrscheinlichkeit, dass der wahre Vorteil null oder negativ ist. |
+| Wie viel bringt sie? | **Wenig.** Mit dem Standard (0,35 % Grundrisiko) etwa **+0,9 % pro Jahr**, größter Rückgang 8 %. Mit 1 % Grundrisiko etwa +2,6 % pro Jahr, aber bis zu 22 % Rückgang. 13 von 21 Jahren waren im Plus. |
+| Setzt der Bot die Regel richtig um? | Ein Nachbau des Bots in Python, Funktion für Funktion, hat über 20 Jahre an **99,5 % der Tage** genau so entschieden wie der Backtest. Den echten MetaEditor konnte ich in der Cloud nicht starten, also bitte selbst kompilieren (Abschnitt 3). |
+| Was ist das größte Risiko? | Eine **falsch eingestellte Broker-Zeitzone**. Damit wird aus Gewinn Verlust (Abschnitt 5). Danach kommen hohe Handelskosten. |
+| Nur Gold? | **Ja.** Auf 23 anderen Märkten (Devisen, Silber, Öl, DAX, S&P 500 …) funktioniert die Regel nicht. |
+
+> Zuerst im Strategietester, dann auf einem **Demokonto** oder im **Signal-Modus** testen. Nur Geld einsetzen, dessen Verlust du verkraften kannst. Das hier ist keine Anlageberatung.
+
+**Version 1.20** (aktuell):
+- **Größe nach Signalstärke:** Ein stärkeres Signal bekommt bis zu doppelt so viel Risiko.
+- **Eigene Berechnung der Tagesschwankung:** Der Bot rechnet sie über deutsche Handelstage und ist damit unabhängig davon, wie ein Broker seine Tageskerzen schneidet.
+
+Aus Version 1.10:
+- Signal-Modus ohne Orders
+- Handy-Nachrichten
+- Protokoll-Datei
+- Live-Kontrolle gegen den Backtest
 
 ---
 
@@ -12,7 +30,7 @@ Ein Expert Advisor (EA) für MetaTrader 5. Er entscheidet **nur einmal am Tag, u
 
 Um 13:15 Uhr schaut er auf zwei Dinge:
 
-1. **Wie weit ist Gold seit 00:00 Uhr gelaufen?** Gemessen wird in „ATR“, der durchschnittlichen Tagesschwankung der letzten 14 Tage.
+1. **Wie weit ist Gold seit 00:00 Uhr gelaufen?** Gemessen wird in „ATR“, der durchschnittlichen Tagesschwankung der letzten 14 Handelstage.
 2. **Ist der Markt gerade ruhig?** Die Schwankung der letzten 14 Tage (ATR14) darf nicht größer sein als die der letzten 100 Tage (ATR100).
 
 | Bedingung um 13:15 | Aktion |
@@ -21,53 +39,75 @@ Um 13:15 Uhr schaut er auf zwei Dinge:
 | Gold ist seit 00:00 um mehr als 0,4 ATR **gefallen** und der Markt ist ruhig | **Verkaufen** |
 | sonst | nichts tun |
 
-- **Stop-Loss:** 0,75 ATR vom Einstieg (aktuell etwa 40–70 USD pro Unze)
+- **Stop-Loss:** 0,75 ATR vom Einstieg (im November 2026 etwa 60 USD pro Unze)
 - **Take-Profit:** keiner. Der Gewinn läuft bis 22:45 Uhr.
 - **Ausstieg:** 22:45 Uhr deutsche Zeit, also vor der täglichen Handelspause um 23:00 Uhr.
+- **Größe:** Grundrisiko × Signalstärke. Bei einer Bewegung von 0,4 ATR gilt das 1-fache, bei 0,6 ATR das 1,5-fache, ab 0,8 ATR das 2-fache. Im Schnitt ist es das 1,5-fache des Grundrisikos.
 - **Häufigkeit:** etwa 35–40 Trades pro Jahr, also nur an etwa jedem siebten Handelstag
 
-**Warum das funktionieren kann:** Wenn Gold in einer ruhigen Marktphase schon bis zum Mittag klar in eine Richtung läuft, geht die Bewegung am Nachmittag etwas häufiger weiter als zurück. Am Nachmittag kommen die US-Wirtschaftsdaten (14:30 Uhr) und die US-Börseneröffnung (15:30 Uhr). In unruhigen Phasen ist die Morgenbewegung dagegen oft nur Rauschen. Dort handelt der Bot nicht.
+**Warum das funktionieren kann:** Wenn Gold in einer ruhigen Marktphase schon bis zum Mittag klar in eine Richtung läuft, geht die Bewegung am Nachmittag etwas häufiger weiter als zurück. Am Nachmittag kommen die US-Wirtschaftsdaten (14:30 Uhr) und die US-Börseneröffnung (15:30 Uhr). Je stärker die Bewegung bis 13:15 Uhr, desto besser war im Test das Ergebnis:
 
-## 2. Ehrliche Testergebnisse
+| Bewegung bis 13:15 Uhr | Ø pro Trade (HistData) | Ø pro Trade (OANDA) |
+|---|---|---|
+| 0,4 – 0,5 ATR | −0,03 R | −0,02 R |
+| 0,5 – 0,6 ATR | +0,04 R | +0,05 R |
+| über 0,6 ATR | +0,11 R | +0,09 R |
 
-Getestet mit echten Gold-Minutenkursen von **März 2009 bis Januar 2026**, mit Kosten (Spread und Ausführung) von etwa 0,40–0,60 USD pro Trade.
+*R = der Betrag, den ein Trade bis zum Stop-Loss riskiert.*
 
-Die Regeln wurden **nur mit 2009–2019 ausgesucht**. 2020–2026 hat die Auswahl nie gesehen. Das ist der eigentliche Test.
+## 2. Wie gut ist der Bot?
 
-| Zeitraum | Trades | Gewinn-Trades | Ø pro Trade | Profit-Faktor | größter Rückgang |
+### 2.1 Die Regel auf vier Zeiträumen und zwei Datenquellen
+
+Die Regel wurde nur mit **HistData 2009–2019** ausgesucht. Alles andere hat die Auswahl nie beeinflusst. Die Prüfregeln für Schritt 7 wurden **vor der ersten Auswertung festgelegt und committet** (Git-Commit „Prüfprotokoll Schritt 7 festgelegt“).
+
+| Zeitraum | Daten | Trades | Gewinn-Trades | Ø pro Trade | Profit-Faktor |
 |---|---|---|---|---|---|
-| 2009–2019 (Auswahl) | 402 | 49 % | +0,03 R | 1,10 | 13,6 R |
-| **2020–2026 (unabhängiger Test)** | **216** | **54 %** | **+0,07 R** | **1,28** | **9,4 R** |
+| **2006–2009, nie angesehen** (inkl. Finanzkrise) | OANDA | 75 | 53 % | +0,09 R | **1,40** |
+| 2009–2019 (Auswahl) | HistData | 402 | 49 % | +0,03 R | 1,10 |
+| 2009–2019 | OANDA | 429 | 48 % | +0,01 R | 1,02 |
+| 2020–2026 | HistData | 216 | 54 % | +0,07 R | 1,28 |
+| 2020–2026 | OANDA | 216 | 53 % | +0,09 R | 1,31 |
+| **2026, nie angesehen** (Jan–Nov) | OANDA | 38 | 61 % | +0,11 R | **1,66** |
 
-*R = der Betrag, den ein Trade bis zum Stop-Loss riskiert. Bei 1 % Risiko pro Trade ist 1 R = 1 % des Kontos.*
+### 2.2 Was du realistisch erwarten kannst
 
-**Pro Jahr (Summe in R, ohne die Umstellungswochen, siehe Abschnitt 8):**
+Nachbau des Bots mit 20 Jahren OANDA-Daten (2006–2026), Kosten 0,35 USD + 0,005 % vom Preis pro Trade, Gewinne mitverzinst:
 
-| 2009 | 2010 | 2011 | 2012 | 2013 | 2014 | 2015 | 2016 | 2017 | 2018 | 2019 | 2020 | 2021 | 2022 | 2023 | 2024 | 2025 |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| −1,9 | +4,6 | +1,8 | +2,4 | +5,7 | −1,9 | +1,2 | +0,6 | −0,5 | −4,2 | +4,3 | +8,9 | +8,5 | −1,3 | +1,9 | +3,8 | **−5,6** |
+| Grundrisiko | Ertrag pro Jahr | größter Rückgang | schlechtestes Jahr | bestes Jahr | 2026 bis Nov. |
+|---|---|---|---|---|---|
+| 0,25 % | +0,7 % | 5,9 % | −1,7 % | +4,6 % | +2,0 % |
+| **0,35 % (Standard)** | **+0,9 %** | **8,3 %** | **−2,5 %** | **+6,4 %** | **+2,7 %** |
+| 0,5 % | +1,4 % | 11,7 % | −3,5 % | +9,3 % | +3,9 % |
+| 0,75 % | +2,0 % | 17,2 % | −5,3 % | +14,2 % | +6,0 % |
+| 1,0 % | +2,6 % | 22,5 % | −7,0 % | +19,4 % | +8,1 % |
 
-11 von 17 Jahren im Plus.
+Mehr Risiko bringt mehr Ertrag, aber der Rückgang wächst im selben Verhältnis. **Ein Wert über 1 % ist nicht sinnvoll.** Der Bot erlaubt höchstens 5 % pro Trade, inklusive Signalstärke.
 
-**Mit 1 % Risiko pro Trade** (Gewinne werden mitverzinst): Das Konto wäre in knapp 17 Jahren um etwa **+29 %** gewachsen, also rund **1,6 % pro Jahr**. Der größte Rückgang vom Höchststand betrug **13 %**. Die längste Verlustserie waren 7 Trades hintereinander.
+### 2.3 Was dafür spricht
 
-Der Vorteil hängt stark an den **Kosten**. Bei doppelten Kosten bleibt fast nichts übrig, bei dreifachen ist die Regel im Minus. Ein Konto mit **niedrigem Spread auf Gold** ist deshalb Pflicht. Der Bot lässt Trades aus, wenn der Spread über 0,80 USD liegt.
-
-### 2.1 Was dafür spricht
-
-- **Beide Zeiträume positiv**, und der unabhängige Test 2020–2026 sogar besser als die Auswahl.
+- **Positiv in beiden unberührten Zeiträumen:** 113 Trades mit Ø +0,10 R.
 - **Stabil:** Alle 36 benachbarten Einstellungen waren 2009–2019 positiv, 35 von 36 auch 2020–2026. Einstieg um 13:00, 13:30, 12:15 oder 14:15 ist ebenfalls positiv.
-- **Kein Bullenmarkt-Trick:** Gold ist 2020–2025 stark gestiegen. Trotzdem waren die **Verkäufe** in beiden Zeiträumen besser als die Käufe (Ø +0,07 R gegenüber +0,02 R pro Trade). Nur kaufen bringt zwischen 13:15 und 22:45 etwa ±0. Der Gewinn kommt also aus der Fortsetzung der Bewegung, nicht aus dem Anstieg des Goldpreises.
+- **Kein Bullenmarkt-Trick:** Gold ist 2020–2025 stark gestiegen, trotzdem waren die **Verkäufe** in beiden Zeiträumen besser als die Käufe. Nur kaufen bringt zwischen 13:15 und 22:45 etwa ±0.
+- **Heute weniger kostenempfindlich:** Bei einem Goldpreis um 4.000 USD sind die Handelskosten im Verhältnis zum Stop viel kleiner als 2010–2019.
 
-### 2.2 Was dagegen spricht
+### 2.4 Was dagegen spricht
 
-- **Statistisch nicht bewiesen:** Über alle 618 Trades liegt der Schnitt bei +0,044 R, die 95-%-Spanne reicht aber von −0,016 bis +0,104 R. Die Wahrscheinlichkeit, dass der wahre Vorteil null oder negativ ist, liegt bei etwa **7 %**. Dazu kommt: Bei der Suche wurden viele Regeln ausprobiert, das erhöht das Risiko eines Zufallstreffers.
-- **Funktioniert nur bei Gold:** Exakt dieselbe Regel auf 23 anderen Märkten (Devisen, Silber, Öl, DAX, S&P 500, Nasdaq, FTSE, Nikkei und weitere) ergibt insgesamt **kein Plus**. Von den 7 Märkten, die 2009–2019 positiv waren, blieb danach nur Gold positiv. Ein Portfolio aus diesen Märkten hätte 2020–2025 verloren (−11,6 R). Den Bot deshalb **nur auf Gold** einsetzen.
-- **Jährliches Neu-Optimieren hilft nicht:** Wer die Einstellungen jedes Jahr an die Vergangenheit anpasst, kommt 2012–2025 auf +18,3 R, mit den festen Standardwerten auf +21,6 R.
+- **Statistisch nicht bewiesen:** Über alle Trades liegt die Wahrscheinlichkeit, dass der wahre Vorteil null oder negativ ist, bei etwa 7 %, auf den unberührten Daten bei 5 %. Dazu kommt: Bei der Suche wurden viele Regeln ausprobiert, das erhöht das Risiko eines Zufallstreffers.
+- **2009–2019 fast null** in den OANDA-Daten (Profit-Faktor 1,02). Das Ergebnis hängt also etwas vom Datenanbieter ab.
+- **Nur Gold:** Exakt dieselbe Regel auf 23 anderen Märkten ergibt insgesamt **kein Plus**. Ein vorher festgelegtes Portfolio aus den Märkten, die 2009–2019 positiv waren, hätte 2020–2025 verloren (−11,6 R).
+- **Abgelehnte Verbesserungen** (vorher festgelegte Prüfung):
+  - 24 Stunden halten
+  - Trendfolge um 13:15
+  - Trendfolge plus Grundregel
+  - jährliches Neu-Optimieren (+18,3 R statt +21,6 R mit festen Werten)
+  - Break-Even, Nachzieh-Stop und Take-Profit
+
+  Übernommen wurde nur die Größe nach Signalstärke, weil sie die vorher festgelegte Regel erfüllt hat. Ehrlich gesagt hilft sie vor allem ab 2020. Vor 2020 ist sie pro Trade etwa gleich gut, im Verhältnis zum größten Rückgang sogar leicht schlechter. Über 2006–2026 bringt sie bei gleichem Rückgang etwa 5–7 % mehr Ertrag.
 
 ## 3. Installation (Windows, MetaTrader 5)
 
-1. **MetaTrader 5** vom Broker installieren und ein **Demokonto** eröffnen (kostenlos). Am besten mit 10.000 USD Startkapital, siehe Abschnitt 6.
+1. **MetaTrader 5** vom Broker installieren und ein **Demokonto** eröffnen (kostenlos), siehe Abschnitt 6 zur Kontogröße.
 2. In MT5: **Datei → Dateiordner öffnen**. Dort in den Ordner `MQL5\Experts` gehen.
 3. Den Ordner **`Gold1315`** aus diesem Repo (`TradingBot/MQL5/Experts/Gold1315`) dorthin kopieren.
 4. Mit **F4** den **MetaEditor** öffnen, links unter *Experts → Gold1315* die Datei `Gold1315.mq5` doppelklicken und mit **F7** kompilieren.
@@ -84,19 +124,22 @@ Der Vorteil hängt stark an den **Kosten**. Bei doppelten Kosten bleibt fast nic
    - Zeitrahmen: egal, zum Beispiel M15
    - Zeitraum: **2020.01.01 bis heute**
    - Modellierung: **„Jeder Tick basierend auf echten Ticks“**
-   - Einzahlung: 10.000 USD
+   - Einzahlung: 100.000 USD (damit die kleinste Lotgröße nicht stört)
 3. Unter **Eingaben** die Broker-Zeitzone prüfen (Abschnitt 5) und dann **Start** klicken.
 4. Im Reiter **Journal** steht jeden Tag eine Zeile wie
    `13:15 Uhr: Bewegung seit 00:00 = +0.52 ATR (Grenze 0.40), ATR14/ATR100 = 0.87 (Grenze 1.00) -> KAUFEN`.
    Am Ende steht dort eine Zeile `Gold1315 Testergebnis: Bisher N Trades … = +x R (normal laut Backtest: … bis … R)`.
-   Damit siehst du sofort, ob dein Broker zum Backtest passt.
 5. Im Reiter **Backtest** stehen Gewinn, Profit-Faktor und Rückgang.
 
-**Erwartung:** etwa 35–40 Trades pro Jahr und ein Profit-Faktor um 1,1–1,3. Weicht es stark ab, ist meist die **Zeitzone** falsch eingestellt (Abschnitt 5) oder der Broker hat höhere Kosten.
+**Erwartung für 2020 bis heute** (Nachbau mit OANDA-Daten): etwa 37 Trades pro Jahr, 55 % Gewinn-Trades und ein Profit-Faktor um 1,45. Durch die Signalstärke ist der Profit-Faktor in Geld höher als in R (1,34). Rechne mit Abweichungen durch die Spreads deines Brokers.
+- Weicht es stark ab, ist meist die **Zeitzone** falsch eingestellt (Abschnitt 5) oder der Broker hat höhere Kosten.
+- Steht im Journal „Noch nicht genug Kursdaten“, fehlen dem Tester die Stundenkerzen vor dem Startdatum. Den Start dann ein halbes Jahr früher wählen und nur die Zeit ab 2020 bewerten.
 
-## 5. Zeitzone des Brokers (wichtig für den Tester)
+## 5. Zeitzone des Brokers (wichtigste Einstellung)
 
 Der Bot rechnet die Serverzeit des Brokers in deutsche Zeit um. **Live** misst er die Zeitzone automatisch. **Im Strategietester** geht das nicht, dort gelten die Eingaben.
+
+**Warum das so wichtig ist:** Im Nachbau mit 20 Jahren Daten lieferte der Bot bei richtiger Einstellung +31 R. Auf einem Broker mit UTC-Zeit, aber mit den Standard-Einstellungen, waren es −1,5 R. Er hätte zur falschen Uhrzeit entschieden und den Vorteil verloren.
 
 So findest du die richtige Einstellung: In MT5 die **Marktübersicht** öffnen (Strg+M). Die Uhrzeit oben ist die Serverzeit. Vergleiche sie mit der deutschen Uhrzeit:
 
@@ -106,6 +149,8 @@ So findest du die richtige Einstellung: In MT5 die **Marktübersicht** öffnen (
 | genau **gleich** | 1 | Europa |
 | immer **1 Stunde früher** | 0 | Europa |
 | im Winter 1 Stunde früher, im Sommer 2 Stunden früher | 0 | keine Sommerzeit |
+
+**Live zeigt der Bot oben im Chart die deutsche Uhrzeit an.** Stimmt sie nicht mit deiner Uhr überein, stimmt etwas nicht. Weicht die gemessene Zeitzone von der Einstellung ab, steht im Journal ein Hinweis. Dann die Einstellung anpassen, damit auch der Tester richtig rechnet.
 
 Die Zeitlogik ist mit der offiziellen Zeitzonen-Datenbank geprüft: für jede Stunde von 2009 bis 2030 und alle Zeilen der Tabelle. Das schließt die Wochen im März und im Oktober/November ein, in denen die USA und Europa die Uhr nicht gleichzeitig umstellen.
 
@@ -117,12 +162,20 @@ Die Zeitlogik ist mit der offiziellen Zeitzonen-Datenbank geprüft: für jede St
 4. Oben links im Chart stehen jetzt die deutsche Uhrzeit, was der Bot heute vorhat und die Live-Kontrolle (6.2).
 5. **Der PC und MT5 müssen von 13:15 bis 22:45 Uhr laufen.** Ist MT5 um 13:15 aus, gibt es an dem Tag keinen Trade. Ist MT5 um 22:45 aus, schließt der Bot den Trade beim nächsten Start. Der Stop-Loss liegt aber immer beim Broker und schützt auch bei ausgeschaltetem PC.
 
-**Kontogröße:** Gold ist „schwer“. Schon die kleinste Größe (0,01 Lot) riskiert pro Trade aktuell etwa **40–70 USD**. Bei 0,5 % Risiko braucht man dafür etwa **8.000–14.000 USD** auf dem Konto. Ist das Konto kleiner, lässt der Bot den Trade aus und schreibt im Journal „Lotgroesse zu klein“. Für das Demokonto: 10.000 USD und **Risiko 1 %** einstellen.
+**Kontogröße:** Gold ist „schwer“. Im November 2026 (Gold um 4.100 USD, ATR um 82 USD) riskiert schon die kleinste Größe (0,01 Lot) etwa **62 USD** pro Trade. Ist das Konto zu klein, lässt der Bot den Trade aus und schreibt „Lotgroesse zu klein“.
+
+| Grundrisiko | Konto für jedes Signal | Konto für die starken Signale |
+|---|---|---|
+| 0,35 % (Standard) | ab etwa 18.000 USD | ab etwa 9.000 USD |
+| 0,5 % | ab etwa 12.500 USD | ab etwa 6.200 USD |
+| 1,0 % | ab etwa 6.200 USD | ab etwa 3.100 USD |
+
+Für ein Demokonto mit 10.000 USD deshalb **Grundrisiko 1 %** einstellen. Das dient nur zum Testen der Technik, nicht als Empfehlung für echtes Geld.
 
 ### 6.1 Signal-Modus und Handy-Nachrichten
 
 - **Signal-Modus** (Einstellung *Betriebsart → Nur Signal melden*): Der Bot sendet **keine Orders**. Er meldet nur, was er tun würde, zum Beispiel
-  `SIGNAL VERKAUFEN Gold zu ca. 4012.35, Stop-Loss 4058.10, schliessen um 22:45 Uhr (0.02 Lot).` Um 22:45 Uhr kommt eine Erinnerung zum Schließen. So kannst du die Signale auch auf dem echten Konto ohne Risiko beobachten.
+  `SIGNAL VERKAUFEN Gold zu ca. 4012.35, Stop-Loss 4074.10, schliessen um 22:45 Uhr (0.03 Lot, Risiko x1.60).` Um 22:45 Uhr kommt eine Erinnerung zum Schließen. So kannst du die Signale auch auf dem echten Konto ohne Risiko beobachten.
 - **Handy-Nachrichten** (kostenlos):
   1. In der **MetaTrader-5-App** auf dem Handy unter *Einstellungen → Nachrichten* die **MetaQuotes-ID** ablesen.
   2. In MT5 auf dem PC unter **Extras → Optionen → Benachrichtigungen** „Push-Benachrichtigungen aktivieren“ anhaken und die ID eintragen.
@@ -149,7 +202,7 @@ Der Bot zählt alle eigenen abgeschlossenen Trades, rechnet sie in R um und zeig
 
 ### 6.3 Protokoll-Datei
 
-Jede Entscheidung und jeder Trade wird in **`Gold1315_journal.csv`** geschrieben (der Strategietester schreibt in `Gold1315_tester_journal.csv`). Der Ordner ist `%APPDATA%\MetaQuotes\Terminal\Common\Files`: diese Zeile in die Adressleiste des Windows-Explorers eingeben. Die Datei lässt sich mit Excel öffnen (Trennzeichen Semikolon).
+Jede Entscheidung und jeder Trade wird in **`Gold1315_journal.csv`** geschrieben (der Strategietester schreibt in `Gold1315_tester_journal.csv`). Der Ordner ist `%APPDATA%\MetaQuotes\Terminal\Common\Files`: diese Zeile in die Adressleiste des Windows-Explorers eingeben. Die Datei lässt sich mit Excel öffnen (Trennzeichen Semikolon). In der Spalte `note` steht bei Trades der Risiko-Faktor (`size x1.60`).
 
 ## 7. Alle Einstellungen
 
@@ -172,11 +225,13 @@ Jede Entscheidung und jeder Trade wird in **`Gold1315_journal.csv`** geschrieben
 | **Signal** | | |
 | Mindestbewegung | 0,4 ATR | Wie weit Gold seit 00:00 gelaufen sein muss |
 | Ruhe-Filter | 1,0 | Handelt nur, wenn ATR14 / ATR100 ≤ dieser Wert |
-| ATR kurz / lang | 14 / 100 Tage | Länge der Schwankungs-Messung |
+| ATR kurz / lang | 14 / 100 Tage | Länge der Schwankungs-Messung (deutsche Handelstage) |
 | Kaufen / Verkaufen erlaubt | an / an | Eine Richtung abschalten (nicht getestet) |
 | **Risiko** | | |
-| Risiko pro Trade | 0,5 % | Verlust beim Stop-Loss in % des Kontos. Empfehlung 0,25–1 %, mehr als 5 % ist gesperrt |
-| Feste Lotgröße | 0 (aus) | Statt Risiko-% immer dieselbe Lotgröße |
+| Grundrisiko pro Trade | 0,35 % | Verlust beim Stop-Loss in % des Kontos, bei einem Signal von genau 0,4 ATR |
+| Größe nach Signalstärke | an | Stärkeres Signal → mehr Risiko (Abschnitt 1) |
+| Höchstens so viel mal das Grundrisiko | 2,0 | Obergrenze für die Signalstärke (erlaubt: 1 bis 3) |
+| Feste Lotgröße | 0 (aus) | Statt Risiko-% immer dieselbe Lotgröße (dann ohne Signalstärke) |
 | Stop-Loss | 0,75 ATR | Abstand des Stop-Loss |
 | Take-Profit | 0 (aus) | Optionales Gewinnziel in ATR (nicht empfohlen, siehe Test) |
 | Höchster Spread | 0,80 USD | Bei höherem Spread kein Einstieg |
@@ -186,44 +241,61 @@ Jede Entscheidung und jeder Trade wird in **`Gold1315_journal.csv`** geschrieben
 
 **Sicherheits-Stopp zurücksetzen** (zum Beispiel nach einer Ein- oder Auszahlung): In MT5 **F3** drücken (Globale Variablen) und `Gold1315_peak_131500` löschen.
 
-**Bitte die Signal-Werte nicht „optimieren“.** Der MT5-Optimierer findet immer eine Einstellung, die in der Vergangenheit toll aussieht. In der Zukunft hilft das meistens nicht: Das jährliche Neu-Optimieren war im Test schlechter als die festen Werte (Abschnitt 2.2). Die Standardwerte liegen bewusst in der **Mitte** eines Bereichs, in dem alle Nachbarwerte ebenfalls funktioniert haben.
+**Bitte die Signal-Werte nicht „optimieren“.** Der MT5-Optimierer findet immer eine Einstellung, die in der Vergangenheit toll aussieht. In der Zukunft hilft das meistens nicht: Das jährliche Neu-Optimieren war im Test schlechter als die festen Werte. Die Standardwerte liegen bewusst in der **Mitte** eines Bereichs, in dem alle Nachbarwerte ebenfalls funktioniert haben.
 
 ## 8. Wie getestet wurde
 
-- **Daten:** XAUUSD-Minutenkerzen 2009–2026 (HistData-Format, Hugging-Face-Datensatz `fokan/xauusd-2009-2026`). Es ist der Bid-Kurs, der Spread wird als Kosten abgezogen. Für den Test auf anderen Märkten: dieselbe Quelle für 24 Märkte (`vessel888/histdata_fx_1m`, bis März 2025).
-- **Zeitzone der Daten:** Die Zeitzone wurde an den US-Arbeitsmarktdaten erkannt (immer 08:30 Uhr New York, dort springt Gold). Die Daten liegen in New Yorker Zeit, also deutsche Zeit minus 6 Stunden. In den Wochen, in denen die USA und Europa die Uhr nicht gleichzeitig umstellen, folgt der Datensatz je nach Jahr der US- oder der EU-Regel. Das wird pro Jahr automatisch erkannt. Bei der Regelsuche und in der Jahrestabelle sind diese Wochen zur Sicherheit weggelassen (571 Trades). Die Zeitraum-Tabelle und die Kontokurve enthalten sie (618 Trades). Die Ergebnisse sind fast gleich.
-- **Vorsichtige Annahmen:** Erreicht der Kurs in derselben Minute Stop-Loss und Ziel, zählt der Stop-Loss. Kosten 0,35 USD + 0,005 % vom Preis pro Trade (bei 4.000 USD Goldpreis also 0,55 USD).
-- **Auswahl ohne Selbstbetrug:** Regeln mit 2009–2019 ausgesucht, mit 2020–2026 geprüft. 36 Nachbar-Einstellungen geprüft: 36 von 36 waren 2009–2019 positiv, 35 von 36 auch 2020–2026.
-- **Verworfen:** Immer kaufen, gegen die Bewegung handeln, Break-Even, Nachzieh-Stop, Take-Profit, der Asien-Ausbruch als Filter, jährliches Neu-Optimieren und ein Bot für mehrere Märkte. Diese Varianten waren schlechter oder nicht stabil.
-- **Feiertage mit frühem Handelsschluss:** Tage, an denen die Kurse vor 22:30 Uhr enden (Feiertage, aber auch Datenlücken), betrafen nur 51 Trades mit zusammen +0,7 R. Ein eigener Feiertagsfilter bringt deshalb nichts messbares. Schließt der Markt vor 22:45 Uhr, schließt der Bot die Position beim ersten Kurs danach; bis dahin schützt der Stop-Loss.
+| Schritt | Skript | Ergebnis |
+|---|---|---|
+| 1 Regelsuche | `step1_rule_search.py` | Nur die Fortsetzung der Tagesbewegung ist in beiden Zeiträumen positiv |
+| 2 Filter und Ausstiege | `step2_filters_and_exits.py` | Ruhe-Filter hilft; Break-Even und Nachzieh-Stop nicht |
+| 3 Nachbar-Einstellungen | `step3_robustness.py` | 36/36 positiv (2009–19), 35/36 (2020–26) |
+| 4 Abschlussbericht | `step4_final_report.py` | Jahre, Kosten, andere Uhrzeiten, Kontokurve |
+| 5 Andere Märkte | `step5_other_markets.py` | Funktioniert nur bei Gold → kein Mehr-Märkte-Bot |
+| 6 Ehrlichkeits-Prüfungen | `step6_honesty_checks.py` | Kauf/Verkauf, Statistik, Walk-Forward, Feiertage |
+| 7 Neue Daten und Kandidaten | `step7_fresh_data_and_candidates.py` | Unberührte Zeiträume positiv; Signalstärke übernommen |
+| 8 Bot gegen Backtest | `step8_ea_vs_backtest.py` | 99,5 % gleiche Entscheidungen; falsche Zeitzone kostet den Vorteil |
+
+- **Daten:**
+  - **HistData** (`fokan/xauusd-2009-2026`): XAUUSD-Minutenkerzen März 2009 bis Januar 2026, Bid-Kurs, Zeitzone New York.
+  - **OANDA** (`bunqi/OANDA_XAUUSD_Gold`): März 2006 bis November 2026, Zeitstempel in UTC.
+  - **Andere Märkte:** `vessel888/histdata_fx_1m`, bis März 2025.
+- **Zeitzone der HistData-Daten:** Die Zeitzone wurde an den US-Arbeitsmarktdaten erkannt (immer 08:30 Uhr New York, dort springt Gold). In den Wochen, in denen die USA und Europa die Uhr nicht gleichzeitig umstellen, folgt der Datensatz je nach Jahr der US- oder der EU-Regel. Das wird pro Jahr automatisch erkannt.
+- **Vorsichtige Annahmen:** Erreicht der Kurs in derselben Minute Stop-Loss und Ziel, zählt der Stop-Loss. Kosten pro Trade: 0,35 USD + 0,005 % vom Preis.
+- **Der Bot-Nachbau** (`ea_simulator.py`) ist eine Python-Kopie der Bot-Funktionen. Er rechnet in Serverzeit, mit Stop-Loss beim Broker, Ausführung bei Kurslücken, Lotgrößen und Kontostand.
 - **Selbst nachrechnen** (Linux/macOS mit Python 3, pandas, numpy, pyarrow):
   ```bash
   cd TradingBot/backtest
-  ./download_data.sh                                        # lädt ~390 MB Gold-Kursdaten nach data/
+  ./download_data.sh                                        # lädt ~390 MB HistData-Golddaten nach data/
   export XAU_DATA=data/xau_m1_de.pkl
-  python3 step1_rule_search.py                              # welche Regel um 13:15?
-  python3 step2_filters_and_exits.py                        # Filter und Ausstiegs-Varianten
-  python3 step3_robustness.py                               # Nachbar-Einstellungen
-  python3 step4_final_report.py                             # Jahre, Kosten, Uhrzeit, Kontokurve
-  python3 step6_honesty_checks.py                           # Kauf/Verkauf, Statistik, Walk-Forward
-  # step5_other_markets.py braucht die 24 Märkte aus vessel888/histdata_fx_1m in data/multi (~1,3 GB)
-  python3 test_time_logic.py && python3 test_backtester.py && python3 test_mql5_static.py
+  python3 step1_rule_search.py                              # … bis step4_final_report.py, step6_honesty_checks.py
+  # step5 braucht die 24 Märkte aus vessel888/histdata_fx_1m in data/multi (~1,3 GB)
+  ./download_oanda.sh                                       # OANDA-Golddaten 2006-heute (~170 MB) für step7 und step8
+  python3 step7_fresh_data_and_candidates.py && python3 step8_ea_vs_backtest.py
+  python3 test_time_logic.py && python3 test_backtester.py && python3 test_mql5_static.py && python3 test_ea_simulator.py
   ```
 
+**Tests** (alle grün):
+
+| Test | Was er prüft |
+|---|---|
+| `test_time_logic.py` | Zeitzonen-Logik des Bots gegen die Zeitzonen-Datenbank, jede Stunde 2009–2030, drei Broker-Typen |
+| `test_backtester.py` | Backtest-Rechner mit konstruierten Kursverläufen |
+| `test_ea_simulator.py` | 10 Verhaltens-Tests des Bot-Nachbaus: Kauf, Verkauf, Stop im Kerzenverlauf und durch Kurslücke, Ausstieg 22:45, schwaches Signal, fehlende 13:15-Kerze, Ruhe-Filter, Lotgröße |
+| `test_mql5_static.py` | MQL5-Code: Klammern, ASCII, jede Funktion und Konstante gegen eine geprüfte MQL5-Liste, Ereignis-Funktionen |
+
 **Noch nicht geprüft:**
-- Der MQL5-Code wurde in der Cloud nicht im echten MetaEditor kompiliert. Geprüft sind die Zeitlogik (per Test gegen die Zeitzonen-Datenbank) und der Code statisch: Klammern, und jede verwendete Funktion und Konstante gegen eine geprüfte MQL5-Liste. Schritt 3.4 (F7) ist der erste echte Kompiliertest.
-- Der Python-Backtest nutzt Minutenkerzen. Der MT5-Tester mit echten Ticks und den Spreads deines Brokers ist genauer und kann etwas andere Zahlen liefern.
+- **Kein echter Compiler-Lauf:** Der MQL5-Code wurde in der Cloud nicht im echten MetaEditor kompiliert. Schritt 3.4 (F7) ist der erste echte Kompiliertest.
+- **Nachbau statt MT5:** Der Bot-Nachbau zeigt, dass die Logik stimmt. Er ersetzt aber nicht den MT5-Strategietester mit echten Ticks und den Spreads deines Brokers.
 
 ## Dateien
 
 | Datei | Inhalt |
 |---|---|
 | `MQL5/Experts/Gold1315/Gold1315.mq5` | Der Bot (kommt in MT5 nach `MQL5\Experts\Gold1315\`) |
-| `backtest/download_data.sh`, `prepare_data.py` | Kursdaten laden, Zeitzone erkennen, in deutsche Zeit umrechnen |
+| `backtest/download_data.sh`, `prepare_data.py` | HistData-Kursdaten laden, Zeitzone erkennen, in deutsche Zeit umrechnen |
+| `backtest/download_oanda.sh` | OANDA-Kursdaten laden (für Schritt 7 und 8) |
 | `backtest/backtester.py` | Backtest-Rechner (ein Einstieg pro Tag, Stop-Loss, Ziel, Zeitausstieg) |
-| `backtest/step1…step4_*.py` | Regelsuche, Filter, Nachbar-Prüfung, Abschlussbericht |
-| `backtest/step5_other_markets.py` | Dieselbe Regel auf 23 anderen Märkten (vorher festgelegtes Protokoll) |
-| `backtest/step6_honesty_checks.py` | Kauf/Verkauf getrennt, statistische Sicherheit, Walk-Forward, Feiertage |
-| `backtest/test_time_logic.py` | Prüft die Zeitzonen-Logik des Bots gegen die Zeitzonen-Datenbank |
-| `backtest/test_backtester.py` | Prüft den Backtest-Rechner mit konstruierten Kursverläufen |
-| `backtest/test_mql5_static.py` | Statische Prüfung des MQL5-Codes (Klammern, Funktionen, Konstanten) |
+| `backtest/ea_simulator.py` | Python-Nachbau des Bots mit simuliertem MT5-Broker |
+| `backtest/step1…step8_*.py` | Die acht Untersuchungsschritte aus Abschnitt 8 |
+| `backtest/test_*.py` | Die vier Testdateien aus Abschnitt 8 |

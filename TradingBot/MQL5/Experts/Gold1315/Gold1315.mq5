@@ -5,20 +5,26 @@
 //|  Makes exactly one decision per day at 13:15 German time         |
 //|  (Europe/Berlin, CET/CEST) and closes the trade at 22:45.        |
 //|                                                                  |
-//|  Rule (tested on XAUUSD M1 data 2009-2026, see README.md):       |
-//|   move = (bid at 13:15 - price at 00:00 German time) / ATR14(D1) |
-//|   trade only if |move| > 0.4 and ATR14(D1) / ATR100(D1) <= 1.0   |
+//|  Rule (tested on XAUUSD M1 data 2006-2026, see README.md):       |
+//|   ATRn = mean true range of the last n German trading days       |
+//|   move = (bid at 13:15 - price at 00:00 German time) / ATR14     |
+//|   trade only if |move| > 0.4 and ATR14 / ATR100 <= 1.0           |
 //|   direction = sign(move), stop = 0.75 * ATR14, no take profit,   |
 //|   exit at 22:45 German time.                                     |
 //|                                                                  |
 //|  1.10: signal-only mode, push notifications, CSV journal,        |
 //|        live check of the results against the backtest range.     |
+//|  1.20: risk scales with signal strength: base risk x             |
+//|        min(|move| / 0.4, 2) (pre-registered test, step 7);       |
+//|        ATR from H1 bars per German trading day instead of the    |
+//|        broker's D1 bars (Sunday candles distorted iATR, step 8). |
 //+------------------------------------------------------------------+
 #property copyright   "porcherliam-glitch/liam"
-#property version     "1.10"
+#property version     "1.20"
 #property description "Gold 13:15 Momentum: entscheidet nur einmal am Tag um 13:15 Uhr deutscher Zeit."
 #property description "Handelt in Richtung der Bewegung seit 00:00 Uhr, wenn sie groesser als 0,4 ATR ist"
 #property description "und der Markt ruhig ist (ATR14 <= ATR100). Stop 0,75 ATR, Ausstieg 22:45 Uhr."
+#property description "Staerkere Signale bekommen mehr Risiko (bis zum Doppelten des Grundrisikos)."
 #property description "Erst im Strategietester und auf einem Demokonto pruefen!"
 
 #include <Trade\Trade.mqh>
@@ -72,8 +78,10 @@ input bool          InpAllowLong        = true;   // Kaufen erlaubt
 input bool          InpAllowShort       = true;   // Verkaufen erlaubt
 
 input group "Risiko"
-input double        InpRiskPercent      = 0.5;    // Risiko pro Trade in % vom Kontowert (Equity)
-input double        InpFixedLots        = 0.0;    // Feste Lotgroesse (0 = Risiko-% verwenden)
+input double        InpRiskPercent      = 0.35;   // Grundrisiko pro Trade in % vom Kontowert (Equity)
+input bool          InpStrengthSizing   = true;   // Groesse nach Signalstaerke (starkes Signal = mehr Risiko)
+input double        InpMaxSizeFactor    = 2.0;    // Hoechstens so viel mal das Grundrisiko
+input double        InpFixedLots        = 0.0;    // Feste Lotgroesse (0 = Risiko-% verwenden; ohne Signalstaerke)
 input double        InpStopATR          = 0.75;   // Stop-Loss-Abstand (x ATR14)
 input double        InpTakeProfitATR    = 0.0;    // Take-Profit-Abstand (x ATR14, 0 = aus)
 input double        InpMaxSpread        = 0.80;   // Hoechster Spread in Preis-Einheiten (bei Gold: USD)
@@ -98,8 +106,6 @@ struct DeClock
 
 //--- globals
 CTrade   g_trade;
-int      g_hAtrFast       = INVALID_HANDLE;
-int      g_hAtrSlow       = INVALID_HANDLE;
 datetime g_doneDay        = 0;      // German day whose entry decision is finished
 datetime g_attemptDay     = 0;
 int      g_attempts       = 0;
@@ -108,6 +114,7 @@ long     g_offsetWarnDay  = -1;
 datetime g_statusDay      = 0;
 string   g_status         = "";
 datetime g_signalDay      = 0;      // signal mode: day of the last signal
+datetime g_dataWarnDay    = 0;      // day of the last "not enough price data" message
 bool     g_signalExitSent = false;  // signal mode: exit reminder already sent
 int      g_statTrades     = 0;      // closed trades of this expert
 int      g_statRTrades    = 0;      // ... of which the initial risk is known
@@ -324,15 +331,59 @@ void UpdateComment(const DeClock &c)
 //+------------------------------------------------------------------+
 //| Market data                                                      |
 //+------------------------------------------------------------------+
-bool ReadAtr(double &atrFast, double &atrSlow)
+//--- average true range over German trading days (Mon-Fri, 00:00-23:00 German time), built from H1 bars.
+//--- Same definition as the backtest and independent of how the broker cuts its D1 bars
+//--- (some brokers have small Saturday or Sunday candles that would distort iATR on D1).
+bool ReadAtr(const DeClock &c, double &atrFast, double &atrSlow)
   {
-   double a[], b[];
-   if(CopyBuffer(g_hAtrFast, 0, 1, 1, a) != 1)
+   datetime todayServer = GermanToServer(c, c.germanDay);
+   long spanDays = (long)InpAtrSlow * 7 / 5 + 30;                 // calendar days for InpAtrSlow + 1 trading days
+   datetime from = (datetime)((long)todayServer - spanDays * 86400);
+   MqlRates r[];
+   int n = CopyRates(_Symbol, PERIOD_H1, from, (datetime)((long)todayServer - 1), r);
+   if(n <= 0)
       return false;
-   if(CopyBuffer(g_hAtrSlow, 0, 1, 1, b) != 1)
+   long anchor = c.srvOffset - RuleServerOffset(c.server);       // live: measured offset vs. configured rule
+   double hi[], lo[], cl[];
+   int days = 0;
+   long curDay = -1;
+   for(int i = 0; i < n; i++)
+     {
+      long gmt  = (long)r[i].time - (RuleServerOffset(r[i].time) + anchor);
+      long g    = gmt + (IsEuDst((datetime)gmt) ? 7200 : 3600);
+      long gDay = g - g % 86400;
+      int  dow  = DowOf((datetime)g);
+      if(dow == 0 || dow == 6 || (g - gDay) >= 23 * 3600)
+         continue;
+      if(gDay != curDay)
+        {
+         days++;
+         ArrayResize(hi, days, 256);
+         ArrayResize(lo, days, 256);
+         ArrayResize(cl, days, 256);
+         hi[days - 1] = r[i].high;
+         lo[days - 1] = r[i].low;
+         curDay = gDay;
+        }
+      else
+        {
+         hi[days - 1] = MathMax(hi[days - 1], r[i].high);
+         lo[days - 1] = MathMin(lo[days - 1], r[i].low);
+        }
+      cl[days - 1] = r[i].close;
+     }
+   if(days < InpAtrSlow + 1)
       return false;
-   atrFast = a[0];
-   atrSlow = b[0];
+   double sumFast = 0.0, sumSlow = 0.0;
+   for(int k = days - InpAtrSlow; k < days; k++)
+     {
+      double tr = MathMax(hi[k], cl[k - 1]) - MathMin(lo[k], cl[k - 1]);
+      sumSlow += tr;
+      if(k >= days - InpAtrFast)
+         sumFast += tr;
+     }
+   atrFast = sumFast / InpAtrFast;
+   atrSlow = sumSlow / InpAtrSlow;
    return atrFast > 0.0 && atrSlow > 0.0;
   }
 
@@ -514,8 +565,16 @@ int VolumeDigits(const double step)
    return digits;
   }
 
-//--- lot size so that a stop-out loses InpRiskPercent of equity (or the fixed lot size)
-double CalcLots(const ENUM_ORDER_TYPE type, const double price, const double sl, const bool verbose)
+//--- risk multiplier for a signal: |move| / threshold, between 1 and InpMaxSizeFactor
+double SizeFactor(const double move)
+  {
+   if(!InpStrengthSizing || InpMomentumATR <= 0.0)
+      return 1.0;
+   return MathMax(1.0, MathMin(MathAbs(move) / InpMomentumATR, InpMaxSizeFactor));
+  }
+
+//--- lot size so that a stop-out loses InpRiskPercent x riskFactor of equity (or the fixed lot size)
+double CalcLots(const ENUM_ORDER_TYPE type, const double price, const double sl, const double riskFactor, const bool verbose)
   {
    double vMin  = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MIN);
    double vMax  = SymbolInfoDouble(_Symbol, SYMBOL_VOLUME_MAX);
@@ -531,7 +590,7 @@ double CalcLots(const ENUM_ORDER_TYPE type, const double price, const double sl,
          Print("Lotgroesse konnte nicht berechnet werden (OrderCalcProfit).");
          return 0.0;
         }
-      double riskMoney = AccountInfoDouble(ACCOUNT_EQUITY) * InpRiskPercent / 100.0;
+      double riskMoney = AccountInfoDouble(ACCOUNT_EQUITY) * InpRiskPercent * riskFactor / 100.0;
       lots = riskMoney / MathAbs(profitPerLot);
      }
    lots = MathFloor(lots / vStep + 1e-9) * vStep;
@@ -626,8 +685,16 @@ void TryEntry(const DeClock &c)
      }
 
    double atrFast = 0.0, atrSlow = 0.0, midnight = 0.0;
-   if(!ReadAtr(atrFast, atrSlow) || !GermanMidnightPrice(c, midnight))
+   if(!ReadAtr(c, atrFast, atrSlow) || !GermanMidnightPrice(c, midnight))
      {
+      if(g_dataWarnDay != c.germanDay)
+        {
+         g_dataWarnDay = c.germanDay;
+         int windowEnd = InpEntryHour * 60 + InpEntryMinute + InpEntryWindowMin;
+         PrintFormat("Noch nicht genug Kursdaten: Fuer die Tagesschwankung braucht der Bot Stundenkerzen der letzten "
+                     "%d Handelstage (etwa %d Kalendertage) und die Minutenkerzen seit 00:00 Uhr. Neuer Versuch bis %s Uhr.",
+                     InpAtrSlow + 1, InpAtrSlow * 7 / 5 + 30, HhMm(windowEnd / 60, windowEnd % 60));
+        }
       SetStatus(c, "warte auf Kursdaten ...");
       return;   // try again on the next tick inside the entry window
      }
@@ -677,15 +744,17 @@ void TryEntry(const DeClock &c)
 
    ENUM_ORDER_TYPE type = (dir > 0) ? ORDER_TYPE_BUY : ORDER_TYPE_SELL;
    double price = (dir > 0) ? ask : bid;
-   double lots = CalcLots(type, price, sl, trading);
+   double factor = SizeFactor(move);
+   double lots = CalcLots(type, price, sl, factor, trading);
    string exitText = HhMm(InpExitHour, InpExitMinute);
+   string sizeNote = StringFormat("size x%.2f", factor);
 
    if(!trading)
      {
-      string lotText = (lots > 0.0) ? StringFormat("%.2f Lot", lots) : "Konto zu klein fuer das Risiko";
+      string lotText = (lots > 0.0) ? StringFormat("%.2f Lot, Risiko x%.2f", lots, factor) : "Konto zu klein fuer das Risiko";
       Notify(StringFormat("SIGNAL %s Gold zu ca. %s, Stop-Loss %s, schliessen um %s Uhr (%s).",
                           side, DoubleToString(price, _Digits), DoubleToString(sl, _Digits), exitText, lotText));
-      Journal("signal", side, move, volRatio, lots, price, sl, EMPTY_VALUE, EMPTY_VALUE, "signal mode, no order");
+      Journal("signal", side, move, volRatio, lots, price, sl, EMPTY_VALUE, EMPTY_VALUE, "signal mode, no order, " + sizeNote);
       g_signalDay      = c.germanDay;
       g_signalExitSent = false;
       FinishDay(c, StringFormat("SIGNAL %s, Stop %s", side, DoubleToString(sl, _Digits)));
@@ -694,7 +763,7 @@ void TryEntry(const DeClock &c)
 
    if(lots <= 0.0)
      {
-      Journal("lots_too_small", side, move, volRatio, 0.0, price, sl, EMPTY_VALUE, EMPTY_VALUE, "");
+      Journal("lots_too_small", side, move, volRatio, 0.0, price, sl, EMPTY_VALUE, EMPTY_VALUE, sizeNote);
       Notify("Signal " + side + ", aber die Lotgroesse ist zu klein fuer das eingestellte Risiko. Kein Trade.");
       FinishDay(c, "Signal, aber Lotgroesse zu klein (siehe Journal)");
       return;
@@ -706,10 +775,10 @@ void TryEntry(const DeClock &c)
    if(sent && (rc == TRADE_RETCODE_DONE || rc == TRADE_RETCODE_PLACED || rc == TRADE_RETCODE_DONE_PARTIAL))
      {
       double fill = g_trade.ResultPrice();
-      Notify(StringFormat("%s %.2f Lot Gold zu %s, Stop-Loss %s, Ausstieg spaetestens %s Uhr.",
-                          dir > 0 ? "Gekauft" : "Verkauft", lots, DoubleToString(fill, _Digits),
+      Notify(StringFormat("%s %.2f Lot Gold zu %s (Risiko x%.2f), Stop-Loss %s, Ausstieg spaetestens %s Uhr.",
+                          dir > 0 ? "Gekauft" : "Verkauft", lots, DoubleToString(fill, _Digits), factor,
                           DoubleToString(sl, _Digits), exitText));
-      Journal("entry", side, move, volRatio, lots, fill, sl, EMPTY_VALUE, EMPTY_VALUE, "");
+      Journal("entry", side, move, volRatio, lots, fill, sl, EMPTY_VALUE, EMPTY_VALUE, sizeNote);
       FinishDay(c, StringFormat("%s %.2f Lot, Stop %s", dir > 0 ? "KAUF" : "VERKAUF", lots, DoubleToString(sl, _Digits)));
       return;
      }
@@ -737,9 +806,16 @@ int OnInit()
       Print("Einstellungen ungueltig: Die Ausstiegszeit muss am selben Tag nach dem Einstiegsfenster liegen.");
       return INIT_PARAMETERS_INCORRECT;
      }
-   if(InpFixedLots <= 0.0 && (InpRiskPercent <= 0.0 || InpRiskPercent > 5.0))
+   if(InpMaxSizeFactor < 1.0 || InpMaxSizeFactor > 3.0)
      {
-      Print("Einstellungen ungueltig: Risiko pro Trade muss zwischen 0 und 5 % liegen (empfohlen 0,25 bis 1 %).");
+      Print("Einstellungen ungueltig: 'Hoechstens so viel mal das Grundrisiko' muss zwischen 1 und 3 liegen.");
+      return INIT_PARAMETERS_INCORRECT;
+     }
+   double maxRisk = InpRiskPercent * (InpStrengthSizing ? InpMaxSizeFactor : 1.0);
+   if(InpFixedLots <= 0.0 && (InpRiskPercent <= 0.0 || maxRisk > 5.0))
+     {
+      Print("Einstellungen ungueltig: Das hoechste Risiko pro Trade (Grundrisiko x Faktor) muss zwischen 0 und 5 % liegen "
+            "(empfohlen: Grundrisiko 0,25 bis 0,5 %).");
       return INIT_PARAMETERS_INCORRECT;
      }
    if(InpStopATR <= 0.0 || InpMomentumATR < 0.0 || InpMaxVolRatio <= 0.0 || InpAtrFast < 1 || InpAtrSlow <= InpAtrFast)
@@ -759,14 +835,6 @@ int OnInit()
    if(InpMode == RUN_TRADE && (tradeMode == SYMBOL_TRADE_MODE_DISABLED || tradeMode == SYMBOL_TRADE_MODE_CLOSEONLY))
       PrintFormat("Warnung: %s ist bei diesem Broker nicht voll handelbar.", _Symbol);
 
-   g_hAtrFast = iATR(_Symbol, PERIOD_D1, InpAtrFast);
-   g_hAtrSlow = iATR(_Symbol, PERIOD_D1, InpAtrSlow);
-   if(g_hAtrFast == INVALID_HANDLE || g_hAtrSlow == INVALID_HANDLE)
-     {
-      Print("ATR-Indikator konnte nicht erstellt werden.");
-      return INIT_FAILED;
-     }
-
    g_trade.SetExpertMagicNumber((ulong)InpMagic);
    g_trade.SetDeviationInPoints((ulong)InpSlippagePoints);
    g_trade.SetTypeFillingBySymbol(_Symbol);
@@ -776,8 +844,14 @@ int OnInit()
 
    DeClock c;
    GetClock(TimeCurrent(), c);
-   PrintFormat("Gold1315 1.10 gestartet auf %s (%s). Entscheidung um %s Uhr, Ausstieg %s Uhr (deutsche Zeit). "
-               "Server GMT%+.1f, jetzt in Deutschland %s. Risiko %.2f%% pro Trade.",
+   double atrFast = 0.0, atrSlow = 0.0;                         // also starts the download of the H1 history
+   if(ReadAtr(c, atrFast, atrSlow))
+      PrintFormat("Tagesschwankung: ATR%d = %.2f, ATR%d = %.2f, Ruhe-Wert %.2f (gehandelt wird bei hoechstens %.2f).",
+                  InpAtrFast, atrFast, InpAtrSlow, atrSlow, atrFast / atrSlow, InpMaxVolRatio);
+   else
+      Print("Stundenkerzen fuer die Tagesschwankung werden noch geladen.");
+   PrintFormat("Gold1315 1.20 gestartet auf %s (%s). Entscheidung um %s Uhr, Ausstieg %s Uhr (deutsche Zeit). "
+               "Server GMT%+.1f, jetzt in Deutschland %s. Grundrisiko %.2f%% pro Trade.",
                _Symbol, InpMode == RUN_SIGNAL_ONLY ? "NUR SIGNALE" : "handelt",
                HhMm(InpEntryHour, InpEntryMinute), HhMm(InpExitHour, InpExitMinute),
                c.srvOffset / 3600.0, TimeToString(c.german, TIME_DATE | TIME_MINUTES), InpRiskPercent);
@@ -787,10 +861,6 @@ int OnInit()
 
 void OnDeinit(const int reason)
   {
-   if(g_hAtrFast != INVALID_HANDLE)
-      IndicatorRelease(g_hAtrFast);
-   if(g_hAtrSlow != INVALID_HANDLE)
-      IndicatorRelease(g_hAtrSlow);
    if(MQLInfoInteger(MQL_TESTER))
       PrintFormat("Gold1315 Testergebnis: %s. Backtest-Erwartung: im Schnitt %+.3f R pro Trade.", StatsText(), BT_MEAN_R);
    Comment("");
